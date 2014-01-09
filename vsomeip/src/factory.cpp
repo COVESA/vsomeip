@@ -9,15 +9,13 @@
 // Copyright © 2013 Bayerische Motoren Werke AG (BMW). 
 // All rights reserved.
 //
-
-#include <vsomeip/factory.h>
-
-#include <vsomeip/factoryimpl.h>
+#include <vsomeip/factory.hpp>
+#include <vsomeip/impl/factory_impl.hpp>
 
 namespace vsomeip {
 
-Factory* Factory::getDefaultFactory() {
-	return FactoryImpl::getDefaultFactory();
+factory* factory::get_default_factory() {
+	return factory_impl::get_default_factory();
 }
 
 } // namespace vsomeip
