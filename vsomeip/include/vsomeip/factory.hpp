@@ -13,16 +13,22 @@
 #ifndef VSOMEIP_FACTORY_HPP
 #define VSOMEIP_FACTORY_HPP
 
+#include <vsomeip/message.hpp>
+#include <vsomeip/serializer.hpp>
+#include <vsomeip/deserializer.hpp>
+
 namespace vsomeip {
 
 class message;
 
 class factory {
 public:
-	virtual ~factory() {};
 	static factory * get_default_factory();
+	virtual ~factory() {};
 
 	virtual message * create_message() const = 0;
+	virtual serializer * create_serializer() const = 0;
+	virtual deserializer * create_deserializer(uint8_t *_data = 0, uint32_t _length = 0) const = 0;
 };
 
 }; // namespace vsomeip

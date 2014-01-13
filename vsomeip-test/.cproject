@@ -27,9 +27,7 @@
 								<option id="gnu.cpp.compiler.exe.debug.option.debugging.level.1986935713" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.623109034" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip/src/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-sd/src/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-sd/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-service-discovery/include}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.other.958327951" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -std=c++11" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.other.pic.339648754" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
@@ -44,11 +42,11 @@
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1413541065" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option id="gnu.cpp.link.option.paths.1686689694" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip/Debug}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-sd/Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-service-discovery/Debug}&quot;"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.734864032" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="vsomeip-sd"/>
 									<listOptionValue builtIn="false" value="vsomeip"/>
+									<listOptionValue builtIn="false" value="vsomeip-service-discovery"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1095512920" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
