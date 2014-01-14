@@ -45,6 +45,12 @@ enum class return_code : uint8_t {
 	UNKNOWN = 0xFF
 };
 
+enum class ip_protocol : uint8_t {
+	TCP = 0x06,
+	UDP = 0x11,
+	UNKNOWN = 0xFF
+};
+
 } // namespace vsomeip
 
 #endif // ENUMERATION_TYPES_HPP

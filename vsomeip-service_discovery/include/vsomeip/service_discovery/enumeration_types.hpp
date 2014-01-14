@@ -18,12 +18,6 @@
 namespace vsomeip {
 namespace service_discovery {
 
-enum class ip_protocol : uint8_t {
-	TCP = 0x06,
-	UDP = 0x11,
-	UNKNOWN = 0xFF
-};
-
 enum class option_type : uint8_t {
 	CONFIGURATION = 0x1,
 	LOAD_BALANCING = 0x2,

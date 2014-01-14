@@ -15,7 +15,6 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/serializable.hpp>
-#include <vsomeip/service_discovery/primitive_types.hpp>
 #include <vsomeip/service_discovery/enumeration_types.hpp>
 
 namespace vsomeip {

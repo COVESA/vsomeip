@@ -13,8 +13,8 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_PROTECTION_OPTION_HPP
 #define VSOMEIP_SERVICE_DISCOVERY_PROTECTION_OPTION_HPP
 
+#include <vsomeip/primitive_types.hpp>
 #include <vsomeip/service_discovery/option.hpp>
-#include <vsomeip/service_discovery/primitive_types.hpp>
 
 namespace vsomeip {
 namespace service_discovery {
@@ -25,10 +25,10 @@ public:
 	virtual ~protection_option() {};
 
 	virtual alive_counter get_alive_counter() const = 0;
-	virtual void set_alive_counter(alive_counter a) = 0;
+	virtual void set_alive_counter(alive_counter _counter) = 0;
 
 	virtual crc get_crc() const = 0;
-	virtual void set_crc(crc c) = 0;
+	virtual void set_crc(crc _crc) = 0;
 };
 
 } // namespace service_discovery

@@ -13,8 +13,8 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_LOADBALANCINGOPTION_HPP
 #define VSOMEIP_SERVICE_DISCOVERY_LOADBALANCINGOPTION_HPP
 
+#include <vsomeip/primitive_types.hpp>
 #include <vsomeip/service_discovery/option.hpp>
-#include <vsomeip/service_discovery/primitive_types.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

@@ -14,7 +14,7 @@
 #define VSOMEIP_SERVICE_DISCOVERY_MESSAGE_HPP
 
 #include <vsomeip/message_base.hpp>
-#include <vsomeip/service_discovery/primitive_types.hpp>
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

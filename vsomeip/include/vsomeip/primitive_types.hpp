@@ -30,6 +30,25 @@ typedef uint16_t session_id;
 typedef uint8_t protocol_version;
 typedef uint8_t interface_version;
 
+typedef uint8_t flags;
+typedef uint8_t event_type;
+typedef uint8_t option_index;
+typedef uint16_t instance_id;
+typedef uint8_t major_version;
+typedef uint32_t time_to_live;
+typedef uint32_t minor_version;
+typedef uint16_t eventgroup_id;
+
+typedef uint32_t ipv4_address;
+typedef uint8_t ipv6_address[128];
+typedef uint16_t ip_port;
+
+typedef uint16_t priority;
+typedef uint16_t weight;
+
+typedef uint32_t alive_counter;
+typedef uint32_t crc;
+
 } // namespace vsomeip
 
 #endif // PRIMITIVE_TYPES_HPP
