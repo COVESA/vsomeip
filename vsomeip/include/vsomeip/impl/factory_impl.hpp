@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_FACTORY_IMPL_HPP
-#define VSOMEIP_FACTORY_IMPL_HPP
+#ifndef VSOMEIP_IMPL_FACTORY_IMPL_HPP
+#define VSOMEIP_IMPL_FACTORY_IMPL_HPP
 
 #include <vsomeip/factory.hpp>
 
@@ -29,4 +29,4 @@ public:
 
 }; // namespace vsomeip
 
-#endif // VSOMEIP_FACTORY_IMPL_HPP
+#endif // VSOMEIP_IMPL_FACTORY_IMPL_HPP

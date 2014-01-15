@@ -54,10 +54,6 @@ deserializer_impl::deserializer_impl(const deserializer_impl& _deserializer, boo
 	position_ = data_ + (length_ - remaining_);
 }
 
-copyable * deserializer_impl::copy(bool _is_deep_copy_request) const {
-	return new deserializer_impl(*this, _is_deep_copy_request);
-}
-
 deserializer_impl::~deserializer_impl() {
 	if (is_owning_data_)
 		delete [] data_;

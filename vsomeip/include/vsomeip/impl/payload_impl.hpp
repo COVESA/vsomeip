@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef PAYLOAD_IMPL_HPP
-#define PAYLOAD_IMPL_HPP
+#ifndef VSOMEIP_IMPL_PAYLOAD_IMPL_HPP
+#define VSOMEIP_IMPL_PAYLOAD_IMPL_HPP
 
 #include <vsomeip/payload.hpp>
 #include <vector>
@@ -41,4 +41,4 @@ private:
 
 } // namespace vsomeip
 
-#endif // PAYLOAD_IMPL_HPP
+#endif // VSOMEIP_IMPL_PAYLOAD_IMPL_HPP

@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef MESSAGE_HEADER_IMPL_HPP
-#define MESSAGE_HEADER_IMPL_HPP
+#ifndef VSOMEIP_IMPL_MESSAGE_HEADER_IMPL_HPP
+#define VSOMEIP_IMPL_MESSAGE_HEADER_IMPL_HPP
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -48,4 +48,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // MESSAGE_HEADER_IMPL_HPP
+#endif // VSOMEIP_IMPL_MESSAGE_HEADER_IMPL_HPP

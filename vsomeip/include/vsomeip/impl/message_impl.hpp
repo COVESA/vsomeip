@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_MESSAGE_IMPL_HPP
-#define VSOMEIP_MESSAGE_IMPL_HPP
+#ifndef VSOMEIP_IMPL_MESSAGE_IMPL_HPP
+#define VSOMEIP_IMPL_MESSAGE_IMPL_HPP
 
 #include <vsomeip/impl/message_base_impl.hpp>
 #include <vsomeip/impl/payload_impl.hpp>
@@ -36,4 +36,4 @@ protected: // members
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_MESSAGE_IMPL_HPP
+#endif // VSOMEIP_IMPL_MESSAGE_IMPL_HPP

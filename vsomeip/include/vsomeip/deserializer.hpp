@@ -10,18 +10,16 @@
 // All rights reserved.
 //
 
-#ifndef DESERIALIZER_HPP
-#define DESERIALIZER_HPP
+#ifndef VSOMEIP_DESERIALIZER_HPP
+#define VSOMEIP_DESERIALIZER_HPP
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/copyable.hpp>
 #include <vsomeip/message_base.hpp>
 #include <vector>
 
 namespace vsomeip {
 
-class deserializer
-	: virtual public copyable {
+class deserializer {
 public:
 	virtual message_base * deserialize_message() = 0;
 
@@ -42,4 +40,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // DESERIALIZER_HPP
+#endif // VSOMEIP_DESERIALIZER_HPP

@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef BYTEORDER_HPP
-#define BYTEORDER_HPP
+#ifndef VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
+#define VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
 
 #include <endian.h>
 
@@ -56,4 +56,4 @@
 #endif
 
 
-#endif // BYTEORDER_HPP
+#endif // VSOMEIP_IMPL_BYTEORDER_IMPL_HPP

@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef SERIALIZABLE_HPP
-#define SERIALIZABLE_HPP
+#ifndef VSOMEIP_SERIALIZABLE_HPP
+#define VSOMEIP_SERIALIZABLE_HPP
 
 namespace vsomeip {
 
@@ -29,4 +29,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // SERIALIZABLE_HPP
+#endif // VSOMEIP_SERIALIZABLE_HPP

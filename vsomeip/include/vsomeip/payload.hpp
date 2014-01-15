@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef __VSOMEIP_PAYLOAD_HPP__
-#define __VSOMEIP_PAYLOAD_HPP__
+#ifndef VSOMEIP_PAYLOAD_HPP
+#define VSOMEIP_PAYLOAD_HPP
 
 #include <vector>
 #include <vsomeip/primitive_types.hpp>
@@ -31,4 +31,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // __VSOMEIP_PAYLOAD_HPP__
+#endif // VSOMEIP_PAYLOAD_HPP

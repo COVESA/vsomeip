@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef PRIMITIVE_TYPES_HPP
-#define PRIMITIVE_TYPES_HPP
+#ifndef VSOMEIP_PRIMITIVE_TYPES_HPP
+#define VSOMEIP_PRIMITIVE_TYPES_HPP
 
 #include <cstdint>
 
@@ -51,4 +51,4 @@ typedef uint32_t crc;
 
 } // namespace vsomeip
 
-#endif // PRIMITIVE_TYPES_HPP
+#endif // VSOMEIP_PRIMITIVE_TYPES_HPP

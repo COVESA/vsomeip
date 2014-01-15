@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef SERIALIZER_IMPL_HPP
-#define SERIALIZER_IMPL_HPP
+#ifndef VSOMEIP_IMPL_SERIALIZER_IMPL_HPP
+#define VSOMEIP_IMPL_SERIALIZER_IMPL_HPP
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -51,4 +51,4 @@ private:
 
 } // namespace vsomeip
 
-#endif // SERIALIZER_IMPL_HPP
+#endif // VSOMEIP_IMPL_SERIALIZER_IMPL_HPP

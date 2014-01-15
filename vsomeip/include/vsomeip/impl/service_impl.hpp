@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_SERVICE_IMPL_HPP
-#define VSOMEIP_SERVICE_IMPL_HPP
+#ifndef VSOMEIP_IMPL_SERVICE_IMPL_HPP
+#define VSOMEIP_IMPL_SERVICE_IMPL_HPP
 
 #include <vsomeip/service.hpp>
 
@@ -41,4 +41,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICE_IMPL_HPP
+#endif // VSOMEIP_IMPL_SERVICE_IMPL_HPP

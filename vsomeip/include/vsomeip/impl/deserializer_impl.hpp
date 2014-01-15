@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_DESERIALIZER_IMPL_HPP
-#define VSOMEIP_DESERIALIZER_IMPL_HPP
+#ifndef VSOMEIP_IMPL_DESERIALIZER_IMPL_HPP
+#define VSOMEIP_IMPL_DESERIALIZER_IMPL_HPP
 
 #include <deque>
 #include <vector>
@@ -28,9 +28,6 @@ public:
 	deserializer_impl(uint8_t *_data, uint32_t _length);
 	deserializer_impl(const deserializer_impl& _deserializer, bool _is_deep_copy);
 	virtual ~deserializer_impl();
-
-	// copyable interface
-	virtual copyable * copy(bool _is_deep_copy_request) const;
 
 	// set the data source
 	void set_data(uint8_t *_data, uint32_t _length);
@@ -64,4 +61,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_DESERIALIZER_IMPL_HPP
+#endif // VSOMEIP_IMPL_DESERIALIZER_IMPL_HPP
