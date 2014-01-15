@@ -39,13 +39,14 @@ message_impl::~message_impl() {
 }
 
 length message_impl::get_length() const {
-	length current_length = VSOMEIP_STATIC_HEADER_LENGTH + 12;
+	length current_length = VSOMEIP_STATIC_HEADER_LENGTH
+			+ VSOME_IP_STATIC_SERVICE_DISCOVERY_DATA_LENGTH;
 
 	current_length += (entries_.size() * VSOMEIP_ENTRY_LENGTH);
 
 	for (size_t i = 0; i < options_.size(); ++i)
-			current_length += (options_[i]->get_length()
-					+ VSOMEIP_OPTION_HEADER_LENGTH);
+		current_length += (options_[i]->get_length()
+				+ VSOMEIP_OPTION_HEADER_LENGTH);
 
 	return current_length;
 }
@@ -131,7 +132,8 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 	bool is_successful = header_.serialize(_to);
 
 	is_successful = is_successful && _to->serialize(flags_);
-	is_successful = is_successful && _to->serialize(vsomeip_protocol_reserved_long, true);
+	is_successful = is_successful
+			&& _to->serialize(vsomeip_protocol_reserved_long, true);
 
 	uint32_t entries_length = (entries_.size() * VSOMEIP_ENTRY_LENGTH);
 	is_successful = is_successful && _to->serialize(entries_length);
@@ -162,13 +164,11 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
 
 	// reserved
 	uint32_t reserved;
-	is_successful = is_successful
-			&& _from->deserialize(reserved, true);
+	is_successful = is_successful && _from->deserialize(reserved, true);
 
 	// entries
 	uint32_t entries_length = 0;
-	is_successful = is_successful
-			&& _from->deserialize(entries_length);
+	is_successful = is_successful && _from->deserialize(entries_length);
 
 	// backup the current remaining length
 	uint32_t save_remaining = _from->get_remaining();
@@ -191,8 +191,7 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
 
 	// deserialize the options
 	uint32_t options_length = 0;
-	is_successful = is_successful
-			&& _from->deserialize(options_length);
+	is_successful = is_successful && _from->deserialize(options_length);
 
 	while (is_successful && _from->get_remaining()) {
 		option *tmp_option = deserialize_option(_from);
@@ -211,23 +210,24 @@ entry * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
 	uint8_t tmp_entry_type;
 
 	if (_from->look_ahead(0, tmp_entry_type)) {
-		entry_type deserialized_entry_type = static_cast<entry_type>(tmp_entry_type);
+		entry_type deserialized_entry_type =
+				static_cast<entry_type>(tmp_entry_type);
 
 		switch (deserialized_entry_type) {
 		case entry_type::FIND_SERVICE:
 		case entry_type::OFFER_SERVICE:
-		//case entry_type::STOP_OFFER_SERVICE:
+			//case entry_type::STOP_OFFER_SERVICE:
 		case entry_type::REQUEST_SERVICE:
 			deserialized_entry = new service_entry_impl;
 			break;
 
 		case entry_type::FIND_EVENT_GROUP:
 		case entry_type::PUBLISH_EVENTGROUP:
-		//case entry_type::STOP_PUBLISH_EVENTGROUP:
+			//case entry_type::STOP_PUBLISH_EVENTGROUP:
 		case entry_type::SUBSCRIBE_EVENTGROUP:
-		//case entry_type::STOP_SUBSCRIBE_EVENTGROUP:
+			//case entry_type::STOP_SUBSCRIBE_EVENTGROUP:
 		case entry_type::SUBSCRIBE_EVENTGROUP_ACK:
-		//case entry_type::STOP_SUBSCRIBE_EVENTGROUP_ACK:
+			//case entry_type::STOP_SUBSCRIBE_EVENTGROUP_ACK:
 			deserialized_entry = new eventgroup_entry_impl;
 			break;
 
@@ -251,7 +251,8 @@ option * message_impl::deserialize_option(vsomeip::deserializer *_from) {
 
 	if (_from->look_ahead(2, tmp_option_type)) {
 
-		option_type deserialized_option_type = static_cast<option_type>(tmp_option_type);
+		option_type deserialized_option_type =
+				static_cast<option_type>(tmp_option_type);
 
 		switch (deserialized_option_type) {
 
@@ -276,7 +277,8 @@ option * message_impl::deserialize_option(vsomeip::deserializer *_from) {
 		};
 
 		// deserialize object
-		if (0 != deserialized_option && !deserialized_option->deserialize(_from)) {
+		if (0 != deserialized_option
+				&& !deserialized_option->deserialize(_from)) {
 			delete deserialized_option;
 			deserialized_option = 0;
 		};
