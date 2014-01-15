@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_SERVICE_DISCOVERY_IP4ENDPOINT_OPTION_HPP
-#define VSOMEIP_SERVICE_DISCOVERY_IP4ENDPOINT_OPTION_HPP
+#ifndef VSOMEIP_SERVICE_DISCOVERY_IPV4_ENDPOINT_OPTION_HPP
+#define VSOMEIP_SERVICE_DISCOVERY_IPV4_ENDPOINT_OPTION_HPP
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/service_discovery/option.hpp>
@@ -37,4 +37,4 @@ public:
 } // namespace service_discovery
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICE_DISCOVERY_IP4ENDPOINT_OPTION_HPP
+#endif // VSOMEIP_SERVICE_DISCOVERY_IPV4_ENDPOINT_OPTION_HPP

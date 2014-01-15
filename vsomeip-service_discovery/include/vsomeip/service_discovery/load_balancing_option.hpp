@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_SERVICE_DISCOVERY_LOADBALANCINGOPTION_HPP
-#define VSOMEIP_SERVICE_DISCOVERY_LOADBALANCINGOPTION_HPP
+#ifndef VSOMEIP_SERVICE_DISCOVERY_LOAD_BALANCING_OPTION_HPP
+#define VSOMEIP_SERVICE_DISCOVERY_LOAD_BALANCING_OPTION_HPP
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/service_discovery/option.hpp>
@@ -34,4 +34,4 @@ public:
 } // namespace service_discovery
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICE_DISCOVERY_LOADBALANCINGOPTION_HPP
+#endif // VSOMEIP_SERVICE_DISCOVERY_LOAD_BALANCING_OPTION_HPP

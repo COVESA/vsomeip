@@ -13,8 +13,6 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_OPTION_HPP
 #define VSOMEIP_SERVICE_DISCOVERY_OPTION_HPP
 
-#include <cstdint>
-
 #include <vsomeip/serializable.hpp>
 #include <vsomeip/service_discovery/enumeration_types.hpp>
 

@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
-#ifndef ENUMERATION_TYPES_HPP
-#define ENUMERATION_TYPES_HPP
+#ifndef VSOMEIP_ENUMERATION_TYPES_HPP
+#define VSOMEIP_ENUMERATION_TYPES_HPP
 
 #include <cstdint>
 
@@ -53,4 +53,4 @@ enum class ip_protocol : uint8_t {
 
 } // namespace vsomeip
 
-#endif // ENUMERATION_TYPES_HPP
+#endif // VSOMEIP_ENUMERATION_TYPES_HPP
