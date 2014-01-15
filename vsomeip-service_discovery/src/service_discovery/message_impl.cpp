@@ -39,7 +39,7 @@ message_impl::~message_impl() {
 }
 
 length message_impl::get_length() const {
-	length current_length = VSOMEIP_STATIC_HEADER_LENGTH;
+	length current_length = VSOMEIP_STATIC_HEADER_LENGTH + 12;
 
 	current_length += (entries_.size() * VSOMEIP_ENTRY_LENGTH);
 
@@ -154,23 +154,30 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 bool message_impl::deserialize(vsomeip::deserializer *_from) {
 	bool is_successful;
 
+	// header
 	is_successful = header_.deserialize(_from);
+
+	// flags
 	is_successful = is_successful && _from->deserialize(flags_);
 
-	// Read three reserved bytes
+	// reserved
 	uint32_t reserved;
 	is_successful = is_successful
-			&& _from->deserialize(reserved);
+			&& _from->deserialize(reserved, true);
 
-	// deserialize the entries
+	// entries
 	uint32_t entries_length = 0;
 	is_successful = is_successful
 			&& _from->deserialize(entries_length);
 
-	deserializer* entries_from = dynamic_cast<deserializer *>(_from->copy(false));
-	entries_from->set_remaining(entries_length);
+	// backup the current remaining length
+	uint32_t save_remaining = _from->get_remaining();
 
-	while (is_successful && entries_from->get_remaining()) {
+	// set remaining bytes to length of entries array
+	_from->set_remaining(entries_length);
+
+	// deserialize the entries
+	while (is_successful && _from->get_remaining()) {
 		entry* tmp_entry = deserialize_entry(_from);
 		if (tmp_entry) {
 			entries_.push_back(tmp_entry);
@@ -179,8 +186,8 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
 		}
 	}
 
-	_from->set_remaining(
-			_from->get_remaining() - entries_length);
+	// set length to remaining bytes after entries array
+	_from->set_remaining(save_remaining - entries_length);
 
 	// deserialize the options
 	uint32_t options_length = 0;

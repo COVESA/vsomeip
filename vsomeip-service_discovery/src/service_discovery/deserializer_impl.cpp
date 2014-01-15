@@ -32,7 +32,7 @@ message_base * deserializer_impl::deserialize_message() {
 		if (0 == tmp_message)
 			return 0;
 
-		if (tmp_message->deserialize(this))
+		if (!tmp_message->deserialize(this))
 			return 0;
 
 		return tmp_message;

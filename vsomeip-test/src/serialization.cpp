@@ -46,15 +46,14 @@ int main() {
 	p.set_data(pl, sizeof(pl));
 
 	vsomeip::serializer *s = vsomeip::factory::get_default_factory()->create_serializer();
-	s->create_buffer(100);
+	s->create_data(100);
 
 	if (!s->serialize(*m)) {
 		std::cout << "Serialization failed!" << std::endl;
 	}
 
-	uint8_t* b;
-	uint32_t l;
-	s->get_buffer_info(b, l);
+	uint8_t *b = s->get_data();
+	uint32_t l = s->get_size();
 
 	for (uint32_t i = 0; i < l; i++) {
 		if (i % 4 == 0) std::cout << std::endl;
@@ -76,13 +75,13 @@ int main() {
 	sd::ipv4_endpoint_option& l_option = sdm->create_ipv4_endpoint_option();
 	l_option.set_address(0xC0A80001);
 	l_option.set_port(0x1A91);
-	l_option.set_protocol(sd::ip_protocol::TCP);
+	l_option.set_protocol(vsomeip::ip_protocol::TCP);
 
 	std::cout << 2 << std::endl;
 	sd::ipv4_endpoint_option& l_option2 = sdm->create_ipv4_endpoint_option();
 	l_option2.set_address(0xC0A80001);
 	l_option2.set_port(0x1A91);
-	l_option2.set_protocol(sd::ip_protocol::UDP);
+	l_option2.set_protocol(vsomeip::ip_protocol::UDP);
 
 	std::cout << 3 << std::endl;
 	sd::service_entry& l_entry = sdm->create_service_entry();
@@ -104,13 +103,14 @@ int main() {
 	l_entry2.assign_option(l_option2, 1);
 
 	std::cout << 5 << std::endl;
-	s->create_buffer(100);
+	s->create_data(100);
 	if (!s->serialize(*sdm)) {
 		std::cout << "Serialization failed!" << std::endl;
 	}
 
 	std::cout << 6 << std::endl;
-	s->get_buffer_info(b, l);
+	b = s->get_data();
+	l = s->get_size();
 
 	std::cout << l << std::endl;
 
@@ -128,10 +128,10 @@ int main() {
 	std::cout << "done." << std::endl;
 	vsomeip::message_base *dsdm = d->deserialize_message();
 
-	s->create_buffer(100);
+	s->create_data(100);
 	s->serialize(*dsdm);
-
-	s->get_buffer_info(b, l);
+	b = s->get_data();
+	l = s->get_size();
 
 	for (uint32_t i = 0; i < l; i++) {
 		if (i % 4 == 0) std::cout << std::endl;

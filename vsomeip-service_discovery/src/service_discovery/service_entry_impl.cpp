@@ -50,7 +50,7 @@ bool service_entry_impl::deserialize(vsomeip::deserializer *_from) {
 	major_version_ = static_cast<major_version>(tmp_major_version);
 
 	uint32_t tmp_time_to_live;
-	is_successful = is_successful && _from->deserialize(tmp_time_to_live);
+	is_successful = is_successful && _from->deserialize(tmp_time_to_live, true);
 	time_to_live_ = static_cast<time_to_live>(tmp_time_to_live);
 
 	uint32_t tmp_minor_version;

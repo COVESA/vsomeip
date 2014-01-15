@@ -24,7 +24,7 @@ class client {
 public:
 	virtual ~client() {};
 
-	virtual void send(const service& _service, const message &_message) = 0;
+	virtual void send(const service& _service, const message &_message, bool _flush = true) = 0;
 
 	virtual void register_receiver(receiver *_receiver) = 0;
 	virtual void unregister_receiver(receiver *_receiver) = 0;

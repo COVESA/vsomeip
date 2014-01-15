@@ -15,12 +15,12 @@
 namespace vsomeip {
 
 service_impl::service_impl()
-	: address_(""), port_(0) {
+	: address_(""), port_(0), protocol_(ip_protocol::UNKNOWN) {
 
 }
 
 service_impl::service_impl(const service_impl &_impl)
-	: address_(_impl.address_), port_(_impl.port_) {
+	: address_(_impl.address_), port_(_impl.port_), protocol_(_impl.protocol_) {
 }
 
 service_impl::~service_impl() {

@@ -17,13 +17,13 @@
 namespace vsomeip {
 
 serializer_impl::serializer_impl()
-	: data_(0), length_(0), position_(0), remaining_(0) {
+	: data_(0), capacity_(0), position_(0), remaining_(0) {
 }
 
 serializer_impl::~serializer_impl() {
 };
 
-bool serializer_impl::serialize(serializable &_from) {
+bool serializer_impl::serialize(const serializable &_from) {
 	return _from.serialize(this);
 }
 
@@ -75,39 +75,38 @@ bool serializer_impl::serialize(const uint8_t *_data, uint32_t _length) {
 	return true;
 }
 
-const uint8_t * serializer_impl::get_buffer() const {
+uint8_t * serializer_impl::get_data() const {
 	return data_;
 }
 
-uint32_t serializer_impl::get_length() const {
-	return length_;
+uint32_t serializer_impl::get_capacity() const {
+	return capacity_;
 }
 
-void serializer_impl::get_buffer_info(uint8_t *&_data, uint32_t &_length) const {
-	_data = data_;
-	_length = length_;
+uint32_t serializer_impl::get_size() const {
+	return capacity_ - remaining_;
 }
 
-void serializer_impl::create_buffer(uint32_t _length) {
+void serializer_impl::create_data(uint32_t _capacity) {
 	if (0 != data_)
 		delete [] data_;
 
-	data_ = new uint8_t[_length];
+	data_ = new uint8_t[_capacity];
 	// TODO: check memory allocation
 
-	length_ = _length;
 	position_ = data_;
-	remaining_ = length_;
+	capacity_ = _capacity;
+	remaining_ = _capacity;
 }
 
-void serializer_impl::set_buffer(uint8_t *_data, uint32_t _length) {
+void serializer_impl::set_data(uint8_t *_data, uint32_t _capacity) {
 	if (0 != data_)
 		delete [] data_;
 
 	data_ = _data;
-	length_ = _length;
-	position_ = data_;
-	remaining_ = length_;
+	position_ = _data;
+	capacity_ = _capacity;
+	remaining_ = _capacity;
 }
 
 } // namespace vsomeip

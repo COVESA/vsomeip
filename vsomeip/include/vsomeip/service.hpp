@@ -20,7 +20,7 @@ namespace vsomeip {
 
 class service {
 public:
-	virtual ~service();
+	virtual ~service() {};
 
 	virtual std::string get_address() const = 0;
 	virtual void set_address(const std::string &_address) = 0;

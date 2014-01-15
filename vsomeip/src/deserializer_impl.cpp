@@ -76,6 +76,7 @@ bool deserializer_impl::deserialize(uint8_t& _value) {
 		return false;
 
 	_value = *position_++;
+
 	remaining_--;
 	return true;
 }
@@ -98,15 +99,15 @@ bool deserializer_impl::deserialize(uint32_t& _value, bool _omit_last_byte) {
 	if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
 		return false;
 
-	uint8_t byte0, byte1, byte2, byte3 = 0;
-	byte0 = *position_++;
-	byte1 = *position_++;
-	byte2 = *position_++;
-	remaining_ -= 3;
+	uint8_t byte0 = 0, byte1, byte2, byte3;
 	if (!_omit_last_byte) {
-		byte3 = *position_++;
+		byte0 = *position_++;
 		remaining_--;
 	}
+	byte1 = *position_++;
+	byte2 = *position_++;
+	byte3 = *position_++;
+	remaining_ -= 3;
 
 	_value = VSOMEIP_BYTES_TO_LONG(byte0, byte1, byte2, byte3);
 
@@ -155,13 +156,11 @@ message_base * deserializer_impl::deserialize_message() {
 	return deserialized_message;
 }
 
-void deserializer_impl::set_data(uint8_t *_data, uint32_t _length) {
+void deserializer_impl::set_data(uint8_t *_data,  uint32_t _length) {
 	if (0 != data_)
 		delete [] data_;
 
-	data_ = new uint8_t[_length];
-	::memcpy(data_, _data, _length);
-
+	data_ = _data;
 	length_ = _length;
 	position_ = data_;
 	remaining_ = length_;
