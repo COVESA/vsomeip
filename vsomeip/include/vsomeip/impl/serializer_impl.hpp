@@ -41,6 +41,8 @@ public:
 	virtual void create_data(uint32_t _capacity);
 	virtual void set_data(uint8_t *_data, uint32_t _capacity);
 
+	virtual void reset();
+
 private:
 	uint8_t *data_;
 	uint32_t capacity_;

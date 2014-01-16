@@ -23,8 +23,13 @@ public:
 	virtual ~factory_impl();
 
 	message * create_message() const;
+
 	serializer * create_serializer() const;
 	deserializer * create_deserializer(uint8_t *_data, uint32_t _length) const;
+
+	endpoint * create_endpoint() const;
+	client * create_client(const endpoint &_endpoint) const;
+	service * create_service(const endpoint &_endpoint) const;
 };
 
 }; // namespace vsomeip

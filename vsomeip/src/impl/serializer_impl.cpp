@@ -109,6 +109,11 @@ void serializer_impl::set_data(uint8_t *_data, uint32_t _capacity) {
 	remaining_ = _capacity;
 }
 
+void serializer_impl::reset() {
+	position_ = data_;
+	remaining_ = capacity_;
+}
+
 } // namespace vsomeip
 
 

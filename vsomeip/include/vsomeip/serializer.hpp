@@ -34,6 +34,8 @@ public:
 	virtual void create_data(uint32_t _capacity) = 0;
 	virtual void set_data(uint8_t *_data, uint32_t _capacity) = 0;
 
+	virtual void reset() = 0;
+
 protected:
 	virtual ~serializer() {};
 

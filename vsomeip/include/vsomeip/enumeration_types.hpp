@@ -51,6 +51,12 @@ enum class ip_protocol : uint8_t {
 	UNKNOWN = 0xFF
 };
 
+enum class ip_version : uint8_t {
+	V4 = 0x04,
+	V6 = 0x06,
+	UNKNOWN = 0xFF
+};
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_ENUMERATION_TYPES_HPP

@@ -1,7 +1,7 @@
 //
 // service.hpp
 //
-// Date: 	Jan 13, 2014
+// Date: 	Jan 15, 2014
 // Author: 	Lutz Bichler
 //
 // This file is part of the BMW Some/IP implementation.
@@ -13,8 +13,7 @@
 #ifndef VSOMEIP_SERVICE_HPP
 #define VSOMEIP_SERVICE_HPP
 
-#include <string>
-#include <vsomeip/enumeration_types.hpp>
+#include <cstddef>
 
 namespace vsomeip {
 
@@ -22,14 +21,12 @@ class service {
 public:
 	virtual ~service() {};
 
-	virtual std::string get_address() const = 0;
-	virtual void set_address(const std::string &_address) = 0;
+	virtual void start() = 0;
+	virtual void stop() = 0;
 
-	virtual uint16_t get_port() const = 0;
-	virtual void set_port(const uint16_t _port) = 0;
-
-	virtual ip_protocol get_protocol() const = 0;
-	virtual void set_protocol(ip_protocol _protocol) = 0;
+	virtual std::size_t poll_one() = 0;
+	virtual std::size_t poll() = 0;
+	virtual std::size_t run() = 0;
 };
 
 } // namespace vsomeip
