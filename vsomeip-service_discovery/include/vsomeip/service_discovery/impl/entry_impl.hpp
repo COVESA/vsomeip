@@ -1,12 +1,11 @@
 //
 // entry_impl.hpp
 //
-// Date: 	Oct 30, 2013
 // Author: 	Lutz Bichler
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013 Bayerische Motoren Werke AG (BMW). 
+// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 #ifndef VSOMEIP_SERVICE_DISCOVERY_IMPL_ENTRY_IMPL_HPP

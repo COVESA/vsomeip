@@ -1,5 +1,5 @@
 //
-// registration.cpp
+// statistics_impl.cpp
 //
 // Author: 	Lutz Bichler
 //
@@ -8,8 +8,9 @@
 // Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+#ifdef USE_VSOMEIP_STATISTICS
 
-#include "registration.h"
+#include <vsomeip/impl/statistics_impl.hpp>
 
 
-
+#endif // USE_VSOMEIP_STATISTICS

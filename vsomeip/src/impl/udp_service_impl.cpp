@@ -1,12 +1,11 @@
 //
 // udp_service_impl.cpp
 //
-// Date: 	Jan 15, 2014
 // Author: 	Lutz Bichler
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013 Bayerische Motoren Werke AG (BMW). 
+// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -63,8 +62,8 @@ void udp_service_impl::send_callback(boost::system::error_code const &error, std
 void udp_service_impl::receive_callback(boost::system::error_code const &error, std::size_t transferred_bytes) {
 	if (!error || error == boost::asio::error::message_size) {
 		std::cout << "Received(" << std::dec << (int)transferred_bytes << "): ";
-		for (std::size_t i = 0; i < transferred_bytes; ++i)
-			std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)buffer_[i] << " ";
+		//for (std::size_t i = 0; i < transferred_bytes; ++i)
+		//	std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)buffer_[i] << " ";
 		std::cout << std::endl;
 		start();
 	}
