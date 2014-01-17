@@ -12,6 +12,10 @@
 #ifndef VSOMEIP_CLIENT_HPP
 #define VSOMEIP_CLIENT_HPP
 
+#ifdef USE_VSOMEIP_STATISTICS
+#include <vsomeip/statistics_owner.hpp>
+#endif
+
 namespace vsomeip {
 
 class message;
@@ -19,7 +23,11 @@ class endpoint;
 
 class receiver;
 
-class client {
+class client
+#ifdef USE_VSOMEIP_STATISTICS
+: virtual public statistics_owner
+#endif
+{
 public:
 	virtual ~client() {};
 
@@ -34,10 +42,6 @@ public:
 	virtual size_t poll_one() = 0;
 	virtual size_t poll() = 0;
 	virtual size_t run() = 0;
-
-#ifdef USE_VSOMEIP_STATISTICS
-	virtual const class statistics * get_statistics() const = 0;
-#endif
 };
 
 } // namespace vsomeip
