@@ -79,11 +79,5 @@ void udp_service_impl::receive_callback(boost::system::error_code const &error,
 	}
 }
 
-#ifdef USE_VSOMEIP_STATISTICS
-const statistics * udp_service_impl::get_statistics() const {
-	return &statistics_;
-}
-#endif
-
 }
  // namespace vsomeip

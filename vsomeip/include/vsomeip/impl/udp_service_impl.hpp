@@ -17,7 +17,9 @@
 #include <boost/asio.hpp>
 #include <vsomeip/config.hpp>
 #include <vsomeip/service.hpp>
-#include <vsomeip/impl/statistics_impl.hpp>
+#ifdef USE_VSOMEIP_STATISTICS
+#include <vsomeip/impl/statistics_owner_impl.hpp>
+#endif
 
 namespace vsomeip {
 
@@ -28,7 +30,11 @@ class endpoint;
 
 class receiver;
 
-class udp_service_impl : virtual public service {
+class udp_service_impl : virtual public service
+#ifdef USE_VSOMEIP_STATISTICS
+, virtual public statistics_owner_impl
+#endif
+{
 public:
 	udp_service_impl(const endpoint &_endpoint);
 	virtual ~udp_service_impl();
@@ -60,13 +66,6 @@ protected:
 private:
 	void send_callback(boost::system::error_code const &error, std::size_t transferred_bytes);
 	void receive_callback(boost::system::error_code const &error, std::size_t transferred_bytes);
-
-#ifdef USE_VSOMEIP_STATISTICS
-private:
-	statistics_impl statistics_;
-public:
-	const statistics * get_statistics() const;
-#endif
 };
 
 } // namespace vsomeip

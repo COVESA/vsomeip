@@ -34,10 +34,10 @@ tcp_service_impl::~tcp_service_impl() {
 }
 
 void tcp_service_impl::start() {
-	socket_.async_receive_from(boost::asio::buffer(buffer_), remote_,
-			boost::bind(&tcp_service_impl::receive_callback, this,
-					boost::asio::placeholders::error,
-					boost::asio::placeholders::bytes_transferred));
+	//socket_.async_receive_from(boost::asio::buffer(buffer_), remote_,
+	//		boost::bind(&tcp_service_impl::receive_callback, this,
+	//				boost::asio::placeholders::error,
+	//				boost::asio::placeholders::bytes_transferred));
 }
 
 void tcp_service_impl::stop() {
@@ -79,11 +79,4 @@ void tcp_service_impl::receive_callback(boost::system::error_code const &error,
 	}
 }
 
-#ifdef USE_VSOMEIP_STATISTICS
-const statistics * tcp_service_impl::get_statistics() const {
-	return &statistics_;
-}
-#endif
-
-}
- // namespace vsomeip
+} // namespace vsomeip

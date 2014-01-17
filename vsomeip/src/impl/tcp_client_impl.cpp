@@ -52,7 +52,7 @@ void tcp_client_impl::close() {
 
 void tcp_client_impl::connect() {
 	socket_.async_connect(endpoint_,
-			boost::bind(&udp_client_impl::connect_callback, this,
+			boost::bind(&tcp_client_impl::connect_callback, this,
 					boost::asio::placeholders::error));
 }
 
@@ -64,7 +64,7 @@ void tcp_client_impl::send(const message &_message, bool _flush) {
 	uint32_t message_size = VSOMEIP_MESSAGE_HEADER_LENGTH
 			+ _message.get_length();
 
-	if (message_size > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
+	if (message_size > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
 		// TODO: log error "message too large"
 		return;
 	}
@@ -80,7 +80,7 @@ void tcp_client_impl::send(const message &_message, bool _flush) {
 	bool is_queue_empty(queue_.empty());
 
 	if (current_send_buffer_.size()
-			+ message_size> VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
+			+ message_size > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
 		// TODO: log "implicit flush because new message cannot be buffered"
 		queue_.push_back(current_send_buffer_);
 		current_send_buffer_.clear();
@@ -123,7 +123,7 @@ size_t tcp_client_impl::run() {
 void tcp_client_impl::send() {
 	socket_.async_send(
 			boost::asio::buffer(&queue_.front()[0], queue_.front().size()),
-			boost::bind(&udp_client_impl::send_callback, this,
+			boost::bind(&tcp_client_impl::send_callback, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 }
@@ -154,12 +154,6 @@ void tcp_client_impl::receive_callback(boost::system::error_code const &_error,
 #endif
 
 }
-
-#ifdef USE_VSOMEIP_STATISTICS
-const statistics * tcp_client_impl::get_statistics() const {
-	return &statistics_;
-}
-#endif
 
 }
  // namespace vsomeip

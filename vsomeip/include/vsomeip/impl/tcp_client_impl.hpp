@@ -20,11 +20,17 @@
 
 #include <vsomeip/config.hpp>
 #include <vsomeip/client.hpp>
-#include <vsomeip/impl/statistics_impl.hpp>
+#ifdef USE_VSOMEIP_STATISTICS
+#include <vsomeip/impl/statistics_owner_impl.hpp>
+#endif
 
 namespace vsomeip {
 
-class tcp_client_impl: virtual public client {
+class tcp_client_impl: virtual public client
+#ifdef USE_VSOMEIP_STATISTICS
+, virtual public statistics_owner_impl
+#endif
+{
 public:
 	tcp_client_impl(const endpoint &_endpoint);
 	virtual ~tcp_client_impl();
@@ -66,13 +72,6 @@ private:
 	void connect_callback(boost::system::error_code const &_error);
 	void send_callback(boost::system::error_code const &_error, std::size_t _sent_bytes);
 	void receive_callback(boost::system::error_code const &_error, std::size_t _sent_bytes);
-
-#ifdef USE_VSOMEIP_STATISTICS
-private:
-	statistics_impl statistics_;
-public:
-	const statistics * get_statistics() const;
-#endif
 };
 
 } // namespace vsomeip
