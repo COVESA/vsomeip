@@ -15,6 +15,8 @@
 #include <set>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <vsomeip/config.hpp>
 #include <vsomeip/service.hpp>
 #ifdef USE_VSOMEIP_STATISTICS
@@ -48,26 +50,39 @@ public:
 
 protected:
 	boost::asio::io_service io_;
-	boost::asio::ip::tcp::socket socket_;
-	boost::asio::ip::tcp::endpoint endpoint_;
+	boost::asio::ip::tcp::acceptor acceptor_;
 
 	// registered receivers
 	std::set< receiver *> receiver_;
 
-	// buffer
-	boost::array< uint8_t, VSOMEIP_MAX_UDP_MESSAGE_SIZE > buffer_;
-
-	// message serialization/deserialization
-	serializer *serializer_;
-	deserializer *deserializer_;
-
-	boost::asio::ip::tcp::endpoint remote_;
-
 private:
-	void send_callback(boost::system::error_code const &error,
-					   std::size_t transferred_bytes);
-	void receive_callback(boost::system::error_code const &error,
-						  std::size_t transferred_bytes);
+	class connection : public boost::enable_shared_from_this< connection > {
+	public:
+		typedef boost::shared_ptr<connection> pointer;
+
+		static pointer create(boost::asio::io_service &_io);
+		boost::asio::ip::tcp::socket & get_socket();
+		void start();
+
+	private:
+		connection(boost::asio::io_service &_io);
+
+		// buffer
+		boost::array< uint8_t, VSOMEIP_MAX_UDP_MESSAGE_SIZE > buffer_;
+
+		// message serialization/deserialization
+		serializer *serializer_;
+		deserializer *deserializer_;
+
+		boost::asio::ip::tcp::socket socket_;
+	private:
+		void send_callback(boost::system::error_code const &error,
+						   std::size_t transferred_bytes);
+		void receive_callback(boost::system::error_code const &error,
+							  std::size_t transferred_bytes);
+	};
+
+	void accept_callback(connection::pointer _connection, boost::system::error_code const &error);
 };
 
 } // namespace vsomeip
