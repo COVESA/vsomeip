@@ -17,10 +17,15 @@
 namespace vsomeip {
 
 class statistics {
-	virtual get_sent_messages_count() const;
-	virtual get_sent_bytes_count() const;
-	virtual get_received_messages_count() const;
-	virtual get_received_bytes_count() const;
+public:
+	virtual ~statistics() {};
+
+	virtual uint32_t get_sent_messages_count() const = 0;
+	virtual uint32_t get_sent_bytes_count() const = 0;
+	virtual uint32_t get_received_messages_count() const = 0;
+	virtual uint32_t get_received_bytes_count() const = 0;
+
+	virtual void reset() = 0;
 };
 
 } // namespace vsomeip

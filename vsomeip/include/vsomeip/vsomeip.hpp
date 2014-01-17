@@ -21,4 +21,8 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 
+#ifdef USE_VSOMEIP_STATISTICS
+#include <vsomeip/statistics.hpp>
+#endif
+
 #endif /* VSOMEIP_HPP */

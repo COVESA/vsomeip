@@ -20,8 +20,17 @@
 namespace vsomeip {
 
 class statistics_impl : public statistics {
+public:
+	statistics_impl();
+	virtual ~statistics_impl();
 
-private:
+	uint32_t get_sent_messages_count() const;
+	uint32_t get_sent_bytes_count() const;
+	uint32_t get_received_messages_count() const;
+	uint32_t get_received_bytes_count() const;
+
+	void reset();
+
 	uint32_t sent_messages_;
 	uint32_t sent_bytes_;
 

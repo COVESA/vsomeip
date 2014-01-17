@@ -1,5 +1,5 @@
 //
-// udp_service_impl.cpp
+// tcp_service_impl.cpp
 //
 // Author: 	Lutz Bichler
 //
@@ -16,46 +16,46 @@
 
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip/impl/udp_service_impl.hpp>
+#include <vsomeip/impl/tcp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-udp_service_impl::udp_service_impl(const endpoint &_endpoint) :
+tcp_service_impl::tcp_service_impl(const endpoint &_endpoint) :
 		io_(), socket_(io_,
-				ip::udp::endpoint(
+				ip::tcp::endpoint(
 						(_endpoint.get_version() == ip_version::V6 ?
-								ip::udp::v6() : ip::udp::v4()),
+								ip::tcp::v6() : ip::tcp::v4()),
 						_endpoint.get_port())) {
 }
 
-udp_service_impl::~udp_service_impl() {
+tcp_service_impl::~tcp_service_impl() {
 }
 
-void udp_service_impl::start() {
+void tcp_service_impl::start() {
 	socket_.async_receive_from(boost::asio::buffer(buffer_), remote_,
-			boost::bind(&udp_service_impl::receive_callback, this,
+			boost::bind(&tcp_service_impl::receive_callback, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 }
 
-void udp_service_impl::stop() {
+void tcp_service_impl::stop() {
 }
 
-std::size_t udp_service_impl::poll_one() {
+std::size_t tcp_service_impl::poll_one() {
 	return io_.poll_one();
 }
 
-std::size_t udp_service_impl::poll() {
+std::size_t tcp_service_impl::poll() {
 	return io_.poll();
 }
 
-std::size_t udp_service_impl::run() {
+std::size_t tcp_service_impl::run() {
 	return io_.run();
 }
 
-void udp_service_impl::send_callback(boost::system::error_code const &error,
+void tcp_service_impl::send_callback(boost::system::error_code const &error,
 		std::size_t _sent_bytes) {
 #ifdef USE_VSOMEIP_STATISTICS
 	statistics_.sent_messages_++;
@@ -63,7 +63,7 @@ void udp_service_impl::send_callback(boost::system::error_code const &error,
 #endif
 }
 
-void udp_service_impl::receive_callback(boost::system::error_code const &error,
+void tcp_service_impl::receive_callback(boost::system::error_code const &error,
 		std::size_t _sent_bytes) {
 	if (!error || error == boost::asio::error::message_size) {
 #ifdef USE_VSOMEIP_STATISTICS
@@ -80,7 +80,7 @@ void udp_service_impl::receive_callback(boost::system::error_code const &error,
 }
 
 #ifdef USE_VSOMEIP_STATISTICS
-const statistics * udp_service_impl::get_statistics() const {
+const statistics * tcp_service_impl::get_statistics() const {
 	return &statistics_;
 }
 #endif

@@ -34,6 +34,10 @@ public:
 	virtual size_t poll_one() = 0;
 	virtual size_t poll() = 0;
 	virtual size_t run() = 0;
+
+#ifdef USE_VSOMEIP_STATISTICS
+	virtual const class statistics * get_statistics() const = 0;
+#endif
 };
 
 } // namespace vsomeip

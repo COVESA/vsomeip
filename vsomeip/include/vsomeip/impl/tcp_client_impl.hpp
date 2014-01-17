@@ -1,5 +1,5 @@
 //
-// udp_client_impl.hpp
+// tcp_client_impl.hpp
 //
 // Author: 	Lutz Bichler
 //
@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_IMPL_UDP_CLIENT_IMPL_HPP
-#define VSOMEIP_IMPL_UDP_CLIENT_IMPL_HPP
+#ifndef VSOMEIP_IMPL_TCP_CLIENT_IMPL_HPP
+#define VSOMEIP_IMPL_TCP_CLIENT_IMPL_HPP
 
 #include <deque>
 #include <set>
@@ -24,10 +24,10 @@
 
 namespace vsomeip {
 
-class udp_client_impl: virtual public client {
+class tcp_client_impl: virtual public client {
 public:
-	udp_client_impl(const endpoint &_endpoint);
-	virtual ~udp_client_impl();
+	tcp_client_impl(const endpoint &_endpoint);
+	virtual ~tcp_client_impl();
 
 	void open();
 	void close();
@@ -46,9 +46,9 @@ public:
 
 private:
 	boost::asio::io_service io_;
-	boost::asio::ip::udp::socket socket_;
-	boost::asio::ip::udp::endpoint endpoint_;
-	boost::asio::ip::udp version_;
+	boost::asio::ip::tcp::socket socket_;
+	boost::asio::ip::tcp::endpoint endpoint_;
+	boost::asio::ip::tcp version_;
 
 	std::set< receiver *> receiver_;
 
@@ -77,4 +77,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_IMPL_UDP_CLIENT_IMPL_HPP
+#endif // VSOMEIP_IMPL_TCP_CLIENT_IMPL_HPP

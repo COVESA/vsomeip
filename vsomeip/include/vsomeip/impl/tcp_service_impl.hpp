@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_IMPL_UDP_SERVICE_IMPL_HPP
-#define VSOMEIP_IMPL_UDP_SERVICE_IMPL_HPP
+#ifndef VSOMEIP_IMPL_TCP_SERVICE_IMPL_HPP
+#define VSOMEIP_IMPL_TCP_SERVICE_IMPL_HPP
 
 #include <set>
 #include <boost/array.hpp>
@@ -28,10 +28,10 @@ class endpoint;
 
 class receiver;
 
-class udp_service_impl : virtual public service {
+class tcp_service_impl : virtual public service {
 public:
-	udp_service_impl(const endpoint &_endpoint);
-	virtual ~udp_service_impl();
+	tcp_service_impl(const endpoint &_endpoint);
+	virtual ~tcp_service_impl();
 
 	void start();
 	void stop();
@@ -42,8 +42,8 @@ public:
 
 protected:
 	boost::asio::io_service io_;
-	boost::asio::ip::udp::socket socket_;
-	boost::asio::ip::udp::endpoint endpoint_;
+	boost::asio::ip::tcp::socket socket_;
+	boost::asio::ip::tcp::endpoint endpoint_;
 
 	// registered receivers
 	std::set< receiver *> receiver_;
@@ -55,11 +55,13 @@ protected:
 	serializer *serializer_;
 	deserializer *deserializer_;
 
-	boost::asio::ip::udp::endpoint remote_;
+	boost::asio::ip::tcp::endpoint remote_;
 
 private:
-	void send_callback(boost::system::error_code const &error, std::size_t transferred_bytes);
-	void receive_callback(boost::system::error_code const &error, std::size_t transferred_bytes);
+	void send_callback(boost::system::error_code const &error,
+					   std::size_t transferred_bytes);
+	void receive_callback(boost::system::error_code const &error,
+						  std::size_t transferred_bytes);
 
 #ifdef USE_VSOMEIP_STATISTICS
 private:
@@ -71,4 +73,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_IMPL_UDP_SERVICE_IMPL_HPP
+#endif // VSOMEIP_IMPL_TCP_SERVICE_IMPL_HPP
