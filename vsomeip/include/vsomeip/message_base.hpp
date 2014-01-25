@@ -18,9 +18,14 @@
 
 namespace vsomeip {
 
+class endpoint;
+
 class message_base : virtual public serializable {
 public:
 	virtual ~message_base() {};
+
+	virtual endpoint * get_endpoint() const = 0;
+	virtual void set_endpoint(endpoint *_endpoint) = 0;
 
 	virtual message_id get_message_id() const = 0;
 	virtual void set_message_id(message_id _id) = 0;
@@ -29,6 +34,7 @@ public:
 	virtual method_id get_method_id() const = 0;
 	virtual void set_method_id(method_id _id) = 0;
 	virtual length get_length() const = 0;
+	virtual void set_length(length _length) = 0;
 	virtual request_id get_request_id() const = 0;
 	virtual void set_request_id(request_id _id) = 0;
 	virtual client_id get_client_id() const = 0;

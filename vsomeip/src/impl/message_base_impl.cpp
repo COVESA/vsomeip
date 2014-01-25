@@ -8,8 +8,8 @@
 // Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+#include <vsomeip/constants.hpp>
 #include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/constants_impl.hpp>
 #include <vsomeip/impl/message_impl.hpp>
 
 namespace vsomeip {
@@ -20,6 +20,15 @@ message_base_impl::message_base_impl() {
 
 message_base_impl::~message_base_impl() {
 };
+
+// endpoint (sender when receiving, receiver when sending messages)
+endpoint * message_base_impl::get_endpoint() const {
+	return endpoint_;
+}
+
+void message_base_impl::set_endpoint(endpoint *_endpoint) {
+	endpoint_ = _endpoint;
+}
 
 // header interface
 message_id message_base_impl::get_message_id() const {

@@ -28,6 +28,9 @@ public:
 
 	virtual uint8_t * get_data();
 	virtual uint32_t get_length() const;
+
+	virtual void set_capacity(uint32_t _capacity);
+
 	virtual void set_data(const uint8_t *data, uint32_t length);
 	virtual void set_data(const std::vector<uint8_t>& data);
 

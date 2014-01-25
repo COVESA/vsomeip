@@ -1,7 +1,7 @@
 //
 // endpoint_impl.cpp
 //
-// Author: 	Lutz Bichler
+// Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -13,49 +13,36 @@
 
 namespace vsomeip {
 
-endpoint_impl::endpoint_impl()
-	: address_(""), port_(0), protocol_(ip_protocol::UNKNOWN), version_(ip_version::UNKNOWN) {
-
-}
-
-endpoint_impl::endpoint_impl(const endpoint_impl &_impl)
-	: address_(_impl.address_), port_(_impl.port_), protocol_(_impl.protocol_), version_(_impl.version_) {
+endpoint_impl::endpoint_impl(
+		ip_address _address, ip_port _port,
+		ip_protocol _protocol, ip_version _version)
+	: protocol_(_protocol), version_(_version),
+	  address_(_address), port_(_port) {
 }
 
 endpoint_impl::~endpoint_impl() {
-}
-
-std::string endpoint_impl::get_address() const {
-	return address_;
-}
-
-void endpoint_impl::set_address(const std::string &_address) {
-	address_ = _address;
-}
-
-uint16_t endpoint_impl::get_port() const {
-	return port_;
-}
-
-void endpoint_impl::set_port(uint16_t _port) {
-	port_ = _port;
 }
 
 ip_protocol endpoint_impl::get_protocol() const {
 	return protocol_;
 }
 
-void endpoint_impl::set_protocol(ip_protocol _protocol) {
-	protocol_ = _protocol;
-}
 
 ip_version endpoint_impl::get_version() const {
 	return version_;
 }
 
-void endpoint_impl::set_version(ip_version _version) {
-	version_ = _version;
+ip_address endpoint_impl::get_address() const {
+	return address_;
+}
+
+ip_port endpoint_impl::get_port() const {
+	return port_;
 }
 
 } // namespace vsomeip
+
+
+
+
 

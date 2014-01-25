@@ -33,6 +33,10 @@ uint32_t payload_impl::get_length() const {
 	return data_.size();
 }
 
+void payload_impl::set_capacity(uint32_t _capacity) {
+	data_.reserve(_capacity);
+}
+
 void payload_impl::set_data(const uint8_t *data, const uint32_t length) {
 	data_.assign(data, data + length);
 }

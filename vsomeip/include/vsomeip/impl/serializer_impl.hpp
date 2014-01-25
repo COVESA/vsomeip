@@ -26,7 +26,7 @@ public:
 	serializer_impl();
 	virtual ~serializer_impl();
 
-	bool serialize(const serializable &_from);
+	bool serialize(const serializable *_from);
 
 	bool serialize(const uint8_t _value);
 	bool serialize(const uint16_t _value);

@@ -19,7 +19,7 @@ namespace vsomeip {
 
 class serializer {
 public:
-	virtual bool serialize(const serializable& _from) = 0;
+	virtual bool serialize(const serializable *_from) = 0;
 
 	virtual bool serialize(const uint8_t _value) = 0;
 	virtual bool serialize(const uint16_t _value) = 0;

@@ -45,8 +45,8 @@ enum class return_code : uint8_t {
 };
 
 enum class ip_protocol : uint8_t {
-	TCP = 0x06,
-	UDP = 0x11,
+	UDP = 0x06,
+	TCP = 0x11,
 	UNKNOWN = 0xFF
 };
 

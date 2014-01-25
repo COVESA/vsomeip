@@ -1,88 +1,89 @@
 //
-// udp_service_impl.hpp
+// tcp_service_impl.hpp
 //
 // Author: 	Lutz Bichler
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
 #ifndef VSOMEIP_IMPL_TCP_SERVICE_IMPL_HPP
 #define VSOMEIP_IMPL_TCP_SERVICE_IMPL_HPP
 
-#include <set>
 #include <boost/array.hpp>
-#include <boost/asio.hpp>
-#include <boost/shared_ptr.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/enable_shared_from_this.hpp>
+
 #include <vsomeip/config.hpp>
-#include <vsomeip/service.hpp>
-#ifdef USE_VSOMEIP_STATISTICS
-#include <vsomeip/impl/statistics_owner_impl.hpp>
-#endif
+#include <vsomeip/impl/service_base_impl.hpp>
 
 namespace vsomeip {
 
-class serializer;
-class deserializer;
-
-class endpoint;
-
-class receiver;
-
-class tcp_service_impl : virtual public service
-#ifdef USE_VSOMEIP_STATISTICS
-, virtual public statistics_owner_impl
-#endif
-{
+class tcp_service_impl : virtual public service_base_impl {
 public:
-	tcp_service_impl(const endpoint &_endpoint);
+	tcp_service_impl(const endpoint *_endpoint);
 	virtual ~tcp_service_impl();
 
 	void start();
 	void stop();
 
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
-
 protected:
-	boost::asio::io_service io_;
 	boost::asio::ip::tcp::acceptor acceptor_;
 
-	// registered receivers
-	std::set< receiver *> receiver_;
+private:
+	void send_queued();
+	void restart();
+
+	std::string get_remote_address() const;
+	uint16_t get_remote_port() const;
+	ip_protocol get_protocol() const;
+	ip_version get_version() const;
+
+	const uint8_t * get_received() const;
 
 private:
 	class connection : public boost::enable_shared_from_this< connection > {
 	public:
 		typedef boost::shared_ptr<connection> pointer;
 
-		static pointer create(boost::asio::io_service &_io);
+		static pointer create(tcp_service_impl *_service);
 		boost::asio::ip::tcp::socket & get_socket();
 		void start();
+		const uint8_t * get_received_data() const;
 
 	private:
-		connection(boost::asio::io_service &_io);
+		connection(tcp_service_impl *_service);
 
 		// buffer
-		boost::array< uint8_t, VSOMEIP_MAX_UDP_MESSAGE_SIZE > buffer_;
+		boost::array< uint8_t, VSOMEIP_MAX_TCP_MESSAGE_SIZE > received_;
+		boost::asio::ip::tcp::socket socket_;
 
-		// message serialization/deserialization
+		tcp_service_impl * service_;
+
 		serializer *serializer_;
 		deserializer *deserializer_;
 
-		boost::asio::ip::tcp::socket socket_;
 	private:
-		void send_callback(boost::system::error_code const &error,
-						   std::size_t transferred_bytes);
-		void receive_callback(boost::system::error_code const &error,
-							  std::size_t transferred_bytes);
+		void sent(boost::system::error_code const &_error_code,
+				   std::size_t _transferred_bytes);
+		void received(boost::system::error_code const &_error_code,
+						std::size_t _transferred_bytes);
 	};
 
-	void accept_callback(connection::pointer _connection, boost::system::error_code const &error);
+	// active connections
+	std::map< endpoint *, connection> connections_;
+
+	// current receive buffer
+	connection *current_receiving_;
+
+	// IP version used for this service
+	ip_version version_;
+
+	void accepted(connection::pointer _connection,
+		  boost::system::error_code const &_error_code);
+
 };
 
 } // namespace vsomeip

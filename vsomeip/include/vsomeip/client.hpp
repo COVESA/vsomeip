@@ -12,15 +12,15 @@
 #ifndef VSOMEIP_CLIENT_HPP
 #define VSOMEIP_CLIENT_HPP
 
+#include <vsomeip/constants.hpp>
+
 #ifdef USE_VSOMEIP_STATISTICS
 #include <vsomeip/statistics_owner.hpp>
 #endif
 
 namespace vsomeip {
 
-class message;
-class endpoint;
-
+class message_base;
 class receiver;
 
 class client
@@ -29,19 +29,21 @@ class client
 #endif
 {
 public:
-	virtual ~client() {};
+	virtual void start() = 0;
+	virtual void stop() = 0;
 
-	virtual void connect() = 0;
-	virtual void disconnect() = 0;
+	virtual bool send(const message_base *_message, bool _flush = true) = 0;
+	virtual void register_for(receiver *_receiver,
+			 	 	 	 	 	 service_id _service_id,
+			 	 	 	 	 	 method_id _method_id) = 0;
+	virtual void unregister_for(receiver * receiver,
+								   service_id _service_id,
+								   method_id _method_id) = 0;
 
-	virtual void send(const message &_message, bool _flush = true) = 0;
 
-	virtual void register_receiver(receiver *_receiver) = 0;
-	virtual void unregister_receiver(receiver *_receiver) = 0;
-
-	virtual size_t poll_one() = 0;
-	virtual size_t poll() = 0;
-	virtual size_t run() = 0;
+	virtual std::size_t poll_one() = 0;
+	virtual std::size_t poll() = 0;
+	virtual std::size_t run() = 0;
 };
 
 } // namespace vsomeip

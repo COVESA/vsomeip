@@ -24,6 +24,7 @@ public:
 	virtual ~message_impl();
 
 	virtual length get_length() const;
+	virtual void set_length(length _length);
 	virtual payload & get_payload();
 
 	virtual bool serialize(serializer *_to) const;

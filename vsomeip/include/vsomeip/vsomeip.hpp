@@ -11,11 +11,14 @@
 #ifndef VSOMEIP_HPP
 #define VSOMEIP_HPP
 
+#include <vsomeip/config.hpp>
+
 // collection
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
+#include <vsomeip/receiver.hpp>
 #include <vsomeip/service.hpp>
 #include <vsomeip/client.hpp>
 #include <vsomeip/endpoint.hpp>

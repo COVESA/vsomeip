@@ -21,6 +21,7 @@ class payload {
 public:
 	virtual uint8_t * get_data() = 0;
 	virtual uint32_t get_length() const = 0;
+	virtual void set_capacity(uint32_t _length) = 0;
 	virtual void set_data(const uint8_t *data, uint32_t length) = 0;
 	virtual void set_data(const std::vector<uint8_t>& data) = 0;
 

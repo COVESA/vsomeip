@@ -22,6 +22,9 @@ public:
 	message_base_impl();
 	virtual ~message_base_impl();
 
+	virtual endpoint * get_endpoint() const;
+	virtual void set_endpoint(endpoint *_endpoint);
+
 	virtual message_id get_message_id() const;
 	virtual void set_message_id(message_id _id);
 	virtual service_id get_service_id() const;
@@ -47,6 +50,7 @@ public:
 	void set_owner(message *_owner);
 
 protected: // members
+	endpoint *endpoint_;
 	message_header_impl header_;
 };
 

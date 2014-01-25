@@ -25,13 +25,21 @@ public:
 	virtual bool deserialize(uint8_t& _value) = 0;
 	virtual bool deserialize(uint16_t& _value) = 0;
 	virtual bool deserialize(uint32_t& _value, bool _omit_last_byte = false) = 0;
-	virtual bool deserialize(uint8_t *_data, uint32_t _length) = 0;
+	virtual bool deserialize(uint8_t *_data, std::size_t _length) = 0;
 	virtual bool deserialize(std::vector<uint8_t>& _value) = 0;
 
-	virtual bool look_ahead(uint32_t _index, uint8_t &_value) const = 0;
+	virtual bool look_ahead(std::size_t _index, uint8_t &_value) const = 0;
+	virtual bool look_ahead(std::size_t _index, uint16_t &_value) const = 0;
+	virtual bool look_ahead(std::size_t _index, uint32_t &_value) const = 0;
 
-	virtual uint32_t get_remaining() const = 0;
-	virtual void set_remaining(uint32_t _remaining) = 0;
+	virtual std::size_t get_available() const = 0;
+	virtual std::size_t get_remaining() const = 0;
+	virtual void set_remaining(std::size_t _remaining) = 0;
+
+	virtual void set_data(uint8_t *_data, std::size_t _length) = 0;
+	virtual void append_data(const uint8_t *_data, std::size_t _length) = 0;
+
+	virtual void reset() = 0;
 
 protected:
 	virtual ~deserializer() {};

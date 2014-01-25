@@ -12,6 +12,7 @@
 #ifndef VSOMEIP_IMPL_FACTORY_IMPL_HPP
 #define VSOMEIP_IMPL_FACTORY_IMPL_HPP
 
+#include <map>
 #include <vsomeip/factory.hpp>
 
 namespace vsomeip {
@@ -24,11 +25,15 @@ public:
 	message * create_message() const;
 
 	serializer * create_serializer() const;
-	deserializer * create_deserializer(uint8_t *_data, uint32_t _length) const;
+	deserializer * create_deserializer() const;
 
-	endpoint * create_endpoint() const;
-	client * create_client(const endpoint &_endpoint) const;
-	service * create_service(const endpoint &_endpoint) const;
+	endpoint * create_endpoint(ip_address _address, ip_port _port,
+								 ip_protocol _protocol, ip_version _version);
+	client * create_client(const endpoint *_endpoint) const;
+	service * create_service(const endpoint *_endpoint) const;
+
+private:
+	std::map< uint32_t, std::map< std::string, endpoint * > > endpoints_;
 };
 
 }; // namespace vsomeip

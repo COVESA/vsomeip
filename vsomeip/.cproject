@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<?fileVersion 4.0.0?>
-
-<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="cdt.managedbuild.config.gnu.exe.debug.1917074178">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.gnu.exe.debug.1917074178" moduleId="org.eclipse.cdt.core.settings" name="Debug">
@@ -26,24 +24,24 @@
 					<folderInfo id="cdt.managedbuild.config.gnu.exe.debug.1917074178." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.debug.333420235" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.debug">
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.exe.debug.1858085622" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.exe.debug"/>
-							<builder buildPath="${workspace_loc:/vsomeip}/Debug" id="cdt.managedbuild.target.gnu.builder.exe.debug.1721940617" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.exe.debug"/>
+							<builder buildPath="${workspace_loc:/vsomeip}/Debug" command="gmake" id="cdt.managedbuild.target.gnu.builder.exe.debug.1721940617" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.exe.debug"/>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.183256771" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.90907504" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug">
+							<tool command="c++" id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.90907504" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug">
 								<option id="gnu.cpp.compiler.exe.debug.option.optimization.level.1268866310" name="Optimization Level" superClass="gnu.cpp.compiler.exe.debug.option.optimization.level" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.debug.option.debugging.level.1738125791" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.other.other.958009304" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -std=c++11" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.958009304" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -std=c++0x" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.preprocessor.def.23740363" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="__GXX_EXPERIMENTAL_CXX0X__"/>
 									<listOptionValue builtIn="false" value="USE_VSOMEIP_STATISTICS"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.include.paths.2061136714" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/include}&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/include"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.other.pic.1356634335" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.917279463" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.834976710" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug">
+							<tool command="cc" id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.834976710" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug">
 								<option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.exe.debug.option.optimization.level.2077971458" name="Optimization Level" superClass="gnu.c.compiler.exe.debug.option.optimization.level" valueType="enumerated"/>
 								<option id="gnu.c.compiler.exe.debug.option.debugging.level.1285994517" name="Debug Level" superClass="gnu.c.compiler.exe.debug.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.912465425" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols"/>
@@ -52,7 +50,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1314091378" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
 								<option defaultValue="true" id="gnu.c.link.option.shared.618389691" name="Shared (-shared)" superClass="gnu.c.link.option.shared" valueType="boolean"/>
 							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1531104481" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
+							<tool command="c++" id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1531104481" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option id="gnu.cpp.link.option.libs.921120000" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs"/>
 								<option defaultValue="true" id="gnu.cpp.link.option.shared.492015980" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.soname.854391870" name="Shared object name (-Wl,-soname=)" superClass="gnu.cpp.link.option.soname" value="" valueType="string"/>
@@ -69,9 +67,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="include|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="include"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -104,6 +100,26 @@
 								</option>
 								<option id="gnu.cpp.compiler.option.include.paths.2138858338" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip/include}&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/include"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3"/>
+									<listOptionValue builtIn="false" value="/usr/include/4.6.3/bits"/>
+									<listOptionValue builtIn="false" value="/usr/include/x86_64-linux-gnu"/>
+									<listOptionValue builtIn="false" value="/usr/include/x86_64-linux-gnu/bits"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/debug"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/x86_64-linux-gnu"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/x86_64-linux-gnu/bits"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/bits"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/ext"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/backward"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/decimal"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/ext/pb_ds"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/ext/pb_ds/detail"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/parallel"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/profile"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/profile/impl"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6.3/tr1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1494622825" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

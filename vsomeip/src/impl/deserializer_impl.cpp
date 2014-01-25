@@ -10,6 +10,8 @@
 //
 
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 
 #include <vsomeip/impl/byteorder_impl.hpp>
 #include <vsomeip/impl/message_impl.hpp>
@@ -18,51 +20,31 @@
 namespace vsomeip {
 
 deserializer_impl::deserializer_impl() {
-	data_ = 0;
-	length_ = 0;
-	position_ = 0;
-	remaining_ = 0;
-	is_owning_data_ = false;
+	position_ = data_.begin();
 }
 
-deserializer_impl::deserializer_impl(uint8_t *_data, uint32_t _length) {
-	data_ = _data;
-	length_ = _length;
-	position_ = _data;
-	remaining_ = _length;
-	is_owning_data_ = true;
+deserializer_impl::deserializer_impl(uint8_t *_data, std::size_t _length)
+	: data_(_data, _data + _length),
+	  position_(data_.begin()) {
 }
 
-deserializer_impl::deserializer_impl(const deserializer_impl& _deserializer, bool _is_deep_copy_request) {
-	length_ = _deserializer.length_;
-	remaining_ = _deserializer.remaining_;
-
-	if (_is_deep_copy_request && _deserializer.data_) {
-		data_ = new uint8_t[length_];
-		is_owning_data_ = true;
-		if (data_) {
-			::memcpy(data_, _deserializer.data_, length_);
-		} else {
-			// TODO: throw exception here!
-		}
-	} else {
-		data_ = _deserializer.data_;
-		is_owning_data_ = false;
-	}
-
-	position_ = data_ + (length_ - remaining_);
+deserializer_impl::deserializer_impl(const deserializer_impl& _deserializer)
+	: data_(_deserializer.data_),
+	  position_(_deserializer.position_){
 }
 
 deserializer_impl::~deserializer_impl() {
-	if (is_owning_data_)
-		delete [] data_;
 }
 
-uint32_t deserializer_impl::get_remaining() const {
+std::size_t deserializer_impl::get_available() const {
+	return data_.size();
+}
+
+std::size_t deserializer_impl::get_remaining() const {
 	return remaining_;
 }
 
-void deserializer_impl::set_remaining(uint32_t _remaining) {
+void deserializer_impl::set_remaining(std::size_t _remaining) {
 	remaining_ = _remaining;
 }
 
@@ -90,7 +72,7 @@ bool deserializer_impl::deserialize(uint16_t& _value) {
 	return true;
 }
 
-bool deserializer_impl::deserialize(uint32_t& _value, bool _omit_last_byte) {
+bool deserializer_impl::deserialize(uint32_t &_value, bool _omit_last_byte) {
 	if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
 		return false;
 
@@ -104,16 +86,17 @@ bool deserializer_impl::deserialize(uint32_t& _value, bool _omit_last_byte) {
 	byte3 = *position_++;
 	remaining_ -= 3;
 
-	_value = VSOMEIP_BYTES_TO_LONG(byte0, byte1, byte2, byte3);
+	_value = VSOMEIP_BYTES_TO_LONG(
+			byte0, byte1, byte2, byte3);
 
 	return true;
 }
 
-bool deserializer_impl::deserialize(uint8_t *_data, uint32_t _length) {
+bool deserializer_impl::deserialize(uint8_t *_data, std::size_t _length) {
 	if (_length > remaining_)
 		return false;
 
-	::memcpy(_data, position_, _length);
+	::memcpy(_data, &_data[position_ - data_.begin()], _length);
 	position_ += _length;
 	remaining_ -= _length;
 
@@ -124,17 +107,38 @@ bool deserializer_impl::deserialize(std::vector<uint8_t>& _value) {
 	if (_value.capacity() > remaining_)
 		return false;
 
-	_value.assign(position_, position_ + remaining_);
+	_value.assign(position_, position_ + _value.capacity());
 	remaining_ -= _value.capacity();
+	position_ += _value.capacity();
 
 	return true;
 }
 
-bool deserializer_impl::look_ahead(uint32_t _index, uint8_t &_value) const {
-	if (_index >= remaining_)
+bool deserializer_impl::look_ahead(std::size_t _index, uint8_t &_value) const {
+	if (_index >= data_.size())
 		return false;
 
-	_value = position_[_index];
+	_value = *(position_ + _index);
+
+	return true;
+}
+
+bool deserializer_impl::look_ahead(std::size_t _index, uint16_t &_value) const {
+	if (_index+1 >= data_.size())
+		return false;
+
+	std::vector< uint8_t >::iterator i = position_ + _index;
+	_value = VSOMEIP_BYTES_TO_WORD(*i, *(i+1));
+
+	return true;
+}
+
+bool deserializer_impl::look_ahead(std::size_t _index, uint32_t &_value) const {
+	if (_index+3 >= data_.size())
+		return false;
+
+	std::vector< uint8_t >::const_iterator i = position_ + _index;
+	_value = VSOMEIP_BYTES_TO_LONG(*i, *(i+1), *(i+2), *(i+3));
 
 	return true;
 }
@@ -151,14 +155,24 @@ message_base * deserializer_impl::deserialize_message() {
 	return deserialized_message;
 }
 
-void deserializer_impl::set_data(uint8_t *_data,  uint32_t _length) {
-	if (0 != data_)
-		delete [] data_;
+void deserializer_impl::set_data(uint8_t *_data,  std::size_t _length) {
+	if (0 != _data) {
+		std::size_t offset = position_ - data_.begin();
+		data_.assign(_data, _data + _length);
+		position_ = data_.begin() + offset;
+	}
+}
 
-	data_ = _data;
-	length_ = _length;
-	position_ = data_;
-	remaining_ = length_;
+void deserializer_impl::append_data(const uint8_t *_data, std::size_t _length) {
+	std::size_t offset = (position_ - data_.begin());
+	data_.insert(data_.end(), _data, _data + _length);
+	position_ = data_.begin() + offset;
+}
+
+void deserializer_impl::reset() {
+	data_.erase(data_.begin(), position_);
+	position_ = data_.begin();
+	remaining_ = data_.size();
 }
 
 } // namespace vsomeip

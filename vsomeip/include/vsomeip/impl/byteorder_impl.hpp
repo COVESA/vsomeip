@@ -5,14 +5,14 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
 #ifndef VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
 #define VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
 
-#include <endian.h>
+#include <sys/endian.h>
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 

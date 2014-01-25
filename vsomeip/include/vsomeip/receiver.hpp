@@ -14,13 +14,13 @@
 
 namespace vsomeip {
 
-class message;
+class message_base;
 
 class receiver {
 public:
 	virtual ~receiver() {};
 
-	virtual void receive(const message &_message) = 0;
+	virtual void receive(const message_base *_message) = 0;
 };
 
 } // namespace vsomeip

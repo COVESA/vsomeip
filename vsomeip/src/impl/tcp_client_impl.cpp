@@ -1,160 +1,88 @@
 //
 // tcp_client_impl.cpp
 //
-// Author: 	Lutz Bichler
+// Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+
+#include <boost/asio/placeholders.hpp>
+#include <boost/asio/write.hpp>
 #include <boost/bind.hpp>
 
-#include <vsomeip/factory.hpp>
-#include <vsomeip/message.hpp>
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip/serializer.hpp>
-#include <vsomeip/deserializer.hpp>
+#include <vsomeip/config.hpp>
 #include <vsomeip/impl/tcp_client_impl.hpp>
-
-#include <iostream>
-#include <iomanip>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-tcp_client_impl::tcp_client_impl(const endpoint &_endpoint) :
-		io_(), socket_(io_), endpoint_(
-				ip::address::from_string(_endpoint.get_address()),
-				_endpoint.get_port()), version_(
-				_endpoint.get_version() == ip_version::V6 ?
-						ip::tcp::v6() : ip::tcp::v4()) {
-
-	serializer_ = factory::get_default_factory()->create_serializer();
+tcp_client_impl::tcp_client_impl(const endpoint *_endpoint)
+		: socket_(is_),
+		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
+				  		  _endpoint->get_port()) {
+	max_message_size_ = VSOMEIP_MAX_TCP_MESSAGE_SIZE;
 	serializer_->create_data(VSOMEIP_MAX_TCP_MESSAGE_SIZE);
-
-	deserializer_ = factory::get_default_factory()->create_deserializer();
 }
 
-tcp_client_impl::~tcp_client_impl() {
-	close();
+void tcp_client_impl::start() {
+	socket_.open(local_endpoint_.protocol().v4());
+	socket_.async_connect(local_endpoint_,
+			boost::bind(&client_base_impl::connected, this,
+					boost::asio::placeholders::error));
+
+	// Nagle algorithm off
+	//ip::tcp::no_delay option;
+	//socket_.set_option(option);
 }
 
-void tcp_client_impl::open() {
-	socket_.open(version_);
-}
-
-void tcp_client_impl::close() {
+void tcp_client_impl::stop() {
 	if (socket_.is_open())
 		socket_.close();
 }
 
-void tcp_client_impl::connect() {
-	socket_.async_connect(endpoint_,
-			boost::bind(&tcp_client_impl::connect_callback, this,
-					boost::asio::placeholders::error));
-}
-
-void tcp_client_impl::disconnect() {
-
-}
-
-void tcp_client_impl::send(const message &_message, bool _flush) {
-	uint32_t message_size = VSOMEIP_MESSAGE_HEADER_LENGTH
-			+ _message.get_length();
-
-	if (message_size > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
-		// TODO: log error "message too large"
-		return;
-	}
-
-	serializer_->reset();
-	bool is_successful = serializer_->serialize(_message);
-
-	if (!is_successful) {
-		// TODO: log "message to long or deserialization failed"
-		return;
-	}
-
-	bool is_queue_empty(queue_.empty());
-
-	if (current_send_buffer_.size()
-			+ message_size > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
-		// TODO: log "implicit flush because new message cannot be buffered"
-		queue_.push_back(current_send_buffer_);
-		current_send_buffer_.clear();
-		if (is_queue_empty)
-			send();
-	}
-
-	current_send_buffer_.insert(current_send_buffer_.end(),
-			serializer_->get_data(),
-			serializer_->get_data() + serializer_->get_size());
-
-	if (_flush) {
-		queue_.push_back(current_send_buffer_);
-		current_send_buffer_.clear();
-		if (is_queue_empty)
-			send();
-	}
-}
-
-void tcp_client_impl::register_receiver(receiver *_receiver) {
-	receiver_.insert(_receiver);
-}
-
-void tcp_client_impl::unregister_receiver(receiver *_receiver) {
-	receiver_.erase(_receiver);
-}
-
-size_t tcp_client_impl::poll_one() {
-	return io_.poll_one();
-}
-
-size_t tcp_client_impl::poll() {
-	return io_.poll();
-}
-
-size_t tcp_client_impl::run() {
-	return io_.run();
-}
-
-void tcp_client_impl::send() {
-	socket_.async_send(
-			boost::asio::buffer(&queue_.front()[0], queue_.front().size()),
-			boost::bind(&tcp_client_impl::send_callback, this,
+void tcp_client_impl::send_queued() {
+	boost::asio::async_write(
+			socket_,
+			boost::asio::buffer(&packet_queue_.front()[0], packet_queue_.front().size()),
+			boost::bind(&client_base_impl::sent, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
+//	socket_.async_read_some(
+//			boost::asio::buffer(received_),
+//			boost::bind(&client_base_impl::received, this,
+//					boost::asio::placeholders::error,
+//					boost::asio::placeholders::bytes_transferred));
 }
 
-void tcp_client_impl::connect_callback(
-		const boost::system::error_code &_error) {
+std::string tcp_client_impl::get_remote_address() const {
+	return local_endpoint_.address().to_string();
 }
 
-void tcp_client_impl::send_callback(boost::system::error_code const &_error,
-		std::size_t _sent_bytes) {
-#ifdef USE_VSOMEIP_STATISTICS
-	statistics_.sent_messages_++;
-	statistics_.sent_bytes_ += _sent_bytes;
-#endif
-	queue_.pop_front();
-	if (_error) {
-		// TODO: whatever????
-	} else if (!queue_.empty()) {
-		send();
-	}
+uint16_t tcp_client_impl::get_remote_port() const {
+	return local_endpoint_.port();
 }
 
-void tcp_client_impl::receive_callback(boost::system::error_code const &_error,
-		std::size_t _sent_bytes) {
-#ifdef USE_VSOMEIP_STATISTICS
-	statistics_.received_messages_++;
-	statistics_.received_bytes_ += _sent_bytes;
-#endif
-
+ip_protocol tcp_client_impl::get_protocol() const {
+	return ip_protocol::TCP;
 }
 
+ip_version tcp_client_impl::get_version() const {
+	return (local_endpoint_.protocol().v4() == ip::tcp::v4() ? ip_version::V4 : ip_version::V6);
 }
- // namespace vsomeip
+
+const uint8_t * tcp_client_impl::get_received() const {
+	return received_.data();
+}
+
+
+} // namespace vsomeip
+
+
+
+
 

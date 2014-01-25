@@ -1,7 +1,7 @@
 //
 // endpoint_impl.hpp
 //
-// Author: 	Lutz Bichler
+// Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -16,29 +16,23 @@
 
 namespace vsomeip {
 
-class endpoint_impl : virtual public endpoint  {
+class endpoint_impl : virtual public endpoint {
 public:
-	endpoint_impl();
-	endpoint_impl(const endpoint_impl &_impl);
+	endpoint_impl(ip_address _address, ip_port _port,
+					ip_protocol _protocol, ip_version _version);
 	virtual ~endpoint_impl();
 
-	std::string get_address() const;
-	void set_address(const std::string &_address);
-
-	uint16_t get_port() const;
-	void set_port(uint16_t _port);
-
+private:
 	ip_protocol get_protocol() const;
-	void set_protocol(ip_protocol _protocol);
-
 	ip_version get_version() const;
-	void set_version(ip_version _version);
+	ip_address get_address() const;
+	ip_port get_port() const;
 
-protected:
-	std::string address_;
-	uint16_t port_;
+private:
 	ip_protocol protocol_;
 	ip_version version_;
+	ip_address address_;
+	ip_port port_;
 };
 
 } // namespace vsomeip

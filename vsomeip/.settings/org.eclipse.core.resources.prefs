@@ -1,0 +1,13 @@
+eclipse.preferences.version=1
+encoding//include/vsomeip/impl/byteorder_impl.hpp=UTF-8
+encoding//include/vsomeip/impl/service_base_impl.hpp=UTF-8
+encoding//include/vsomeip/impl/tcp_service_impl.hpp=UTF-8
+encoding//include/vsomeip/impl/udp_service_impl.hpp=UTF-8
+encoding//include/vsomeip/service.hpp=UTF-8
+encoding//src/impl/client_base_impl.cpp=UTF-8
+encoding//src/impl/factory_impl.cpp=UTF-8
+encoding//src/impl/service_base_impl.cpp=UTF-8
+encoding//src/impl/tcp_client_impl.cpp=UTF-8
+encoding//src/impl/tcp_service_impl.cpp=UTF-8
+encoding//src/impl/udp_client_impl.cpp=UTF-8
+encoding//src/impl/udp_service_impl.cpp=UTF-8

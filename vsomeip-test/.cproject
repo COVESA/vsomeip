@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<?fileVersion 4.0.0?>
-
-<cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="cdt.managedbuild.config.gnu.exe.debug.1033560980">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.gnu.exe.debug.1033560980" moduleId="org.eclipse.cdt.core.settings" name="Debug">
@@ -29,7 +27,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/vsomeip-service-discovery/include}&quot;"/>
 								</option>
-								<option id="gnu.cpp.compiler.option.other.other.958327951" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -std=c++11" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.958327951" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-c -fmessage-length=0 -std=c++0x" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.other.pic.339648754" name="Position Independent Code (-fPIC)" superClass="gnu.cpp.compiler.option.other.pic" value="true" valueType="boolean"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.500779548" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>

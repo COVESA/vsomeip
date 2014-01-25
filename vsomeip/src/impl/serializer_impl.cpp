@@ -22,8 +22,8 @@ serializer_impl::serializer_impl()
 serializer_impl::~serializer_impl() {
 };
 
-bool serializer_impl::serialize(const serializable &_from) {
-	return _from.serialize(this);
+bool serializer_impl::serialize(const serializable *_from) {
+	return _from->serialize(this);
 }
 
 bool serializer_impl::serialize(const uint8_t _value) {

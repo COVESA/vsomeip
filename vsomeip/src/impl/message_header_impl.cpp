@@ -65,6 +65,7 @@ bool message_header_impl::deserialize(deserializer *_from) {
 	if (is_successful) {
 		message_type_ = static_cast<message_type>(tmp_message_type);
 		return_code_ = static_cast<return_code>(tmp_return_code);
+		owner_->set_length(length);
 	}
 
 	return is_successful;

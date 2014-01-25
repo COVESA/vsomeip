@@ -8,8 +8,8 @@
 // Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+#include <vsomeip/constants.hpp>
 #include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/constants_impl.hpp>
 #include <vsomeip/impl/message_impl.hpp>
 
 namespace vsomeip {
@@ -19,6 +19,10 @@ message_impl::~message_impl() {
 
 length message_impl::get_length() const {
 	return VSOMEIP_STATIC_HEADER_LENGTH + payload_.get_length();
+}
+
+void message_impl::set_length(length _length) {
+	payload_.set_capacity(_length - VSOMEIP_STATIC_HEADER_LENGTH);
 }
 
 payload & message_impl::get_payload() {

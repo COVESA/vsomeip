@@ -13,6 +13,7 @@
 #define VSOMEIP_PRIMITIVE_TYPES_HPP
 
 #include <cstdint>
+#include <string>
 
 namespace vsomeip {
 
@@ -40,6 +41,7 @@ typedef uint16_t eventgroup_id;
 
 typedef uint32_t ipv4_address;
 typedef uint8_t ipv6_address[128];
+typedef std::string ip_address;
 typedef uint16_t ip_port;
 
 typedef uint16_t priority;
