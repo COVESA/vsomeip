@@ -21,7 +21,8 @@
 
 namespace vsomeip {
 
-class tcp_service_impl : virtual public service_base_impl {
+class tcp_service_impl
+		: virtual public service_base_impl {
 public:
 	tcp_service_impl(const endpoint *_endpoint);
 	virtual ~tcp_service_impl();
@@ -33,8 +34,8 @@ protected:
 	boost::asio::ip::tcp::acceptor acceptor_;
 
 private:
-	void send_queued();
 	void restart();
+	void send_queued();
 
 	std::string get_remote_address() const;
 	uint16_t get_remote_port() const;
@@ -61,9 +62,6 @@ private:
 		boost::asio::ip::tcp::socket socket_;
 
 		tcp_service_impl * service_;
-
-		serializer *serializer_;
-		deserializer *deserializer_;
 
 	private:
 		void sent(boost::system::error_code const &_error_code,

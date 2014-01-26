@@ -101,9 +101,9 @@ int main(int argc, char **argv) {
 
 	tcp_service = vsomeip::factory::get_default_factory()->create_service(tcp_target);
 	tcp_service->register_for(&tr0, 0x1111, 0x2222);
-	tcp_service->register_for(&tr1, 0x1111, 0x2222);
+	tcp_service->register_for(&tr1, 0x1112, 0x2222);
 	tcp_service->register_for(&tr2, 0x1111, 0x2222);
-	tcp_service->register_for(&tr3, 0x1111, 0x2222);
+	tcp_service->register_for(&tr3, 0x1112, 0x2222);
 	tcp_service->start();
 
 #endif
@@ -112,9 +112,9 @@ int main(int argc, char **argv) {
 			= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
 					vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
 	udp_service = vsomeip::factory::get_default_factory()->create_service(udp_target);
-	udp_service->register_for(&ur0, 0x1111, 0x2222);
+	udp_service->register_for(&ur0, 0x1111, 0x1222);
 	udp_service->register_for(&ur1, 0x1111, 0x2222);
-	udp_service->register_for(&ur2, 0x1111, 0x2222);
+	udp_service->register_for(&ur2, 0x1111, 0x1222);
 	udp_service->register_for(&ur3, 0x1111, 0x2222);
 	udp_service->start();
 

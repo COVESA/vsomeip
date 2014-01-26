@@ -12,8 +12,9 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/bind.hpp>
 
-#include <vsomeip/endpoint.hpp>
 #include <vsomeip/config.hpp>
+#include <vsomeip/endpoint.hpp>
+#include <vsomeip/serializer.hpp>
 #include <vsomeip/impl/udp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -21,16 +22,15 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 udp_service_impl::udp_service_impl(const endpoint *_endpoint)
-		: socket_(is_, ip::udp::endpoint((_endpoint->get_version() == ip_version::V4 ? ip::udp::v4() : ip::udp::v6()),
+		: service_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+		  socket_(is_, ip::udp::endpoint((_endpoint->get_version() == ip_version::V4 ? ip::udp::v4() : ip::udp::v6()),
 				  		  _endpoint->get_port())) {
-
-	serializer_->create_data(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
 }
 
 void udp_service_impl::start() {
 	socket_.async_receive_from(
 	        boost::asio::buffer(received_), remote_endpoint_,
-	        boost::bind(&service_base_impl::received, this,
+	        boost::bind(&participant_impl::received, this,
 	          boost::asio::placeholders::error,
 	          boost::asio::placeholders::bytes_transferred));
 }

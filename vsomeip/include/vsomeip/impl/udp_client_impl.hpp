@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -22,7 +22,8 @@ namespace vsomeip {
 
 class endpoint;
 
-class udp_client_impl : virtual public client_base_impl {
+class udp_client_impl
+		: virtual public client_base_impl {
 public:
 	udp_client_impl(const endpoint *_endpoint);
 
@@ -30,6 +31,7 @@ public:
 	void stop();
 
 private:
+	void restart();
 	void send_queued();
 
 	std::string get_remote_address() const;

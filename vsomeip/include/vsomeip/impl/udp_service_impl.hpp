@@ -21,12 +21,14 @@ namespace vsomeip {
 
 class endpoint;
 
-class udp_service_impl : virtual public service_base_impl {
+class udp_service_impl
+		: virtual public service_base_impl {
 public:
 	udp_service_impl(const endpoint *_endpoint);
 
 	void start();
 	void stop();
+
 
 private:
 	void restart();

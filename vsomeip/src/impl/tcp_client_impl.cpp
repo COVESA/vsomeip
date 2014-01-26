@@ -22,11 +22,10 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_client_impl::tcp_client_impl(const endpoint *_endpoint)
-		: socket_(is_),
+		: client_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
+		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
-	max_message_size_ = VSOMEIP_MAX_TCP_MESSAGE_SIZE;
-	serializer_->create_data(VSOMEIP_MAX_TCP_MESSAGE_SIZE);
 }
 
 void tcp_client_impl::start() {
@@ -36,13 +35,17 @@ void tcp_client_impl::start() {
 					boost::asio::placeholders::error));
 
 	// Nagle algorithm off
-	//ip::tcp::no_delay option;
-	//socket_.set_option(option);
+	ip::tcp::no_delay option;
+	socket_.set_option(option);
 }
 
 void tcp_client_impl::stop() {
 	if (socket_.is_open())
 		socket_.close();
+}
+
+void tcp_client_impl::restart() {
+
 }
 
 void tcp_client_impl::send_queued() {
@@ -78,7 +81,6 @@ ip_version tcp_client_impl::get_version() const {
 const uint8_t * tcp_client_impl::get_received() const {
 	return received_.data();
 }
-
 
 } // namespace vsomeip
 

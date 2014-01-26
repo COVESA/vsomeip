@@ -13,8 +13,10 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/placeholders.hpp>
 
+#include <vsomeip/deserializer.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
+#include <vsomeip/serializer.hpp>
 #include <vsomeip/impl/tcp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -22,7 +24,8 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_service_impl::tcp_service_impl(const endpoint *_endpoint)
-	: acceptor_(is_,
+	: service_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
+	  acceptor_(is_,
 			    ip::tcp::endpoint((_endpoint->get_version() == ip_version::V6 ?
 			    				  	  ip::tcp::v6() : ip::tcp::v4()),
 			    				  _endpoint->get_port())),
@@ -91,9 +94,6 @@ void tcp_service_impl::accepted(
 tcp_service_impl::connection::connection(tcp_service_impl *_service)
 	: socket_(_service->is_) {
 	service_ = _service;
-	serializer_ = factory::get_default_factory()->create_serializer();
-	serializer_->create_data(VSOMEIP_MAX_TCP_MESSAGE_SIZE);
-	deserializer_ = factory::get_default_factory()->create_deserializer();
 }
 
 tcp_service_impl::connection::pointer

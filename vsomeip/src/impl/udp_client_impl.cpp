@@ -21,11 +21,10 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 udp_client_impl::udp_client_impl(const endpoint *_endpoint)
-		: socket_(is_),
+		: client_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
-	max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
-	serializer_->create_data(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
 }
 
 void udp_client_impl::start() {
@@ -38,6 +37,9 @@ void udp_client_impl::start() {
 void udp_client_impl::stop() {
 	if (socket_.is_open())
 		socket_.close();
+}
+
+void udp_client_impl::restart() {
 }
 
 void udp_client_impl::send_queued() {
@@ -69,7 +71,6 @@ ip_version udp_client_impl::get_version() const {
 const uint8_t * udp_client_impl::get_received() const {
 	return received_.data();
 }
-
 
 } // namespace vsomeip
 

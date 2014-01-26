@@ -56,7 +56,6 @@ int main(int argc, char **argv) {
 
 #ifdef TCP_ENABLED
 	vsomeip::message *test_message = default_factory->create_message();
-	test_message->set_service_id(0x1111);
 	test_message->set_method_id(0x2222);
 	vsomeip::payload &test_payload = test_message->get_payload();
 	uint8_t test_data[MESSAGE_PAYLOAD_SIZE];
@@ -66,7 +65,6 @@ int main(int argc, char **argv) {
 
 	vsomeip::message *test_message2 = default_factory->create_message();
 	test_message2->set_service_id(0x1111);
-	test_message2->set_method_id(0x2222);
 	vsomeip::payload &test_payload2 = test_message2->get_payload();
 	uint8_t test_data2[MESSAGE_PAYLOAD_SIZE];
 	for (int i = 0; i < MESSAGE_PAYLOAD_SIZE; ++i) test_data2[i] = 0xFF;
@@ -74,10 +72,12 @@ int main(int argc, char **argv) {
 	boost::posix_time::ptime t_start(boost::posix_time::microsec_clock::local_time());
 	for (int i = 1; i <= ITERATIONS; i++) {
 #ifdef TCP_ENABLED
+		test_message->set_service_id(i % 2 == 0 ? 0x1111 : 0x1112);
 		tcp_client->send(test_message);
 #endif
 		test_data2[0] = (i % 256);
 		test_payload2.set_data(test_data2, sizeof(test_data2));
+		test_message2->set_method_id(i % 2 == 0 ? 0x1222 : 0x2222);
 		udp_client->send(test_message2, i == ITERATIONS);
 	}
 	boost::posix_time::ptime t_end(boost::posix_time::microsec_clock::local_time());
