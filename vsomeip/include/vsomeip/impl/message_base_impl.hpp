@@ -12,6 +12,8 @@
 #ifndef VSOMEIP_IMPL_MESSAGE_BASE_IMPL_HPP
 #define VSOMEIP_IMPL_MESSAGE_BASE_IMPL_HPP
 
+#include <boost/thread.hpp>
+
 #include <vsomeip/message.hpp>
 #include <vsomeip/impl/message_header_impl.hpp>
 
@@ -52,6 +54,12 @@ public:
 protected: // members
 	endpoint *endpoint_;
 	message_header_impl header_;
+
+private:
+	uint32_t message_id_;
+	static uint32_t message_count__;
+	static boost::mutex lock__;
+	static uint32_t get_message_count();
 };
 
 } // namespace vsomeip

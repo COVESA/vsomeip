@@ -44,6 +44,8 @@ private:
 
 	const uint8_t * get_received() const;
 
+	bool is_magic_cookie(const message_base *_message) const;
+
 private:
 	class connection : public boost::enable_shared_from_this< connection > {
 	public:
@@ -56,6 +58,7 @@ private:
 
 	private:
 		connection(tcp_service_impl *_service);
+		void send_magic_cookie();
 
 		// buffer
 		boost::array< uint8_t, VSOMEIP_MAX_TCP_MESSAGE_SIZE > received_;

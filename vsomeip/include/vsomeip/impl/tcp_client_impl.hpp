@@ -41,6 +41,9 @@ private:
 
 	const uint8_t * get_received() const;
 
+	bool is_magic_cookie(const message_base *_message) const;
+	void send_magic_cookie();
+
 private:
 	boost::asio::ip::tcp::socket socket_;
 	boost::asio::ip::tcp::endpoint local_endpoint_;

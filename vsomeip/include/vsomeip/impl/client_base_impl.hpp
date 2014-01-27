@@ -32,7 +32,7 @@ class client_base_impl
 		: virtual public client,
 		  public participant_impl {
 public: // client interface methods
-	client_base_impl(uint32_t _max_message_size);
+	client_base_impl(uint32_t _max_message_size, bool _is_supporting_resync);
 	~client_base_impl();
 
 	bool send(const message_base *_message,  bool _flush);

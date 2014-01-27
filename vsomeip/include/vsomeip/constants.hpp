@@ -28,21 +28,8 @@ const uint32_t vsomeip_protocol_reserved_long
 
 const uint32_t VSOMEIP_STATIC_HEADER_LENGTH = 8;
 
-// Magic Cookie commons
-const service_id VSOMEIP_MAGIC_COOKIE_SERVICE_ID = 0xFFFF;
-const client_id VSOMEIP_MAGIC_COOKIE_CLIENT_ID = 0xDEAD;
-const session_id VSOMEIP_MAGIC_COOKIE_SESSION_ID	 = 0xBEEF;
-const interface_version VSOMEIP_MAGIC_COOKIE_INTERFACE_VERSION = 0x01;
-
-// Magic Cookie sent from Client to Service
-const method_id VSOMEIP_CLIENT_MAGIC_COOKIE_METHOD_ID = 0x0000;
-const message_type VSOMEIP_CLIENT_MAGIC_COOKIE_MESSAGE_TYPE
-	= message_type::REQUEST_NO_RETURN;
-
-// Magic Cookie sent from Service to Client
-const method_id VSOMEIP_SERVICE_MAGIC_COOKIE_METHOD_ID = 0x8000;
-const message_type VSOMEIP_SERVICE_MAGIC_COOKIE_MESSAGE_TYPE
-	= message_type::NOTIFICATION;
+const uint32_t VSOMEIP_CLIENT_MAGIC_COOKIE_MESSAGE_ID = 0xFFFF0000;
+const uint32_t VSOMEIP_SERVICE_MAGIC_COOKIE_MESSAGE_ID = 0xFFFF8000;
 
 const uint8_t VSOMEIP_LENGTH_POSITION = 4;
 const uint8_t VSOME_IP_STATIC_SERVICE_DISCOVERY_DATA_LENGTH = 12;

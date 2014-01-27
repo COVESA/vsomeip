@@ -22,13 +22,14 @@
 
 namespace vsomeip {
 
+class endpoint;
 class message_base;
 
 class service_base_impl
 		: virtual public service,
 		  public participant_impl {
 public:
-	service_base_impl(uint32_t _max_message_size);
+	service_base_impl(uint32_t _max_message_size, bool _is_supporting_resync);
 	~service_base_impl();
 
 	virtual bool send(const message_base *_message, bool _flush);

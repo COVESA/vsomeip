@@ -12,7 +12,7 @@
 #ifndef VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
 #define VSOMEIP_IMPL_BYTEORDER_IMPL_HPP
 
-#include <sys/endian.h>
+#include <endian.h>
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 

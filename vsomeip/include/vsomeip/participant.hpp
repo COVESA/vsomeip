@@ -1,12 +1,16 @@
-/*
- * participant.hpp
- *
- *  Created on: Jan 26, 2014
- *      Author: lutz
- */
+//
+// participant.hpp
+//
+// Author: 	Lutz Bichler
+//
+// This file is part of the BMW Some/IP implementation.
+//
+// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// All rights reserved.
+//
 
-#ifndef PARTICIPANT_HPP_
-#define PARTICIPANT_HPP_
+#ifndef VSOMEIP_PARTICIPANT_HPP
+#define VSOMEIP_PARTICIPANT_HPP
 
 #include <vsomeip/constants.hpp>
 
@@ -36,6 +40,8 @@ public:
 								   service_id _service_id,
 								   method_id _method_id) = 0;
 
+	virtual bool is_sending_magic_cookies() const = 0;
+	virtual void set_sending_magic_cookies(bool _is_sending_magic_cookies) = 0;
 
 	virtual std::size_t poll_one() = 0;
 	virtual std::size_t poll() = 0;
@@ -44,4 +50,4 @@ public:
 
 } // namespace vsomeip
 
-#endif /* PARTICIPANT_HPP_ */
+#endif /* VSOMEIP_PARTICIPANT_HPP */

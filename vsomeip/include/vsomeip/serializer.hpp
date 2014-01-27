@@ -19,6 +19,8 @@ namespace vsomeip {
 
 class serializer {
 public:
+	virtual ~serializer() {};
+
 	virtual bool serialize(const serializable *_from) = 0;
 
 	virtual bool serialize(const uint8_t _value) = 0;
@@ -34,10 +36,6 @@ public:
 	virtual void set_data(uint8_t *_data, uint32_t _capacity) = 0;
 
 	virtual void reset() = 0;
-
-protected:
-	virtual ~serializer() {};
-
 };
 
 } // namespace vsomeip

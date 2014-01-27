@@ -40,6 +40,7 @@ private:
 	ip_version get_version() const;
 
 	const uint8_t * get_received() const;
+	bool is_magic_cookie(const message_base *_message) const;
 
 private:
 	boost::asio::ip::udp::socket socket_;

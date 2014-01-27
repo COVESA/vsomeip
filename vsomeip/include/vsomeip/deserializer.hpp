@@ -20,6 +20,8 @@ namespace vsomeip {
 
 class deserializer {
 public:
+	virtual ~deserializer() {};
+
 	virtual message_base * deserialize_message() = 0;
 
 	virtual bool deserialize(uint8_t& _value) = 0;
@@ -40,9 +42,6 @@ public:
 	virtual void append_data(const uint8_t *_data, std::size_t _length) = 0;
 
 	virtual void reset() = 0;
-
-protected:
-	virtual ~deserializer() {};
 };
 
 } // namespace vsomeip
