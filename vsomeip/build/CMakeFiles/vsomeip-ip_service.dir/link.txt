@@ -1,0 +1,1 @@
+/usr/bin/c++   -DUSE_VSOMEIP_STATISTICS -std=c++0x -g -O0 -g    CMakeFiles/vsomeip-ip_service.dir/src/examples/ip_service.cpp.o  -o vsomeip-ip_service -rdynamic libvsomeip-base.so -lboost_system -lboost_thread -Wl,-rpath,/home/someip/Projects/vsomeip/build 

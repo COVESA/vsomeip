@@ -1,0 +1,6 @@
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeip-base.dir
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeip-ip_client.dir
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeip-ip_service.dir
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeip-serialization.dir
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeip-service_discovery.dir
+/home/someip/Projects/vsomeip/build/CMakeFiles/vsomeipd.dir

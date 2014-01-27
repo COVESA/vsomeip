@@ -1,0 +1,46 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/someip/Projects/vsomeip/src/daemon/daemon-config.h
+
+/home/someip/Projects/vsomeip/src/daemon/daemon.cpp
+netinet/in.h
+-
+sys/types.h
+-
+sys/socket.h
+-
+iostream
+-
+fstream
+-
+sstream
+-
+boost/program_options.hpp
+-
+daemon-config.h
+/home/someip/Projects/vsomeip/src/daemon/daemon-config.h
+daemon.h
+/home/someip/Projects/vsomeip/src/daemon/daemon.h
+
+/home/someip/Projects/vsomeip/src/daemon/daemon.h
+string
+-
+vector
+-
+
+/home/someip/Projects/vsomeip/src/daemon/main.cpp
+daemon.h
+/home/someip/Projects/vsomeip/src/daemon/daemon.h
+
+/home/someip/Projects/vsomeip/src/daemon/registration.cpp
+registration.h
+/home/someip/Projects/vsomeip/src/daemon/registration.h
+
+/home/someip/Projects/vsomeip/src/daemon/registration.h
+
