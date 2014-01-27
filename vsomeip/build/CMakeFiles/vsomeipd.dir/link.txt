@@ -1,1 +1,0 @@
-/usr/bin/c++   -DUSE_VSOMEIP_STATISTICS -std=c++0x -g -O0 -g    CMakeFiles/vsomeipd.dir/src/daemon/registration.cpp.o CMakeFiles/vsomeipd.dir/src/daemon/daemon.cpp.o CMakeFiles/vsomeipd.dir/src/daemon/main.cpp.o  -o vsomeipd -rdynamic libvsomeip-base.so libvsomeip-service_discovery.so -lboost_system -lboost_program_options -Wl,-rpath,/home/someip/Projects/vsomeip/build 

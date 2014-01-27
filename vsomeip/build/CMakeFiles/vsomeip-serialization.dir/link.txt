@@ -1,1 +1,0 @@
-/usr/bin/c++   -DUSE_VSOMEIP_STATISTICS -std=c++0x -g -O0 -g    CMakeFiles/vsomeip-serialization.dir/src/examples/serialization.cpp.o  -o vsomeip-serialization -rdynamic libvsomeip-base.so libvsomeip-service_discovery.so -lboost_system -Wl,-rpath,/home/someip/Projects/vsomeip/build 
