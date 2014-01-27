@@ -19,13 +19,15 @@
 
 namespace vsomeip {
 
-deserializer_impl::deserializer_impl() {
-	position_ = data_.begin();
+deserializer_impl::deserializer_impl()
+	: position_(data_.begin()),
+	  remaining_(0) {
 }
 
 deserializer_impl::deserializer_impl(uint8_t *_data, std::size_t _length)
 	: data_(_data, _data + _length),
-	  position_(data_.begin()) {
+	  position_(data_.begin()),
+	  remaining_(_length) {
 }
 
 deserializer_impl::deserializer_impl(const deserializer_impl& _deserializer)
