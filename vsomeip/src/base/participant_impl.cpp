@@ -119,21 +119,24 @@ void participant_impl::received(
 											 + VSOMEIP_STATIC_HEADER_LENGTH);
 				boost::shared_ptr<message_base>
 					received_message(deserializer_->deserialize_message());
-				if (0 != received_message && !is_magic_cookie(received_message.get())) {
-					endpoint *sender
-						= factory::get_default_factory()->create_endpoint(
-								get_remote_address(), get_remote_port(),
-								get_protocol(), get_version());
+				if (0 != received_message) {
+					if (!is_magic_cookie(received_message.get())) {
+						endpoint *sender
+							= factory::get_default_factory()->create_endpoint(
+									get_remote_address(), get_remote_port(),
+									get_protocol(), get_version());
 
-					received_message->set_endpoint(sender);
+						received_message->set_endpoint(sender);
 #ifdef USE_VSOMEIP_STATISTICS
-					statistics_.received_messages_++;
+						statistics_.received_messages_++;
 #endif
-					receive(received_message.get());
+						receive(received_message.get());
+					}
 					has_deserialized = true;
 				}
 				deserializer_->reset();
 			} else if (is_supporting_resync_){
+				std::cout << "Resyncing..." << std::endl;
 				has_deserialized = resync_on_magic_cookie();
 			}
 		} while (has_deserialized);
@@ -148,6 +151,36 @@ bool participant_impl::resync_on_magic_cookie() {
 	bool is_resynced = false;
 
 	if (is_supporting_resync_) {
+		bool has_deserialized;
+		uint32_t current_message_id = 0;
+		do {
+			has_deserialized = deserializer_->deserialize(current_message_id);
+		} while (has_deserialized &&
+		   current_message_id != VSOMEIP_CLIENT_MAGIC_COOKIE_MESSAGE_ID);
+
+		if (has_deserialized) {
+			uint32_t cookie_length, cookie_request_id;
+			uint8_t cookie_protocol_version, cookie_interface_version,
+					cookie_message_type, cookie_return_code;
+
+			has_deserialized =
+					deserializer_->deserialize(cookie_length) &&
+					deserializer_->deserialize(cookie_request_id) &&
+					deserializer_->deserialize(cookie_protocol_version) &&
+					deserializer_->deserialize(cookie_interface_version) &&
+					deserializer_->deserialize(cookie_message_type) &&
+					deserializer_->deserialize(cookie_return_code);
+
+			is_resynced = has_deserialized &&
+						  cookie_length == 0x8 &&
+						  cookie_request_id == 0xDEADBEEF &&
+						  cookie_protocol_version == 0x1 &&
+						  cookie_interface_version == 0x0 &&
+						  cookie_message_type == 0x1 &&
+						  cookie_return_code == 0x0;
+		} else {
+			std::cout << "Could not resync. Dropping data." << std::endl;
+		}
 
 	} else {
 		deserializer_->set_data(NULL, 0);

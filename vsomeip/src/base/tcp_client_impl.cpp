@@ -91,17 +91,15 @@ bool tcp_client_impl::is_magic_cookie(const message_base *_message) const {
 }
 
 void tcp_client_impl::send_magic_cookie() {
-	static uint8_t magic_cookie[] = { 0xFF, 0xFF, 0x00, 0x00,
-									   0x00, 0x00, 0x00, 0x08,
-									   0xDE, 0xAD, 0xBE, 0xEF,
-									   0x01, 0x01, 0x01, 0x00 };
+	static uint8_t magic_cookie_data[] = { 0xFF, 0xFF, 0x00, 0x00,
+									   	    0x00, 0x00, 0x00, 0x08,
+									   	    0xDE, 0xAD, 0xBE, 0xEF,
+									   	    0x01, 0x01, 0x01, 0x00 };
 
-	boost::asio::async_write(
-			socket_,
-			boost::asio::buffer(magic_cookie, sizeof(magic_cookie)),
-			boost::bind(&client_base_impl::sent, this,
-					boost::asio::placeholders::error,
-					boost::asio::placeholders::bytes_transferred));
+	std::vector< uint8_t >& current_packet = packet_queue_.front();
+	current_packet.insert(current_packet.begin(),
+						  magic_cookie_data,
+						  magic_cookie_data + sizeof(magic_cookie_data));
 }
 
 } // namespace vsomeip
