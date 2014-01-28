@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include <vsomeip/impl/endpoint_impl.hpp>
+#include <vsomeip/internal/endpoint_impl.hpp>
 
 namespace vsomeip {
 

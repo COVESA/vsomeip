@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (vsomeip)
 
-set (CMAKE_CXX_FLAGS "-DUSE_VSOMEIP_STATISTICS -std=c++0x -g -O0")
+set (CMAKE_CXX_FLAGS "-DUSE_VSOMEIP_STATISTICS -DUSE_VSOMEIP_MAGIC_COOKIES -std=c++0x -O0")
 include_directories("include")
 
 file(GLOB vsomeip-base_SRC

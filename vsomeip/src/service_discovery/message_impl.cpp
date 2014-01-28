@@ -12,14 +12,14 @@
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
 #include <vsomeip/constants.hpp>
-#include <vsomeip/service_discovery/impl/eventgroup_entry_impl.hpp>
-#include <vsomeip/service_discovery/impl/service_entry_impl.hpp>
-#include <vsomeip/service_discovery/impl/configuration_option_impl.hpp>
-#include <vsomeip/service_discovery/impl/ipv4_endpoint_option_impl.hpp>
-#include <vsomeip/service_discovery/impl/ipv6_endpoint_option_impl.hpp>
-#include <vsomeip/service_discovery/impl/load_balancing_option_impl.hpp>
-#include <vsomeip/service_discovery/impl/protection_option_impl.hpp>
-#include <vsomeip/service_discovery/impl/message_impl.hpp>
+#include <vsomeip/service_discovery/internal/eventgroup_entry_impl.hpp>
+#include <vsomeip/service_discovery/internal/service_entry_impl.hpp>
+#include <vsomeip/service_discovery/internal/configuration_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/ipv4_endpoint_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/ipv6_endpoint_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/load_balancing_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/protection_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/message_impl.hpp>
 
 #include <iostream>
 #include <typeinfo>

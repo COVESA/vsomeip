@@ -12,7 +12,7 @@
 
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip/service_discovery/impl/configuration_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/configuration_option_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

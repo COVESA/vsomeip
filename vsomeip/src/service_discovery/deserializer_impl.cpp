@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 #include <vsomeip/message_base.hpp>
-#include <vsomeip/service_discovery/impl/deserializer_impl.hpp>
-#include <vsomeip/service_discovery/impl/message_impl.hpp>
+#include <vsomeip/service_discovery/internal/deserializer_impl.hpp>
+#include <vsomeip/service_discovery/internal/message_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

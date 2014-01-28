@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include <vsomeip/impl/message_header_impl.hpp>
+#include <vsomeip/internal/message_header_impl.hpp>
 
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>

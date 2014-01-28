@@ -18,19 +18,21 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip/serializer.hpp>
-#include <vsomeip/impl/tcp_service_impl.hpp>
+#include <vsomeip/internal/tcp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
 tcp_service_impl::tcp_service_impl(const endpoint *_endpoint)
-	: service_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE, true),
+	: service_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
 	  acceptor_(is_,
 			    ip::tcp::endpoint((_endpoint->get_version() == ip_version::V6 ?
 			    				  	  ip::tcp::v6() : ip::tcp::v4()),
 			    				  _endpoint->get_port())),
 	  version_(_endpoint->get_version()) {
+
+	has_magic_cookies_ = true;
 }
 
 tcp_service_impl::~tcp_service_impl() {
@@ -81,9 +83,17 @@ const uint8_t * tcp_service_impl::get_received() const {
 				0 : current_receiving_->get_received_data());
 }
 
-bool tcp_service_impl::is_magic_cookie(const message_base *_message) const {
-	return (_message->get_message_id()
-			 == VSOMEIP_CLIENT_MAGIC_COOKIE_MESSAGE_ID);
+bool tcp_service_impl::is_magic_cookie(
+		message_id _message_id, length _length, request_id _request_id,
+		protocol_version _protocol_version, interface_version _interface_version,
+		message_type _message_type, return_code _return_code) const {
+	return (_message_id	 == VSOMEIP_MAGIC_COOKIE_CLIENT_MESSAGE_ID &&
+			 _length == VSOMEIP_MAGIC_COOKIE_LENGTH &&
+			 _request_id == VSOMEIP_MAGIC_COOKIE_REQUEST_ID &&
+			 _protocol_version == VSOMEIP_MAGIC_COOKIE_PROTOCOL_VERSION &&
+			 _interface_version == VSOMEIP_MAGIC_COOKIE_INTERFACE_VERSION &&
+			 _message_type == VSOMEIP_MAGIC_COOKIE_CLIENT_MESSAGE_TYPE &&
+			 _return_code == VSOMEIP_MAGIC_COOKIE_RETURN_CODE);
 }
 
 void tcp_service_impl::accepted(
@@ -126,19 +136,14 @@ tcp_service_impl::connection::get_received_data() const {
 	return received_.data();
 }
 
+#ifdef USE_VSOMEIP_MAGIC_COOKIES
 void tcp_service_impl::connection::send_magic_cookie() {
 	static uint8_t magic_cookie[] = { 0xFF, 0xFF, 0x80, 0x00,
 									   0x00, 0x00, 0x00, 0x08,
 									   0xDE, 0xAD, 0xBE, 0xEF,
 									   0x01, 0x01, 0x02, 0x00 };
-
-	boost::asio::async_write(
-			socket_,
-			boost::asio::buffer(magic_cookie, sizeof(magic_cookie)),
-			boost::bind(&tcp_service_impl::connection::sent, this,
-					boost::asio::placeholders::error,
-					boost::asio::placeholders::bytes_transferred));
 }
+#endif
 
 void
 tcp_service_impl::connection::sent(

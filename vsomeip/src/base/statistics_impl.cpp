@@ -10,7 +10,7 @@
 //
 #ifdef USE_VSOMEIP_STATISTICS
 
-#include <vsomeip/impl/statistics_impl.hpp>
+#include <vsomeip/internal/statistics_impl.hpp>
 
 namespace vsomeip {
 

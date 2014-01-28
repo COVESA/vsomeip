@@ -10,12 +10,10 @@
 //
 
 #include <cstring>
-#include <iomanip>
-#include <iostream>
 
-#include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/message_impl.hpp>
-#include <vsomeip/impl/deserializer_impl.hpp>
+#include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/internal/message_impl.hpp>
+#include <vsomeip/internal/deserializer_impl.hpp>
 
 namespace vsomeip {
 
@@ -162,6 +160,11 @@ void deserializer_impl::set_data(uint8_t *_data,  std::size_t _length) {
 		std::size_t offset = position_ - data_.begin();
 		data_.assign(_data, _data + _length);
 		position_ = data_.begin() + offset;
+		remaining_ = data_.end() - position_;
+	} else {
+		data_.clear();
+		position_ = data_.end();
+		remaining_ = 0;
 	}
 }
 
@@ -169,12 +172,29 @@ void deserializer_impl::append_data(const uint8_t *_data, std::size_t _length) {
 	std::size_t offset = (position_ - data_.begin());
 	data_.insert(data_.end(), _data, _data + _length);
 	position_ = data_.begin() + offset;
+	remaining_ += _length;
+}
+
+void deserializer_impl::drop_data(std::size_t _length) {
+	if (position_ + _length < data_.end())
+		position_ += _length;
+	else
+		position_ = data_.end();
 }
 
 void deserializer_impl::reset() {
 	data_.erase(data_.begin(), position_);
 	position_ = data_.begin();
 	remaining_ = data_.size();
+}
+
+void deserializer_impl::show_data() const {
+	std::cout << "("
+			  << std::hex << std::setw(2) << std::setfill('0') << (int)*position_ << ", "
+			  << std:: dec << remaining_ << ") ";
+	for (int i = 0; i < data_.size(); ++i)
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << " ";
+	std::cout << std::dec << std::endl;
 }
 
 } // namespace vsomeip

@@ -14,14 +14,14 @@
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/config.hpp>
-#include <vsomeip/impl/udp_client_impl.hpp>
+#include <vsomeip/internal/udp_client_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
 udp_client_impl::udp_client_impl(const endpoint *_endpoint)
-		: client_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE, false),
+		: client_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE),
 		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
@@ -70,10 +70,6 @@ ip_version udp_client_impl::get_version() const {
 
 const uint8_t * udp_client_impl::get_received() const {
 	return received_.data();
-}
-
-bool udp_client_impl::is_magic_cookie(const message_base *_message) const {
-	return false;
 }
 
 } // namespace vsomeip

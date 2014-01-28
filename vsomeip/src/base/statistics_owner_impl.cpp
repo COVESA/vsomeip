@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include <vsomeip/impl/statistics_owner_impl.hpp>
+#include <vsomeip/internal/statistics_owner_impl.hpp>
 
 namespace vsomeip {
 

@@ -10,8 +10,8 @@
 //
 #include <cstring>
 
-#include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/serializer_impl.hpp>
+#include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/internal/serializer_impl.hpp>
 
 namespace vsomeip {
 

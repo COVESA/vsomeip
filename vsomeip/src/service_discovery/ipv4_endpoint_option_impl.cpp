@@ -12,7 +12,7 @@
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
 #include <vsomeip/constants.hpp>
-#include <vsomeip/service_discovery/impl/ipv4_endpoint_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/ipv4_endpoint_option_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

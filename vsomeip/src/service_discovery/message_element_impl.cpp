@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include <vsomeip/service_discovery/impl/message_element_impl.hpp>
+#include <vsomeip/service_discovery/internal/message_element_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

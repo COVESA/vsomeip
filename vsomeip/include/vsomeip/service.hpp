@@ -16,8 +16,14 @@
 
 namespace vsomeip {
 
+class endpoint;
+
 class service
 		: virtual public participant {
+public:
+	virtual bool send(const message_base *_message, bool _flush = true) = 0;
+	virtual bool send(const uint8_t *_data, uint32_t _size,
+						endpoint *_target, bool _flush = true) = 0;
 };
 
 } // namespace vsomeip

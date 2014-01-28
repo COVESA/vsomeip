@@ -13,8 +13,8 @@
 
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip/service_discovery/impl/entry_impl.hpp>
-#include <vsomeip/service_discovery/impl/message_impl.hpp>
+#include <vsomeip/service_discovery/internal/entry_impl.hpp>
+#include <vsomeip/service_discovery/internal/message_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

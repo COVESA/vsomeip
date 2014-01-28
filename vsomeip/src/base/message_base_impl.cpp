@@ -9,20 +9,17 @@
 // All rights reserved.
 //
 #include <vsomeip/constants.hpp>
-#include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/message_impl.hpp>
+#include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/internal/message_impl.hpp>
 
 namespace vsomeip {
 
 message_base_impl::message_base_impl() {
 	header_.set_owner(this);
 	message_id_ = get_message_count();
-
-	std::cout << "Creating message " << message_id_ << std::endl;
 }
 
 message_base_impl::~message_base_impl() {
-	std::cout << "Deleting message " << message_id_ << std::endl;
 };
 
 // endpoint (sender when receiving, receiver when sending messages)

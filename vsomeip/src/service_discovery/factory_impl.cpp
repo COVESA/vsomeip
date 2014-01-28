@@ -8,9 +8,9 @@
 // Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
-#include <vsomeip/service_discovery/impl/factory_impl.hpp>
-#include <vsomeip/service_discovery/impl/message_impl.hpp>
-#include <vsomeip/service_discovery/impl/deserializer_impl.hpp>
+#include <vsomeip/service_discovery/internal/factory_impl.hpp>
+#include <vsomeip/service_discovery/internal/message_impl.hpp>
+#include <vsomeip/service_discovery/internal/deserializer_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

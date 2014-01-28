@@ -12,7 +12,7 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip/service_discovery/impl/eventgroup_entry_impl.hpp>
+#include <vsomeip/service_discovery/internal/eventgroup_entry_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

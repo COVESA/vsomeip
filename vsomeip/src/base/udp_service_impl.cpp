@@ -15,14 +15,14 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/serializer.hpp>
-#include <vsomeip/impl/udp_service_impl.hpp>
+#include <vsomeip/internal/udp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
 udp_service_impl::udp_service_impl(const endpoint *_endpoint)
-		: service_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE, false),
+		: service_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE),
 		  socket_(is_, ip::udp::endpoint(
 				  	  	  (_endpoint->get_version() == ip_version::V4 ?
 				  	  			  ip::udp::v4() : ip::udp::v6()),
@@ -77,10 +77,6 @@ ip_version udp_service_impl::get_version() const {
 
 const uint8_t * udp_service_impl::get_received() const {
 	return received_.data();
-}
-
-bool udp_service_impl::is_magic_cookie(const message_base *_message) const {
-	return false;
 }
 
 } // namespace vsomeip

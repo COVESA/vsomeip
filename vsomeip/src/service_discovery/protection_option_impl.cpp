@@ -11,7 +11,7 @@
 
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip/service_discovery/impl/protection_option_impl.hpp>
+#include <vsomeip/service_discovery/internal/protection_option_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

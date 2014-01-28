@@ -13,19 +13,21 @@
 #include <boost/asio/write.hpp>
 #include <boost/bind.hpp>
 
-#include <vsomeip/endpoint.hpp>
 #include <vsomeip/config.hpp>
-#include <vsomeip/impl/tcp_client_impl.hpp>
+#include <vsomeip/constants.hpp>
+#include <vsomeip/endpoint.hpp>
+#include <vsomeip/internal/tcp_client_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
 tcp_client_impl::tcp_client_impl(const endpoint *_endpoint)
-		: client_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE, true),
+		: client_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
 		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
+	has_magic_cookies_ = true;
 }
 
 void tcp_client_impl::start() {
@@ -49,7 +51,7 @@ void tcp_client_impl::restart() {
 }
 
 void tcp_client_impl::send_queued() {
-	if (is_sending_magic_cookies_)
+	if (has_enabled_magic_cookies_)
 		send_magic_cookie();
 
 	boost::asio::async_write(
@@ -85,21 +87,30 @@ const uint8_t * tcp_client_impl::get_received() const {
 	return received_.data();
 }
 
-bool tcp_client_impl::is_magic_cookie(const message_base *_message) const {
-	return (_message->get_message_id()
-			 == VSOMEIP_SERVICE_MAGIC_COOKIE_MESSAGE_ID);
+bool tcp_client_impl::is_magic_cookie(
+		message_id _message_id, length _length, request_id _request_id,
+		protocol_version _protocol_version, interface_version _interface_version,
+		message_type _message_type, return_code _return_code) const {
+	return (_message_id	 == VSOMEIP_MAGIC_COOKIE_SERVICE_MESSAGE_ID &&
+			 _length == VSOMEIP_MAGIC_COOKIE_LENGTH &&
+			 _request_id == VSOMEIP_MAGIC_COOKIE_REQUEST_ID &&
+			 _protocol_version == VSOMEIP_MAGIC_COOKIE_PROTOCOL_VERSION &&
+			 _interface_version == VSOMEIP_MAGIC_COOKIE_INTERFACE_VERSION &&
+			 _message_type == VSOMEIP_MAGIC_COOKIE_SERVICE_MESSAGE_TYPE &&
+			 _return_code == VSOMEIP_MAGIC_COOKIE_RETURN_CODE);
 }
 
 void tcp_client_impl::send_magic_cookie() {
-	static uint8_t magic_cookie_data[] = { 0xFF, 0xFF, 0x00, 0x00,
-									   	    0x00, 0x00, 0x00, 0x08,
-									   	    0xDE, 0xAD, 0xBE, 0xEF,
-									   	    0x01, 0x01, 0x01, 0x00 };
+	static uint8_t magic_cookie_client_data[] = { 0xFF, 0xFF, 0x00, 0x00,
+									   	    	   0x00, 0x00, 0x00, 0x08,
+									   	    	   0xDE, 0xAD, 0xBE, 0xEF,
+									   	    	   0x01, 0x01, 0x01, 0x00 };
 
+	// TODO: Special handling in case the current packet does not have enough room left...
 	std::vector< uint8_t >& current_packet = packet_queue_.front();
 	current_packet.insert(current_packet.begin(),
-						  magic_cookie_data,
-						  magic_cookie_data + sizeof(magic_cookie_data));
+			magic_cookie_client_data,
+			magic_cookie_client_data + sizeof(magic_cookie_client_data));
 }
 
 } // namespace vsomeip

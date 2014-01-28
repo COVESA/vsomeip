@@ -23,20 +23,30 @@ int main(int argc, char **argv) {
 	vsomeip::client *the_client = the_factory->create_client(the_endpoint);
 
 	// switch on magic cookies
-	the_client->set_sending_magic_cookies(true);
+	the_client->enable_magic_cookies();
 
 	// create a wrong message
-	vsomeip::message *the_message = the_factory->create_message();
-	uint8_t the_message_payload[]
-	    = { 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1 };
-	the_message->get_payload().set_data(
-		the_message_payload, sizeof(the_message_payload));
-	the_client->start();
+	uint8_t the_correct_message_payload[]
+	    = { 0x11, 0x12, 0x22, 0x22,
+	    	0x00, 0x00, 0x00, 0x11,
+	    	0x22, 0x33, 0x44, 0x55,
+	    	0x01, 0x01, 0x02, 0x00,
+	    	0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 };
+	uint8_t the_wrong_message_payload[]
+	    = { 0x11, 0x12, 0x22, 0x22,
+	    	0x00, 0x00, 0x01, 0x23,
+	    	0x22, 0x33, 0x44, 0x55,
+	    	0x01, 0x01, 0x02, 0x00,
+	    	0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 };
 
-	the_message->set_length(51);
-	the_client->send(the_message);
-	the_message->set_length(17);
-	the_client->send(the_message);
+	the_client->start();
+	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
+	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
+	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
 	the_client->run();
 
 	while (1); // barrier

@@ -10,7 +10,7 @@
 //
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip/impl/payload_impl.hpp>
+#include <vsomeip/internal/payload_impl.hpp>
 
 namespace vsomeip {
 

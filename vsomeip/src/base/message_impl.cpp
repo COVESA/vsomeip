@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 #include <vsomeip/constants.hpp>
-#include <vsomeip/impl/byteorder_impl.hpp>
-#include <vsomeip/impl/message_impl.hpp>
+#include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/internal/message_impl.hpp>
 
 namespace vsomeip {
 

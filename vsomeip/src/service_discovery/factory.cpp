@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include <vsomeip/service_discovery/impl/factory_impl.hpp>
+#include <vsomeip/service_discovery/internal/factory_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {

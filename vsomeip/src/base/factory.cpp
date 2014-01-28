@@ -10,7 +10,7 @@
 // All rights reserved.
 //
 #include <vsomeip/factory.hpp>
-#include <vsomeip/impl/factory_impl.hpp>
+#include <vsomeip/internal/factory_impl.hpp>
 
 namespace vsomeip {
 

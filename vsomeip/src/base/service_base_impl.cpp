@@ -12,13 +12,12 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/message_base.hpp>
 #include <vsomeip/serializer.hpp>
-#include <vsomeip/impl/service_base_impl.hpp>
+#include <vsomeip/internal/service_base_impl.hpp>
 
 namespace vsomeip {
 
-service_base_impl::service_base_impl(uint32_t _max_message_size,
-										  bool _is_supporting_resync)
-	: participant_impl(_max_message_size, _is_supporting_resync),
+service_base_impl::service_base_impl(uint32_t _max_message_size)
+	: participant_impl(_max_message_size),
 	  current_queue_(packet_queue_.end()) {
 }
 
@@ -42,20 +41,28 @@ bool service_base_impl::send(const message_base *_message,  bool _flush) {
 		return false;
 	}
 
+	return send(serializer_->get_data(), serializer_->get_size(),
+				 _message->get_endpoint(), _flush);
+}
+
+bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
+								 endpoint *_target, bool _flush) {
+	if (0 == _target)
+		return false;
+
 	// find queue and packetizer (buffer)
-	endpoint *target = _message->get_endpoint();
 	std::deque< std::vector< uint8_t > >& target_packet_queue
-		= packet_queue_[target];
+		= packet_queue_[_target];
 	std::vector< uint8_t >& target_packetizer
-		= packetizer_[target];
+		= packetizer_[_target];
 
 	// if the current_queue is not yet set, set it to newly created one
 	if (current_queue_ == packet_queue_.end())
-		current_queue_ = packet_queue_.find(target);
+		current_queue_ = packet_queue_.find(_target);
 
 	bool is_queue_empty(target_packet_queue.empty());
 
-	if (target_packetizer.size() + message_size > max_message_size_) {
+	if (target_packetizer.size() + _size > max_message_size_) {
 		// TODO: log "implicit flush because new message cannot be buffered"
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
@@ -63,9 +70,7 @@ bool service_base_impl::send(const message_base *_message,  bool _flush) {
 			send_queued();
 	}
 
-	target_packetizer.insert(target_packetizer.end(),
-			serializer_->get_data(),
-			serializer_->get_data() + serializer_->get_size());
+	target_packetizer.insert(target_packetizer.end(), _data, _data + _size);
 
 	if (_flush) {
 		target_packet_queue.push_back(target_packetizer);

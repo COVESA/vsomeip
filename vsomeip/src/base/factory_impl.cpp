@@ -8,15 +8,15 @@
 // Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
-#include <vsomeip/impl/factory_impl.hpp>
-#include <vsomeip/impl/message_impl.hpp>
-#include <vsomeip/impl/serializer_impl.hpp>
-#include <vsomeip/impl/deserializer_impl.hpp>
-#include <vsomeip/impl/endpoint_impl.hpp>
-#include <vsomeip/impl/udp_client_impl.hpp>
-#include <vsomeip/impl/udp_service_impl.hpp>
-#include <vsomeip/impl/tcp_client_impl.hpp>
-#include <vsomeip/impl/tcp_service_impl.hpp>
+#include <vsomeip/internal/factory_impl.hpp>
+#include <vsomeip/internal/message_impl.hpp>
+#include <vsomeip/internal/serializer_impl.hpp>
+#include <vsomeip/internal/deserializer_impl.hpp>
+#include <vsomeip/internal/endpoint_impl.hpp>
+#include <vsomeip/internal/udp_client_impl.hpp>
+#include <vsomeip/internal/udp_service_impl.hpp>
+#include <vsomeip/internal/tcp_client_impl.hpp>
+#include <vsomeip/internal/tcp_service_impl.hpp>
 
 namespace vsomeip {
 

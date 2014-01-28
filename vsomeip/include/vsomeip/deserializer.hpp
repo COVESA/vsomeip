@@ -40,8 +40,11 @@ public:
 
 	virtual void set_data(uint8_t *_data, std::size_t _length) = 0;
 	virtual void append_data(const uint8_t *_data, std::size_t _length) = 0;
+	virtual void drop_data(std::size_t _length) = 0;
 
 	virtual void reset() = 0;
+
+	virtual void show_data() const = 0;
 };
 
 } // namespace vsomeip
