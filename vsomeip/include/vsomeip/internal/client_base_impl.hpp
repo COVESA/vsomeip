@@ -13,9 +13,9 @@
 #define VSOMEIP_INTERNAL_CLIENT_BASE_IMPL_HPP
 
 #include <deque>
-#include <map>
-#include <set>
 #include <vector>
+
+#include <boost/asio/system_timer.hpp>
 
 #include <vsomeip/client.hpp>
 #include <vsomeip/serializer.hpp>
@@ -41,6 +41,10 @@ public: // client interface methods
 protected:
 	std::deque< std::vector< uint8_t > > packet_queue_;
 	std::vector< uint8_t > packetizer_;
+
+private:
+	void flush(const boost::system::error_code &_error_code);
+	boost::asio::system_timer flush_timer_;
 
 public:
 	void connected(boost::system::error_code const &_error_code);

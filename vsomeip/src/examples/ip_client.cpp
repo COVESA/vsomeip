@@ -28,17 +28,6 @@ public:
 	void set_service(vsomeip::client *_client) { client_ = _client; };
 
 	void receive(const vsomeip::message_base *_message) {
-		vsomeip::endpoint *from = _message->get_endpoint();
-		if (from) {
-			std::cout << "Received "
-					  << (from->get_protocol() == vsomeip::ip_protocol::UDP ? "UDP" : "TCP")
-					  << (int)from->get_version()
-					  << " message from "
-					  << from->get_address()
-					  << ":"
-					  << from->get_port()
-					  << std::endl;
-		}
 	}
 
 	int receive_counter;
@@ -131,7 +120,7 @@ int main(int argc, char **argv) {
 		test_data2[0] = (i % 256);
 		test_payload2.set_data(test_data2, sizeof(test_data2));
 		test_message2->set_method_id(i % 2 == 0 ? 0x1222 : 0x2222);
-		udp_client->send(test_message2, i == ITERATIONS);
+		udp_client->send(test_message2, false);
 	}
 	boost::posix_time::ptime t_end(boost::posix_time::microsec_clock::local_time());
 

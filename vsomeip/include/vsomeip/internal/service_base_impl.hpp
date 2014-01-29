@@ -16,7 +16,7 @@
 #include <map>
 #include <vector>
 
-#include <boost/thread/mutex.hpp>
+#include <boost/asio/system_timer.hpp>
 
 #include <vsomeip/service.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -47,6 +47,11 @@ protected:
 
 	std::map< endpoint *,
 			  std::vector< uint8_t > > packetizer_;
+
+private:
+	void flush(endpoint *_endpoint,
+				const boost::system::error_code &_error_code);
+	boost::asio::system_timer flush_timer_;
 
 public:
 	void connected(boost::system::error_code const &_error_code);

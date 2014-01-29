@@ -9,8 +9,10 @@
 // All rights reserved.
 //
 
-#include <boost/thread/lock_guard.hpp>
+#include <boost/asio/placeholders.hpp>
+#include <boost/bind.hpp>
 
+#include <vsomeip/config.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/message_base.hpp>
 #include <vsomeip/serializer.hpp>
@@ -20,7 +22,8 @@ namespace vsomeip {
 
 service_base_impl::service_base_impl(uint32_t _max_message_size)
 	: participant_impl(_max_message_size),
-	  current_queue_(packet_queues_.end()) {
+	  current_queue_(packet_queues_.end()),
+	  flush_timer_(is_) {
 }
 
 service_base_impl::~service_base_impl() {
@@ -77,19 +80,40 @@ bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
 	target_packetizer.insert(target_packetizer.end(), _data, _data + _size);
 
 	if (_flush) {
+		flush_timer_.cancel();
+
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
 
 		if (is_queue_empty)
 			send_queued();
+	} else {
+		flush_timer_.expires_from_now(
+				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
+		flush_timer_.async_wait(
+						boost::bind(
+							&service_base_impl::flush, this,
+							_target, boost::asio::placeholders::error));
 	}
 
 	return true;
 }
 
-//
-// Private
-//
+void service_base_impl::flush(
+		endpoint *_target,
+		const boost::system::error_code &_error_code) {
+	if (!_error_code) {
+		std::deque< std::vector< uint8_t > >& target_packet_queue
+				= packet_queues_[_target];
+		std::vector< uint8_t >& target_packetizer
+				= packetizer_[_target];
+		target_packet_queue.push_back(target_packetizer);
+		target_packetizer.clear();
+
+		send_queued();
+	}
+}
+
 void service_base_impl::connected(
 		boost::system::error_code const &_error_code) {
 

@@ -9,6 +9,12 @@
 // All rights reserved.
 //
 
+#include <chrono>
+
+#include <boost/asio/placeholders.hpp>
+#include <boost/bind.hpp>
+
+#include <vsomeip/config.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/internal/client_base_impl.hpp>
@@ -16,7 +22,7 @@
 namespace vsomeip {
 
 client_base_impl::client_base_impl(uint32_t _max_message_size)
-	: participant_impl(_max_message_size) {
+	: participant_impl(_max_message_size), flush_timer_(is_) {
 }
 
 client_base_impl::~client_base_impl() {
@@ -58,13 +64,28 @@ bool client_base_impl::send(const uint8_t *_data, const uint32_t _size, bool _fl
 	packetizer_.insert(packetizer_.end(), _data, _data + _size);
 
 	if (_flush) {
+		flush_timer_.cancel();
+
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
 		if (is_queue_empty)
 			send_queued();
+	} else {
+		flush_timer_.expires_from_now(
+				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
+		flush_timer_.async_wait(boost::bind(&client_base_impl::flush, this,
+											boost::asio::placeholders::error));
 	}
 
 	return true;
+}
+
+void client_base_impl::flush(const boost::system::error_code &_error_code) {
+	if (!_error_code) {
+		packet_queue_.push_back(packetizer_);
+		packetizer_.clear();
+		send_queued();
+	}
 }
 
 //

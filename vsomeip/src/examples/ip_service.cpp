@@ -23,23 +23,13 @@ vsomeip::service *udp_service = 0;
 
 class mymessagereceiver : public vsomeip::receiver {
 public:
-	mymessagereceiver() : receive_counter(0), service_(0), id_(last_id__++) {};
+	mymessagereceiver() : receive_counter(0), service_(0), id_(last_id__++), flush_(true)  {};
 
 	void set_service(vsomeip::service *_service) { service_ = _service; };
 
 	void receive(const vsomeip::message_base *_message) {
 		vsomeip::endpoint *from = _message->get_endpoint();
 		if (from) {
-			std::cout << "Client " << id_ << " received a "
-					  << (from->get_protocol() == vsomeip::ip_protocol::UDP ? "UDP" : "TCP")
-					  << (int)from->get_version()
-					  << " message from "
-					  << from->get_address()
-					  << ":"
-					  << from->get_port()
-					  << std::endl;
-
-#if 1
 			// sending back
 			vsomeip::message *answer = vsomeip::factory::get_default_factory()->create_message();
 			answer->set_service_id(0x3333);
@@ -48,8 +38,7 @@ public:
 			vsomeip::payload& answer_payload = answer->get_payload();
 			uint8_t payload_data[] = { 0x1, 0x2, 0x3, 0x4, 0x5 };
 			answer_payload.set_data(payload_data, sizeof(payload_data));
-			service_->send(answer);
-#endif
+			service_->send(answer, flush_);
 		}
 		receive_counter++;
 	}
@@ -59,6 +48,7 @@ public:
 
 	int id_;
 	static int last_id__;
+	bool flush_;
 };
 
 int mymessagereceiver::last_id__ = 0;
@@ -122,9 +112,13 @@ int main(int argc, char **argv) {
 	tcp_service = vsomeip::factory::get_default_factory()->create_service(tcp_target);
 
 	tr0.set_service(tcp_service);
+	tr0.flush_ = false;
 	tr1.set_service(tcp_service);
+	tr1.flush_ = false;
 	tr2.set_service(tcp_service);
+	tr2.flush_ = false;
 	tr3.set_service(tcp_service);
+	tr3.flush_ = false;
 
 	tcp_service->register_for(&tr0, 0x1111, 0x2222);
 	tcp_service->register_for(&tr1, 0x1112, 0x2222);
