@@ -57,6 +57,7 @@ private:
 		static pointer create(tcp_service_impl *_service);
 		boost::asio::ip::tcp::socket & get_socket();
 		void start();
+		void send_queued();
 		const uint8_t * get_received_data() const;
 
 	private:
@@ -71,14 +72,12 @@ private:
 		tcp_service_impl * service_;
 
 	private:
-		void sent(boost::system::error_code const &_error_code,
-				   std::size_t _transferred_bytes);
 		void received(boost::system::error_code const &_error_code,
 						std::size_t _transferred_bytes);
 	};
 
 	// active connections
-	std::map< endpoint *, connection> connections_;
+	std::map< endpoint *, connection::pointer > connections_;
 
 	// current receive buffer
 	connection *current_receiving_;

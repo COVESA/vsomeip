@@ -32,6 +32,11 @@ void udp_client_impl::start() {
 	socket_.async_connect(local_endpoint_,
 			boost::bind(&client_base_impl::connected, this,
 					boost::asio::placeholders::error));
+	socket_.async_receive_from(
+	        boost::asio::buffer(received_), remote_endpoint_,
+	        boost::bind(&participant_impl::received, this,
+	          boost::asio::placeholders::error,
+	          boost::asio::placeholders::bytes_transferred));
 }
 
 void udp_client_impl::stop() {
@@ -40,6 +45,11 @@ void udp_client_impl::stop() {
 }
 
 void udp_client_impl::restart() {
+	socket_.async_receive_from(
+	        boost::asio::buffer(received_), remote_endpoint_,
+	        boost::bind(&participant_impl::received, this,
+	          boost::asio::placeholders::error,
+	          boost::asio::placeholders::bytes_transferred));
 }
 
 void udp_client_impl::send_queued() {

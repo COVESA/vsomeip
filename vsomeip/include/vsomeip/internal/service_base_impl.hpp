@@ -16,6 +16,8 @@
 #include <map>
 #include <vector>
 
+#include <boost/thread/mutex.hpp>
+
 #include <vsomeip/service.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/internal/participant_impl.hpp>
@@ -38,7 +40,8 @@ public:
 
 protected:
 	std::map< endpoint *,
-			  std::deque< std::vector< uint8_t > > > packet_queue_;
+			  std::deque< std::vector< uint8_t > > > packet_queues_;
+
 	std::map< endpoint *,
 	  	  	  std::deque< std::vector< uint8_t > > >::iterator current_queue_;
 
@@ -51,7 +54,7 @@ public:
 	void sent(boost::system::error_code const &_error_code,
 			   std::size_t _sent_bytes);
 
-	void set_next_queue();
+	bool set_next_queue();
 };
 
 } // namespace vsomeip

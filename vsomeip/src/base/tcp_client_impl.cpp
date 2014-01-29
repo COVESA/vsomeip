@@ -39,6 +39,11 @@ void tcp_client_impl::start() {
 	// Nagle algorithm off
 	ip::tcp::no_delay option;
 	socket_.set_option(option);
+
+	socket_.async_receive(boost::asio::buffer(received_),
+			boost::bind(&participant_impl::received, this,
+					boost::asio::placeholders::error,
+					boost::asio::placeholders::bytes_transferred));
 }
 
 void tcp_client_impl::stop() {
@@ -47,7 +52,10 @@ void tcp_client_impl::stop() {
 }
 
 void tcp_client_impl::restart() {
-
+	socket_.async_receive(boost::asio::buffer(received_),
+			boost::bind(&participant_impl::received, this,
+					boost::asio::placeholders::error,
+					boost::asio::placeholders::bytes_transferred));
 }
 
 void tcp_client_impl::send_queued() {
@@ -56,15 +64,11 @@ void tcp_client_impl::send_queued() {
 
 	boost::asio::async_write(
 			socket_,
-			boost::asio::buffer(&packet_queue_.front()[0], packet_queue_.front().size()),
+			boost::asio::buffer(&packet_queue_.front()[0],
+								packet_queue_.front().size()),
 			boost::bind(&client_base_impl::sent, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
-//	socket_.async_read_some(
-//			boost::asio::buffer(received_),
-//			boost::bind(&client_base_impl::received, this,
-//					boost::asio::placeholders::error,
-//					boost::asio::placeholders::bytes_transferred));
 }
 
 std::string tcp_client_impl::get_remote_address() const {
@@ -106,11 +110,17 @@ void tcp_client_impl::send_magic_cookie() {
 									   	    	   0xDE, 0xAD, 0xBE, 0xEF,
 									   	    	   0x01, 0x01, 0x01, 0x00 };
 
-	// TODO: Special handling in case the current packet does not have enough room left...
 	std::vector< uint8_t >& current_packet = packet_queue_.front();
-	current_packet.insert(current_packet.begin(),
-			magic_cookie_client_data,
-			magic_cookie_client_data + sizeof(magic_cookie_client_data));
+
+	if (VSOMEIP_MAX_TCP_MESSAGE_SIZE - current_packet.size() >=
+			VSOMEIP_STATIC_HEADER_LENGTH + VSOMEIP_MAGIC_COOKIE_LENGTH) {
+		current_packet.insert(current_packet.begin(),
+							  magic_cookie_client_data,
+							  magic_cookie_client_data +
+							  	  sizeof(magic_cookie_client_data));
+	} else {
+		//TODO: warn message: "Could not send magic cookie (no space left in packet)"
+	}
 }
 
 } // namespace vsomeip

@@ -23,12 +23,14 @@ vsomeip::service *udp_service = 0;
 
 class mymessagereceiver : public vsomeip::receiver {
 public:
-	mymessagereceiver() : receive_counter(0) {};
+	mymessagereceiver() : receive_counter(0), service_(0), id_(last_id__++) {};
+
+	void set_service(vsomeip::service *_service) { service_ = _service; };
 
 	void receive(const vsomeip::message_base *_message) {
 		vsomeip::endpoint *from = _message->get_endpoint();
 		if (from) {
-			std::cout << "Received "
+			std::cout << "Client " << id_ << " received a "
 					  << (from->get_protocol() == vsomeip::ip_protocol::UDP ? "UDP" : "TCP")
 					  << (int)from->get_version()
 					  << " message from "
@@ -36,12 +38,30 @@ public:
 					  << ":"
 					  << from->get_port()
 					  << std::endl;
+
+#if 1
+			// sending back
+			vsomeip::message *answer = vsomeip::factory::get_default_factory()->create_message();
+			answer->set_service_id(0x3333);
+			answer->set_method_id(0x4444);
+			answer->set_endpoint(_message->get_endpoint());
+			vsomeip::payload& answer_payload = answer->get_payload();
+			uint8_t payload_data[] = { 0x1, 0x2, 0x3, 0x4, 0x5 };
+			answer_payload.set_data(payload_data, sizeof(payload_data));
+			service_->send(answer);
+#endif
 		}
 		receive_counter++;
 	}
 
 	int receive_counter;
+	vsomeip::service *service_;
+
+	int id_;
+	static int last_id__;
 };
+
+int mymessagereceiver::last_id__ = 0;
 
 #ifdef TCP_ENABLED
 mymessagereceiver tr0;
@@ -100,6 +120,12 @@ int main(int argc, char **argv) {
 				vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
 
 	tcp_service = vsomeip::factory::get_default_factory()->create_service(tcp_target);
+
+	tr0.set_service(tcp_service);
+	tr1.set_service(tcp_service);
+	tr2.set_service(tcp_service);
+	tr3.set_service(tcp_service);
+
 	tcp_service->register_for(&tr0, 0x1111, 0x2222);
 	tcp_service->register_for(&tr1, 0x1112, 0x2222);
 	tcp_service->register_for(&tr2, 0x1111, 0x2222);
@@ -112,6 +138,12 @@ int main(int argc, char **argv) {
 			= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
 					vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
 	udp_service = vsomeip::factory::get_default_factory()->create_service(udp_target);
+
+	ur0.set_service(udp_service);
+	ur1.set_service(udp_service);
+	ur2.set_service(udp_service);
+	ur3.set_service(udp_service);
+
 	udp_service->register_for(&ur0, 0x1111, 0x1222);
 	udp_service->register_for(&ur1, 0x1111, 0x2222);
 	udp_service->register_for(&ur2, 0x1111, 0x1222);

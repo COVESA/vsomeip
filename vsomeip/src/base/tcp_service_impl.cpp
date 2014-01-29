@@ -11,6 +11,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/asio/buffer.hpp>
+
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
 
@@ -47,17 +48,21 @@ void tcp_service_impl::start() {
 }
 
 void tcp_service_impl::restart() {
-	if (current_receiving_)
+	if (current_receiving_) {
 		current_receiving_->start();
+	}
 }
 
 void tcp_service_impl::stop() {
 }
 
 void tcp_service_impl::send_queued() {
+	auto connection_iterator = connections_.find(current_queue_->first);
+	if (connection_iterator != connections_.end())
+		connection_iterator->second->send_queued();
 
+	// TODO: log message in case the connection could not be found
 }
-
 
 std::string tcp_service_impl::get_remote_address() const {
 	return (current_receiving_ == 0 ?
@@ -101,6 +106,17 @@ void tcp_service_impl::accepted(
 		const boost::system::error_code& _error_code) {
 
 	if (!_error_code) {
+		ip::tcp::socket &new_connection_socket = _connection->get_socket();
+		ip::tcp::endpoint remote_endpoint = new_connection_socket.remote_endpoint();
+		ip::address remote_address = remote_endpoint.address();
+		endpoint *remote = factory::get_default_factory()->create_endpoint(
+								remote_address.to_string(),
+								remote_endpoint.port(),
+								ip_protocol::TCP,
+								(remote_address.is_v4() ?
+										ip_version::V4 : ip_version::V6));
+
+		connections_[remote] = _connection;
 		_connection->start();
 	}
 
@@ -131,6 +147,23 @@ tcp_service_impl::connection::start() {
 					boost::asio::placeholders::bytes_transferred));
 }
 
+void
+tcp_service_impl::connection::send_queued() {
+	if (service_->has_enabled_magic_cookies_)
+		send_magic_cookie();
+
+	std::deque< std::vector< uint8_t > > &current_queue
+		= service_->current_queue_->second;
+
+	boost::asio::async_write(
+			socket_,
+			boost::asio::buffer(&current_queue.front()[0],
+								current_queue.front().size()),
+			boost::bind(&service_base_impl::sent, service_,
+					boost::asio::placeholders::error,
+					boost::asio::placeholders::bytes_transferred));
+}
+
 const uint8_t *
 tcp_service_impl::connection::get_received_data() const {
 	return received_.data();
@@ -144,11 +177,6 @@ void tcp_service_impl::connection::send_magic_cookie() {
 									   0x01, 0x01, 0x02, 0x00 };
 }
 #endif
-
-void
-tcp_service_impl::connection::sent(
-		boost::system::error_code const &_error_code, std::size_t _transferred_bytes) {
-}
 
 void
 tcp_service_impl::connection::received(

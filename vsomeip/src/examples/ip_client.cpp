@@ -21,11 +21,38 @@
 #define MESSAGE_PAYLOAD_SIZE 100
 #define ITERATIONS 10
 
+class mymessagereceiver : public vsomeip::receiver {
+public:
+	mymessagereceiver() : receive_counter(0), client_(0) {};
+
+	void set_service(vsomeip::client *_client) { client_ = _client; };
+
+	void receive(const vsomeip::message_base *_message) {
+		vsomeip::endpoint *from = _message->get_endpoint();
+		if (from) {
+			std::cout << "Received "
+					  << (from->get_protocol() == vsomeip::ip_protocol::UDP ? "UDP" : "TCP")
+					  << (int)from->get_version()
+					  << " message from "
+					  << from->get_address()
+					  << ":"
+					  << from->get_port()
+					  << std::endl;
+		}
+	}
+
+	int receive_counter;
+	vsomeip::client *client_;
+};
+
 #ifdef TCP_ENABLED
 vsomeip::client *tcp_client;
+mymessagereceiver tr0;
 #endif
 
 vsomeip::client *udp_client;
+mymessagereceiver ur0;
+
 
 #ifdef TCP_ENABLED
 void tcp_func() {
@@ -37,6 +64,26 @@ void udp_func() {
 	udp_client->run();
 }
 
+void print_count() {
+	while (1) {
+		uint32_t m, b;
+#ifdef TCP_ENABLED
+		m = tcp_client->get_statistics()->get_received_messages_count();
+		b = tcp_client->get_statistics()->get_received_bytes_count();
+		std::cout << "Received " << m << " TCP messages (" << b << " bytes)." << std::endl;
+		std::cout << tr0.receive_counter << std::endl;
+#endif
+
+		m = udp_client->get_statistics()->get_received_messages_count();
+		b = udp_client->get_statistics()->get_received_bytes_count();
+		std::cout << "Received " << m << " UDP messages (" << b << " bytes)." << std::endl;
+		std::cout << ur0.receive_counter << std::endl;
+
+		boost::this_thread::sleep(boost::posix_time::seconds(5));
+	}
+}
+
+
 int main(int argc, char **argv) {
 
 	vsomeip::factory * default_factory = vsomeip::factory::get_default_factory();
@@ -45,6 +92,9 @@ int main(int argc, char **argv) {
 		= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
 										   vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
 	tcp_client = vsomeip::factory::get_default_factory()->create_client(tcp_target);
+
+	tcp_client->register_for(&tr0, 0x3333, 0x4444);
+
 	tcp_client->start();
 #endif
 
@@ -52,6 +102,9 @@ int main(int argc, char **argv) {
 		= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
 										   vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
 	udp_client = vsomeip::factory::get_default_factory()->create_client(udp_target);
+
+	udp_client->register_for(&ur0, 0x3333, 0x4444);
+
 	udp_client->start();
 
 #ifdef TCP_ENABLED
@@ -86,6 +139,8 @@ int main(int argc, char **argv) {
 	const vsomeip::statistics *tcp_statistics = tcp_client->get_statistics();
 #endif
 	const vsomeip::statistics *udp_statistics = udp_client->get_statistics();
+
+	boost::thread print_thread(print_count);
 
 #ifdef TCP_ENABLED
 	boost::thread tcp_thread(tcp_func);

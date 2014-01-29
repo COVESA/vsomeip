@@ -47,7 +47,7 @@ void udp_service_impl::stop() {
 void udp_service_impl::send_queued() {
 	ip::udp::endpoint target(
 			ip::address::from_string(current_queue_->first->get_address()),
-	  		current_queue_->first->get_port());
+			current_queue_->first->get_port());
 
 	socket_.async_send_to(
 		boost::asio::buffer(&current_queue_->second.front()[0],

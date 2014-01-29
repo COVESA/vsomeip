@@ -9,6 +9,8 @@
 // All rights reserved.
 //
 
+#include <boost/thread/lock_guard.hpp>
+
 #include <vsomeip/constants.hpp>
 #include <vsomeip/message_base.hpp>
 #include <vsomeip/serializer.hpp>
@@ -18,7 +20,7 @@ namespace vsomeip {
 
 service_base_impl::service_base_impl(uint32_t _max_message_size)
 	: participant_impl(_max_message_size),
-	  current_queue_(packet_queue_.end()) {
+	  current_queue_(packet_queues_.end()) {
 }
 
 service_base_impl::~service_base_impl() {
@@ -47,26 +49,28 @@ bool service_base_impl::send(const message_base *_message,  bool _flush) {
 
 bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
 								 endpoint *_target, bool _flush) {
+
 	if (0 == _target)
 		return false;
 
+	bool is_queue_empty(packet_queues_.empty());
+
 	// find queue and packetizer (buffer)
 	std::deque< std::vector< uint8_t > >& target_packet_queue
-		= packet_queue_[_target];
+		= packet_queues_[_target];
 	std::vector< uint8_t >& target_packetizer
 		= packetizer_[_target];
 
 	// if the current_queue is not yet set, set it to newly created one
-	if (current_queue_ == packet_queue_.end())
-		current_queue_ = packet_queue_.find(_target);
-
-	bool is_queue_empty(target_packet_queue.empty());
+	if (current_queue_ == packet_queues_.end())
+		current_queue_ = packet_queues_.find(_target);
 
 	if (target_packetizer.size() + _size > max_message_size_) {
 		// TODO: log "implicit flush because new message cannot be buffered"
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
-		if (is_queue_empty) // looks weird, but be just inserted an element....
+
+		if (is_queue_empty)
 			send_queued();
 	}
 
@@ -75,6 +79,7 @@ bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
 	if (_flush) {
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
+
 		if (is_queue_empty)
 			send_queued();
 	}
@@ -95,14 +100,14 @@ void service_base_impl::sent(
 		std::size_t _sent_bytes) {
 
 	current_queue_->second.pop_front();
-	set_next_queue();
+	bool is_message_available(set_next_queue());
 
 	if (!_error_code) {
 #ifdef USE_VSOMEIP_STATISTICS
 		statistics_.sent_messages_++;
 		statistics_.sent_bytes_ += _sent_bytes;
 #endif
-		if (!current_queue_->second.empty()){
+		if (is_message_available) {
 			send_queued();
 		}
 	} else {
@@ -110,14 +115,28 @@ void service_base_impl::sent(
 	}
 }
 
-void service_base_impl::set_next_queue() {
-	auto last_queue = current_queue_;
+bool service_base_impl::set_next_queue() {
+	if (current_queue_->second.empty())
+		current_queue_ = packet_queues_.erase(current_queue_);
+
+	if (packet_queues_.empty())
+		return false;
+
+	if (current_queue_ == packet_queues_.end())
+		current_queue_ = packet_queues_.begin();
+
+	if (!current_queue_->second.empty())
+		return true;
+
+	auto saved_current_queue = current_queue_;
 	do {
 		current_queue_++;
-		if (current_queue_ == packet_queue_.end())
-			current_queue_ = packet_queue_.begin();
+		if (current_queue_ == packet_queues_.end())
+			current_queue_ = packet_queues_.begin();
 	} while (current_queue_->second.empty() &&
-			  current_queue_ != last_queue);
+			  current_queue_ != saved_current_queue);
+
+	return !current_queue_->second.empty();
 }
 
 } // namespace vsomeip
