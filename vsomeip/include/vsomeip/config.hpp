@@ -12,12 +12,25 @@
 #ifndef VSOMEIP_CONFIG_HPP
 #define VSOMEIP_CONFIG_HPP
 
+/// \def VSOMEIP_MAX_UDP_MESSAGE_SIZE
+/// The maximum message size for using the UDP transport protocol.
 #define VSOMEIP_MAX_UDP_MESSAGE_SIZE (1416 - 16)
+
+/// \def VSOMEIP_MAX_TCP_MESSAGE_SIZE
+/// The maximum message size for using the TCP transport protocol.
 #define VSOMEIP_MAX_TCP_MESSAGE_SIZE (4095 - 16)
 
-#define VSOMEIP_FIRST_VALID_PORT 49152
-#define VSOMEIP_LAST_VALID_PORT	 65535
+/// \def VSOMEIP_LOWEST_VALID_PORT
+/// The lowest port address that can be configured for Some/IP services.
+#define VSOMEIP_LOWEST_VALID_PORT 49152
 
-#define VSOMEIP_FLUSH_TIMEOUT 1000
+/// \def VSOMEIP_HIGHEST_VALID_PORT
+/// The highest port address that can be configured for Some/IP services.
+#define VSOMEIP_HIGHEST_VALID_PORT	 65535
+
+///
+/// Timeout in milliseconds that is used to automatically send messages
+/// which are sent using the packetizer functionality.
+#define VSOMEIP_FLUSH_TIMEOUT 10000
 
 #endif // VSOMEIP_CONFIG_HPP

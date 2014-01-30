@@ -70,8 +70,8 @@ protected:
 	virtual void restart() = 0;
 
 private:
-	virtual std::string get_remote_address() const = 0;
-	virtual uint16_t get_remote_port() const = 0;
+	virtual ip_address get_remote_address() const = 0;
+	virtual ip_port get_remote_port() const = 0;
 	virtual ip_protocol get_protocol() const = 0;
 	virtual ip_version get_version() const = 0;
 

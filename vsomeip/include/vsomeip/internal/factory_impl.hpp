@@ -27,8 +27,8 @@ public:
 	serializer * create_serializer() const;
 	deserializer * create_deserializer() const;
 
-	endpoint * create_endpoint(ip_address _address, ip_port _port,
-								 ip_protocol _protocol, ip_version _version);
+	endpoint * get_endpoint(ip_address _address, ip_port _port,
+							  ip_protocol _protocol, ip_version _version);
 	client * create_client(const endpoint *_endpoint) const;
 	service * create_service(const endpoint *_endpoint) const;
 

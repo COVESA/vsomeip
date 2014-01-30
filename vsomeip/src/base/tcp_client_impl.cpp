@@ -71,11 +71,11 @@ void tcp_client_impl::send_queued() {
 					boost::asio::placeholders::bytes_transferred));
 }
 
-std::string tcp_client_impl::get_remote_address() const {
+ip_address tcp_client_impl::get_remote_address() const {
 	return local_endpoint_.address().to_string();
 }
 
-uint16_t tcp_client_impl::get_remote_port() const {
+ip_port tcp_client_impl::get_remote_port() const {
 	return local_endpoint_.port();
 }
 
@@ -84,7 +84,8 @@ ip_protocol tcp_client_impl::get_protocol() const {
 }
 
 ip_version tcp_client_impl::get_version() const {
-	return (local_endpoint_.protocol().v4() == ip::tcp::v4() ? ip_version::V4 : ip_version::V6);
+	return (local_endpoint_.protocol().v4() == ip::tcp::v4() ?
+			ip_version::V4 : ip_version::V6);
 }
 
 const uint8_t * tcp_client_impl::get_received() const {

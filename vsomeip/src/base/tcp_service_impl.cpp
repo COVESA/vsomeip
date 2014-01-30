@@ -29,7 +29,7 @@ tcp_service_impl::tcp_service_impl(const endpoint *_endpoint)
 	: service_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
 	  acceptor_(is_,
 			    ip::tcp::endpoint((_endpoint->get_version() == ip_version::V6 ?
-			    				  	  ip::tcp::v6() : ip::tcp::v4()),
+			    				  	   ip::tcp::v6() : ip::tcp::v4()),
 			    				  _endpoint->get_port())),
 	  version_(_endpoint->get_version()) {
 
@@ -64,13 +64,13 @@ void tcp_service_impl::send_queued() {
 	// TODO: log message in case the connection could not be found
 }
 
-std::string tcp_service_impl::get_remote_address() const {
+ip_address tcp_service_impl::get_remote_address() const {
 	return (current_receiving_ == 0 ?
 				0 : current_receiving_->get_socket().
 						remote_endpoint().address().to_string());
 }
 
-uint16_t tcp_service_impl::get_remote_port() const {
+ip_port tcp_service_impl::get_remote_port() const {
 	return (current_receiving_ == 0 ?
 				0 : current_receiving_->get_socket().remote_endpoint().port());
 }
@@ -109,7 +109,7 @@ void tcp_service_impl::accepted(
 		ip::tcp::socket &new_connection_socket = _connection->get_socket();
 		ip::tcp::endpoint remote_endpoint = new_connection_socket.remote_endpoint();
 		ip::address remote_address = remote_endpoint.address();
-		endpoint *remote = factory::get_default_factory()->create_endpoint(
+		endpoint *remote = factory::get_default_factory()->get_endpoint(
 								remote_address.to_string(),
 								remote_endpoint.port(),
 								ip_protocol::TCP,

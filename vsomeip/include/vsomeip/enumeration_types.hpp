@@ -16,6 +16,8 @@
 
 namespace vsomeip {
 
+/// \enum message_type
+/// Message type constants according to Some/IP specificiation.
 enum class message_type : uint8_t {
 	REQUEST = 0x0,
 	REQUEST_NO_RETURN = 0x1,
@@ -30,6 +32,8 @@ enum class message_type : uint8_t {
 	UNKNOWN = 0xFF
 };
 
+/// \enum return_code
+/// Return code constants according to Some/IP specificiation.
 enum class return_code : uint8_t {
 	OK = 0x0,
 	NOT_OK = 0x1,
@@ -44,12 +48,16 @@ enum class return_code : uint8_t {
 	UNKNOWN = 0xFF
 };
 
+/// \enum transport_protocol
+/// Constants representing the supported IP transport protocols.
 enum class ip_protocol : uint8_t {
 	UDP = 0x06,
 	TCP = 0x11,
 	UNKNOWN = 0xFF
 };
 
+/// \enum transport_protocol_version
+/// Constants representing the supported IP transport protocol versions.
 enum class ip_version : uint8_t {
 	V4 = 0x04,
 	V6 = 0x06,

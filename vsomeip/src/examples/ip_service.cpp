@@ -106,8 +106,9 @@ int main(int argc, char **argv) {
 	vsomeip::factory *default_factory = vsomeip::factory::get_default_factory();
 #ifdef TCP_ENABLED
 	vsomeip::endpoint *tcp_target
-		= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
-				vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
+		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
+										vsomeip::ip_protocol::TCP,
+										vsomeip::ip_version::V4);
 
 	tcp_service = vsomeip::factory::get_default_factory()->create_service(tcp_target);
 
@@ -129,8 +130,9 @@ int main(int argc, char **argv) {
 #endif
 
 	vsomeip::endpoint *udp_target
-			= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
-					vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
+			= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
+											vsomeip::ip_protocol::UDP,
+											vsomeip::ip_version::V4);
 	udp_service = vsomeip::factory::get_default_factory()->create_service(udp_target);
 
 	ur0.set_service(udp_service);

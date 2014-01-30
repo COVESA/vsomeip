@@ -23,16 +23,16 @@ public:
 	virtual ~endpoint_impl();
 
 private:
-	ip_protocol get_protocol() const;
-	ip_version get_version() const;
 	ip_address get_address() const;
 	ip_port get_port() const;
+	ip_protocol get_protocol() const;
+	ip_version get_version() const;
 
 private:
-	ip_protocol protocol_;
-	ip_version version_;
 	ip_address address_;
 	ip_port port_;
+	ip_protocol protocol_;
+	ip_version version_;
 };
 
 } // namespace vsomeip

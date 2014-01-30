@@ -39,9 +39,9 @@ typedef uint32_t time_to_live;
 typedef uint32_t minor_version;
 typedef uint16_t eventgroup_id;
 
+typedef std::string ip_address;
 typedef uint32_t ipv4_address;
 typedef uint8_t ipv6_address[128];
-typedef std::string ip_address;
 typedef uint16_t ip_port;
 
 typedef uint16_t priority;

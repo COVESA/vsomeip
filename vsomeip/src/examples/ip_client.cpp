@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
 	vsomeip::factory * default_factory = vsomeip::factory::get_default_factory();
 #ifdef TCP_ENABLED
 	vsomeip::endpoint * tcp_target
-		= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
-										   vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
+		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
+										vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
 	tcp_client = vsomeip::factory::get_default_factory()->create_client(tcp_target);
 
 	tcp_client->register_for(&tr0, 0x3333, 0x4444);
@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
 #endif
 
 	vsomeip::endpoint * udp_target
-		= default_factory->create_endpoint("127.0.0.1", VSOMEIP_FIRST_VALID_PORT,
-										   vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
+		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
+										vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
 	udp_client = vsomeip::factory::get_default_factory()->create_client(udp_target);
 
 	udp_client->register_for(&ur0, 0x3333, 0x4444);

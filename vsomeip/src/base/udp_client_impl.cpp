@@ -75,7 +75,7 @@ ip_protocol udp_client_impl::get_protocol() const {
 
 ip_version udp_client_impl::get_version() const {
 	return (remote_endpoint_.protocol().v4() == ip::udp::v4() ?
-				ip_version::V4 : ip_version::V6);
+			ip_version::V4 : ip_version::V6);
 }
 
 const uint8_t * udp_client_impl::get_received() const {

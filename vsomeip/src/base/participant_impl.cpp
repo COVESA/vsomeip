@@ -122,7 +122,7 @@ void participant_impl::received(
 						// TODO: log message "Magic Cookie dropped. Already synced."
 					} else {
 						endpoint *sender
-							= factory::get_default_factory()->create_endpoint(
+							= factory::get_default_factory()->get_endpoint(
 									get_remote_address(), get_remote_port(),
 									get_protocol(), get_version());
 

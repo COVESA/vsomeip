@@ -12,11 +12,11 @@
 #include <vsomeip/vsomeip.hpp>
 
 #define SERVICE_HOST "127.0.0.1"
-#define SERVICE_PORT VSOMEIP_FIRST_VALID_PORT
+#define SERVICE_PORT VSOMEIP_LOWEST_VALID_PORT
 
 int main(int argc, char **argv) {
 	vsomeip::factory *the_factory = vsomeip::factory::get_default_factory();
-	vsomeip::endpoint *the_endpoint = the_factory->create_endpoint(
+	vsomeip::endpoint *the_endpoint = the_factory->get_endpoint(
 										SERVICE_HOST, SERVICE_PORT,
 										vsomeip::ip_protocol::TCP,
 										vsomeip::ip_version::V4);

@@ -40,8 +40,8 @@ deserializer * factory_impl::create_deserializer() const {
 	return new deserializer_impl;
 }
 
-endpoint * factory_impl::create_endpoint(ip_address _address, ip_port _port,
-		ip_protocol _protocol, ip_version _version) {
+endpoint * factory_impl::get_endpoint(ip_address _address, ip_port _port,
+										  ip_protocol _protocol, ip_version _version) {
 
 	uint32_t identifier = (((uint32_t) _protocol) << 24
 			| ((uint32_t) _version) << 16 | ((uint32_t) _port));

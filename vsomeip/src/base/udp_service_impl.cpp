@@ -58,11 +58,11 @@ void udp_service_impl::send_queued() {
 					boost::asio::placeholders::bytes_transferred));
 }
 
-std::string udp_service_impl::get_remote_address() const {
+ip_address udp_service_impl::get_remote_address() const {
 	return remote_endpoint_.address().to_string();
 }
 
-uint16_t udp_service_impl::get_remote_port() const {
+ip_port udp_service_impl::get_remote_port() const {
 	return remote_endpoint_.port();
 }
 
@@ -72,7 +72,7 @@ ip_protocol udp_service_impl::get_protocol() const {
 
 ip_version udp_service_impl::get_version() const {
 	return (remote_endpoint_.protocol().v4() == ip::udp::v4() ?
-				ip_version::V4 : ip_version::V6);
+			 ip_version::V4 : ip_version::V6);
 }
 
 const uint8_t * udp_service_impl::get_received() const {

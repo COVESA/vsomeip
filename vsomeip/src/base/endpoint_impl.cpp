@@ -23,6 +23,14 @@ endpoint_impl::endpoint_impl(
 endpoint_impl::~endpoint_impl() {
 }
 
+ip_address endpoint_impl::get_address() const {
+	return address_;
+}
+
+ip_port endpoint_impl::get_port() const {
+	return port_;
+}
+
 ip_protocol endpoint_impl::get_protocol() const {
 	return protocol_;
 }
@@ -30,14 +38,6 @@ ip_protocol endpoint_impl::get_protocol() const {
 
 ip_version endpoint_impl::get_version() const {
 	return version_;
-}
-
-ip_address endpoint_impl::get_address() const {
-	return address_;
-}
-
-ip_port endpoint_impl::get_port() const {
-	return port_;
 }
 
 } // namespace vsomeip

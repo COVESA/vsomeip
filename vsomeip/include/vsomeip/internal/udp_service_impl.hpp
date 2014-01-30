@@ -34,8 +34,8 @@ private:
 	void restart();
 	void send_queued();
 
-	std::string get_remote_address() const;
-	uint16_t get_remote_port() const;
+	ip_address get_remote_address() const;
+	ip_port get_remote_port() const;
 	ip_protocol get_protocol() const;
 	ip_version get_version() const;
 
