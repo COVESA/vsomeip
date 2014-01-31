@@ -14,10 +14,15 @@
 
 namespace vsomeip {
 
+/// Basic interface for all vsomeip library interfaces that contains
+/// informations about the number of messages/bytes it has sent and
+/// received.
 class statistics_owner {
 public:
 	virtual ~statistics_owner() {};
 
+    /// Get access to the statistics object.
+    /// \returns Pointer to the contained statistics object.
 	virtual const class statistics * get_statistics() const = 0;
 };
 

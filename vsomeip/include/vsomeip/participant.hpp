@@ -38,7 +38,8 @@ public:
 	/// Starts the client or service. Before being called, the participant
 	/// will neither send nor receive Some/IP messages.
 	virtual void start() = 0;
-	/// Stops the client or service. After being called, the participant
+	
+    /// Stops the client or service. After being called, the participant
 	/// will neither send nor receive Some/IP messages.
 	virtual void stop() = 0;
 
@@ -54,7 +55,8 @@ public:
 	virtual void register_for(receiver *_receiver,
 			 	 	 	 	 	 service_id _service_id,
 			 	 	 	 	 	 method_id _method_id) = 0;
-	/// Unregister a receiver for a specific Some/IP method.
+	
+    /// Unregister a receiver for a specific Some/IP method.
 	/// \param _receiver Pointer to the receiver that is called for incoming
 	/// messages.
 	/// \param _service_id Identifier of the Some/IP service the receiver wants
@@ -71,19 +73,23 @@ public:
 	/// to be actually executed.
 	/// \warning Must be called from a single thread.
 	virtual std::size_t poll_one() = 0;
-	/// Consumes all queued events. This e.g. triggers send or receive operations
+	
+    /// Consumes all queued events. This e.g. triggers send or receive operations
 	/// to be actually executed.
 	/// \warning Must be called from a single thread.
 	virtual std::size_t poll() = 0;
+    
 	/// Consumes all queued events. This e.g. triggers send or receive operations
 	/// to be actually executed. Different to #poll, run is blocking until all queued
 	/// events are consumed.
 	/// \warning Must be called from a single thread.
 	virtual std::size_t run() = 0;
-	/// After being called, the client or service sends a magic cookie message within
+	
+    /// After being called, the client or service sends a magic cookie message within
 	/// each data packet it transfers to the remote side.
 	virtual void enable_magic_cookies() = 0;
-	/// After being called, the client or service doen not send magic cookie messages
+	
+    /// After being called, the client or service doen not send magic cookie messages
 	/// anymore.
 	virtual void disable_magic_cookies() = 0;
 };

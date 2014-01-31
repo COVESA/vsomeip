@@ -37,7 +37,8 @@ public:
 	/// \warning This method is not thread safe! If you want to call it on the same object
 	/// from different threads, you need to synchronize the calls.
 	virtual bool send(const message_base *_message, bool _flush = true) = 0;
-	/// Allows to send an already serialized Some/IP message. The behavior is
+	
+    /// Allows to send an already serialized Some/IP message. The behavior is
 	/// equal to sending a Some/IP message using the provided message structure.
 	/// \param _data Pointer to the serialized message data.
 	/// \param _size Amount of data that shall be sent.

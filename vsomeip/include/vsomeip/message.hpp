@@ -17,10 +17,15 @@
 
 namespace vsomeip {
 
+/// Interface for application messages, consisting of header and payload.
+/// The header is accessible by methods inherited from the #message_base
+/// interface.
 class message : virtual public message_base {
 public:
 	virtual ~message() {};
 
+    /// Get a reference to the payload of the message object.
+    /// \returns Reference to the messages payload
 	virtual payload & get_payload() = 0;
 };
 

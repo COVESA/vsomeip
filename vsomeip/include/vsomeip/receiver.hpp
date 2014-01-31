@@ -16,10 +16,18 @@ namespace vsomeip {
 
 class message_base;
 
+/// Applications must create a class derived from receiver and register
+/// one or more instances to #client and/or #service instances in order
+/// to receive Some/IP messages.
 class receiver {
 public:
 	virtual ~receiver() {};
 
+    /// Method that is called whenever a Some/IP client or service has
+    /// received a message. 
+    /// \param _message Pointer to the message instance
+    /// \warning The message instance will be deleted by the client or
+    /// service after the receive function has returned.
 	virtual void receive(const message_base *_message) = 0;
 };
 

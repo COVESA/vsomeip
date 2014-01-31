@@ -13,7 +13,7 @@
 
 #include <vsomeip/config.hpp>
 
-// collection
+/// Convenience header to facilitate usage
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
