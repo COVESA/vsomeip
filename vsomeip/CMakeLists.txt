@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 project (vsomeip)
 
-set (CMAKE_CXX_FLAGS "-DUSE_VSOMEIP_STATISTICS -DUSE_VSOMEIP_MAGIC_COOKIES -std=c++0x -O0")
+set (CMAKE_CXX_FLAGS "-DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -std=c++0x -O0")
 include_directories("include")
 
 file(GLOB vsomeip-base_SRC
@@ -22,7 +22,7 @@ file (GLOB vsomeipd_SRC
 )
 
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-base vsomeip-service_discovery boost_system boost_program_options)
+target_link_libraries(vsomeipd vsomeip-base vsomeip-service_discovery boost_system boost_program_options boost_log_setup boost_log)
 
 # Test executables
 add_executable(vsomeip-serialization src/examples/serialization.cpp)

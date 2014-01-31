@@ -169,14 +169,12 @@ tcp_service_impl::connection::get_received_data() const {
 	return received_.data();
 }
 
-#ifdef USE_VSOMEIP_MAGIC_COOKIES
 void tcp_service_impl::connection::send_magic_cookie() {
 	static uint8_t magic_cookie[] = { 0xFF, 0xFF, 0x80, 0x00,
 									   0x00, 0x00, 0x00, 0x08,
 									   0xDE, 0xAD, 0xBE, 0xEF,
 									   0x01, 0x01, 0x02, 0x00 };
 }
-#endif
 
 void
 tcp_service_impl::connection::received(

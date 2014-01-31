@@ -9,18 +9,18 @@
 // All rights reserved.
 //
 
-#include "daemon.h"
+#include "daemon.hpp"
 
 int
 main(int argc, char **argv) {
 
-	vsomeip::Daemon* l_daemon = vsomeip::Daemon::getInstance();
+	vsomeip::daemon* the_daemon = vsomeip::daemon::get_instance();
 
 	// create argument vector and pass it to the daemon object
-	l_daemon->init(argc, argv);
+	the_daemon->init(argc, argv);
 
 	// start the daemon
-	l_daemon->start();
+	the_daemon->start();
 }
 
 

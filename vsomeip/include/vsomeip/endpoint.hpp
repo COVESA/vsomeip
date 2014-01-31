@@ -24,17 +24,20 @@ class endpoint {
 public:
 	virtual ~endpoint() {};
 
-	///
-	/// Get the address (e.g. IPv4 or IPv6) as string representation.
-	///
+	/// Delivers the address (e.g. IPv4 or IPv6) as string representation.
+	/// \returns the address
 	virtual ip_address get_address() const = 0;
-	///
-	/// Get the port.
-	///
+	/// Delivers the port represented by the endpoint.
+	/// \returns the port
 	virtual ip_port get_port() const = 0;
+	/// Delivers the transport protocol used by the endpoint.
+	/// \returns protocol (UDP or TCP) used to communicate through this
+	/// endpoint
 	virtual ip_protocol get_protocol() const = 0;
+	/// Delivers the transport protocol version used by the endpoint.
+	/// \returns protocol version (V4 or V6) used to communicate through this
+	/// endpoint
 	virtual ip_version get_version() const = 0;
-
 };
 
 } // namespace vsomeip

@@ -9,84 +9,113 @@
 // All rights reserved.
 //
 
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-
-#include <iostream>
 #include <fstream>
-#include <sstream>
 
+#include <boost/log/core.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/sinks/text_file_backend.hpp>
+#include <boost/log/support/date_time.hpp>
+#include <boost/log/utility/setup/console.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/program_options.hpp>
 
-#include "daemon-config.h"
-#include "daemon.h"
-
-#define VSOMEIP_DAEMON_FOREVER	0x1
+#include "daemon-config.hpp"
+#include "daemon.hpp"
 
 namespace options = boost::program_options;
+namespace logging = boost::log;
+namespace keywords = boost::log::keywords;
+namespace expressions = boost::log::expressions;
+
+using namespace boost::log::trivial;
 
 namespace vsomeip {
 
-std::string logLevelToString(Daemon::LogLevel a_logLevel);
-Daemon::LogLevel stringToLogLevel(const std::string &a_logLevel);
-int stringToInt(const std::string& a_value);
+severity_level loglevel_from_string(const std::string &_loglevel);
 
-Daemon*
-Daemon::getInstance() {
-	static Daemon s_daemon;
-	return &s_daemon;
+daemon*
+daemon::get_instance() {
+	static daemon daemon__;
+	return &daemon__;
 }
 
-Daemon::Daemon() {
-	m_socket = 0;
-	m_port = stringToInt(VSOMEIP_KEY_PORT_DEFAULT);
-	m_logLevel = stringToLogLevel(VSOMEIP_KEY_LOGLEVEL_DEFAULT);
-	m_isVirtualMode = (std::string("false") == VSOMEIP_KEY_VIRTUALMODE_DEFAULT);
-	m_isServiceDiscoveryMode = (std::string("false")
-			== VSOMEIP_KEY_SERVICEDISCOVERYMODE_DEFAULT);
+daemon::daemon() {
+	port_ = VSOMEIP_VALUE_PORT_DEFAULT;
+	loglevel_ = info;
+	is_virtual_mode_ = VSOMEIP_VALUE_IS_VIRTUAL_MODE_DEFAULT;
+	is_service_discovery_mode_
+		= VSOMEIP_VALUE_IS_SERVICE_DISCOVERY_MODE_DEFAULT;
 }
 
-void Daemon::init(int argc, char **argv) {
-	options::variables_map l_commandLineConfiguration;
+void daemon::init(int argc, char **argv) {
+	// logging first
+	logging::add_common_attributes();
+
+	auto daemon_log_format
+		= expressions::stream <<
+		  	  expressions::format_date_time< boost::posix_time::ptime >(
+		  		  "TimeStamp", "%Y-%m-%d %H:%M:%S.%f") <<
+		  	  " [" <<
+		  	  expressions::attr< severity_level >("Severity") <<
+		  	  "] " <<
+		  	  expressions::smessage;
+
+	logging::add_console_log(
+			std::clog,
+			keywords::filter = severity >= loglevel_,
+			keywords::format = daemon_log_format
+	);
+
+	logging::add_file_log(
+			keywords::file_name = "vsomeipd_%N.log",
+			keywords::rotation_size = 10 * 1024 * 1024,
+			keywords::time_based_rotation
+				= logging::sinks::file::rotation_at_time_point(0, 0, 0),
+			keywords::filter = severity >= loglevel_,
+			keywords::format = daemon_log_format
+	);
+
+	boost::log::core::get()->set_filter(severity >= info);
+
+	options::variables_map commandline_configuration;
 
 	try {
-		options::options_description l_allowedOptions("Allowed");
-		l_allowedOptions.add_options()("help", "Print help message")("config",
-				options::value<std::string>()->default_value("vsomeip.conf"),
+		options::options_description valid_options("allowed");
+		valid_options.add_options()("help", "Print help message")("config",
+				options::value<std::string>()->default_value("vsomeipd.conf"),
 				"Path to configuration file")("loglevel",
 				options::value<std::string>(),
 				"Log level to be used by vsomeip daemon")("port",
 				options::value<int>(), "IP port to be used by vsomeip daemon")(
-				"service_discovery", options::value<bool>(),
+				"service_discovery_enabled", options::value<bool>(),
 				"Enable/Disable service discovery by vsomeip daemon")(
-				"virtual_mode", options::value<bool>(),
+				"virtual_mode_enabled", options::value<bool>(),
 				"Enable/Disable virtual mode by vsomeip daemon");
 
 		options::store(
-				options::parse_command_line(argc, argv, l_allowedOptions),
-				l_commandLineConfiguration);
-		options::notify(l_commandLineConfiguration);
+				options::parse_command_line(argc, argv, valid_options),
+				commandline_configuration);
+		options::notify(commandline_configuration);
 	}
 
 	catch (...) {
-		log(LogLevel::Warn, "Command line configuration (partly) invalid.");
+		BOOST_LOG_SEV(log_, error)
+				<< "Command line configuration (partly) invalid.";
 	}
 
-	std::string l_configurationFilePath(VSOMEIP_DEFAULT_CONFIGURATION_FILE);
-	if (l_commandLineConfiguration.count("config")) {
-		l_configurationFilePath = l_commandLineConfiguration["config"].as<
-				std::string>();
+	std::string configuration_path(VSOMEIP_DEFAULT_CONFIGURATION_FILE);
+	if (commandline_configuration.count("config")) {
+		configuration_path
+			= commandline_configuration["config"].as< std::string >();
 	}
 
-	std::stringstream l_logMessage;
-	l_logMessage << "Using configuration file \"" << l_configurationFilePath
-			<< "\"";
-	log(LogLevel::Info, l_logMessage.str());
+	BOOST_LOG_SEV(log_, info) << "Using configuration file \""
+							   << configuration_path << "\"";
 
-	options::variables_map l_configuration;
-	options::options_description l_configurationDescription;
-	l_configurationDescription.add_options()("someip.daemon.loglevel",
+	options::variables_map configuration;
+	options::options_description configuration_description;
+	configuration_description.add_options()("someip.daemon.loglevel",
 			options::value<std::string>(),
 			"Log level to be used by vsomeip daemon")("someip.daemon.port",
 			options::value<int>(), "IP port to be used by vsomeip daemon")(
@@ -95,221 +124,108 @@ void Daemon::init(int argc, char **argv) {
 			"someip.daemon.virtual_mode", options::value<bool>(),
 			"Enable virtual mode by vsomeip daemon");
 
-	std::ifstream l_configurationFile;
+	std::ifstream configuration_file;
 
-	l_configurationFile.open(l_configurationFilePath.c_str());
-	if (l_configurationFile.is_open()) {
+	configuration_file.open(configuration_path.c_str());
+	if (configuration_file.is_open()) {
 
 		try {
-			options::store(
-					options::parse_config_file(l_configurationFile,
-							l_configurationDescription, true), l_configuration);
-			options::notify(l_configuration);
+			options::store(options::parse_config_file(
+								configuration_file,
+								configuration_description, true),
+						   configuration);
+			options::notify(configuration);
 		}
 
 		catch (...) {
-			log(LogLevel::Warn,
-					"Configuration file settings (partly) invalid.");
+			BOOST_LOG_SEV(log_, error)
+					<< "Command line configuration (partly) invalid.";
 		}
 
-		if (l_configuration.count("someip.daemon.loglevel"))
-			m_logLevel =
-					stringToLogLevel(
-							l_configuration["someip.daemon.loglevel"].as<
-									std::string>());
+		if (configuration.count("someip.daemon.loglevel"))
+			loglevel_ = loglevel_from_string(
+							configuration["someip.daemon.loglevel"].
+								as< std::string>());
 
-		if (l_configuration.count("someip.daemon.port"))
-			m_port = l_configuration["someip.daemon.port"].as<int>();
+		if (configuration.count("someip.daemon.port"))
+			port_ = configuration["someip.daemon.port"].as< int >();
 
-		if (l_configuration.count("someip.daemon.virtual_mode"))
-			m_isVirtualMode = l_configuration["someip.daemon.virtual_mode"].as<
-					bool>();
+		if (configuration.count("someip.daemon.virtual_mode_enabled"))
+			is_virtual_mode_
+				= configuration["someip.daemon.virtual_mode_enabled"].as< bool >();
 
-		if (l_configuration.count("someip.daemon.service_discovery"))
-			m_isServiceDiscoveryMode =
-					l_configuration["someip.daemon.service_discovery"].as<bool>();
+		if (configuration.count("someip.daemon.service_discovery_enabled"))
+			is_service_discovery_mode_
+				= configuration["someip.daemon.service_discovery_enabled"].as< bool >();
 
 	} else {
-		l_logMessage.str("");
-		l_logMessage << "Could not open configuration file \""
-				<< l_configurationFilePath << "\"";
-		log(LogLevel::Warn, l_logMessage.str());
+		BOOST_LOG_SEV(log_, error)
+				<< "Could not open configuration file \""
+				<< configuration_path << "\"";
 	}
 
 	// Command line overwrites configuration file
-	if (l_commandLineConfiguration.count("loglevel"))
-		m_logLevel = stringToLogLevel(
-				l_configuration["loglevel"].as<std::string>());
+	if (commandline_configuration.count("log_level"))
+	loglevel_ = loglevel_from_string(
+					configuration["someip.daemon.loglevel"].
+						as< std::string>());
 
-	if (l_commandLineConfiguration.count("port"))
-		m_port = l_commandLineConfiguration["port"].as<int>();
+	if (commandline_configuration.count("port"))
+		port_ = commandline_configuration["port"].as<int>();
 
-	if (l_commandLineConfiguration.count("virtual_mode"))
-		m_isVirtualMode = l_commandLineConfiguration["virtual_mode"].as<bool>();
+	if (commandline_configuration.count("virtual_mode"))
+		is_virtual_mode_ = commandline_configuration["virtual_mode"].as<bool>();
 
-	if (l_commandLineConfiguration.count("service_discovery"))
-		m_isServiceDiscoveryMode =
-				l_commandLineConfiguration["service_discovery"].as<bool>();
+	if (commandline_configuration.count("service_discovery"))
+		is_service_discovery_mode_ =
+				commandline_configuration["service_discovery"].as<bool>();
 }
 
-void Daemon::start() {
+void daemon::start() {
 	// Check whether the daemon makes any sense
-	if (!m_isVirtualMode && !m_isServiceDiscoveryMode) {
-		log(LogLevel::Error,
-				"Neither virtual mode nor service discovery mode active, exitting.");
+	if (!is_virtual_mode_ && !is_service_discovery_mode_) {
+		BOOST_LOG_SEV(log_, error)
+				<< "Neither virtual mode nor service discovery "
+				   "mode active, exiting.";
 		stop();
-	}
+	} else {
+		BOOST_LOG_SEV(log_, info) << "Using port " << port_;
+		//BOOST_LOG_DEV(log_, info) << "Using log level " << _log_level;
 
-	// log configuration
-	std::stringstream l_message;
-	l_message << "Using port " << m_port;
-	log(LogLevel::Info, l_message.str());
+		if (is_virtual_mode_) {
+			BOOST_LOG_SEV(log_, info) << "Virtual mode: on";
+		}
 
-	l_message.str("");
-	l_message << "Using log level " << logLevelToString(m_logLevel);
-	log(LogLevel::Info, l_message.str());
-
-	if (m_isVirtualMode) {
-		l_message.str("");
-		l_message << "Supporting virtual mode";
-		log(LogLevel::Info, l_message.str());
-	}
-
-	if (m_isServiceDiscoveryMode) {
-		l_message.str("");
-		l_message << "Supporting service discovery mode";
-		log(LogLevel::Info, l_message.str());
-	}
-
-	// create the socket
-	m_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (0 > m_socket) {
-		log(LogLevel::Error, "Could not open socket!");
-		stop();
-	}
-
-	// bind it to address & port
-	struct sockaddr_in l_serverAddress = { 0 };
-	l_serverAddress.sin_family = AF_INET;
-	l_serverAddress.sin_addr.s_addr = INADDR_ANY;
-	l_serverAddress.sin_port = m_port;
-	if (0
-			> bind(m_socket, (struct sockaddr *) &l_serverAddress,
-					sizeof(l_serverAddress))) {
-		log(LogLevel::Error, "Binding to server socket failed!");
-		stop();
-	}
-
-	listen(m_socket, VSOMEIP_MAX_CLIENTS);
-
-	log(LogLevel::Info, "Some/IP server started.");
-
-	run();
-}
-
-void Daemon::stop() {
-	log(LogLevel::Info, "Some/IP server stopped.");
-	exit(0);
-}
-
-///// PRIVATE /////
-int Daemon::accept() {
-	struct sockaddr_in l_clientAddress;
-	socklen_t l_clientLength = sizeof(l_clientAddress);
-
-	return ::accept(m_socket, (struct sockaddr *) &l_clientAddress,
-			&l_clientLength);
-}
-
-void Daemon::run() {
-	while (VSOMEIP_DAEMON_FOREVER) {
-
-		log(LogLevel::Info, "Waiting for data");
-		int l_clientSocket = accept();
+		if (is_service_discovery_mode_) {
+			BOOST_LOG_SEV(log_, info) << "Service discovery mode: on";
+		}
 	}
 }
 
-///// Logging /////
-void Daemon::log(LogLevel a_logLevel, const std::string& a_message) {
-	if (a_logLevel <= m_logLevel) {
-		std::cout << logLevelToString(a_logLevel) << " " << a_message
-				<< std::endl;
-	}
+void daemon::stop() {
 }
 
-///// Private helper functions /////
-std::string logLevelToString(Daemon::LogLevel a_logLevel) {
-	std::string l_logLevel;
+severity_level loglevel_from_string(const std::string &_loglevel) {
 
-	switch (a_logLevel) {
+	if (_loglevel == "info")
+		return info;
 
-	case Daemon::LogLevel::Fatal:
-		l_logLevel = "[FATAL]";
-		break;
+	if (_loglevel == "debug")
+		return debug;
 
-	case Daemon::LogLevel::Error:
-		l_logLevel = "[ERROR]";
-		break;
+	if (_loglevel == "trace")
+		return trace;
 
-	case Daemon::LogLevel::Warn:
-		l_logLevel = "[WARN]";
-		break;
+	if (_loglevel == "warning")
+		return warning;
 
-	case Daemon::LogLevel::Info:
-		l_logLevel = "[INFO]";
-		break;
+	if (_loglevel == "error")
+		return error;
 
-	case Daemon::LogLevel::Debug:
-		l_logLevel = "[DEBUG]";
-		break;
+	if (_loglevel == "fatal")
+		return fatal;
 
-	case Daemon::LogLevel::Verbose:
-		l_logLevel = "[VERBOSE]";
-		break;
-
-	default:
-		l_logLevel = "[UNKNOWN]";
-	}
-
-	return l_logLevel;
-}
-
-//
-// Helper functions
-//
-Daemon::LogLevel stringToLogLevel(const std::string& a_logLevel) {
-	Daemon::LogLevel l_logLevel = Daemon::LogLevel::Unknown;
-
-	std::string l_tmpLogLevel(a_logLevel);
-
-	std::transform(l_tmpLogLevel.begin(), l_tmpLogLevel.end(),
-			l_tmpLogLevel.begin(), ::toupper);
-
-	if (l_tmpLogLevel == "FATAL") {
-		l_logLevel = Daemon::LogLevel::Fatal;
-	} else if (l_tmpLogLevel == "ERROR") {
-		l_logLevel = Daemon::LogLevel::Error;
-	} else if (l_tmpLogLevel == "WARN") {
-		l_logLevel = Daemon::LogLevel::Warn;
-	} else if (l_tmpLogLevel == "INFO") {
-		l_logLevel = Daemon::LogLevel::Info;
-	} else if (l_tmpLogLevel == "DEBUG") {
-		l_logLevel = Daemon::LogLevel::Debug;
-	} else if (l_tmpLogLevel == "VERBOSE") {
-		l_logLevel = Daemon::LogLevel::Verbose;
-	}
-
-	return l_logLevel;
-}
-
-int stringToInt(const std::string& a_value) {
-	std::stringstream l_converter;
-	int l_value;
-
-	l_converter << a_value;
-	l_converter >> l_value;
-
-	return l_value;
+	return info;
 }
 
 } // namespace vsomeip
