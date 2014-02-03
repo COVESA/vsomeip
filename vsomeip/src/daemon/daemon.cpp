@@ -31,6 +31,7 @@ namespace expressions = boost::log::expressions;
 using namespace boost::log::trivial;
 
 namespace vsomeip {
+namespace daemon {
 
 severity_level loglevel_from_string(const std::string &_loglevel);
 
@@ -228,5 +229,6 @@ severity_level loglevel_from_string(const std::string &_loglevel) {
 	return info;
 }
 
+} // namespace daemon
 } // namespace vsomeip
 

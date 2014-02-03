@@ -21,10 +21,6 @@ length message_impl::get_length() const {
 	return VSOMEIP_STATIC_HEADER_LENGTH + payload_.get_length();
 }
 
-void message_impl::set_length(length _length) {
-	payload_.set_capacity(_length - VSOMEIP_STATIC_HEADER_LENGTH);
-}
-
 payload & message_impl::get_payload() {
 	return payload_;
 }
@@ -34,7 +30,12 @@ bool message_impl::serialize(serializer *_to) const {
 }
 
 bool message_impl::deserialize(deserializer *_from) {
-	return (header_.deserialize(_from) && payload_.deserialize(_from));
+	bool is_successful = header_.deserialize(_from);
+	if (is_successful) {
+		payload_.set_capacity(header_.length_);
+		is_successful = payload_.deserialize(_from);
+	}
+	return is_successful;
 }
 
 } // namespace vsomeip

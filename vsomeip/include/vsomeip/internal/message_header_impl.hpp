@@ -29,12 +29,14 @@ public:
 	virtual bool serialize(serializer *_to) const;
 	virtual bool deserialize(deserializer *_from);
 
+	// internal
 	message_base * get_owner() const;
 	void set_owner(message_base *_owner);
 
 public:
 	service_id service_id_;
 	method_id method_id_;
+	length length_;
 	client_id client_id_;
 	session_id session_id_;
 	protocol_version protocol_version_;

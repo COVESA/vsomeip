@@ -153,6 +153,5 @@ bool entry_impl::is_eventgroup_entry() const {
 			&& type_ <= entry_type::SUBSCRIBE_EVENTGROUP_ACK);
 }
 
-} // namespace sd
-
+} // namespace service_discovery
 } // namespace vsomeip

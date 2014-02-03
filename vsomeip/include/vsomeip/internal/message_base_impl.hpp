@@ -54,12 +54,6 @@ public:
 protected: // members
 	endpoint *endpoint_;
 	message_header_impl header_;
-
-private:
-	uint32_t message_id_;
-	static uint32_t message_count__;
-	static boost::mutex lock__;
-	static uint32_t get_message_count();
 };
 
 } // namespace vsomeip

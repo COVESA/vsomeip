@@ -14,7 +14,7 @@
 int
 main(int argc, char **argv) {
 
-	vsomeip::daemon* the_daemon = vsomeip::daemon::get_instance();
+	vsomeip::daemon::daemon *the_daemon = vsomeip::daemon::daemon::get_instance();
 
 	// create argument vector and pass it to the daemon object
 	the_daemon->init(argc, argv);

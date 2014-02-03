@@ -69,7 +69,7 @@ int main() {
 	sdm->set_interface_version(0x01);
 	sdm->set_message_type(vsomeip::message_type::NOTIFICATION);
 	sdm->set_return_code(vsomeip::return_code::OK);
-	sdm->set_flags(0x80);
+	sdm->set_unicast_flag(true);
 
 	std::cout << 1 << std::endl;
 	sd::ipv4_endpoint_option& l_option = sdm->create_ipv4_endpoint_option();

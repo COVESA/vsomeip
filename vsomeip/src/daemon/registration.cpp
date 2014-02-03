@@ -9,7 +9,16 @@
 // All rights reserved.
 //
 
-#include "registration.h"
+#include "registration.hpp"
 
+namespace vsomeip {
+namespace daemon {
 
+registration::registration() {
+}
 
+void registration::start() {
+}
+
+} // namespace daemon
+} // namespace vsomeip

@@ -33,8 +33,11 @@ class message : virtual public vsomeip::message_base {
 public:
 	virtual ~message() {};
 
-	virtual flags get_flags() const = 0;
-	virtual void set_flags(flags _flags) = 0;
+	virtual bool get_reboot_flag() const = 0;
+	virtual void set_reboot_flag(bool _is_set) = 0;
+
+	virtual bool get_unicast_flag() const = 0;
+	virtual void set_unicast_flag(bool _is_set) = 0;
 
 	virtual eventgroup_entry & create_eventgroup_entry() = 0;
 	virtual service_entry & create_service_entry() = 0;

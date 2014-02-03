@@ -16,7 +16,6 @@ namespace vsomeip {
 
 message_base_impl::message_base_impl() {
 	header_.set_owner(this);
-	message_id_ = get_message_count();
 }
 
 message_base_impl::~message_base_impl() {
@@ -112,15 +111,6 @@ return_code message_base_impl::get_return_code() const {
 
 void message_base_impl::set_return_code(return_code _code) {
 	header_.return_code_ = _code;
-}
-
-uint32_t message_base_impl::message_count__ = 0;
-boost::mutex message_base_impl::lock__;
-
-uint32_t message_base_impl::get_message_count() {
-	boost::unique_lock< boost::mutex > lock(lock__);
-	message_count__++;
-	return message_count__;
 }
 
 } // namespace vsomeip

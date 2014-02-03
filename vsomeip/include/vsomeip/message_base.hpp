@@ -69,9 +69,6 @@ public:
     /// \returns length of the message
 	virtual length get_length() const = 0;
     
-    /// Intentionally undocumented. Makes no sense and will be removed soon.
-	virtual void set_length(length _length) = 0;
-	
     /// Returns the message identifier of the Some/IP message, which is 
     /// composed from the client identifier and the session identifier.
     /// \returns message identifier of the Some/IP message 

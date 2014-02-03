@@ -1,5 +1,5 @@
 //
-// daemon-config.h
+// daemon-config.hpp
 //
 // Author: 	Lutz Bichler
 //

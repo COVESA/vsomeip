@@ -1,7 +1,7 @@
 //
-// registration.h
+// service.cpp
 //
-// Author: 	Lutz Bichler
+// Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -9,10 +9,11 @@
 // All rights reserved.
 //
 
-#ifndef __VSOMEIP_SD_REGISTRATION_H__
-#define __VSOMEIP_SD_REGISTRATION_H__
 
 
 
+struct transition_table : mpl::vector<
 
-#endif /* __VSOMEIP_SD_REGISTRATION_H__ */
+
+
+> {};

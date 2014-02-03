@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef	 VSOMEIP_DAEMON_HPP
-#define VSOMEIP_DAEMON_HPP
+#ifndef	 VSOMEIP_DAEMON_DAEMON_HPP
+#define VSOMEIP_DAEMON_DAEMON_HPP
 
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
@@ -18,6 +18,7 @@
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
+namespace daemon {
 
 class daemon {
 
@@ -43,6 +44,7 @@ private:
 	boost::log::trivial::severity_level loglevel_;
 };
 
+} // namespace daemon
 } // namespace vsomeip
 
-#endif // DAEMON_HPP
+#endif // VSOMEIP_DAEMON_DAEMON_HPP

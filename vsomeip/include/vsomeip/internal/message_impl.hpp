@@ -23,12 +23,13 @@ class message_impl
 public:
 	virtual ~message_impl();
 
-	virtual length get_length() const;
-	virtual void set_length(length _length);
-	virtual payload & get_payload();
+	length get_length() const;
+	void set_length(length _length);
 
-	virtual bool serialize(serializer *_to) const;
-	virtual bool deserialize(deserializer *_from);
+	payload & get_payload();
+
+	bool serialize(serializer *_to) const;
+	bool deserialize(deserializer *_from);
 
 protected: // members
 	payload_impl payload_;

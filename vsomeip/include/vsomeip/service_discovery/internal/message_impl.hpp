@@ -33,8 +33,11 @@ public:
 	length get_length() const;
 	void set_length(length _length);
 
-	flags get_flags() const;
-	void set_flags(flags _flags);
+	bool get_reboot_flag() const;
+	void set_reboot_flag(bool _is_set);
+
+	bool get_unicast_flag() const;
+	void set_unicast_flag(bool _is_set);
 
 	eventgroup_entry & create_eventgroup_entry();
 	service_entry & create_service_entry();

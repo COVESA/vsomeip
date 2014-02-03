@@ -50,16 +50,33 @@ length message_impl::get_length() const {
 	return current_length;
 }
 
+#define VSOMEIP_REBOOT_FLAG 0x80
+
+bool message_impl::get_reboot_flag() const {
+	return (flags_ & VSOMEIP_REBOOT_FLAG != 0);
+}
+
+void message_impl::set_reboot_flag(bool _is_set) {
+	if (_is_set)
+		flags_ |= VSOMEIP_REBOOT_FLAG;
+	else
+		flags_ &= ~VSOMEIP_REBOOT_FLAG;
+}
+
+#define VSOMEIP_UNICAST_FLAG 0x40
+
+bool message_impl::get_unicast_flag() const {
+	return (flags_ & VSOMEIP_UNICAST_FLAG != 0);
+}
+
+void message_impl::set_unicast_flag(bool _is_set) {
+	if (_is_set)
+		flags_ |= VSOMEIP_UNICAST_FLAG;
+	else
+		flags_ &= ~VSOMEIP_UNICAST_FLAG;
+}
+
 void message_impl::set_length(length _length) {
-//	length_ = _length;
-}
-
-flags message_impl::get_flags() const {
-	return flags_;
-}
-
-void message_impl::set_flags(flags _flags) {
-	flags_ = _flags;
 }
 
 eventgroup_entry& message_impl::create_eventgroup_entry() {

@@ -9,10 +9,10 @@
 // All rights reserved.
 //
 
-#include <vsomeip/internal/message_header_impl.hpp>
-
+#include <vsomeip/constants.hpp>
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
+#include <vsomeip/internal/message_header_impl.hpp>
 
 namespace vsomeip {
 
@@ -49,12 +49,12 @@ bool message_header_impl::deserialize(deserializer *_from) {
 	bool is_successful;
 
 	uint8_t tmp_message_type, tmp_return_code;
-	uint32_t length;
+	uint32_t tmp_length;
 
 	is_successful = (0 != _from
 			&& _from->deserialize(service_id_)
 			&& _from->deserialize(method_id_)
-			&& _from->deserialize(length)
+			&& _from->deserialize(tmp_length)
 			&& _from->deserialize(client_id_)
 			&& _from->deserialize(session_id_)
 			&& _from->deserialize(protocol_version_)
@@ -65,7 +65,7 @@ bool message_header_impl::deserialize(deserializer *_from) {
 	if (is_successful) {
 		message_type_ = static_cast<message_type>(tmp_message_type);
 		return_code_ = static_cast<return_code>(tmp_return_code);
-		owner_->set_length(length);
+		length_ = static_cast<length>(tmp_length - VSOMEIP_STATIC_HEADER_LENGTH);
 	}
 
 	return is_successful;
