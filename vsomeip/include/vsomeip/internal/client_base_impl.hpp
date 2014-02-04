@@ -37,6 +37,7 @@ public: // client interface methods
 
 	bool send(const message_base *_message,  bool _flush);
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+	bool flush();
 
 protected:
 	std::deque< std::vector< uint8_t > > packet_queue_;

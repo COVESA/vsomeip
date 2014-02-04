@@ -103,15 +103,39 @@ void service_base_impl::flush(
 		endpoint *_target,
 		const boost::system::error_code &_error_code) {
 	if (!_error_code) {
-		std::deque< std::vector< uint8_t > >& target_packet_queue
-				= packet_queues_[_target];
-		std::vector< uint8_t >& target_packetizer
-				= packetizer_[_target];
-		target_packet_queue.push_back(target_packetizer);
-		target_packetizer.clear();
-
-		send_queued();
+		(void)flush(_target);
 	}
+}
+
+bool service_base_impl::flush(endpoint *_target) {
+	bool is_successful = false;
+	if (_target) {
+		auto i = packetizer_.find(_target);
+		if (i != packetizer_.end() && !i->second.empty()) {
+			std::deque< std::vector< uint8_t > >& target_packet_queue
+					= packet_queues_[i->first];
+			target_packet_queue.push_back(i->second);
+			i->second.clear();
+
+			is_successful = true;
+		}
+	} else {
+		for (auto i = packetizer_.begin(); i != packetizer_.end(); ++i) {
+			if (!i->second.empty()) {
+				std::deque< std::vector< uint8_t > >& target_packet_queue
+							= packet_queues_[i->first];
+				target_packet_queue.push_back(i->second);
+				i->second.clear();
+
+				is_successful = true;
+			}
+		}
+	}
+
+	if (is_successful)
+		send_queued();
+
+	return is_successful;
 }
 
 void service_base_impl::connected(

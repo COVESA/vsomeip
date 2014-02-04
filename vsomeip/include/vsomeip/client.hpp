@@ -48,6 +48,10 @@ public:
 	/// from different threads, you need to synchronize the calls.
 	virtual bool send(const uint8_t *_data, uint32_t _size,
 						bool _flush = true) = 0;
+
+	/// Flush data stored in packetizer.
+	/// \returns true if data was flushed, false otherwise
+	virtual bool flush() = 0;
 };
 
 } // namespace vsomeip

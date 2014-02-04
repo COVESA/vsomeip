@@ -37,6 +37,7 @@ public:
 	bool send(const message_base *_message, bool _flush);
 	bool send(const uint8_t *_data, uint32_t _size,
 			   endpoint *_target, bool _flush);
+	bool flush(endpoint *_target);
 
 protected:
 	std::map< endpoint *,

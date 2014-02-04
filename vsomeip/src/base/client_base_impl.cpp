@@ -82,10 +82,21 @@ bool client_base_impl::send(const uint8_t *_data, const uint32_t _size, bool _fl
 
 void client_base_impl::flush(const boost::system::error_code &_error_code) {
 	if (!_error_code) {
+		(void)flush();
+	}
+}
+
+bool client_base_impl::flush() {
+	bool is_successful = true;
+
+	if (!packetizer_.empty()) {
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
-		send_queued();
+	} else {
+		is_successful = false;
 	}
+
+	return is_successful;
 }
 
 //
