@@ -31,7 +31,6 @@ public:
 
 private:
 	daemon();
-	int accept();
 	void run();
 
 private:

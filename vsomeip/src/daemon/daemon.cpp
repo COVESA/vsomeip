@@ -20,8 +20,9 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/program_options.hpp>
 
-#include "daemon-config.hpp"
-#include "daemon.hpp"
+#include <vsomeip/service_discovery/internal/daemon-config.hpp>
+#include <vsomeip/service_discovery/internal/daemon.hpp>
+#include <vsomeip/service_discovery/internal/service_registration.hpp>
 
 namespace options = boost::program_options;
 namespace logging = boost::log;
@@ -183,6 +184,10 @@ void daemon::init(int argc, char **argv) {
 }
 
 void daemon::start() {
+
+	vsomeip::service_discovery::service_registration a, b, c;
+	a.start(); b.start(); c.start();
+
 	// Check whether the daemon makes any sense
 	if (!is_virtual_mode_ && !is_service_discovery_mode_) {
 		BOOST_LOG_SEV(log_, error)

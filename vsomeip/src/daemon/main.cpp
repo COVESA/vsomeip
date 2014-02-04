@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include "daemon.hpp"
+#include <vsomeip/service_discovery/internal/daemon.hpp>
 
 int
 main(int argc, char **argv) {

@@ -9,7 +9,7 @@
 // All rights reserved.
 //
 
-#include "registration.hpp"
+#include <vsomeip/service_discovery/internal/registration.hpp>
 
 namespace vsomeip {
 namespace daemon {
