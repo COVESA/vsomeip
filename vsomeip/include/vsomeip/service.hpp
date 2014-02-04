@@ -44,7 +44,7 @@ public:
 	/// equal to sending a Some/IP message using the provided message structure.
 	/// \param _data Pointer to the serialized message data.
 	/// \param _size Amount of data that shall be sent.
-    /// \param endpoint target endpoint the message shall be sent to
+    /// \param _target target endpoint the message shall be sent to
 	/// \param _flush Flag that must be set to true (default) if the the message
 	/// shall be sent directly or to false if the packetizer shall be used.
 	/// \warning This method is not thread safe! If you want to call it on the
