@@ -40,15 +40,33 @@ struct ev_find_service {
 struct service_state_machine_def
 	: public boost::msm::front::state_machine_def< service_state_machine_def> {
 
+	// States
 	struct initial: public msm::front::entry_pseudo_state<0> {
 		template <class Event, class Fsm>
 					void on_entry(Event const &, Fsm &fsm)
-					{ std::cout << "Hallo from " << fsm.id_ << std::endl; }
+					{ std::cout << "Entering Initial" << std::endl; }
+		template <class Event, class Fsm>
+					void on_exit(Event const &, Fsm &fsm)
+					{ std::cout << "Exiting Initial" << std::endl; }
 	};
 	struct not_ready: public msm::front::state<> {
+		template <class Event, class Fsm>
+					void on_entry(Event const &, Fsm &fsm)
+					{ std::cout << "Entering NotReady" << std::endl; }
+		template <class Event, class Fsm>
+					void on_exit(Event const &, Fsm &fsm)
+					{ std::cout << "Exiting NotReady" << std::endl; }
 	};
-	struct ready: public msm::front::state_machine_def<ready> {
 
+	struct ready: public msm::front::state_machine_def<ready> {
+		template <class Event, class Fsm>
+					void on_entry(Event const &, Fsm &fsm)
+					{ std::cout << "Entering Ready" << std::endl; }
+		template <class Event, class Fsm>
+					void on_exit(Event const &, Fsm &fsm)
+					{ std::cout << "Exiting Ready" << std::endl; }
+
+		// States
 		struct initial: public msm::front::entry_pseudo_state<0> {
 		};
 		struct waiting: public msm::front::state<> {
@@ -58,18 +76,22 @@ struct service_state_machine_def
 		struct announcing: public msm::front::state<> {
 		};
 
-		uint32_t repetitions_max;
+		// Determine initial state
+		typedef initial initial_state;
 
-		// guards
+		// Members
+		uint32_t repetitions_max_;
+
+		// Guards
 		bool is_repeating(ev_timer_expired const &_event) {
-			return repetitions_max > 0;
+			return repetitions_max_ > 0;
 		}
 
 		bool is_not_repeating(ev_timer_expired const &_event) {
-			return repetitions_max == 0;
+			return repetitions_max_ == 0;
 		}
 
-		// actions
+		// Actions
 		void send_offer_service(ev_timer_expired const &_event) {
 			// TODO: send message
 		}
@@ -78,7 +100,8 @@ struct service_state_machine_def
 			// TODO: check timing and schedule sending of message
 		}
 
-		struct root_state: mpl::vector<
+		// Transitions
+		struct transition_table: mpl::vector<
 				row<waiting, ev_timer_expired, announcing,
 						&ready::send_offer_service, &ready::is_not_repeating>,
 				row<waiting, ev_timer_expired, repeating,
@@ -94,15 +117,17 @@ struct service_state_machine_def
 				a_row<announcing, ev_find_service, announcing,
 						&ready::send_delayed_offer_service> > {
 		};
-
-		typedef initial initial_state;
 	};
 
-	// members
+	// Determine initial state
+	typedef initial initial_state;
+
+	// Members
 	bool is_daemon_up_;
 	bool is_service_up_;
+	bool is_requested_;
 
-	// guards
+	// Guards
 	bool is_not_ready(none const &_no_event) {
 		return (!is_daemon_up_ || !is_service_up_);
 	}
@@ -129,7 +154,7 @@ struct service_state_machine_def
 		return !(is_not_ready(_event));
 	}
 
-	// actions
+	// Actions
 	void handle_service_down(ev_daemon_status_change const &_event) {
 		// TODO: clear_all_timers();
 	}
@@ -143,7 +168,8 @@ struct service_state_machine_def
 		// TODO: clear_all_timers();
 	};
 
-	struct root_state: mpl::vector<
+	// Transitions
+	struct transition_table: mpl::vector<
 			g_row<initial, none, ready,
 					&service_state_machine_def::is_ready>,
 			g_row<initial, none, not_ready,
@@ -160,23 +186,23 @@ struct service_state_machine_def
 					&service_state_machine_def::is_not_ready> > {
 	};
 
-	typedef initial initial_state;
-
-	int id_;
+	template <class Fsm, class Event>
+	void no_transition(Event const &_event, Fsm &_machine, int state) {
+		std::cout << "No transition from state " << state << " on event " << typeid(_event).name() << std::endl;
+	}
 };
 
 struct service_registration::state_machine
 		: msm::back::state_machine< service_state_machine_def > {
-	state_machine(int _id) { id_ = _id; };
 };
 
 ////////////////////////////////////////////////////////
 /////////// Implementation of member functions /////////
 ////////////////////////////////////////////////////////
-int service_registration::last_id__ = 0;
-
 service_registration::service_registration()
-	: state_machine_(new state_machine(last_id__++)) {
+	: state_machine_(new state_machine) {
+	state_machine_->is_daemon_up_ = false;
+	state_machine_->is_service_up_ = false;
 }
 
 void service_registration::start() {
@@ -185,6 +211,10 @@ void service_registration::start() {
 
 void service_registration::stop() {
 	state_machine_->stop();
+}
+
+void service_registration::process() {
+	state_machine_->process_event(none());
 }
 
 } // namespace service_discovery

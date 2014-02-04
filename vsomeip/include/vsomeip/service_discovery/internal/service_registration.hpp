@@ -23,12 +23,11 @@ public:
 
 	void start();
 	void stop();
+	void process();
 
 private:
 	struct state_machine;
 	boost::shared_ptr< state_machine > state_machine_;
-
-	static int last_id__;
 };
 
 } // namespace service_discovery
