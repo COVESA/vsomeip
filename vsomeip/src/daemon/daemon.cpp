@@ -24,6 +24,8 @@
 #include <vsomeip/service_discovery/internal/daemon.hpp>
 #include <vsomeip/service_discovery/internal/service_registration.hpp>
 
+#include <vsomeip/service_discovery/internal/client_impl.hpp>
+
 namespace options = boost::program_options;
 namespace logging = boost::log;
 namespace keywords = boost::log::keywords;
@@ -185,8 +187,10 @@ void daemon::init(int argc, char **argv) {
 
 void daemon::start() {
 
-	vsomeip::service_discovery::service_registration a, b, c;
-	a.start(); b.start(); c.start();
+	vsomeip::service_discovery::client_impl a;
+	a.start();
+	a.process();
+
 
 	// Check whether the daemon makes any sense
 	if (!is_virtual_mode_ && !is_service_discovery_mode_) {

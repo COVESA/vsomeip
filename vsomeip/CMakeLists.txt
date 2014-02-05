@@ -22,7 +22,7 @@ file (GLOB vsomeipd_SRC
 )
 
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-base vsomeip-service_discovery boost_system boost_program_options boost_log_setup boost_log)
+target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base boost_system boost_program_options boost_log_setup boost_log)
 
 # Test executables
 add_executable(vsomeip-serialization src/examples/serialization.cpp)

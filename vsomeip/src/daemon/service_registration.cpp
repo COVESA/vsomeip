@@ -12,6 +12,7 @@
 #include <boost/msm/front/state_machine_def.hpp>
 #include <boost/msm/back/state_machine.hpp>
 
+#include <vsomeip/service_discovery/internal/events.hpp>
 #include <vsomeip/service_discovery/internal/service_registration.hpp>
 
 namespace vsomeip {
@@ -24,21 +25,10 @@ using namespace boost::msm::front;
 ////////////////////////////////////////////////////////
 /////////// Implementation of statechart       /////////
 ////////////////////////////////////////////////////////
-struct ev_timer_expired {
-};
-struct ev_status_change {
-	bool is_up_;
-};
-struct ev_daemon_status_change: ev_status_change {
-};
-struct ev_service_status_change: ev_status_change {
-};
-struct ev_find_service {
-};
 
 // Top-level state machine
-struct service_state_machine_def
-	: public boost::msm::front::state_machine_def< service_state_machine_def> {
+struct service_registration_state_machine_def
+	: public msm::front::state_machine_def<service_registration_state_machine_def> {
 
 	// States
 	struct initial: public msm::front::entry_pseudo_state<0> {
@@ -83,16 +73,16 @@ struct service_state_machine_def
 		uint32_t repetitions_max_;
 
 		// Guards
-		bool is_repeating(ev_timer_expired const &_event) {
+		bool is_repeating(ev_timeout_expired const &_event) {
 			return repetitions_max_ > 0;
 		}
 
-		bool is_not_repeating(ev_timer_expired const &_event) {
+		bool is_not_repeating(ev_timeout_expired const &_event) {
 			return repetitions_max_ == 0;
 		}
 
 		// Actions
-		void send_offer_service(ev_timer_expired const &_event) {
+		void send_offer_service(ev_timeout_expired const &_event) {
 			// TODO: send message
 		}
 
@@ -102,17 +92,17 @@ struct service_state_machine_def
 
 		// Transitions
 		struct transition_table: mpl::vector<
-				row<waiting, ev_timer_expired, announcing,
+				row<waiting, ev_timeout_expired, announcing,
 						&ready::send_offer_service, &ready::is_not_repeating>,
-				row<waiting, ev_timer_expired, repeating,
+				row<waiting, ev_timeout_expired, repeating,
 						&ready::send_offer_service, &ready::is_repeating>,
 				a_row<repeating, ev_find_service, repeating,
 						&ready::send_delayed_offer_service>,
-				row<repeating, ev_timer_expired, repeating,
+				row<repeating, ev_timeout_expired, repeating,
 						&ready::send_offer_service, &ready::is_repeating>,
-				g_row<repeating, ev_timer_expired, announcing,
+				g_row<repeating, ev_timeout_expired, announcing,
 						&ready::is_not_repeating>,
-				a_row<announcing, ev_timer_expired, announcing,
+				a_row<announcing, ev_timeout_expired, announcing,
 						&ready::send_offer_service>,
 				a_row<announcing, ev_find_service, announcing,
 						&ready::send_delayed_offer_service> > {
@@ -171,19 +161,19 @@ struct service_state_machine_def
 	// Transitions
 	struct transition_table: mpl::vector<
 			g_row<initial, none, ready,
-					&service_state_machine_def::is_ready>,
+					&service_registration_state_machine_def::is_ready>,
 			g_row<initial, none, not_ready,
-					&service_state_machine_def::is_not_ready>,
+					&service_registration_state_machine_def::is_not_ready>,
 			g_row<not_ready, ev_daemon_status_change, ready,
-					&service_state_machine_def::is_ready>,
+					&service_registration_state_machine_def::is_ready>,
 			g_row<not_ready, ev_service_status_change, ready,
-					&service_state_machine_def::is_ready>,
+					&service_registration_state_machine_def::is_ready>,
 			row<ready, ev_daemon_status_change, not_ready,
-					&service_state_machine_def::handle_service_down,
-					&service_state_machine_def::is_not_ready>,
+					&service_registration_state_machine_def::handle_service_down,
+					&service_registration_state_machine_def::is_not_ready>,
 			row<ready, ev_service_status_change, not_ready,
-					&service_state_machine_def::handle_service_down,
-					&service_state_machine_def::is_not_ready> > {
+					&service_registration_state_machine_def::handle_service_down,
+					&service_registration_state_machine_def::is_not_ready> > {
 	};
 
 	template <class Fsm, class Event>
@@ -193,7 +183,7 @@ struct service_state_machine_def
 };
 
 struct service_registration::state_machine
-		: msm::back::state_machine< service_state_machine_def > {
+		: msm::back::state_machine< service_registration_state_machine_def > {
 };
 
 ////////////////////////////////////////////////////////
