@@ -92,6 +92,8 @@ bool client_base_impl::flush() {
 	if (!packetizer_.empty()) {
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
+
+		send_queued();
 	} else {
 		is_successful = false;
 	}
