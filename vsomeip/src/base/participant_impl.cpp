@@ -148,7 +148,7 @@ void participant_impl::received(
 
 		restart();
 	} else {
-		std::cerr << _error_code.message() << std::endl;
+		receive();
 	}
 }
 

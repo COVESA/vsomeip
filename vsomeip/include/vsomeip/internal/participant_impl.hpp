@@ -49,6 +49,9 @@ public:
 			 	 	 	 	 	   service_id _service_id,
 			 	 	 	 	 	   method_id _method_id);
 
+	virtual void connect() = 0;
+	virtual void receive() = 0;
+
 	void received(boost::system::error_code const &_error_code,
 				  std::size_t _transferred_bytes);
 

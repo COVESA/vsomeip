@@ -40,6 +40,9 @@ public: // client interface methods
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
 	bool flush();
 
+	virtual void connect() = 0;
+	virtual void receive() = 0;
+
 protected:
 	std::deque< std::vector< uint8_t > > packet_queue_;
 	std::vector< uint8_t > packetizer_;

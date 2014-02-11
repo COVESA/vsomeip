@@ -33,6 +33,9 @@ public:
 	void start();
 	void stop();
 
+	void connect();
+	void receive();
+
 protected:
 	boost::asio::ip::tcp::acceptor acceptor_;
 

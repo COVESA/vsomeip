@@ -53,7 +53,6 @@ struct client_behavior_def
 	}
 
 	void set_timer(uint32_t _milliseconds) {
-		std::cout << "set_timer(" << _milliseconds << ")" << std::endl;
 		timer_->expires_from_now(
 				std::chrono::milliseconds(_milliseconds));
 		timer_->async_wait(boost::bind(
@@ -67,7 +66,6 @@ struct client_behavior_def
 	}
 
 	void timeout_expired(const boost::system::error_code &_error_code) {
-		std::cout << "Timer expired (" << _error_code << ")" << std::endl;
 		if (!_error_code) {
 			owner_->process_event(ev_timeout_expired());
 		}
@@ -131,6 +129,11 @@ struct client_behavior_def
 			_fsm.run_ = 0;
 		}
 
+		template<class Event, class Fsm>
+		void on_exit(Event const &, Fsm &_fsm) {
+			_fsm.cancel_timer();
+		}
+
 		// States
 		struct waiting
 			: public msm::front::state<> {
@@ -144,9 +147,12 @@ struct client_behavior_def
 			: public msm::front::state<> {
 			template<class Event, class Fsm>
 			void on_entry(Event const &, Fsm &_fsm) {
-				_fsm.owner_->cancel_timer();
 				std::cout << "  initializing" << std::endl;
 				_fsm.owner_->set_timer(1000);
+			}
+			template<class Event, class Fsm>
+			void on_exit(Event const &, Fsm &_fsm) {
+				_fsm.owner_->cancel_timer();
 			}
 		};
 
@@ -155,10 +161,13 @@ struct client_behavior_def
 			template<class Event, class Fsm>
 			void on_entry(Event const &, Fsm &_fsm) {
 				std::cout << "  searching" << std::endl;
-				_fsm.owner_->cancel_timer();
 				_fsm.owner_->owner_->find_service();
 				_fsm.owner_->run_++;
 				_fsm.owner_->set_timer((2<<_fsm.owner_->run_) * 1000);
+			}
+			template<class Event, class Fsm>
+			void on_exit(Event const &, Fsm &_fsm) {
+				_fsm.owner_->cancel_timer();
 			}
 		};
 
@@ -172,13 +181,11 @@ struct client_behavior_def
 		}
 
 		bool is_up_and_requested(ev_configuration_status_change const &_event) {
-			std::cout << "Received configuration change" << std::endl;
 			set_configured(_event);
 			return (owner_->is_configured_and_requested(_event));
 		}
 
 		bool is_up_and_requested(ev_request_change const &_event) {
-			std::cout << "Received request change" << std::endl;
 			set_requested(_event);
 			return (owner_->is_configured_and_requested(_event));
 		}

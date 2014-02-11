@@ -36,15 +36,22 @@ udp_service_impl::~udp_service_impl() {
 }
 
 void udp_service_impl::start() {
+	receive();
+}
+
+void udp_service_impl::restart() {
+	receive();
+}
+
+void udp_service_impl::connect() {
+}
+
+void udp_service_impl::receive() {
 	socket_.async_receive_from(
 	        boost::asio::buffer(received_), remote_endpoint_,
 	        boost::bind(&participant_impl::received, this,
 	          boost::asio::placeholders::error,
 	          boost::asio::placeholders::bytes_transferred));
-}
-
-void udp_service_impl::restart() {
-	start();
 }
 
 void udp_service_impl::stop() {

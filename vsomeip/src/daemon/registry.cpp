@@ -25,7 +25,7 @@ registry::service * registry::add(service_id _service_id, instance_id _instance_
 	std::map< instance_id, service >& found_service = data_[_service_id];
 	found_service[_instance_id] = s;
 
-	return 0;
+	return &found_service[_instance_id];
 }
 
 registry::service * registry::search(service_id _service_id, instance_id _instance_id) {

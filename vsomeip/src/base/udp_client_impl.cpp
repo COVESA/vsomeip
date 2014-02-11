@@ -35,14 +35,22 @@ udp_client_impl::~udp_client_impl() {
 
 void udp_client_impl::start() {
 	socket_.open(local_endpoint_.protocol().v4());
+	connect();
+	receive();
+}
+
+void udp_client_impl::connect() {
 	socket_.async_connect(local_endpoint_,
 			boost::bind(&client_base_impl::connected, this,
 					boost::asio::placeholders::error));
+}
+
+void udp_client_impl::receive() {
 	socket_.async_receive_from(
-	        boost::asio::buffer(received_), remote_endpoint_,
-	        boost::bind(&participant_impl::received, this,
-	          boost::asio::placeholders::error,
-	          boost::asio::placeholders::bytes_transferred));
+		        boost::asio::buffer(received_), remote_endpoint_,
+		        boost::bind(&participant_impl::received, this,
+		          boost::asio::placeholders::error,
+		          boost::asio::placeholders::bytes_transferred));
 }
 
 void udp_client_impl::stop() {
@@ -59,7 +67,6 @@ void udp_client_impl::restart() {
 }
 
 void udp_client_impl::send_queued() {
-	std::cout << "Sending queued: " << packet_queue_.front().size() <<std::endl;
 	socket_.async_send(
 		boost::asio::buffer(&packet_queue_.front()[0],
 				packet_queue_.front().size()),

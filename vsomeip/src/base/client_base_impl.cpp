@@ -109,6 +109,9 @@ bool client_base_impl::flush() {
 //
 void client_base_impl::connected(
 		boost::system::error_code const &_error_code) {
+	if (_error_code) {
+		connect();
+	}
 }
 
 void client_base_impl::sent(
@@ -126,7 +129,7 @@ void client_base_impl::sent(
 			send_queued();
 		}
 	} else {
-		std::cout << _error_code.message() << std::endl;
+		connect();
 	}
 }
 

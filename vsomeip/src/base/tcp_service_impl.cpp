@@ -50,6 +50,12 @@ void tcp_service_impl::start() {
 						new_connection, boost::asio::placeholders::error));
 }
 
+void tcp_service_impl::connect() {
+}
+
+void tcp_service_impl::receive() {
+}
+
 void tcp_service_impl::restart() {
 	if (current_receiving_) {
 		current_receiving_->start();

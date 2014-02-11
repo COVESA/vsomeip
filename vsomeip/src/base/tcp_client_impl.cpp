@@ -38,18 +38,26 @@ tcp_client_impl::~tcp_client_impl() {
 
 void tcp_client_impl::start() {
 	socket_.open(local_endpoint_.protocol().v4());
-	socket_.async_connect(local_endpoint_,
-			boost::bind(&client_base_impl::connected, this,
-					boost::asio::placeholders::error));
+	connect();
 
 	// Nagle algorithm off
 	ip::tcp::no_delay option;
 	socket_.set_option(option);
 
+	receive();
+}
+
+void tcp_client_impl::connect() {
+	socket_.async_connect(local_endpoint_,
+				boost::bind(&client_base_impl::connected, this,
+						boost::asio::placeholders::error));
+}
+
+void tcp_client_impl::receive() {
 	socket_.async_receive(boost::asio::buffer(received_),
-			boost::bind(&participant_impl::received, this,
-					boost::asio::placeholders::error,
-					boost::asio::placeholders::bytes_transferred));
+				boost::bind(&participant_impl::received, this,
+						boost::asio::placeholders::error,
+						boost::asio::placeholders::bytes_transferred));
 }
 
 void tcp_client_impl::stop() {

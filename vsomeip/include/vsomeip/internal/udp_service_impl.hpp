@@ -33,6 +33,8 @@ public:
 	void start();
 	void stop();
 
+	void connect();
+	void receive();
 
 private:
 	void restart();
