@@ -135,6 +135,14 @@ protection_option& message_impl::create_protection_option() {
 	return *tmp_option;
 }
 
+const std::vector<entry *> message_impl::get_entries() const {
+	return entries_;
+}
+
+const std::vector<option *> message_impl::get_options() const {
+	return options_;
+}
+
 // TODO: throw exception to signal "OptionNotFound"
 int16_t message_impl::get_option_index(const option &_option) const {
 	int16_t i = 0;

@@ -25,7 +25,11 @@ class endpoint;
 class tcp_client_impl
 		: virtual public client_base_impl {
 public:
-	tcp_client_impl(const endpoint *_endpoint);
+	tcp_client_impl(
+			const factory *_factory,
+			const endpoint *_endpoint,
+			boost::asio::io_service &_is);
+	virtual ~tcp_client_impl();
 
 	void start();
 	void stop();
@@ -56,4 +60,4 @@ private:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_TCP_CLIENT_IMPL_HPP
+#endif // VSOMEIP_INTERNAL_TCP_CLIENT_IMPL__HPP

@@ -39,3 +39,6 @@ target_link_libraries(vsomeip-ip_resync_client vsomeip-base boost_system boost_t
 
 add_executable(vsomeip-ip_threaded_client src/examples/ip_threaded_client.cpp)
 target_link_libraries(vsomeip-ip_threaded_client vsomeip-base boost_system boost_thread)
+
+add_executable(vsomeip-ip_service_discovery_client src/examples/ip_service_discovery_client.cpp)
+target_link_libraries(vsomeip-ip_service_discovery_client vsomeip-service_discovery vsomeip-base boost_system boost_thread)

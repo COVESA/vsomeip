@@ -20,10 +20,13 @@
 
 namespace vsomeip {
 
-service_base_impl::service_base_impl(uint32_t _max_message_size)
-	: participant_impl(_max_message_size),
+service_base_impl::service_base_impl(
+		const factory *_factory,
+		uint32_t _max_message_size,
+		boost::asio::io_service &_is)
+	: participant_impl(_factory, _max_message_size, _is),
 	  current_queue_(packet_queues_.end()),
-	  flush_timer_(is_) {
+	  flush_timer_(_is) {
 }
 
 service_base_impl::~service_base_impl() {

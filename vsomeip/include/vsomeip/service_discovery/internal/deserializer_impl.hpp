@@ -19,7 +19,6 @@ namespace service_discovery {
 
 class deserializer_impl : virtual public vsomeip::deserializer_impl {
 public:
-	deserializer_impl(uint8_t *_data, uint32_t _length);
 	virtual ~deserializer_impl();
 
 	message_base * deserialize_message();

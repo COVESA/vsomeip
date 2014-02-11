@@ -121,7 +121,7 @@ int main() {
 	std::cout << std::endl << std::endl;
 
 	std::cout << "Deserializing service discovery message" << std::endl;
-	vsomeip::deserializer *d = sd::factory::get_default_factory()->create_deserializer(b, l);
+	vsomeip::deserializer *d = sd::factory::get_default_factory()->create_deserializer();
 
 	std::cout << typeid(d).name() << std::endl;
 

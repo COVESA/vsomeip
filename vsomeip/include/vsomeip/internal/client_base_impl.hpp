@@ -32,7 +32,8 @@ class client_base_impl
 		: virtual public client,
 		  public participant_impl {
 public: // client interface methods
-	client_base_impl(uint32_t _max_message_size);
+	client_base_impl(const factory *_factory, uint32_t _max_message_size,
+					   boost::asio::io_service &_is);
 	~client_base_impl();
 
 	bool send(const message_base *_message,  bool _flush);

@@ -24,7 +24,11 @@ class endpoint;
 class udp_service_impl
 		: virtual public service_base_impl {
 public:
-	udp_service_impl(const endpoint *_endpoint);
+	udp_service_impl(
+			const factory *_factory,
+			const endpoint *_endpoint,
+			boost::asio::io_service &_is);
+	virtual ~udp_service_impl();
 
 	void start();
 	void stop();

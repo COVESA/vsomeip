@@ -31,7 +31,10 @@ class service_base_impl
 		: virtual public service,
 		  public participant_impl {
 public:
-	service_base_impl(uint32_t _max_message_size);
+	service_base_impl(
+			const factory *_factory,
+			uint32_t _max_message_size,
+			boost::asio::io_service &_is);
 	~service_base_impl();
 
 	bool send(const message_base *_message, bool _flush);

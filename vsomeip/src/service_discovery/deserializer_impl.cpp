@@ -15,10 +15,6 @@
 namespace vsomeip {
 namespace service_discovery {
 
-deserializer_impl::deserializer_impl(uint8_t *_data, uint32_t _length)
-	: vsomeip::deserializer_impl(_data, _length) {
-}
-
 deserializer_impl::~deserializer_impl() {
 }
 

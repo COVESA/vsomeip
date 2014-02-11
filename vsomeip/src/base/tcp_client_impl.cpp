@@ -22,12 +22,18 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-tcp_client_impl::tcp_client_impl(const endpoint *_endpoint)
-		: client_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
+tcp_client_impl::tcp_client_impl(
+		const factory *_factory,
+		const endpoint *_endpoint,
+		boost::asio::io_service &_is)
+		: client_base_impl(_factory, VSOMEIP_MAX_TCP_MESSAGE_SIZE, _is),
 		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
 	has_magic_cookies_ = true;
+}
+
+tcp_client_impl::~tcp_client_impl() {
 }
 
 void tcp_client_impl::start() {

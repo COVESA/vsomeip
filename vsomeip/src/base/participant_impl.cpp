@@ -22,15 +22,19 @@
 
 namespace vsomeip {
 
-participant_impl::participant_impl(uint32_t _max_message_size)
+participant_impl::participant_impl(
+		const factory *_factory, uint32_t _max_message_size,
+		boost::asio::io_service &_is)
 	: max_message_size_(_max_message_size),
 	  has_magic_cookies_(false),
-	  has_enabled_magic_cookies_(false)
+	  has_enabled_magic_cookies_(false),
+	  is_(_is)
 {
-	serializer_ = factory::get_default_factory()->create_serializer();
-	deserializer_ = factory::get_default_factory()->create_deserializer();
+	serializer_ = _factory->create_serializer();
 	if (serializer_)
 		serializer_->create_data(max_message_size_);
+
+	deserializer_ = _factory->create_deserializer();
 }
 
 participant_impl::~participant_impl() {

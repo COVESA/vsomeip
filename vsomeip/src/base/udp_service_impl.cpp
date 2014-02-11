@@ -21,12 +21,18 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-udp_service_impl::udp_service_impl(const endpoint *_endpoint)
-		: service_base_impl(VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+udp_service_impl::udp_service_impl(
+		const factory *_factory,
+		const endpoint *_endpoint,
+		boost::asio::io_service &_is)
+		: service_base_impl(_factory, VSOMEIP_MAX_UDP_MESSAGE_SIZE, _is),
 		  socket_(is_, ip::udp::endpoint(
 				  	  	  (_endpoint->get_version() == ip_version::V4 ?
 				  	  			  ip::udp::v4() : ip::udp::v6()),
 				  		  _endpoint->get_port())) {
+}
+
+udp_service_impl::~udp_service_impl() {
 }
 
 void udp_service_impl::start() {

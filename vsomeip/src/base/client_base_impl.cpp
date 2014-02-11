@@ -21,8 +21,11 @@
 
 namespace vsomeip {
 
-client_base_impl::client_base_impl(uint32_t _max_message_size)
-	: participant_impl(_max_message_size), flush_timer_(is_) {
+client_base_impl::client_base_impl(
+		const factory *_factory,
+		uint32_t _max_message_size,
+		boost::asio::io_service& _is)
+	: participant_impl(_factory, _max_message_size, _is), flush_timer_(is_) {
 }
 
 client_base_impl::~client_base_impl() {

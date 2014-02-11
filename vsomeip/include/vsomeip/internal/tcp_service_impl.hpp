@@ -24,7 +24,10 @@ namespace vsomeip {
 class tcp_service_impl
 		: virtual public service_base_impl {
 public:
-	tcp_service_impl(const endpoint *_endpoint);
+	tcp_service_impl(
+			const factory *_factory,
+			const endpoint *_endpoint,
+			boost::asio::io_service &_is);
 	virtual ~tcp_service_impl();
 
 	void start();

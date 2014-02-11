@@ -22,8 +22,10 @@
 
 namespace vsomeip {
 
+class factory;
 class deserializer;
 class receiver;
+class serializer;
 
 class participant_impl
 	: virtual public participant
@@ -32,7 +34,8 @@ class participant_impl
 #endif
 {
 public:
-	participant_impl(uint32_t _max_message_size);
+	participant_impl(const factory *_factory, uint32_t _max_message_size,
+					   boost::asio::io_service &_is);
 	virtual ~participant_impl();
 
 	std::size_t poll_one();
@@ -78,6 +81,8 @@ private:
 	virtual const uint8_t * get_received() const = 0;
 
 protected:
+	boost::asio::io_service &is_;
+
 	std::map< service_id,
 			  std::map< method_id,
 			  	  	    std::set< receiver * > > > receiver_registry_;
@@ -88,8 +93,6 @@ protected:
 	uint32_t max_message_size_;
 	bool has_magic_cookies_;
 	bool has_enabled_magic_cookies_;
-
-	boost::asio::io_service is_;
 };
 
 } // namespace vsomeip

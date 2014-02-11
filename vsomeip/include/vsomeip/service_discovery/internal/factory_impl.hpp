@@ -17,13 +17,23 @@
 namespace vsomeip {
 namespace service_discovery {
 
-class factory_impl : virtual public factory, virtual public vsomeip::factory_impl {
+class factory_impl
+		: virtual public factory,
+		  virtual public vsomeip::factory_impl {
 public:
 	static vsomeip::service_discovery::factory * get_default_factory();
 	virtual ~factory_impl();
 
-	virtual message * create_service_discovery_message() const;
-	virtual deserializer * create_deserializer(uint8_t *_data, uint32_t _length) const;
+	message * create_service_discovery_message() const;
+	deserializer * create_deserializer() const;
+
+	client * create_client(const endpoint *_target) const;
+	client * create_client(service_id _service_id,
+							 instance_id _instance_id,
+							 major_version _major_version,
+							 time_to_live _time_to_live) const;
+
+	service * create_service(const endpoint *_endpoint) const;
 };
 
 } // namespace service_discovery

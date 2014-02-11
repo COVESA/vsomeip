@@ -9,8 +9,10 @@
 // All rights reserved.
 //
 
+#include <algorithm>
 #include <fstream>
 
+#include <boost/bind.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/sinks/text_file_backend.hpp>
@@ -19,12 +21,20 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/program_options.hpp>
+#include <boost/thread.hpp>
 
+#include <vsomeip/service.hpp>
+#include <vsomeip/internal/endpoint_impl.hpp>
+#include <vsomeip/internal/tcp_service_impl.hpp>
+#include <vsomeip/internal/udp_service_impl.hpp>
+#include <vsomeip/service_discovery/factory.hpp>
+#include <vsomeip/service_discovery/message.hpp>
+#include <vsomeip/service_discovery/entry.hpp>
+#include <vsomeip/service_discovery/eventgroup_entry.hpp>
+#include <vsomeip/service_discovery/service_entry.hpp>
 #include <vsomeip/service_discovery/internal/daemon-config.hpp>
 #include <vsomeip/service_discovery/internal/daemon.hpp>
 #include <vsomeip/service_discovery/internal/service_registration.hpp>
-
-#include <vsomeip/service_discovery/internal/client_impl.hpp>
 
 namespace options = boost::program_options;
 namespace logging = boost::log;
@@ -33,8 +43,11 @@ namespace expressions = boost::log::expressions;
 
 using namespace boost::log::trivial;
 
+#define SERVICE_DISCOVERY_SERVICE_ID 0xFFFF
+#define SERVICE_DISCOVERY_METHOD_ID  0x8100
+
 namespace vsomeip {
-namespace daemon {
+namespace service_discovery {
 
 severity_level loglevel_from_string(const std::string &_loglevel);
 
@@ -123,9 +136,9 @@ void daemon::init(int argc, char **argv) {
 			options::value<std::string>(),
 			"Log level to be used by vsomeip daemon")("someip.daemon.port",
 			options::value<int>(), "IP port to be used by vsomeip daemon")(
-			"someip.daemon.service_discovery", options::value<bool>(),
+			"someip.daemon.service_discovery_enabled", options::value<bool>(),
 			"Enable service discovery by vsomeip daemon")(
-			"someip.daemon.virtual_mode", options::value<bool>(),
+			"someip.daemon.virtual_mode_enabled", options::value<bool>(),
 			"Enable virtual mode by vsomeip daemon");
 
 	std::ifstream configuration_file;
@@ -177,21 +190,15 @@ void daemon::init(int argc, char **argv) {
 	if (commandline_configuration.count("port"))
 		port_ = commandline_configuration["port"].as<int>();
 
-	if (commandline_configuration.count("virtual_mode"))
-		is_virtual_mode_ = commandline_configuration["virtual_mode"].as<bool>();
+	if (commandline_configuration.count("virtual_mode_enabled"))
+		is_virtual_mode_ = commandline_configuration["virtual_mode_enabled"].as<bool>();
 
-	if (commandline_configuration.count("service_discovery"))
+	if (commandline_configuration.count("service_discovery_enabled"))
 		is_service_discovery_mode_ =
-				commandline_configuration["service_discovery"].as<bool>();
+				commandline_configuration["service_discovery_enabled"].as<bool>();
 }
 
 void daemon::start() {
-
-	vsomeip::service_discovery::client_impl a;
-	a.start();
-	a.process();
-
-
 	// Check whether the daemon makes any sense
 	if (!is_virtual_mode_ && !is_service_discovery_mode_) {
 		BOOST_LOG_SEV(log_, error)
@@ -209,10 +216,94 @@ void daemon::start() {
 		if (is_service_discovery_mode_) {
 			BOOST_LOG_SEV(log_, info) << "Service discovery mode: on";
 		}
+
+		// create a UDP & a TCP service as we want to listen to a port and
+		// send/receive Some/IP messages
+		endpoint *udp_endpoint = new endpoint_impl("127.0.0.1", port_,
+										ip_protocol::UDP, ip_version::V4);
+
+		endpoint *tcp_endpoint = new endpoint_impl("127.0.0.1", port_,
+										ip_protocol::TCP, ip_version::V4);
+
+		factory *default_factory = factory::get_default_factory();
+
+		// DEMO
+		registry_.add(0x2233, 0x12);
+
+		udp_daemon_
+			= new udp_service_impl(default_factory, udp_endpoint, is_);
+		tcp_daemon_
+			= new tcp_service_impl(default_factory, tcp_endpoint, is_);
+
+		tcp_daemon_->register_for(this,
+								 SERVICE_DISCOVERY_SERVICE_ID,
+								 SERVICE_DISCOVERY_METHOD_ID);
+		udp_daemon_->register_for(this,
+								 SERVICE_DISCOVERY_SERVICE_ID,
+				 	 	 	 	 SERVICE_DISCOVERY_METHOD_ID);
+
+		udp_daemon_->start();
+		tcp_daemon_->start();
+
+		boost::thread io_thread(boost::bind(&daemon::run_service, this));
+
+		is_running_ = true;
+
+		io_thread.join();
 	}
 }
 
 void daemon::stop() {
+	is_running_ = false;
+}
+
+void daemon::run_service() {
+	while (is_running_) {
+		BOOST_LOG_SEV(log_, info) << "(Re-)Starting service";
+		is_.run();
+	}
+}
+
+void daemon::receive(const message_base *_message) {
+	const message *requests = dynamic_cast< const message * > (_message);
+	if (0 != requests) {
+		const std::vector<entry *>& entries = requests->get_entries();
+		for (auto e : entries) {
+			consume_request(*e, _message->get_endpoint());
+		}
+	} else {
+		BOOST_LOG_SEV(log_, warning)
+			<< "Received unstructued Some/IP service discovery message!";
+	}
+}
+
+void daemon::consume_request(const entry &_entry, endpoint *_target) {
+	if (_entry.get_type() == entry_type::FIND_SERVICE) {
+		const service_entry& s = reinterpret_cast<const service_entry &>(_entry);
+		registry::service *found = registry_.search(s.get_service_id(), s.get_instance_id());
+
+		if (found) {
+			send_offer_service(found, _target);
+		} else {
+			BOOST_LOG_SEV(log_, warning)
+				<< "Service " << std::hex
+				<< (int)s.get_service_id()
+				<< "."
+				<< (int)s.get_instance_id()
+				<< " not available!";
+		}
+	}
+}
+
+void daemon::send_offer_service(registry::service *_service, endpoint *_target) {
+	boost::shared_ptr<message> m(
+		factory::get_default_factory()->create_service_discovery_message());
+	m->set_endpoint(_target);
+	service_entry& s = m->create_service_entry();
+	s.set_type(entry_type::OFFER_SERVICE);
+	s.set_service_id(_service->service_id_);
+	s.set_instance_id(_service->instance_id_);
+	udp_daemon_->send(m.get());
 }
 
 severity_level loglevel_from_string(const std::string &_loglevel) {
@@ -238,6 +329,6 @@ severity_level loglevel_from_string(const std::string &_loglevel) {
 	return info;
 }
 
-} // namespace daemon
+} // namespace service_discovery
 } // namespace vsomeip
 

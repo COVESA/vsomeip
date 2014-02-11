@@ -25,8 +25,11 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-tcp_service_impl::tcp_service_impl(const endpoint *_endpoint)
-	: service_base_impl(VSOMEIP_MAX_TCP_MESSAGE_SIZE),
+tcp_service_impl::tcp_service_impl(
+		const factory *_factory,
+		const endpoint *_endpoint,
+		boost::asio::io_service &_is)
+	: service_base_impl(_factory, VSOMEIP_MAX_TCP_MESSAGE_SIZE, _is),
 	  acceptor_(is_,
 			    ip::tcp::endpoint((_endpoint->get_version() == ip_version::V6 ?
 			    				  	   ip::tcp::v6() : ip::tcp::v4()),
