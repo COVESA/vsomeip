@@ -129,7 +129,7 @@ void client_base_impl::sent(
 			send_queued();
 		}
 	} else {
-		connect();
+		receive();
 	}
 }
 

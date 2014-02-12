@@ -73,16 +73,16 @@ struct service_registration_state_machine_def
 		uint32_t repetitions_max_;
 
 		// Guards
-		bool is_repeating(ev_timeout_expired const &_event) {
+		bool is_repeating(ev_timer_expired const &_event) {
 			return repetitions_max_ > 0;
 		}
 
-		bool is_not_repeating(ev_timeout_expired const &_event) {
+		bool is_not_repeating(ev_timer_expired const &_event) {
 			return repetitions_max_ == 0;
 		}
 
 		// Actions
-		void send_offer_service(ev_timeout_expired const &_event) {
+		void send_offer_service(ev_timer_expired const &_event) {
 			// TODO: send message
 		}
 
@@ -92,17 +92,17 @@ struct service_registration_state_machine_def
 
 		// Transitions
 		struct transition_table: mpl::vector<
-				row<waiting, ev_timeout_expired, announcing,
+				row<waiting, ev_timer_expired, announcing,
 						&ready::send_offer_service, &ready::is_not_repeating>,
-				row<waiting, ev_timeout_expired, repeating,
+				row<waiting, ev_timer_expired, repeating,
 						&ready::send_offer_service, &ready::is_repeating>,
 				a_row<repeating, ev_find_service, repeating,
 						&ready::send_delayed_offer_service>,
-				row<repeating, ev_timeout_expired, repeating,
+				row<repeating, ev_timer_expired, repeating,
 						&ready::send_offer_service, &ready::is_repeating>,
-				g_row<repeating, ev_timeout_expired, announcing,
+				g_row<repeating, ev_timer_expired, announcing,
 						&ready::is_not_repeating>,
-				a_row<announcing, ev_timeout_expired, announcing,
+				a_row<announcing, ev_timer_expired, announcing,
 						&ready::send_offer_service>,
 				a_row<announcing, ev_find_service, announcing,
 						&ready::send_delayed_offer_service> > {

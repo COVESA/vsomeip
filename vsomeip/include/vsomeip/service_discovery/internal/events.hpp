@@ -17,7 +17,7 @@
 namespace vsomeip {
 namespace service_discovery {
 
-struct ev_timeout_expired {
+struct ev_timer_expired {
 };
 
 struct ev_daemon_status_change {
@@ -56,16 +56,7 @@ struct ev_offer_service {
 struct ev_stop_offer_service {
 };
 
-typedef boost::variant<
-		ev_timeout_expired,
-		ev_daemon_status_change,
-		ev_service_status_change,
-		ev_configuration_status_change,
-		ev_request_change,
-		ev_find_service,
-		ev_offer_service,
-		ev_stop_offer_service > event_variant;
-
+// Used to generate "process_event"-methods
 template<typename statemachine>
 struct ProcessEvent
 	: public boost::static_visitor<> {

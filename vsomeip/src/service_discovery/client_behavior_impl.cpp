@@ -9,13 +9,12 @@
 // All rights reserved.
 //
 
-#include <boost/asio/placeholders.hpp>
-#include <boost/asio/system_timer.hpp>
 #include <boost/msm/front/state_machine_def.hpp>
 #include <boost/msm/back/state_machine.hpp>
 
 #include <vsomeip/service_discovery/internal/client_behavior_impl.hpp>
 #include <vsomeip/service_discovery/internal/events.hpp>
+#include <vsomeip/service_discovery/internal/timer_service.hpp>
 
 namespace vsomeip {
 namespace service_discovery {
@@ -30,9 +29,18 @@ using namespace boost::msm::front;
 
 // Top-level state machine
 struct client_behavior_def
-		: public msm::front::state_machine_def<	client_behavior_def> {
+		: public msm::front::state_machine_def<	client_behavior_def>,
+		  public timer_service {
 
-	~client_behavior_def() { delete timer_; };
+	void init(uint32_t _max_run) {
+		run_ = 0;
+		max_run_ = _max_run;
+	}
+
+	void timer_expired(const boost::system::error_code &_error) {
+		if (!_error)
+			owner_->process_event(ev_timer_expired());
+	}
 
 	client_behavior_impl *owner_;
 
@@ -42,34 +50,6 @@ struct client_behavior_def
 
 	uint32_t run_;
 	uint32_t max_run_;
-
-	boost::asio::system_timer *timer_;
-
-	// methods
-	void init_timer(boost::asio::io_service &_is) {
-		timer_ = new boost::asio::system_timer(_is);
-		run_ = 0;
-		max_run_ = 3;
-	}
-
-	void set_timer(uint32_t _milliseconds) {
-		timer_->expires_from_now(
-				std::chrono::milliseconds(_milliseconds));
-		timer_->async_wait(boost::bind(
-				&client_behavior_def::timeout_expired,
-				this,
-				boost::asio::placeholders::error));
-	}
-
-	void cancel_timer() {
-		timer_->cancel();
-	}
-
-	void timeout_expired(const boost::system::error_code &_error_code) {
-		if (!_error_code) {
-			owner_->process_event(ev_timeout_expired());
-		}
-	}
 
 	// guards
 	bool is_configured_and_requested(none const &_event) {
@@ -100,7 +80,7 @@ struct client_behavior_def
 		return _event.is_requested_;
 	}
 
-	bool is_repeating(ev_timeout_expired const &_event) const {
+	bool is_repeating(ev_timer_expired const &_event) const {
 		return (run_ < max_run_);
 	}
 
@@ -131,7 +111,7 @@ struct client_behavior_def
 
 		template<class Event, class Fsm>
 		void on_exit(Event const &, Fsm &_fsm) {
-			_fsm.cancel_timer();
+			_fsm.stop_timer();
 		}
 
 		// States
@@ -148,11 +128,11 @@ struct client_behavior_def
 			template<class Event, class Fsm>
 			void on_entry(Event const &, Fsm &_fsm) {
 				std::cout << "  initializing" << std::endl;
-				_fsm.owner_->set_timer(1000);
+				_fsm.owner_->start_timer(1000);
 			}
 			template<class Event, class Fsm>
 			void on_exit(Event const &, Fsm &_fsm) {
-				_fsm.owner_->cancel_timer();
+				_fsm.owner_->stop_timer();
 			}
 		};
 
@@ -163,30 +143,32 @@ struct client_behavior_def
 				std::cout << "  searching" << std::endl;
 				_fsm.owner_->owner_->find_service();
 				_fsm.owner_->run_++;
-				_fsm.owner_->set_timer((2<<_fsm.owner_->run_) * 1000);
+				_fsm.owner_->start_timer((2<<_fsm.owner_->run_) * 1000);
 			}
 			template<class Event, class Fsm>
 			void on_exit(Event const &, Fsm &_fsm) {
-				_fsm.owner_->cancel_timer();
+				_fsm.owner_->stop_timer();
 			}
 		};
 
 		// Guards
-		bool is_repeating(ev_timeout_expired const &_event) {
+		bool is_repeating(ev_timer_expired const &_event) {
 			return (owner_->is_repeating(_event));
 		}
 
+		// the set of is_up_and_requested methods basically implements
+		// a fork/join which is not directly supported by msm (fork only)
 		bool is_up_and_requested(none const &_event) {
 			return (owner_->is_configured_and_requested(_event));
 		}
 
 		bool is_up_and_requested(ev_configuration_status_change const &_event) {
-			set_configured(_event);
+			set_configured(_event); // as join is missing
 			return (owner_->is_configured_and_requested(_event));
 		}
 
 		bool is_up_and_requested(ev_request_change const &_event) {
-			set_requested(_event);
+			set_requested(_event); // as join is missing
 			return (owner_->is_configured_and_requested(_event));
 		}
 
@@ -208,8 +190,8 @@ struct client_behavior_def
 			  row< waiting, ev_request_change, initializing,
 			  	   &unavailable_def::set_requested,
 			  	   &unavailable_def::is_up_and_requested >,
-			 _row< initializing, ev_timeout_expired, searching >,
-			g_row< searching, ev_timeout_expired, searching,
+			 _row< initializing, ev_timer_expired, searching >,
+			g_row< searching, ev_timer_expired, searching,
 			       &unavailable_def::is_repeating >
 		> {};
 
@@ -314,7 +296,7 @@ struct client_behavior_def
 	struct transition_table : mpl::vector<
 		_row< unavailable, ev_offer_service, available >,
 		_row< available::exit_pt< available_def::exit_on_down >, none, unavailable >,
-		_row< available, ev_timeout_expired, available >,
+		_row< available, ev_timer_expired, available >,
 		_row< available, ev_stop_offer_service, unavailable >
 	> {};
 
@@ -347,8 +329,8 @@ client_behavior_impl::client_behavior_impl(boost::asio::io_service& _is)
 		= state_machine_->get_state<state_machine::available&>();
 	available_state.set_owner(state_machine_.get());
 
+	state_machine_->init(3);
 	state_machine_->init_timer(_is);
-
 	state_machine_->owner_ = this;
 }
 
@@ -360,14 +342,14 @@ void client_behavior_impl::stop() {
 	state_machine_->stop();
 }
 
-void client_behavior_impl::process_event( event_variant e)
-{
-	boost::apply_visitor(ProcessEvent<client_behavior_impl>(*this), e);
-}
-
 template<class Event>
 void client_behavior_impl::process_event(const Event &e) {
 	state_machine_->process_event(e);
+}
+
+void client_behavior_impl::process_event(event_variant e)
+{
+	boost::apply_visitor(ProcessEvent<client_behavior_impl>(*this), e);
 }
 
 } // namespace service_discovery
