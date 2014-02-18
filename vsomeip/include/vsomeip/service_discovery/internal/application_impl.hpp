@@ -9,18 +9,20 @@
 // All rights reserved.
 //
 
+#ifndef VSOMEIP_SERVICE_DISCOVERY_INTERNAL_APPLICATION_IMPL_HPP
+#define VSOMEIP_SERVICE_DISCOVERY_INTERNAL_APPLICATION_IMPL_HPP
+
 #include <boost/asio/io_service.hpp>
 
 #include <vsomeip/service_discovery/application.hpp>
-
-#ifndef VSOMEIP_SERVICE_DISCOVERY_INTERNAL_APPLICATION_IMPL_HPP
-#define VSOMEIP_SERVICE_DISCOVERY_INTERNAL_APPLICATION_IMPL_HPP
+#include <vsomeip/internal/application_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {
 
 class application_impl
-	: public application {
+	: virtual public application,
+	  virtual public vsomeip::application_impl {
 public:
 	virtual ~application_impl();
 
@@ -28,12 +30,8 @@ public:
 	service * create_service_discovery_service(service_id _service, instance_id _instance,
 							   const endpoint *_source);
 
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
-
 private:
-	boost::asio::io_service is_;
+	std::map< uint32_t, client *> service_discovery_clients_;
 };
 
 } // namespace service_discovery

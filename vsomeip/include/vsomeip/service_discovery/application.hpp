@@ -14,27 +14,26 @@
 
 #include <cstddef>
 
+#include <vsomeip/application.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
-class endpoint;
 class client;
-class service;
+class endpoint;
 
 namespace service_discovery {
 
-class application {
+class service;
+
+class application
+	: virtual public vsomeip::application {
 public:
 	virtual ~application() {};
 
 	virtual client * create_service_discovery_client(service_id _service, instance_id _instance) = 0;
 	virtual service * create_service_discovery_service(service_id _service, instance_id _instance,
 							   	   	    const endpoint *_source) = 0;
-
-	virtual std::size_t poll_one() = 0;
-	virtual std::size_t poll() = 0;
-	virtual std::size_t run() = 0;
 };
 
 } // namespace service_discovery

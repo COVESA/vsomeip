@@ -8,13 +8,16 @@
 #ifndef VSOMEIP_APPLICATION_IMPL_HPP
 #define VSOMEIP_APPLICATION_IMPL_HPP
 
+#include <map>
+
 #include <boost/asio/io_service.hpp>
 
 #include <vsomeip/application.hpp>
 
 namespace vsomeip {
 
-class application_impl: public application {
+class application_impl
+			: virtual public application {
 public:
 	virtual ~application_impl();
 
@@ -25,8 +28,11 @@ public:
 	std::size_t poll();
 	std::size_t run();
 
-private:
+protected:
 	boost::asio::io_service is_;
+
+	std::map<const endpoint *, client *> clients_;
+	std::map<const endpoint *, service *> services_;
 };
 
 } // namespace vsomeip
