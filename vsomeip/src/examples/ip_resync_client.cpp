@@ -20,7 +20,8 @@ int main(int argc, char **argv) {
 										SERVICE_HOST, SERVICE_PORT,
 										vsomeip::ip_protocol::TCP,
 										vsomeip::ip_version::V4);
-	vsomeip::client *the_client = the_factory->create_client(the_endpoint);
+	vsomeip::application *the_application = the_factory->create_application();
+	vsomeip::client *the_client = the_application->create_client(the_endpoint);
 
 	// switch on magic cookies
 	the_client->enable_magic_cookies();
@@ -47,9 +48,8 @@ int main(int argc, char **argv) {
 	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
 	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
 	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
-	the_client->run();
 
-	while (1); // barrier
+	the_application->run();
 
 	return 0;
 }

@@ -34,8 +34,7 @@ class client_impl
 {
 public:
 	client_impl(service_id _service_id, instance_id _instance_id,
-			      major_version _major_version, time_to_live _time_to_live,
-			      boost::asio::io_service *_is);
+			      boost::asio::io_service& _is);
 	~client_impl();
 
 	void start();
@@ -58,10 +57,6 @@ public:
 
 	void receive(const message_base *_message);
 
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
-
 protected:
 	void find_service();
 
@@ -74,7 +69,7 @@ private:
 	major_version major_version_;
 	time_to_live time_to_live_;
 
-	boost::shared_ptr<boost::asio::io_service> is_;
+	boost::asio::io_service& is_;
 };
 
 } // namespace service_discovery

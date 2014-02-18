@@ -21,7 +21,7 @@
 namespace vsomeip {
 
 service_base_impl::service_base_impl(
-		const factory *_factory,
+		factory *_factory,
 		uint32_t _max_message_size,
 		boost::asio::io_service &_is)
 	: participant_impl(_factory, _max_message_size, _is),

@@ -26,7 +26,7 @@ class tcp_client_impl
 		: virtual public client_base_impl {
 public:
 	tcp_client_impl(
-			const factory *_factory,
+			factory *_factory,
 			const endpoint *_endpoint,
 			boost::asio::io_service &_is);
 	virtual ~tcp_client_impl();

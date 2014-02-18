@@ -24,16 +24,9 @@ public:
 	static vsomeip::service_discovery::factory * get_default_factory();
 	virtual ~factory_impl();
 
+	application * create_service_discovery_application() const;
 	message * create_service_discovery_message() const;
 	deserializer * create_deserializer() const;
-
-	client * create_client(const endpoint *_target) const;
-	client * create_client(service_id _service_id,
-							 instance_id _instance_id,
-							 major_version _major_version,
-							 time_to_live _time_to_live) const;
-
-	service * create_service(const endpoint *_endpoint) const;
 };
 
 } // namespace service_discovery

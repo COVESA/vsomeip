@@ -38,6 +38,7 @@ public:
 };
 
 #ifdef TCP_ENABLED
+vsomeip::application *tcp_application;
 vsomeip::client *tcp_client;
 vsomeip::message *tcp_test_message;
 mymessagereceiver tcp_receiver;
@@ -45,6 +46,7 @@ boost::mutex tcp_mutex;
 #endif
 
 #ifdef UDP_ENABLED
+vsomeip::application *udp_application;
 vsomeip::client *udp_client;
 vsomeip::message *udp_test_message;
 mymessagereceiver udp_receiver;
@@ -72,7 +74,7 @@ void send_udp_messages(vsomeip::client *c, vsomeip::message *m, bool flush) {
 #ifdef TCP_ENABLED
 void tcp_poll() {
 	while (FOREVER)
-		tcp_client->poll();
+		tcp_application->poll();
 }
 
 void tcp_func(void *id) {
@@ -90,7 +92,7 @@ void tcp_func(void *id) {
 #ifdef UDP_ENABLED
 void udp_poll() {
 	while (FOREVER)
-		udp_client->poll();
+		udp_application->poll();
 }
 
 void udp_func(void *id) {
@@ -132,7 +134,8 @@ int main(int argc, char **argv) {
 	vsomeip::endpoint * tcp_target
 		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 										vsomeip::ip_protocol::TCP, vsomeip::ip_version::V4);
-	tcp_client = vsomeip::factory::get_default_factory()->create_client(tcp_target);
+	tcp_application = default_factory->create_application();
+	tcp_client = tcp_application->create_client(tcp_target);
 	tcp_client->register_for(&tcp_receiver, 0x3333, 0x4444);
 	tcp_client->start();
 #endif
@@ -141,7 +144,8 @@ int main(int argc, char **argv) {
 	vsomeip::endpoint * udp_target
 		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 										vsomeip::ip_protocol::UDP, vsomeip::ip_version::V4);
-	udp_client = vsomeip::factory::get_default_factory()->create_client(udp_target);
+	udp_application = default_factory->create_application();
+	udp_client = udp_application->create_client(udp_target);
 	udp_client->register_for(&udp_receiver, 0x3333, 0x4444);
 	udp_client->start();
 #endif

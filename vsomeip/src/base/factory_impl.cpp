@@ -10,14 +10,11 @@
 //
 
 #include <vsomeip/internal/factory_impl.hpp>
+#include <vsomeip/internal/application_impl.hpp>
 #include <vsomeip/internal/message_impl.hpp>
+#include <vsomeip/internal/endpoint_impl.hpp>
 #include <vsomeip/internal/serializer_impl.hpp>
 #include <vsomeip/internal/deserializer_impl.hpp>
-#include <vsomeip/internal/endpoint_impl.hpp>
-#include <vsomeip/internal/udp_client_impl.hpp>
-#include <vsomeip/internal/udp_service_impl.hpp>
-#include <vsomeip/internal/tcp_client_impl.hpp>
-#include <vsomeip/internal/tcp_service_impl.hpp>
 
 namespace vsomeip {
 
@@ -29,16 +26,12 @@ factory * factory_impl::get_default_factory() {
 factory_impl::~factory_impl() {
 }
 
+application * factory_impl::create_application() const {
+	return new application_impl;
+}
+
 message * factory_impl::create_message() const {
 	return new message_impl;
-}
-
-serializer * factory_impl::create_serializer() const {
-	return new serializer_impl;
-}
-
-deserializer * factory_impl::create_deserializer() const {
-	return new deserializer_impl;
 }
 
 endpoint * factory_impl::get_endpoint(ip_address _address, ip_port _port,
@@ -65,31 +58,14 @@ endpoint * factory_impl::get_endpoint(ip_address _address, ip_port _port,
 	return requested_endpoint;
 }
 
-client * factory_impl::create_client(const endpoint *_endpoint) const {
-	client * new_client = 0;
-	boost::asio::io_service *_is = new boost::asio::io_service;
-
-	if (ip_protocol::UDP == _endpoint->get_protocol())
-		new_client = new udp_client_impl(this, _endpoint, *_is);
-
-	else if (ip_protocol::TCP == _endpoint->get_protocol())
-		new_client = new tcp_client_impl(this, _endpoint, *_is);
-
-	return new_client;
+serializer * factory_impl::create_serializer() const {
+	return new serializer_impl;
 }
 
-service * factory_impl::create_service(const endpoint *_endpoint) const {
-	service * new_service = 0;
-	boost::asio::io_service *_is = new boost::asio::io_service;
-
-	if (ip_protocol::UDP == _endpoint->get_protocol())
-		new_service = new udp_service_impl(this, _endpoint, *_is);
-
-	else if (ip_protocol::TCP == _endpoint->get_protocol())
-		new_service = new tcp_service_impl(this, _endpoint, *_is);
-
-	return new_service;
+deserializer * factory_impl::create_deserializer() const {
+	return new deserializer_impl;
 }
+
 
 } // namespace vsomeip
 

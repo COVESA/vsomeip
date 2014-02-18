@@ -22,7 +22,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 udp_service_impl::udp_service_impl(
-		const factory *_factory,
+		factory *_factory,
 		const endpoint *_endpoint,
 		boost::asio::io_service &_is)
 		: service_base_impl(_factory, VSOMEIP_MAX_UDP_MESSAGE_SIZE, _is),

@@ -32,7 +32,7 @@ class service_base_impl
 		  public participant_impl {
 public:
 	service_base_impl(
-			const factory *_factory,
+			factory *_factory,
 			uint32_t _max_message_size,
 			boost::asio::io_service &_is);
 	~service_base_impl();

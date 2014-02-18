@@ -15,15 +15,16 @@
 #include <boost/shared_ptr.hpp>
 
 #include <vsomeip/factory.hpp>
-#include <vsomeip/deserializer.hpp>
 #include <vsomeip/receiver.hpp>
-#include <vsomeip/serializer.hpp>
+#include <vsomeip/internal/deserializer_impl.hpp>
+#include <vsomeip/internal/serializer_impl.hpp>
 #include <vsomeip/internal/participant_impl.hpp>
 
 namespace vsomeip {
 
 participant_impl::participant_impl(
-		const factory *_factory, uint32_t _max_message_size,
+		factory *_factory,
+		uint32_t _max_message_size,
 		boost::asio::io_service &_is)
 	: max_message_size_(_max_message_size),
 	  has_magic_cookies_(false),
@@ -40,18 +41,6 @@ participant_impl::participant_impl(
 participant_impl::~participant_impl() {
 	delete serializer_;
 	delete deserializer_;
-}
-
-std::size_t participant_impl::poll_one() {
-	return is_.poll_one();
-}
-
-std::size_t participant_impl::poll() {
-	return is_.poll();
-}
-
-std::size_t participant_impl::run() {
-	return is_.run();
 }
 
 void participant_impl::register_for(

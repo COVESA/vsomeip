@@ -22,15 +22,12 @@ public:
 	static factory *get_default_factory();
 	virtual ~factory_impl();
 
+	application * create_application() const;
 	message * create_message() const;
-
-	serializer * create_serializer() const;
-	deserializer * create_deserializer() const;
-
 	endpoint * get_endpoint(ip_address _address, ip_port _port,
 							  ip_protocol _protocol, ip_version _version);
-	client * create_client(const endpoint *_endpoint) const;
-	service * create_service(const endpoint *_endpoint) const;
+	serializer * create_serializer() const;
+	deserializer * create_deserializer() const;
 
 private:
 	std::map< uint32_t, std::map< std::string, endpoint * > > endpoints_;

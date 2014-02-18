@@ -26,15 +26,15 @@ namespace service_discovery {
 
 client_impl::client_impl(
 		service_id _service_id, instance_id _instance_id,
-	    major_version _major_version, time_to_live _time_to_live,
-	    boost::asio::io_service *_is)
-	: client_behavior_impl(*_is), is_(_is) {
+	    boost::asio::io_service &_is)
+	: client_behavior_impl(_is), is_(_is) {
+
 	factory *default_factory = factory::get_default_factory();
 
 	// TODO: read configuration to determine whether to use UDP or TCP
 	endpoint *service_discovery_endpoint
-		= default_factory->get_endpoint("127.0.0.1", 38223, ip_protocol::UDP, ip_version::V4);
-	service_discovery_client_ = new vsomeip::udp_client_impl(default_factory, service_discovery_endpoint, *is_);
+		= default_factory->get_endpoint("127.0.0.1", 30490, ip_protocol::UDP, ip_version::V4);
+	service_discovery_client_ = new vsomeip::udp_client_impl(default_factory, service_discovery_endpoint, is_);
 
 	service_discovery_client_->register_for(this,
 								 	 	 	SERVICE_DISCOVERY_SERVICE_ID,
@@ -42,8 +42,8 @@ client_impl::client_impl(
 
 	service_id_ = _service_id;
 	instance_id_ = _instance_id;
-	major_version_ = _major_version;
-	time_to_live_ = _time_to_live;
+	major_version_ = 0xFF;
+	time_to_live_ = 0xFFFFFF;
 }
 
 client_impl::~client_impl() {
@@ -92,18 +92,6 @@ bool client_impl::send(const uint8_t *_data, uint32_t _length, bool _flush) {
 
 bool client_impl::flush() {
 	return delegate_->flush();
-}
-
-std::size_t client_impl::poll_one() {
-	is_->poll_one();
-}
-
-std::size_t client_impl::poll() {
-	is_->poll();
-}
-
-std::size_t client_impl::run() {
-	is_->run();
 }
 
 void client_impl::receive(const message_base *_message) {

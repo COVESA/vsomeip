@@ -22,6 +22,7 @@
 #include <vsomeip/service.hpp>
 #include <vsomeip/client.hpp>
 #include <vsomeip/endpoint.hpp>
+#include <vsomeip/application.hpp>
 #include <vsomeip/factory.hpp>
 
 #ifdef USE_VSOMEIP_STATISTICS

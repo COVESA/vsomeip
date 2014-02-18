@@ -26,7 +26,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_service_impl::tcp_service_impl(
-		const factory *_factory,
+		factory *_factory,
 		const endpoint *_endpoint,
 		boost::asio::io_service &_is)
 	: service_base_impl(_factory, VSOMEIP_MAX_TCP_MESSAGE_SIZE, _is),

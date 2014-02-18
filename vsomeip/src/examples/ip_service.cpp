@@ -16,9 +16,11 @@
 #define UDP_ENABLED 1
 
 #ifdef TCP_ENABLED
+vsomeip::application *tcp_application = 0;
 vsomeip::service *tcp_service = 0;
 #endif
 
+vsomeip::application *udp_application = 0;
 vsomeip::service *udp_service = 0;
 
 class mymessagereceiver : public vsomeip::receiver {
@@ -92,13 +94,13 @@ void print_count() {
 
 void udp_receive() {
 	while (1) {
-		udp_service->poll();
+		udp_application->poll();
 	};
 }
 
 #ifdef TCP_ENABLED
 void tcp_receive() {
-	while (1) { tcp_service->poll_one(); };
+	while (1) { tcp_application->poll_one(); };
 }
 #endif
 
@@ -109,8 +111,8 @@ int main(int argc, char **argv) {
 		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 										vsomeip::ip_protocol::TCP,
 										vsomeip::ip_version::V4);
-
-	tcp_service = vsomeip::factory::get_default_factory()->create_service(tcp_target);
+	tcp_application = default_factory->create_application();
+	tcp_service = tcp_application->create_service(tcp_target);
 
 	tr0.set_service(tcp_service);
 	tr0.flush_ = false;
@@ -133,7 +135,8 @@ int main(int argc, char **argv) {
 			= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 											vsomeip::ip_protocol::UDP,
 											vsomeip::ip_version::V4);
-	udp_service = vsomeip::factory::get_default_factory()->create_service(udp_target);
+	udp_application = default_factory->create_application();
+	udp_service = udp_application->create_service(udp_target);
 
 	ur0.set_service(udp_service);
 	ur1.set_service(udp_service);

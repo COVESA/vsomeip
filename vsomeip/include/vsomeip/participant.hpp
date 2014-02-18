@@ -69,22 +69,6 @@ public:
 								   service_id _service_id,
 								   method_id _method_id) = 0;
 
-	/// Consume one queued event. This e.g. triggers one send or receive operation
-	/// to be actually executed.
-	/// \warning Must be called from a single thread.
-	virtual std::size_t poll_one() = 0;
-	
-    /// Consumes all queued events. This e.g. triggers send or receive operations
-	/// to be actually executed.
-	/// \warning Must be called from a single thread.
-	virtual std::size_t poll() = 0;
-    
-	/// Consumes all queued events. This e.g. triggers send or receive operations
-	/// to be actually executed. Different to #poll, run is blocking until all queued
-	/// events are consumed.
-	/// \warning Must be called from a single thread.
-	virtual std::size_t run() = 0;
-	
     /// After being called, the client or service sends a magic cookie message within
 	/// each data packet it transfers to the remote side.
 	virtual void enable_magic_cookies() = 0;

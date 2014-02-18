@@ -34,13 +34,10 @@ class participant_impl
 #endif
 {
 public:
-	participant_impl(const factory *_factory, uint32_t _max_message_size,
+	participant_impl(factory *_factory,
+					   uint32_t _max_message_size,
 					   boost::asio::io_service &_is);
 	virtual ~participant_impl();
-
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
 
 	virtual void register_for(receiver *_receiver,
 								 service_id _service_id,
