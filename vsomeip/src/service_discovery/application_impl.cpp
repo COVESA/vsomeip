@@ -43,16 +43,10 @@ service * application_impl::create_service_discovery_service(
 	std::map<const endpoint*, vsomeip::service*>::iterator found = services_.find(_source);
 	if (found == services_.end()) {
 		vsomeip::service * delegate = create_service(_source);
-		new_service = new service_impl(delegate);
+		new_service = new service_impl(delegate, is_);
 		services_[_source] = new_service;
 	} else {
 		new_service = dynamic_cast<service_impl *>(found->second);
-	}
-
-	if (0 != new_service) {
-		new_service->register_service(_service, _instance);
-	} else {
-		// TODO: check for "new_service == 0" and issue an error if so
 	}
 
 	return new_service;

@@ -15,6 +15,9 @@
 #define VSOMEIP_KEY_PORT								 "--port"
 #define VSOMEIP_VALUE_PORT_DEFAULT						 30490
 
+#define VSOMEIP_KEY_REGISTRY_PATH						 "--registry-path"
+#define VSOMEIP_VALUE_REGISTRY_PATH_DEFAULT				 "/tmp/vsomeipd"
+
 #define VSOMEIP_KEY_VIRTUALMODE							 "--virtual"
 #define VSOMEIP_VALUE_IS_VIRTUAL_MODE_DEFAULT			 false
 

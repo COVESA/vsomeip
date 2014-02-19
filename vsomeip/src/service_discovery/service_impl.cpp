@@ -9,7 +9,11 @@
 // All rights reserved.
 //
 
+#include <boost/asio/placeholders.hpp>
+#include <boost/bind.hpp>
+
 #include <vsomeip/service.hpp>
+#include <vsomeip/internal/byteorder.hpp>
 #include <vsomeip/service_discovery/factory.hpp>
 #include <vsomeip/service_discovery/message.hpp>
 #include <vsomeip/service_discovery/service_entry.hpp>
@@ -22,8 +26,8 @@
 namespace vsomeip {
 namespace service_discovery {
 
-service_impl::service_impl(vsomeip::service *_delegate)
-	: delegate_(_delegate) {
+service_impl::service_impl(vsomeip::service *_delegate, boost::asio::io_service &_is)
+	: delegate_(_delegate), socket_(_is) {
 }
 
 service_impl::~service_impl() {
@@ -31,19 +35,41 @@ service_impl::~service_impl() {
 }
 
 bool service_impl::register_service(service_id _service, instance_id _instance) {
+	auto found = services_.find(_service);
+	if (found != services_.end()) {
+		return (found->second.instance_ == _instance);
+	}
+
+	struct service_info info = {
+		_service, _instance, 0xFF, 0xFFEEDDCC, 0xFFEEDD };
+	services_[_service] = info;
+
 	return true;
 }
 
 bool service_impl::unregister_service(service_id _service, instance_id _instance) {
+	services_.erase(_service);
 	return true;
 }
 
 void service_impl::start() {
 	delegate_->start();
+
+	connect();
+
+	// announce all the services
+	for (auto i : services_) {
+		announce(i.second);
+	}
 }
 
 void service_impl::stop() {
 	delegate_->stop();
+}
+
+void service_impl::connect() {
+	boost::asio::local::stream_protocol::endpoint registry("/tmp/vsomeipd");
+	socket_.connect(registry);
 }
 
 void service_impl::register_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
@@ -72,6 +98,52 @@ bool service_impl::send(const uint8_t *_data, uint32_t _length, endpoint *_targe
 
 bool service_impl::flush(endpoint *_target) {
 	return delegate_->flush(_target);
+}
+
+void service_impl::send_command(const uint8_t *_command, uint32_t _size) {
+	std::vector< uint8_t> command;
+	command.assign(_command, _command + _size);
+	command_queue_.push_back(command);
+	socket_.async_send(boost::asio::buffer(command_queue_.back()),
+					   boost::bind(&service_impl::sent_command,
+							       this,
+							       boost::asio::placeholders::error,
+							       boost::asio::placeholders::bytes_transferred));
+}
+
+void service_impl::sent_command(boost::system::error_code const &_error, std::size_t _bytes) {
+	if (!_error) {
+		command_queue_.pop_front();
+	} else {
+		// TODO: log "error while sending command"
+	}
+}
+
+void service_impl::announce(service_info &_info) {
+	uint8_t command[] = { 0xFE, 0xED,
+						  0x0, // Command
+						  0x0, 0x0, // Service
+						  0x0, 0x0, // Instance
+						  0x0, // Major version
+						  0x0, 0x0, 0x0, 0x0, // Minor Version
+						  0x0, 0x0, 0x0, // Time to live
+						  0xED, 0xDA };
+
+	// On "wire" we use big endian
+	command[3] = VSOMEIP_WORD_BYTE1(_info.service_);
+	command[4] = VSOMEIP_WORD_BYTE0(_info.service_);
+	command[5] = VSOMEIP_WORD_BYTE1(_info.instance_);
+	command[6] = VSOMEIP_WORD_BYTE0(_info.instance_);
+	command[7] = _info.major_version_;
+	command[8] = VSOMEIP_LONG_BYTE3(_info.minor_version_);
+	command[9] = VSOMEIP_LONG_BYTE2(_info.minor_version_);
+	command[10] = VSOMEIP_LONG_BYTE1(_info.minor_version_);
+	command[11] = VSOMEIP_LONG_BYTE0(_info.minor_version_);
+	command[12] = VSOMEIP_LONG_BYTE2(_info.time_to_live_);
+	command[13] = VSOMEIP_LONG_BYTE1(_info.time_to_live_);
+	command[14] = VSOMEIP_LONG_BYTE0(_info.time_to_live_);
+
+	send_command(command, sizeof(command));
 }
 
 } // namespace service_discovery
