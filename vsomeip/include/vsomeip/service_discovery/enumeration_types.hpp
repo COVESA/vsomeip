@@ -23,6 +23,8 @@ enum class option_type : uint8_t {
 	PROTECTION = 0x3,
 	IP4_ENDPOINT = 0x4,
 	IP6_ENDPOINT = 0x6,
+	IP4_MULTICAST = 0x14,
+	IP6_MULTICAST = 0x16,
 	UNKNOWN = 0xFF
 };
 

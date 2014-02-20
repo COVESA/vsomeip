@@ -37,7 +37,7 @@ public:
 	bool serialize(vsomeip::serializer *_to) const;
 	bool deserialize(vsomeip::deserializer *_from);
 
-private:
+protected:
 	ipv6_address address_;
 	ip_port port_;
 	ip_protocol protocol_;
