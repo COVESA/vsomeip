@@ -24,7 +24,7 @@ public:
 	static vsomeip::service_discovery::factory * get_default_factory();
 	virtual ~factory_impl();
 
-	application * create_service_discovery_application() const;
+	client * create_service_discovery_client() const;
 	message * create_service_discovery_message() const;
 	deserializer * create_deserializer() const;
 };

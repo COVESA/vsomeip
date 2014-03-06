@@ -1,5 +1,5 @@
 //
-// tcp_client_impl.hpp
+// tcp_consumer_impl.hpp
 //
 // Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
@@ -9,27 +9,27 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_TCP_CLIENT_IMPL_HPP
-#define VSOMEIP_INTERNAL_TCP_CLIENT_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_TCP_CONSUMER_IMPL_HPP
+#define VSOMEIP_INTERNAL_TCP_CONSUMER_IMPL_HPP
 
 #include <boost/array.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
 #include <vsomeip/config.hpp>
-#include <vsomeip/internal/client_base_impl.hpp>
+#include <vsomeip/internal/consumer_base_impl.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 
-class tcp_client_impl
-		: virtual public client_base_impl {
+class tcp_consumer_impl
+		: virtual public consumer_base_impl {
 public:
-	tcp_client_impl(
+	tcp_consumer_impl(
 			factory *_factory,
 			const endpoint *_endpoint,
 			boost::asio::io_service &_is);
-	virtual ~tcp_client_impl();
+	virtual ~tcp_consumer_impl();
 
 	void start();
 	void stop();
@@ -63,4 +63,4 @@ private:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_TCP_CLIENT_IMPL__HPP
+#endif // VSOMEIP_INTERNAL_TCP_CONSUMER_IMPL__HPP

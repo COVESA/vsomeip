@@ -1,5 +1,5 @@
 //
-// service_base_impl.hpp
+// provider_base_impl.hpp
 //
 // Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SERVICE_BASE_IMPL_HPP
-#define VSOMEIP_INTERNAL_SERVICE_BASE_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_PROVIDER_BASE_IMPL_HPP
+#define VSOMEIP_INTERNAL_PROVIDER_BASE_IMPL_HPP
 
 #include <deque>
 #include <map>
@@ -18,8 +18,8 @@
 
 #include <boost/asio/system_timer.hpp>
 
-#include <vsomeip/service.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/provider.hpp>
 #include <vsomeip/internal/participant_impl.hpp>
 
 namespace vsomeip {
@@ -27,15 +27,15 @@ namespace vsomeip {
 class endpoint;
 class message_base;
 
-class service_base_impl
-		: virtual public service,
+class provider_base_impl
+		: virtual public provider,
 		  public participant_impl {
 public:
-	service_base_impl(
+	provider_base_impl(
 			factory *_factory,
 			uint32_t _max_message_size,
 			boost::asio::io_service &_is);
-	~service_base_impl();
+	~provider_base_impl();
 
 	bool send(const message_base *_message, bool _flush);
 	bool send(const uint8_t *_data, uint32_t _size,
@@ -68,4 +68,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_SERVICE_BASE_IMPL_HPP
+#endif // VSOMEIP_INTERNAL_PROVIDER_BASE_IMPL_HPP

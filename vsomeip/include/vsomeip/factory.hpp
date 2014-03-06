@@ -17,7 +17,7 @@
 
 namespace vsomeip {
 
-class application;
+class client;
 class message;
 class endpoint;
 class serializer;
@@ -28,8 +28,7 @@ public:
 	static factory * get_default_factory();
 	virtual ~factory() {};
 
-	virtual application * create_application() const = 0;
-
+	virtual client * create_client() const = 0;
 	virtual message * create_message() const = 0;
 
 	virtual endpoint * get_endpoint(

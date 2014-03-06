@@ -28,6 +28,6 @@
 
 #define VSOMEIP_MAX_CLIENTS								 25
 
-#define VSOMEIP_DEFAULT_CONFIGURATION_FILE				 "/etc/vsomeip.conf"
+#define VSOMEIP_MAX_COMMAND_SIZE						 17
 
 #endif // __VSOMEIP_DAEMON_CONFIG_H__

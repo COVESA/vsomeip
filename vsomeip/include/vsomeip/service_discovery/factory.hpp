@@ -15,10 +15,9 @@
 #include <vsomeip/factory.hpp>
 
 namespace vsomeip {
-
 namespace service_discovery {
 
-class application;
+class client;
 class message;
 
 class factory
@@ -27,7 +26,7 @@ public:
 	static factory * get_default_factory();
 	virtual ~factory() {};
 
-	virtual application * create_service_discovery_application() const = 0;
+	virtual client * create_service_discovery_client() const = 0;
 	virtual message * create_service_discovery_message() const = 0;
 };
 

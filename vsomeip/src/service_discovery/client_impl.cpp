@@ -1,124 +1,84 @@
 //
-// client_impl.hpp
+// client_impl.cpp
 //
 // Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
-#include <vsomeip/client.hpp>
+#include <vsomeip/factory.hpp>
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip/internal/udp_client_impl.hpp>
-#include <vsomeip/service_discovery/factory.hpp>
-#include <vsomeip/service_discovery/message.hpp>
-#include <vsomeip/service_discovery/service_entry.hpp>
+#include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/internal/tcp_provider_impl.hpp>
+#include <vsomeip/internal/udp_provider_impl.hpp>
 #include <vsomeip/service_discovery/internal/client_impl.hpp>
-#include <vsomeip/service_discovery/internal/events.hpp>
-
-#define SERVICE_DISCOVERY_SERVICE_ID 0xFFFF
-#define SERVICE_DISCOVERY_METHOD_ID  0x8100
+#include <vsomeip/service_discovery/internal/consumer_impl.hpp>
+#include <vsomeip/service_discovery/internal/provider_impl.hpp>
 
 namespace vsomeip {
 namespace service_discovery {
 
-client_impl::client_impl(
-		service_id _service_id, instance_id _instance_id,
-	    boost::asio::io_service &_is)
-	: client_behavior_impl(_is), is_(_is) {
-
-	factory *default_factory = factory::get_default_factory();
-
-	// TODO: read configuration to determine whether to use UDP or TCP
-	endpoint *service_discovery_endpoint
-		= default_factory->get_endpoint("127.0.0.1", 30490, ip_protocol::UDP, ip_version::V4);
-	service_discovery_client_ = new vsomeip::udp_client_impl(default_factory, service_discovery_endpoint, is_);
-
-	service_discovery_client_->register_for(this,
-								 	 	 	SERVICE_DISCOVERY_SERVICE_ID,
-								 	 	 	SERVICE_DISCOVERY_METHOD_ID);
-
-	service_id_ = _service_id;
-	instance_id_ = _instance_id;
-	major_version_ = 0xFF;
-	time_to_live_ = 0xFFFFFF;
-}
-
 client_impl::~client_impl() {
-	delete service_discovery_client_;
-	delete delegate_;
 }
 
-void client_impl::start() {
-	service_discovery_client_->start();
-	client_behavior_impl::start();
-	client_behavior_impl::process_event(ev_configuration_status_change(true));
-	client_behavior_impl::process_event(ev_request_change(true));
-}
+consumer * client_impl::create_consumer(
+				service_id _service, instance_id _instance) {
+	consumer * new_consumer = 0;
+	service_instance identifier = VSOMEIP_WORDS_TO_LONG(_service, _instance);
 
-void client_impl::stop() {
-	service_discovery_client_->stop();
-}
-
-void client_impl::register_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
-	if (service_id_ == _service_id) {
-		delegate_->register_for(_receiver, _service_id, _method_id);
+	std::map<service_instance, consumer*>::iterator found
+		= consumers_.find(identifier);
+	if (found == consumers_.end()) {
+		new_consumer = new consumer_impl(_service, _instance, is_);
+		consumers_[identifier] = new_consumer;
+	} else {
+		new_consumer = found->second;
 	}
+
+	return new_consumer;
 }
 
-void client_impl::unregister_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
-	if (service_id_ == _service_id) {
-		delegate_->unregister_for(_receiver, _service_id, _method_id);
+provider * client_impl::create_provider(
+		service_id _service, instance_id _instance, const endpoint *_source) {
+	provider * new_provider = 0;
+	std::map<const endpoint*, vsomeip::provider*>::iterator found
+		= providers_.find(_source);
+	if (found == providers_.end()) {
+		vsomeip::provider * delegate = create_provider(_source);
+		new_provider = new provider_impl(delegate, is_);
+		providers_[_source] = new_provider;
+	} else {
+		new_provider = dynamic_cast<provider_impl *>(found->second);
 	}
+
+	return new_provider;
 }
 
-void client_impl::enable_magic_cookies() {
-	delegate_->enable_magic_cookies();
-}
+provider * client_impl::create_provider(const endpoint *_source) {
+	provider * new_provider = 0;
+	std::map<const endpoint*, provider*>::iterator found = providers_.find(_source);
+	if (found == providers_.end()) {
+		if (ip_protocol::UDP == _source->get_protocol())
+			new_provider = new udp_provider_impl(
+									factory::get_default_factory(),
+									_source, is_);
 
-void client_impl::disable_magic_cookies() {
-	delegate_->enable_magic_cookies();
-}
+		else if (ip_protocol::TCP == _source->get_protocol())
+			new_provider = new tcp_provider_impl(
+									factory::get_default_factory(),
+									_source, is_);
 
-bool client_impl::send(const message_base *_message, bool _flush) {
-	return delegate_->send(_message, _flush);
-}
-
-bool client_impl::send(const uint8_t *_data, uint32_t _length, bool _flush) {
-	return delegate_->send(_data, _length, _flush);
-}
-
-bool client_impl::flush() {
-	return delegate_->flush();
-}
-
-void client_impl::receive(const message_base *_message) {
-	const message *requests = dynamic_cast< const message * > (_message);
-	if (0 != requests) {
-		const std::vector<entry *>& entries = requests->get_entries();
-		for (auto e : entries) {
-			if (e->get_type() == entry_type::OFFER_SERVICE) {
-				process_event(ev_offer_service());
-			}
-		}
+		providers_[_source] = new_provider;
+	} else {
+		new_provider = found->second;
 	}
-}
 
-void client_impl::find_service() {
-	message *m = factory::get_default_factory()->create_service_discovery_message();
-	service_entry& s = m->create_service_entry();
-	s.set_type(entry_type::FIND_SERVICE);
-	s.set_service_id(service_id_);
-	s.set_instance_id(instance_id_);
-	s.set_major_version(major_version_);
-	s.set_time_to_live(time_to_live_);
-	service_discovery_client_->send(m);
+	return new_provider;
 }
 
 } // namespace service_discovery
 } // namespace vsomeip
-
-
 

@@ -16,15 +16,19 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/internal/byteorder.hpp>
+#include <vsomeip/service_discovery/configuration.hpp>
+#include <vsomeip/service_discovery/internal/daemon.hpp>
+#include <vsomeip/service_discovery/internal/service_info.hpp>
 #include <vsomeip/service_discovery/internal/service_registry.hpp>
+#include <vsomeip/service_discovery/internal/service_administrator.hpp>
 
 using boost::asio::local::stream_protocol;
 
 namespace vsomeip {
 namespace service_discovery {
 
-service_registry::session::session(boost::asio::io_service &_is)
-	: socket_(_is) {
+service_registry::session::session(service_registry *_registry, boost::asio::io_service &_is)
+	: registry_(_registry), socket_(_is) {
 }
 
 stream_protocol::socket & service_registry::session::get_socket() {
@@ -52,11 +56,13 @@ void service_registry::session::receive(
 	}
 }
 
-service_registry::service_registry(
-	boost::asio::io_service &_is, const std::string &_location)
-	: is_(_is), acceptor_(_is, stream_protocol::endpoint(_location)) {
+service_registry::service_registry(daemon *_daemon)
+	: daemon_(_daemon),
+	  is_(_daemon->get_is()),
+	  acceptor_(_daemon->get_is(),
+			    stream_protocol::endpoint(configuration::get_instance()->get_registry_path())) {
 
-	session_ptr s(new session(is_));
+	session_ptr s(new session(this, is_));
 	acceptor_.async_accept(
 				s->get_socket(),
 				boost::bind(&service_registry::handle_accept,
@@ -70,7 +76,7 @@ void service_registry::handle_accept(
 								const boost::system::error_code &_error) {
 	if (!_error) {
 		_session->start();
-		_session.reset(new session(is_));
+		_session.reset(new session(this, is_));
 		acceptor_.async_accept(
 					_session->get_socket(),
 					boost::bind(&service_registry::handle_accept,
@@ -109,9 +115,14 @@ void service_registry::session::consume_message() {
 											0, message_[i+9],
 											message_[i+10],	message_[i+11]);
 
-				info.print();
-
-				i += 14;
+				if (message_[i+12] == 0xED && message_[i+13] == 0xDA) {
+					if (registry_->add(info.service_, info.instance_)) {
+						// TODO: log adding service failed!
+					}
+					i += 14;
+				} else {
+					i--;
+				}
 				is_complete = true;
 			}
 			break;
@@ -125,39 +136,44 @@ void service_registry::session::consume_message() {
 		message_.erase(message_.begin(), message_.begin() + i);
 }
 
-service_info * service_registry::add(service_id _service, instance_id _instance) {
-	service_info *found_service_instance = find(_service, _instance);
+service_administrator * service_registry::add(service_id _service, instance_id _instance) {
+	service_administrator *found_service_instance = find(_service, _instance);
 	if (found_service_instance)
 		return found_service_instance;
 
-	service_info s;
-	s.service_ = _service;
-	s.instance_ = _instance;
-	std::map< instance_id, service_info >& found_service = data_[_service];
+	service_administrator *s = new service_administrator(daemon_, _service, _instance);
+	std::map<instance_id, service_administrator *>& found_service = data_[_service];
 	found_service[_instance] = s;
+	s->start();
 
-	return &found_service[_instance];
+	return found_service[_instance];
 }
 
 void service_registry::remove(service_id _service, instance_id _instance) {
 	auto found_service = data_.find(_service);
-	data_.erase(found_service);
+	if (found_service != data_.end()) {
+		auto found_service_instance = found_service->second.find(_instance);
+		if (found_service_instance != found_service->second.end()) {
+			found_service_instance->second->stop();
+			found_service->second.erase(found_service_instance);
+		}
+	}
 }
 
-service_info * service_registry::find(service_id _service, instance_id _instance) {
+service_administrator * service_registry::find(service_id _service, instance_id _instance) {
 	auto found_service = data_.find(_service);
 	if (found_service == data_.end())
 		return 0;
 
 	if (_instance == 0xFFFF) {
-		return &(found_service->second.begin()->second);
+		return found_service->second.begin()->second;
 	}
 
 	auto found_instance = found_service->second.find(_instance);
 	if (found_instance == found_service->second.end())
 		return 0;
 
-	return &found_instance->second;
+	return found_instance->second;
 }
 
 } // namespace service_discovery

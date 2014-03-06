@@ -16,18 +16,18 @@
 #define UDP_ENABLED 1
 
 #ifdef TCP_ENABLED
-vsomeip::application *tcp_application = 0;
-vsomeip::service *tcp_service = 0;
+vsomeip::client *tcp_client = 0;
+vsomeip::provider *tcp_provider = 0;
 #endif
 
-vsomeip::application *udp_application = 0;
-vsomeip::service *udp_service = 0;
+vsomeip::client *udp_client = 0;
+vsomeip::provider *udp_provider = 0;
 
 class mymessagereceiver : public vsomeip::receiver {
 public:
 	mymessagereceiver() : receive_counter(0), service_(0), id_(last_id__++), flush_(true)  {};
 
-	void set_service(vsomeip::service *_service) { service_ = _service; };
+	void set_service(vsomeip::provider *_service) { service_ = _service; };
 
 	void receive(const vsomeip::message_base *_message) {
 		vsomeip::endpoint *from = _message->get_endpoint();
@@ -46,7 +46,7 @@ public:
 	}
 
 	int receive_counter;
-	vsomeip::service *service_;
+	vsomeip::provider *service_;
 
 	int id_;
 	static int last_id__;
@@ -71,8 +71,8 @@ void print_count() {
 	while (1) {
 		uint32_t m, b;
 #ifdef TCP_ENABLED
-		m = tcp_service->get_statistics()->get_received_messages_count();
-		b = tcp_service->get_statistics()->get_received_bytes_count();
+		m = tcp_provider->get_statistics()->get_received_messages_count();
+		b = tcp_provider->get_statistics()->get_received_bytes_count();
 		std::cout << "Received " << m << " TCP messages (" << b << " bytes)." << std::endl;
 		std::cout << tr0.receive_counter << " "
 				  << tr1.receive_counter << " "
@@ -80,8 +80,8 @@ void print_count() {
 				  << tr3.receive_counter << std::endl;
 #endif
 
-		m = udp_service->get_statistics()->get_received_messages_count();
-		b = udp_service->get_statistics()->get_received_bytes_count();
+		m = udp_provider->get_statistics()->get_received_messages_count();
+		b = udp_provider->get_statistics()->get_received_bytes_count();
 		std::cout << "Received " << m << " UDP messages (" << b << " bytes)." << std::endl;
 		std::cout << ur0.receive_counter << " "
 				  << ur1.receive_counter << " "
@@ -94,13 +94,13 @@ void print_count() {
 
 void udp_receive() {
 	while (1) {
-		udp_application->poll();
+		udp_client->poll();
 	};
 }
 
 #ifdef TCP_ENABLED
 void tcp_receive() {
-	while (1) { tcp_application->poll_one(); };
+	while (1) { tcp_client->poll_one(); };
 }
 #endif
 
@@ -111,23 +111,23 @@ int main(int argc, char **argv) {
 		= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 										vsomeip::ip_protocol::TCP,
 										vsomeip::ip_version::V4);
-	tcp_application = default_factory->create_application();
-	tcp_service = tcp_application->create_service(tcp_target);
+	tcp_client = default_factory->create_client();
+	tcp_provider = tcp_client->create_provider(tcp_target);
 
-	tr0.set_service(tcp_service);
+	tr0.set_service(tcp_provider);
 	tr0.flush_ = false;
-	tr1.set_service(tcp_service);
+	tr1.set_service(tcp_provider);
 	tr1.flush_ = false;
-	tr2.set_service(tcp_service);
+	tr2.set_service(tcp_provider);
 	tr2.flush_ = false;
-	tr3.set_service(tcp_service);
+	tr3.set_service(tcp_provider);
 	tr3.flush_ = false;
 
-	tcp_service->register_for(&tr0, 0x1111, 0x2222);
-	tcp_service->register_for(&tr1, 0x1112, 0x2222);
-	tcp_service->register_for(&tr2, 0x1111, 0x2222);
-	tcp_service->register_for(&tr3, 0x1112, 0x2222);
-	tcp_service->start();
+	tcp_provider->register_for(&tr0, 0x1111, 0x2222);
+	tcp_provider->register_for(&tr1, 0x1112, 0x2222);
+	tcp_provider->register_for(&tr2, 0x1111, 0x2222);
+	tcp_provider->register_for(&tr3, 0x1112, 0x2222);
+	tcp_provider->start();
 
 #endif
 
@@ -135,19 +135,19 @@ int main(int argc, char **argv) {
 			= default_factory->get_endpoint("127.0.0.1", VSOMEIP_LOWEST_VALID_PORT,
 											vsomeip::ip_protocol::UDP,
 											vsomeip::ip_version::V4);
-	udp_application = default_factory->create_application();
-	udp_service = udp_application->create_service(udp_target);
+	udp_client = default_factory->create_client();
+	udp_provider = udp_client->create_provider(udp_target);
 
-	ur0.set_service(udp_service);
-	ur1.set_service(udp_service);
-	ur2.set_service(udp_service);
-	ur3.set_service(udp_service);
+	ur0.set_service(udp_provider);
+	ur1.set_service(udp_provider);
+	ur2.set_service(udp_provider);
+	ur3.set_service(udp_provider);
 
-	udp_service->register_for(&ur0, 0x1111, 0x1222);
-	udp_service->register_for(&ur1, 0x1111, 0x2222);
-	udp_service->register_for(&ur2, 0x1111, 0x1222);
-	udp_service->register_for(&ur3, 0x1111, 0x2222);
-	udp_service->start();
+	udp_provider->register_for(&ur0, 0x1111, 0x1222);
+	udp_provider->register_for(&ur1, 0x1111, 0x2222);
+	udp_provider->register_for(&ur2, 0x1111, 0x1222);
+	udp_provider->register_for(&ur3, 0x1111, 0x2222);
+	udp_provider->start();
 
 	boost::thread print_thread(print_count);
 

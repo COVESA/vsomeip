@@ -12,12 +12,12 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/bind.hpp>
 
-#include <vsomeip/service.hpp>
+#include <vsomeip/provider.hpp>
 #include <vsomeip/internal/byteorder.hpp>
 #include <vsomeip/service_discovery/factory.hpp>
 #include <vsomeip/service_discovery/message.hpp>
 #include <vsomeip/service_discovery/service_entry.hpp>
-#include <vsomeip/service_discovery/internal/service_impl.hpp>
+#include <vsomeip/service_discovery/internal/provider_impl.hpp>
 #include <vsomeip/service_discovery/internal/events.hpp>
 
 #define SERVICE_DISCOVERY_SERVICE_ID 0xFFFF
@@ -26,15 +26,15 @@
 namespace vsomeip {
 namespace service_discovery {
 
-service_impl::service_impl(vsomeip::service *_delegate, boost::asio::io_service &_is)
+provider_impl::provider_impl(vsomeip::provider *_delegate, boost::asio::io_service &_is)
 	: delegate_(_delegate), socket_(_is) {
 }
 
-service_impl::~service_impl() {
+provider_impl::~provider_impl() {
 	delete delegate_;
 }
 
-bool service_impl::register_service(service_id _service, instance_id _instance) {
+bool provider_impl::register_service(service_id _service, instance_id _instance) {
 	auto found = services_.find(_service);
 	if (found != services_.end()) {
 		return (found->second.instance_ == _instance);
@@ -47,12 +47,12 @@ bool service_impl::register_service(service_id _service, instance_id _instance) 
 	return true;
 }
 
-bool service_impl::unregister_service(service_id _service, instance_id _instance) {
+bool provider_impl::unregister_service(service_id _service, instance_id _instance) {
 	services_.erase(_service);
 	return true;
 }
 
-void service_impl::start() {
+void provider_impl::start() {
 	delegate_->start();
 
 	connect();
@@ -63,55 +63,55 @@ void service_impl::start() {
 	}
 }
 
-void service_impl::stop() {
+void provider_impl::stop() {
 	delegate_->stop();
 }
 
-void service_impl::connect() {
+void provider_impl::connect() {
 	boost::asio::local::stream_protocol::endpoint registry("/tmp/vsomeipd");
 	socket_.connect(registry);
 }
 
-void service_impl::register_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
+void provider_impl::register_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
 	delegate_->register_for(_receiver, _service_id, _method_id);
 }
 
-void service_impl::unregister_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
+void provider_impl::unregister_for(receiver *_receiver, service_id _service_id, method_id _method_id) {
 	delegate_->unregister_for(_receiver, _service_id, _method_id);
 }
 
-void service_impl::enable_magic_cookies() {
+void provider_impl::enable_magic_cookies() {
 	delegate_->enable_magic_cookies();
 }
 
-void service_impl::disable_magic_cookies() {
+void provider_impl::disable_magic_cookies() {
 	delegate_->enable_magic_cookies();
 }
 
-bool service_impl::send(const message_base *_message, bool _flush) {
-	return delegate_->send(_message, _flush);
+bool provider_impl::send(const message_base *_message, bool _flush) {
+	delegate_->send(_message, _flush);
 }
 
-bool service_impl::send(const uint8_t *_data, uint32_t _length, endpoint *_target, bool _flush) {
+bool provider_impl::send(const uint8_t *_data, uint32_t _length, endpoint *_target, bool _flush) {
 	return delegate_->send(_data, _length, _target, _flush);
 }
 
-bool service_impl::flush(endpoint *_target) {
+bool provider_impl::flush(endpoint *_target) {
 	return delegate_->flush(_target);
 }
 
-void service_impl::send_command(const uint8_t *_command, uint32_t _size) {
+void provider_impl::send_command(const uint8_t *_command, uint32_t _size) {
 	std::vector< uint8_t> command;
 	command.assign(_command, _command + _size);
 	command_queue_.push_back(command);
 	socket_.async_send(boost::asio::buffer(command_queue_.back()),
-					   boost::bind(&service_impl::sent_command,
+					   boost::bind(&provider_impl::sent_command,
 							       this,
 							       boost::asio::placeholders::error,
 							       boost::asio::placeholders::bytes_transferred));
 }
 
-void service_impl::sent_command(boost::system::error_code const &_error, std::size_t _bytes) {
+void provider_impl::sent_command(boost::system::error_code const &_error, std::size_t _bytes) {
 	if (!_error) {
 		command_queue_.pop_front();
 	} else {
@@ -119,7 +119,7 @@ void service_impl::sent_command(boost::system::error_code const &_error, std::si
 	}
 }
 
-void service_impl::announce(service_info &_info) {
+void provider_impl::announce(service_info &_info) {
 	uint8_t command[] = { 0xFE, 0xED,
 						  0x0, // Command
 						  0x0, 0x0, // Service

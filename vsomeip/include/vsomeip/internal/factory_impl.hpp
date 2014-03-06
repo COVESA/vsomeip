@@ -22,7 +22,7 @@ public:
 	static factory *get_default_factory();
 	virtual ~factory_impl();
 
-	application * create_application() const;
+	client * create_client() const;
 	message * create_message() const;
 	endpoint * get_endpoint(ip_address _address, ip_port _port,
 							  ip_protocol _protocol, ip_version _version);

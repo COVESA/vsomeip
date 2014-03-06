@@ -19,10 +19,10 @@
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/receiver.hpp>
-#include <vsomeip/service.hpp>
-#include <vsomeip/client.hpp>
+#include <vsomeip/provider.hpp>
+#include <vsomeip/consumer.hpp>
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip/application.hpp>
+#include <vsomeip/client.hpp>
 #include <vsomeip/factory.hpp>
 
 #ifdef USE_VSOMEIP_STATISTICS

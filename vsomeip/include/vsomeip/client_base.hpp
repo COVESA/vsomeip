@@ -1,5 +1,5 @@
 //
-// application.hpp
+// client_base.hpp
 //
 // Author: 	Lutz Bichler
 //
@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_APPLICATION_HPP
-#define VSOMEIP_APPLICATION_HPP
+#ifndef VSOMEIP_CLIENT_BASE_HPP
+#define VSOMEIP_CLIENT_BASE_HPP
 
 #include <cstddef>
 
@@ -18,16 +18,9 @@
 
 namespace vsomeip {
 
-class client;
-class endpoint;
-class service;
-
-class application {
+class client_base {
 public:
-	virtual ~application() {};
-
-	virtual client * create_client(const endpoint *_target) = 0;
-	virtual service * create_service(const endpoint *_source) = 0;
+	virtual ~client_base() {};
 
 	virtual std::size_t poll_one() = 0;
 	virtual std::size_t poll() = 0;
@@ -36,4 +29,4 @@ public:
 
 } // namespace vsomeip
 
-#endif
+#endif // VSOMEIP_CLIENT_BASE_HPP

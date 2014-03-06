@@ -16,11 +16,11 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/message_base.hpp>
 #include <vsomeip/serializer.hpp>
-#include <vsomeip/internal/service_base_impl.hpp>
+#include <vsomeip/internal/provider_base_impl.hpp>
 
 namespace vsomeip {
 
-service_base_impl::service_base_impl(
+provider_base_impl::provider_base_impl(
 		factory *_factory,
 		uint32_t _max_message_size,
 		boost::asio::io_service &_is)
@@ -29,10 +29,10 @@ service_base_impl::service_base_impl(
 	  flush_timer_(_is) {
 }
 
-service_base_impl::~service_base_impl() {
+provider_base_impl::~provider_base_impl() {
 }
 
-bool service_base_impl::send(const message_base *_message,  bool _flush) {
+bool provider_base_impl::send(const message_base *_message,  bool _flush) {
 	uint32_t message_size = VSOMEIP_STATIC_HEADER_LENGTH
 							+ _message->get_length();
 
@@ -53,7 +53,7 @@ bool service_base_impl::send(const message_base *_message,  bool _flush) {
 				 _message->get_endpoint(), _flush);
 }
 
-bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
+bool provider_base_impl::send(const uint8_t *_data, uint32_t _size,
 								 endpoint *_target, bool _flush) {
 
 	if (0 == _target)
@@ -95,14 +95,14 @@ bool service_base_impl::send(const uint8_t *_data, uint32_t _size,
 				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
 		flush_timer_.async_wait(
 						boost::bind(
-							&service_base_impl::flush, this,
+							&provider_base_impl::flush, this,
 							_target, boost::asio::placeholders::error));
 	}
 
 	return true;
 }
 
-void service_base_impl::flush(
+void provider_base_impl::flush(
 		endpoint *_target,
 		const boost::system::error_code &_error_code) {
 	if (!_error_code) {
@@ -110,7 +110,7 @@ void service_base_impl::flush(
 	}
 }
 
-bool service_base_impl::flush(endpoint *_target) {
+bool provider_base_impl::flush(endpoint *_target) {
 	bool is_successful = false;
 	if (_target) {
 		auto i = packetizer_.find(_target);
@@ -141,12 +141,12 @@ bool service_base_impl::flush(endpoint *_target) {
 	return is_successful;
 }
 
-void service_base_impl::connected(
+void provider_base_impl::connected(
 		boost::system::error_code const &_error_code) {
 
 }
 
-void service_base_impl::sent(
+void provider_base_impl::sent(
 		boost::system::error_code const &_error_code,
 		std::size_t _sent_bytes) {
 
@@ -166,7 +166,7 @@ void service_base_impl::sent(
 	}
 }
 
-bool service_base_impl::set_next_queue() {
+bool provider_base_impl::set_next_queue() {
 	if (current_queue_->second.empty())
 		current_queue_ = packet_queues_.erase(current_queue_);
 

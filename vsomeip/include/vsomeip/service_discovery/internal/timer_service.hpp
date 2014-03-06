@@ -26,6 +26,8 @@ struct  timer_service {
 	void start_timer(uint32_t _milliseconds);
 	void stop_timer();
 
+	uint32_t expired_from_now();
+
 	virtual void timer_expired(const boost::system::error_code &_error) = 0;
 private:
 

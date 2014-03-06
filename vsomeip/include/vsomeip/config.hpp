@@ -12,6 +12,10 @@
 #ifndef VSOMEIP_CONFIG_HPP
 #define VSOMEIP_CONFIG_HPP
 
+/// \def VSOMEIP_DEFAULT_CONFIGURATION_FILE
+/// The default location of the vsomeip configuration file
+#define VSOMEIP_DEFAULT_CONFIGURATION_FILE	"/etc/vsomeip.conf"
+
 /// \def VSOMEIP_MAX_UDP_MESSAGE_SIZE
 /// The maximum message size for using the UDP transport protocol.
 #define VSOMEIP_MAX_UDP_MESSAGE_SIZE (1416 - 16)

@@ -20,11 +20,11 @@ int main(int argc, char **argv) {
 										SERVICE_HOST, SERVICE_PORT,
 										vsomeip::ip_protocol::TCP,
 										vsomeip::ip_version::V4);
-	vsomeip::application *the_application = the_factory->create_application();
-	vsomeip::client *the_client = the_application->create_client(the_endpoint);
+	vsomeip::client *the_client = the_factory->create_client();
+	vsomeip::consumer *the_consumer = the_client->create_consumer(the_endpoint);
 
 	// switch on magic cookies
-	the_client->enable_magic_cookies();
+	the_consumer->enable_magic_cookies();
 
 	// create a wrong message
 	uint8_t the_correct_message_payload[]
@@ -40,16 +40,16 @@ int main(int argc, char **argv) {
 	    	0x01, 0x01, 0x02, 0x00,
 	    	0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01 };
 
-	the_client->start();
-	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
-	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
-	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
-	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
-	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
-	the_client->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
-	the_client->send(the_correct_message_payload, sizeof(the_correct_message_payload));
+	the_consumer->start();
+	the_consumer->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_consumer->send(the_correct_message_payload, sizeof(the_correct_message_payload));
+	the_consumer->send(the_correct_message_payload, sizeof(the_correct_message_payload));
+	the_consumer->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_consumer->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_consumer->send(the_wrong_message_payload, sizeof(the_wrong_message_payload));
+	the_consumer->send(the_correct_message_payload, sizeof(the_correct_message_payload));
 
-	the_application->run();
+	the_client->run();
 
 	return 0;
 }

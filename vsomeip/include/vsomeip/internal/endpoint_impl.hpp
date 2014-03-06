@@ -19,7 +19,7 @@ namespace vsomeip {
 class endpoint_impl : virtual public endpoint {
 public:
 	endpoint_impl(ip_address _address, ip_port _port,
-					ip_protocol _protocol, ip_version _version);
+				    ip_protocol _protocol, ip_version _version);
 	virtual ~endpoint_impl();
 
 private:

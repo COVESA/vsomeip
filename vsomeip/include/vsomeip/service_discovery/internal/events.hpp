@@ -12,62 +12,53 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_INTERNAL_EVENTS_HPP
 #define VSOMEIP_SERVICE_DISCOVERY_INTERNAL_EVENTS_HPP
 
-#include <boost/variant.hpp>
+#include <boost/statechart/event.hpp>
 
 namespace vsomeip {
+
+class endpoint; // we need to know where the "message" comes from...
+
 namespace service_discovery {
 
-struct ev_timer_expired {
+struct ev_none
+		: boost::statechart::event< ev_none > {
 };
 
-struct ev_daemon_status_change {
-	ev_daemon_status_change(bool _is_up) { is_up_ = _is_up; };
-	bool is_up_;
+struct ev_timeout
+		: boost::statechart::event< ev_timeout > {
 };
 
-struct ev_service_status_change {
-	ev_service_status_change(bool _is_up) { is_up_ = _is_up; };
-	bool is_up_;
-};
-
-struct ev_configuration_status_change {
-	ev_configuration_status_change(bool _is_configured) {
-		is_configured_ = _is_configured;
-	}
-
+struct ev_network_status_change
+		: boost::statechart::event< ev_timeout > {
 	bool is_configured_;
+	bool is_up_;
 };
 
+struct ev_service_status_change
+		: boost::statechart::event< ev_service_status_change > {
+	bool is_ready_;
+};
 
-struct ev_request_change {
-	ev_request_change(bool _is_requested) {
-		is_requested_ = _is_requested;
-	};
-
+struct ev_request_status_change
+		: boost::statechart::event< ev_request_status_change > {
 	bool is_requested_;
 };
 
-struct ev_find_service {
+struct ev_find_service
+		: boost::statechart::event< ev_find_service > {
+
+	ev_find_service(endpoint *_source) : source_(_source) {};
+
+	endpoint *source_;
 };
 
-struct ev_offer_service {
+struct ev_offer_service
+		: boost::statechart::event< ev_offer_service > {
 };
 
-struct ev_stop_offer_service {
+struct ev_stop_offer_service
+		: boost::statechart::event< ev_stop_offer_service > {
 };
-
-// Used to generate "process_event"-methods
-template<typename statemachine>
-struct ProcessEvent
-	: public boost::static_visitor<> {
-	ProcessEvent(statemachine &_sm) : sm_(_sm) {};
-
-	template<typename event>
-	void operator()(event &e) const { sm_.process_event(e); }
-
-	statemachine &sm_;
-};
-
 
 } // namespace service_discovery
 } // namespace vsomeip

@@ -16,10 +16,13 @@
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
-#include <vsomeip/service_discovery/internal/service_info.hpp>
+#include <vsomeip/service_discovery/internal/daemon-config.hpp>
 
 namespace vsomeip {
 namespace service_discovery {
+
+class daemon;
+class service_administrator;
 
 class service_registry
 {
@@ -27,7 +30,7 @@ public:
 	class session
 		: public boost::enable_shared_from_this<session> {
 	public:
-		session(boost::asio::io_service &_is);
+		session(service_registry *_registry, boost::asio::io_service &_is);
 		boost::asio::local::stream_protocol::socket & get_socket();
 		void start();
 		void receive(const boost::system::error_code &_error,
@@ -36,29 +39,31 @@ public:
 
 	private:
 		boost::asio::local::stream_protocol::socket socket_;
-		boost::array<uint8_t, 10> data_;
+		boost::array<uint8_t, VSOMEIP_MAX_COMMAND_SIZE> data_;
 		std::vector<uint8_t> message_;
+		service_registry *registry_;
 	};
 
 	typedef boost::shared_ptr<session> session_ptr;
 
 public:
-	service_registry(boost::asio::io_service &_is,
-			const std::string &_location);
+	service_registry(daemon *_daemon);
 	void handle_accept(session_ptr _session,
 						   const boost::system::error_code &_error);
 
-	service_info * add(service_id _service, instance_id _instance);
+	service_administrator * find(service_id _service, instance_id _instance);
+	service_administrator * add(service_id _service, instance_id _instance);
 	void remove(service_id _service, instance_id _instance);
-	service_info * find(service_id _service, instance_id _instance);
 
 private:
 	std::map<service_id,
 			 std::map<instance_id,
-			          service_info>> data_;
+			          service_administrator *>> data_;
 
 	boost::asio::io_service &is_;
 	boost::asio::local::stream_protocol::acceptor acceptor_;
+
+	daemon *daemon_;
 };
 
 } // namespace service_discovery

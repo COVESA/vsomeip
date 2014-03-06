@@ -10,7 +10,7 @@
 //
 
 #include <vsomeip/internal/factory_impl.hpp>
-#include <vsomeip/internal/application_impl.hpp>
+#include <vsomeip/internal/client_impl.hpp>
 #include <vsomeip/internal/message_impl.hpp>
 #include <vsomeip/internal/endpoint_impl.hpp>
 #include <vsomeip/internal/serializer_impl.hpp>
@@ -26,8 +26,8 @@ factory * factory_impl::get_default_factory() {
 factory_impl::~factory_impl() {
 }
 
-application * factory_impl::create_application() const {
-	return new application_impl;
+client * factory_impl::create_client() const {
+	return new client_impl;
 }
 
 message * factory_impl::create_message() const {

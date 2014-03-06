@@ -13,7 +13,7 @@
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/service_discovery/internal/factory_impl.hpp>
-#include <vsomeip/service_discovery/internal/application_impl.hpp>
+#include <vsomeip/service_discovery/internal/client_impl.hpp>
 #include <vsomeip/service_discovery/internal/message_impl.hpp>
 #include <vsomeip/service_discovery/internal/deserializer_impl.hpp>
 
@@ -28,8 +28,8 @@ factory* factory_impl::get_default_factory() {
 factory_impl::~factory_impl() {
 }
 
-application * factory_impl::create_service_discovery_application() const {
-	return new application_impl;
+client * factory_impl::create_service_discovery_client() const {
+	return new client_impl;
 }
 
 message * factory_impl::create_service_discovery_message() const {

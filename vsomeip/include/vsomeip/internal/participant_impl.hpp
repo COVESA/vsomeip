@@ -18,6 +18,7 @@
 #include <boost/asio/io_service.hpp>
 
 #include <vsomeip/participant.hpp>
+#include <vsomeip/internal/loggable.hpp>
 #include <vsomeip/internal/statistics_owner_impl.hpp>
 
 namespace vsomeip {
@@ -28,7 +29,7 @@ class receiver;
 class serializer;
 
 class participant_impl
-	: virtual public participant
+	: virtual public participant, virtual public loggable
 #ifdef USE_VSOMEIP_STATISTICS
 	, virtual public statistics_owner_impl
 #endif

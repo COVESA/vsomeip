@@ -42,5 +42,11 @@ void timer_service::stop_timer() {
 	timer_->cancel();
 }
 
+uint32_t timer_service::expired_from_now() {
+	return std::chrono::duration_cast<
+				std::chrono::milliseconds>(
+					timer_->expires_from_now()).count();
+}
+
 } // namespace service_discovery
 } // namespace vsomeip

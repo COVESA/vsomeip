@@ -13,7 +13,6 @@
 
 int
 main(int argc, char **argv) {
-
 	vsomeip::service_discovery::daemon *the_daemon
 		= vsomeip::service_discovery::daemon::get_instance();
 

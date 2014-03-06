@@ -16,27 +16,27 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip/internal/tcp_client_impl.hpp>
+#include <vsomeip/internal/tcp_consumer_impl.hpp>
 
 namespace ip = boost::asio::ip;
 
 namespace vsomeip {
 
-tcp_client_impl::tcp_client_impl(
+tcp_consumer_impl::tcp_consumer_impl(
 		factory *_factory,
 		const endpoint *_endpoint,
 		boost::asio::io_service &_is)
-		: client_base_impl(_factory, VSOMEIP_MAX_TCP_MESSAGE_SIZE, _is),
+		: consumer_base_impl(_factory, VSOMEIP_MAX_TCP_MESSAGE_SIZE, _is),
 		  socket_(is_),
 		  local_endpoint_(ip::address::from_string(_endpoint->get_address()),
 				  		  _endpoint->get_port()) {
 	has_magic_cookies_ = true;
 }
 
-tcp_client_impl::~tcp_client_impl() {
+tcp_consumer_impl::~tcp_consumer_impl() {
 }
 
-void tcp_client_impl::start() {
+void tcp_consumer_impl::start() {
 	socket_.open(local_endpoint_.protocol().v4());
 	connect();
 
@@ -47,32 +47,32 @@ void tcp_client_impl::start() {
 	receive();
 }
 
-void tcp_client_impl::connect() {
+void tcp_consumer_impl::connect() {
 	socket_.async_connect(local_endpoint_,
-				boost::bind(&client_base_impl::connected, this,
+				boost::bind(&consumer_base_impl::connected, this,
 						boost::asio::placeholders::error));
 }
 
-void tcp_client_impl::receive() {
+void tcp_consumer_impl::receive() {
 	socket_.async_receive(boost::asio::buffer(received_),
 				boost::bind(&participant_impl::received, this,
 						boost::asio::placeholders::error,
 						boost::asio::placeholders::bytes_transferred));
 }
 
-void tcp_client_impl::stop() {
+void tcp_consumer_impl::stop() {
 	if (socket_.is_open())
 		socket_.close();
 }
 
-void tcp_client_impl::restart() {
+void tcp_consumer_impl::restart() {
 	socket_.async_receive(boost::asio::buffer(received_),
 			boost::bind(&participant_impl::received, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 }
 
-void tcp_client_impl::send_queued() {
+void tcp_consumer_impl::send_queued() {
 	if (has_enabled_magic_cookies_)
 		send_magic_cookie();
 
@@ -80,33 +80,33 @@ void tcp_client_impl::send_queued() {
 			socket_,
 			boost::asio::buffer(&packet_queue_.front()[0],
 								packet_queue_.front().size()),
-			boost::bind(&client_base_impl::sent, this,
+			boost::bind(&consumer_base_impl::sent, this,
 					boost::asio::placeholders::error,
 					boost::asio::placeholders::bytes_transferred));
 }
 
-ip_address tcp_client_impl::get_remote_address() const {
+ip_address tcp_consumer_impl::get_remote_address() const {
 	return local_endpoint_.address().to_string();
 }
 
-ip_port tcp_client_impl::get_remote_port() const {
+ip_port tcp_consumer_impl::get_remote_port() const {
 	return local_endpoint_.port();
 }
 
-ip_protocol tcp_client_impl::get_protocol() const {
+ip_protocol tcp_consumer_impl::get_protocol() const {
 	return ip_protocol::TCP;
 }
 
-ip_version tcp_client_impl::get_version() const {
+ip_version tcp_consumer_impl::get_version() const {
 	return (local_endpoint_.protocol().v4() == ip::tcp::v4() ?
 			ip_version::V4 : ip_version::V6);
 }
 
-const uint8_t * tcp_client_impl::get_received() const {
+const uint8_t * tcp_consumer_impl::get_received() const {
 	return received_.data();
 }
 
-bool tcp_client_impl::is_magic_cookie(
+bool tcp_consumer_impl::is_magic_cookie(
 		message_id _message_id, length _length, request_id _request_id,
 		protocol_version _protocol_version, interface_version _interface_version,
 		message_type _message_type, return_code _return_code) const {
@@ -119,7 +119,7 @@ bool tcp_client_impl::is_magic_cookie(
 			 _return_code == VSOMEIP_MAGIC_COOKIE_RETURN_CODE);
 }
 
-void tcp_client_impl::send_magic_cookie() {
+void tcp_consumer_impl::send_magic_cookie() {
 	static uint8_t magic_cookie_client_data[] = { 0xFF, 0xFF, 0x00, 0x00,
 									   	    	   0x00, 0x00, 0x00, 0x08,
 									   	    	   0xDE, 0xAD, 0xBE, 0xEF,

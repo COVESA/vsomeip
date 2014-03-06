@@ -1,5 +1,5 @@
 //
-// service_impl.hpp
+// provider_impl.hpp
 //
 // Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_SERVICE_DISCOVERY_INTERNAL_SERVICE_IMPL_HPP
-#define VSOMEIP_SERVICE_DISCOVERY_INTERNAL_SERVICE_IMPL_HPP
+#ifndef VSOMEIP_SERVICE_DISCOVERY_INTERNAL_PROVIDER_IMPL_HPP
+#define VSOMEIP_SERVICE_DISCOVERY_INTERNAL_PROVIDER_IMPL_HPP
 
 #include <deque>
 #include <map>
@@ -20,24 +20,23 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
+#include <vsomeip/provider.hpp>
 #include <vsomeip/internal/statistics_owner_impl.hpp>
-#include <vsomeip/service_discovery/service.hpp>
-#include <vsomeip/service_discovery/internal/events.hpp>
 #include <vsomeip/service_discovery/internal/service_info.hpp>
 
 
 namespace vsomeip {
 namespace service_discovery {
 
-class service_impl
-	: virtual public service
+class provider_impl
+	: virtual public provider
 #ifdef USE_VSOMEIP_STATISTICS
 	  , virtual public statistics_owner_impl
 #endif
 {
 public:
-	service_impl(vsomeip::service *_delegate, boost::asio::io_service &_is);
-	virtual ~service_impl();
+	provider_impl(vsomeip::provider *_delegate, boost::asio::io_service &_is);
+	virtual ~provider_impl();
 
 	bool register_service(service_id _service, instance_id _instance);
 	bool unregister_service(service_id _service, instance_id _instance);
@@ -61,7 +60,7 @@ public:
 	bool flush(endpoint *_target);
 
 private:
-	vsomeip::service *delegate_;
+	vsomeip::provider *delegate_;
 	std::map< service_id, service_info > services_;
 	std::deque<std::vector<uint8_t>> command_queue_;
 
@@ -77,5 +76,5 @@ private:
 } // namespace service_discovery
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICE_DISCOVERY_INTERNAL_SERVICE_IMPL_HPP
+#endif // VSOMEIP_SERVICE_DISCOVERY_INTERNAL_PROVIDER_IMPL_HPP
 

@@ -1,5 +1,5 @@
 //
-// udp_service_impl.hpp
+// udp_consumer_impl.hpp
 //
 // Author: Lutz Bichler <Lutz.Bichler@bmwgroup.com>
 //
@@ -9,26 +9,27 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_UDP_SERVICE_IMPL_HPP
-#define VSOMEIP_INTERNAL_UDP_SERVICE_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_UDP_CONSUMER_IMPL_HPP
+#define VSOMEIP_INTERNAL_UDP_CONSUMER_IMPL_HPP
 
 #include <boost/array.hpp>
 #include <boost/asio/ip/udp.hpp>
 
-#include <vsomeip/internal/service_base_impl.hpp>
+#include <vsomeip/config.hpp>
+#include <vsomeip/internal/consumer_base_impl.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 
-class udp_service_impl
-		: virtual public service_base_impl {
+class udp_consumer_impl
+		: virtual public consumer_base_impl {
 public:
-	udp_service_impl(
+	udp_consumer_impl(
 			factory *_factory,
 			const endpoint *_endpoint,
 			boost::asio::io_service &_is);
-	virtual ~udp_service_impl();
+	virtual ~udp_consumer_impl();
 
 	void start();
 	void stop();
@@ -49,10 +50,13 @@ private:
 
 private:
 	boost::asio::ip::udp::socket socket_;
+
+	boost::asio::ip::udp::endpoint local_endpoint_;
 	boost::asio::ip::udp::endpoint remote_endpoint_;
+
 	boost::array< uint8_t, VSOMEIP_MAX_UDP_MESSAGE_SIZE > received_;
 };
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_UDP_SERVICE_IMPL_HPP
+#endif // VSOMEIP_INTERNAL_UDP_CONSUMER_IMPL_HPP

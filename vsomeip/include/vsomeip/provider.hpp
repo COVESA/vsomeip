@@ -1,5 +1,5 @@
 //
-// service.hpp
+// provider.hpp
 //
 // Author: 	Lutz Bichler
 //
@@ -9,8 +9,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_SERVICE_HPP
-#define VSOMEIP_SERVICE_HPP
+#ifndef VSOMEIP_PROVIDER_HPP
+#define VSOMEIP_PROVIDER_HPP
 
 #include <vsomeip/participant.hpp>
 
@@ -22,7 +22,7 @@ class endpoint;
 /// Interface of a Some/IP service. An application needs to create one service
 /// instance for each endpoint it wants to use to provide a service. Service 
 /// instances can be created by a call to factory::create_service.
-class service
+class provider
 		: virtual public participant {
 public:
 	/// Send a Some/IP message using the message structure provided by
@@ -61,4 +61,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICE_HPP
+#endif // VSOMEIP_PROVIDER_HPP

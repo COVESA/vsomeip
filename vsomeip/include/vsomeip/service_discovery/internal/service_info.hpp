@@ -23,15 +23,6 @@ struct service_info {
 	major_version major_version_;
 	minor_version minor_version_;
 	time_to_live time_to_live_;
-
-	void print() {
-		std::cout << "[" << std::hex << service_
-		               << " " << instance_
-		               << " " << (int)major_version_
-		               << "." << minor_version_
-		               << " " << time_to_live_ << "]"
-		               << std::endl;
-	}
 };
 
 } // namespace service_discovery
