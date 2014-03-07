@@ -49,19 +49,30 @@ enum class return_code : uint8_t {
 };
 
 /// \enum transport_protocol
-/// Constants representing the supported IP transport protocols.
-enum class ip_protocol : uint8_t {
+/// Constants representing the supported transport protocols.
+enum class transport_protocol : uint8_t {
 	UDP = 0x06,
 	TCP = 0x11,
 	UNKNOWN = 0xFF
 };
 
 /// \enum transport_protocol_version
-/// Constants representing the supported IP transport protocol versions.
-enum class ip_version : uint8_t {
+/// Constants representing the supported transport protocol versions.
+enum class transport_protocol_version : uint8_t {
 	V4 = 0x04,
 	V6 = 0x06,
 	UNKNOWN = 0xFF
+};
+
+enum class command_enum : uint8_t {
+	REGISTER_APPLICATION = 0x10,
+	DEREGISTER_APPLICATION = 0x11,
+
+	REGISTER_APPLICATION_ACK = 0x20,
+	DEREGISTER_APPLICATION_ACK = 0x21,
+
+	PING = 0xe0,
+	PONG = 0xe1
 };
 
 } // namespace vsomeip

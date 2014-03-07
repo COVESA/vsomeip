@@ -33,11 +33,11 @@ public:
 	/// Delivers the transport protocol used by the endpoint.
 	/// \returns protocol (UDP or TCP) used to communicate through this
 	/// endpoint
-	virtual ip_protocol get_protocol() const = 0;
+	virtual transport_protocol get_protocol() const = 0;
 	/// Delivers the transport protocol version used by the endpoint.
 	/// \returns protocol version (V4 or V6) used to communicate through this
 	/// endpoint
-	virtual ip_version get_version() const = 0;
+	virtual transport_protocol_version get_version() const = 0;
 };
 
 } // namespace vsomeip

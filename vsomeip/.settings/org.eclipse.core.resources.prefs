@@ -1,0 +1,16 @@
+eclipse.preferences.version=1
+encoding//include/vsomeip/application.hpp=UTF-8
+encoding//include/vsomeip_internal/application_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/client_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/constants.hpp=UTF-8
+encoding//include/vsomeip_internal/participant.hpp=UTF-8
+encoding//include/vsomeip_internal/participant_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/service_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/statistics_owner_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/tcp_client_impl.hpp=UTF-8
+encoding//include/vsomeip_internal/udp_client_impl.hpp=UTF-8
+encoding//src/vsomeip.base/application_impl.cpp=UTF-8
+encoding//src/vsomeip.base/client_impl.cpp=UTF-8
+encoding//src/vsomeip.base/participant_impl.cpp=UTF-8
+encoding//src/vsomeip.base/service_impl.cpp=UTF-8
+encoding//src/vsomeip.daemon/daemon_impl.cpp=UTF-8

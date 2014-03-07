@@ -29,8 +29,8 @@ public:
 	virtual ip_port get_port() const = 0;
 	virtual void set_port(ip_port _port) = 0;
 
-	virtual ip_protocol get_protocol() const = 0;
-	virtual void set_protocol(ip_protocol _protocol) = 0;
+	virtual transport_protocol get_protocol() const = 0;
+	virtual void set_protocol(transport_protocol _protocol) = 0;
 };
 
 } // namespace service_discovery
