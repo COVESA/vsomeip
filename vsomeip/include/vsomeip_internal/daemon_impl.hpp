@@ -22,6 +22,7 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip_internal/config.hpp>
 #include <vsomeip_internal/daemon.hpp>
+#include <vsomeip_internal/log_owner.hpp>
 
 namespace vsomeip {
 
@@ -31,7 +32,8 @@ class service;
 class message_base;
 
 class daemon_impl
-	: public daemon {
+	: public daemon,
+	  public log_owner {
 public:
 	static daemon * get_instance();
 

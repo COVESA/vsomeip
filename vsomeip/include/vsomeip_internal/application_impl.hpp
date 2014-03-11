@@ -23,6 +23,7 @@
 
 #include <vsomeip/application.hpp>
 #include <vsomeip_internal/config.hpp>
+#include <vsomeip_internal/log_owner.hpp>
 
 namespace vsomeip {
 
@@ -33,10 +34,11 @@ class serializer;
 
 class application_impl
 	: virtual public application,
+	  public log_owner,
 	  boost::noncopyable {
 
 public:
-	application_impl();
+	application_impl(const std::string &_name);
 	virtual ~application_impl();
 
 	void init();
@@ -101,6 +103,9 @@ private: // object members
 
 	serializer *serializer_;
 	deserializer *_deserializer_;
+
+	// Name of this application (object)
+	std::string name_;
 };
 
 } // namespace vsomeip

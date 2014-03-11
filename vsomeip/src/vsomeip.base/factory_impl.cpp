@@ -20,8 +20,8 @@ factory * factory_impl::get_instance() {
 factory_impl::~factory_impl() {
 }
 
-application * factory_impl::create_application() const {
-	return new application_impl;
+application * factory_impl::create_application(const std::string &_name) const {
+	return new application_impl(_name);
 }
 
 } // namespace vsomeip

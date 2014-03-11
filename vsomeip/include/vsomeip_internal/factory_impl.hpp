@@ -21,7 +21,7 @@ public:
 
 	static factory * get_instance();
 
-	application * create_application() const;
+	application * create_application(const std::string &_name) const;
 };
 
 } // namespace vsomeip

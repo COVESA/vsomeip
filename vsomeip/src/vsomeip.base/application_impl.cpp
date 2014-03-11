@@ -13,6 +13,7 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/atomic.hpp>
 #include <boost/bind.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <boost_ext/asio/mq.hpp>
 #include <boost_ext/asio/placeholders.hpp>
@@ -27,13 +28,18 @@
 #include <vsomeip_internal/config.hpp>
 #include <vsomeip_internal/constants.hpp>
 
+using namespace boost::log::trivial;
+
+#define WATCHDOG_TEST
+
 namespace vsomeip {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
-application_impl::application_impl()
+application_impl::application_impl(const std::string &_name)
 	: id_(0),
+	  name_(_name),
 	  daemon_queue_(service_),
 	  application_queue_(service_),
 	  watchdog_timer_(service_) {
@@ -57,6 +63,17 @@ void application_impl::init() {
 	application_queue_name_ = message_queue_id_stream.str();
 
 	queue_id++;
+
+	// Read configuration
+	enable_console();
+	enable_file(name_);
+
+	set_id(application_queue_name_.substr(9));
+	set_loglevel(debug);
+
+	BOOST_LOG_SEV(logger_, debug)
+		<< "Application uses queue " << application_queue_name_
+		<< " and id " << application_queue_name_.substr(9);
 }
 
 void application_impl::start() {
@@ -253,8 +270,8 @@ void application_impl::send_pong() {
 
 void application_impl::process_message(std::size_t _bytes) {
 	if (_bytes < VSOMEIP_PROTOCOL_OVERHEAD) {
-		std::cout << "message too short" << std::endl;
-		// TODO: log "message too short"
+		BOOST_LOG_SEV(logger_, error)
+			<< "Message too short (< " << VSOMEIP_PROTOCOL_OVERHEAD << " bytes)";
 		return;
 	}
 
@@ -275,26 +292,25 @@ void application_impl::process_message(std::size_t _bytes) {
 				break;
 
 			case command_enum::PING:
-				std::cout << "Application " << id_ << " received PING from Daeamon" << std::endl;
+				BOOST_LOG_SEV(logger_, debug)
+					<< "Application " << id_ << " received PING from Daemon";
 				send_pong();
 				break;
 
 			default:
-				std::cout << "message contains illegal command" << std::endl;
-				// TODO: log "message contains illegal command"
+				BOOST_LOG_SEV(logger_, error)
+					<< "Message contains illegal command " << (int)command;
 				break;
 			}
 
 		} else {
-			std::cout << "message has incorrect size" << std::endl;
-			// TODO: log "message has incorrect size"
+			BOOST_LOG_SEV(logger_, error)
+				<< "Message has incorrect size ("
+				<< _bytes << "/" << payload_size + VSOMEIP_PROTOCOL_OVERHEAD << ")";
 		}
 	} else {
-		for (int i = 0; i < _bytes; i++)
-			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)receive_buffer_[i] << " ";
-		std::cout << std::dec << std::endl;
-		std::cout << "message is not correctly tagged" << std::endl;
-		// TODO: log "message is not correctly tagged"
+		BOOST_LOG_SEV(logger_, error)
+			<< "Message is not correctly tagged";
 	}
 }
 
@@ -365,7 +381,8 @@ void application_impl::send_cbk(
 	if (!_error) {
 		send_buffers_.pop_front();
 	} else {
-		std::cout << "Error: sending to daemon failed!" << std::endl;
+		BOOST_LOG_SEV(logger_, error)
+			<< "Sending to daemon failed";
 	}
 }
 
@@ -374,12 +391,12 @@ void application_impl::receive_cbk(
 		std::size_t _bytes, unsigned int _priority) {
 	if (!_error && _bytes) {
 		process_message(_bytes);
+	} else {
+		BOOST_LOG_SEV(logger_, error)
+			<< "Received error message (" << _bytes << " bytes)";
 	}
 
 	do_receive();
 }
 
 } // namespace vsomeip
-
-
-

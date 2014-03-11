@@ -12,6 +12,8 @@
 #ifndef VSOMEIP_FACTORY_HPP
 #define VSOMEIP_FACTORY_HPP
 
+#include <string>
+
 namespace vsomeip {
 
 class application;
@@ -21,7 +23,8 @@ public:
 	virtual ~factory() {};
 
 	static factory * get_instance();
-	virtual application * create_application() const = 0;
+	virtual application * create_application(
+								const std::string& _name) const = 0;
 };
 
 } // namespace vsomeip

@@ -11,6 +11,7 @@
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <boost_ext/asio/mq.hpp>
 #include <boost_ext/asio/placeholders.hpp>
@@ -25,6 +26,8 @@
 
 using boost::asio::ip::tcp;
 using boost::asio::ip::udp;
+
+using namespace boost::log::trivial;
 
 namespace vsomeip {
 
@@ -42,7 +45,18 @@ daemon_impl::daemon_impl()
 }
 
 void daemon_impl::init(int _count, char **_options) {
-	std::cout << "vsomeip-daemon started" << std::endl;
+	// TODO: read configuration
+
+	// TODO: enable loggers dependend on the configuration
+	enable_console();
+	enable_file("vsomeipd");
+
+	set_id("vsomeipd");
+	set_loglevel(debug);
+
+	BOOST_LOG_SEV(logger_, info)
+			<< "vsomeip-daemon started ...";
+
 	daemon_queue_.async_create(
 		"/vsomeip-0",
 		10,	// TODO: replace
@@ -57,12 +71,14 @@ void daemon_impl::init(int _count, char **_options) {
 
 void daemon_impl::run_receiver() {
 	receiver_service_.run();
-	std::cout << "Receiver run ended!" << std::endl;
+	BOOST_LOG_SEV(logger_, debug)
+		<< "Receiver run ended!";
 }
 
 void daemon_impl::run_sender() {
 	sender_service_.run();
-	std::cout << "Sender run ended!" << std::endl;
+	BOOST_LOG_SEV(logger_, debug)
+		<< "Sender run ended!";
 }
 
 
@@ -135,7 +151,8 @@ void daemon_impl::do_send(uint32_t _id, const std::vector<uint8_t> &_data) {
 			)
 		);
 	} else {
-		// TODO: log "no queue for application"
+		BOOST_LOG_SEV(logger_, error)
+			<< "No queue for application " << _id;
 	}
 }
 
@@ -188,7 +205,8 @@ void daemon_impl::on_deregister_application(uint32_t _id) {
 }
 
 void daemon_impl::on_pong(uint32_t _id) {
-	std::cout << "Received PONG from Application " << _id << std::endl;
+	BOOST_LOG_SEV(logger_, debug)
+			<< "Received PONG from Application " << _id;
 	watchdogs_[_id] --;
 }
 
@@ -267,7 +285,8 @@ client * daemon_impl::create_client(const endpoint *_location) {
 		} else if (_location->get_protocol() == transport_protocol::TCP) {
 			the_client = new tcp_client_impl(sender_service_, _location);
 		} else {
-			// TODO: log "unsupported/unknown transport protocol"
+			BOOST_LOG_SEV(logger_, error)
+				<< "Unsupported/unknown transport protocol";
 		}
 	}
 	return the_client;
@@ -296,7 +315,8 @@ service * daemon_impl::create_service(const endpoint *_location) {
 		} else if (_location->get_protocol() == transport_protocol::TCP) {
 			the_service = new tcp_service_impl(sender_service_, _location);
 		} else {
-			// TODO: log "unsupported/unknown transport protocol"
+			BOOST_LOG_SEV(logger_, error)
+				<< "Unsupported/unknown transport protocol";
 		}
 	}
 	return the_service;
@@ -378,9 +398,10 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	std::memcpy(&end_tag, &receive_buffer_[_bytes-sizeof(start_tag)], sizeof(start_tag));
 
 #ifdef VSOMEIP_DEBUG
-	std::cout << "Received command " << std::hex << (int)command << "("
-		<< std::hex << start_tag << ", " << end_tag << std::dec << ", " << payload_size
-		<< ")" << std::endl;
+	BOOST_LOG_SEV(logger_, debug)
+	 	 << "Received command " << std::hex << (int)command << "("
+	 	 << std::hex << start_tag << ", " << end_tag << std::dec << ", " << payload_size
+	 	 << ")" << std::endl;
 #endif
 
 	switch (command) {
@@ -399,7 +420,8 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		break;
 
 	default:
-		// TODO: log "unknown command"
+		BOOST_LOG_SEV(logger_, warning)
+			<< "Unknown command received";
 		break;
 	}
 }
@@ -413,7 +435,8 @@ void daemon_impl::open_cbk(boost::system::error_code const &_error, uint32_t _id
 		send_register_ack(_id);
 		watchdogs_[_id] = true;
 	} else {
-		std::cout << "Opening queue for " << _id << " failed!" << std::endl;
+		BOOST_LOG_SEV(logger_, error)
+			<< "Opening queue for " << _id << " failed!";
 	}
 }
 
@@ -455,7 +478,8 @@ void daemon_impl::destroy_cbk(
 void daemon_impl::send_cbk(
 		boost::system::error_code const &_error, uint32_t _id) {
 	if (_error) {
-		std::cout << "Message sending failed (Application " << _id << ")" << std::endl;
+		BOOST_LOG_SEV(logger_, error)
+			<< "Message sending failed (Application " << _id << ")";
 	}
 }
 
@@ -466,7 +490,8 @@ void daemon_impl::receive_cbk(
 	if (!_error) {
 		process_command(_bytes);
 	} else {
-		std::cout << "Daemon received an erroneous message!" << std::endl;
+		BOOST_LOG_SEV(logger_, error)
+			<< "Daemon received an erroneous message!";
 	}
 
 	do_receive();
@@ -488,8 +513,8 @@ void daemon_impl::watchdog_check_cbk(
 			if (i.second > VSOMEIP_MAX_MISSING_PONGS) {
 				application_queues_.erase(i.first);
 				gone.push_back(i.first);
-				// TODO: log "Lost contact to application ID"
-				std::cout << "Lost application " << (int)i.first << std::endl;
+				BOOST_LOG_SEV(logger_, warning)
+					<< "Lost contact to application " << (int)i.first;
 			}
 		}
 
