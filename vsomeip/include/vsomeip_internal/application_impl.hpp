@@ -41,7 +41,7 @@ public:
 	application_impl(const std::string &_name);
 	virtual ~application_impl();
 
-	void init();
+	void init(int _options_count, char **_options);
 	void start();
 	void stop();
 

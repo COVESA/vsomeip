@@ -9,10 +9,13 @@
 
 vsomeip::factory * the_factory = vsomeip::factory::get_instance();
 
+int options_count = 0;
+char **options = 0;
+
 void run(const char *name) {
 	vsomeip::application * the_application = the_factory->create_application(name);
 
-	the_application->init();
+	the_application->init(options_count, options);
 	the_application->start();
 
 	while (1) {
@@ -22,6 +25,9 @@ void run(const char *name) {
 
 
 int main(int argc, char **argv) {
+	options_count = argc;
+	options = argv;
+
 	boost::thread t00(run, "alpha");
 #ifdef SAMPLE_MULTITHREAD
 	boost::thread t01(run, "bravo");

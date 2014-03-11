@@ -26,6 +26,7 @@
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/config.hpp>
+#include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
 
 using namespace boost::log::trivial;
@@ -48,7 +49,7 @@ application_impl::application_impl(const std::string &_name)
 application_impl::~application_impl() {
 }
 
-void application_impl::init() {
+void application_impl::init(int _options_count, char **_options) {
 	static boost::atomic<uint32_t> queue_id(1);
 
 	// configure application message queue name (use thread id)
@@ -64,16 +65,20 @@ void application_impl::init() {
 
 	queue_id++;
 
-	// Read configuration
-	enable_console();
-	enable_file(name_);
+	configuration * vsomeip_configuration = configuration::get_instance();
+	vsomeip_configuration->init(_options_count, _options);
+
+	if (vsomeip_configuration->use_console_logger())
+		enable_console();
+
+	if (vsomeip_configuration->use_file_logger())
+		enable_file(name_);
 
 	set_id(application_queue_name_.substr(9));
-	set_loglevel(debug);
+	set_loglevel(vsomeip_configuration->get_loglevel());
 
 	BOOST_LOG_SEV(logger_, debug)
-		<< "Application uses queue " << application_queue_name_
-		<< " and id " << application_queue_name_.substr(9);
+		<< "Application uses queue " << application_queue_name_;
 }
 
 void application_impl::start() {

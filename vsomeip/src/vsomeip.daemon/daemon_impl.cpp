@@ -18,6 +18,7 @@
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/message_base.hpp>
+#include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/daemon_impl.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
@@ -45,14 +46,18 @@ daemon_impl::daemon_impl()
 }
 
 void daemon_impl::init(int _count, char **_options) {
-	// TODO: read configuration
+	configuration * vsomeip_configuration = configuration::get_instance();
+	vsomeip_configuration->init(_count, _options);
 
 	// TODO: enable loggers dependend on the configuration
-	enable_console();
-	enable_file("vsomeipd");
+	if (vsomeip_configuration->use_console_logger())
+		enable_console();
+
+	if (vsomeip_configuration->use_file_logger())
+		enable_file("vsomeipd");
 
 	set_id("vsomeipd");
-	set_loglevel(debug);
+	set_loglevel(vsomeip_configuration->get_loglevel());
 
 	BOOST_LOG_SEV(logger_, info)
 			<< "vsomeip-daemon started ...";

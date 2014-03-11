@@ -21,7 +21,7 @@ class application {
 public:
 	virtual ~application() {};
 
-	virtual void init() = 0;
+	virtual void init(int _options_count, char **_options) = 0;
 	virtual void start() = 0;
 
 	// one of these must be called from the applications event loop

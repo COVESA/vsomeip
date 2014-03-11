@@ -33,7 +33,7 @@ public:
 	log_owner();
 
 	void set_id(const std::string &_id);
-	void set_loglevel(boost::log::trivial::severity_level _loglevel);
+	void set_loglevel(const std::string &_loglevel);
 
 	void enable_console();
 	void enable_file(const std::string &_name);

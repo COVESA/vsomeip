@@ -42,8 +42,19 @@ void log_owner::set_id(const std::string &_id) {
 	logger_.add_attribute("Owner-Id", attributes::constant< std::string >(_id));
 }
 
-void log_owner::set_loglevel(severity_level _loglevel) {
-	loglevel_ = _loglevel;
+void log_owner::set_loglevel(const std::string &_loglevel) {
+	if (_loglevel == "fatal")
+		loglevel_ = fatal;
+	else if (_loglevel == "error")
+		loglevel_ = error;
+	else if (_loglevel == "warning")
+		loglevel_ = warning;
+	else if (_loglevel == "debug")
+		loglevel_ = debug;
+	else if (_loglevel == "verbose")
+		loglevel_ = trace;
+	else
+		loglevel_ = info;
 }
 
 void log_owner::enable_console() {
