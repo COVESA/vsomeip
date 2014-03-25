@@ -6,7 +6,7 @@
 #include <vsomeip/vsomeip.hpp>
 
 //#define SAMPLE_MULTITHREAD
-#define SAMPLE_MESSAGE_SIZE 30
+#define SAMPLE_MESSAGE_SIZE 60
 
 #define INTERNAL_SAMPLE_SERVICE			 	0x1234
 #define INTERNAL_SAMPLE_SERVICE_INSTANCE	0x5678
@@ -67,7 +67,7 @@ void worker() {
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
 		}
 
-		usleep(500000);
+		usleep(50000);
 		the_application->send(the_message, true);
 
 		is_sending_to_internal = !is_sending_to_internal;

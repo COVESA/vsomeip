@@ -565,8 +565,6 @@ void application_impl::send_service_command(
 }
 
 void application_impl::process_early_registrations() {
-	VSOMEIP_DEBUG << "PROCESS EARLY STUFF...";
-
 	for (auto s : receive_cbks_) {
 		for (auto m : s.second) {
 			for (auto c : m.second) {

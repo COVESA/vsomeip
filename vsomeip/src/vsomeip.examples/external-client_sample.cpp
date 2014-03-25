@@ -67,7 +67,7 @@ void worker() {
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
 		}
 
-		usleep(500000);
+		usleep(50000);
 		the_application->send(the_message, true);
 
 		is_sending_to_internal = !is_sending_to_internal;

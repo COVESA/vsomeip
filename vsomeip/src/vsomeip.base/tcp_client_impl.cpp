@@ -40,7 +40,6 @@ void tcp_client_impl::start() {
 }
 
 void tcp_client_impl::connect() {
-	std::cout << "Calling connect on a TCP client..." << std::endl;
 	socket_.async_connect(
 		local_,
 		boost::bind(

@@ -347,7 +347,6 @@ service * managing_application_impl::create_service(const endpoint *_location) {
 		}
 
 		if (the_service) {
-			std::cout << "Starting service for endpoint " << std::hex << _location << std::endl;
 			managed_services_[_location] = the_service;
 			the_service->start();
 		}
