@@ -12,6 +12,8 @@
 #ifndef VSOMEIP_INTERNAL_PARTICIPANT_IMPL_HPP
 #define VSOMEIP_INTERNAL_PARTICIPANT_IMPL_HPP
 
+#include <map>
+
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/system_timer.hpp>
 
@@ -20,12 +22,10 @@
 
 namespace vsomeip {
 
-class factory;
-class deserializer;
-class receiver;
-class serializer;
+class endpoint;
+class managing_application;
 
-template <int MaxBufferSize>
+template < int MaxBufferSize >
 class participant_impl
 	: virtual public participant
 #ifdef USE_VSOMEIP_STATISTICS
@@ -33,14 +33,14 @@ class participant_impl
 #endif
 {
 public: // provided
-	participant_impl(boost::asio::io_service &_service);
+	participant_impl(managing_application *_owner, const endpoint *_location);
 	virtual ~participant_impl();
-
-	void register_for(service_id _service, instance_id _instance);
-	void unregister_for(service_id _service, instance_id _instance);
 
 	void enable_magic_cookies();
 	void disable_magic_cookies();
+
+	void open_filter(service_id _service);
+	void close_filter(service_id _service);
 
 	void receive_cbk(
 			boost::system::error_code const &_error, std::size_t _bytes);
@@ -52,6 +52,10 @@ public: // required
 	virtual void receive() = 0;
 	virtual void restart() = 0;
 
+	virtual ip_address get_remote_address() const = 0;
+	virtual ip_port get_remote_port() const = 0;
+	virtual ip_protocol get_protocol() const = 0;
+
 private:
 	uint32_t get_message_size() const;
 
@@ -62,11 +66,20 @@ protected:
 	// Reference to service context
 	boost::asio::io_service &service_;
 
+	// Reference to managing application
+	managing_application *owner_;
+
+	// The local endpoint
+	const endpoint *location_;
+
 	bool is_supporting_magic_cookies_;
 	bool has_enabled_magic_cookies_;
 
-	// Current message...
-	std::vector<uint8_t> message_;
+	// Data of the current message
+	std::vector< uint8_t > message_;
+
+	// Filter configuration
+	std::map< service_id, uint8_t > opened_;
 };
 
 } // namespace vsomeip

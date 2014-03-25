@@ -5,12 +5,12 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+#include <vsomeip/config.hpp>
 #include <vsomeip/serializer.hpp>
 #include <vsomeip/deserializer.hpp>
-#include <vsomeip_internal/config.hpp>
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/service_discovery/eventgroup_entry_impl.hpp>
 #include <vsomeip_internal/service_discovery/service_entry_impl.hpp>
@@ -53,7 +53,7 @@ length message_impl::get_length() const {
 #define VSOMEIP_REBOOT_FLAG 0x80
 
 bool message_impl::get_reboot_flag() const {
-	return (flags_ & VSOMEIP_REBOOT_FLAG != 0);
+	return ((flags_ & VSOMEIP_REBOOT_FLAG) != 0);
 }
 
 void message_impl::set_reboot_flag(bool _is_set) {
@@ -66,7 +66,7 @@ void message_impl::set_reboot_flag(bool _is_set) {
 #define VSOMEIP_UNICAST_FLAG 0x40
 
 bool message_impl::get_unicast_flag() const {
-	return (flags_ & VSOMEIP_UNICAST_FLAG != 0);
+	return ((flags_ & VSOMEIP_UNICAST_FLAG) != 0);
 }
 
 void message_impl::set_unicast_flag(bool _is_set) {

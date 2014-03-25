@@ -1,5 +1,5 @@
 //
-// serializable.hpp
+// deserializable.hpp
 //
 // Author: 	Lutz Bichler
 //
@@ -15,12 +15,10 @@
 namespace vsomeip {
 
 class serializer;
-class deserializer;
 
 class serializable {
 public:
 	virtual bool serialize(serializer *_to) const = 0;
-	virtual bool deserialize(deserializer *_from) = 0;
 
 protected:
 	virtual ~serializable() {};

@@ -23,12 +23,14 @@
 
 namespace vsomeip {
 
+class endpoint;
+
 template <typename Protocol, int MaxBufferSize>
 class client_impl
 		: virtual public client,
 		  public participant_impl<MaxBufferSize> {
 public:
-	client_impl(boost::asio::io_service &_service);
+	client_impl(managing_application *_owner, const endpoint *_location);
 	virtual ~client_impl();
 
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
@@ -45,10 +47,9 @@ public:
 	void send_cbk(
 			boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(boost::system::error_code const &_error);
-	void receive_cbk(
-			boost::system::error_code const &_error, std::size_t _bytes);
 
 public:
+	virtual void connect() = 0;
 	virtual void receive() = 0;
 
 protected:

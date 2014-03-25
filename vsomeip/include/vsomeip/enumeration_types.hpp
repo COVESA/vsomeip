@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -18,7 +18,7 @@ namespace vsomeip {
 
 /// \enum message_type
 /// Message type constants according to Some/IP specificiation.
-enum class message_type : uint8_t {
+enum class message_type_enum : uint8_t {
 	REQUEST = 0x0,
 	REQUEST_NO_RETURN = 0x1,
 	NOTIFICATION = 0x2,
@@ -34,7 +34,7 @@ enum class message_type : uint8_t {
 
 /// \enum return_code
 /// Return code constants according to Some/IP specificiation.
-enum class return_code : uint8_t {
+enum class return_code_enum : uint8_t {
 	OK = 0x0,
 	NOT_OK = 0x1,
 	UNKNOWN_SERVICE = 0x2,
@@ -48,31 +48,20 @@ enum class return_code : uint8_t {
 	UNKNOWN = 0xFF
 };
 
-/// \enum transport_protocol
+/// \enum ip_protocol
 /// Constants representing the supported transport protocols.
-enum class transport_protocol : uint8_t {
+enum class ip_protocol : uint8_t {
 	UDP = 0x06,
 	TCP = 0x11,
 	UNKNOWN = 0xFF
 };
 
-/// \enum transport_protocol_version
+/// \enum ip_protocol_version
 /// Constants representing the supported transport protocol versions.
-enum class transport_protocol_version : uint8_t {
+enum class ip_protocol_version : uint8_t {
 	V4 = 0x04,
 	V6 = 0x06,
 	UNKNOWN = 0xFF
-};
-
-enum class command_enum : uint8_t {
-	REGISTER_APPLICATION = 0x10,
-	DEREGISTER_APPLICATION = 0x11,
-
-	REGISTER_APPLICATION_ACK = 0x20,
-	DEREGISTER_APPLICATION_ACK = 0x21,
-
-	PING = 0xe0,
-	PONG = 0xe1
 };
 
 } // namespace vsomeip

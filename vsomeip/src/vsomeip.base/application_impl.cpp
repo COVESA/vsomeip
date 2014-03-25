@@ -15,22 +15,25 @@
 #include <boost/bind.hpp>
 #include <boost/log/trivial.hpp>
 
-#include <boost_ext/asio/mq.hpp>
 #include <boost_ext/asio/placeholders.hpp>
 #include <boost_ext/process.hpp>
 
+#include <vsomeip/config.hpp>
+#include <vsomeip/endpoint.hpp>
 #include <vsomeip/enumeration_types.hpp>
-#include <vsomeip/message_base.hpp>
-#include <vsomeip/deserializer.hpp>
-#include <vsomeip/serializer.hpp>
+#include <vsomeip/factory.hpp>
+#include <vsomeip/message.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/byteorder.hpp>
-#include <vsomeip_internal/config.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
+#include <vsomeip_internal/message_queue.hpp>
+#include <vsomeip_internal/deserializer_impl.hpp>
+#include <vsomeip_internal/serializer_impl.hpp>
 
 using namespace boost::log::trivial;
 
+//#define VSOMEIP_DEVEL
 #define WATCHDOG_TEST
 
 namespace vsomeip {
@@ -39,23 +42,33 @@ namespace vsomeip {
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
 application_impl::application_impl(const std::string &_name)
-	: id_(0),
-	  name_(_name),
-	  daemon_queue_(service_),
-	  application_queue_(service_),
+	: log_owner(_name),
+	  id_(0),
+	  queue_name_prefix_("/vsomeip-"),
+	  daemon_queue_name_("0"),
+	  daemon_queue_(new message_queue(*this)),
+	  application_queue_(new message_queue(*this)),
 	  watchdog_timer_(service_) {
+
+	serializer_ = new serializer_impl;
+	serializer_->create_data(
+					VSOMEIP_MAX_TCP_MESSAGE_SIZE);
+	deserializer_ = new deserializer_impl;
 }
 
 application_impl::~application_impl() {
 }
 
+boost::asio::io_service & application_impl::get_io_service() {
+	return service_;
+}
+
 void application_impl::init(int _options_count, char **_options) {
-	static boost::atomic<uint32_t> queue_id(1);
+	static boost::atomic< uint32_t  > queue_id(1);
 
 	// configure application message queue name (use thread id)
 	std::stringstream message_queue_id_stream;
 	message_queue_id_stream
-		<< "/vsomeip-"
 		<< (int)boost_ext::process::process_id()
 		<< "."
 		<< queue_id;
@@ -65,30 +78,48 @@ void application_impl::init(int _options_count, char **_options) {
 
 	queue_id++;
 
-	configuration * vsomeip_configuration = configuration::get_instance();
-	vsomeip_configuration->init(_options_count, _options);
+	configuration::init(_options_count, _options);
+	configuration * vsomeip_configuration = configuration::request(name_);
 
-	if (vsomeip_configuration->use_console_logger())
-		enable_console();
+	configure_logging(
+		vsomeip_configuration->use_console_logger(),
+		vsomeip_configuration->use_file_logger(),
+		vsomeip_configuration->use_dlt_logger()
+	);
 
-	if (vsomeip_configuration->use_file_logger())
-		enable_file(name_);
-
-	set_id(application_queue_name_.substr(9));
+	set_channel(application_queue_name_);
 	set_loglevel(vsomeip_configuration->get_loglevel());
 
-	BOOST_LOG_SEV(logger_, debug)
-		<< "Application uses queue " << application_queue_name_;
+	queues_[daemon_queue_name_] = daemon_queue_.get();
+	queues_[application_queue_name_] = application_queue_.get();
+
+	VSOMEIP_DEBUG
+		<< "Application uses queue " << queue_name_prefix_ << application_queue_name_;
 }
 
 void application_impl::start() {
-	// Number of slots the message queue provides
-	int message_queue_slots = 100; // TODO: read number of slots from configuration
+	configuration *vsomeip_configuration = configuration::request(name_);
 
-	application_queue_.async_create(
-		application_queue_name_.c_str(),
-		message_queue_slots,
-		VSOMEIP_MAX_TCP_MESSAGE_SIZE, // TODO: add number for protocol overhead
+	// Number of slots the message queue provides
+	receiver_slots_ = vsomeip_configuration->get_receiver_slots();
+
+	VSOMEIP_DEBUG
+		<< "Application " << name_ << " provides "
+		<< receiver_slots_ << " receiver slots";
+
+	daemon_queue_->async_open(
+		queue_name_prefix_ + daemon_queue_name_,
+		boost::bind(
+			&application_impl::open_cbk,
+			this,
+			boost::asio::placeholders::error
+		)
+	);
+
+	application_queue_->async_create(
+		queue_name_prefix_ + application_queue_name_,
+		receiver_slots_,
+		VSOMEIP_QUEUE_SIZE,
 		boost::bind(
 			&application_impl::create_cbk,
 			this,
@@ -99,10 +130,9 @@ void application_impl::start() {
 
 void application_impl::stop() {
 	send_deregister_application();
-	application_queue_.async_close(
-		application_queue_name_.c_str(),
+	application_queue_->async_close(
 		boost::bind(
-			&application_impl::destroy_cbk,
+			&application_impl::close_cbk,
 			this,
 			boost::asio::placeholders::error
 		)
@@ -123,69 +153,298 @@ std::size_t application_impl::run() {
 
 bool application_impl::request_service(
 			service_id _service, instance_id _instance,
-			const endpoint *_location) const {
-	return false;
+			const endpoint *_location) {
+	if (_location) {
+		auto find_service = requested_.find(_service);
+		if (find_service != requested_.end()) {
+			auto find_location = find_service->second.find(_instance);
+			if (find_location != find_service->second.end()) {
+				if (find_location->second.first != _location) {
+					if (id_ != 0) {
+						send_service_command(
+							command_enum::RELEASE_SERVICE,
+							_service,
+							_instance,
+							find_location->second.first
+						);
+					}
+					find_location->second = std::make_pair(_location, daemon_queue_.get());
+				}
+			} else {
+				find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
+			}
+		} else {
+			requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+		}
+
+		if (id_ != 0) {
+			send_service_command(
+				command_enum::REQUEST_SERVICE,
+				_service,
+				_instance,
+				_location
+			);
+		}
+		return true;
+	} else {
+		VSOMEIP_DEBUG
+			<< "Specification of communication endpoint is missing.";
+		return false;
+	}
 }
 
 bool application_impl::release_service(
-			service_id _service, instance_id _instance) const {
-	return false;
+			service_id _service, instance_id _instance) {
+
+	auto find_service = requested_.find(_service);
+	if (find_service != requested_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			if (id_ != 0) {
+				send_service_command(
+					command_enum::RELEASE_SERVICE,
+					_service,
+					_instance,
+					find_instance->second.first
+				);
+			}
+			find_service->second.erase(_instance);
+		}
+	}
+
+	return true;
 }
 
 bool application_impl::provide_service(
 	service_id _service, instance_id _instance,
-	const endpoint *_location) const {
+	const endpoint *_location) {
+
+	if (_location) {
+		provided_[_service][_instance].insert(_location);
+
+		if (id_ != 0) {
+			send_service_command(
+				command_enum::REGISTER_SERVICE,
+				_service,
+				_instance,
+				_location
+			);
+		}
+	} else {
+		VSOMEIP_DEBUG
+			<< "Specification of communication endpoint is missing.";
+	}
+	return true;
+}
+
+bool application_impl::withdraw_service(
+	service_id _service, instance_id _instance,
+	const endpoint *_location) {
+
+	if (_location) {
+		provided_[_service][_instance].erase(_location);
+		if (provided_[_service][_instance].size() == 0)
+			provided_[_service].erase(_instance);
+	} else {
+		provided_[_service].erase(_instance);
+	}
+
+	if (provided_[_service].size() == 0)
+		provided_.erase(_service);
+
+	if (id_ != 0) {
+		send_service_command(
+			command_enum::DEREGISTER_SERVICE,
+			_service,
+			_instance,
+			_location
+		);
+	}
+
 	return true;
 }
 
 bool application_impl::start_service(
-			service_id _service, instance_id _instance) const {
+			service_id _service, instance_id _instance) {
 	return false;
 }
 
 bool application_impl::stop_service(
-			service_id _service, instance_id _instance) const {
+			service_id _service, instance_id _instance) {
 	return false;
 }
 
-bool application_impl::send(message_base *_message, bool _flush) const {
-	uint32_t message_size = VSOMEIP_STATIC_HEADER_SIZE + _message->get_length();
-
-	// TODO: check message length based on target endpoint
-
-	serializer_->reset();
-	bool is_successful(serializer_->serialize(_message));
-	if (!is_successful) {
+bool application_impl::send(message_base *_message, bool _flush) {
+	if (0 == _message) {
+		VSOMEIP_DEBUG << "application::send: called without message object";
 		return false;
 	}
 
-	// TODO: transmit data to daemon
+	const endpoint *source = _message->get_source();
+	const endpoint *target = _message->get_target();
+
+	uint32_t message_size =
+			VSOMEIP_STATIC_HEADER_SIZE
+			+ _message->get_length()
+			+ 2 * VSOMEIP_MAX_ENDPOINT_SIZE
+			+ VSOMEIP_PROTOCOL_OVERHEAD;
+
+	message_queue *target_queue = find_target_queue(_message->get_sender_id());
+	if (0 == target_queue) {
+		target_queue = find_target_queue(_message->get_service_id(), target);
+		if (0 == target_queue)
+			target_queue = daemon_queue_.get();
+	}
+
+	bool is_successful(serializer_->serialize(_message));
+	if (!is_successful) {
+		VSOMEIP_ERROR << "application::send: message serialization failed!";
+		return false;
+	}
+
+	std::vector< uint8_t > message_data(message_size);
+
+	std::memcpy(&message_data[0], &VSOMEIP_START_TAG, sizeof(VSOMEIP_START_TAG));
+	std::memcpy(&message_data[4], &id_, sizeof(id_));
+	message_data[8] = static_cast<uint8_t>(command_enum::SOMEIP_MESSAGE);
+
+	message_size = serializer_->get_size();
+	std::memcpy(&message_data[13], serializer_->get_data(), message_size);
+	serializer_->reset();
+
+	// Fill in source / target endpoints
+	uint32_t source_size = 0;
+	if (serializer_->serialize(source)) {
+		source_size = serializer_->get_size();
+		std::memcpy(&message_data[17+message_size], serializer_->get_data(), serializer_->get_size());
+	}
+	std::memcpy(&message_data[13+message_size], &source_size, sizeof(source_size));
+	serializer_->reset();
+
+	uint32_t target_size = 0;
+	if (serializer_->serialize(target)) {
+		target_size = serializer_->get_size();
+		std::memcpy(&message_data[21+message_size+source_size], serializer_->get_data(), serializer_->get_size());
+	}
+	std::memcpy(&message_data[17+message_size+source_size], &target_size, sizeof(target_size));
+	serializer_->reset();
+
+	message_size += (source_size + target_size + 8);
+	std::memcpy(&message_data[9], &message_size, sizeof(message_size));
+
+	message_size += VSOMEIP_PROTOCOL_OVERHEAD;
+	message_data.resize(message_size);
+	std::memcpy(&message_data[message_size - 4], &VSOMEIP_END_TAG, sizeof(VSOMEIP_END_TAG));
+
+	send_buffers_.push_back(message_data);
+	std::vector< uint8_t >& current_message = send_buffers_.back();
+
+	target_queue->async_send(
+		current_message.data(),
+		current_message.size(),
+		0,
+		boost::bind(
+			&application_impl::send_cbk,
+			this,
+			boost::asio::placeholders::error
+		)
+	);
+
 	return true;
 }
 
+void application_impl::register_cbk(
+		service_id _service, method_id _method, receive_cbk_t _cbk) {
+
+	receive_cbks_[_service][_method].insert(_cbk);
+
+	if (0 != id_) {
+		send_callback_command(command_enum::REGISTER_METHOD, _service, _method, _cbk);
+	}
+}
+
+void application_impl::deregister_cbk(
+	service_id _service, method_id _method, receive_cbk_t _cbk) {
+
+	service_filter_map::iterator found_service = receive_cbks_.find(_service);
+	if (found_service != receive_cbks_.end()) {
+		method_filter_map::iterator found_method = found_service->second.find(_method);
+		if (found_method != found_service->second.end()) {
+			found_method->second.erase(_cbk);
+			if (0 == found_method->second.size())
+				found_service->second.erase(found_method);
+			if (0 == found_service->second.size())
+				receive_cbks_.erase(found_service);
+		}
+	}
+
+	if (0 != id_) {
+		send_callback_command(command_enum::DEREGISTER_METHOD, _service, _method, _cbk);
+	}
+}
+
 void application_impl::enable_magic_cookies(
-			service_id _service, instance_id _instance) const {
+			service_id _service, instance_id _instance) {
 }
 
 void application_impl::disable_magic_cookies(
-			service_id _service, instance_id _instance) const {
-}
-
-void application_impl::enable_watchdog() {
-}
-
-void application_impl::disable_watchdog() {
+			service_id _service, instance_id _instance) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Internal
 ///////////////////////////////////////////////////////////////////////////////
-void application_impl::do_send(const std::vector<uint8_t> &_data) {
+message_queue * application_impl::find_target_queue(service_id _service, const endpoint *_location) const {
+	message_queue *requested_queue = 0;
+
+	// TODO: find a way to optimize this
+	auto find_service = requested_.find(_service);
+	if (find_service != requested_.end()) {
+		for (auto i : find_service->second) {
+			if (i.second.first == _location) {
+				requested_queue = i.second.second.get();
+				break;
+			}
+		}
+	}
+
+	return requested_queue;
+}
+
+message_queue * application_impl::find_target_queue(application_id _id) {
+	message_queue *requested_queue = 0;
+	auto found_queue_name = other_queue_names_.find(_id);
+	if (found_queue_name != other_queue_names_.end()) {
+		auto found_queue = queues_.find(found_queue_name->second);
+		if (found_queue != queues_.end()) {
+			requested_queue = found_queue->second;
+		} else {
+			requested_queue = new message_queue(*this);
+			queues_[found_queue_name->second] = requested_queue;
+			requested_queue->async_open(
+				queue_name_prefix_ + found_queue_name->second,
+				boost::bind(
+					&application_impl::response_cbk,
+					this,
+					boost::asio::placeholders::error,
+					requested_queue
+				)
+			);
+		}
+	}
+
+	return requested_queue;
+}
+
+
+void application_impl::do_send(const std::vector< uint8_t > &_data) {
 	send_buffers_.push_back(_data);
 	std::vector< uint8_t >& current_buffer = send_buffers_.back();
 
-	daemon_queue_.async_send(
-		current_buffer.data(), current_buffer.size(), 0,
+	daemon_queue_->async_send(
+		current_buffer.data(),
+		current_buffer.size(),
+		0,
 		boost::bind(
 			&application_impl::send_cbk,
 			this,
@@ -195,7 +454,7 @@ void application_impl::do_send(const std::vector<uint8_t> &_data) {
 }
 
 void application_impl::do_receive() {
-	application_queue_.async_receive(
+	application_queue_->async_receive(
 		receive_buffer_,
 		sizeof(receive_buffer_),
 		boost::bind(
@@ -209,15 +468,15 @@ void application_impl::do_receive() {
 }
 
 void application_impl::send_register_application() {
-	std::vector<uint8_t> registration;
+	std::vector< uint8_t > registration;
 
 	// Resize to the needed size
 	uint32_t payload_size = application_queue_name_.size();
-	registration.resize(payload_size + 17);
+	registration.resize(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
 
 	std::memcpy(&registration[0], &VSOMEIP_START_TAG, sizeof(VSOMEIP_START_TAG));
 	std::memset(&registration[4], 0, 4); // application id not yet known...
-	registration[8] = static_cast<uint8_t>(command_enum::REGISTER_APPLICATION);
+	registration[8] = static_cast< uint8_t >(command_enum::REGISTER_APPLICATION);
 	std::memcpy(&registration[9], &payload_size, sizeof(payload_size));
 	std::copy(application_queue_name_.begin(), application_queue_name_.end(), registration.begin() + 13);
 	std::memcpy(&registration[payload_size + 13], &VSOMEIP_END_TAG, sizeof(VSOMEIP_END_TAG));
@@ -230,7 +489,7 @@ void application_impl::send_deregister_application() {
 	uint8_t deregistration_message[] = {
 		0xAB, 0xAB, 0xAB, 0xAB,
 		0x00, 0x00, 0x00, 0x00,
-		static_cast<uint8_t>(command_enum::DEREGISTER_APPLICATION),
+		static_cast< uint8_t >(command_enum::DEREGISTER_APPLICATION),
 		0x00, 0x00, 0x00, 0x00,
 		0xBA, 0xBA, 0xBA, 0xBA
 	};
@@ -244,6 +503,266 @@ void application_impl::send_deregister_application() {
 
 	// send
 	do_send(deregistration_buffer);
+}
+
+void application_impl::send_callback_command(
+		command_enum _command,
+		service_id _service, method_id _method, receive_cbk_t _cbk) {
+
+	uint8_t registration_message[] = {
+		0xAB, 0xAB, 0xAB, 0xAB,
+		0x00, 0x00, 0x00, 0x00,
+		static_cast< uint8_t >(_command),
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0xBA, 0xBA, 0xBA, 0xBA
+	};
+
+	uint32_t payload_size = 4;
+
+	std::memcpy(&registration_message[4], &id_, sizeof(id_));
+	std::memcpy(&registration_message[9], &payload_size, sizeof(payload_size));
+	std::memcpy(&registration_message[13], &_service, sizeof(_service));
+	std::memcpy(&registration_message[15], &_method, sizeof(_method));
+
+	std::vector< uint8_t > registration_buffer(
+		registration_message,
+		registration_message + sizeof(registration_message)
+	);
+
+	do_send(registration_buffer);
+}
+
+void application_impl::send_service_command(
+		command_enum _command,
+		service_id _service,
+		instance_id _instance,
+		const endpoint *_location) {
+
+	std::vector< uint8_t > command;
+
+	uint32_t payload_size = 4;
+	if (_location) {
+		serializer_->serialize(reinterpret_cast<const serializable *>(_location));
+		payload_size += serializer_->get_size();
+	}
+
+	command.resize(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
+
+	std::memcpy(&command[0], &VSOMEIP_START_TAG, sizeof(VSOMEIP_START_TAG));
+	std::memcpy(&command[4], &id_, sizeof(id_));
+	command[8] = static_cast<uint8_t>(_command);
+	std::memcpy(&command[9], &payload_size, sizeof(payload_size));
+	std::memcpy(&command[13], &_service, sizeof(_service));
+	std::memcpy(&command[15], &_instance, sizeof(_instance));
+	if (_location)
+		std::memcpy(&command[17], serializer_->get_data(), serializer_->get_size());
+	std::memcpy(&command[payload_size + 13], &VSOMEIP_END_TAG, sizeof(VSOMEIP_END_TAG));
+
+	serializer_->reset();
+
+	do_send(command);
+}
+
+void application_impl::process_early_registrations() {
+	VSOMEIP_DEBUG << "PROCESS EARLY STUFF...";
+
+	for (auto s : receive_cbks_) {
+		for (auto m : s.second) {
+			for (auto c : m.second) {
+				send_callback_command(
+					command_enum::REGISTER_METHOD,
+					s.first,
+					m.first,
+					c);
+			}
+		}
+	}
+
+	for (auto s : provided_) {
+		for (auto i : s.second) {
+			for (auto l : i.second) {
+				send_service_command(
+					command_enum::REGISTER_SERVICE,
+					s.first,
+					i.first,
+					l
+				);
+			}
+		}
+	}
+
+	for (auto s : requested_) {
+		for (auto i : s.second) {
+			send_service_command(
+				command_enum::REQUEST_SERVICE,
+				s.first,
+				i.first,
+				i.second.first
+			);
+		}
+	}
+}
+
+
+void application_impl::on_application_info(const uint8_t *_data, uint32_t _size) {
+	VSOMEIP_DEBUG << "on_application_info";
+
+	uint32_t position = 0;
+	while (position + 4 < _size) {
+		application_id id;
+		std::memcpy(&id, &_data[position], sizeof(id));
+		position += 4;
+
+		VSOMEIP_DEBUG << "Application id = " << id;
+
+		if (position + 4 < _size) {
+			uint32_t queue_name_size;
+			std::memcpy(&queue_name_size, &_data[position], sizeof(queue_name_size));
+			position += 4;
+
+			if (position + queue_name_size <= _size) {
+				std::string queue_name((char *)&_data[position], queue_name_size);
+
+				if (queue_name == application_queue_name_) {
+					if (id_ != 0) {
+						if (id_ != id) {
+							VSOMEIP_ERROR << "Found my (" << id_ << ") queue ("
+								<< queue_name << ") registered for application " << id;
+						}
+					} else {
+						id_ = id;
+					}
+				} else {
+					VSOMEIP_DEBUG << "Found queue " << queue_name << " for application " << id;
+					other_queue_names_[id] = queue_name;
+				}
+				position += queue_name_size;
+			}
+		} else {
+			VSOMEIP_ERROR << "Message contains illegal queue name.";
+			return;
+		}
+	}
+}
+
+void application_impl::on_application_lost(const uint8_t *_data, uint32_t _size) {
+	uint32_t position = 0;
+	while (position + 4 <= _size) {
+		application_id id;
+		std::memcpy(&id, &_data[position], sizeof(id));
+		position += 4;
+
+		if (id == id_) {
+			VSOMEIP_ERROR << "Daemon reports me as gone lost.";
+		} else {
+			other_queue_names_.erase(id);
+		}
+	}
+}
+
+void application_impl::on_request_service_ack(service_id _service, instance_id _instance, const std::string &_queue_name) {
+	auto find_queue = queues_.find(_queue_name);
+	if (find_queue != queues_.end()) {
+		auto find_service = requested_.find(_service);
+		if (find_service != requested_.end()) {
+			auto find_instance = find_service->second.find(_instance);
+			if (find_instance != find_service->second.end()) {
+				find_instance->second.second.reset(find_queue->second);
+			}
+		}
+	} else {
+		message_queue *queue = new message_queue(*this);
+		queues_[_queue_name] = queue;
+		queue->async_open(
+			queue_name_prefix_ + _queue_name,
+			boost::bind(
+				&application_impl::request_cbk,
+				this,
+				boost::asio::placeholders::error,
+				_service,
+				_instance,
+				queue
+			)
+		);
+	}
+}
+
+void application_impl::on_message(application_id _id, const uint8_t *_data, uint32_t _size) {
+	if (_size < 8) {
+		return;
+	}
+
+	// deserialize the message
+	uint32_t message_size = VSOMEIP_BYTES_TO_LONG(
+								_data[4], _data[5], _data[6], _data[7]);
+
+	deserializer_->set_data(_data, message_size + VSOMEIP_STATIC_HEADER_SIZE);
+	message_base *the_message = deserializer_->deserialize_message();
+	deserializer_->reset();
+
+	if (0 == the_message) {
+		return;
+	}
+
+	// set source application id
+	the_message->set_sender_id(_id);
+
+	// deserialize source and target endpoints
+	std::size_t source_index = message_size + VSOMEIP_STATIC_HEADER_SIZE;
+	if (source_index + 4 > _size) {
+		return;
+	}
+
+	uint32_t source_size;
+	std::memcpy(&source_size, &_data[source_index], sizeof(source_size));
+
+	std::size_t target_index = source_index + source_size + 4;
+	if (target_index + 4 > _size) {
+		return;
+	}
+
+	uint32_t target_size;
+	std::memcpy(&target_size, &_data[target_index], sizeof(target_size));
+
+	if (target_index + 4 + target_size > _size) {
+		return;
+	}
+
+	const endpoint *source = factory::get_instance()->get_endpoint(&_data[source_index+4], source_size);
+	const endpoint *target = factory::get_instance()->get_endpoint(&_data[target_index+4], target_size);
+
+	the_message->set_source(source);
+	the_message->set_target(target);
+
+	// forward to registered callbacks
+	service_id service = the_message->get_service_id();
+	service_filter_map::iterator found_service = receive_cbks_.find(service);
+	if (found_service != receive_cbks_.end()) {
+		method_id method = the_message->get_method_id();
+		method_filter_map::iterator found_method = found_service->second.find(method);
+		if (found_method != found_service->second.end()) {
+			std::for_each(
+				found_method->second.begin(),
+				found_method->second.end(),
+				[the_message](receive_cbk_t _func) {
+					_func(the_message);
+				}
+			);
+		} else {
+			VSOMEIP_DEBUG << "Method not found";
+			message_type_enum message_type = the_message->get_message_type();
+			if (message_type < message_type_enum::RESPONSE) {
+				//send_error_message(the_message, return_code_enum::UNKNOWN_METHOD);
+			}
+		}
+	} else {
+		VSOMEIP_DEBUG << "Service not found";
+		message_type_enum message_type = the_message->get_message_type();
+		if (message_type < message_type_enum::RESPONSE) {
+			//send_error_message(the_message, return_code_enum::UNKNOWN_SERVICE);
+		}
+	}
 }
 
 void application_impl::send_pong() {
@@ -275,48 +794,77 @@ void application_impl::send_pong() {
 
 void application_impl::process_message(std::size_t _bytes) {
 	if (_bytes < VSOMEIP_PROTOCOL_OVERHEAD) {
-		BOOST_LOG_SEV(logger_, error)
-			<< "Message too short (< " << VSOMEIP_PROTOCOL_OVERHEAD << " bytes)";
+		VSOMEIP_ERROR << "Message too short (< " << VSOMEIP_PROTOCOL_OVERHEAD << " bytes)";
 		return;
 	}
 
 	uint32_t start_tag, end_tag, payload_size;
+	application_id an_application;
+	service_id a_service;
+	instance_id an_instance;
 	command_enum command;
+
+#ifdef VSOMEIP_DEVEL
+		for (std::size_t i = 0; i < _bytes; ++i) {
+			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)receive_buffer_[i] << " ";
+		}
+		std::cout << std::endl;
+#endif
 
 	std::memcpy(&start_tag, &receive_buffer_[0], sizeof(start_tag));
 	std::memcpy(&end_tag, &receive_buffer_[_bytes-sizeof(start_tag)], sizeof(start_tag));
 	std::memcpy(&payload_size, &receive_buffer_[9], sizeof(payload_size));
+	std::memcpy(&an_application, &receive_buffer_[4], sizeof(an_application));
 	command = static_cast<command_enum>(receive_buffer_[8]);
 
 	if (start_tag == VSOMEIP_START_TAG && end_tag == VSOMEIP_END_TAG) {
 		if (_bytes == payload_size + VSOMEIP_PROTOCOL_OVERHEAD) {
 
 			switch (command) {
-			case command_enum::REGISTER_APPLICATION_ACK:
-				std::memcpy(&id_, &receive_buffer_[4], 4);
+			case command_enum::APPLICATION_INFO:
+				on_application_info(&receive_buffer_[13], payload_size);
+				process_early_registrations();
+				break;
+
+			case command_enum::APPLICATION_LOST:
+				on_application_lost(&receive_buffer_[13], payload_size);
+				break;
+
+			case command_enum::REQUEST_SERVICE_ACK:
+				{
+					std::memcpy(&a_service, &receive_buffer_[13], sizeof(a_service));
+					std::memcpy(&an_instance, &receive_buffer_[15], sizeof(an_instance));
+					std::string queue_name((char*) &receive_buffer_[17], payload_size - 4);
+					on_request_service_ack(a_service, an_instance, queue_name);
+				}
 				break;
 
 			case command_enum::PING:
-				BOOST_LOG_SEV(logger_, debug)
-					<< "Application " << id_ << " received PING from Daemon";
 				send_pong();
 				break;
 
+			case command_enum::SOMEIP_MESSAGE:
+				on_message(an_application, &receive_buffer_[13], payload_size);
+				break;
+
 			default:
-				BOOST_LOG_SEV(logger_, error)
-					<< "Message contains illegal command " << (int)command;
+				VSOMEIP_ERROR << "Message contains illegal command " << (int)command;
 				break;
 			}
 
 		} else {
-			BOOST_LOG_SEV(logger_, error)
+			VSOMEIP_ERROR
 				<< "Message has incorrect size ("
 				<< _bytes << "/" << payload_size + VSOMEIP_PROTOCOL_OVERHEAD << ")";
 		}
 	} else {
-		BOOST_LOG_SEV(logger_, error)
-			<< "Message is not correctly tagged";
+		VSOMEIP_ERROR << "Message is not correctly tagged";
 	}
+}
+
+void application_impl::remove_queue(const std::string &_name) {
+	VSOMEIP_ERROR << "Removing queue " << _name;
+	queues_.erase(_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -328,8 +876,8 @@ void application_impl::open_cbk(boost::system::error_code const &_error) {
 		do_receive();
 	} else {
 		// TODO: define maximum number of retries
-		daemon_queue_.async_open(
-			"/vsomeip-0",
+		daemon_queue_->async_open(
+			queue_name_prefix_ + daemon_queue_name_,
 			boost::bind(
 				&application_impl::open_cbk,
 				this,
@@ -341,32 +889,21 @@ void application_impl::open_cbk(boost::system::error_code const &_error) {
 
 void application_impl::create_cbk(
 		boost::system::error_code const &_error) {
-	if (!_error) {
-		// configure daemon message queue
-		daemon_queue_.async_open(
-			"/vsomeip-0",
-			boost::bind(
-				&application_impl::open_cbk,
-				this,
-				boost::asio::placeholders::error
-			)
-		);
-	} else {
+	if (_error) {
 		// Try destroying before creating
-		application_queue_.async_close(
-			application_queue_name_.c_str(),
+		application_queue_->async_close(
 			boost::bind(
-				&application_impl::destroy_cbk,
+				&application_impl::close_cbk,
 				this,
 				boost::asio::placeholders::error
 			)
 		);
 
 		// TODO: define maximum number of retries
-		application_queue_.async_create(
-			application_queue_name_.c_str(),
-			10,
-			100,
+		application_queue_->async_create(
+			queue_name_prefix_ + application_queue_name_,
+			receiver_slots_,
+			VSOMEIP_QUEUE_SIZE,
 			boost::bind(
 				&application_impl::create_cbk,
 				this,
@@ -376,9 +913,11 @@ void application_impl::create_cbk(
 	}
 }
 
-void application_impl::destroy_cbk(
+void application_impl::close_cbk(
 		boost::system::error_code const &_error) {
-
+	if (!_error) {
+		id_ = 0;
+	}
 }
 
 void application_impl::send_cbk(
@@ -386,8 +925,7 @@ void application_impl::send_cbk(
 	if (!_error) {
 		send_buffers_.pop_front();
 	} else {
-		BOOST_LOG_SEV(logger_, error)
-			<< "Sending to daemon failed";
+		VSOMEIP_ERROR << "Sending to daemon failed (" << _error.message() << ")";
 	}
 }
 
@@ -397,11 +935,63 @@ void application_impl::receive_cbk(
 	if (!_error && _bytes) {
 		process_message(_bytes);
 	} else {
-		BOOST_LOG_SEV(logger_, error)
-			<< "Received error message (" << _bytes << " bytes)";
+		VSOMEIP_ERROR << "Received error message (" << _bytes << " bytes)";
 	}
 
 	do_receive();
+}
+
+void application_impl::request_cbk(
+		boost::system::error_code const &_error,
+		service_id _service, instance_id _instance,
+		message_queue *_queue) {
+
+	if (!_error) {
+		VSOMEIP_DEBUG
+			<< "APPLICATION " << id_ << " opened queue for service ("
+			<< std::hex << std::setw(4) << std::setfill('0')
+			<< _service << " " << _instance << ")";
+
+		auto find_service = requested_.find(_service);
+		if (find_service != requested_.end()) {
+			auto find_instance = find_service->second.find(_instance);
+			if (find_instance != find_service->second.end()) {
+				find_instance->second.second.reset(_queue);
+			} else {
+				VSOMEIP_ERROR << "Could not find service instance for opened queue!"
+					<< std::hex << _service << "." << _instance << ")";
+			}
+		} else {
+			VSOMEIP_ERROR << "Could not find service for opened queue! ("
+				<< std::hex << _service << ")";
+		}
+	} else {
+		VSOMEIP_ERROR << "Request error. Could not open queue of providing application.";
+	}
+}
+
+void application_impl::response_cbk(
+		boost::system::error_code const &_error,
+		message_queue *_queue) {
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Helper function to automate queue handling
+///////////////////////////////////////////////////////////////////////////////
+void intrusive_ptr_add_ref(vsomeip::message_queue *_queue) {
+	if (_queue) {
+		_queue->add_ref();
+	}
+}
+
+void intrusive_ptr_release(vsomeip::message_queue *_queue) {
+	if (_queue) {
+		_queue->release();
+		if (0 == _queue->get_ref()) {
+			_queue->get_application().remove_queue(_queue->get_name());
+			delete _queue;
+		}
+	}
 }
 
 } // namespace vsomeip

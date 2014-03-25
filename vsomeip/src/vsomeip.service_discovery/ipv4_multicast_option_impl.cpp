@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -22,7 +22,7 @@ ipv4_multicast_option_impl::ipv4_multicast_option_impl() {
 	type_ = option_type::IP4_MULTICAST;
 	address_ = 0;
 	port_ = 0;
-	protocol_ = transport_protocol::UDP;
+	protocol_ = ip_protocol::UDP;
 }
 
 ipv4_multicast_option_impl::~ipv4_multicast_option_impl() {
@@ -33,13 +33,13 @@ bool ipv4_multicast_option_impl::operator ==(const option &_other) const {
 		return false;
 
 	const ipv4_multicast_option_impl& other =
-			reinterpret_cast<const ipv4_multicast_option_impl&>(_other);
+			dynamic_cast< const ipv4_multicast_option_impl & >(_other);
 
 	return (address_ == other.address_ && port_ == other.port_
 			&& protocol_ == other.protocol_);
 }
 
-void ipv4_multicast_option_impl::set_protocol(transport_protocol _protocol) {
+void ipv4_multicast_option_impl::set_protocol(ip_protocol _protocol) {
 	// intentionally left empty
 }
 

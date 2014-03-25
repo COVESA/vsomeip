@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 #include <vsomeip_internal/constants.hpp>
@@ -14,20 +14,38 @@
 
 namespace vsomeip {
 
-message_base_impl::message_base_impl() {
+message_base_impl::message_base_impl()
+	: sender_id_(0),
+	  source_(0),
+	  target_(0) {
 	header_.set_owner(this);
 }
 
 message_base_impl::~message_base_impl() {
 };
 
-// endpoint (sender when receiving, receiver when sending messages)
-endpoint * message_base_impl::get_endpoint() const {
-	return endpoint_;
+application_id message_base_impl::get_sender_id() const {
+	return sender_id_;
 }
 
-void message_base_impl::set_endpoint(endpoint *_endpoint) {
-	endpoint_ = _endpoint;
+void message_base_impl::set_sender_id(application_id _sender_id) {
+	sender_id_ = _sender_id;
+}
+
+const endpoint * message_base_impl::get_source() const {
+	return source_;
+}
+
+void message_base_impl::set_source(const endpoint *_source) {
+	source_ = _source;
+}
+
+const endpoint * message_base_impl::get_target() const {
+	return target_;
+}
+
+void message_base_impl::set_target(const endpoint *_target) {
+	target_ = _target;
 }
 
 // header interface
@@ -97,19 +115,19 @@ void message_base_impl::set_interface_version(protocol_version _id) {
 	header_.interface_version_ = _id;
 }
 
-message_type message_base_impl::get_message_type() const {
+message_type_enum message_base_impl::get_message_type() const {
 	return header_.message_type_;
 }
 
-void message_base_impl::set_message_type(message_type _type) {
+void message_base_impl::set_message_type(message_type_enum _type) {
 	header_.message_type_ = _type;
 }
 
-return_code message_base_impl::get_return_code() const {
+return_code_enum message_base_impl::get_return_code() const {
 	return header_.return_code_;
 }
 
-void message_base_impl::set_return_code(return_code _code) {
+void message_base_impl::set_return_code(return_code_enum _code) {
 	header_.return_code_ = _code;
 }
 

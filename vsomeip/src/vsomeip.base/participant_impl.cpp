@@ -9,47 +9,60 @@
 // All rights reserved.
 //
 
+#include <vsomeip/config.hpp>
+#include <vsomeip/factory.hpp>
 #include <vsomeip_internal/byteorder.hpp>
-#include <vsomeip_internal/config.hpp>
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/participant_impl.hpp>
+#include <vsomeip_internal/managing_application.hpp>
 
 namespace vsomeip {
 
-template <int MaxBufferSize>
-participant_impl<MaxBufferSize>::participant_impl(boost::asio::io_service &_service)
-	: service_(_service),
+template < int MaxBufferSize >
+participant_impl< MaxBufferSize >::participant_impl(managing_application *_owner, const endpoint *_location)
+	: owner_(_owner),
+	  location_(_location),
+	  service_(_owner->get_io_service()),
 	  is_supporting_magic_cookies_(false),
-	  has_enabled_magic_cookies_(false)
-{}
-
-template <int MaxBufferSize>
-participant_impl<MaxBufferSize>::~participant_impl() {
+	  has_enabled_magic_cookies_(false) {
 }
 
-template <int MaxBufferSize>
-void participant_impl<MaxBufferSize>::register_for(
-		service_id _service_id, method_id _method_id) {
-
+template < int MaxBufferSize >
+participant_impl< MaxBufferSize >::~participant_impl() {
 }
 
-template <int MaxBufferSize>
-void participant_impl<MaxBufferSize>::unregister_for(
-		service_id _service_id, method_id _method_id) {
+template < int MaxBufferSize >
+void participant_impl< MaxBufferSize >::open_filter(service_id _service) {
+	auto find_service = opened_.find(_service);
+	if (find_service != opened_.end()) {
+		find_service->second++;
+	} else {
+		opened_[_service] = 1;
+	}
 }
 
-template <int MaxBufferSize>
-void participant_impl<MaxBufferSize>::enable_magic_cookies() {
+template < int MaxBufferSize >
+void participant_impl< MaxBufferSize >::close_filter(service_id _service) {
+	auto find_service = opened_.find(_service);
+	if (find_service != opened_.end()) {
+		find_service->second--;
+		if (0 == find_service->second)
+			opened_.erase(_service);
+	}
+}
+
+template < int MaxBufferSize >
+void participant_impl< MaxBufferSize >::enable_magic_cookies() {
 	has_enabled_magic_cookies_ = (true && is_supporting_magic_cookies_);
 }
 
-template <int MaxBufferSize>
-void participant_impl<MaxBufferSize>::disable_magic_cookies() {
+template < int MaxBufferSize >
+void participant_impl< MaxBufferSize >::disable_magic_cookies() {
 	has_enabled_magic_cookies_ = (false && is_supporting_magic_cookies_);
 }
 
-template <int MaxBufferSize>
-uint32_t participant_impl<MaxBufferSize>::get_message_size() const {
+template < int MaxBufferSize >
+uint32_t participant_impl< MaxBufferSize >::get_message_size() const {
 	if (message_.size() < VSOMEIP_STATIC_HEADER_SIZE)
 			return 0;
 
@@ -58,49 +71,47 @@ uint32_t participant_impl<MaxBufferSize>::get_message_size() const {
 				message_[4], message_[5], message_[6], message_[7]);
 }
 
-template <int MaxBufferSize>
-void participant_impl<MaxBufferSize>::receive_cbk(
+template < int MaxBufferSize >
+void participant_impl< MaxBufferSize >::receive_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
+
+	static uint32_t message_counter = 0;
 
 	if (!_error && 0 < _bytes) {
 		#ifdef USE_VSOMEIP_STATISTICS
 		statistics_.received_bytes_ += _bytes;
 		#endif
 
-		// assemble
-		message_.insert(message_.end(), get_buffer(), get_buffer()+_bytes);
+		const uint8_t *buffer = get_buffer();
+		message_.insert(message_.end(), buffer, buffer + _bytes);
 
-		bool has_forwarded = true;
+		bool has_full_message;
 		do {
-			uint32_t message_size = get_message_size();
-			if (message_.size() >= message_size) {
-				if (is_magic_cookie()) {
-					// TODO: log message "Magic Cookie dropped. Already synced."
-				} else {
-					// TODO: forward message to application(s)
-					//forward_message(message_size);
-				}
+			uint32_t current_message_size = get_message_size();
+			has_full_message = (current_message_size > 0 && current_message_size <= message_.size());
+			if (has_full_message) {
+				endpoint *sender = factory::get_instance()->get_endpoint(
+					get_remote_address(), get_remote_port(), get_protocol()
+				);
 
-				// shift buffer
-				message_.erase(message_.begin(), message_.begin() + message_size);
-			} else {
-				has_forwarded = false;
+				owner_->receive(&message_[0], current_message_size, sender, location_);
+				message_.erase(message_.begin(), message_.begin() + current_message_size);
 			}
-		} while (has_forwarded);
+		} while (has_full_message);
 
-		//restart();
+		restart();
 	} else {
 		receive();
 	}
 }
 
-template <int MaxBufferSize>
-bool participant_impl<MaxBufferSize>::is_magic_cookie() const {
+template < int MaxBufferSize >
+bool participant_impl< MaxBufferSize >::is_magic_cookie() const {
 	return false;
 }
 
-template <int MaxBufferSize>
-bool participant_impl<MaxBufferSize>::resync_on_magic_cookie() {
+template < int MaxBufferSize >
+bool participant_impl< MaxBufferSize >::resync_on_magic_cookie() {
 	bool is_resynced = false;
 	if (has_enabled_magic_cookies_) {
 		uint32_t offset = 0xFFFFFFFF;
@@ -158,8 +169,8 @@ bool participant_impl<MaxBufferSize>::resync_on_magic_cookie() {
 }
 
 // Instatiate template
-template class participant_impl<VSOMEIP_MAX_TCP_MESSAGE_SIZE>;
-template class participant_impl<VSOMEIP_MAX_UDP_MESSAGE_SIZE>;
+template class participant_impl< VSOMEIP_MAX_TCP_MESSAGE_SIZE >;
+template class participant_impl< VSOMEIP_MAX_UDP_MESSAGE_SIZE >;
 
 } // namespace vsomeip
 

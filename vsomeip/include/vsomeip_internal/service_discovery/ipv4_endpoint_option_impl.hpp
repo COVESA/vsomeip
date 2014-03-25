@@ -31,8 +31,8 @@ public:
 	ip_port get_port() const;
 	void set_port(ip_port _port);
 
-	transport_protocol get_protocol() const;
-	void set_protocol(transport_protocol _protocol);
+	ip_protocol get_protocol() const;
+	void set_protocol(ip_protocol _protocol);
 
 	bool serialize(vsomeip::serializer *_to) const;
 	bool deserialize(vsomeip::deserializer *_from);
@@ -40,7 +40,7 @@ public:
 protected:
 	ipv4_address address_;
 	ip_port port_;
-	transport_protocol protocol_;
+	ip_protocol protocol_;
 };
 
 } // namespace service_discovery

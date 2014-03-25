@@ -22,45 +22,46 @@
 
 namespace vsomeip {
 
-template <typename Protocol, int MaxBufferSize>
+template < typename Protocol, int MaxBufferSize >
 class service_impl
 		: virtual public service,
-		  public participant_impl<MaxBufferSize> {
+		  public participant_impl< MaxBufferSize > {
 public:
-	service_impl(boost::asio::io_service &_service);
+	service_impl(managing_application *_owner, const endpoint *_location);
 
 	bool is_client() const;
 
-	bool send(const uint8_t *_data, uint32_t _size, endpoint *_target, bool _flush);
-	bool flush(endpoint *_target);
+	bool send(const uint8_t *_data, uint32_t _size, const endpoint *_target, bool _flush);
+	bool flush(const endpoint *_target);
 
 	typedef typename Protocol::socket socket_type;
 	typedef typename Protocol::endpoint endpoint_type;
-	typedef boost::array<uint8_t, MaxBufferSize> buffer_type;
+	typedef boost::array< uint8_t, MaxBufferSize > buffer_type;
 
 public:
 	void connect_cbk(boost::system::error_code const &_error);
 	void send_cbk(
 			boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(
-			endpoint *_target, const boost::system::error_code &_error);
-	void receive_cbk(
-			boost::system::error_code const &_error, std::size_t _bytes);
+			const endpoint *_target, const boost::system::error_code &_error);
 
 public:
 	virtual void send_queued() = 0;
 
 protected:
-	std::map<endpoint *,
-			 std::deque<std::vector<uint8_t>>> packet_queues_;
+	std::map< const endpoint *,
+			  std::deque< std::vector< uint8_t > > > packet_queues_;
 
-	std::map<endpoint *,
-			 std::deque<std::vector<uint8_t>>>::iterator current_queue_;
+	std::map< const endpoint *,
+			  std::deque< std::vector< uint8_t > > >::iterator current_queue_;
 
-	std::map<endpoint *,
-			 std::vector<uint8_t>> packetizer_;
+	std::map< const endpoint *,
+			  std::vector< uint8_t > > packetizer_;
 
 	boost::asio::system_timer flush_timer_;
+
+private:
+	bool set_next_queue();
 };
 
 } // namespace vsomeip

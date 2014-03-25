@@ -20,6 +20,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/utility/empty_deleter.hpp>
 
+#include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/log_owner.hpp>
 
 namespace logging = boost::log;
@@ -33,13 +34,29 @@ using namespace boost::log::trivial;
 
 namespace vsomeip {
 
-log_owner::log_owner() {
+log_owner::log_owner(const std::string &_name)
+	: name_(_name) {
 	logging::add_common_attributes();
 }
 
-void log_owner::set_id(const std::string &_id) {
-	id_ = _id;
-	logger_.add_attribute("Owner-Id", attributes::constant< std::string >(_id));
+void log_owner::configure_logging(bool _use_console, bool _use_file, bool _use_dlt) {
+	if (_use_console)
+		enable_console();
+
+	if (_use_file)
+		enable_file();
+
+	if (_use_dlt)
+		enable_file();
+
+	if (!_use_console && !_use_file && !_use_dlt) {
+		use_null_logger();
+	}
+}
+
+void log_owner::set_channel(const std::string &_channel) {
+	channel_ = _channel;
+	logger_.add_attribute("Channel", attributes::constant< std::string >(_channel));
 }
 
 void log_owner::set_loglevel(const std::string &_loglevel) {
@@ -80,7 +97,7 @@ void log_owner::enable_console() {
 			&log_owner::filter,
 			this,
 			severity.or_none(),
-			owner_id.or_none()
+			channel.or_none()
 		)
 	);
 	sink->set_formatter(vsomeip_log_format);
@@ -88,7 +105,7 @@ void log_owner::enable_console() {
 	logging::core::get()->add_sink(sink);
 }
 
-void log_owner::enable_file(const std::string &_name) {
+void log_owner::enable_file() {
 	if (file_sink_)
 		return;
 
@@ -98,10 +115,20 @@ void log_owner::enable_file(const std::string &_name) {
 				<< " ["	<< expressions::attr<severity_level>("Severity") << "] "
 				<< expressions::smessage;
 
+	configuration * vsomeip_configuration
+		= configuration::request(name_);
+
 	boost::shared_ptr< sinks::text_ostream_backend > backend
 		= boost::make_shared< sinks::text_ostream_backend >();
 	backend->add_stream(
-		boost::shared_ptr< std::ostream >(new std::ofstream(_name + ".log")));
+		boost::shared_ptr< std::ostream >(
+			new std::ofstream(
+				vsomeip_configuration->get_logfile_path()
+			)
+		)
+	);
+
+	configuration::release(name_);
 
 	file_sink_ = new sink_t(backend);
 	boost::shared_ptr< sink_t > sink(file_sink_);
@@ -111,7 +138,7 @@ void log_owner::enable_file(const std::string &_name) {
 			&log_owner::filter,
 			this,
 			severity.or_none(),
-			owner_id.or_none()
+			channel.or_none()
 		)
 	);
 	sink->set_formatter(vsomeip_log_format);
@@ -125,10 +152,24 @@ void log_owner::enable_dlt() {
 
 bool log_owner::filter(
 		logging::value_ref< severity_level, tag::severity > const &_loglevel,
-		logging::value_ref< std::string, tag::owner_id > const &_id) {
-	return _loglevel >= loglevel_ && _id == id_;
+		logging::value_ref< std::string, tag::channel > const &_channel) {
+	return _channel == channel_ && _loglevel >= loglevel_;
 }
 
+void log_owner::use_null_logger() {
+	boost::shared_ptr< sinks::text_ostream_backend > backend
+		= boost::make_shared< sinks::text_ostream_backend >();
+	backend->add_stream(
+		boost::shared_ptr< std::ostream >(
+			new std::ofstream("/dev/null") // TODO: how to call this on windows
+		)
+	);
+
+	file_sink_ = new sink_t(backend);
+	boost::shared_ptr< sink_t > sink(file_sink_);
+
+	logging::core::get()->add_sink(sink);
+}
 
 } // namespace vsomeip
 

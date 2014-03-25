@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 #include <cstring>
@@ -30,7 +30,7 @@ bool configuration_option_impl::operator ==(const option &_other) const {
 		return false;
 
 	const configuration_option_impl& other
-		= reinterpret_cast<const configuration_option_impl&>(_other);
+		= dynamic_cast< const configuration_option_impl & >(_other);
 
 	return (configuration_ == other.configuration_);
 }

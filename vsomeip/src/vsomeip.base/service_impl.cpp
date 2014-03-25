@@ -13,25 +13,28 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/bind.hpp>
 
-#include <vsomeip_internal/config.hpp>
+#include <vsomeip/config.hpp>
+#include <vsomeip/endpoint.hpp>
+#include <vsomeip_internal/managing_application.hpp>
 #include <vsomeip_internal/service_impl.hpp>
 
 namespace vsomeip {
 
-template <typename Protocol, int MaxBufferSize>
-service_impl<Protocol, MaxBufferSize>::service_impl(boost::asio::io_service &_service)
-	: participant_impl<MaxBufferSize>(_service),
-	  flush_timer_(_service) {
+template < typename Protocol, int MaxBufferSize >
+service_impl< Protocol, MaxBufferSize >::service_impl(managing_application *_owner, const endpoint *_location)
+	: participant_impl<MaxBufferSize>(_owner, _location),
+	  current_queue_(packet_queues_.end()),
+	  flush_timer_(_owner->get_io_service()) {
 }
 
-template <typename Protocol, int MaxBufferSize>
+template < typename Protocol, int MaxBufferSize >
 bool service_impl<Protocol, MaxBufferSize>::is_client() const {
 	return false;
 }
 
-template <typename Protocol, int MaxBufferSize>
-bool service_impl<Protocol, MaxBufferSize>::send(
-		const uint8_t *_data, uint32_t _size, endpoint *_target, bool _flush) {
+template < typename Protocol, int MaxBufferSize >
+bool service_impl< Protocol, MaxBufferSize >::send(
+		const uint8_t *_data, uint32_t _size, const endpoint *_target, bool _flush) {
 
 	if (0 == _target)
 		return false;
@@ -71,18 +74,20 @@ bool service_impl<Protocol, MaxBufferSize>::send(
 		flush_timer_.expires_from_now(
 				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
 		flush_timer_.async_wait(
-						boost::bind(
-							&service_impl<Protocol, MaxBufferSize>::flush_cbk,
-							this,
-							_target,
-							boost::asio::placeholders::error));
+			boost::bind(
+				&service_impl<Protocol, MaxBufferSize>::flush_cbk,
+				this,
+				_target,
+				boost::asio::placeholders::error
+			)
+		);
 	}
 
 	return true;
 }
 
-template <typename Protocol, int MaxBufferSize>
-bool service_impl<Protocol, MaxBufferSize>::flush(endpoint *_target) {
+template < typename Protocol, int MaxBufferSize >
+bool service_impl< Protocol, MaxBufferSize >::flush(const endpoint *_target) {
 	bool is_successful = false;
 	if (_target) {
 		auto i = packetizer_.find(_target);
@@ -113,19 +118,53 @@ bool service_impl<Protocol, MaxBufferSize>::flush(endpoint *_target) {
 	return is_successful;
 }
 
-template <typename Protocol, int MaxBufferSize>
-void service_impl<Protocol, MaxBufferSize>::connect_cbk(
+template < typename Protocol, int MaxBufferSize >
+bool service_impl< Protocol, MaxBufferSize >::set_next_queue() {
+	if (current_queue_->second.empty())
+		current_queue_ = packet_queues_.erase(current_queue_);
+
+	if (packet_queues_.empty())
+		return false;
+
+	if (current_queue_ == packet_queues_.end())
+		current_queue_ = packet_queues_.begin();
+
+	if (!current_queue_->second.empty())
+		return true;
+
+	auto saved_current_queue = current_queue_;
+	do {
+		current_queue_++;
+		if (current_queue_ == packet_queues_.end())
+			current_queue_ = packet_queues_.begin();
+	} while (current_queue_->second.empty() &&
+			 current_queue_ != saved_current_queue);
+
+	return !current_queue_->second.empty();
+}
+
+template < typename Protocol, int MaxBufferSize >
+void service_impl< Protocol, MaxBufferSize >::connect_cbk(
 		boost::system::error_code const &_error) {
 }
 
-template <typename Protocol, int MaxBufferSize>
-void service_impl<Protocol, MaxBufferSize>::send_cbk(
+template < typename Protocol, int MaxBufferSize >
+void service_impl< Protocol, MaxBufferSize >::send_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
+
+	current_queue_->second.pop_front();
+	bool is_message_available(set_next_queue());
+
+    if (!_error) {
+    	if (is_message_available) {
+    		send_queued();
+    	}
+    }
 }
 
-template <typename Protocol, int MaxBufferSize>
-void service_impl<Protocol, MaxBufferSize>::flush_cbk(
-		endpoint *_target, const boost::system::error_code &_error_code) {
+template < typename Protocol, int MaxBufferSize >
+void service_impl< Protocol, MaxBufferSize >::flush_cbk(
+		const endpoint *_target, const boost::system::error_code &_error_code) {
 	if (!_error_code) {
 		(void)flush(_target);
 	}

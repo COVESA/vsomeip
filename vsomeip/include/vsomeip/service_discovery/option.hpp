@@ -18,7 +18,9 @@
 namespace vsomeip {
 namespace service_discovery {
 
-class option : virtual public serializable {
+class option
+	: virtual public serializable,
+	  virtual public deserializable {
 public:
 	virtual ~option() {};
 	virtual bool operator==(const option &_option) const = 0;

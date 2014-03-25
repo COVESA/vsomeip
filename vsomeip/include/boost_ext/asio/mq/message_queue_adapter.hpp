@@ -1,5 +1,5 @@
-#ifndef BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_IMPL
-#define BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_IMPL
+#ifndef BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_ADAPTER_HPP
+#define BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_ADAPTER_HPP
 
 #include <cstddef>
 #include <string>
@@ -13,22 +13,30 @@ namespace boost_ext {
 namespace asio {
 namespace mq {
 
-class message_queue_impl {
+#if defined(LINUX)
+const mqd_t INVALID = -1;
+#elif defined(FREEBSD)
+const mqd_t INVALID(reinterpret_cast< mqd_t >(-1));
+#else
+#error "OS undefined (only Linux and FreeBSD are currently supported)"
+#endif
+
+class message_queue_adapter {
 public:
-    message_queue_impl() : id_(-1) {
+	message_queue_adapter() : id_(INVALID) {
     }
 
-    ~message_queue_impl() {
+    ~message_queue_adapter() {
     }
 
     void create(const std::string &name, std::size_t max_num_msgs, std::size_t max_msg_size, boost::system::error_code &ec) {
         struct mq_attr config;
     	config.mq_maxmsg = max_num_msgs;
     	config.mq_msgsize = max_msg_size;
+    	name_ = name;
 
        	id_ = mq_open(name.c_str(), O_CREAT|O_RDWR, S_IRWXU|S_IRWXG, &config);
-
-       	if (id_ > -1) {
+       	if (id_ != INVALID) {
        		ec = boost::system::error_code();
        	} else {
             ec = boost::asio::error::operation_aborted;
@@ -36,17 +44,26 @@ public:
     }
 
     void open(const std::string &name, boost::system::error_code &ec) {
+    	name_ = name;
         id_ = mq_open(name.c_str(), O_WRONLY);
-
-        if (id_ > -1) {
+        if (id_ != INVALID) {
             ec = boost::system::error_code();
         } else {
             ec = boost::asio::error::operation_aborted;
         }
     }
 
-    void close(const std::string &name, boost::system::error_code &ec) {
+    void close(boost::system::error_code &ec) {
         int e = mq_close(id_);
+        if (e > 0) {
+    		ec = boost::system::error_code();
+        } else {
+            ec = boost::asio::error::operation_aborted;
+        }
+    }
+
+    void unlink(boost::system::error_code &ec) {
+        int e = mq_unlink(name_.c_str());
         if (e > 0) {
     		ec = boost::system::error_code();
         } else {
@@ -59,6 +76,7 @@ public:
     	if (e > -1) {
     	    ec = boost::system::error_code();
         } else {
+        	std::cout << "Error code " << errno << std::endl;
             ec = boost::asio::error::operation_aborted;
         }
     }
@@ -74,12 +92,17 @@ public:
 		}
 	}
 
+    const std::string & get_name() const {
+    	return name_;
+    }
+
 private:
     mqd_t id_;
+    std::string name_;
 };
 
 } // namespace mq
 } // namespace asio
 } // namespace boost_ext
 
-#endif // BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_IMPL
+#endif // BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_ADAPTER_HPP

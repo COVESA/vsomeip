@@ -15,45 +15,50 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/bind.hpp>
 
+#include <vsomeip/config.hpp>
+#include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/client_impl.hpp>
-#include <vsomeip_internal/config.hpp>
+#include <vsomeip_internal/managing_application.hpp>
 
 namespace vsomeip {
 
-template <typename Protocol, int MaxBufferSize>
-client_impl<Protocol, MaxBufferSize>::client_impl(boost::asio::io_service &_service)
-	: participant_impl<MaxBufferSize>(_service),
-	  socket_(_service),
-	  flush_timer_(_service) {
+template < typename Protocol, int MaxBufferSize >
+client_impl< Protocol, MaxBufferSize >::client_impl(
+		managing_application *_owner, const endpoint *_location)
+	: participant_impl<MaxBufferSize>(_owner, _location),
+	  socket_(_owner->get_io_service()),
+	  flush_timer_(_owner->get_io_service()),
+	  local_(boost::asio::ip::address::from_string(_location->get_address()),
+			 _location->get_port()) {
 }
 
-template <typename Protocol, int MaxBufferSize>
-client_impl<Protocol, MaxBufferSize>::~client_impl() {
+template < typename Protocol, int MaxBufferSize >
+client_impl< Protocol, MaxBufferSize >::~client_impl() {
 }
 
-template <typename Protocol, int MaxBufferSize>
-const uint8_t * client_impl<Protocol, MaxBufferSize>::get_buffer() const {
+template < typename Protocol, int MaxBufferSize >
+const uint8_t * client_impl< Protocol, MaxBufferSize >::get_buffer() const {
 	return buffer_.data();
 }
 
-template <typename Protocol, int MaxBufferSize>
-bool client_impl<Protocol, MaxBufferSize>::is_client() const {
+template < typename Protocol, int MaxBufferSize >
+bool client_impl< Protocol, MaxBufferSize >::is_client() const {
 	return true;
 }
 
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::stop() {
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::stop() {
 	if (socket_.is_open())
 		socket_.close();
 }
 
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::restart() {
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::restart() {
 	receive();
 }
 
-template <typename Protocol, int MaxBufferSize>
-bool client_impl<Protocol, MaxBufferSize>::send(
+template < typename Protocol, int MaxBufferSize >
+bool client_impl< Protocol, MaxBufferSize >::send(
 		const uint8_t *_data, uint32_t _size, bool _flush) {
 
 	bool is_queue_empty(packet_queue_.empty());
@@ -86,8 +91,8 @@ bool client_impl<Protocol, MaxBufferSize>::send(
 	return true;
 }
 
-template <typename Protocol, int MaxBufferSize>
-bool client_impl<Protocol, MaxBufferSize>::flush() {
+template < typename Protocol, int MaxBufferSize >
+bool client_impl< Protocol, MaxBufferSize >::flush() {
 	bool is_successful(true);
 
 	if (!packetizer_.empty()) {
@@ -101,33 +106,35 @@ bool client_impl<Protocol, MaxBufferSize>::flush() {
 	return is_successful;
 }
 
-
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::connect_cbk(
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::connect_cbk(
 		boost::system::error_code const &_error) {
 
+	static int current_retry = 0;
+	if (_error && current_retry++ < 3)
+		connect();
 }
 
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::send_cbk(
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::send_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
-
+	if (!_error && _bytes > 0) {
+		packet_queue_.pop_front();
+		if (!packet_queue_.empty()) {
+			send_queued();
+		}
+	} else {
+		receive();
+	}
 }
 
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::flush_cbk(
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::flush_cbk(
 		boost::system::error_code const &_error) {
 	if (!_error) {
 		(void)flush();
 	}
 }
-
-template <typename Protocol, int MaxBufferSize>
-void client_impl<Protocol, MaxBufferSize>::receive_cbk(
-		boost::system::error_code const &_error, std::size_t _bytes) {
-
-}
-
 
 // Instatiate template
 template class client_impl<boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE>;

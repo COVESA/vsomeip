@@ -14,6 +14,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/serializable.hpp>
+#include <vsomeip/deserializable.hpp>
 #include <vsomeip/service_discovery/enumeration_types.hpp>
 
 namespace vsomeip {
@@ -21,7 +22,9 @@ namespace service_discovery {
 
 class option;
 
-class entry : virtual public serializable {
+class entry
+	: virtual public serializable,
+	  virtual public deserializable {
 public:
 	virtual ~entry() {};
 

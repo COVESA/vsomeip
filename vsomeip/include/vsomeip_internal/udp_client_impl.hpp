@@ -15,26 +15,30 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/udp.hpp>
 
-#include <vsomeip_internal/config.hpp>
+#include <vsomeip/config.hpp>
 #include <vsomeip_internal/client_impl.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 
-typedef client_impl<boost::asio::ip::udp,
-					 VSOMEIP_MAX_UDP_MESSAGE_SIZE> udp_client_base_impl;
+typedef client_impl< boost::asio::ip::udp,
+					  VSOMEIP_MAX_UDP_MESSAGE_SIZE > udp_client_base_impl;
 
 class udp_client_impl
 	: virtual public udp_client_base_impl {
 
 public:
 	udp_client_impl(
-			boost::asio::io_service &_service, const endpoint *_location);
+			managing_application *_owner, const endpoint *_location);
 	virtual ~udp_client_impl();
 
 	void start();
 	void send_queued();
+
+	ip_address get_remote_address() const;
+	ip_port get_remote_port() const;
+	ip_protocol get_protocol() const;
 
 private:
 	void connect();

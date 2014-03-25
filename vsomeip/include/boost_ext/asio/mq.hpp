@@ -7,7 +7,7 @@
 namespace boost_ext {
 namespace asio {
 
-typedef mq::basic_message_queue<mq::basic_message_queue_service<> > message_queue;
+typedef mq::basic_message_queue< mq::basic_message_queue_service<> > message_queue;
 
 } // namespace asio
 } // namespace boost

@@ -21,7 +21,6 @@
 namespace vsomeip {
 
 class message_base;
-class receiver;
 
 /// \interface participant
 /// Common base class for participants (clients and services) in a Some/IP
@@ -40,8 +39,8 @@ public:
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
-	virtual void register_for(service_id _service_id, instance_id _instance_id) = 0;
-	virtual void unregister_for(service_id _service_id, method_id _method_id) = 0;
+	virtual void open_filter(service_id _service_id) = 0;
+	virtual void close_filter(service_id _service_id) = 0;
 
 	virtual void enable_magic_cookies() = 0;
 	virtual void disable_magic_cookies() = 0;

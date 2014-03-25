@@ -95,7 +95,7 @@ public:
 	/// Set the deserializers data input stream.
 	/// \param _data Pointer to the input stream.
 	/// \param _length Number of bytes in the input stream.
-	virtual void set_data(uint8_t *_data, std::size_t _length) = 0;
+	virtual void set_data(const uint8_t *_data, std::size_t _length) = 0;
 	/// Append data to the current input stream.
 	/// \param _data Pointer to the input stream.
 	/// \param _length Number of bytes in the input stream.

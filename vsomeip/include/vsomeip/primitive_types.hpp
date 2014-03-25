@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -49,6 +49,8 @@ typedef uint16_t weight;
 
 typedef uint32_t alive_counter;
 typedef uint32_t crc;
+
+typedef uint32_t application_id;
 
 } // namespace vsomeip
 

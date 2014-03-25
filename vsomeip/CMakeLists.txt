@@ -2,9 +2,23 @@ cmake_minimum_required (VERSION 2.8)
 project (vsomeip)
 set (CMAKE_VERBOSE_MAKEFILE off)
 
-set (CMAKE_CXX_FLAGS "-DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -std=c++0x -O0")
+# OS
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	set(OperatingSystem "LINUX")
+endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+	set(OperatingSystem "FREEBSD")
+endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+
+set (CMAKE_CXX_FLAGS "-D${OperatingSystem} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register")
 include_directories("include")
 
+# Boost
+find_package( Boost 1.54 COMPONENTS system thread program_options log REQUIRED )
+include_directories( ${Boost_INCLUDE_DIR} )
+
+# Base library
 file(GLOB vsomeip-base_SRC
     "src/vsomeip.base/*.cpp"
 )
@@ -24,8 +38,20 @@ file (GLOB vsomeipd_SRC
 
 # Daemon
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base boost_system boost_thread boost_program_options boost_log)
+target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base ${Boost_LIBRARIES})
 
 # Test executables
-add_executable(application-sample src/vsomeip.examples/application_sample.cpp)
-target_link_libraries(application-sample vsomeip-base boost_system boost_thread boost_program_options boost_program_options boost_log)
+add_executable(application_sample src/vsomeip.examples/application_sample.cpp)
+target_link_libraries(application_sample vsomeip-base ${Boost_LIBRARIES})
+
+add_executable(client_sample src/vsomeip.examples/client_sample.cpp)
+target_link_libraries(client_sample vsomeip-base ${Boost_LIBRARIES})
+
+add_executable(service_sample src/vsomeip.examples/service_sample.cpp)
+target_link_libraries(service_sample vsomeip-base ${Boost_LIBRARIES})
+
+add_executable(external-client_sample src/vsomeip.examples/external-client_sample.cpp)
+target_link_libraries(external-client_sample vsomeip-base ${Boost_LIBRARIES})
+
+add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
+target_link_libraries(external-service_sample vsomeip-base ${Boost_LIBRARIES})

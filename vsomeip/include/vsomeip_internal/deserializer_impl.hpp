@@ -27,7 +27,7 @@ public:
 	deserializer_impl(const deserializer_impl& _deserializer);
 	virtual ~deserializer_impl();
 
-	void set_data(uint8_t *_data, std::size_t _length);
+	void set_data(const uint8_t *_data, std::size_t _length);
 	void append_data(const uint8_t *_data, std::size_t _length);
 	void drop_data(std::size_t _length);
 

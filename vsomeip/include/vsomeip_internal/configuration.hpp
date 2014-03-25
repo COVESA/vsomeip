@@ -9,28 +9,30 @@
 #ifndef VSOMEIP_INTERNAL_CONFIGURATION_HPP
 #define VSOMEIP_INTERNAL_CONFIGURATION_HPP
 
+#include <map>
+
 namespace vsomeip {
 
 class configuration {
 public:
-	static configuration * get_instance();
+	static void init(int _option_count, char **_options);
+	static configuration * request(const std::string &_name = "");
+	static void release(const std::string &_name = "");
 
-	configuration();
 	~configuration();
-
-	void init(int _option_count, char **_options);
-
-	const std::string &  get_configuration_file_path() const;
 
 	bool use_console_logger() const;
 	bool use_file_logger() const;
 	bool use_dlt_logger() const;
-	const std::string &  get_loglevel() const;
+	const std::string & get_loglevel() const;
+	const std::string & get_logfile_path() const;
 
 	bool use_service_discovery() const;
 	bool use_virtual_mode() const;
-	const std::string & get_registry_path() const;
 
+	uint8_t get_receiver_slots() const;
+
+	const std::string & get_protocol() const;
 	const std::string & get_unicast_address() const;
 	const std::string & get_multicast_address() const;
 	uint16_t get_port() const;
@@ -45,19 +47,28 @@ public:
 	uint32_t get_request_response_delay() const;
 
 private:
-	void read_options(int, char **);
-	void read_configuration();
+	configuration();
+	void read_configuration(const std::string &);
 	void read_loggers(const std::string &);
 	void read_loglevel(const std::string &);
 
 private:
-	std::string configuration_file_path_;
+	// Logging
 	bool use_console_logger_;
 	bool use_file_logger_;
 	bool use_dlt_logger_;
 	std::string loglevel_;
+	std::string logfile_path_;
+
+	// Daemon
 	bool use_service_discovery_;
 	bool use_virtual_mode_;
+
+	// Application
+	uint8_t receiver_slots_;
+
+	// Service Discovery
+	std::string protocol_;
 	std::string unicast_address_;
 	std::string multicast_address_;
 	uint16_t port_;
@@ -69,6 +80,11 @@ private:
 	uint32_t cyclic_offer_delay_;
 	uint32_t cyclic_request_delay_;
 	uint32_t request_response_delay_;
+
+	uint8_t ref_;
+
+	static std::string configuration_file_path_;
+	static std::map< std::string, configuration * > configurations__;
 };
 
 } // namespace vsomeip

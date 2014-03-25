@@ -12,7 +12,13 @@
 #ifndef VSOMEIP_INTERNAL_BYTEORDER_HPP
 #define VSOMEIP_INTERNAL_BYTEORDER_HPP
 
+#if defined(LINUX)
 #include <endian.h>
+#elif defined(FREEBSD)
+#include <sys/endian.h>
+#else
+#error "Undefined OS (only Linux/FreeBSD are currently supported)"
+#endif
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 

@@ -1,5 +1,5 @@
-#ifndef BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE
-#define BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE
+#ifndef BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_HPP
+#define BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_HPP
 
 #include <cstddef>
 #include <string>
@@ -35,14 +35,23 @@ public:
         this->service.async_open(this->implementation, name,  handler);
     } 
 
-    void close(const std::string &name) {
-        return this->service.destroy(this->implementation, name);
+    void close() {
+        return this->service.close(this->implementation);
     }
 
     template <typename Handler>
-    void async_close(const std::string &name, Handler handler) {
-        this->service.async_close(this->implementation, name,  handler);
+    void async_close(Handler handler) {
+        this->service.async_close(this->implementation, handler);
     } 
+
+    void unlink() {
+        return this->service.unlink(this->implementation);
+    }
+
+    template <typename Handler>
+    void async_unlink(Handler handler) {
+        this->service.async_unlink(this->implementation, handler);
+    }
 
     void send(const void *buffer, std::size_t buffer_size, unsigned int priority) {
         return this->service.send(this->implementation, buffer, buffer_size, priority);
@@ -60,6 +69,10 @@ public:
     template <typename Handler>
     void async_receive(void *buffer, std::size_t buffer_size, Handler handler) {
         return this->service.async_receive(this->implementation, buffer, buffer_size, handler);
+    }
+
+    const std::string get_name() const {
+    	return this->service.get_name(this->implementation);
     }
 };
 

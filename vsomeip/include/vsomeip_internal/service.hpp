@@ -24,8 +24,8 @@ public:
 	virtual ~service() {};
 
 	virtual bool send(const uint8_t *_data, uint32_t _size,
-						endpoint *_target, bool _flush = true) = 0;
-	virtual bool flush(endpoint *_target = 0) = 0;
+						const endpoint *_target, bool _flush = true) = 0;
+	virtual bool flush(const endpoint *_target = 0) = 0;
 };
 
 } // namespace vsomeip

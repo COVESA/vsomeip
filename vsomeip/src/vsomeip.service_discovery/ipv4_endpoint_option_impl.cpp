@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -22,7 +22,7 @@ ipv4_endpoint_option_impl::ipv4_endpoint_option_impl() {
 	type_ = option_type::IP4_ENDPOINT;
 	address_ = 0;
 	port_ = 0;
-	protocol_ = transport_protocol::UNKNOWN;
+	protocol_ = ip_protocol::UNKNOWN;
 }
 
 ipv4_endpoint_option_impl::~ipv4_endpoint_option_impl() {
@@ -33,7 +33,7 @@ bool ipv4_endpoint_option_impl::operator ==(const option &_other) const {
 		return false;
 
 	const ipv4_endpoint_option_impl& other =
-			reinterpret_cast<const ipv4_endpoint_option_impl&>(_other);
+			dynamic_cast< const ipv4_endpoint_option_impl & >(_other);
 
 	return (address_ == other.address_ && port_ == other.port_
 			&& protocol_ == other.protocol_);
@@ -55,11 +55,11 @@ void ipv4_endpoint_option_impl::set_port(ip_port _port) {
 	port_ = _port;
 }
 
-transport_protocol ipv4_endpoint_option_impl::get_protocol() const {
+ip_protocol ipv4_endpoint_option_impl::get_protocol() const {
 	return protocol_;
 }
 
-void ipv4_endpoint_option_impl::set_protocol(transport_protocol _protocol) {
+void ipv4_endpoint_option_impl::set_protocol(ip_protocol _protocol) {
 	protocol_ = _protocol;
 }
 
@@ -86,7 +86,7 @@ bool ipv4_endpoint_option_impl::deserialize(vsomeip::deserializer *_from) {
 
 	uint8_t protocol = 0xFF;
 	is_successful = is_successful && _from->deserialize(protocol);
-	protocol_ = static_cast<transport_protocol>(protocol);
+	protocol_ = static_cast<ip_protocol>(protocol);
 
 	is_successful = is_successful && _from->deserialize(port_);
 

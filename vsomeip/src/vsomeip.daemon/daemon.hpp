@@ -7,8 +7,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_DAEMON_HPP
-#define VSOMEIP_INTERNAL_DAEMON_HPP
+#ifndef VSOMEIP_DAEMON_DAEMON_HPP
+#define VSOMEIP_DAEMON_DAEMON_HPP
 
 namespace vsomeip {
 
@@ -29,4 +29,4 @@ public:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_DAEMON_IMPL_HPP
+#endif // VSOMEIP_DAEMON_DAEMON_HPP

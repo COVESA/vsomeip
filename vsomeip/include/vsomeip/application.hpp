@@ -17,6 +17,8 @@ namespace vsomeip {
 class endpoint;
 class message_base;
 
+typedef void (*receive_cbk_t)(const message_base *);
+
 class application {
 public:
 	virtual ~application() {};
@@ -32,31 +34,34 @@ public:
 	// clients
 	virtual bool request_service(
 						service_id _service, instance_id _instance,
-						const endpoint *_location) const = 0;
+						const endpoint *_location) = 0;
 	virtual bool release_service(
-						service_id _service, instance_id _instance) const = 0;
-
-	//virtual bool register_cbk(service_ready_cbk cbk);
+						service_id _service, instance_id _instance) = 0;
 
 	// services
 	virtual bool provide_service(
 						service_id _service, instance_id _instance,
-						const endpoint *_location) const = 0;
+						const endpoint *_location) = 0;
+	virtual bool withdraw_service(
+						service_id _service, instance_id _instance,
+						const endpoint *_location = 0) = 0;
 	virtual bool start_service(
-						service_id _service, instance_id _instance) const = 0;
+						service_id _service, instance_id _instance) = 0;
 	virtual bool stop_service(
-						service_id _service, instance_id _instance) const = 0;
+						service_id _service, instance_id _instance) = 0;
 
-	virtual bool send(message_base *_message, bool _flush) const = 0;
+	// send & receive
+	virtual bool send(message_base *_message, bool _flush = true) = 0;
 
 	virtual void enable_magic_cookies(
-						service_id _service, instance_id _instance) const = 0;
+						service_id _service, instance_id _instance) = 0;
 	virtual void disable_magic_cookies(
-						service_id _service, instance_id _instance) const = 0;
+						service_id _service, instance_id _instance) = 0;
 
-	// watchdog
-	virtual void enable_watchdog() = 0;
-	virtual void disable_watchdog() = 0;
+	virtual void register_cbk(
+			service_id _service, method_id _method, receive_cbk_t _cbk) = 0;
+	virtual void deregister_cbk(
+			service_id _service, method_id _method, receive_cbk_t _cbk) = 0;
 };
 
 } // namespace vsomeip

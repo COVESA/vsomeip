@@ -7,48 +7,32 @@
 // All rights reserved.
 //
 #include <fstream>
+#include <map>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
-#include <vsomeip_internal/config.hpp>
+#include <vsomeip/config.hpp>
 #include <vsomeip_internal/configuration.hpp>
 
 namespace options = boost::program_options;
 
 namespace vsomeip {
 
-configuration * configuration::get_instance() {
-	static configuration the_configuration;
-	return &the_configuration;
-}
+std::string configuration::configuration_file_path_(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH);
+std::map< std::string, configuration * > configuration::configurations__;
 
-configuration::configuration()
-	: use_console_logger_(false),
-	  use_file_logger_(false),
-	  use_dlt_logger_(false),
-	  loglevel_("info"),
-	  configuration_file_path_(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH) {
-}
-
-configuration::~configuration() {
-}
-
-void configuration::init(int _option_count, char **_options) {
-	read_options(_option_count, _options);
-	read_configuration();
-}
-
-void configuration::read_options(int _options_count, char **_options) {
+void configuration::init(int _options_count, char **_options) {
 	options::variables_map command_line_options;
 
 	try {
 		options::options_description valid_options("valid_options");
 		valid_options.add_options()
-			("help", "Print help message")
-			("config",
-			 options::value< std::string >()->default_value("vsomeip.conf"),
-			 "Path to configuration file");
+			(
+				"vsomeip-config",
+				options::value< std::string >()->default_value("/etc/vsomeip.conf"),
+				"Path to configuration file"
+			);
 
 		options::store(
 			options::parse_command_line(
@@ -66,13 +50,68 @@ void configuration::read_options(int _options_count, char **_options) {
 		// intentionally left empty
 	}
 
-	if (command_line_options.count("config")) {
+	if (command_line_options.count("vsomeip-config")) {
 		configuration_file_path_
-			= command_line_options["config"].as< std::string >();
+			= command_line_options["vsomeip-config"].as< std::string >();
 	}
 }
 
-void configuration::read_configuration() {
+// TODO: check whether ref_ could be replaced using shared pointers
+configuration * configuration::request(const std::string &_name) {
+	configuration * requested_configuration = 0;
+	auto found_configuration = configurations__.find(_name);
+	if (found_configuration == configurations__.end()) {
+		requested_configuration = new configuration;
+		requested_configuration->read_configuration(_name);
+		configurations__[_name] = requested_configuration;
+	} else {
+		requested_configuration = found_configuration->second;
+	}
+
+	requested_configuration->ref_ ++;
+	return requested_configuration;
+}
+
+void configuration::release(const std::string &_name) {
+	configuration * requested_configuration = 0;
+	auto found_configuration = configurations__.find(_name);
+	if (found_configuration != configurations__.end()) {
+		requested_configuration = found_configuration->second;
+		requested_configuration->ref_ --;
+		if (requested_configuration->ref_ == 0) {
+			configurations__.erase(_name);
+			delete requested_configuration;
+		}
+	}
+}
+
+configuration::configuration()
+	: use_console_logger_(false),
+	  use_file_logger_(false),
+	  use_dlt_logger_(false),
+	  loglevel_("info"),
+	  logfile_path_("./vsomeip.log"),
+	  use_service_discovery_(false),
+	  use_virtual_mode_(false),
+	  receiver_slots_(10),
+	  protocol_("udp.v4"),
+	  unicast_address_("127.0.0.1"),
+	  multicast_address_("223.0.0.0"),
+	  port_(30490),
+	  min_initial_delay_(10),
+	  max_initial_delay_(100),
+	  repetition_base_delay_(200),
+	  repetition_max_(3),
+	  ttl_(0xFFFFFFFF),
+	  cyclic_offer_delay_(3000),
+	  cyclic_request_delay_(3000),
+	  request_response_delay_(2000) { // TODO: symbolic constants instead of magic values
+}
+
+configuration::~configuration() {
+}
+
+void configuration::read_configuration(const std::string &_name) {
 	static bool has_read = false;
 	if (!has_read) {
 		options::options_description vsomeip_options_description;
@@ -98,9 +137,24 @@ void configuration::read_configuration() {
 				"Enable virtual mode by vsomeip daemon"
 			)
 			(
-				"someip.daemon.registry",
+				"someip.application.slots",
+				options::value<int>(),
+				"Maximum number of received messages an application can buffer"
+			)
+			(
+				"someip.service_discovery.protocol",
 				options::value<std::string>(),
-				"Access point to internal registry"
+				"Protocol used to communicate to Service Discovery"
+			)
+			(
+				"someip.service_discovery.unicast",
+				options::value<std::string>(),
+				"Unicast address of Service Discovery"
+			)
+			(
+				"someip.service_discovery.multicast",
+				options::value<std::string>(),
+				"Multicast address to be used by Service Discovery"
 			)
 			(
 				"someip.service_discovery.port",
@@ -148,6 +202,17 @@ void configuration::read_configuration() {
 				"Delay of an unicast answer to a multicast message."
 			);
 
+		// Local overrides
+		if (_name != "") {
+			std::string local_override("someip.application." + _name + ".slots");
+			vsomeip_options_description.add_options()
+				(
+					local_override.c_str(),
+					options::value< int >(),
+					"Local override for number of receiver slots."
+				);
+		};
+
 		options::variables_map vsomeip_options;
 		std::ifstream vsomeip_configuration_file;
 		vsomeip_configuration_file.open(configuration_file_path_.c_str());
@@ -182,7 +247,15 @@ void configuration::read_configuration() {
 				use_virtual_mode_
 					= vsomeip_options["someip.daemon.virtual_mode_enabled"].as< bool >();
 
+			// Application
+			if (vsomeip_options.count("someip.application.slots"))
+				receiver_slots_
+					= vsomeip_options["someip.application.slots"].as< int >();
+
 			// Service Discovery
+			if (vsomeip_options.count("someip.service_discovery.protocol"))
+				protocol_ = vsomeip_options["someip.service_discovery.protocol"].as< std::string >();
+
 			if (vsomeip_options.count("someip.service_discovery.unicast_address"))
 				unicast_address_ = vsomeip_options["someip.service_discovery.unicast_address"].as< std::string >();
 
@@ -219,13 +292,14 @@ void configuration::read_configuration() {
 			if (vsomeip_options.count("someip.service_discovery.request_response_delay"))
 				request_response_delay_
 					= vsomeip_options["someip.service_discovery.request_response_delay"].as< int >();
+
+			if (_name != "") {
+				if (vsomeip_options.count("someip.application." + _name + ".slots"))
+					receiver_slots_
+						= vsomeip_options["someip.application." + _name + ".slots"].as< int >();
+			}
 		}
 	}
-}
-
-
-const std::string & configuration::get_configuration_file_path() const {
-	return configuration_file_path_;
 }
 
 bool configuration::use_console_logger() const {
@@ -244,6 +318,10 @@ const std::string &  configuration::get_loglevel() const {
 	return loglevel_;
 }
 
+const std::string &  configuration::get_logfile_path() const {
+	return logfile_path_;
+}
+
 bool configuration::use_service_discovery() const {
 	return use_service_discovery_;
 }
@@ -252,9 +330,18 @@ bool configuration::use_virtual_mode() const {
 	return use_virtual_mode_;
 }
 
+uint8_t configuration::get_receiver_slots() const {
+	return receiver_slots_;
+}
+
+const std::string & configuration::get_protocol() const {
+	return protocol_;
+}
+
 const std::string & configuration::get_unicast_address() const {
 	return unicast_address_;
 }
+
 const std::string & configuration::get_multicast_address() const {
 	return multicast_address_;
 }

@@ -155,7 +155,7 @@ message_base * deserializer_impl::deserialize_message() {
 	return deserialized_message;
 }
 
-void deserializer_impl::set_data(uint8_t *_data,  std::size_t _length) {
+void deserializer_impl::set_data(const uint8_t *_data,  std::size_t _length) {
 	if (0 != _data) {
 		std::size_t offset = position_ - data_.begin();
 		data_.assign(_data, _data + _length);

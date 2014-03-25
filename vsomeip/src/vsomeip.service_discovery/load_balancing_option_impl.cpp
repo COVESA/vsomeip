@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -31,7 +31,7 @@ bool load_balancing_option_impl::operator ==(const option &_other) const {
 		return false;
 
 	const load_balancing_option_impl& other
-		= reinterpret_cast<const load_balancing_option_impl&>(_other);
+		= dynamic_cast< const load_balancing_option_impl & >(_other);
 
 	return (priority_ == other.priority_
 		 && weight_ == other.weight_);

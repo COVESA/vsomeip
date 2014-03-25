@@ -1,5 +1,5 @@
-#ifndef BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE
-#define BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE
+#ifndef BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE_HPP
+#define BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE_HPP
 
 #include <boost/asio/io_service.hpp>
 #include <boost/bind.hpp>
@@ -7,13 +7,13 @@
 #include <boost/weak_ptr.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/thread.hpp>
-#include <boost_ext/asio/mq/message_queue_impl.hpp>
+#include <boost_ext/asio/mq/message_queue_adapter.hpp>
 
 namespace boost_ext {
 namespace asio {
 namespace mq {
 
-template <typename MessageQueueImpl = message_queue_impl>
+template <typename MessageQueueImpl = message_queue_adapter>
 class basic_message_queue_service
     : public boost::asio::io_service::service {
 
@@ -29,11 +29,15 @@ public:
     typedef boost::shared_ptr<MessageQueueImpl> implementation_type;
 
     void construct(implementation_type &impl) {
-	impl.reset(new MessageQueueImpl);
+    	impl.reset(new MessageQueueImpl);
     }
 
     void destroy(implementation_type &impl) {
     	impl.reset();
+    }
+
+    const std::string & get_name(const implementation_type &impl) const {
+     	return impl->get_name();
     }
 
     void create(implementation_type &impl, const std::string &name, std::size_t max_num_msgs, std::size_t max_msg_size) {
@@ -112,24 +116,24 @@ public:
         this->async_io_service_.post(open_operation<Handler>(impl, this->get_io_service(), name, handler));
     }
 
-    void close(implementation_type &impl, const std::string &name) {
+    void close(implementation_type &impl) {
         boost::system::error_code ec;
-        impl->close(name, ec);
+        impl->close(ec);
         boost::asio::detail::throw_error(ec);
     }
 
     template <typename Handler>
     class close_operation {
     public:
-        close_operation(implementation_type &impl, boost::asio::io_service &io_service, const std::string &name, Handler handler)
-            : impl_(impl), io_service_(io_service), work_(io_service), name_(name), handler_(handler) {
+        close_operation(implementation_type &impl, boost::asio::io_service &io_service, Handler handler)
+            : impl_(impl), io_service_(io_service), work_(io_service), handler_(handler) {
         }
 
         void operator()() const {
             implementation_type impl = impl_.lock();
             if (impl) {
                 boost::system::error_code ec;
-                impl->close(name_, ec);
+                impl->close(ec);
                 this->io_service_.post(boost::asio::detail::bind_handler(handler_, ec));
             } else {
                 this->io_service_.post(boost::asio::detail::bind_handler(handler_, boost::asio::error::operation_aborted));
@@ -140,13 +144,48 @@ public:
         boost::weak_ptr<MessageQueueImpl> impl_;
         boost::asio::io_service &io_service_;
         boost::asio::io_service::work work_;
-        std::string name_;
         Handler handler_;
     };
 
+	template <typename Handler>
+	void async_close(implementation_type &impl, Handler handler) {
+		this->async_io_service_.post(close_operation<Handler>(impl, this->get_io_service(), handler));
+	}
+
+	void unlink(implementation_type &impl) {
+		boost::system::error_code ec;
+		impl->unlink(ec);
+		boost::asio::detail::throw_error(ec);
+	}
+
     template <typename Handler>
-    void async_close(implementation_type &impl, const std::string &name, Handler handler) {
-        this->async_io_service_.post(close_operation<Handler>(impl, this->get_io_service(), name, handler));
+	class unlink_operation {
+	public:
+    	unlink_operation(implementation_type &impl, boost::asio::io_service &io_service, Handler handler)
+			: impl_(impl), io_service_(io_service), work_(io_service), handler_(handler) {
+		}
+
+		void operator()() const {
+			implementation_type impl = impl_.lock();
+			if (impl) {
+				boost::system::error_code ec;
+				impl->unlink(ec);
+				this->io_service_.post(boost::asio::detail::bind_handler(handler_, ec));
+			} else {
+				this->io_service_.post(boost::asio::detail::bind_handler(handler_, boost::asio::error::operation_aborted));
+			}
+		}
+
+	private:
+		boost::weak_ptr<MessageQueueImpl> impl_;
+		boost::asio::io_service &io_service_;
+		boost::asio::io_service::work work_;
+		Handler handler_;
+	};
+
+    template <typename Handler>
+    void async_unlink(implementation_type &impl, Handler handler) {
+        this->async_io_service_.post(unlink_operation<Handler>(impl, this->get_io_service(), handler));
     }
 
     void send(implementation_type &impl, const void *buffer, std::size_t buffer_size, unsigned int priority) {
@@ -247,4 +286,4 @@ boost::asio::io_service::id basic_message_queue_service<MessageQueueImpl>::id;
 } // asio
 } // boost_ext
 
-#endif // BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE
+#endif // BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE_HPP

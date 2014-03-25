@@ -12,27 +12,29 @@
 #ifndef VSOMEIP_INTERNAL_ENDPOINT_IMPL_HPP
 #define VSOMEIP_INTERNAL_ENDPOINT_IMPL_HPP
 
+#include <boost/asio/ip/address.hpp>
+
 #include <vsomeip/endpoint.hpp>
 
 namespace vsomeip {
 
-class endpoint_impl : virtual public endpoint {
+class endpoint_impl
+	: virtual public endpoint {
 public:
-	endpoint_impl(ip_address _address, ip_port _port,
-					transport_protocol _protocol, transport_protocol_version _version);
+	endpoint_impl(boost::asio::ip::address _address, ip_port _port, ip_protocol _protocol);
 	virtual ~endpoint_impl();
 
-private:
 	ip_address get_address() const;
 	ip_port get_port() const;
-	transport_protocol get_protocol() const;
-	transport_protocol_version get_version() const;
+	ip_protocol get_protocol() const;
+	ip_protocol_version get_version() const;
+
+	bool serialize(serializer *_to) const;
 
 private:
-	ip_address address_;
-	ip_port port_;
-	transport_protocol protocol_;
-	transport_protocol_version version_;
+	boost::asio::ip::address address_;
+	uint16_t port_;
+	ip_protocol protocol_;
 };
 
 } // namespace vsomeip

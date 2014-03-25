@@ -20,8 +20,8 @@ message_header_impl::message_header_impl()
 	: service_id_(0x0), method_id_(0x0),
 	  client_id_(0x0), session_id_(0x0),
 	  protocol_version_(0x1), interface_version_(0x0),
-	  message_type_(message_type::UNKNOWN),
-	  return_code_(return_code::UNKNOWN) {
+	  message_type_(message_type_enum::UNKNOWN),
+	  return_code_(return_code_enum::UNKNOWN) {
 };
 
 message_header_impl::message_header_impl(const message_header_impl& header)
@@ -63,9 +63,9 @@ bool message_header_impl::deserialize(deserializer *_from) {
 			&& _from->deserialize(tmp_return_code));
 
 	if (is_successful) {
-		message_type_ = static_cast<message_type>(tmp_message_type);
-		return_code_ = static_cast<return_code>(tmp_return_code);
-		length_ = static_cast<length>(tmp_length - VSOMEIP_STATIC_HEADER_SIZE);
+		message_type_ = static_cast< message_type_enum >(tmp_message_type);
+		return_code_ = static_cast< return_code_enum >(tmp_return_code);
+		length_ = static_cast< length >(tmp_length - VSOMEIP_STATIC_HEADER_SIZE);
 	}
 
 	return is_successful;

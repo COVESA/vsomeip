@@ -17,22 +17,22 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
-#include <vsomeip_internal/config.hpp>
+#include <vsomeip/config.hpp>
 #include <vsomeip_internal/service_impl.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 
-typedef service_impl<boost::asio::ip::tcp,
-					  VSOMEIP_MAX_TCP_MESSAGE_SIZE> tcp_service_base_impl;
+typedef service_impl< boost::asio::ip::tcp,
+					   VSOMEIP_MAX_TCP_MESSAGE_SIZE > tcp_service_base_impl;
 
 class tcp_service_impl
-	: public service_impl<boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE> {
+	: public service_impl< boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE > {
 
 public:
 	tcp_service_impl(
-			boost::asio::io_service &_service, const endpoint *_location);
+			managing_application *_owner, const endpoint *_location);
 	virtual ~tcp_service_impl();
 
 	void start();
@@ -41,6 +41,10 @@ public:
 	void send_queued();
 	void restart();
 	void receive();
+
+	ip_address get_remote_address() const;
+	ip_port get_remote_port() const;
+	ip_protocol get_protocol() const;
 
 	const uint8_t * get_buffer() const;
 
@@ -73,7 +77,7 @@ private:
 	};
 
 	boost::asio::ip::tcp::acceptor acceptor_;
-	std::map<endpoint *, connection::ptr> connections_;
+	std::map< const endpoint *, connection::ptr > connections_;
 	connection *current_;
 
 private:

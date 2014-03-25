@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -15,6 +15,7 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/serializable.hpp>
+#include <vsomeip/deserializable.hpp>
 
 namespace vsomeip {
 
@@ -22,20 +23,17 @@ class endpoint;
 /// Common base interface for application and service discovery messages. The
 /// interface provides set- and get-methods for all elements of a Some/IP 
 /// message header and for the endpoint a message is sent to or received from.
-class message_base : virtual public serializable {
+class message_base : virtual public serializable, virtual public deserializable {
 public:
 	virtual ~message_base() {};
 
-    /// Returns the endpoint that is assigned to the message. This endpoint
-    /// represents the sender address in case of receiving a message and the
-    /// target address in case of sending a message.
-    /// \returns Pointer to the endpoint assigned to the message
-	virtual endpoint * get_endpoint() const = 0;
-    
-    /// Sets the endpoint for a message. Must be called before attempting to
-    /// send a message.
-    /// \param _endpoint Pointer to the endpoint that defines the target.
-	virtual void set_endpoint(endpoint *_endpoint) = 0;
+	virtual application_id get_sender_id() const = 0;
+	virtual void set_sender_id(const application_id _id) = 0;
+
+    virtual const endpoint * get_source() const = 0;
+    virtual void set_source(const endpoint *_source) = 0;
+    virtual const endpoint * get_target() const = 0;
+    virtual void set_target(const endpoint *_target) = 0;
 
     /// Returns the message identifier of the Some/IP message, which is 
     /// composed from the service identifier and the method identifier.
@@ -115,19 +113,19 @@ public:
 
     /// Returns the method type of the Some/IP message header. 
     /// \returns message type of the Some/IP message             
-	virtual message_type get_message_type() const = 0;
+	virtual message_type_enum get_message_type() const = 0;
 
     /// Sets the message type within the Some/IP message header.
     /// \param _id New message type
-	virtual void set_message_type(message_type _type) = 0;
+	virtual void set_message_type(message_type_enum _type) = 0;
 
     /// Returns the return code of the Some/IP message header. 
     /// \returns return code of the Some/IP message             
-	virtual return_code get_return_code() const = 0;
+	virtual return_code_enum get_return_code() const = 0;
 
     /// Sets the return code within the Some/IP message header.
     /// \param _id New return code
-	virtual void set_return_code(return_code _code) = 0;
+	virtual void set_return_code(return_code_enum _code) = 0;
 };
 
 } // namespace vsomeip

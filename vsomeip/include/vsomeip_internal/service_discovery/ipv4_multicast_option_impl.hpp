@@ -25,7 +25,7 @@ public:
 	virtual ~ipv4_multicast_option_impl();
 	bool operator == (const option &_option) const;
 
-	void set_protocol(transport_protocol _protocol);
+	void set_protocol(ip_protocol _protocol);
 };
 
 } // namespace service_discovery

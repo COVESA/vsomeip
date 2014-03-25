@@ -41,8 +41,8 @@ public:
 	session_id session_id_;
 	protocol_version protocol_version_;
 	interface_version interface_version_;
-	message_type message_type_;
-	return_code return_code_;
+	message_type_enum message_type_;
+	return_code_enum return_code_;
 
 	message_base *owner_;
 };

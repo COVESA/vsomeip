@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -24,36 +24,44 @@ public:
 	message_base_impl();
 	virtual ~message_base_impl();
 
-	virtual endpoint * get_endpoint() const;
-	virtual void set_endpoint(endpoint *_endpoint);
+	application_id get_sender_id() const;
+	void set_sender_id(application_id _id);
 
-	virtual message_id get_message_id() const;
-	virtual void set_message_id(message_id _id);
-	virtual service_id get_service_id() const;
-	virtual void set_service_id(service_id _id);
-	virtual method_id get_method_id() const;
-	virtual void set_method_id(method_id _id);
-	virtual request_id get_request_id() const;
-	virtual void set_request_id(request_id _id);
-	virtual client_id get_client_id() const;
-	virtual void set_client_id(client_id _id);
-	virtual session_id get_session_id() const;
-	virtual void set_session_id(session_id _id);
-	virtual protocol_version get_protocol_version() const;
-	virtual void set_protocol_version(protocol_version _version);
-	virtual interface_version get_interface_version() const;
-	virtual void set_interface_version(interface_version _version);
-	virtual message_type get_message_type() const;
-	virtual void set_message_type(message_type _type);
-	virtual return_code get_return_code() const;
-	virtual void set_return_code(return_code _code);
+	const endpoint * get_source() const;
+	void set_source(const endpoint *_endpoint);
+	const endpoint * get_target() const;
+	void set_target(const endpoint *_endpoint);
+
+	message_id get_message_id() const;
+	void set_message_id(message_id _id);
+	service_id get_service_id() const;
+	void set_service_id(service_id _id);
+	method_id get_method_id() const;
+	void set_method_id(method_id _id);
+	request_id get_request_id() const;
+	void set_request_id(request_id _id);
+	client_id get_client_id() const;
+	void set_client_id(client_id _id);
+	session_id get_session_id() const;
+	void set_session_id(session_id _id);
+	protocol_version get_protocol_version() const;
+	void set_protocol_version(protocol_version _version);
+	interface_version get_interface_version() const;
+	void set_interface_version(interface_version _version);
+	message_type_enum get_message_type() const;
+	void set_message_type(message_type_enum _type);
+	return_code_enum get_return_code() const;
+	void set_return_code(return_code_enum _code);
 
 	message * get_owner() const;
 	void set_owner(message *_owner);
 
 protected: // members
-	endpoint *endpoint_;
 	message_header_impl header_;
+
+	application_id sender_id_;
+	const endpoint *source_;
+	const endpoint *target_;
 };
 
 } // namespace vsomeip
