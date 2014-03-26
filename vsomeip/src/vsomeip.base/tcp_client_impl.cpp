@@ -29,17 +29,16 @@ tcp_client_impl::~tcp_client_impl() {
 }
 
 void tcp_client_impl::start() {
-	socket_.open(local_.protocol());
 	connect();
+}
+
+void tcp_client_impl::connect() {
+	socket_.open(local_.protocol());
 
 	// Nagle algorithm off
 	ip::tcp::no_delay option;
 	socket_.set_option(option);
 
-	receive();
-}
-
-void tcp_client_impl::connect() {
 	socket_.async_connect(
 		local_,
 		boost::bind(

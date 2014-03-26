@@ -27,9 +27,12 @@ client_impl< Protocol, MaxBufferSize >::client_impl(
 		managing_application *_owner, const endpoint *_location)
 	: participant_impl<MaxBufferSize>(_owner, _location),
 	  socket_(_owner->get_io_service()),
+	  connect_timer_(_owner->get_io_service()),
 	  flush_timer_(_owner->get_io_service()),
 	  local_(boost::asio::ip::address::from_string(_location->get_address()),
-			 _location->get_port()) {
+			 _location->get_port()),
+	  connect_timeout_(VSOMEIP_CONNECT_TIMEOUT),
+	  is_connected_(false) {
 }
 
 template < typename Protocol, int MaxBufferSize >
@@ -67,7 +70,7 @@ bool client_impl< Protocol, MaxBufferSize >::send(
 		// TODO: log "implicit flush because new message cannot be buffered"
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
-		if (is_queue_empty)
+		if (is_queue_empty && is_connected_)
 			send_queued();
 	}
 
@@ -77,15 +80,18 @@ bool client_impl< Protocol, MaxBufferSize >::send(
 		flush_timer_.cancel();
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
-		if (is_queue_empty)
+		if (is_queue_empty && is_connected_)
 			send_queued();
 	} else {
 		flush_timer_.expires_from_now(
-				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
+			std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
 		flush_timer_.async_wait(
-				boost::bind(&client_impl<Protocol, MaxBufferSize>::flush_cbk,
-							this,
-							boost::asio::placeholders::error));
+			boost::bind(
+				&client_impl<Protocol, MaxBufferSize>::flush_cbk,
+				this,
+				boost::asio::placeholders::error
+			)
+		);
 	}
 
 	return true;
@@ -110,21 +116,58 @@ template < typename Protocol, int MaxBufferSize >
 void client_impl< Protocol, MaxBufferSize >::connect_cbk(
 		boost::system::error_code const &_error) {
 
-	static int current_retry = 0;
-	if (_error && current_retry++ < 3)
+	if (_error) {
+		socket_.close();
+
+		connect_timer_.expires_from_now(
+			std::chrono::milliseconds(connect_timeout_));
+		connect_timer_.async_wait(
+			boost::bind(
+				&client_impl<Protocol, MaxBufferSize>::wait_connect_cbk,
+				this,
+				boost::asio::placeholders::error
+			)
+		);
+
+		// next time we wait longer
+		connect_timeout_ <<= 1;
+	} else {
+		connect_timer_.cancel();
+		connect_timeout_ = VSOMEIP_CONNECT_TIMEOUT;
+		is_connected_ = true;
+		if (!packet_queue_.empty()) {
+			send_queued();
+		}
+		receive();
+	}
+}
+
+template < typename Protocol, int MaxBufferSize >
+void client_impl< Protocol, MaxBufferSize >::wait_connect_cbk(
+		boost::system::error_code const &_error) {
+
+	if (!_error) {
 		connect();
+	}
 }
 
 template < typename Protocol, int MaxBufferSize >
 void client_impl< Protocol, MaxBufferSize >::send_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
+
 	if (!_error && _bytes > 0) {
 		packet_queue_.pop_front();
+
 		if (!packet_queue_.empty()) {
 			send_queued();
 		}
 	} else {
-		receive();
+		// sending failed
+		if (_error == boost::asio::error::broken_pipe) {
+			is_connected_ = false;
+			socket_.close();
+			connect();
+		}
 	}
 }
 

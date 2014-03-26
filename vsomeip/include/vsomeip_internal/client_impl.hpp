@@ -44,6 +44,7 @@ public:
 
 public:
 	void connect_cbk(boost::system::error_code const &_error);
+	void wait_connect_cbk(boost::system::error_code const &_error);
 	void send_cbk(
 			boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(boost::system::error_code const &_error);
@@ -62,6 +63,9 @@ protected:
 	buffer_type buffer_;
 
 	boost::asio::system_timer flush_timer_;
+	boost::asio::system_timer connect_timer_;
+	uint32_t connect_timeout_;
+	bool is_connected_;
 
 	std::deque<std::vector<uint8_t>> packet_queue_;
 	std::vector<uint8_t> packetizer_;

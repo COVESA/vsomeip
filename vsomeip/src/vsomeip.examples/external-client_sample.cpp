@@ -24,8 +24,8 @@ char **options = 0;
 factory * the_factory = factory::get_instance();
 application * the_application = the_factory->create_managing_application("ExternalClientSample");
 
-endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::TCP);
-endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
+endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::UDP);
+endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::UDP);
 
 message * the_message = the_factory->create_message();
 
