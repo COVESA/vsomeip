@@ -18,6 +18,7 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/factory.hpp>
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/managing_application.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
 
@@ -61,8 +62,8 @@ void tcp_service_impl::send_queued() {
 	auto connection_iterator = connections_.find(current_queue_->first);
 	if (connection_iterator != connections_.end())
 		connection_iterator->second->send_queued();
-
-	// TODO: log message in case the connection could not be found
+	else
+		VSOMEIP_ERROR << "No connection could not be found!";
 }
 
 void tcp_service_impl::receive() {
@@ -183,8 +184,6 @@ void tcp_service_impl::connection::send_magic_cookie() {
 			data,
 			data + sizeof(data)
 		);
-	} else {
-		// TODO: log "Packet full: cannot insert magic cookie"
 	}
 }
 

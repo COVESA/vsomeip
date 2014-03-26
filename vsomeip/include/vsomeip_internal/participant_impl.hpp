@@ -16,6 +16,8 @@
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/system_timer.hpp>
+#include <boost/log/sources/severity_logger.hpp>
+#include <boost/log/trivial.hpp>
 
 #include <vsomeip_internal/participant.hpp>
 #include <vsomeip_internal/statistics_owner_impl.hpp>
@@ -80,6 +82,10 @@ protected:
 
 	// Filter configuration
 	std::map< service_id, uint8_t > opened_;
+
+	// Reference to logger
+	boost::log::sources::severity_logger<
+			boost::log::trivial::severity_level > &logger_;
 };
 
 } // namespace vsomeip

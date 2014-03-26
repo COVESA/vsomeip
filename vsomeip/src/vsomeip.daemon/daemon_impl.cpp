@@ -25,6 +25,7 @@
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/enumeration_types.hpp>
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
 #include <vsomeip_internal/udp_client_impl.hpp>

@@ -18,6 +18,7 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/client_impl.hpp>
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/managing_application.hpp>
 
 namespace vsomeip {
@@ -25,7 +26,7 @@ namespace vsomeip {
 template < typename Protocol, int MaxBufferSize >
 client_impl< Protocol, MaxBufferSize >::client_impl(
 		managing_application *_owner, const endpoint *_location)
-	: participant_impl<MaxBufferSize>(_owner, _location),
+	: participant_impl< MaxBufferSize >(_owner, _location),
 	  socket_(_owner->get_io_service()),
 	  connect_timer_(_owner->get_io_service()),
 	  flush_timer_(_owner->get_io_service()),
@@ -67,7 +68,7 @@ bool client_impl< Protocol, MaxBufferSize >::send(
 	bool is_queue_empty(packet_queue_.empty());
 
 	if (packetizer_.size() + _size > MaxBufferSize) {
-		// TODO: log "implicit flush because new message cannot be buffered"
+		//VSOMEIP_INFO << "Implicit flush because new message cannot be buffered.";
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
 		if (is_queue_empty && is_connected_)
@@ -162,7 +163,6 @@ void client_impl< Protocol, MaxBufferSize >::send_cbk(
 			send_queued();
 		}
 	} else {
-		// sending failed
 		if (_error == boost::asio::error::broken_pipe) {
 			is_connected_ = false;
 			socket_.close();

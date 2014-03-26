@@ -15,6 +15,7 @@
 
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/managing_application.hpp>
 #include <vsomeip_internal/service_impl.hpp>
 
@@ -52,7 +53,6 @@ bool service_impl< Protocol, MaxBufferSize >::send(
 		current_queue_ = packet_queues_.find(_target);
 
 	if (target_packetizer.size() + _size > MaxBufferSize) {
-		// TODO: log "implicit flush because new message cannot be buffered"
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
 
@@ -152,10 +152,9 @@ template < typename Protocol, int MaxBufferSize >
 void service_impl< Protocol, MaxBufferSize >::send_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
 
-	current_queue_->second.pop_front();
-	bool is_message_available(set_next_queue());
-
     if (!_error) {
+    	current_queue_->second.pop_front();
+    	bool is_message_available(set_next_queue());
     	if (is_message_available) {
     		send_queued();
     	}

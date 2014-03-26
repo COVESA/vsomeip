@@ -23,6 +23,7 @@ participant_impl< MaxBufferSize >::participant_impl(managing_application *_owner
 	: owner_(_owner),
 	  location_(_location),
 	  service_(_owner->get_io_service()),
+	  logger_(_owner->get_logger()),
 	  is_supporting_magic_cookies_(false),
 	  has_enabled_magic_cookies_(false) {
 }

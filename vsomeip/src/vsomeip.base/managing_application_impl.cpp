@@ -26,9 +26,10 @@
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/deserializer_impl.hpp>
+#include <vsomeip_internal/log_macros.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 #include <vsomeip_internal/serializer_impl.hpp>
 #include <vsomeip_internal/service.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
 #include <vsomeip_internal/udp_client_impl.hpp>
@@ -223,6 +224,11 @@ void managing_application_impl::disable_magic_cookies(
 
 boost::asio::io_service & managing_application_impl::get_io_service() {
 	return service_;
+}
+
+boost::log::sources::severity_logger<
+	boost::log::trivial::severity_level > & managing_application_impl::get_logger() {
+	return logger_;
 }
 
 void managing_application_impl::receive(

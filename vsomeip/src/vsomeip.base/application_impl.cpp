@@ -27,6 +27,7 @@
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/message_queue.hpp>
 #include <vsomeip_internal/deserializer_impl.hpp>
 #include <vsomeip_internal/serializer_impl.hpp>

@@ -13,6 +13,7 @@
 #include <boost/asio/write.hpp>
 #include <boost/bind.hpp>
 
+#include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -108,7 +109,7 @@ void tcp_client_impl::send_magic_cookie() {
 			data + sizeof(data)
 		);
 	} else {
-		// TODO: log "Packet full: cannot insert magic cookie"
+		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
 	}
 }
 
