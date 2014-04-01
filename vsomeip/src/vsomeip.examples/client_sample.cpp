@@ -18,9 +18,6 @@
 
 using namespace vsomeip;
 
-int options_count = 0;
-char **options = 0;
-
 factory * the_factory = factory::get_instance();
 application * the_application = the_factory->create_application("ClientSample");
 
@@ -36,7 +33,9 @@ void receive(const message_base *_message) {
 	const endpoint *target = _message->get_target();
 
 	std::cout << i++
-			  << ". Response with "
+			  << ". Response for client "
+			  << std::hex << _message->get_client_id()
+			  << " with "
 			  << _message->get_length() << " bytes (";
 	if (source) {
 		std::cout << source->get_address()
@@ -67,7 +66,7 @@ void worker() {
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
 		}
 
-		usleep(50000);
+		usleep(100000);
 		the_application->send(the_message, true);
 
 		is_sending_to_internal = !is_sending_to_internal;
@@ -75,7 +74,12 @@ void worker() {
 }
 
 void run() {
-	the_application->init(options_count, options);
+	the_application->run();
+}
+
+
+int main(int argc, char **argv) {
+	the_application->init(argc, argv);
 	the_application->start();
 
 	the_message->set_client_id(0x1111);
@@ -95,21 +99,11 @@ void run() {
 	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_METHOD, receive);
 	the_application->register_cbk(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_METHOD, receive);
 
-	while (1) {
-		the_application->run();
-	}
-}
+	boost::thread framework_thread(run);
+	boost::thread application_thread(worker);
 
-
-int main(int argc, char **argv) {
-	options_count = argc;
-	options = argv;
-
-	boost::thread receiver(run);
-	boost::thread sender(worker);
-
-	receiver.join();
-	sender.join();
+	framework_thread.join();
+	application_thread.join();
 
 	return 0;
 }

@@ -29,9 +29,9 @@ struct request_info {
 	// as it is used in a set
 	bool operator <(const request_info &_other) const {
 		return (id_ < _other.id_
-			 && service_ < _other.service_
-			 && instance_ < _other.instance_
-			 && location_ < _other.location_);
+			 || service_ < _other.service_
+			 || instance_ < _other.instance_
+			 || location_ < _other.location_);
 	}
 };
 

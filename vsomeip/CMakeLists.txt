@@ -38,7 +38,7 @@ file (GLOB vsomeipd_SRC
 
 # Daemon
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base ${Boost_LIBRARIES} rt)
 
 # Test executables
 add_executable(application_sample src/vsomeip.examples/application_sample.cpp)

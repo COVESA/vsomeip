@@ -9,14 +9,13 @@
 // All rights reserved.
 //
 
+#include <vsomeip_internal/protocol.hpp>
+
 #ifndef VSOMEIP_INTERNAL_CONFIG_HPP
 #define VSOMEIP_INTERNAL_CONFIG_HPP
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH	 \
 			"/etc/vsomeip.conf"
-
-#define VSOMEIP_PROTOCOL_OVERHEAD		  17
-#define VSOMEIP_PROTOCOL_RESERVED		   0
 
 #define VSOMEIP_MAX_TCP_MESSAGE_SIZE	4095
 #define VSOMEIP_MAX_UDP_MESSAGE_SIZE	1446

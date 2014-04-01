@@ -44,7 +44,7 @@ void receive_message(const message_base *_message) {
 
 	message *response = the_factory->create_response(_message);
 
-	uint8_t payload_data[] = { 0x11, 0x22, 0x44, 0x66, 0x88 };
+	uint8_t payload_data[] = { 0x11, 0x22, 0x44, 0x66, 0x88, 0x99 };
 	response->get_payload().set_data(payload_data, sizeof(payload_data));
 
 	the_application->send(response);

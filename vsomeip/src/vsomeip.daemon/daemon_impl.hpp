@@ -127,7 +127,7 @@ private:
 	// applications
 	std::map< application_id, application_info > applications_;
 
-	// services
+	// clients & services
 	std::map< service_id, std::map< instance_id, service_info > > services_;
 
 	// sessions

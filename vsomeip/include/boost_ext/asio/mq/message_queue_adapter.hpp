@@ -24,6 +24,8 @@ const mqd_t INVALID(reinterpret_cast< mqd_t >(-1));
 class message_queue_adapter {
 public:
 	message_queue_adapter() : id_(INVALID) {
+		timeout_.tv_sec = 0;
+		timeout_.tv_nsec = 100000000;
     }
 
     ~message_queue_adapter() {
@@ -76,8 +78,20 @@ public:
     	if (e > -1) {
     	    ec = boost::system::error_code();
         } else {
-        	std::cout << "Error code " << errno << std::endl;
             ec = boost::asio::error::operation_aborted;
+            struct mq_attr config;
+            e = mq_getattr(id_, &config);
+            std::cout << "Queue ("
+            		  << name_
+            		  << ") state ["
+            		  << config.mq_maxmsg
+            		  << ", "
+            		  << config.mq_msgsize
+            		  << ", "
+            		  << config.mq_curmsgs
+            		  << ", "
+            		  << config.mq_flags
+            		  << "]" << std::endl;
         }
     }
 
@@ -97,6 +111,7 @@ public:
     }
 
 private:
+    struct timespec timeout_;
     mqd_t id_;
     std::string name_;
 };

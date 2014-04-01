@@ -29,7 +29,7 @@ void configuration::init(int _options_count, char **_options) {
 		options::options_description valid_options("valid_options");
 		valid_options.add_options()
 			(
-				"vsomeip-config",
+				"config",
 				options::value< std::string >()->default_value("/etc/vsomeip.conf"),
 				"Path to configuration file"
 			);
@@ -50,9 +50,9 @@ void configuration::init(int _options_count, char **_options) {
 		// intentionally left empty
 	}
 
-	if (command_line_options.count("vsomeip-config")) {
+	if (command_line_options.count("config")) {
 		configuration_file_path_
-			= command_line_options["vsomeip-config"].as< std::string >();
+			= command_line_options["config"].as< std::string >();
 	}
 }
 

@@ -92,8 +92,10 @@ public:
 private:
 	message_queue * find_target_queue(service_id, const endpoint *) const;
 	message_queue * find_target_queue(application_id);
+	void remove_requested_services(message_queue *);
 
-	void do_send(const std::vector<uint8_t> &_data);
+	void do_send(const std::vector<uint8_t> &);
+	void do_send_buffer(const std::vector<uint8_t> &);
 	void do_receive();
 
 	void on_application_info(const uint8_t *, uint32_t);
@@ -114,15 +116,21 @@ private:
 private: // callbacks
 	void create_cbk(boost::system::error_code const &);
 	void open_cbk(boost::system::error_code const &);
+	void retry_open_cbk(boost::system::error_code const &);
 	void close_cbk(boost::system::error_code const &);
 	void send_cbk(boost::system::error_code const &);
+	void retry_send_cbk(boost::system::error_code const &);
 	void receive_cbk(boost::system::error_code const &, std::size_t, unsigned int);
-	void request_cbk(boost::system::error_code const &, service_id, instance_id, message_queue *);
+	void request_cbk(boost::system::error_code const &, service_id, instance_id, message_queue *, const std::string &);
 	void response_cbk(boost::system::error_code const &, message_queue *);
 
 private: // object members
 	boost::asio::io_service service_;
 	boost::asio::system_timer watchdog_timer_;
+	boost::asio::system_timer retry_timer_;
+
+	uint32_t retry_timeout_;
+	bool is_open_;
 
 	application_id id_; // will be received from the daemon
 	int receiver_slots_;
@@ -156,6 +164,8 @@ private: // object members
 					   method_filter_map > service_filter_map;
 
 	service_filter_map receive_cbks_;
+
+	boost::mutex mutex_;
 };
 
 } // namespace vsomeip

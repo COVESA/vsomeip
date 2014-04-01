@@ -24,8 +24,8 @@ char **options = 0;
 factory * the_factory = factory::get_instance();
 application * the_application = the_factory->create_managing_application("ExternalClientSample");
 
-endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::UDP);
-endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::UDP);
+endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::TCP);
+endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
 
 message * the_message = the_factory->create_message();
 
@@ -36,7 +36,9 @@ void receive(const message_base *_message) {
 	const endpoint *target = _message->get_target();
 
 	std::cout << i++
-			  << ". Response with "
+			  << ". Response for "
+			  << std::hex << _message->get_client_id()
+			  << " with "
 			  << _message->get_length() << " bytes (";
 	if (source) {
 		std::cout << source->get_address()
@@ -67,7 +69,7 @@ void worker() {
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
 		}
 
-		usleep(50000);
+		usleep(100000);
 		the_application->send(the_message, true);
 
 		is_sending_to_internal = !is_sending_to_internal;
