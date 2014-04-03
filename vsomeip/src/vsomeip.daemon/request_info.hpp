@@ -17,11 +17,11 @@ namespace vsomeip {
 class endpoint;
 
 struct request_info {
-	request_info(application_id _id, service_id _service, instance_id _instance, const endpoint *_location)
+	request_info(client_id _id, service_id _service, instance_id _instance, const endpoint *_location)
 		: id_(_id), service_(_service), instance_(_instance), location_(_location) {
 	}
 
-	application_id id_;
+	client_id id_;
 	service_id service_;
 	instance_id instance_;
 	const endpoint *location_;

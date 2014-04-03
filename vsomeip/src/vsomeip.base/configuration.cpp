@@ -93,6 +93,7 @@ configuration::configuration()
 	  logfile_path_("./vsomeip.log"),
 	  use_service_discovery_(false),
 	  use_virtual_mode_(false),
+	  client_id_(0),
 	  receiver_slots_(10),
 	  protocol_("udp.v4"),
 	  unicast_address_("127.0.0.1"),
@@ -140,6 +141,11 @@ void configuration::read_configuration(const std::string &_name) {
 				"someip.application.slots",
 				options::value<int>(),
 				"Maximum number of received messages an application can buffer"
+			)
+			(
+				"someip.application.client_id",
+				options::value<int>(),
+				"The client identifier for the application"
 			)
 			(
 				"someip.service_discovery.protocol",
@@ -211,6 +217,13 @@ void configuration::read_configuration(const std::string &_name) {
 					options::value< int >(),
 					"Local override for number of receiver slots."
 				);
+			local_override = "someip.application." + _name + ".client_id";
+			vsomeip_options_description.add_options()
+				(
+					local_override.c_str(),
+					options::value< int >(),
+					"Local override for client identifier."
+				);
 		};
 
 		options::variables_map vsomeip_options;
@@ -249,8 +262,10 @@ void configuration::read_configuration(const std::string &_name) {
 
 			// Application
 			if (vsomeip_options.count("someip.application.slots"))
-				receiver_slots_
-					= vsomeip_options["someip.application.slots"].as< int >();
+				receiver_slots_	= vsomeip_options["someip.application.slots"].as< int >();
+
+			if (vsomeip_options.count("someip.application.client_id"))
+				client_id_ = vsomeip_options["someip.application.slots"].as< int >();
 
 			// Service Discovery
 			if (vsomeip_options.count("someip.service_discovery.protocol"))
@@ -295,8 +310,11 @@ void configuration::read_configuration(const std::string &_name) {
 
 			if (_name != "") {
 				if (vsomeip_options.count("someip.application." + _name + ".slots"))
-					receiver_slots_
-						= vsomeip_options["someip.application." + _name + ".slots"].as< int >();
+					receiver_slots_ = vsomeip_options["someip.application." + _name + ".slots"].as< int >();
+
+				if (vsomeip_options.count("someip.application." + _name + ".client_id")) {
+					client_id_ = vsomeip_options["someip.application." + _name + ".client_id"].as< int >();
+				}
 			}
 		}
 	}
@@ -328,6 +346,10 @@ bool configuration::use_service_discovery() const {
 
 bool configuration::use_virtual_mode() const {
 	return use_virtual_mode_;
+}
+
+uint16_t configuration::get_client_id() const {
+	return client_id_;
 }
 
 uint8_t configuration::get_receiver_slots() const {

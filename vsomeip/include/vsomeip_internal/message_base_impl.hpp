@@ -24,9 +24,6 @@ public:
 	message_base_impl();
 	virtual ~message_base_impl();
 
-	application_id get_sender_id() const;
-	void set_sender_id(application_id _id);
-
 	const endpoint * get_source() const;
 	void set_source(const endpoint *_endpoint);
 	const endpoint * get_target() const;
@@ -59,7 +56,6 @@ public:
 protected: // members
 	message_header_impl header_;
 
-	application_id sender_id_;
 	const endpoint *source_;
 	const endpoint *target_;
 };

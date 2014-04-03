@@ -24,7 +24,7 @@ void receive_message(const message_base *_message) {
 	const endpoint *target = _message->get_target();
 
 	std::cout << i++
-			  << ". Application " << _message->get_sender_id()
+			  << ". Application " << _message->get_client_id()
 			  << " sends a request with "
 			  << _message->get_length() << " bytes (";
 	if (source) {

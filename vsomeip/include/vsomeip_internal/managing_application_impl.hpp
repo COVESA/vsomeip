@@ -95,6 +95,8 @@ protected:
 private:
 	boost::shared_ptr< deserializer > deserializer_;
 
+	client_id id_;
+
 	// locations of clients & services
 	typedef std::map< service_id,
 	                   std::map< instance_id,

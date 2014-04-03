@@ -61,33 +61,34 @@ private:
 	void run_sender();
 	void run_network();
 
-	bool is_client_message(const message_base *_message);
+	bool is_request(const message_base *_message) const;
+	bool is_request(const uint8_t *, uint32_t) const;
 
-	void do_send(application_id, std::vector< uint8_t > &);
+	void do_send(client_id, std::vector< uint8_t > &);
 	void do_broadcast(std::vector< uint8_t > &);
 	void do_receive();
 
-	void on_register_application(const std::string &);
-	void on_deregister_application(application_id);
-	void on_provide_service(application_id, service_id, instance_id, const endpoint *);
-	void on_withdraw_service(application_id, service_id, instance_id, const endpoint *);
-	void on_start_service(application_id, service_id, instance_id);
-	void on_stop_service(application_id, service_id, instance_id);
-	void on_request_service(application_id, service_id, instance_id, const endpoint *);
-	void on_release_service(application_id, service_id, instance_id, const endpoint *);
+	void on_register_application(client_id, const std::string &);
+	void on_deregister_application(client_id);
+	void on_provide_service(client_id, service_id, instance_id, const endpoint *);
+	void on_withdraw_service(client_id, service_id, instance_id, const endpoint *);
+	void on_start_service(client_id, service_id, instance_id);
+	void on_stop_service(client_id, service_id, instance_id);
+	void on_request_service(client_id, service_id, instance_id, const endpoint *);
+	void on_release_service(client_id, service_id, instance_id, const endpoint *);
 
-	void on_pong(application_id);
+	void on_pong(client_id);
 
-	void on_message(application_id, const uint8_t *, uint32_t);
-	void on_register_method(application_id, service_id, method_id);
-	void on_deregister_method(application_id, service_id, method_id);
+	void on_message(client_id, const uint8_t *, uint32_t);
+	void on_register_method(client_id, service_id, method_id);
+	void on_deregister_method(client_id, service_id, method_id);
 
-	void send_ping(application_id);
+	void send_ping(client_id);
 	void send_application_info();
-	void send_application_lost(const std::list< application_id > &);
+	void send_application_lost(const std::list< client_id > &);
 
-	void send_request_service_ack(application_id, service_id, instance_id, const std::string &);
-	void send_release_service_ack(application_id, service_id, instance_id);
+	void send_request_service_ack(client_id, service_id, instance_id, const std::string &);
+	void send_release_service_ack(client_id, service_id, instance_id);
 
 	void process_command(std::size_t _bytes);
 	void start_watchdog_cycle();
@@ -96,10 +97,10 @@ private:
 	void receive(const uint8_t *, uint32_t, const endpoint *, const endpoint *);
 
 private:
-	void open_cbk(boost::system::error_code const &_error, application_id _id);
+	void open_cbk(boost::system::error_code const &_error, client_id _id);
 	void create_cbk(boost::system::error_code const &_error);
 	void destroy_cbk(boost::system::error_code const &_error);
-	void send_cbk(boost::system::error_code const &_error, application_id _id);
+	void send_cbk(boost::system::error_code const &_error, client_id _id);
 	void receive_cbk(
 			boost::system::error_code const &_error,
 			std::size_t _bytes, unsigned int _priority);
@@ -125,34 +126,24 @@ private:
 	std::deque< std::vector< uint8_t > > send_buffers_;
 
 	// applications
-	std::map< application_id, application_info > applications_;
+	std::map< client_id, application_info > applications_;
 
-	// clients & services
-	std::map< service_id, std::map< instance_id, service_info > > services_;
-
-	// sessions
-	std::map< client_id, std::map< session_id, application_id > > sessions_;
-
-	// requests (which could not yet be answered)
+	// requests (need to be stored as services may leave and come back)
 	std::set< request_info > requests_;
 
-	// endpoints
-//	std::map< const endpoint *, client * > client_locations_;
-//	std::map< const endpoint *, service * > service_locations_;
+	// Communication channels
+	typedef std::map< service_id,
+  	  	  			  std::pair< client_id,
+  	  	  			  	  	  	 std::set< method_id > > > channel_t;
 
-	// application mappings
-	std::map< client_id, application_id > client_to_application_;
-	std::map< const endpoint *,
-	          std::map< service_id,
-	                    application_id > > service_to_application_;
+	typedef std::map< client_id, channel_t > client_channel_map_t;
+	typedef std::map< const endpoint *, channel_t > service_channel_map_t;
 
-	// channels
-	std::map< service_id,
-	          std::map< method_id,
-	           	   	    std::set< application_id > > > channels_;
+	client_channel_map_t client_channels_;
+	service_channel_map_t service_channels_;
 
 private:
-	static application_id id__;
+	static client_id id__;
 
 #ifdef VSOMEIP_DAEMON_DEBUG
 private:

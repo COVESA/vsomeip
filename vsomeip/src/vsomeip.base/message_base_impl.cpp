@@ -15,22 +15,13 @@
 namespace vsomeip {
 
 message_base_impl::message_base_impl()
-	: sender_id_(0),
-	  source_(0),
+	: source_(0),
 	  target_(0) {
 	header_.set_owner(this);
 }
 
 message_base_impl::~message_base_impl() {
 };
-
-application_id message_base_impl::get_sender_id() const {
-	return sender_id_;
-}
-
-void message_base_impl::set_sender_id(application_id _sender_id) {
-	sender_id_ = _sender_id;
-}
 
 const endpoint * message_base_impl::get_source() const {
 	return source_;

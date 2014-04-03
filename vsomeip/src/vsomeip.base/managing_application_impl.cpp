@@ -41,7 +41,8 @@ namespace vsomeip {
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
 managing_application_impl::managing_application_impl(const std::string &_name)
-	: log_owner(_name),
+	: id_(0),
+	  log_owner(_name),
 	  serializer_(new serializer_impl),
 	  deserializer_(new deserializer_impl) {
 
@@ -52,6 +53,18 @@ managing_application_impl::~managing_application_impl() {
 }
 
 void managing_application_impl::init(int _options_count, char **_options) {
+	configuration::init(_options_count, _options);
+	configuration * vsomeip_configuration = configuration::request(name_);
+
+	configure_logging(
+		vsomeip_configuration->use_console_logger(),
+		vsomeip_configuration->use_file_logger(),
+		vsomeip_configuration->use_dlt_logger()
+	);
+
+	id_ = vsomeip_configuration->get_client_id();
+
+	set_loglevel(vsomeip_configuration->get_loglevel());
 }
 
 void managing_application_impl::start() {
@@ -160,6 +173,8 @@ bool managing_application_impl::send(message_base *_message, bool _flush) {
 		if (serializer_->serialize(_message)) {
 			message_type_enum message_type = _message->get_message_type();
 			if (message_type < message_type_enum::RESPONSE) {
+				_message->set_client_id(id_);
+
 				client * the_client = find_client(_message->get_target());
 				if (the_client) {
 					is_sent = the_client->send(

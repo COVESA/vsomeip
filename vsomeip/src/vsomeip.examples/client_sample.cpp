@@ -19,7 +19,7 @@
 using namespace vsomeip;
 
 factory * the_factory = factory::get_instance();
-application * the_application = the_factory->create_application("ClientSample");
+application * the_application = the_factory->create_application("InternalClientSample");
 
 endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::TCP);
 endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
@@ -82,7 +82,6 @@ int main(int argc, char **argv) {
 	the_application->init(argc, argv);
 	the_application->start();
 
-	the_message->set_client_id(0x1111);
 	the_message->set_session_id(0x4234);
 	the_message->set_message_type(message_type_enum::REQUEST);
 	the_message->set_return_code(return_code_enum::OK);

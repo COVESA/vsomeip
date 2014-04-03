@@ -18,8 +18,8 @@ namespace vsomeip {
 class endpoint;
 
 struct service_info {
-	application_id id_;
-	std::set< application_id > clients_;
+	client_id id_;
+	std::set< client_id > clients_;
 	bool is_started_;
 	bool has_service_discovery;
 	std::set< const endpoint *> locations_;

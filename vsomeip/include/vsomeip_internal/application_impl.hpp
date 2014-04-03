@@ -91,7 +91,7 @@ public:
 
 private:
 	message_queue * find_target_queue(service_id, const endpoint *) const;
-	message_queue * find_target_queue(application_id);
+	message_queue * find_target_queue(client_id);
 	void remove_requested_services(message_queue *);
 
 	void do_send(const std::vector<uint8_t> &);
@@ -101,7 +101,7 @@ private:
 	void on_application_info(const uint8_t *, uint32_t);
 	void on_application_lost(const uint8_t *, uint32_t);
 	void on_request_service_ack(service_id, instance_id, const std::string &);
-	void on_message(application_id, const uint8_t *, uint32_t);
+	void on_message(client_id, const uint8_t *, uint32_t);
 
 	void process_message(std::size_t _bytes);
 	void process_early_registrations();
@@ -129,10 +129,12 @@ private: // object members
 	boost::asio::system_timer watchdog_timer_;
 	boost::asio::system_timer retry_timer_;
 
+	bool is_registered_;
+
 	uint32_t retry_timeout_;
 	bool is_open_;
 
-	application_id id_; // will be received from the daemon
+	client_id id_;
 	int receiver_slots_;
 
 	// Prefix for all(!) queue names
@@ -155,7 +157,7 @@ private: // object members
 	requested_t requested_;
 
 	std::map< std::string, message_queue * > queues_;
-	std::map< application_id, std::string > other_queue_names_;
+	std::map< client_id, std::string > other_queue_names_;
 
 	// receiver
 	typedef std::map< method_id,

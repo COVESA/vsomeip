@@ -41,7 +41,7 @@ using namespace boost::log::trivial;
 
 namespace vsomeip {
 
-application_id daemon_impl::id__ = 1; // ID 0 is reserved for the daemon
+client_id daemon_impl::id__ = 1; // ID 0 is reserved for the daemon
 
 daemon * daemon_impl::get_instance() {
 	static daemon_impl the_daemon;
@@ -138,7 +138,7 @@ void daemon_impl::start_watchdog_check() {
 					boost::asio::placeholders::error));
 }
 
-void daemon_impl::do_send(application_id _id, std::vector< uint8_t > &_data) {
+void daemon_impl::do_send(client_id _id, std::vector< uint8_t > &_data) {
 	auto found_application = applications_.find(_id);
 	if (found_application != applications_.end()) {
 		std::memcpy(&_data[VSOMEIP_PROTOCOL_ID], &_id, sizeof(_id));
@@ -179,112 +179,120 @@ void daemon_impl::receive(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
 
+	client_id target_application = 0;
 	service_id service = VSOMEIP_BYTES_TO_WORD(_data[0], _data[1]);
 	method_id method = VSOMEIP_BYTES_TO_WORD(_data[2], _data[3]);
-	client_id client = VSOMEIP_BYTES_TO_WORD(_data[8], _data[9]);
+	message_type_enum message_type = static_cast< message_type_enum >(_data[14]);
 
-	auto found_service = channels_.find(service);
-	if (found_service != channels_.end()) {
-
-		auto found_method = found_service->second.find(method);
-
-		if (found_method != found_service->second.end()) {
-
-			application_id target_id = 0;
-
-			message_type_enum message_type = static_cast< message_type_enum >(_data[14]);
-			if (message_type < message_type_enum::RESPONSE) {
-				// message goes to a service, check which one
-				auto found_endpoint = service_to_application_.find(_target);
-				if (found_endpoint != service_to_application_.end()) {
-					auto found_service_at_endpoint = found_endpoint->second.find(service);
-					if (found_service_at_endpoint != found_endpoint->second.end()) {
-						target_id = found_service_at_endpoint->second;
-					}
-				}
-			} else {
-				auto found_client_application = client_to_application_.find(client);
-				if (found_client_application != client_to_application_.end()) {
-					auto found_target = found_method->second.find(found_client_application->second);
-					if (found_target != found_method->second.end()) {
-						target_id = found_client_application->second;
-					}
+	// Do we search for a client or a service?
+	if (is_request(_data, _size)) {
+		auto find_endpoint = service_channels_.find(_target);
+		if (find_endpoint != service_channels_.end()) {
+			auto find_service = find_endpoint->second.find(service);
+			if (find_service != find_endpoint->second.end()) {
+				auto find_method = find_service->second.second.find(method);
+				if (find_method != find_service->second.second.end()) {
+					target_application = find_service->second.first;
+				} else {
+					// TODO: add wildcard handling here?!
 				}
 			}
-
-			if (0 != target_id) {
-				std::vector< uint8_t > message_buffer(
-					_size +
-					(2 * VSOMEIP_MAX_ENDPOINT_SIZE) +
-					VSOMEIP_PROTOCOL_OVERHEAD
-				);
-
-				// Fill in start tag and command
-				std::memcpy(&message_buffer[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
-				message_buffer[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::SOMEIP_MESSAGE);
-
-				// Fill in message data
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD], _data, _size);
-
-				// Fill in source / target endpoints
-				if (!serializer_->serialize(_source)) {
-					VSOMEIP_ERROR << "Serializing of source endpoint failed!";
-					return;
-				}
-				uint32_t source_size = serializer_->get_size();
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+_size], &source_size, sizeof(source_size));
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+4+_size], serializer_->get_data(), serializer_->get_size());
-				serializer_->reset();
-
-				if (!serializer_->serialize(_target)) {
-					VSOMEIP_ERROR << "Serializing of source endpoint failed!";
-					return;
-				}
-				uint32_t target_size = serializer_->get_size();
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+4+_size+source_size], &target_size, sizeof(target_size));
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+8+_size+source_size], serializer_->get_data(), serializer_->get_size());
-				serializer_->reset();
-
-				uint32_t payload_size = 8 + _size + source_size + target_size;
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+8+_size+source_size+target_size], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
-				message_buffer.resize(VSOMEIP_PROTOCOL_OVERHEAD + payload_size);
-
-				std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_ID], &target_id, sizeof(target_id));
-				do_send(target_id, message_buffer);
-			} else {
-				VSOMEIP_ERROR << "Could not determine target application for " << std::hex << service << "." << method << " to " << client;
-			}
-		} else {
-			VSOMEIP_WARNING << "Service is registered, but not for method " << std::hex << method;
 		}
 	} else {
-		VSOMEIP_WARNING << "Service " << std::hex << service << " is not registered.";
+		client_id client = VSOMEIP_BYTES_TO_WORD(_data[8], _data[9]);
+		auto find_client = client_channels_.find(client);
+		if (find_client != client_channels_.end()) {
+			auto find_service = find_client->second.find(service);
+			if (find_service != find_client->second.end()) {
+				auto find_method = find_service->second.second.find(method);
+				if (find_method != find_service->second.second.end()) {
+					target_application = find_service->second.first;
+				} else {
+					// TODO: add wildcard handling here?!
+				}
+			}
+		}
+	}
+
+	// If the target application could be found, forward the message
+	if (target_application > 0) {
+		std::vector< uint8_t > message_buffer(
+			_size +
+			(2 * VSOMEIP_MAX_ENDPOINT_SIZE) +
+			VSOMEIP_PROTOCOL_OVERHEAD
+		);
+
+		// Fill in start tag and command
+		std::memcpy(&message_buffer[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
+		message_buffer[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::SOMEIP_MESSAGE);
+
+		// Set source application id
+		std::memset(&message_buffer[VSOMEIP_PROTOCOL_ID], 0, sizeof(client_id));
+
+		// Fill in message data
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD], _data, _size);
+
+		// Fill in source / target endpoints
+		if (!serializer_->serialize(_source)) {
+			VSOMEIP_ERROR << "Serializing of source endpoint failed!";
+			return;
+		}
+		uint32_t source_size = serializer_->get_size();
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+_size], &source_size, sizeof(source_size));
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+4+_size], serializer_->get_data(), serializer_->get_size());
+		serializer_->reset();
+
+		if (!serializer_->serialize(_target)) {
+			VSOMEIP_ERROR << "Serializing of source endpoint failed!";
+			return;
+		}
+		uint32_t target_size = serializer_->get_size();
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+4+_size+source_size], &target_size, sizeof(target_size));
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+8+_size+source_size], serializer_->get_data(), serializer_->get_size());
+		serializer_->reset();
+
+		uint32_t payload_size = 8 + _size + source_size + target_size;
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
+		std::memcpy(&message_buffer[VSOMEIP_PROTOCOL_PAYLOAD+8+_size+source_size+target_size], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+		message_buffer.resize(VSOMEIP_PROTOCOL_OVERHEAD + payload_size);
+
+		do_send(target_application, message_buffer);
+	} else {
+		VSOMEIP_WARNING << "Could not find target application!";
 	}
 }
 
-void daemon_impl::on_register_application(const std::string &_name) {
+void daemon_impl::on_register_application(client_id _id, const std::string &_name) {
 	boost_ext::asio::message_queue *application_queue =
 			new boost_ext::asio::message_queue(sender_service_);
 
-	VSOMEIP_INFO << "Registering application " << id__ << " for queue " << _name;
+	VSOMEIP_INFO << "Registering application " << _id << " for queue " << _name;
 
 	application_info info;
 	info.queue_ = application_queue;
 	info.queue_name_ = _name;
 	info.watchdog_ = 0;
 
-	applications_[id__] = info;
+	auto found_application = applications_.find(_id);
+	if (found_application != applications_.end()) {
+		while ((found_application = applications_.find(id__)) != applications_.end()) {
+			id__++;
+		}
+
+		VSOMEIP_WARNING << "As an application with id=\"" << _id << "\" is already registered, "
+				           "the application id will be modified to \"" << id__ << "\"";
+		_id = id__;
+	}
+
+	applications_[_id] = info;
 
 	application_queue->async_open(
 			queue_name_prefix_ + _name,
 			boost::bind(&daemon_impl::open_cbk, this,
-					boost::asio::placeholders::error, id__));
-
-	id__++;
+					boost::asio::placeholders::error, _id));
 }
 
-void daemon_impl::on_deregister_application(application_id _id) {
+void daemon_impl::on_deregister_application(client_id _id) {
 	applications_.erase(_id);
 
 	/*
@@ -300,7 +308,7 @@ void daemon_impl::on_deregister_application(application_id _id) {
 	 */
 }
 
-void daemon_impl::on_provide_service(application_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
+void daemon_impl::on_provide_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") PROVIDES ("
@@ -336,12 +344,11 @@ void daemon_impl::on_provide_service(application_id _id, service_id _service, in
 			find_application->second.services_[_service][_instance].insert(_location);
 		}
 
-		// make the application accessible by (endpoint, service-id)
-		service_to_application_[_location][_service] = _id;
+		// create a channel for the new service
+		service_channels_[_location][_service] = std::make_pair(_id, std::set< method_id >());
 
 		// maybe the new provided service was already requested
 		for (auto r : requests_) {
-			VSOMEIP_INFO << "New service provided, checking requests...";
 			if (r.service_ == _service && r.instance_ == _instance) {
 				VSOMEIP_INFO << "  reporting service location to application " << r.id_;
 				on_request_service(r.id_, r.service_, r.instance_, r.location_);
@@ -358,7 +365,7 @@ void daemon_impl::on_provide_service(application_id _id, service_id _service, in
 	}
 }
 
-void daemon_impl::on_withdraw_service(application_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
+void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") WITHDRAWS ("
@@ -382,9 +389,18 @@ void daemon_impl::on_withdraw_service(application_id _id, service_id _service, i
 				find_application->second.services_.erase(_service);
 		}
 	}
+
+	// remove the channel for the service
+	auto found_location = service_channels_.find(_location);
+	if (found_location != service_channels_.end()) {
+		found_location->second.erase(_service);
+		if (0 == found_location->second.size()) {
+			service_channels_.erase(_location);
+		}
+	}
 }
 
-void daemon_impl::on_start_service(application_id _id, service_id _service, instance_id _instance) {
+void daemon_impl::on_start_service(client_id _id, service_id _service, instance_id _instance) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") STARTS ("
@@ -393,7 +409,7 @@ void daemon_impl::on_start_service(application_id _id, service_id _service, inst
 		<< ")";
 }
 
-void daemon_impl::on_stop_service(application_id _id, service_id _service, instance_id _instance) {
+void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_id _instance) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") STOPS ("
@@ -402,13 +418,19 @@ void daemon_impl::on_stop_service(application_id _id, service_id _service, insta
 		<< ")";
 }
 
-void daemon_impl::on_request_service(application_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
+void daemon_impl::on_request_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") REQUESTS ("
 		<< std::hex << std::setw(4) << std::setfill('0')
 		<< _service << ", " << _instance
 		<< ")";
+
+	request_info info(_id, _service, _instance, _location);
+	requests_.insert(info);
+
+	// create a channel for the new service
+	client_channels_[_id][_service] = std::make_pair(_id, std::set< method_id >());
 
 	for (auto a : applications_) {
 		auto s = a.second.services_.find(_service);
@@ -425,12 +447,9 @@ void daemon_impl::on_request_service(application_id _id, service_id _service, in
 			}
 		}
 	}
-
-	request_info info(_id, _service, _instance, _location);
-	requests_.insert(info);
 }
 
-void daemon_impl::on_release_service(application_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
+void daemon_impl::on_release_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
 	VSOMEIP_DEBUG
 		<< "APPLICATION " << "(" << _id
 		<< ") RELEASES ("
@@ -438,29 +457,70 @@ void daemon_impl::on_release_service(application_id _id, service_id _service, in
 		<< _service << ", " << _instance
 		<< ")";
 
+	// remove the channel for the client
+	auto found_client = client_channels_.find(_id);
+	if (found_client != client_channels_.end()) {
+		found_client->second.erase(_service);
+		if (0 == found_client->second.size()) {
+			client_channels_.erase(_id);
+		}
+	}
+
 	request_info info(_id, _service, _instance, _location);
 	requests_.erase(info);
 }
 
-void daemon_impl::on_register_method(application_id _id, service_id _service, method_id _method) {
-	channels_[_service][_method].insert(_id);
+void daemon_impl::on_register_method(client_id _id, service_id _service, method_id _method) {
+	for (auto& e : service_channels_) {
+		auto found_service = e.second.find(_service);
+		if (found_service != e.second.end()) {
+			if (found_service->second.first == _id) {
+				found_service->second.second.insert(_method);
+			}
+		}
+	}
+
+	for (auto& c : client_channels_) {
+		auto found_service = c.second.find(_service);
+		if (found_service != c.second.end()) {
+			if (found_service->second.first == _id) {
+				found_service->second.second.insert(_method);
+			}
+		}
+	}
 }
 
-void daemon_impl::on_deregister_method(application_id _id, service_id _service, method_id _method) {
+void daemon_impl::on_deregister_method(client_id _id, service_id _service, method_id _method) {
+	for (auto& e : service_channels_) {
+		auto found_service = e.second.find(_service);
+		if (found_service != e.second.end()) {
+			if (found_service->second.first == _id) {
+				found_service->second.second.erase(_method);
+			}
+		}
+	}
 
+	for (auto& c : client_channels_) {
+		auto found_service = c.second.find(_service);
+		if (found_service != c.second.end()) {
+			if (found_service->second.first == _id) {
+				found_service->second.second.erase(_method);
+			}
+		}
+	}
 }
 
-void daemon_impl::on_pong(application_id _id) {
+void daemon_impl::on_pong(client_id _id) {
 	auto info = applications_.find(_id);
 	if (info != applications_.end()) {
 		info->second.watchdog_ = 0;
 	} else {
 		VSOMEIP_WARNING
-			<< "Received PONG from unregistered Application " << _id;
+			<< "Received PONG from unregistered application " << _id;
 	}
 }
 
-void daemon_impl::on_message(application_id _id, const uint8_t *_data, uint32_t _size) {
+void daemon_impl::on_message(client_id _id, const uint8_t *_data, uint32_t _size) {
 	const uint8_t *payload = &_data[VSOMEIP_PROTOCOL_PAYLOAD];
 	uint32_t payload_size;
 	std::memcpy(&payload_size, &_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], sizeof(payload_size));
@@ -488,26 +548,23 @@ void daemon_impl::on_message(application_id _id, const uint8_t *_data, uint32_t 
 				target_size
 		  );
 
+	service_id the_service = VSOMEIP_BYTES_TO_WORD(payload[0], payload[1]);
 	client_id the_client = VSOMEIP_BYTES_TO_WORD(payload[8], payload[9]);
-	message_type_enum message_type = static_cast< message_type_enum >(payload[14]);
-	if (message_type < message_type_enum::RESPONSE) {
-		client_to_application_[the_client] = _id;
 
-		service_id service = VSOMEIP_BYTES_TO_WORD(payload[0], payload[1]);
-
-		auto found_service = service_to_application_.find(target);
-		if (found_service  != service_to_application_.end()) {
-			auto found_application = found_service->second.find(service);
-			if (found_application != found_service->second.end()) {
+	if (is_request(payload, payload_size)) {
+		auto found_endpoint = service_channels_.find(target);
+		if (found_endpoint  != service_channels_.end()) {
+			auto found_service = found_endpoint->second.find(the_service);
+			if (found_service != found_endpoint->second.end()) {
 				std::vector< uint8_t > message_data(_data, _data + _size);
-				do_send(found_application->second, message_data);
+				do_send(found_service->second.first, message_data);
 			} else {
 				VSOMEIP_ERROR << "Found the endpoint, but the requested service is not registered!";
 			}
 		} else {
-			client *client = find_or_create_client(target);
-			if (client) {
-				client->send(payload, message_size);
+			client *target_client = find_or_create_client(target);
+			if (target_client) {
+				target_client->send(payload, message_size);
 			} else {
 				VSOMEIP_ERROR << "Client for target endpoint ("
 					<< (target ? target->get_address() : "UNKNOWN")
@@ -518,14 +575,19 @@ void daemon_impl::on_message(application_id _id, const uint8_t *_data, uint32_t 
 		}
 	} else {
 		// find the application that holds the target client and forward the message
-		auto found_application = client_to_application_.find(the_client);
-		if (found_application != client_to_application_.end()) {
-			std::vector< uint8_t > message_data(_data, _data + _size);
-			do_send(found_application->second, message_data);
+		auto found_client = client_channels_.find(the_client);
+		if (found_client != client_channels_.end()) {
+			auto found_service = found_client->second.find(the_service);
+			if (found_service != found_client->second.end()) {
+				std::vector< uint8_t > message_data(_data, _data + _size);
+				do_send(found_service->second.first, message_data);
+			} else {
+				VSOMEIP_ERROR << "Found the client, but the service is not requested!";
+			}
 		} else {
-			service *service = find_service(source);
-			if (service) {
-				service->send(payload, message_size, target);
+			service *target_service = find_service(source);
+			if (target_service) {
+				target_service->send(payload, message_size, target);
 			} else {
 				VSOMEIP_ERROR << "Service for source endpoint ("
 					<< (source ? source->get_address() : "UNKNOWN")
@@ -565,11 +627,16 @@ bool daemon_impl::provide_service(service_id _service, instance_id _instance,
 	return true;
 }
 
-bool daemon_impl::is_client_message(const message_base *_message) {
-	return (_message->get_message_type() < message_type_enum::REQUEST_ACK);
+bool daemon_impl::is_request(const message_base *_message) const {
+	return (_message->get_message_type() < message_type_enum::RESPONSE);
 }
 
-void daemon_impl::send_request_service_ack(application_id _id, service_id _service, instance_id _instance, const std::string &_queue_name) {
+bool daemon_impl::is_request(const uint8_t *_data, uint32_t _size) const {
+	return (_size >= VSOMEIP_POS_MESSAGE_TYPE &&
+			static_cast< message_type_enum >(_data[VSOMEIP_POS_MESSAGE_TYPE]) < message_type_enum::RESPONSE);
+}
+
+void daemon_impl::send_request_service_ack(client_id _id, service_id _service, instance_id _instance, const std::string &_queue_name) {
 	std::vector< uint8_t > request_ack_buffer;
 
 	// Resize to the needed size
@@ -577,7 +644,7 @@ void daemon_impl::send_request_service_ack(application_id _id, service_id _servi
 	request_ack_buffer.resize(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
 
 	std::memcpy(&request_ack_buffer[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
-	std::memset(&request_ack_buffer[VSOMEIP_PROTOCOL_ID], 0, sizeof(application_id));
+	std::memset(&request_ack_buffer[VSOMEIP_PROTOCOL_ID], 0, sizeof(client_id));
 	request_ack_buffer[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::REQUEST_SERVICE_ACK);
 	std::memcpy(&request_ack_buffer[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
 	std::memcpy(&request_ack_buffer[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
@@ -588,7 +655,7 @@ void daemon_impl::send_request_service_ack(application_id _id, service_id _servi
 	do_send(_id, request_ack_buffer);
 }
 
-void daemon_impl::send_ping(application_id _id) {
+void daemon_impl::send_ping(client_id _id) {
 	uint8_t ping_message[] = {
 		0x67, 0x37, 0x6D, 0x07,
 		0x00, 0x00,
@@ -640,15 +707,15 @@ void daemon_impl::send_application_info() {
 	do_broadcast(message_data);
 }
 
-void daemon_impl::send_application_lost(const std::list< application_id > &_lost_applications) {
+void daemon_impl::send_application_lost(const std::list< client_id > &_lost_applications) {
 	uint32_t message_size = VSOMEIP_PROTOCOL_OVERHEAD
-		+ _lost_applications.size() * sizeof(application_id);
+		+ _lost_applications.size() * sizeof(client_id);
 
 	std::vector< uint8_t > message_data(message_size);
 
 	std::memcpy(&message_data[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
 	std::memcpy(&message_data[message_size-4], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
-	std::memset(&message_data[VSOMEIP_PROTOCOL_ID], 0, sizeof(application_id));
+	std::memset(&message_data[VSOMEIP_PROTOCOL_ID], 0, sizeof(client_id));
 	message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::APPLICATION_LOST);
 	message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
@@ -670,7 +737,7 @@ void daemon_impl::send_application_lost(const std::list< application_id > &_lost
 void daemon_impl::process_command(std::size_t _bytes) {
 	uint32_t start_tag, end_tag, payload_size;
 	command_enum command;
-	application_id an_id;
+	client_id an_id;
 	service_id a_service;
 	instance_id an_instance;
 	method_id a_method;
@@ -686,7 +753,7 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	switch (command) {
 	case command_enum::REGISTER_APPLICATION: {
 		std::string queue_name((char*) &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], payload_size);
-		on_register_application(queue_name);
+		on_register_application(an_id, queue_name);
 		}
 		break;
 
@@ -753,7 +820,7 @@ void daemon_impl::process_command(std::size_t _bytes) {
 ///////////////////////////////////////////////////////////////////////////////
 // Callbacks
 ///////////////////////////////////////////////////////////////////////////////
-void daemon_impl::open_cbk(boost::system::error_code const &_error, application_id _id) {
+void daemon_impl::open_cbk(boost::system::error_code const &_error, client_id _id) {
 	if (!_error) {
 		VSOMEIP_INFO << "Distributing application info";
 		send_application_info();
@@ -795,7 +862,7 @@ void daemon_impl::destroy_cbk(boost::system::error_code const &_error) {
 }
 
 void daemon_impl::send_cbk(boost::system::error_code const &_error,
-		application_id _id) {
+		client_id _id) {
 	if (_error) {
 		VSOMEIP_ERROR << "Message sending failed (Application " << _id << ")";
 	}
@@ -821,7 +888,7 @@ void daemon_impl::watchdog_cycle_cbk(boost::system::error_code const &_error) {
 
 void daemon_impl::watchdog_check_cbk(boost::system::error_code const &_error) {
 	if (!_error) {
-		std::list< application_id > gone;
+		std::list< client_id > gone;
 
 		for (auto i : applications_) {
 			if (i.second.watchdog_ > VSOMEIP_MAX_MISSING_PONGS) {

@@ -50,8 +50,6 @@ typedef uint16_t weight;
 typedef uint32_t alive_counter;
 typedef uint32_t crc;
 
-typedef client_id application_id;
-
 } // namespace vsomeip
 
 #endif // VSOMEIP_PRIMITIVE_TYPES_HPP

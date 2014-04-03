@@ -80,7 +80,6 @@ void run() {
 	the_application->init(options_count, options);
 	the_application->start();
 
-	the_message->set_client_id(0x1112);
 	the_message->set_session_id(0x4234);
 	the_message->set_message_type(message_type_enum::REQUEST);
 	the_message->set_return_code(return_code_enum::OK);

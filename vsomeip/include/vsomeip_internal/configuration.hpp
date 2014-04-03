@@ -30,6 +30,7 @@ public:
 	bool use_service_discovery() const;
 	bool use_virtual_mode() const;
 
+	uint16_t get_client_id() const;
 	uint8_t get_receiver_slots() const;
 
 	const std::string & get_protocol() const;
@@ -65,6 +66,7 @@ private:
 	bool use_virtual_mode_;
 
 	// Application
+	uint16_t client_id_;
 	uint8_t receiver_slots_;
 
 	// Service Discovery

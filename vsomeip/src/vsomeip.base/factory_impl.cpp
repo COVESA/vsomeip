@@ -94,7 +94,6 @@ message * factory_impl::create_response(const message_base *_request) const {
 	message *response = 0;
 	if (0 != _request) {
 		response = new message_impl;
-		response->set_sender_id(_request->get_sender_id());
 		response->set_source(_request->get_target());
 		response->set_target(_request->get_source());
 		response->set_service_id(_request->get_service_id());
