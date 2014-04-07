@@ -19,17 +19,17 @@ find_package( Boost 1.54 COMPONENTS system thread program_options log REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
 # Base library
-file(GLOB vsomeip-base_SRC
-    "src/vsomeip.base/*.cpp"
+file(GLOB vsomeip_SRC
+    "src/vsomeip/*.cpp"
 )
 
-add_library(vsomeip-base SHARED ${vsomeip-base_SRC})
+add_library(vsomeip SHARED ${vsomeip_SRC})
 
-file (GLOB vsomeip-service_discovery_SRC
-    "src/vsomeip.service_discovery/*.cpp"
+file (GLOB vsomeip-sd_SRC
+    "src/vsomeip.sd/*.cpp"
 )
 
-add_library(vsomeip-service_discovery SHARED ${vsomeip-service_discovery_SRC})
+add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 
 # Daemon
 file (GLOB vsomeipd_SRC
@@ -38,20 +38,20 @@ file (GLOB vsomeipd_SRC
 
 # Daemon
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-service_discovery vsomeip-base ${Boost_LIBRARIES} rt)
+target_link_libraries(vsomeipd vsomeip-sd vsomeip ${Boost_LIBRARIES} rt)
 
 # Test executables
 add_executable(application_sample src/vsomeip.examples/application_sample.cpp)
-target_link_libraries(application_sample vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES})
 
 add_executable(client_sample src/vsomeip.examples/client_sample.cpp)
-target_link_libraries(client_sample vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES})
 
 add_executable(service_sample src/vsomeip.examples/service_sample.cpp)
-target_link_libraries(service_sample vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES})
 
 add_executable(external-client_sample src/vsomeip.examples/external-client_sample.cpp)
-target_link_libraries(external-client_sample vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES})
 
 add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
-target_link_libraries(external-service_sample vsomeip-base ${Boost_LIBRARIES})
+target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES})
