@@ -34,7 +34,7 @@ public:
 	// clients
 	virtual bool request_service(
 						service_id _service, instance_id _instance,
-						const endpoint *_location) = 0;
+						const endpoint *_location = 0) = 0;
 	virtual bool release_service(
 						service_id _service, instance_id _instance) = 0;
 

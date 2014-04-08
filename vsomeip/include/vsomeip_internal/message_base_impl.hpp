@@ -33,6 +33,8 @@ public:
 	void set_message_id(message_id _id);
 	service_id get_service_id() const;
 	void set_service_id(service_id _id);
+	instance_id get_instance_id() const;
+	void set_instance_id(instance_id _id);
 	method_id get_method_id() const;
 	void set_method_id(method_id _id);
 	request_id get_request_id() const;

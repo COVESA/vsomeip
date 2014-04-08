@@ -57,6 +57,14 @@ void message_base_impl::set_service_id(service_id _id) {
 	header_.service_id_ = _id;
 }
 
+instance_id message_base_impl::get_instance_id() const {
+	return header_.instance_id_;
+}
+
+void message_base_impl::set_instance_id(instance_id _id) {
+	header_.instance_id_ = _id;
+}
+
 method_id message_base_impl::get_method_id() const {
 	return header_.method_id_;
 }

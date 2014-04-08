@@ -17,7 +17,7 @@
 namespace vsomeip {
 
 class factory_impl
-		: public factory {
+		: virtual public factory {
 public:
 	virtual ~factory_impl();
 

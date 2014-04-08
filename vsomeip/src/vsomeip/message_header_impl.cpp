@@ -17,19 +17,19 @@
 namespace vsomeip {
 
 message_header_impl::message_header_impl()
-	: service_id_(0x0), method_id_(0x0),
+	: service_id_(0x0), instance_id_(0x0), method_id_(0x0),
 	  client_id_(0x0), session_id_(0x0),
 	  protocol_version_(0x1), interface_version_(0x0),
 	  message_type_(message_type_enum::UNKNOWN),
 	  return_code_(return_code_enum::UNKNOWN) {
 };
 
-message_header_impl::message_header_impl(const message_header_impl& header)
-	: service_id_(header.service_id_), method_id_(header.method_id_),
-	  client_id_(header.client_id_), session_id_(header.session_id_),
-	  protocol_version_(header.protocol_version_), interface_version_(header.interface_version_),
-	  message_type_(header.message_type_),
-	  return_code_(header.return_code_) {
+message_header_impl::message_header_impl(const message_header_impl& _header)
+	: service_id_(_header.service_id_), instance_id_(_header.instance_id_), method_id_(_header.method_id_),
+	  client_id_(_header.client_id_), session_id_(_header.session_id_),
+	  protocol_version_(_header.protocol_version_), interface_version_(_header.interface_version_),
+	  message_type_(_header.message_type_),
+	  return_code_(_header.return_code_) {
 };
 
 bool message_header_impl::serialize(serializer *_to) const {

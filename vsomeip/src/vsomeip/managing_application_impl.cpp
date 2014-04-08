@@ -90,11 +90,19 @@ bool managing_application_impl::request_service(
 			service_id _service, instance_id _instance,
 			const endpoint *_location) {
 
-	client * the_client = find_or_create_client(_location);
-	client_locations_[_service][_instance] = _location;
-	if (the_client) {
-		the_client->open_filter(_service);
+	client * the_client = 0;
+
+	if (0 != _location) {
+		the_client = find_or_create_client(_location);
+		client_locations_[_service][_instance] = _location;
+		if (the_client) {
+			the_client->open_filter(_service);
+		}
+	} else {
+		VSOMEIP_DEBUG
+			<< "Specification of communication endpoint is missing.";
 	}
+
 	return (0 != the_client);
 }
 

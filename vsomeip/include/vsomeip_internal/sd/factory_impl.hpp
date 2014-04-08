@@ -10,16 +10,24 @@
 #ifndef VSOMEIP_INTERNAL_SD_FACTORY_IMPL_HPP
 #define VSOMEIP_INTERNAL_SD_FACTORY_IMPL_HPP
 
-#include <vsomeip/internal/factory_impl.hpp>
+#include <vsomeip/sd/factory.hpp>
+#include <vsomeip_internal/factory_impl.hpp>
 
 namespace vsomeip {
 namespace sd {
 
-class factory_impl : public vsomeip::factory_impl {
+class factory_impl
+		: virtual public factory,
+		  virtual public vsomeip::factory_impl {
+public:
+	static factory * get_instance();
 
+	virtual ~factory_impl();
+
+	message * create_service_discovery_message() const;
 };
 
-// namespace sd
-// namespace vsomeip
+} // namespace sd
+} // namespace vsomeip
 
 #endif // VSOMEIP_INTERNAL_SD_FACTORY_IMPL_HPP

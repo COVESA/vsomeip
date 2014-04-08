@@ -55,3 +55,9 @@ target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES})
 
 add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
 target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES})
+
+add_executable(external-sd-client_sample src/vsomeip.examples/external-sd-client_sample.cpp)
+target_link_libraries(external-sd-client_sample vsomeip-sd vsomeip ${Boost_LIBRARIES})
+
+add_executable(external-sd-service_sample src/vsomeip.examples/external-sd-service_sample.cpp)
+target_link_libraries(external-sd-service_sample vsomeip-sd vsomeip ${Boost_LIBRARIES})

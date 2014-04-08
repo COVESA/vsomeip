@@ -50,6 +50,15 @@ public:
     /// \param _id New service identifier
 	virtual void set_service_id(service_id _id) = 0;
 
+    /// Returns the instance identifier of the service that has sent the Some/IP message.
+    /// \returns instance identifier
+	virtual instance_id get_instance_id() const = 0;
+
+	/// Set the instance id. The instance id is NOT part of the SOME/IP
+	/// header but can be used to provide the necessary routing information
+	/// \param _id instance identifier
+	virtual void set_instance_id(instance_id _id) = 0;
+
     /// Returns the method identifier of the Some/IP message.
     /// \returns method identifier of the Some/IP message 	
     virtual method_id get_method_id() const = 0;

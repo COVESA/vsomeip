@@ -35,6 +35,7 @@ public:
 
 public:
 	service_id service_id_;
+	instance_id instance_id_; // NOT(!) part of the SOME/IP header
 	method_id method_id_;
 	length length_;
 	client_id client_id_;

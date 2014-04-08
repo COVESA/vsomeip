@@ -28,6 +28,7 @@
 #include "client_info.hpp"
 #include "request_info.hpp"
 #include "service_info.hpp"
+#include "registry.hpp"
 #include "daemon.hpp"
 
 #define VSOMEIP_DAEMON_DEBUG
@@ -144,6 +145,8 @@ private:
 
 private:
 	static client_id id__;
+
+	sd::registry discovery_;
 
 #ifdef VSOMEIP_DAEMON_DEBUG
 private:

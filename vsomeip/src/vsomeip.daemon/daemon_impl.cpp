@@ -55,7 +55,8 @@ daemon_impl::daemon_impl()
 	  daemon_queue_name_("0"),
 	  watchdog_timer_(sender_service_),
 	  sender_work_(sender_service_),
-	  network_work_(service_)
+	  network_work_(service_),
+	  discovery_(*this)
 #ifdef VSOMEIP_DAEMON_DEBUG
 	  ,dump_timer_(sender_service_)
 #endif
@@ -113,6 +114,10 @@ void daemon_impl::start() {
 	sender_thread.join();
 	receiver_thread.join();
 	network_thread.join();
+}
+
+bool daemon_impl::send(const message_base *_message, bool _flush) {
+	return false;
 }
 
 void daemon_impl::start_watchdog_cycle() {
@@ -363,6 +368,9 @@ void daemon_impl::on_provide_service(client_id _id, service_id _service, instanc
 	} else {
 		VSOMEIP_ERROR << "Attempting to register service for unknown application!";
 	}
+
+	// TODO: mechanism to make SD an option...
+	discovery_.on_provide_service(_service, _instance);
 }
 
 void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
@@ -398,6 +406,8 @@ void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instan
 			service_channels_.erase(_location);
 		}
 	}
+
+	discovery_.on_withdraw_service(_service, _instance);
 }
 
 void daemon_impl::on_start_service(client_id _id, service_id _service, instance_id _instance) {
@@ -407,6 +417,7 @@ void daemon_impl::on_start_service(client_id _id, service_id _service, instance_
 		<< std::hex << std::setw(4) << std::setfill('0')
 		<< _service << ", " << _instance
 		<< ")";
+	discovery_.on_start_service(_service, _instance);
 }
 
 void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_id _instance) {
@@ -416,6 +427,7 @@ void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_i
 		<< std::hex << std::setw(4) << std::setfill('0')
 		<< _service << ", " << _instance
 		<< ")";
+	discovery_.on_stop_service(_service, _instance);
 }
 
 void daemon_impl::on_request_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
@@ -426,6 +438,7 @@ void daemon_impl::on_request_service(client_id _id, service_id _service, instanc
 		<< _service << ", " << _instance
 		<< ")";
 
+	// TODO: do not simply insert but check whether or not the client is already inserted
 	request_info info(_id, _service, _instance, _location);
 	requests_.insert(info);
 
@@ -719,11 +732,6 @@ void daemon_impl::send_application_lost(const std::list< client_id > &_lost_appl
 	message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::APPLICATION_LOST);
 	message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
-
-	for (int i = 0; i < message_data.size(); ++i) {
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)message_data[i] << " ";
-	}
-	std::cout << std::endl;
 
 	uint32_t position = VSOMEIP_PROTOCOL_PAYLOAD;
 	for (auto a : _lost_applications) {
