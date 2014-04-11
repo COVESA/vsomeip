@@ -37,7 +37,7 @@ message_impl::~message_impl() {
 
 length message_impl::get_length() const {
 	length current_length = VSOMEIP_STATIC_HEADER_SIZE
-			+ VSOME_IP_STATIC_SERVICE_DISCOVERY_DATA_LENGTH;
+			+ VSOMEIP_STATIC_SERVICE_DISCOVERY_DATA_LENGTH;
 
 	current_length += (entries_.size() * VSOMEIP_ENTRY_LENGTH);
 

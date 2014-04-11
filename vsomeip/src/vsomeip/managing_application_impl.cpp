@@ -95,6 +95,8 @@ bool managing_application_impl::request_service(
 	if (0 != _location) {
 		the_client = find_or_create_client(_location);
 		client_locations_[_service][_instance] = _location;
+		client_instances_[_location][_service] = _instance;
+
 		if (the_client) {
 			the_client->open_filter(_service);
 		}
@@ -114,12 +116,17 @@ bool managing_application_impl::release_service(
 	client_locations_[_service].erase(_instance);
 	if (0 == client_locations_[_service].size())
 		client_locations_.erase(_service);
+	client_instances_[the_location].erase(_service);
+	if (0 == client_instances_[the_location].size())
+		client_instances_.erase(the_location);
+
 	if (the_location) {
 		client *the_client = find_client(the_location);
 		if (the_client) {
 			the_client->close_filter(_service);
 		}
 	}
+
 	return is_released;
 }
 
@@ -129,6 +136,8 @@ bool managing_application_impl::provide_service(
 
 	service *the_service = find_or_create_service(_location);
 	service_locations_[_service][_instance] = _location;
+	service_instances_[_location][_service] = _instance;
+
 	if (the_service) {
 		the_service->open_filter(_service);
 	}
@@ -138,6 +147,13 @@ bool managing_application_impl::provide_service(
 bool managing_application_impl::withdraw_service(
 	service_id _service, instance_id _instance,
 	const endpoint *_location) {
+
+	service_locations_[_service].erase(_instance);
+		if (0 == service_locations_[_service].size())
+			service_locations_.erase(_service);
+	service_instances_[_location].erase(_service);
+	if (0 == service_instances_[_location].size())
+		service_instances_.erase(_location);
 
 	service *the_service = find_service(_location);
 	if (the_service) {
@@ -178,21 +194,38 @@ bool managing_application_impl::send(message_base *_message, bool _flush) {
 	bool is_sent = false;
 
 	if (0 != _message) {
-		if (serializer_->serialize(_message)) {
-			message_type_enum message_type = _message->get_message_type();
-			if (message_type < message_type_enum::RESPONSE) {
-				_message->set_client_id(id_);
 
-				client * the_client = find_client(_message->get_target());
-				if (the_client) {
-					is_sent = the_client->send(
-						serializer_->get_data(),
-						serializer_->get_size(),
-						_flush
-					);
+		message_type_enum message_type = _message->get_message_type();
+		if (message_type < message_type_enum::RESPONSE) {
+			_message->set_client_id(id_);
+		}
+
+		if (serializer_->serialize(_message)) {
+			if (message_type < message_type_enum::RESPONSE) {
+				const endpoint *target = find_client_location(
+											_message->get_service_id(),
+											_message->get_instance_id()
+										 );
+
+				if (0 != target) {
+					client * the_client = find_client(target);
+					if (the_client) {
+						is_sent = the_client->send(
+							serializer_->get_data(),
+							serializer_->get_size(),
+							_flush
+						);
+					}
+				} else {
+					VSOMEIP_ERROR << "Cannot determine endpoint for service!";
 				}
 			} else {
-				service * the_service = find_service(_message->get_source());
+				const endpoint *source = find_service_location(
+											_message->get_service_id(),
+											_message->get_instance_id()
+								   	     );
+
+				service * the_service = find_service(source);
 				if (the_service) {
 					is_sent = the_service->send(
 						serializer_->get_data(),
@@ -214,27 +247,30 @@ bool managing_application_impl::send(message_base *_message, bool _flush) {
 }
 
 void managing_application_impl::register_cbk(
-		service_id _service, method_id _method, receive_cbk_t _cbk) {
+		service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk) {
 
-	receive_cbks_[_service][_method].insert(_cbk);
+	receive_cbks_[_service][_instance][_method].insert(_cbk);
 }
 
 void managing_application_impl::deregister_cbk(
-		service_id _service, method_id _method, receive_cbk_t _cbk) {
+		service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk) {
 
-	service_filter_map::iterator found_service = receive_cbks_.find(_service);
+	auto found_service = receive_cbks_.find(_service);
 	if (found_service != receive_cbks_.end()) {
-		method_filter_map::iterator found_method = found_service->second.find(_method);
-		if (found_method != found_service->second.end()) {
-			found_method->second.erase(_cbk);
-			if (0 == found_method->second.size())
-				found_service->second.erase(found_method);
-			if (0 == found_service->second.size())
-				receive_cbks_.erase(found_service);
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_method = found_instance->second.find(_method);
+			if (found_method != found_instance->second.end()) {
+				found_method->second.erase(_cbk);
+				if (0 == found_method->second.size())
+					found_instance->second.erase(found_method);
+				if (0 == found_instance->second.size())
+					found_service->second.erase(found_instance);
+				if (0 == found_service->second.size())
+					receive_cbks_.erase(found_service);
+			}
 		}
 	}
-
-	receive_cbks_[_service][_method].erase(_cbk);
 }
 
 void managing_application_impl::enable_magic_cookies(
@@ -257,6 +293,7 @@ boost::log::sources::severity_logger<
 void managing_application_impl::receive(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
+
 	if (_data) {
 		deserializer_->set_data(_data, _size);
 		boost::shared_ptr< message_base > the_message (deserializer_->deserialize_message());
@@ -264,27 +301,39 @@ void managing_application_impl::receive(
 
 		if (the_message) {
 			the_message->set_source(_source);
-			the_message->set_target(_target);
-			service_id service = the_message->get_service_id();
-			service_filter_map::iterator found_service = receive_cbks_.find(service);
+
+			service_id its_service = the_message->get_service_id();
+			message_type_enum its_message_type = the_message->get_message_type();
+
+			instance_id its_instance = find_instance(_target, its_service, its_message_type);
+			the_message->set_instance_id(its_instance);
+
+			auto found_service = receive_cbks_.find(its_service);
 			if (found_service != receive_cbks_.end()) {
-				method_id method = the_message->get_method_id();
-				method_filter_map::iterator found_method = found_service->second.find(method);
-				if (found_method != found_service->second.end()) {
-					std::for_each(
-						found_method->second.begin(),
-						found_method->second.end(),
-						[the_message](receive_cbk_t _func) { _func(the_message.get()); }
-					);
+				auto found_instance = found_service->second.find(its_instance);
+				if (found_instance != found_service->second.end()) {
+					method_id its_method = the_message->get_method_id();
+					auto found_method = found_instance->second.find(its_method);
+					if (found_method != found_instance->second.end()) {
+						std::for_each(
+							found_method->second.begin(),
+							found_method->second.end(),
+							[the_message](receive_cbk_t _func) { _func(the_message.get()); }
+						);
+					} else {
+						if (its_message_type < message_type_enum::RESPONSE) {
+							send_error_message(the_message.get(), return_code_enum::UNKNOWN_METHOD);
+						}
+					}
 				} else {
-					message_type_enum message_type = the_message->get_message_type();
-					if (message_type < message_type_enum::RESPONSE) {
-						send_error_message(the_message.get(), return_code_enum::UNKNOWN_METHOD);
+					// It would be nice to be able to send "UNKNOWN SERVICE INSTANCE" here, but
+					// SOME/IP does not define this error...
+					if (its_message_type < message_type_enum::RESPONSE) {
+						send_error_message(the_message.get(), return_code_enum::UNKNOWN_SERVICE);
 					}
 				}
 			} else {
-				message_type_enum message_type = the_message->get_message_type();
-				if (message_type < message_type_enum::RESPONSE) {
+				if (its_message_type < message_type_enum::RESPONSE) {
 					send_error_message(the_message.get(), return_code_enum::UNKNOWN_SERVICE);
 				}
 			}
@@ -322,7 +371,7 @@ const endpoint * managing_application_impl::find_service_location(
 	return the_location;
 }
 
-client * managing_application_impl::find_client(const endpoint *_location) {
+client * managing_application_impl::find_client(const endpoint *_location) const {
 	auto found = managed_clients_.find(_location);
 	if (found == managed_clients_.end())
 		return 0;
@@ -356,7 +405,7 @@ client * managing_application_impl::find_or_create_client(const endpoint *_locat
 	return the_client;
 }
 
-service * managing_application_impl::find_service(const endpoint *_location) {
+service * managing_application_impl::find_service(const endpoint *_location) const {
 	auto found = managed_services_.find(_location);
 	if (found == managed_services_.end())
 		return 0;
@@ -389,6 +438,32 @@ service * managing_application_impl::find_or_create_service(const endpoint *_loc
 	if (0 == the_service)
 		the_service = create_service(_location);
 	return the_service;
+}
+
+instance_id managing_application_impl::find_instance(
+				const endpoint *_location, service_id _service, message_type_enum _message_type) const {
+
+	instance_id its_instance = 0;
+
+	if (_message_type < message_type_enum::RESPONSE) {
+		auto find_location = service_instances_.find(_location);
+		if (find_location != service_instances_.end()) {
+			auto find_service = find_location->second.find(_service);
+			if (find_service != find_location->second.end()) {
+				its_instance = find_service->second;
+			}
+		}
+	} else {
+		auto find_location = client_instances_.find(_location);
+		if (find_location != client_instances_.end()) {
+			auto find_service = find_location->second.find(_service);
+			if (find_service != find_location->second.end()) {
+				its_instance = find_service->second;
+			}
+		}
+	}
+
+	return its_instance;
 }
 
 void managing_application_impl::send_error_message(message_base *_request, return_code_enum _error) {

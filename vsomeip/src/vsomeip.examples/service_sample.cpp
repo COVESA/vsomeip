@@ -20,27 +20,11 @@ endpoint * the_endpoint = 0;
 void receive_message(const message_base *_message) {
 	static int i = 0;
 
-	const endpoint *source = _message->get_source();
-	const endpoint *target = _message->get_target();
-
-	std::cout << i++
-			  << ". Application " << _message->get_client_id()
+	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
+			  << "] Application " << _message->get_client_id()
 			  << " sends a request with "
-			  << _message->get_length() << " bytes (";
-	if (source) {
-		std::cout << source->get_address()
-				  << ":" << std::dec << source->get_port();
-	} else {
-		std::cout << "UNKNOWN";
-	}
-	std::cout << " --> ";
-	if (target) {
-		std::cout << target->get_address()
-				  << ":" << std::dec << target->get_port();
-	} else {
-		std::cout << "UNKNOWN";
-	}
-	std::cout << ")" << std::endl;
+			  << _message->get_length() << " bytes."
+			  << std::endl;
 
 	message *response = the_factory->create_response(_message);
 
@@ -59,7 +43,7 @@ void run(const char *name) {
 	the_application->start();
 
 	the_application->provide_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, the_endpoint);
-	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_METHOD, receive_message);
+	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive_message);
 
 	while (1) {
 		the_application->run();

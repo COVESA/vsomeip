@@ -25,9 +25,9 @@ public:
 	virtual ~message_base_impl();
 
 	const endpoint * get_source() const;
-	void set_source(const endpoint *_endpoint);
+	void set_source(const endpoint *_source);
 	const endpoint * get_target() const;
-	void set_target(const endpoint *_endpoint);
+	void set_target(const endpoint *_target);
 
 	message_id get_message_id() const;
 	void set_message_id(message_id _id);

@@ -42,19 +42,6 @@ class application_impl
 	  boost::noncopyable {
 
 public:
-
-	typedef std::map< service_id,
-			           std::map< instance_id,
-			                     std::set< const endpoint * > > > provided_t;
-
-	typedef boost::intrusive_ptr< message_queue > message_queue_t;
-
-	typedef std::map< service_id,
-					   std::map< instance_id,
-					   	   	     std::pair< const endpoint *,
-					   	   	     	 	 	message_queue_t > > > requested_t;
-
-
 	application_impl(const std::string &_name);
 	virtual ~application_impl();
 
@@ -84,13 +71,13 @@ public:
 	void enable_magic_cookies(service_id _service, instance_id _instance);
 	void disable_magic_cookies(service_id _service, instance_id _instance);
 
-	void register_cbk(service_id _service, method_id _method, receive_cbk_t _cbk);
-	void deregister_cbk(service_id _service, method_id _method, receive_cbk_t _cbk);
+	void register_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
+	void deregister_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
 
 	void remove_queue(const std::string &_name);
 
 private:
-	message_queue * find_target_queue(service_id, const endpoint *) const;
+	message_queue * find_target_queue(service_id, instance_id) const;
 	message_queue * find_target_queue(client_id);
 	void remove_requested_services(message_queue *);
 
@@ -108,7 +95,7 @@ private:
 
 	void send_register_application();
 	void send_deregister_application();
-	void send_callback_command(command_enum, service_id, method_id, receive_cbk_t);
+	void send_callback_command(command_enum, service_id, instance_id, method_id, receive_cbk_t);
 	void send_service_command(command_enum, service_id, instance_id, const endpoint *);
 
 	void send_pong();
@@ -153,6 +140,19 @@ private: // object members
 	serializer *serializer_;
 	deserializer *deserializer_;
 
+
+	// TODO: check whether or not we still need all the endpoint information...
+	typedef std::map< service_id,
+			           std::map< instance_id,
+			                     std::set< const endpoint * > > > provided_t;
+
+	typedef boost::intrusive_ptr< message_queue > message_queue_t;
+
+	typedef std::map< service_id,
+					   std::map< instance_id,
+					   	   	     std::pair< const endpoint *,
+					   	   	     	 	 	message_queue_t > > > requested_t;
+
 	provided_t provided_;
 	requested_t requested_;
 
@@ -160,12 +160,12 @@ private: // object members
 	std::map< client_id, std::string > other_queue_names_;
 
 	// receiver
-	typedef std::map< method_id,
-  	   	     std::set< receive_cbk_t > > method_filter_map;
 	typedef std::map< service_id,
-					   method_filter_map > service_filter_map;
+					  std::map< instance_id,
+					  	  	    std::map< method_id,
+					  	  	    		  std::set< receive_cbk_t > > > > cbk_map_t;
 
-	service_filter_map receive_cbks_;
+	cbk_map_t receive_cbks_;
 
 	boost::mutex mutex_;
 };

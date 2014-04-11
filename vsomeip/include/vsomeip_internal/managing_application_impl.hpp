@@ -66,8 +66,8 @@ public:
 	void enable_magic_cookies(service_id _service, instance_id _instance);
 	void disable_magic_cookies(service_id _service, instance_id _instance);
 
-	void register_cbk(service_id _service, method_id _method, receive_cbk_t _cbk);
-	void deregister_cbk(service_id _service, method_id _method, receive_cbk_t _cbk);
+	void register_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
+	void deregister_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
 
 	boost::asio::io_service & get_io_service();
 	boost::log::sources::severity_logger<
@@ -78,13 +78,15 @@ protected:
 	const endpoint * find_client_location(service_id, instance_id) const;
 	const endpoint * find_service_location(service_id, instance_id) const;
 
-	client * find_client(const endpoint *);
+	client * find_client(const endpoint *) const;
 	client * create_client(const endpoint *);
 	client * find_or_create_client(const endpoint *);
 
-	service * find_service(const endpoint *);
+	service * find_service(const endpoint *) const;
 	service * create_service(const endpoint *);
 	service * find_or_create_service(const endpoint *);
+
+	instance_id find_instance(const endpoint *, service_id, message_type_enum) const;
 
 	void send_error_message(message_base *, return_code_enum);
 
@@ -100,21 +102,28 @@ private:
 	// locations of clients & services
 	typedef std::map< service_id,
 	                   std::map< instance_id,
-	                           	 const endpoint * > > location_map;
+	                           	 const endpoint * > > location_map_t;
 
-	location_map client_locations_;
-	location_map service_locations_;
+	location_map_t client_locations_;
+	location_map_t service_locations_;
 
 	std::map< const endpoint *, client * > managed_clients_;
 	std::map< const endpoint *, service * > managed_services_;
 
-	// receiver
-	typedef std::map< method_id,
-  	   	     std::set< receive_cbk_t > > method_filter_map;
-	typedef std::map< service_id,
-					   method_filter_map > service_filter_map;
+	// instances on an endpoint
+	typedef std::map< const endpoint *,
+					  std::map< service_id, instance_id > > instance_map_t;
 
-	service_filter_map receive_cbks_;
+	instance_map_t client_instances_;
+	instance_map_t service_instances_;
+
+	// receiver // TODO: put this in a base class for application/managing_application
+	typedef std::map< service_id,
+					  std::map< instance_id,
+					  	  	    std::map< method_id,
+					  	  	    		  std::set< receive_cbk_t > > > > cbk_map_t;
+
+	cbk_map_t receive_cbks_;
 };
 
 } // namespace vsomeip

@@ -27,10 +27,10 @@ class message_base : virtual public serializable, virtual public deserializable 
 public:
 	virtual ~message_base() {};
 
-    virtual const endpoint * get_source() const = 0;
-    virtual void set_source(const endpoint *_source) = 0;
-    virtual const endpoint * get_target() const = 0;
-    virtual void set_target(const endpoint *_target) = 0;
+	virtual const endpoint * get_source() const = 0;
+	virtual void set_source(const endpoint *_target) = 0;
+	virtual const endpoint * get_target() const = 0;
+	virtual void set_target(const endpoint *_target) = 0;
 
     /// Returns the message identifier of the Some/IP message, which is 
     /// composed from the service identifier and the method identifier.

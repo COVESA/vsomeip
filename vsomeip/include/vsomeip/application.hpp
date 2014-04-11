@@ -59,9 +59,11 @@ public:
 						service_id _service, instance_id _instance) = 0;
 
 	virtual void register_cbk(
-			service_id _service, method_id _method, receive_cbk_t _cbk) = 0;
+			service_id _service, instance_id _instance, method_id _method,
+			receive_cbk_t _cbk) = 0;
 	virtual void deregister_cbk(
-			service_id _service, method_id _method, receive_cbk_t _cbk) = 0;
+			service_id _service, instance_id _instance, method_id _method,
+			receive_cbk_t _cbk) = 0;
 };
 
 } // namespace vsomeip

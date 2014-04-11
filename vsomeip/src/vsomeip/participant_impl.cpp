@@ -10,6 +10,7 @@
 //
 
 #include <vsomeip/config.hpp>
+#include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/constants.hpp>

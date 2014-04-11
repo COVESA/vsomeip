@@ -97,6 +97,7 @@ message * factory_impl::create_response(const message_base *_request) const {
 		response->set_source(_request->get_target());
 		response->set_target(_request->get_source());
 		response->set_service_id(_request->get_service_id());
+		response->set_instance_id(_request->get_instance_id());
 		response->set_method_id(_request->get_method_id());
 		response->set_client_id(_request->get_client_id());
 		response->set_session_id(_request->get_session_id());

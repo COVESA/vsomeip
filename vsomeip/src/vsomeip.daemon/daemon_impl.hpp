@@ -51,10 +51,6 @@ public:
 	void init(int _count, char **_options);
 	void start();
 
-	bool request_service(service_id _service, instance_id _instance,
-							const endpoint *_location);
-	bool provide_service(service_id _service, instance_id _instance,
-							const endpoint *_location);
 	bool send(const message_base *_message, bool _flush);
 
 private:
@@ -80,9 +76,9 @@ private:
 
 	void on_pong(client_id);
 
-	void on_message(client_id, const uint8_t *, uint32_t);
-	void on_register_method(client_id, service_id, method_id);
-	void on_deregister_method(client_id, service_id, method_id);
+	void on_send_message(client_id, const uint8_t *, uint32_t);
+	void on_register_method(client_id, service_id, instance_id, method_id);
+	void on_deregister_method(client_id, service_id, instance_id, method_id);
 
 	void send_ping(client_id);
 	void send_application_info();
@@ -109,6 +105,14 @@ private:
 	void watchdog_cycle_cbk(boost::system::error_code const &_error);
 	void watchdog_check_cbk(boost::system::error_code const &_error);
 
+	client_id find_local(service_id, instance_id, method_id) const;
+	client * find_remote(service_id, instance_id) const;
+
+	bool is_local(client_id) const;
+	const endpoint * find_remote(client_id) const;
+
+	void save_client_location(client_id, const endpoint *);
+
 private:
 	boost::asio::io_service receiver_service_;
 	boost::asio::io_service sender_service_;
@@ -132,16 +136,24 @@ private:
 	// requests (need to be stored as services may leave and come back)
 	std::set< request_info > requests_;
 
-	// Communication channels
-	typedef std::map< service_id,
-  	  	  			  std::pair< client_id,
-  	  	  			  	  	  	 std::set< method_id > > > channel_t;
 
-	typedef std::map< client_id, channel_t > client_channel_map_t;
-	typedef std::map< const endpoint *, channel_t > service_channel_map_t;
+	// Communication channels
+	typedef std::map< client_id,
+					  std::map< service_id,
+					  	  	    std::map< instance_id,
+					  	  	    	      std::set< method_id > > > > client_channel_map_t;
+	typedef std::map< service_id,
+			          std::map< instance_id,
+			                    std::map< method_id,
+			                    		  client_id > > > service_channel_map_t;
 
 	client_channel_map_t client_channels_;
 	service_channel_map_t service_channels_;
+
+	// Client endpoints
+	typedef std::map< client_id, const endpoint * > client_location_map_t;
+
+	client_location_map_t client_locations_;
 
 private:
 	static client_id id__;

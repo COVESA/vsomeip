@@ -29,40 +29,24 @@ message * the_message = the_factory->create_message();
 void receive(const message_base *_message) {
 	static int i = 0;
 
-	const endpoint *source = _message->get_source();
-	const endpoint *target = _message->get_target();
-
-	std::cout << i++
-			  << ". Response for client "
+	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
+			  << "] Response for client "
 			  << std::hex << _message->get_client_id()
 			  << " with "
-			  << _message->get_length() << " bytes (";
-	if (source) {
-		std::cout << source->get_address()
-				  << ":" << std::dec << source->get_port();
-	} else {
-		std::cout << "UNKNOWN";
-	}
-	std::cout << " --> ";
-	if (target) {
-		std::cout << target->get_address()
-				  << ":" << std::dec << target->get_port();
-	} else {
-		std::cout << "UNKNOWN";
-	}
-	std::cout << ")" << std::endl;
+			  << _message->get_length() << " bytes."
+			  << std::endl;
 }
 
 void worker() {
 	bool is_sending_to_internal = true;
 	while (1) {
 		if (is_sending_to_internal) {
-			the_message->set_target(internal_endpoint);
 			the_message->set_service_id(INTERNAL_SAMPLE_SERVICE);
+			the_message->set_instance_id(INTERNAL_SAMPLE_SERVICE_INSTANCE);
 			the_message->set_method_id(INTERNAL_SAMPLE_METHOD);
 		} else {
-			the_message->set_target(external_endpoint);
 			the_message->set_service_id(EXTERNAL_SAMPLE_SERVICE);
+			the_message->set_instance_id(EXTERNAL_SAMPLE_SERVICE_INSTANCE);
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
 		}
 
@@ -95,8 +79,8 @@ int main(int argc, char **argv) {
 	the_application->request_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, internal_endpoint);
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
 
-	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_METHOD, receive);
-	the_application->register_cbk(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_METHOD, receive);
+	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive);
+	the_application->register_cbk(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive);
 
 	boost::thread framework_thread(run);
 	boost::thread application_thread(worker);

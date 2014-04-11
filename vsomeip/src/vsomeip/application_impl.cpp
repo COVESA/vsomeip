@@ -158,7 +158,6 @@ std::size_t application_impl::poll() {
 
 std::size_t application_impl::run() {
 	return service_.run();
-	std::cout << "GONE" << std::endl;
 }
 
 bool application_impl::request_service(
@@ -290,17 +289,17 @@ bool application_impl::send(message_base *_message, bool _flush) {
 		return false;
 	}
 
+	instance_id instance = _message->get_instance_id();
+
 	message_type_enum message_type = _message->get_message_type();
 	if (message_type < message_type_enum::RESPONSE)
 		_message->set_client_id(id_);
 
-	const endpoint *source = _message->get_source();
-	const endpoint *target = _message->get_target();
-
 	uint32_t message_size =
 			VSOMEIP_STATIC_HEADER_SIZE
 			+ _message->get_length()
-			+ 2 * VSOMEIP_MAX_ENDPOINT_SIZE
+			+ sizeof(instance)
+			+ sizeof(_flush)
 			+ VSOMEIP_PROTOCOL_OVERHEAD;
 
 	bool is_successful(serializer_->serialize(_message));
@@ -311,37 +310,24 @@ bool application_impl::send(message_base *_message, bool _flush) {
 
 	std::vector< uint8_t > message_data(message_size);
 
+	// Start & End Tag
 	std::memcpy(&message_data[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
+	std::memcpy(&message_data[message_size-4], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+
+	// Sender & Message Type
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_ID], &id_, sizeof(id_));
 	message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::SOMEIP_MESSAGE);
 
+	// Payload length & Message
+	message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
+	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
 	message_size = serializer_->get_size();
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD], serializer_->get_data(), message_size);
 	serializer_->reset();
 
-	// Fill in source / target endpoints
-	uint32_t source_size = 0;
-	if (serializer_->serialize(source)) {
-		source_size = serializer_->get_size();
-		std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD+4+message_size], serializer_->get_data(), serializer_->get_size());
-	}
-	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD+message_size], &source_size, sizeof(source_size));
-	serializer_->reset();
-
-	uint32_t target_size = 0;
-	if (serializer_->serialize(target)) {
-		target_size = serializer_->get_size();
-		std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD+8+message_size+source_size], serializer_->get_data(), serializer_->get_size());
-	}
-	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD+4+message_size+source_size], &target_size, sizeof(target_size));
-	serializer_->reset();
-
-	message_size += (source_size + target_size + 8);
-	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
-
-	message_size += VSOMEIP_PROTOCOL_OVERHEAD;
-	message_data.resize(message_size);
-	std::memcpy(&message_data[message_size - 4], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+	// Instance & Flush Parameter
+	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size], &instance, sizeof(instance));
+	message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size + sizeof(instance)] = static_cast< uint8_t >(_flush);
 
 	send_buffers_.push_back(message_data);
 
@@ -350,7 +336,7 @@ bool application_impl::send(message_base *_message, bool _flush) {
 
 	message_queue *target_queue = 0;
 	if (message_type < message_type_enum::RESPONSE) {
-		target_queue = find_target_queue(_message->get_service_id(), target);
+		target_queue = find_target_queue(_message->get_service_id(), instance);
 	} else {
 		target_queue = find_target_queue(_message->get_client_id());
 	}
@@ -379,32 +365,32 @@ bool application_impl::send(message_base *_message, bool _flush) {
 }
 
 void application_impl::register_cbk(
-		service_id _service, method_id _method, receive_cbk_t _cbk) {
+		service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk) {
 
-	receive_cbks_[_service][_method].insert(_cbk);
+	receive_cbks_[_service][_instance][_method].insert(_cbk);
 
 	if (is_registered_) {
-		send_callback_command(command_enum::REGISTER_METHOD, _service, _method, _cbk);
+		send_callback_command(command_enum::REGISTER_METHOD, _service, _instance, _method, _cbk);
 	}
 }
 
 void application_impl::deregister_cbk(
-	service_id _service, method_id _method, receive_cbk_t _cbk) {
+	service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk) {
 
-	service_filter_map::iterator found_service = receive_cbks_.find(_service);
+	auto found_service = receive_cbks_.find(_service);
 	if (found_service != receive_cbks_.end()) {
-		method_filter_map::iterator found_method = found_service->second.find(_method);
-		if (found_method != found_service->second.end()) {
-			found_method->second.erase(_cbk);
-			if (0 == found_method->second.size())
-				found_service->second.erase(found_method);
-			if (0 == found_service->second.size())
-				receive_cbks_.erase(found_service);
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_method = found_service->second.find(_method);
+			if (found_method != found_service->second.end()) {
+				found_method->second.erase(_method);
+
+			}
 		}
 	}
 
 	if (0 != id_) {
-		send_callback_command(command_enum::DEREGISTER_METHOD, _service, _method, _cbk);
+		send_callback_command(command_enum::DEREGISTER_METHOD, _service, _instance, _method, _cbk);
 	}
 }
 
@@ -419,17 +405,14 @@ void application_impl::disable_magic_cookies(
 ///////////////////////////////////////////////////////////////////////////////
 // Internal
 ///////////////////////////////////////////////////////////////////////////////
-message_queue * application_impl::find_target_queue(service_id _service, const endpoint *_location) const {
+message_queue * application_impl::find_target_queue(service_id _service, instance_id _instance) const {
 	message_queue *requested_queue = 0;
 
-	// TODO: find a way to optimize this
 	auto find_service = requested_.find(_service);
 	if (find_service != requested_.end()) {
-		for (auto i : find_service->second) {
-			if (i.second.first == _location) {
-				requested_queue = i.second.second.get();
-				break;
-			}
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			requested_queue = find_instance->second.second.get();
 		}
 	}
 
@@ -547,7 +530,7 @@ void application_impl::send_deregister_application() {
 
 void application_impl::send_callback_command(
 		command_enum _command,
-		service_id _service, method_id _method, receive_cbk_t _cbk) {
+		service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk) {
 
 	uint8_t registration_message[] = {
 		0x67, 0x37, 0x6D, 0x07,
@@ -563,7 +546,8 @@ void application_impl::send_callback_command(
 	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_ID], &id_, sizeof(id_));
 	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
 	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
-	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_PAYLOAD+2], &_method, sizeof(_method));
+	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_PAYLOAD+2], &_instance, sizeof(_instance));
+	std::memcpy(&registration_message[VSOMEIP_PROTOCOL_PAYLOAD+4], &_method, sizeof(_method));
 
 	std::vector< uint8_t > registration_buffer(
 		registration_message,
@@ -630,13 +614,16 @@ void application_impl::process_early_registrations() {
 	}
 
 	for (auto s : receive_cbks_) {
-		for (auto m : s.second) {
-			for (auto c : m.second) {
-				send_callback_command(
-					command_enum::REGISTER_METHOD,
-					s.first,
-					m.first,
-					c);
+		for (auto i : s.second) {
+			for (auto m : i.second) {
+				for (auto c : m.second) {
+					send_callback_command(
+							command_enum::REGISTER_METHOD,
+							s.first,
+							i.first,
+							m.first,
+							c);
+				}
 			}
 		}
 	}
@@ -757,52 +744,37 @@ void application_impl::on_message(client_id _id, const uint8_t *_data, uint32_t 
 		return;
 	}
 
-	// deserialize source and target endpoints
-	std::size_t source_index = message_size + VSOMEIP_STATIC_HEADER_SIZE;
-	if (source_index + 4 > _size) {
-		return;
-	}
-
-	uint32_t source_size;
-	std::memcpy(&source_size, &_data[source_index], sizeof(source_size));
-
-	std::size_t target_index = source_index + source_size + 4;
-	if (target_index + 4 > _size) {
-		return;
-	}
-
-	uint32_t target_size;
-	std::memcpy(&target_size, &_data[target_index], sizeof(target_size));
-
-	if (target_index + 4 + target_size > _size) {
-		return;
-	}
-
-	const endpoint *source = factory::get_instance()->get_endpoint(&_data[source_index+4], source_size);
-	const endpoint *target = factory::get_instance()->get_endpoint(&_data[target_index+4], target_size);
-
-	the_message->set_source(source);
-	the_message->set_target(target);
+	// deserialize instance
+	instance_id its_instance;
+	std::memcpy(&its_instance, &_data[message_size + VSOMEIP_STATIC_HEADER_SIZE], sizeof(its_instance));
+	the_message->set_instance_id(its_instance);
 
 	// forward to registered callbacks
 	service_id service = the_message->get_service_id();
-	service_filter_map::iterator found_service = receive_cbks_.find(service);
+	auto found_service = receive_cbks_.find(service);
 	if (found_service != receive_cbks_.end()) {
-		method_id method = the_message->get_method_id();
-		method_filter_map::iterator found_method = found_service->second.find(method);
-		if (found_method != found_service->second.end()) {
-			std::for_each(
-				found_method->second.begin(),
-				found_method->second.end(),
-				[the_message](receive_cbk_t _func) {
-					_func(the_message);
+		auto found_instance = found_service->second.find(its_instance);
+		if (found_instance != found_service->second.end()) {
+			method_id method = the_message->get_method_id();
+			auto found_method = found_instance->second.find(method);
+			if (found_method == found_instance->second.end()) {
+				found_method = found_instance->second.find(VSOMEIP_ANY_METHOD);
+			}
+
+			if (found_method != found_instance->second.end()) {
+				std::for_each(
+					found_method->second.begin(),
+					found_method->second.end(),
+					[the_message](receive_cbk_t _func) {
+						_func(the_message);
+					}
+				);
+			} else {
+				VSOMEIP_DEBUG << "Method not found";
+				message_type_enum message_type = the_message->get_message_type();
+				if (message_type < message_type_enum::RESPONSE) {
+					//send_error_message(the_message, return_code_enum::UNKNOWN_METHOD);
 				}
-			);
-		} else {
-			VSOMEIP_DEBUG << "Method not found";
-			message_type_enum message_type = the_message->get_message_type();
-			if (message_type < message_type_enum::RESPONSE) {
-				//send_error_message(the_message, return_code_enum::UNKNOWN_METHOD);
 			}
 		}
 	} else {
@@ -909,7 +881,6 @@ void application_impl::process_message(std::size_t _bytes) {
 		}
 	} else {
 		VSOMEIP_ERROR << "Message is not correctly tagged";
-		std::cout << std::endl;
 	}
 }
 
