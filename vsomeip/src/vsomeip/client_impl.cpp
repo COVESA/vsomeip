@@ -179,9 +179,9 @@ void client_impl< Protocol, MaxBufferSize >::flush_cbk(
 	}
 }
 
-// Instatiate template
-template class client_impl<boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE>;
-template class client_impl<boost::asio::ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE>;
+// Instantiate template
+template class client_impl< boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE >;
+template class client_impl< boost::asio::ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >;
 
 } // namespace vsomeip
 
