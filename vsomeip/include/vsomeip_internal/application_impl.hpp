@@ -20,6 +20,7 @@
 #include <boost/intrusive_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/thread.hpp>
 #include <boost/utility.hpp>
 
 #include <vsomeip/application.hpp>
@@ -49,12 +50,6 @@ public:
 	void start();
 	void stop();
 
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
-
-	boost::asio::io_service & get_io_service();
-
 	bool request_service(service_id _service, instance_id _instance,
 							const endpoint *_location);
 	bool release_service(service_id _service, instance_id _instance);
@@ -77,6 +72,8 @@ public:
 	void remove_queue(const std::string &_name);
 
 private:
+	void service(boost::asio::io_service &);
+
 	message_queue * find_target_queue(service_id, instance_id) const;
 	message_queue * find_target_queue(client_id);
 	void remove_requested_services(message_queue *);
@@ -112,7 +109,12 @@ private: // callbacks
 	void response_cbk(boost::system::error_code const &, message_queue *);
 
 private: // object members
-	boost::asio::io_service service_;
+	boost::asio::io_service receive_service_;
+	boost::shared_ptr< boost::thread > sender_thread_;
+
+	boost::asio::io_service send_service_;
+	boost::shared_ptr< boost::thread > receiver_thread_;
+
 	boost::asio::system_timer watchdog_timer_;
 	boost::asio::system_timer retry_timer_;
 

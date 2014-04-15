@@ -25,7 +25,7 @@ namespace vsomeip {
 udp_service_impl::udp_service_impl(
 		managing_application *_owner, const endpoint *_location)
 	: service_impl< ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >(_owner, _location),
-	  socket_(_owner->get_io_service(),
+	  socket_(_owner->get_service(),
 			  ip::udp::endpoint(
 			      (_location->get_version() == ip_protocol_version::V4 ?
 	  	  			  ip::udp::v4() : ip::udp::v6()),

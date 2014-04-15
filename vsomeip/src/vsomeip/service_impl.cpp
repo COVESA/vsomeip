@@ -25,7 +25,7 @@ template < typename Protocol, int MaxBufferSize >
 service_impl< Protocol, MaxBufferSize >::service_impl(managing_application *_owner, const endpoint *_location)
 	: participant_impl<MaxBufferSize>(_owner, _location),
 	  current_queue_(packet_queues_.end()),
-	  flush_timer_(_owner->get_io_service()) {
+	  flush_timer_(_owner->get_service()) {
 }
 
 template < typename Protocol, int MaxBufferSize >

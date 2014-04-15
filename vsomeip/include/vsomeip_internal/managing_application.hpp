@@ -24,7 +24,7 @@ class managing_application
 public:
 	virtual ~managing_application() {};
 
-	virtual boost::asio::io_service & get_io_service() = 0;
+	virtual boost::asio::io_service & get_service() = 0;
 	virtual boost::log::sources::severity_logger<
 				boost::log::trivial::severity_level > & get_logger() = 0;
 	virtual void receive(const uint8_t *_data, uint32_t _size,

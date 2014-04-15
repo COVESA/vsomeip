@@ -22,8 +22,8 @@ class message_queue
 	: public boost_ext::asio::message_queue {
 
 public:
-	message_queue(application_impl &_application)
-		: boost_ext::asio::message_queue(_application.get_io_service()),
+	message_queue(application_impl &_application, boost::asio::io_service &_service)
+		: boost_ext::asio::message_queue(_service),
 		  application_(_application),
 		  ref_(0) {
 	};

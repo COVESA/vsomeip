@@ -56,7 +56,6 @@ public:
 private:
 	void run_receiver();
 	void run_sender();
-	void run_network();
 
 	bool is_request(const message_base *_message) const;
 	bool is_request(const uint8_t *, uint32_t) const;

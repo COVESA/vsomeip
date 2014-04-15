@@ -25,11 +25,7 @@ public:
 
 	virtual void init(int _options_count, char **_options) = 0;
 	virtual void start() = 0;
-
-	// one of these must be called from the applications event loop
-	virtual std::size_t poll_one() = 0;
-	virtual std::size_t poll() = 0;
-	virtual std::size_t run() = 0;
+	virtual void stop() = 0;
 
 	// clients
 	virtual bool request_service(

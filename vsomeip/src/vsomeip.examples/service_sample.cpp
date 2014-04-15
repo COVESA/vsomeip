@@ -40,14 +40,11 @@ void run(const char *name) {
 	the_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, vsomeip::ip_protocol::TCP);
 
 	the_application->init(options_count, options);
-	the_application->start();
 
 	the_application->provide_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, the_endpoint);
 	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive_message);
 
-	while (1) {
-		the_application->run();
-	}
+	the_application->start();
 }
 
 

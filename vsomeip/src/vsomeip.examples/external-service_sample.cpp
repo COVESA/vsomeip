@@ -30,16 +30,16 @@ void receive_message(const message_base *_message) {
 	the_application->send(response);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
 	the_factory = factory::get_instance();
 	endpoint *location = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
 
 	// create the application and provide a service at the defined location
 	the_application = the_factory->create_managing_application("SimpleServiceApplication");
+	the_application->init(argc, argv);
 
 	the_application->provide_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, location);
 	the_application->register_cbk(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive_message);
 
 	the_application->start();
-	while (1) the_application->run();
 }

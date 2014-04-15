@@ -29,7 +29,7 @@ namespace vsomeip {
 tcp_service_impl::tcp_service_impl(
 		managing_application *_owner, const endpoint *_location)
 	: service_impl<ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE>(_owner, _location),
-	  acceptor_(_owner->get_io_service(),
+	  acceptor_(_owner->get_service(),
 			    ip::tcp::endpoint(
 			    	(_location->get_version() == ip_protocol_version::V6 ?
 			    			ip::tcp::v6() : ip::tcp::v4()),

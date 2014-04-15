@@ -35,7 +35,6 @@ void run(const char *name) {
 	the_application = the_factory->create_application(name);
 
 	the_application->init(options_count, options);
-	the_application->start();
 
 	the_application->provide_service(0x2233, 0x4455, an_endpoint);
 	the_application->provide_service(0x2233, 0x4456, an_endpoint);
@@ -44,9 +43,7 @@ void run(const char *name) {
 	the_application->provide_service(0x2234, 0x4455, another_endpoint);
 	the_application->provide_service(0x2235, 0x4460, another_endpoint);
 
-	while (1) {
-		the_application->run();
-	}
+	the_application->start();
 }
 
 

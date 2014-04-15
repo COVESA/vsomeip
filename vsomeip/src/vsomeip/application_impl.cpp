@@ -37,7 +37,7 @@
 using namespace boost::log::trivial;
 
 //#define VSOMEIP_DEVEL
-#define WATCHDOG_TEST
+//#define WATCHDOG_TEST
 
 namespace vsomeip {
 
@@ -47,12 +47,14 @@ namespace vsomeip {
 application_impl::application_impl(const std::string &_name)
 	: log_owner(_name),
 	  id_(0),
+	  receiver_thread_(0),
+	  sender_thread_(0),
 	  queue_name_prefix_("/vsomeip-"),
 	  daemon_queue_name_("0"),
-	  daemon_queue_(new message_queue(*this)),
-	  application_queue_(new message_queue(*this)),
-	  watchdog_timer_(service_),
-	  retry_timer_(service_),
+	  daemon_queue_(new message_queue(*this, send_service_)),
+	  application_queue_(new message_queue(*this, receive_service_)),
+	  watchdog_timer_(send_service_),
+	  retry_timer_(send_service_),
 	  retry_timeout_(20),
 	  is_open_(false),
 	  is_registered_(false) {
@@ -64,10 +66,6 @@ application_impl::application_impl(const std::string &_name)
 }
 
 application_impl::~application_impl() {
-}
-
-boost::asio::io_service & application_impl::get_io_service() {
-	return service_;
 }
 
 void application_impl::init(int _options_count, char **_options) {
@@ -135,6 +133,30 @@ void application_impl::start() {
 			boost::asio::placeholders::error
 		)
 	);
+
+	// start processing
+	receiver_thread_.reset(
+		new boost::thread(
+				boost::bind(
+					&application_impl::service,
+					this,
+					boost::ref(receive_service_)
+				)
+		)
+	);
+
+	sender_thread_.reset(
+		new boost::thread(
+				boost::bind(
+					&application_impl::service,
+					this,
+					boost::ref(send_service_)
+				)
+		)
+	);
+
+	sender_thread_->join();
+	receiver_thread_->join();
 }
 
 void application_impl::stop() {
@@ -146,18 +168,16 @@ void application_impl::stop() {
 			boost::asio::placeholders::error
 		)
 	);
+
+	receive_service_.stop();
+	send_service_.stop();
+
+	receiver_thread_.reset();
+	sender_thread_.reset();
 }
 
-std::size_t application_impl::poll_one() {
-	return service_.poll_one();
-}
-
-std::size_t application_impl::poll() {
-	return service_.poll();
-}
-
-std::size_t application_impl::run() {
-	return service_.run();
+void application_impl::service(boost::asio::io_service &_service) {
+	_service.run();
 }
 
 bool application_impl::request_service(
@@ -428,7 +448,7 @@ message_queue * application_impl::find_target_queue(client_id _id) {
 		if (found_queue != queues_.end()) {
 			requested_queue = found_queue->second;
 		} else {
-			requested_queue = new message_queue(*this);
+			requested_queue = new message_queue(*this, send_service_);
 			queues_[found_queue_name->second] = requested_queue;
 			requested_queue->async_open(
 				queue_name_prefix_ + found_queue_name->second,
@@ -710,7 +730,7 @@ void application_impl::on_request_service_ack(service_id _service, instance_id _
 			}
 		}
 	} else {
-		message_queue *queue = new message_queue(*this);
+		message_queue *queue = new message_queue(*this, send_service_);
 		queues_[_queue_name] = queue;
 		queue->async_open(
 			queue_name_prefix_ + _queue_name,
@@ -795,6 +815,7 @@ void application_impl::send_pong() {
 
 	pong_counter ++;
 #endif
+
 	uint8_t pong_message[] = {
 		0x67, 0x37, 0x6D, 0x07,
 		0x00, 0x00,
@@ -984,9 +1005,6 @@ void application_impl::receive_cbk(
 		std::size_t _bytes, unsigned int _priority) {
 	if (!_error && _bytes) {
 		process_message(_bytes);
-	} else {
-		VSOMEIP_ERROR << "Application " << application_queue_name_
-				      << ": Error while receiving (" << _error.message() << ")";
 	}
 
 	do_receive();

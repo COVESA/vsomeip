@@ -68,22 +68,11 @@ void managing_application_impl::init(int _options_count, char **_options) {
 }
 
 void managing_application_impl::start() {
-	configuration *vsomeip_configuration = configuration::request(name_);
+	service_.run();
 }
 
 void managing_application_impl::stop() {
-}
-
-std::size_t managing_application_impl::poll_one() {
-	return service_.poll_one();
-}
-
-std::size_t managing_application_impl::poll() {
-	return service_.poll();
-}
-
-std::size_t managing_application_impl::run() {
-	return service_.run();
+	service_.stop();
 }
 
 bool managing_application_impl::request_service(
@@ -281,7 +270,7 @@ void managing_application_impl::disable_magic_cookies(
 			service_id _service, instance_id _instance) {
 }
 
-boost::asio::io_service & managing_application_impl::get_io_service() {
+boost::asio::io_service & managing_application_impl::get_service() {
 	return service_;
 }
 

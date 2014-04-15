@@ -100,20 +100,15 @@ void daemon_impl::run_sender() {
 	VSOMEIP_DEBUG << "Sender services stopped.";
 }
 
-void daemon_impl::run_network() {
-	managing_application_impl::run();
-	VSOMEIP_DEBUG << "Network services stopped.";
-}
-
 void daemon_impl::start() {
 	boost::thread sender_thread(boost::bind(&daemon_impl::run_sender, this));
 	boost::thread receiver_thread(boost::bind(&daemon_impl::run_receiver, this));
-	boost::thread network_thread(boost::bind(&daemon_impl::run_network, this));
 
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": started.";
+
+	managing_application_impl::start();
 	sender_thread.join();
 	receiver_thread.join();
-	network_thread.join();
 }
 
 bool daemon_impl::send(const message_base *_message, bool _flush) {
@@ -897,8 +892,6 @@ void daemon_impl::receive_cbk(boost::system::error_code const &_error,
 
 	if (!_error) {
 		process_command(_bytes);
-	} else {
-		VSOMEIP_ERROR << "Receive error (" << _error.message() << ")";
 	}
 
 	do_receive();

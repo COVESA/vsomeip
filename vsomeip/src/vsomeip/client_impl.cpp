@@ -27,9 +27,9 @@ template < typename Protocol, int MaxBufferSize >
 client_impl< Protocol, MaxBufferSize >::client_impl(
 		managing_application *_owner, const endpoint *_location)
 	: participant_impl< MaxBufferSize >(_owner, _location),
-	  socket_(_owner->get_io_service()),
-	  connect_timer_(_owner->get_io_service()),
-	  flush_timer_(_owner->get_io_service()),
+	  socket_(_owner->get_service()),
+	  connect_timer_(_owner->get_service()),
+	  flush_timer_(_owner->get_service()),
 	  local_(boost::asio::ip::address::from_string(_location->get_address()),
 			 _location->get_port()),
 	  connect_timeout_(VSOMEIP_CONNECT_TIMEOUT),

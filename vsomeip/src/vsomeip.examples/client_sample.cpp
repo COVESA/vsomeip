@@ -58,13 +58,12 @@ void worker() {
 }
 
 void run() {
-	the_application->run();
+	the_application->start();
 }
 
 
 int main(int argc, char **argv) {
 	the_application->init(argc, argv);
-	the_application->start();
 
 	the_message->set_session_id(0x4234);
 	the_message->set_message_type(message_type_enum::REQUEST);

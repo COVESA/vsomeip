@@ -59,7 +59,6 @@ void worker() {
 
 void run() {
 	the_application->init(options_count, options);
-	the_application->start();
 
 	the_message->set_session_id(0x4234);
 	the_message->set_message_type(message_type_enum::REQUEST);
@@ -77,9 +76,7 @@ void run() {
 	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive);
 	the_application->register_cbk(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive);
 
-	while (1) {
-		the_application->run();
-	}
+	the_application->start();
 }
 
 

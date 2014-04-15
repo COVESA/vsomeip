@@ -25,7 +25,7 @@ class message_queue_adapter {
 public:
 	message_queue_adapter() : id_(INVALID) {
 		timeout_.tv_sec = 0;
-		timeout_.tv_nsec = 100000000;
+		timeout_.tv_nsec = 5000000;
     }
 
     ~message_queue_adapter() {

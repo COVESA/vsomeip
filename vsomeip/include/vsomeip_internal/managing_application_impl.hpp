@@ -46,9 +46,7 @@ public:
 	void start();
 	void stop();
 
-	std::size_t poll_one();
-	std::size_t poll();
-	std::size_t run();
+	boost::asio::io_service & get_service();
 
 	bool request_service(service_id _service, instance_id _instance,
 							const endpoint *_location);
@@ -69,7 +67,6 @@ public:
 	void register_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
 	void deregister_cbk(service_id _service, instance_id _instance, method_id _method, receive_cbk_t _cbk);
 
-	boost::asio::io_service & get_io_service();
 	boost::log::sources::severity_logger<
 					boost::log::trivial::severity_level > & get_logger();
 	void receive(const uint8_t *_data, uint32_t _size, const endpoint *_source, const endpoint *_target);
