@@ -11,20 +11,23 @@
 #define VSOMEIP_INTERNAL_SD_FACTORY_IMPL_HPP
 
 #include <vsomeip/sd/factory.hpp>
-#include <vsomeip_internal/factory_impl.hpp>
 
 namespace vsomeip {
 namespace sd {
 
 class factory_impl
-		: virtual public factory,
-		  virtual public vsomeip::factory_impl {
+		: virtual public factory {
 public:
 	static factory * get_instance();
 
 	virtual ~factory_impl();
 
-	message * create_service_discovery_message() const;
+	client_manager * create_client_manager(
+			boost::asio::io_service &_service) const;
+	service_manager * create_service_manager(
+			boost::asio::io_service &_service) const;
+
+	message * create_message() const;
 };
 
 } // namespace sd

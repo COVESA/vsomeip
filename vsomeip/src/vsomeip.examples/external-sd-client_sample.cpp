@@ -21,7 +21,7 @@ using namespace vsomeip;
 int options_count = 0;
 char **options = 0;
 
-sd::factory * the_factory = sd::factory::get_instance();
+factory * the_factory = factory::get_instance();
 application * the_application = the_factory->create_managing_application("ExternalSdClientSample");
 
 message * the_message = the_factory->create_message();
@@ -33,7 +33,7 @@ void receive(const message_base *_message) {
 			  << "] Response for "
 			  << std::hex << _message->get_client_id()
 			  << " with "
-			  << _message->get_length() << " bytes."
+			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 }
 

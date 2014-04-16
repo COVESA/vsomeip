@@ -8,17 +8,22 @@
 //
 
 #include <vsomeip/application.hpp>
-#include <vsomeip_internal/sd/client_behavior.hpp>
+#include <vsomeip_internal/sd/client_manager.hpp>
+#include <vsomeip_internal/sd/client_state_machine.hpp>
 
 namespace vsomeip {
 namespace sd {
-namespace client_fsm {
+namespace client_state_machine {
 
-behavior::behavior(application *_application)
-	: application_(_application) {
+machine::machine(client_manager *_manager)
+	: timer_service(_manager->get_service()),
+	  manager_(_manager) {
 }
 
-void behavior::timer_expired(const boost::system::error_code &_error) {
+machine::~machine() {
+}
+
+void machine::timer_expired(const boost::system::error_code &_error) {
 	if (!_error) {
 		process_event(ev_timeout_expired());
 	}
@@ -135,6 +140,6 @@ sc::result requested::react(const ev_timeout_expired &_event) {
 	return transit< requested >();
 }
 
-} // namespace client_fsm
+} // namespace client_state_machine
 } // namespace sd
 } // namespace vsomeip

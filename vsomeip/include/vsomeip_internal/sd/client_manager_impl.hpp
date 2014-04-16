@@ -1,5 +1,5 @@
 //
-// registry.hpp
+// client_manager_impl.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -7,26 +7,38 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SD_REGISTRY_HPP
-#define VSOMEIP_INTERNAL_SD_REGISTRY_HPP
+#ifndef VSOMEIP_INTERNAL_SD_CLIENT_MANAGER_IMPL_HPP
+#define VSOMEIP_INTERNAL_SD_CLIENT_MANAGER_IMPL_HPP
 
 #include <map>
 
 #include <boost/shared_ptr.hpp>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip_internal/sd/service_behavior.hpp>
+#include <vsomeip_internal/sd/client_manager.hpp>
+#include <vsomeip_internal/sd/client_state_machine.hpp>
 
 namespace vsomeip {
 
-class daemon;
+class application;
 class message_base;
 
 namespace sd {
 
-class registry {
+class client_manager_impl
+		: public client_manager {
 public:
-	registry(daemon &_daemon);
+	client_manager_impl(boost::asio::io_service &_service);
+	virtual ~client_manager_impl();
+
+	application * get_owner() const;
+	void set_owner(application *_owner);
+
+	boost::asio::io_service & get_service();
+
+	void init();
+	void start();
+	void stop();
 
 	void on_provide_service(service_id _service, instance_id _instance);
 	void on_withdraw_service(service_id _service, instance_id _instance);
@@ -37,19 +49,20 @@ public:
 	void on_request_service(service_id _service, instance_id _instance);
 	void on_release_service(service_id _service, instance_id _instance);
 
-	bool send(const message_base *_message, bool _flush);
+	bool send(message_base *_message, bool _flush);
 
 private:
 	typedef std::map< service_id,
 					  std::map< instance_id,
-			  	  	  			boost::shared_ptr< service_fsm::behavior > > > service_behavior_t;
+			  	  	  			boost::shared_ptr< client_state_machine_t > > > client_machines_t;
 
-	service_behavior_t administrated_;
+	client_machines_t administrated_;
 
-	daemon &daemon_;
+	application *owner_;
+	boost::asio::io_service &service_;
 };
 
 } // sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_SD_SERVICE_DISCOVERY_HPP
+#endif // VSOMEIP_INTERNAL_SD_CLIENT_MANAGER_IMPL_HPP

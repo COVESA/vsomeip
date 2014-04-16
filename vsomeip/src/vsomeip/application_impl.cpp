@@ -45,14 +45,14 @@ namespace vsomeip {
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
 application_impl::application_impl(const std::string &_name)
-	: log_owner(_name),
+	: application_base_impl(_name, send_service_),
 	  id_(0),
 	  receiver_thread_(0),
 	  sender_thread_(0),
 	  queue_name_prefix_("/vsomeip-"),
 	  daemon_queue_name_("0"),
-	  daemon_queue_(new message_queue(*this, send_service_)),
-	  application_queue_(new message_queue(*this, receive_service_)),
+	  daemon_queue_(new message_queue(send_service_, this)),
+	  application_queue_(new message_queue(receive_service_, this)),
 	  watchdog_timer_(send_service_),
 	  retry_timer_(send_service_),
 	  retry_timeout_(20),
@@ -84,24 +84,26 @@ void application_impl::init(int _options_count, char **_options) {
 	queue_id++;
 
 	configuration::init(_options_count, _options);
-	configuration * vsomeip_configuration = configuration::request(name_);
+	configuration * its_configuration = configuration::request(name_);
 
 	configure_logging(
-		vsomeip_configuration->use_console_logger(),
-		vsomeip_configuration->use_file_logger(),
-		vsomeip_configuration->use_dlt_logger()
+		its_configuration->use_console_logger(),
+		its_configuration->use_file_logger(),
+		its_configuration->use_dlt_logger()
 	);
 
-	set_loglevel(vsomeip_configuration->get_loglevel());
+	set_loglevel(its_configuration->get_loglevel());
 
 	set_channel(application_queue_name_);
-	id_ = vsomeip_configuration->get_client_id();
+	id_ = its_configuration->get_client_id();
 
 	VSOMEIP_DEBUG << "Client-ID (configured): " << id_;
 	VSOMEIP_DEBUG << "Queue name: " << queue_name_prefix_ << application_queue_name_;
 
 	queues_[daemon_queue_name_] = daemon_queue_.get();
 	queues_[application_queue_name_] = application_queue_.get();
+
+	application_base_impl::init(_options_count, _options);
 }
 
 void application_impl::start() {
@@ -249,11 +251,11 @@ bool application_impl::provide_service(
 	const endpoint *_location) {
 
 	if (_location) {
-		provided_[_service][_instance].insert(_location);
+		provided_[_service][_instance].second.insert(_location);
 
 		if (is_registered_) {
 			send_service_command(
-				command_enum::REGISTER_SERVICE,
+				command_enum::PROVIDE_SERVICE,
 				_service,
 				_instance,
 				_location
@@ -271,8 +273,8 @@ bool application_impl::withdraw_service(
 	const endpoint *_location) {
 
 	if (_location) {
-		provided_[_service][_instance].erase(_location);
-		if (provided_[_service][_instance].size() == 0)
+		provided_[_service][_instance].second.erase(_location);
+		if (provided_[_service][_instance].second.size() == 0)
 			provided_[_service].erase(_instance);
 	} else {
 		provided_[_service].erase(_instance);
@@ -283,7 +285,7 @@ bool application_impl::withdraw_service(
 
 	if (is_registered_) {
 		send_service_command(
-			command_enum::DEREGISTER_SERVICE,
+			command_enum::WITHDRAW_SERVICE,
 			_service,
 			_instance,
 			_location
@@ -295,12 +297,54 @@ bool application_impl::withdraw_service(
 
 bool application_impl::start_service(
 			service_id _service, instance_id _instance) {
-	return false;
+
+	auto found_service = provided_.find(_service);
+	if (found_service == provided_.end()) {
+		return false;
+	}
+
+	auto found_instance = found_service->second.find(_instance);
+	if (found_instance == found_service->second.end()) {
+		return false;
+	}
+
+	found_instance->second.first = true;
+
+	if (is_registered_) {
+		send_service_command(
+			command_enum::START_SERVICE,
+			_service,
+			_instance
+		);
+	}
+
+	return true;
 }
 
 bool application_impl::stop_service(
 			service_id _service, instance_id _instance) {
-	return false;
+
+	auto found_service = provided_.find(_service);
+	if (found_service == provided_.end()) {
+		return false;
+	}
+
+	auto found_instance = found_service->second.find(_instance);
+	if (found_instance == found_service->second.end()) {
+		return false;
+	}
+
+	found_instance->second.first = false;
+
+	if (is_registered_) {
+		send_service_command(
+			command_enum::STOP_SERVICE,
+			_service,
+			_instance
+		);
+	}
+
+	return true;
 }
 
 bool application_impl::send(message_base *_message, bool _flush) {
@@ -448,7 +492,7 @@ message_queue * application_impl::find_target_queue(client_id _id) {
 		if (found_queue != queues_.end()) {
 			requested_queue = found_queue->second;
 		} else {
-			requested_queue = new message_queue(*this, send_service_);
+			requested_queue = new message_queue(send_service_, this);
 			queues_[found_queue_name->second] = requested_queue;
 			requested_queue->async_open(
 				queue_name_prefix_ + found_queue_name->second,
@@ -611,12 +655,24 @@ void application_impl::send_service_command(
 void application_impl::process_early_registrations() {
 	for (auto s : provided_) {
 		for (auto i : s.second) {
-			for (auto l : i.second) {
+			for (auto l : i.second.second) {
 				send_service_command(
-					command_enum::REGISTER_SERVICE,
+					command_enum::PROVIDE_SERVICE,
 					s.first,
 					i.first,
 					l
+				);
+			}
+		}
+	}
+
+	for (auto s : provided_) {
+		for (auto i : s.second) {
+			if (i.second.first) {
+				send_service_command(
+					command_enum::START_SERVICE,
+					s.first,
+					i.first
 				);
 			}
 		}
@@ -730,7 +786,7 @@ void application_impl::on_request_service_ack(service_id _service, instance_id _
 			}
 		}
 	} else {
-		message_queue *queue = new message_queue(*this, send_service_);
+		message_queue *queue = new message_queue(send_service_, this);
 		queues_[_queue_name] = queue;
 		queue->async_open(
 			queue_name_prefix_ + _queue_name,
@@ -1062,8 +1118,8 @@ void intrusive_ptr_add_ref(vsomeip::message_queue *_queue) {
 void intrusive_ptr_release(vsomeip::message_queue *_queue) {
 	if (_queue) {
 		_queue->release();
-		if (0 == _queue->get_ref()) {
-			_queue->get_application().remove_queue(_queue->get_name());
+		if (0 == _queue->get_ref() && 0 != _queue->get_application()) {
+			_queue->get_application()->remove_queue(_queue->get_name());
 			delete _queue;
 		}
 	}

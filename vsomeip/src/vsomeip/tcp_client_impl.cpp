@@ -21,7 +21,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_client_impl::tcp_client_impl(
-		managing_application *_owner, const endpoint *_location)
+		managing_application_impl *_owner, const endpoint *_location)
 	: tcp_client_base_impl(_owner, _location) {
 	is_supporting_magic_cookies_ = true;
 }

@@ -19,7 +19,7 @@
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -27,7 +27,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_service_impl::tcp_service_impl(
-		managing_application *_owner, const endpoint *_location)
+		managing_application_impl *_owner, const endpoint *_location)
 	: service_impl<ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE>(_owner, _location),
 	  acceptor_(_owner->get_service(),
 			    ip::tcp::endpoint(

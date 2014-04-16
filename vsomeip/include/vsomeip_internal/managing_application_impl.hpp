@@ -20,7 +20,7 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip_internal/log_owner.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/application_base_impl.hpp>
 
 namespace vsomeip {
 
@@ -34,9 +34,8 @@ class serializer;
 class deserializer;
 
 class managing_application_impl
-	: virtual public managing_application,
-	  public log_owner,
-	  boost::noncopyable {
+		: public application_base_impl,
+		  boost::noncopyable {
 
 public:
 	managing_application_impl(const std::string &_name);
@@ -69,7 +68,7 @@ public:
 
 	boost::log::sources::severity_logger<
 					boost::log::trivial::severity_level > & get_logger();
-	void receive(const uint8_t *_data, uint32_t _size, const endpoint *_source, const endpoint *_target);
+	virtual void receive(const uint8_t *_data, uint32_t _size, const endpoint *_source, const endpoint *_target);
 
 protected:
 	const endpoint * find_client_location(service_id, instance_id) const;

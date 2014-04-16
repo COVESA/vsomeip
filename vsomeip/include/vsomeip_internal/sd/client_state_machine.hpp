@@ -1,5 +1,5 @@
 //
-// client_behavior.cpp
+// client_state_machine.cpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -7,8 +7,8 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SD_CLIENT_BEHAVIOR_HPP
-#define VSOMEIP_INTERNAL_SD_CLIENT_BEHAVIOR_HPP
+#ifndef VSOMEIP_INTERNAL_SD_CLIENT_STATE_MACHINE_HPP
+#define VSOMEIP_INTERNAL_SD_CLIENT_STATE_MACHINE_HPP
 
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
@@ -23,18 +23,19 @@ namespace mpl = boost::mpl;
 namespace sc = boost::statechart;
 
 namespace vsomeip {
-
-class application;
-
 namespace sd {
-namespace client_fsm {
+
+class client_manager;
+
+namespace client_state_machine {
 
 struct initial;
-struct behavior
-		: sc::state_machine< behavior, initial >,
+struct machine
+		: sc::state_machine< machine, initial >,
 		  public timer_service {
 
-	behavior(application *_application);
+	machine(client_manager *_manager);
+	~machine();
 
 	uint32_t initial_delay_;
 
@@ -48,7 +49,7 @@ struct behavior
 	bool is_service_ready_;
 	bool is_service_requested_;
 
-	application *application_;
+	client_manager *manager_;
 
 	inline bool is_ready() { return (is_network_ready_ && is_service_ready_); };
 
@@ -59,7 +60,7 @@ struct behavior
 
 struct waiting;
 struct not_seen
-		: sc::simple_state< not_seen, behavior, waiting > {
+		: sc::simple_state< not_seen, machine, waiting > {
 
 	not_seen();
 
@@ -107,7 +108,7 @@ struct searching
 
 struct not_requested;
 struct seen
-		: sc::simple_state< seen, behavior, not_requested > {
+		: sc::simple_state< seen, machine, not_requested > {
 
 	seen();
 
@@ -150,8 +151,11 @@ struct requested
 	sc::result react(const ev_timeout_expired &_event);
 };
 
-} // namespace client_fsm
+} // namespace client_state_machine {
+
+typedef client_state_machine::machine client_state_machine_t;
+
 } // namespace sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_SD_CLIENT_BEHAVIOR_HPP
+#endif // VSOMEIP_INTERNAL_SD_CLIENT_STATE_MACHINE_HPP

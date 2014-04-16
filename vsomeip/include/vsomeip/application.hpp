@@ -23,6 +23,8 @@ class application {
 public:
 	virtual ~application() {};
 
+	virtual std::string get_name() const = 0;
+
 	virtual void init(int _options_count, char **_options) = 0;
 	virtual void start() = 0;
 	virtual void stop() = 0;

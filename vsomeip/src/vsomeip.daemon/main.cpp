@@ -7,7 +7,7 @@
 // All rights reserved.
 //
 
-#include "daemon.hpp"
+#include <vsomeip_internal/daemon.hpp>
 
 int
 main(int argc, char **argv) {

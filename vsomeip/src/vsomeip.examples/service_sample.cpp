@@ -21,9 +21,9 @@ void receive_message(const message_base *_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
-			  << "] Application " << _message->get_client_id()
-			  << " sends a request with "
-			  << _message->get_length() << " bytes."
+			  << "] Client " << _message->get_client_id()
+			  << " has sent a request with "
+			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 
 	message *response = the_factory->create_response(_message);
@@ -43,6 +43,7 @@ void run(const char *name) {
 
 	the_application->provide_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, the_endpoint);
 	the_application->register_cbk(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive_message);
+	the_application->start_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE);
 
 	the_application->start();
 }

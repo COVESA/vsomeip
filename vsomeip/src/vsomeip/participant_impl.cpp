@@ -9,18 +9,20 @@
 // All rights reserved.
 //
 
+#include <iomanip>
+
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/participant_impl.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 
 namespace vsomeip {
 
 template < int MaxBufferSize >
-participant_impl< MaxBufferSize >::participant_impl(managing_application *_owner, const endpoint *_location)
+participant_impl< MaxBufferSize >::participant_impl(managing_application_impl *_owner, const endpoint *_location)
 	: owner_(_owner),
 	  location_(_location),
 	  service_(_owner->get_service()),

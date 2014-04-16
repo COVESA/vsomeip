@@ -30,10 +30,10 @@ void receive(const message_base *_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
-			  << "] Response for client "
+			  << "] Service has answered to client "
 			  << std::hex << _message->get_client_id()
 			  << " with "
-			  << _message->get_length() << " bytes."
+			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 }
 

@@ -22,13 +22,13 @@ class message_queue
 	: public boost_ext::asio::message_queue {
 
 public:
-	message_queue(application_impl &_application, boost::asio::io_service &_service)
+	message_queue(boost::asio::io_service &_service, application_impl *_application = 0)
 		: boost_ext::asio::message_queue(_service),
 		  application_(_application),
 		  ref_(0) {
 	};
 
-	inline application_impl & get_application() const {
+	inline application_impl * get_application() const {
 		return application_;
 	};
 
@@ -37,7 +37,7 @@ public:
 	inline uint8_t get_ref() const { return ref_; };
 
 private:
-	application_impl &application_;
+	application_impl *application_;
 	uint8_t ref_;
 };
 

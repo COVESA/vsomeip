@@ -23,9 +23,9 @@
 #include <boost/thread.hpp>
 #include <boost/utility.hpp>
 
-#include <vsomeip/application.hpp>
 #include <vsomeip/config.hpp>
 #include <vsomeip/enumeration_types.hpp>
+#include <vsomeip_internal/application_base_impl.hpp>
 #include <vsomeip_internal/enumeration_types.hpp>
 #include <vsomeip_internal/log_owner.hpp>
 
@@ -38,8 +38,7 @@ class message_queue;
 class serializer;
 
 class application_impl
-	: virtual public application,
-	  public log_owner,
+	: public application_base_impl,
 	  boost::noncopyable {
 
 public:
@@ -93,7 +92,7 @@ private:
 	void send_register_application();
 	void send_deregister_application();
 	void send_callback_command(command_enum, service_id, instance_id, method_id, receive_cbk_t);
-	void send_service_command(command_enum, service_id, instance_id, const endpoint *);
+	void send_service_command(command_enum, service_id, instance_id, const endpoint * = 0);
 
 	void send_pong();
 
@@ -145,8 +144,9 @@ private: // object members
 
 	// TODO: check whether or not we still need all the endpoint information...
 	typedef std::map< service_id,
-			           std::map< instance_id,
-			                     std::set< const endpoint * > > > provided_t;
+					  std::map< instance_id,
+					  	  	  	std::pair< bool,
+					  	  	  			   std::set< const endpoint * > > > > provided_t;
 
 	typedef boost::intrusive_ptr< message_queue > message_queue_t;
 

@@ -9,7 +9,7 @@ using namespace vsomeip;
 #define EXTERNAL_SAMPLE_SERVICE_INSTANCE	0x2356
 #define EXTERNAL_SAMPLE_METHOD			 	0x0203
 
-sd::factory *the_factory = 0;
+factory *the_factory = 0;
 application *the_application = 0;
 
 void receive_message(const message_base *_message) {
@@ -17,7 +17,7 @@ void receive_message(const message_base *_message) {
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
 			  << "] Request with "
-			  << _message->get_length() << " bytes."
+			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 
 	message *response = the_factory->create_response(_message);
@@ -29,7 +29,7 @@ void receive_message(const message_base *_message) {
 }
 
 int main(int argc, char **argv) {
-	the_factory = sd::factory::get_instance();
+	the_factory = factory::get_instance();
 	endpoint *location = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
 
 	// create the application and provide a service at the defined location

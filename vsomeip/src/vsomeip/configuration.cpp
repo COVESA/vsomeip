@@ -115,8 +115,8 @@ configuration::~configuration() {
 void configuration::read_configuration(const std::string &_name) {
 	static bool has_read = false;
 	if (!has_read) {
-		options::options_description vsomeip_options_description;
-		vsomeip_options_description.add_options()
+		options::options_description its_options_description;
+		its_options_description.add_options()
 			(
 				"someip.loglevel",
 				options::value< std::string >(),
@@ -129,114 +129,127 @@ void configuration::read_configuration(const std::string &_name) {
 			)
 			(
 				"someip.daemon.service_discovery_enabled",
-				options::value<bool>(),
+				options::value< bool >(),
 				"Enable service discovery by vsomeip daemon"
 			)
 			(
 				"someip.daemon.virtual_mode_enabled",
-				options::value<bool>(),
+				options::value< bool >(),
 				"Enable virtual mode by vsomeip daemon"
 			)
 			(
 				"someip.application.slots",
-				options::value<int>(),
+				options::value< int >(),
 				"Maximum number of received messages an application can buffer"
 			)
 			(
 				"someip.application.client_id",
-				options::value<int>(),
+				options::value< int >(),
 				"The client identifier for the application"
 			)
 			(
+				"someip.application.service_discovery_enabled",
+				options::value< bool >(),
+				"Applications use / do not use service discovery"
+			)
+			(
 				"someip.service_discovery.protocol",
-				options::value<std::string>(),
+				options::value< std::string >(),
 				"Protocol used to communicate to Service Discovery"
 			)
 			(
 				"someip.service_discovery.unicast",
-				options::value<std::string>(),
+				options::value< std::string >(),
 				"Unicast address of Service Discovery"
 			)
 			(
 				"someip.service_discovery.multicast",
-				options::value<std::string>(),
+				options::value< std::string >(),
 				"Multicast address to be used by Service Discovery"
 			)
 			(
 				"someip.service_discovery.port",
-				options::value<int>(),
+				options::value< int >(),
 				"Service discovery port"
 			)
 			(
 				"someip.service_discovery.min_initial_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Minimum initial delay before first offer message"
 			)
 			(
 				"someip.service_discovery.max_initial_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Maximum initial delay before first offer message"
 			)
 			(
 				"someip.service_discovery.repetition_base_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Base delay for the repetition phase."
 			)
 			(
 				"someip.service_discovery.repetition_max",
-				options::value<int>(),
+				options::value< int >(),
 				"Maximum number of repetitions in the repetition phase."
 			)
 			(
 				"someip.service_discovery.ttl",
-				options::value<int>(),
+				options::value< int >(),
 				"Lifetime of service discovery entry"
 			)
 			(
 				"someip.service_discovery.cyclic_offer_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Cycle of the OfferService messages in the main phase"
 			)
 			(
 				"someip.service_discovery.cyclic_request_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Cycle of the FindService messages in the main phase"
 			)
 			(
 				"someip.service_discovery.request_response_delay",
-				options::value<int>(),
+				options::value< int >(),
 				"Delay of an unicast answer to a multicast message."
 			);
 
 		// Local overrides
 		if (_name != "") {
 			std::string local_override("someip.application." + _name + ".slots");
-			vsomeip_options_description.add_options()
+			its_options_description.add_options()
 				(
 					local_override.c_str(),
 					options::value< int >(),
-					"Local override for number of receiver slots."
+					"Application specific setting for number of receiver slots."
 				);
 			local_override = "someip.application." + _name + ".client_id";
-			vsomeip_options_description.add_options()
+			its_options_description.add_options()
 				(
 					local_override.c_str(),
 					options::value< int >(),
-					"Local override for client identifier."
+					"Application specific setting for client identifier."
 				);
+			local_override = "someip.application." + _name + ".service_discovery_enabled";
+			its_options_description.add_options()
+				(
+					local_override.c_str(),
+					options::value< bool >(),
+					"Application specific setting for service discovery usage."
+				);
+
 		};
 
-		options::variables_map vsomeip_options;
-		std::ifstream vsomeip_configuration_file;
-		vsomeip_configuration_file.open(configuration_file_path_.c_str());
-		if (vsomeip_configuration_file.is_open()) {
+		options::variables_map its_options;
+		std::ifstream its_configuration_file;
+		its_configuration_file.open(configuration_file_path_.c_str());
+		if (its_configuration_file.is_open()) {
 			try {
 				options::store(
 					options::parse_config_file(
-						vsomeip_configuration_file,
-						vsomeip_options_description,
+						its_configuration_file,
+						its_options_description,
 						true),
-						vsomeip_options
+						its_options
 				);
 			}
 
@@ -244,76 +257,103 @@ void configuration::read_configuration(const std::string &_name) {
 				// Intentionally left empty
 			}
 
-			// General
-			if (vsomeip_options.count("someip.loggers"))
-				read_loggers(vsomeip_options["someip.loggers"].as< std::string >());
+			for (auto i : its_options) {
+				std::cout << i.first  << " --> ";
+				try {
+					std::cout << i.second.as< std::string >();
+				}
+				catch (...) {
+					try {
+						std::cout << i.second.as< int >();
+					}
+					catch (...) {
+						try {
+							std::cout << i.second.as< bool >();
+						}
+						catch (...) {};
+					}
+				}
 
-			if (vsomeip_options.count("someip.loglevel"))
-				read_loglevel(vsomeip_options["someip.loglevel"].as< std::string >());
+				std::cout << std::endl;
+			}
+
+			// General
+			if (its_options.count("someip.loggers"))
+				read_loggers(its_options["someip.loggers"].as< std::string >());
+
+			if (its_options.count("someip.loglevel"))
+				read_loglevel(its_options["someip.loglevel"].as< std::string >());
 
 			// Daemon
-			if (vsomeip_options.count("someip.daemon.service_discovery_enabled"))
+			if (its_options.count("someip.daemon.service_discovery_enabled"))
 				use_service_discovery_
-					= vsomeip_options["someip.daemon.service_discovery_enabled"].as< bool >();
+					= its_options["someip.daemon.service_discovery_enabled"].as< bool >();
 
-			if (vsomeip_options.count("someip.daemon.virtual_mode_enabled"))
+			if (its_options.count("someip.daemon.virtual_mode_enabled"))
 				use_virtual_mode_
-					= vsomeip_options["someip.daemon.virtual_mode_enabled"].as< bool >();
+					= its_options["someip.daemon.virtual_mode_enabled"].as< bool >();
 
 			// Application
-			if (vsomeip_options.count("someip.application.slots"))
-				receiver_slots_	= vsomeip_options["someip.application.slots"].as< int >();
+			if (its_options.count("someip.application.slots"))
+				receiver_slots_	= its_options["someip.application.slots"].as< int >();
 
-			if (vsomeip_options.count("someip.application.client_id"))
-				client_id_ = vsomeip_options["someip.application.slots"].as< int >();
+			if (its_options.count("someip.application.client_id"))
+				client_id_ = its_options["someip.application.slots"].as< int >();
+
+			if (its_options.count("someip.application.service_discovery_enabled"))
+				use_service_discovery_ = its_options["someip.application.service_discovery_enabled"].as< bool >();
 
 			// Service Discovery
-			if (vsomeip_options.count("someip.service_discovery.protocol"))
-				protocol_ = vsomeip_options["someip.service_discovery.protocol"].as< std::string >();
+			if (its_options.count("someip.service_discovery.protocol"))
+				protocol_ = its_options["someip.service_discovery.protocol"].as< std::string >();
 
-			if (vsomeip_options.count("someip.service_discovery.unicast_address"))
-				unicast_address_ = vsomeip_options["someip.service_discovery.unicast_address"].as< std::string >();
+			if (its_options.count("someip.service_discovery.unicast_address"))
+				unicast_address_ = its_options["someip.service_discovery.unicast_address"].as< std::string >();
 
-			if (vsomeip_options.count("someip.service_discovery.multicast_address"))
-				multicast_address_ = vsomeip_options["someip.service_discovery.multicast_address"].as< std::string >();
+			if (its_options.count("someip.service_discovery.multicast_address"))
+				multicast_address_ = its_options["someip.service_discovery.multicast_address"].as< std::string >();
 
-			if (vsomeip_options.count("someip.service_discovery.port"))
-				port_ = vsomeip_options["someip.service_discovery.port"].as< int >();
+			if (its_options.count("someip.service_discovery.port"))
+				port_ = its_options["someip.service_discovery.port"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.min_initial_delay"))
+			if (its_options.count("someip.service_discovery.min_initial_delay"))
 				min_initial_delay_
-					= vsomeip_options["someip.service_discovery.min_initial_delay"].as< int >();
+					= its_options["someip.service_discovery.min_initial_delay"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.max_initial_delay"))
+			if (its_options.count("someip.service_discovery.max_initial_delay"))
 				max_initial_delay_
-					= vsomeip_options["someip.service_discovery.max_initial_delay"].as< int >();
+					= its_options["someip.service_discovery.max_initial_delay"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.repetition_base_delay"))
+			if (its_options.count("someip.service_discovery.repetition_base_delay"))
 				repetition_base_delay_
-					= vsomeip_options["someip.service_discovery.repetition_base_delay"].as< int >();
+					= its_options["someip.service_discovery.repetition_base_delay"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.repetition_max"))
+			if (its_options.count("someip.service_discovery.repetition_max"))
 				repetition_max_
-					= vsomeip_options["someip.service_discovery.repetition_max"].as< int >();
+					= its_options["someip.service_discovery.repetition_max"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.cyclic_offer_delay"))
+			if (its_options.count("someip.service_discovery.cyclic_offer_delay"))
 				cyclic_offer_delay_
-					= vsomeip_options["someip.service_discovery.cyclic_offer_delay"].as< int >();
+					= its_options["someip.service_discovery.cyclic_offer_delay"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.cyclic_request_delay"))
+			if (its_options.count("someip.service_discovery.cyclic_request_delay"))
 				cyclic_request_delay_
-					= vsomeip_options["someip.service_discovery.cyclic_request_delay"].as< int >();
+					= its_options["someip.service_discovery.cyclic_request_delay"].as< int >();
 
-			if (vsomeip_options.count("someip.service_discovery.request_response_delay"))
+			if (its_options.count("someip.service_discovery.request_response_delay"))
 				request_response_delay_
-					= vsomeip_options["someip.service_discovery.request_response_delay"].as< int >();
+					= its_options["someip.service_discovery.request_response_delay"].as< int >();
 
 			if (_name != "") {
-				if (vsomeip_options.count("someip.application." + _name + ".slots"))
-					receiver_slots_ = vsomeip_options["someip.application." + _name + ".slots"].as< int >();
+				if (its_options.count("someip.application." + _name + ".slots"))
+					receiver_slots_ = its_options["someip.application." + _name + ".slots"].as< int >();
 
-				if (vsomeip_options.count("someip.application." + _name + ".client_id")) {
-					client_id_ = vsomeip_options["someip.application." + _name + ".client_id"].as< int >();
+				if (its_options.count("someip.application." + _name + ".client_id")) {
+					client_id_ = its_options["someip.application." + _name + ".client_id"].as< int >();
+				}
+
+				if (its_options.count("someip.application." + _name + ".service_discovery_enabled")) {
+					use_service_discovery_ = its_options["someip.application." + _name + ".service_discovery_enabled"].as< bool >();
 				}
 			}
 		}

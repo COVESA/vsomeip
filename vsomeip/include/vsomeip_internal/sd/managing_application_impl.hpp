@@ -27,6 +27,8 @@ public:
 	virtual ~managing_application_impl();
 
 	void init(int _options_count, char **_options);
+	void start();
+	void stop();
 
 	bool request_service(service_id _service, instance_id _instance,
 			 	 	     const endpoint * /* unused */);
@@ -41,6 +43,22 @@ public:
 	bool stop_service(service_id _service, instance_id _instance);
 
 private:
+	void open_cbk(boost::system::error_code const &);
+	void retry_open_cbk(boost::system::error_code const &);
+
+private:
+	boost::asio::io_service queue_service_;
+	boost::asio::system_timer retry_timer_;
+
+	std::string queue_name_prefix_;
+
+	// Message queue to communicate to the vsomeip-daemon
+	std::string daemon_queue_name_;
+	boost::shared_ptr< message_queue > daemon_queue_;
+
+	uint32_t retry_timeout_;
+	bool is_open_;
+
 	typedef std::map< service_id,
 					  std::map< instance_id,
 					  	  	    boost::shared_ptr< client_fsm::behavior > > > client_behavior_t;

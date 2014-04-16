@@ -32,7 +32,7 @@ class tcp_service_impl
 
 public:
 	tcp_service_impl(
-			managing_application *_owner, const endpoint *_location);
+			managing_application_impl *_owner, const endpoint *_location);
 	virtual ~tcp_service_impl();
 
 	void start();

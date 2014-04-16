@@ -10,20 +10,30 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 
+#include <vsomeip/application.hpp>
 #include <vsomeip_internal/configuration.hpp>
-#include <vsomeip_internal/sd/service_behavior.hpp>
+#include <vsomeip_internal/sd/service_manager.hpp>
+#include <vsomeip_internal/sd/service_state_machine.hpp>
 
 namespace vsomeip {
 namespace sd {
-namespace service_fsm {
+namespace service_state_machine {
 
-behavior::behavior(registry *_registry)
-	: registry_(_registry),
+machine::machine(service_manager *_manager)
+	: manager_(_manager),
+	  timer_service(_manager->get_service()),
 	  is_network_configured_(false),
 	  is_service_ready_(false),
 	  run_(0) {
 
-	configuration *the_configuration = configuration::request("");
+	configuration *the_configuration = configuration::request(get_application_name());
+
+	std::cout << "SD ["
+			  << (int)the_configuration->get_min_initial_delay() << ", "
+			  << (int)the_configuration->get_max_initial_delay() << ", "
+			  << (int)the_configuration->get_repetition_base_delay() << ", "
+			  << (int)the_configuration->get_repetition_max() << ", "
+			  << (int)the_configuration->get_cyclic_offer_delay() << "]" << std::endl;
 
 	boost::random::mt19937 random_generator;
 	boost::random::uniform_int_distribution<> distribution(
@@ -37,26 +47,40 @@ behavior::behavior(registry *_registry)
 	cyclic_offer_delay_ = the_configuration->get_cyclic_offer_delay();
 };
 
-behavior::~behavior() {
+machine::~machine() {
 }
 
-void behavior::send_offer_service(const endpoint *_target) {
+std::string machine::get_application_name() const {
+	std::string name;
 
+	if (manager_) {
+		application *its_owner = manager_->get_owner();
+		if (its_owner) {
+			name = its_owner->get_name();
+		}
+	}
+
+	return name;
 }
 
-void behavior::send_stop_offer_service() {
 
+void machine::send_offer_service(const endpoint *_target) {
+	manager_->send_offer_service(this, _target);
 }
 
-void behavior::timer_expired(const boost::system::error_code &_error) {
+void machine::send_stop_offer_service() {
+	manager_->send_stop_offer_service(this);
+}
+
+void machine::timer_expired(const boost::system::error_code &_error) {
 	if (!_error) {
 		process_event(ev_timeout_expired());
 	}
 }
 
 // state initial
-initial::initial() {
-	post_event( ev_none() );
+initial::initial(my_context ctx) : sc::state< initial, machine >(ctx) {
+	std::cout << "initial" << std::endl;
 }
 
 sc::result initial::react(const ev_none &) {
@@ -68,7 +92,8 @@ sc::result initial::react(const ev_none &) {
 }
 
 // state not_ready
-not_ready::not_ready() {
+not_ready::not_ready(my_context ctx) : sc::state< not_ready, machine >(ctx) {
+	std::cout << "not_ready" << std::endl;
 }
 
 sc::result not_ready::react(const ev_network_status_change &_event) {
@@ -92,6 +117,9 @@ sc::result not_ready::react(const ev_service_status_change &_event) {
 }
 
 // state ready
+ready::ready(my_context ctx) : state< ready, machine, initializing >(ctx) {
+}
+
 sc::result ready::react(const ev_network_status_change &_event) {
 	outermost_context().is_network_configured_ = _event.is_configured_;
 
@@ -116,7 +144,8 @@ sc::result ready::react(const ev_service_status_change &_event) {
 }
 
 // state ready.initializing
-initializing::initializing() {
+initializing::initializing(my_context ctx) : sc::state< initializing, ready >(ctx) {
+	std::cout << "ready.initializing" << std::endl;
 	outermost_context().run_ = 0;
 	outermost_context().start_timer(outermost_context().initial_delay_);
 }
@@ -130,7 +159,9 @@ sc::result initializing::react(const ev_timeout_expired &_event) {
 }
 
 // state ready.repeating
-repeating::repeating() {
+repeating::repeating(my_context ctx) : sc::state< repeating, ready >(ctx) {
+	std::cout << "ready.repeating" << std::endl;
+
 	outermost_context().start_timer(
 		(2 << outermost_context().run_) * outermost_context().repetition_base_delay_);
 	outermost_context().run_++;
@@ -152,7 +183,8 @@ sc::result repeating::react(const ev_timeout_expired &_event) {
 }
 
 // state ready.announcing
-announcing::announcing() {
+announcing::announcing(my_context ctx) : sc::state< announcing, ready >(ctx) {
+	std::cout << "ready.announcing" << std::endl;
 	outermost_context().start_timer(
 		outermost_context().cyclic_offer_delay_);
 }
@@ -170,9 +202,11 @@ sc::result announcing::react(const ev_find_service &_event) {
 
 sc::result announcing::react(const ev_timeout_expired &_event) {
 	outermost_context().send_offer_service();
+
+	return transit< announcing >();
 }
 
-} // service_fsm
+} // service_state_machine
 } // namespace sd
 } // namespace vsomeip
 

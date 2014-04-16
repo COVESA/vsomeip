@@ -16,13 +16,13 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 #include <vsomeip_internal/service_impl.hpp>
 
 namespace vsomeip {
 
 template < typename Protocol, int MaxBufferSize >
-service_impl< Protocol, MaxBufferSize >::service_impl(managing_application *_owner, const endpoint *_location)
+service_impl< Protocol, MaxBufferSize >::service_impl(managing_application_impl *_owner, const endpoint *_location)
 	: participant_impl<MaxBufferSize>(_owner, _location),
 	  current_queue_(packet_queues_.end()),
 	  flush_timer_(_owner->get_service()) {

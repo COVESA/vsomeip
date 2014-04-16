@@ -22,14 +22,13 @@
 
 #include <vsomeip/config.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip_internal/daemon.hpp>
 #include <vsomeip_internal/managing_application_impl.hpp>
 
 #include "application_info.hpp"
 #include "client_info.hpp"
 #include "request_info.hpp"
 #include "service_info.hpp"
-#include "registry.hpp"
-#include "daemon.hpp"
 
 #define VSOMEIP_DAEMON_DEBUG
 
@@ -39,6 +38,10 @@ class endpoint;
 class client;
 class service;
 class message_base;
+
+namespace sd {
+class service_manager;
+} // namespace sd
 
 class daemon_impl
 	: public daemon,
@@ -50,6 +53,7 @@ public:
 
 	void init(int _count, char **_options);
 	void start();
+	void stop();
 
 	bool send(const message_base *_message, bool _flush);
 
@@ -157,7 +161,8 @@ private:
 private:
 	static client_id id__;
 
-	sd::registry discovery_;
+	bool use_service_discovery_;
+	sd::service_manager *service_manager_;
 
 #ifdef VSOMEIP_DAEMON_DEBUG
 private:

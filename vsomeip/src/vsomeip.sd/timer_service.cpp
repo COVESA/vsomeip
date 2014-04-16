@@ -16,35 +16,32 @@
 namespace vsomeip {
 namespace sd {
 
-timer_service::timer_service() {
-	timer_ = 0;
+timer_service::timer_service(boost::asio::io_service &_service)
+	: timer_(_service) {
 }
 
 timer_service::~timer_service() {
-	delete timer_;
-}
-
-void timer_service::init_timer(boost::asio::io_service &_is) {
-	timer_ = new boost::asio::system_timer(_is);
 }
 
 void timer_service::start_timer(uint32_t _milliseconds) {
-	timer_->expires_from_now(
-			std::chrono::milliseconds(_milliseconds));
-	timer_->async_wait(boost::bind(
+	timer_.expires_from_now(std::chrono::milliseconds(_milliseconds));
+	timer_.async_wait(
+		boost::bind(
 			&timer_service::timer_expired,
 			this,
-			boost::asio::placeholders::error));
+			boost::asio::placeholders::error
+		)
+	);
 }
 
 void timer_service::stop_timer() {
-	timer_->cancel();
+	timer_.cancel();
 }
 
 uint32_t timer_service::expired_from_now() {
 	return std::chrono::duration_cast<
 				std::chrono::milliseconds>(
-					timer_->expires_from_now()).count();
+					timer_.expires_from_now()).count();
 }
 
 } // namespace sd

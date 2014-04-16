@@ -25,7 +25,7 @@
 namespace vsomeip {
 
 class endpoint;
-class managing_application;
+class managing_application_impl;
 
 template < int MaxBufferSize >
 class participant_impl
@@ -35,7 +35,7 @@ class participant_impl
 #endif
 {
 public: // provided
-	participant_impl(managing_application *_owner, const endpoint *_location);
+	participant_impl(managing_application_impl *_owner, const endpoint *_location);
 	virtual ~participant_impl();
 
 	void enable_magic_cookies();
@@ -69,7 +69,7 @@ protected:
 	boost::asio::io_service &service_;
 
 	// Reference to managing application
-	managing_application *owner_;
+	managing_application_impl *owner_;
 
 	// The local endpoint
 	const endpoint *location_;

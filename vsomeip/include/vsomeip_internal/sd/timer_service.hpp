@@ -16,10 +16,8 @@ namespace vsomeip {
 namespace sd {
 
 struct  timer_service {
-	timer_service();
+	timer_service(boost::asio::io_service &_service);
 	~timer_service();
-
-	void init_timer(boost::asio::io_service &_is);
 
 	void start_timer(uint32_t _milliseconds);
 	void stop_timer();
@@ -29,7 +27,7 @@ struct  timer_service {
 	virtual void timer_expired(const boost::system::error_code &_error) = 0;
 private:
 
-	boost::asio::system_timer *timer_;
+	boost::asio::system_timer timer_;
 };
 
 } // namespace sd

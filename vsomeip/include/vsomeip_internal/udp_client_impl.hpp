@@ -30,7 +30,7 @@ class udp_client_impl
 
 public:
 	udp_client_impl(
-			managing_application *_owner, const endpoint *_location);
+			managing_application_impl *_owner, const endpoint *_location);
 	virtual ~udp_client_impl();
 
 	void start();

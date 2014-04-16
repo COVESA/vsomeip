@@ -1,5 +1,5 @@
 //
-// service_behavior.hpp
+// service_state_machine.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -7,12 +7,12 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SD_SERVICE_BEHAVIOR_HPP
-#define VSOMEIP_INTERNAL_SD_SERVICE_BEHAVIOR_HPP
+#ifndef VSOMEIP_INTERNAL_SD_SERVICE_STATE_MACHINE_HPP
+#define VSOMEIP_INTERNAL_SD_SERVICE_STATE_MACHINE_HPP
 
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
-#include <boost/statechart/simple_state.hpp>
+#include <boost/statechart/state.hpp>
 #include <boost/statechart/state_machine.hpp>
 #include <boost/statechart/transition.hpp>
 
@@ -25,17 +25,19 @@ namespace sc = boost::statechart;
 namespace vsomeip {
 namespace sd {
 
-class registry;
+class service_manager;
 
-namespace service_fsm {
+namespace service_state_machine {
 
 struct initial;
-struct behavior
-		: sc::state_machine< behavior, initial >,
+struct machine
+		: sc::state_machine< machine, initial >,
 		  public timer_service {
 
-	behavior(registry *_registry);
-	virtual ~behavior();
+	machine(service_manager *_manager);
+	virtual ~machine();
+
+	std::string get_application_name() const;
 
 	void send_offer_service(const endpoint *_target = 0);
 	void send_stop_offer_service();
@@ -53,13 +55,19 @@ struct behavior
 	bool is_network_configured_;
 	bool is_service_ready_;
 
-	registry *registry_;
+	service_manager *manager_;
+
+	// Service data
+	service_id service_;
+	instance_id instance_;
+	major_version major_;
+	minor_version minor_;
 };
 
 struct initial
-		: sc::simple_state< initial, behavior > {
+		: sc::state< initial, machine > {
 
-	initial();
+	initial(my_context ctx);
 
 	typedef sc::custom_reaction< ev_none > reactions;
 
@@ -67,9 +75,9 @@ struct initial
 };
 
 struct not_ready
-		: sc::simple_state< not_ready, behavior > {
+		: sc::state< not_ready, machine > {
 
-	not_ready();
+	not_ready(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_network_status_change >,
@@ -82,9 +90,9 @@ struct not_ready
 
 struct initializing;
 struct ready
-		: boost::statechart::simple_state< ready, behavior, initializing > {
+		: boost::statechart::state< ready, machine, initializing > {
 
-	ready() {};
+	ready(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_network_status_change >,
@@ -96,9 +104,9 @@ struct ready
 };
 
 struct initializing
-		: boost::statechart::simple_state< initializing, ready > {
+		: boost::statechart::state< initializing, ready > {
 
-	initializing();
+	initializing(my_context ctx);
 
 	typedef sc::custom_reaction< ev_timeout_expired > reactions;
 
@@ -106,9 +114,9 @@ struct initializing
 };
 
 struct repeating
-		: boost::statechart::simple_state< repeating, ready > {
+		: boost::statechart::state< repeating, ready > {
 
-	repeating();
+	repeating(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_find_service >,
@@ -120,9 +128,9 @@ struct repeating
 };
 
 struct announcing
-		: boost::statechart::simple_state< announcing, ready > {
+		: boost::statechart::state< announcing, ready > {
 
-	announcing();
+	announcing(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_find_service >,
@@ -133,9 +141,12 @@ struct announcing
 	sc::result react(const ev_timeout_expired &_event);
 };
 
-} // namespace _service
+} // namespace service_state_machine
+
+typedef service_state_machine::machine service_state_machine_t;
+
 } // namespace sd
 } // namespace vsomeip
 
 
-#endif // VSOMEIP_INTERNAL_SD_SERVICE_BEHAVIOR_HPP
+#endif // VSOMEIP_INTERNAL_SD_SERVICE_STATE_MACHINE_HPP

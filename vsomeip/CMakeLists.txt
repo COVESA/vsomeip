@@ -38,26 +38,26 @@ file (GLOB vsomeipd_SRC
 
 # Daemon
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip-sd vsomeip ${Boost_LIBRARIES} rt)
+target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} rt dl)
 
 # Test executables
 add_executable(application_sample src/vsomeip.examples/application_sample.cpp)
-target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES})
+target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(client_sample src/vsomeip.examples/client_sample.cpp)
-target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES})
+target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(service_sample src/vsomeip.examples/service_sample.cpp)
-target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES})
+target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(external-client_sample src/vsomeip.examples/external-client_sample.cpp)
-target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES})
+target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
-target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES})
+target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(external-sd-client_sample src/vsomeip.examples/external-sd-client_sample.cpp)
-target_link_libraries(external-sd-client_sample vsomeip-sd vsomeip ${Boost_LIBRARIES})
+target_link_libraries(external-sd-client_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} dl)
 
 add_executable(external-sd-service_sample src/vsomeip.examples/external-sd-service_sample.cpp)
-target_link_libraries(external-sd-service_sample vsomeip-sd vsomeip ${Boost_LIBRARIES})
+target_link_libraries(external-sd-service_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} dl)

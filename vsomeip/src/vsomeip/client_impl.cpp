@@ -19,13 +19,13 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/client_impl.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 
 namespace vsomeip {
 
 template < typename Protocol, int MaxBufferSize >
 client_impl< Protocol, MaxBufferSize >::client_impl(
-		managing_application *_owner, const endpoint *_location)
+		managing_application_impl *_owner, const endpoint *_location)
 	: participant_impl< MaxBufferSize >(_owner, _location),
 	  socket_(_owner->get_service()),
 	  connect_timer_(_owner->get_service()),

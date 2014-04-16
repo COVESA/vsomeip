@@ -31,7 +31,7 @@ class udp_service_impl
 
 public:
 	udp_service_impl(
-			managing_application *_owner, const endpoint *_location);
+			managing_application_impl *_owner, const endpoint *_location);
 	virtual ~udp_service_impl();
 
 	void start();

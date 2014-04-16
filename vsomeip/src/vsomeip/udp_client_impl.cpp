@@ -17,7 +17,7 @@
 namespace vsomeip {
 
 udp_client_impl::udp_client_impl(
-		managing_application *_owner, const endpoint *_location)
+		managing_application_impl *_owner, const endpoint *_location)
 	: udp_client_base_impl(_owner, _location) {
 }
 

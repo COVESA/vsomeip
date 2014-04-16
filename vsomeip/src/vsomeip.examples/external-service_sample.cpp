@@ -16,9 +16,9 @@ void receive_message(const message_base *_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
-			  << "] Application "
+			  << "] Client "
 			  << std::hex << _message->get_client_id()
-			  << " sends a request with "
+			  << " has sent a request with "
 			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 

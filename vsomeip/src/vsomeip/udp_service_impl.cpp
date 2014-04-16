@@ -15,7 +15,7 @@
 #include <boost/bind.hpp>
 
 #include <vsomeip/endpoint.hpp>
-#include <vsomeip_internal/managing_application.hpp>
+#include <vsomeip_internal/managing_application_impl.hpp>
 #include <vsomeip_internal/udp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -23,7 +23,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 udp_service_impl::udp_service_impl(
-		managing_application *_owner, const endpoint *_location)
+		managing_application_impl *_owner, const endpoint *_location)
 	: service_impl< ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >(_owner, _location),
 	  socket_(_owner->get_service(),
 			  ip::udp::endpoint(

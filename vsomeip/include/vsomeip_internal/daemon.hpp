@@ -25,6 +25,7 @@ public:
 
 	virtual void init(int _count, char **_options) = 0;
 	virtual void start() = 0;
+	virtual void stop() = 0;
 
 	virtual bool send(const message_base *_message, bool _flush) = 0;
 };

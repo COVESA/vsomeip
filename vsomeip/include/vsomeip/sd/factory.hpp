@@ -12,23 +12,34 @@
 #ifndef VSOMEIP_SD_FACTORY_HPP
 #define VSOMEIP_SD_FACTORY_HPP
 
-#include <vsomeip/factory.hpp>
+#include <boost/asio/io_service.hpp>
+
+#define VSOMEIP_SD_LIBRARY					"libvsomeip-sd.so"
+#define VSOMEIP_SD_FACTORY_SYMBOL 			VSOMEIP_SD_FACTORY
+#define VSOMEIP_SD_FACTORY_SYMBOL_STRING 	"VSOMEIP_SD_FACTORY"
 
 namespace vsomeip {
 namespace sd {
 
+class client_manager;
 class message;
+class service_manager;
 
-class factory : virtual public vsomeip::factory {
+class factory {
 public:
 	virtual ~factory() {};
 
 	static factory * get_instance();
 
-	virtual message * create_service_discovery_message() const = 0;
+	virtual client_manager * create_client_manager(
+				boost::asio::io_service &_service) const = 0;
+	virtual service_manager * create_service_manager(
+				boost::asio::io_service &_service) const = 0;
+
+	virtual message * create_message() const = 0;
 };
 
 } // namespace sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_FACTORY_HPP
+#endif // VSOMEIP_SD_FACTORY_HPP

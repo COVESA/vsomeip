@@ -7,6 +7,8 @@
 // All rights reserved.
 //
 
+#include <dlfcn.h>
+
 #include <chrono>
 #include <iomanip>
 
@@ -32,6 +34,9 @@
 #include <vsomeip_internal/udp_client_impl.hpp>
 #include <vsomeip_internal/udp_service_impl.hpp>
 
+#include <vsomeip/sd/factory.hpp>
+#include <vsomeip_internal/sd/service_manager.hpp>
+
 #include "daemon_impl.hpp"
 
 using boost::asio::ip::tcp;
@@ -56,7 +61,8 @@ daemon_impl::daemon_impl()
 	  watchdog_timer_(sender_service_),
 	  sender_work_(sender_service_),
 	  network_work_(service_),
-	  discovery_(*this)
+	  use_service_discovery_(false),
+	  service_manager_(0)
 #ifdef VSOMEIP_DAEMON_DEBUG
 	  ,dump_timer_(sender_service_)
 #endif
@@ -65,17 +71,22 @@ daemon_impl::daemon_impl()
 
 void daemon_impl::init(int _count, char **_options) {
 	configuration::init(_count, _options);
-	configuration *vsomeip_configuration = configuration::request();
+	configuration *its_configuration = configuration::request();
 
-	configure_logging(vsomeip_configuration->use_console_logger(),
-			vsomeip_configuration->use_file_logger(),
-			vsomeip_configuration->use_dlt_logger());
+	configure_logging(
+		its_configuration->use_console_logger(),
+		its_configuration->use_file_logger(),
+		its_configuration->use_dlt_logger()
+	);
 
 	set_channel("0");
-	set_loglevel(vsomeip_configuration->get_loglevel());
+	set_loglevel(its_configuration->get_loglevel());
+
+	use_service_discovery_ = its_configuration->use_service_discovery();
 
 	configuration::release();
 
+	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": initializing.";
 	daemon_queue_.async_create(
 			queue_name_prefix_ + daemon_queue_name_,
 			10,	// TODO: replace
@@ -83,11 +94,32 @@ void daemon_impl::init(int _count, char **_options) {
 			boost::bind(&daemon_impl::create_cbk, this,
 					boost::asio::placeholders::error));
 
+	if (use_service_discovery_) {
+		void *handle = dlopen(VSOMEIP_SD_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
+		if (0 != handle) {
+			VSOMEIP_INFO << "Successfully loaded SD library.";
+			sd::factory **its_factory = static_cast< sd::factory **>(dlsym(handle, VSOMEIP_SD_FACTORY_SYMBOL_STRING));
+			if (0 != *its_factory) {
+				service_manager_ = (*its_factory)->create_service_manager(sender_service_);
+				if (0 != service_manager_) {
+					service_manager_->set_owner(this);
+					VSOMEIP_INFO << "Service Manager successfully created.";
+				} else {
+					VSOMEIP_ERROR << "Could not create SD service manager!";
+				}
+			} else {
+				VSOMEIP_ERROR << "Could not find factory symbol [" << VSOMEIP_SD_FACTORY_SYMBOL_STRING << "]";
+			}
+		} else {
+			VSOMEIP_ERROR << "Could not load SD library! Reason: " << dlerror();
+		}
+	}
+
 #ifdef VSOMEIP_DAEMON_DEBUG
 	start_dump_cycle();
 #endif
 
-	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": initialized.";
+	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": initializing done.";
 }
 
 void daemon_impl::run_receiver() {
@@ -101,14 +133,20 @@ void daemon_impl::run_sender() {
 }
 
 void daemon_impl::start() {
+	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": starting.";
+
 	boost::thread sender_thread(boost::bind(&daemon_impl::run_sender, this));
 	boost::thread receiver_thread(boost::bind(&daemon_impl::run_receiver, this));
 
-	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": started.";
+	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": starting done.";
 
 	managing_application_impl::start();
 	sender_thread.join();
 	receiver_thread.join();
+}
+
+void daemon_impl::stop() {
+	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": stopped.";
 }
 
 bool daemon_impl::send(const message_base *_message, bool _flush) {
@@ -178,9 +216,6 @@ void daemon_impl::do_receive() {
 void daemon_impl::receive(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
-
-	static int call_count = 0;
-	call_count ++;
 
 	// Read routing information
 	service_id its_service = VSOMEIP_BYTES_TO_WORD(_data[0], _data[1]);
@@ -367,8 +402,8 @@ void daemon_impl::on_provide_service(client_id _id,	service_id _service, instanc
 
 		provide_service(_service, _instance, _location);
 
-		// TODO: mechanism to make SD an option...
-		discovery_.on_provide_service(_service, _instance);
+		if (service_manager_)
+			service_manager_->on_provide_service(_service, _instance);
 
 	} else {
 		VSOMEIP_ERROR << "Attempting to register service for unknown application!";
@@ -402,7 +437,8 @@ void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instan
 
 	withdraw_service(_service, _instance, _location);
 
-	discovery_.on_withdraw_service(_service, _instance);
+	if (service_manager_)
+		service_manager_->on_withdraw_service(_service, _instance);
 }
 
 void daemon_impl::on_start_service(client_id _id, service_id _service, instance_id _instance) {
@@ -412,7 +448,9 @@ void daemon_impl::on_start_service(client_id _id, service_id _service, instance_
 		<< std::hex << std::setw(4) << std::setfill('0')
 		<< _service << ", " << _instance
 		<< ")";
-	discovery_.on_start_service(_service, _instance);
+
+	if (service_manager_)
+		service_manager_->on_start_service(_service, _instance);
 }
 
 void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_id _instance) {
@@ -422,7 +460,9 @@ void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_i
 		<< std::hex << std::setw(4) << std::setfill('0')
 		<< _service << ", " << _instance
 		<< ")";
-	discovery_.on_stop_service(_service, _instance);
+
+	if (service_manager_)
+		service_manager_->on_stop_service(_service, _instance);
 }
 
 void daemon_impl::on_request_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
@@ -489,8 +529,14 @@ void daemon_impl::on_register_method(client_id _id, service_id _service, instanc
 			auto found_instance = found_service->second.find(_instance);
 			if (found_instance != found_service->second.end()) {
 				found_instance->second.insert(_method);
+			} else {
+				found_service->second[_instance].insert(_method);
 			}
+		} else {
+			found_client->second[_service][_instance].insert(_method);
 		}
+	} else {
+		client_channels_[_id][_service][_instance].insert(_method);
 	}
 }
 
@@ -716,7 +762,7 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		on_deregister_application(its_id);
 		break;
 
-	case command_enum::REGISTER_SERVICE:
+	case command_enum::PROVIDE_SERVICE:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		if (payload_size > 4)
@@ -724,12 +770,24 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		on_provide_service(its_id, its_service, its_instance, its_location);
 		break;
 
-	case command_enum::DEREGISTER_SERVICE:
+	case command_enum::WITHDRAW_SERVICE:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		if (payload_size > 4)
 			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
 		on_withdraw_service(its_id, its_service, its_instance, its_location);
+		break;
+
+	case command_enum::START_SERVICE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		on_start_service(its_id, its_service, its_instance);
+		break;
+
+	case command_enum::STOP_SERVICE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		on_stop_service(its_id, its_service, its_instance);
 		break;
 
 	case command_enum::REQUEST_SERVICE:

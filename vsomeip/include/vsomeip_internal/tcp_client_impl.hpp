@@ -28,7 +28,7 @@ class tcp_client_impl
 	: public tcp_client_base_impl {
 public:
 	tcp_client_impl(
-			managing_application *_owner, const endpoint *_location);
+			managing_application_impl *_owner, const endpoint *_location);
 	virtual ~tcp_client_impl();
 
 	void start();

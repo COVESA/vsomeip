@@ -41,8 +41,8 @@ namespace vsomeip {
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
 managing_application_impl::managing_application_impl(const std::string &_name)
-	: id_(0),
-	  log_owner(_name),
+	: application_base_impl(_name, service_),
+	  id_(0),
 	  serializer_(new serializer_impl),
 	  deserializer_(new deserializer_impl) {
 
@@ -54,17 +54,21 @@ managing_application_impl::~managing_application_impl() {
 
 void managing_application_impl::init(int _options_count, char **_options) {
 	configuration::init(_options_count, _options);
-	configuration * vsomeip_configuration = configuration::request(name_);
+	configuration * its_configuration = configuration::request(name_);
 
 	configure_logging(
-		vsomeip_configuration->use_console_logger(),
-		vsomeip_configuration->use_file_logger(),
-		vsomeip_configuration->use_dlt_logger()
+		its_configuration->use_console_logger(),
+		its_configuration->use_file_logger(),
+		its_configuration->use_dlt_logger()
 	);
 
-	id_ = vsomeip_configuration->get_client_id();
+	id_ = its_configuration->get_client_id();
 
-	set_loglevel(vsomeip_configuration->get_loglevel());
+	set_loglevel(its_configuration->get_loglevel());
+
+	application_base_impl::init(_options_count, _options);
+
+	configuration::release(name_);
 }
 
 void managing_application_impl::start() {
