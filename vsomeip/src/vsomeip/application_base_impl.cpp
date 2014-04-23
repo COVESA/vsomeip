@@ -7,11 +7,10 @@
 // All rights reserved.
 //
 
-#include <dlfcn.h>
-
 #include <vsomeip_internal/application_base_impl.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/log_macros.hpp>
+#include <vsomeip_internal/utility.hpp>
 
 #include <vsomeip/sd/factory.hpp>
 #include <vsomeip_internal/sd/client_manager.hpp>
@@ -39,25 +38,27 @@ void application_base_impl::init(int _options_count, char **_options) {
 
 	// check for SD
 	if (its_configuration->use_service_discovery()) {
-		void *handle = dlopen(VSOMEIP_SD_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
-		if (0 != handle) {
-			sd::factory **its_factory = static_cast< sd::factory **>(dlsym(handle, VSOMEIP_SD_FACTORY_SYMBOL_STRING));
-			if (0 != *its_factory) {
-				client_manager_ = (*its_factory)->create_client_manager(service_);
-				if (0 != client_manager_) {
-					client_manager_->set_owner(this);
-					std::cout << "SD Client Manager loaded for application \"" << name_ << "\"" << std::endl;
-				} else {
-					VSOMEIP_ERROR << "Could not create manager!";
-				}
+		sd::factory **its_factory = static_cast< sd::factory ** >(
+			utility::load_library(
+				VSOMEIP_SD_LIBRARY,
+				VSOMEIP_SD_FACTORY_SYMBOL_STRING
+			)
+		);
+
+		if (0 != *its_factory) {
+			client_manager_ = (*its_factory)->create_client_manager(service_);
+			if (0 != client_manager_) {
+				client_manager_->set_owner(this);
+				VSOMEIP_INFO << "Application \"" << name_
+					<< "\": successfully loaded Client Manager.";
 			} else {
-				VSOMEIP_ERROR << "Could not find factory symbol [" << VSOMEIP_SD_FACTORY_SYMBOL_STRING << "]";
+				VSOMEIP_ERROR << "Application \"" << name_
+					<< "\": loading Client Manager failed.";
 			}
 		} else {
-			VSOMEIP_ERROR << "Could not load SD library! Reason: " << dlerror();
+			VSOMEIP_ERROR << "Factory symbol [" << VSOMEIP_SD_FACTORY_SYMBOL_STRING
+				<< "] could not be found!";
 		}
-	} else {
-		VSOMEIP_INFO << "Application \"" << name_ << "\" does not use service discovery.";
 	}
 
 	configuration::release(name_);

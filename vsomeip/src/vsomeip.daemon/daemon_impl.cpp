@@ -7,8 +7,6 @@
 // All rights reserved.
 //
 
-#include <dlfcn.h>
-
 #include <chrono>
 #include <iomanip>
 
@@ -33,6 +31,7 @@
 #include <vsomeip_internal/tcp_service_impl.hpp>
 #include <vsomeip_internal/udp_client_impl.hpp>
 #include <vsomeip_internal/udp_service_impl.hpp>
+#include <vsomeip_internal/utility.hpp>
 
 #include <vsomeip/sd/factory.hpp>
 #include <vsomeip_internal/sd/service_manager.hpp>
@@ -95,23 +94,21 @@ void daemon_impl::init(int _count, char **_options) {
 					boost::asio::placeholders::error));
 
 	if (use_service_discovery_) {
-		void *handle = dlopen(VSOMEIP_SD_LIBRARY, RTLD_LAZY | RTLD_GLOBAL);
-		if (0 != handle) {
-			VSOMEIP_INFO << "Successfully loaded SD library.";
-			sd::factory **its_factory = static_cast< sd::factory **>(dlsym(handle, VSOMEIP_SD_FACTORY_SYMBOL_STRING));
-			if (0 != *its_factory) {
-				service_manager_ = (*its_factory)->create_service_manager(sender_service_);
-				if (0 != service_manager_) {
-					service_manager_->set_owner(this);
-					VSOMEIP_INFO << "Service Manager successfully created.";
-				} else {
-					VSOMEIP_ERROR << "Could not create SD service manager!";
-				}
+		sd::factory **its_factory = static_cast< sd::factory ** >(
+			utility::load_library(
+				VSOMEIP_SD_LIBRARY,
+				VSOMEIP_SD_FACTORY_SYMBOL_STRING
+			)
+		);
+
+		if (*its_factory) {
+			service_manager_ = (*its_factory)->create_service_manager(sender_service_);
+			if (0 != service_manager_) {
+				service_manager_->set_owner(this);
+				VSOMEIP_INFO << "Loading of Service Manager successful!";
 			} else {
-				VSOMEIP_ERROR << "Could not find factory symbol [" << VSOMEIP_SD_FACTORY_SYMBOL_STRING << "]";
+				VSOMEIP_ERROR << "Loading of Service Manager failed!";
 			}
-		} else {
-			VSOMEIP_ERROR << "Could not load SD library! Reason: " << dlerror();
 		}
 	}
 
