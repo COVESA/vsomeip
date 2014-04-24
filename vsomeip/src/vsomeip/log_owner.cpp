@@ -18,7 +18,12 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/phoenix/bind/bind_member_function.hpp>
 #include <boost/shared_ptr.hpp>
+
+#if BOOST_VERSION < 105500
+#include <boost/log/utility/empty_deleter.hpp>
+#else
 #include <boost/utility/empty_deleter.hpp>
+#endif
 
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/log_owner.hpp>
@@ -87,7 +92,15 @@ void log_owner::enable_console() {
 	boost::shared_ptr< sinks::text_ostream_backend > backend
 		= boost::make_shared< sinks::text_ostream_backend >();
 	backend->add_stream(
-		boost::shared_ptr< std::ostream >(&std::clog, boost::empty_deleter()));
+		boost::shared_ptr< std::ostream >(
+			&std::clog,
+#if BOOST_VERSION < 105500
+			boost::log::empty_deleter()
+#else
+			boost::empty_deleter()
+#endif
+		)
+	);
 
 	console_sink_ = new sink_t(backend);
 	boost::shared_ptr< sink_t > sink(console_sink_);
