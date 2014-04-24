@@ -1,7 +1,5 @@
 //
-// serializer_impl.cpp
-//
-// Author: 	Lutz Bichler
+// serializer.cpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -10,23 +8,24 @@
 //
 #include <cstring>
 
+#include <vsomeip/serializable.hpp>
 #include <vsomeip_internal/byteorder.hpp>
-#include <vsomeip_internal/serializer_impl.hpp>
+#include <vsomeip_internal/serializer.hpp>
 
 namespace vsomeip {
 
-serializer_impl::serializer_impl()
+serializer::serializer()
 	: data_(0), capacity_(0), position_(0), remaining_(0) {
 }
 
-serializer_impl::~serializer_impl() {
+serializer::~serializer() {
 };
 
-bool serializer_impl::serialize(const serializable *_from) {
+bool serializer::serialize(const serializable *_from) {
 	return (_from && _from->serialize(this));
 }
 
-bool serializer_impl::serialize(const uint8_t _value) {
+bool serializer::serialize(const uint8_t _value) {
 	if (1 > remaining_)
 		return false;
 
@@ -36,7 +35,7 @@ bool serializer_impl::serialize(const uint8_t _value) {
 	return true;
 }
 
-bool serializer_impl::serialize(const uint16_t _value) {
+bool serializer::serialize(const uint16_t _value) {
 	if (2 > remaining_)
 		return false;
 
@@ -47,7 +46,7 @@ bool serializer_impl::serialize(const uint16_t _value) {
 	return true;
 }
 
-bool serializer_impl::serialize(const uint32_t _value, bool _omit_last_byte) {
+bool serializer::serialize(const uint32_t _value, bool _omit_last_byte) {
 	if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
 		return false;
 
@@ -63,7 +62,7 @@ bool serializer_impl::serialize(const uint32_t _value, bool _omit_last_byte) {
 	return true;
 }
 
-bool serializer_impl::serialize(const uint8_t *_data, uint32_t _length) {
+bool serializer::serialize(const uint8_t *_data, uint32_t _length) {
 	if (_length > remaining_)
 		return false;
 
@@ -74,19 +73,19 @@ bool serializer_impl::serialize(const uint8_t *_data, uint32_t _length) {
 	return true;
 }
 
-uint8_t * serializer_impl::get_data() const {
+uint8_t * serializer::get_data() const {
 	return data_;
 }
 
-uint32_t serializer_impl::get_capacity() const {
+uint32_t serializer::get_capacity() const {
 	return capacity_;
 }
 
-uint32_t serializer_impl::get_size() const {
+uint32_t serializer::get_size() const {
 	return capacity_ - remaining_;
 }
 
-void serializer_impl::create_data(uint32_t _capacity) {
+void serializer::create_data(uint32_t _capacity) {
 	if (0 != data_)
 		delete [] data_;
 
@@ -98,7 +97,7 @@ void serializer_impl::create_data(uint32_t _capacity) {
 	remaining_ = _capacity;
 }
 
-void serializer_impl::set_data(uint8_t *_data, uint32_t _capacity) {
+void serializer::set_data(uint8_t *_data, uint32_t _capacity) {
 	if (0 != data_)
 		delete [] data_;
 
@@ -108,7 +107,7 @@ void serializer_impl::set_data(uint8_t *_data, uint32_t _capacity) {
 	remaining_ = _capacity;
 }
 
-void serializer_impl::reset() {
+void serializer::reset() {
 	position_ = data_;
 	remaining_ = capacity_;
 }

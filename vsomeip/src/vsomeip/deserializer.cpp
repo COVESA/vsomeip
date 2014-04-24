@@ -1,7 +1,5 @@
 //
-// deserializer_impl.cpp
-//
-// Author: 	Lutz Bichler
+// deserializer.cpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -13,42 +11,42 @@
 
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/message_impl.hpp>
-#include <vsomeip_internal/deserializer_impl.hpp>
+#include <vsomeip_internal/deserializer.hpp>
 
 namespace vsomeip {
 
-deserializer_impl::deserializer_impl()
+deserializer::deserializer()
 	: position_(data_.begin()),
 	  remaining_(0) {
 }
 
-deserializer_impl::deserializer_impl(uint8_t *_data, std::size_t _length)
+deserializer::deserializer(uint8_t *_data, std::size_t _length)
 	: data_(_data, _data + _length),
 	  position_(data_.begin()),
 	  remaining_(_length) {
 }
 
-deserializer_impl::deserializer_impl(const deserializer_impl& _deserializer)
-	: data_(_deserializer.data_),
-	  position_(_deserializer.position_){
+deserializer::deserializer(const deserializer &_other)
+	: data_(_other.data_),
+	  position_(_other.position_){
 }
 
-deserializer_impl::~deserializer_impl() {
+deserializer::~deserializer() {
 }
 
-std::size_t deserializer_impl::get_available() const {
+std::size_t deserializer::get_available() const {
 	return data_.size();
 }
 
-std::size_t deserializer_impl::get_remaining() const {
+std::size_t deserializer::get_remaining() const {
 	return remaining_;
 }
 
-void deserializer_impl::set_remaining(std::size_t _remaining) {
+void deserializer::set_remaining(std::size_t _remaining) {
 	remaining_ = _remaining;
 }
 
-bool deserializer_impl::deserialize(uint8_t& _value) {
+bool deserializer::deserialize(uint8_t& _value) {
 	if (0 == remaining_)
 		return false;
 
@@ -58,7 +56,7 @@ bool deserializer_impl::deserialize(uint8_t& _value) {
 	return true;
 }
 
-bool deserializer_impl::deserialize(uint16_t& _value) {
+bool deserializer::deserialize(uint16_t& _value) {
 	if (2 > remaining_)
 		return false;
 
@@ -72,7 +70,7 @@ bool deserializer_impl::deserialize(uint16_t& _value) {
 	return true;
 }
 
-bool deserializer_impl::deserialize(uint32_t &_value, bool _omit_last_byte) {
+bool deserializer::deserialize(uint32_t &_value, bool _omit_last_byte) {
 	if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
 		return false;
 
@@ -92,7 +90,7 @@ bool deserializer_impl::deserialize(uint32_t &_value, bool _omit_last_byte) {
 	return true;
 }
 
-bool deserializer_impl::deserialize(uint8_t *_data, std::size_t _length) {
+bool deserializer::deserialize(uint8_t *_data, std::size_t _length) {
 	if (_length > remaining_)
 		return false;
 
@@ -103,7 +101,7 @@ bool deserializer_impl::deserialize(uint8_t *_data, std::size_t _length) {
 	return true;
 }
 
-bool deserializer_impl::deserialize(std::vector<uint8_t>& _value) {
+bool deserializer::deserialize(std::vector<uint8_t>& _value) {
 	if (_value.capacity() > remaining_)
 		return false;
 
@@ -114,7 +112,7 @@ bool deserializer_impl::deserialize(std::vector<uint8_t>& _value) {
 	return true;
 }
 
-bool deserializer_impl::look_ahead(std::size_t _index, uint8_t &_value) const {
+bool deserializer::look_ahead(std::size_t _index, uint8_t &_value) const {
 	if (_index >= data_.size())
 		return false;
 
@@ -123,7 +121,7 @@ bool deserializer_impl::look_ahead(std::size_t _index, uint8_t &_value) const {
 	return true;
 }
 
-bool deserializer_impl::look_ahead(std::size_t _index, uint16_t &_value) const {
+bool deserializer::look_ahead(std::size_t _index, uint16_t &_value) const {
 	if (_index+1 >= data_.size())
 		return false;
 
@@ -133,7 +131,7 @@ bool deserializer_impl::look_ahead(std::size_t _index, uint16_t &_value) const {
 	return true;
 }
 
-bool deserializer_impl::look_ahead(std::size_t _index, uint32_t &_value) const {
+bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
 	if (_index+3 >= data_.size())
 		return false;
 
@@ -143,7 +141,7 @@ bool deserializer_impl::look_ahead(std::size_t _index, uint32_t &_value) const {
 	return true;
 }
 
-message_base * deserializer_impl::deserialize_message() {
+message * deserializer::deserialize_message() {
 	message_impl* deserialized_message = new message_impl;
 	if (0 != deserialized_message) {
 		if (false == deserialized_message->deserialize(this)) {
@@ -155,7 +153,7 @@ message_base * deserializer_impl::deserialize_message() {
 	return deserialized_message;
 }
 
-void deserializer_impl::set_data(const uint8_t *_data,  std::size_t _length) {
+void deserializer::set_data(const uint8_t *_data,  std::size_t _length) {
 	if (0 != _data) {
 		std::size_t offset = position_ - data_.begin();
 		data_.assign(_data, _data + _length);
@@ -168,27 +166,27 @@ void deserializer_impl::set_data(const uint8_t *_data,  std::size_t _length) {
 	}
 }
 
-void deserializer_impl::append_data(const uint8_t *_data, std::size_t _length) {
+void deserializer::append_data(const uint8_t *_data, std::size_t _length) {
 	std::size_t offset = (position_ - data_.begin());
 	data_.insert(data_.end(), _data, _data + _length);
 	position_ = data_.begin() + offset;
 	remaining_ += _length;
 }
 
-void deserializer_impl::drop_data(std::size_t _length) {
+void deserializer::drop_data(std::size_t _length) {
 	if (position_ + _length < data_.end())
 		position_ += _length;
 	else
 		position_ = data_.end();
 }
 
-void deserializer_impl::reset() {
+void deserializer::reset() {
 	data_.erase(data_.begin(), position_);
 	position_ = data_.begin();
 	remaining_ = data_.size();
 }
 
-void deserializer_impl::show_data() const {
+void deserializer::show_data() const {
 	std::cout << "("
 			  << std::hex << std::setw(2) << std::setfill('0') << (int)*position_ << ", "
 			  << std:: dec << remaining_ << ") ";

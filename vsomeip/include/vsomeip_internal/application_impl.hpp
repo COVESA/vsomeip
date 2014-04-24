@@ -138,8 +138,8 @@ private: // object members
 	std::deque< std::vector< uint8_t > > send_buffers_;
 	uint8_t receive_buffer_[VSOMEIP_QUEUE_SIZE];
 
-	serializer *serializer_;
-	deserializer *deserializer_;
+	boost::shared_ptr< serializer > serializer_;
+	boost::shared_ptr< deserializer > deserializer_;
 
 
 	// TODO: check whether or not we still need all the endpoint information...

@@ -15,8 +15,10 @@
 #include <boost/shared_ptr.hpp>
 
 #include <vsomeip/primitive_types.hpp>
+
 #include <vsomeip_internal/sd/client_manager.hpp>
 #include <vsomeip_internal/sd/client_state_machine.hpp>
+#include <vsomeip_internal/sd/deserializer.hpp>
 
 namespace vsomeip {
 
@@ -49,6 +51,9 @@ public:
 	void on_request_service(service_id _service, instance_id _instance);
 	void on_release_service(service_id _service, instance_id _instance);
 
+	void on_message(const uint8_t *_data, uint32_t _size);
+
+	bool send_find_service(client_state_machine_t *_machine);
 	bool send(message_base *_message, bool _flush);
 
 private:
@@ -58,7 +63,9 @@ private:
 
 	client_machines_t administrated_;
 
+	factory *factory_;
 	application *owner_;
+	boost::shared_ptr< deserializer > deserializer_;
 	boost::asio::io_service &service_;
 };
 

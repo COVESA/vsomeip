@@ -1,8 +1,6 @@
 //
 // deserializable.hpp
 //
-// Author: 	Lutz Bichler
-//
 // This file is part of the BMW Some/IP implementation.
 //
 // Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
@@ -26,4 +24,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_DESERIALIZABLE_HPP
+#endif // VSOMEIP_SERIALIZABLE_HPP

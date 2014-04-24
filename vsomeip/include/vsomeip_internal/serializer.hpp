@@ -1,7 +1,5 @@
 //
-// serializer_impl.hpp
-//
-// Author: 	Lutz Bichler
+// serializer.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -9,22 +7,23 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SERIALIZER_IMPL_HPP
-#define VSOMEIP_INTERNAL_SERIALIZER_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_SERIALIZER_HPP
+#define VSOMEIP_INTERNAL_SERIALIZER_HPP
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
-#include <vsomeip/serializer.hpp>
 
 #include <vector>
 
 namespace vsomeip {
 
-class serializer_impl : public serializer
+class serializable;
+
+class serializer
 {
 public:
-	serializer_impl();
-	virtual ~serializer_impl();
+	serializer();
+	virtual ~serializer();
 
 	bool serialize(const serializable *_from);
 

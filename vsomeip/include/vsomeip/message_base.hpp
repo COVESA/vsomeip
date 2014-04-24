@@ -14,8 +14,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
-#include <vsomeip/serializable.hpp>
 #include <vsomeip/deserializable.hpp>
+#include <vsomeip/serializable.hpp>
 
 namespace vsomeip {
 
@@ -23,7 +23,9 @@ class endpoint;
 /// Common base interface for application and service discovery messages. The
 /// interface provides set- and get-methods for all elements of a Some/IP 
 /// message header and for the endpoint a message is sent to or received from.
-class message_base : virtual public serializable, virtual public deserializable {
+class message_base
+		: public serializable,
+		  public deserializable {
 public:
 	virtual ~message_base() {};
 

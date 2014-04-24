@@ -72,30 +72,6 @@ void application_base_impl::stop() {
 
 }
 
-void application_base_impl::on_provide_service(service_id _service, instance_id _instance) {
-
-}
-
-void application_base_impl::on_withdraw_service(service_id _service, instance_id _instance) {
-
-}
-
-void application_base_impl::on_start_service(service_id _service, instance_id _instance) {
-
-}
-
-void application_base_impl::on_stop_service(service_id _service, instance_id _instance) {
-
-}
-
-void application_base_impl::on_request_service(service_id _service, instance_id _instance) {
-
-}
-
-void application_base_impl::on_release_service(service_id _service, instance_id _instance) {
-
-}
-
 } // namespace vsomeip
 
 

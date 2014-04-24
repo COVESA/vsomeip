@@ -7,9 +7,9 @@
 // All rights reserved.
 //
 
-#include <vsomeip/serializer.hpp>
-#include <vsomeip/deserializer.hpp>
 #include <vsomeip_internal/constants.hpp>
+#include <vsomeip_internal/deserializer.hpp>
+#include <vsomeip_internal/serializer.hpp>
 #include <vsomeip_internal/sd/eventgroup_entry_impl.hpp>
 
 namespace vsomeip {

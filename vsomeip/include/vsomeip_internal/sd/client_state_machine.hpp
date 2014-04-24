@@ -12,7 +12,7 @@
 
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
-#include <boost/statechart/simple_state.hpp>
+#include <boost/statechart/state.hpp>
 #include <boost/statechart/state_machine.hpp>
 #include <boost/statechart/transition.hpp>
 
@@ -29,9 +29,9 @@ class client_manager;
 
 namespace client_state_machine {
 
-struct initial;
+struct not_seen;
 struct machine
-		: sc::state_machine< machine, initial >,
+		: sc::state_machine< machine, not_seen >,
 		  public timer_service {
 
 	machine(client_manager *_manager);
@@ -49,6 +49,12 @@ struct machine
 	bool is_service_ready_;
 	bool is_service_requested_;
 
+	// Service data
+	service_id service_;
+	instance_id instance_;
+	major_version major_;
+	minor_version minor_;
+
 	client_manager *manager_;
 
 	inline bool is_ready() { return (is_network_ready_ && is_service_ready_); };
@@ -60,9 +66,9 @@ struct machine
 
 struct waiting;
 struct not_seen
-		: sc::simple_state< not_seen, machine, waiting > {
+		: sc::state< not_seen, machine, waiting > {
 
-	not_seen();
+	not_seen(my_context ctx);
 
 	typedef sc::custom_reaction< ev_offer_service > reactions;
 
@@ -70,9 +76,9 @@ struct not_seen
 };
 
 struct waiting
-		: sc::simple_state< waiting, not_seen > {
+		: sc::state< waiting, not_seen > {
 
-	waiting();
+	waiting(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_none >,
@@ -86,9 +92,9 @@ struct waiting
 };
 
 struct initializing
-		: sc::simple_state< initializing, not_seen > {
+		: sc::state< initializing, not_seen > {
 
-	initializing();
+	initializing(my_context ctx);
 
 	typedef sc::custom_reaction< ev_timeout_expired > reactions;
 
@@ -96,9 +102,9 @@ struct initializing
 };
 
 struct searching
-		: sc::simple_state< searching, not_seen > {
+		: sc::state< searching, not_seen > {
 
-	searching();
+	searching(my_context ctx);
 
 	typedef sc::custom_reaction< ev_timeout_expired > reactions;
 
@@ -108,9 +114,9 @@ struct searching
 
 struct not_requested;
 struct seen
-		: sc::simple_state< seen, machine, not_requested > {
+		: sc::state< seen, machine, not_requested > {
 
-	seen();
+	seen(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_timeout_expired >,
@@ -124,9 +130,9 @@ struct seen
 };
 
 struct not_requested
-		: sc::simple_state< not_requested, seen > {
+		: sc::state< not_requested, seen > {
 
-	not_requested();
+	not_requested(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_none >,
@@ -138,9 +144,9 @@ struct not_requested
 };
 
 struct requested
-		: sc::simple_state< requested, seen > {
+		: sc::state< requested, seen > {
 
-	requested();
+	requested(my_context ctx);
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_request_status_change >,

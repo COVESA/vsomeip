@@ -17,7 +17,6 @@
 namespace vsomeip {
 
 class application;
-class message_base;
 
 namespace sd {
 
@@ -34,14 +33,10 @@ public:
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
-	virtual void on_provide_service(service_id _service, instance_id _instance) = 0;
-	virtual void on_withdraw_service(service_id _service, instance_id _instance) = 0;
-
-	virtual void on_start_service(service_id _service, instance_id _instance) = 0;
-	virtual void on_stop_service(service_id _service, instance_id _instance) = 0;
-
 	virtual void on_request_service(service_id _service, instance_id _instance) = 0;
 	virtual void on_release_service(service_id _service, instance_id _instance) = 0;
+
+	virtual void on_message(const uint8_t *_data, uint32_t _size) = 0;
 };
 
 } // sd

@@ -9,6 +9,7 @@
 // All rights reserved.
 //
 #include <dlfcn.h>
+#include <iostream>
 
 #include <vsomeip_internal/utility.hpp>
 
@@ -21,6 +22,7 @@ void * utility::load_library(const std::string &_path, const std::string &_symbo
 	if (0 != handle) {
 		its_symbol = dlsym(handle, _symbol.c_str());
 	} else {
+		std::cerr << "Loading failed: (" << dlerror() << ")" << std::endl;
 	}
 
 	return its_symbol;

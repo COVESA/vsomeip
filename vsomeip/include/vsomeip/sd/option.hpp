@@ -10,6 +10,7 @@
 #ifndef VSOMEIP_SD_OPTION_HPP
 #define VSOMEIP_SD_OPTION_HPP
 
+#include <vsomeip/deserializable.hpp>
 #include <vsomeip/serializable.hpp>
 #include <vsomeip/sd/enumeration_types.hpp>
 
@@ -17,8 +18,8 @@ namespace vsomeip {
 namespace sd {
 
 class option
-	: virtual public serializable,
-	  virtual public deserializable {
+	: public serializable,
+	  public deserializable {
 public:
 	virtual ~option() {};
 	virtual bool operator==(const option &_option) const = 0;

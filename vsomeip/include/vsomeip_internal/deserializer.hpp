@@ -1,7 +1,5 @@
 //
-// deserializer_impl.hpp
-//
-// Author: 	Lutz Bichler
+// deserializer.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -9,23 +7,23 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_DESERIALIZER_IMPL_HPP
-#define VSOMEIP_INTERNAL_DESERIALIZER_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_DESERIALIZER_HPP
+#define VSOMEIP_INTERNAL_DESERIALIZER_HPP
 
 #include <vector>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/deserializer.hpp>
 
 namespace vsomeip {
 
-class deserializer_impl
-		: virtual public deserializer {
+class message;
+
+class deserializer {
 public:
-	deserializer_impl();
-	deserializer_impl(uint8_t *_data, std::size_t _length);
-	deserializer_impl(const deserializer_impl& _deserializer);
-	virtual ~deserializer_impl();
+	deserializer();
+	deserializer(uint8_t *_data, std::size_t _length);
+	deserializer(const deserializer& _other);
+	virtual ~deserializer();
 
 	void set_data(const uint8_t *_data, std::size_t _length);
 	void append_data(const uint8_t *_data, std::size_t _length);
@@ -36,7 +34,7 @@ public:
 	void set_remaining(std::size_t _length);
 
 	// to be used by applications to deserialize a message
-	message_base * deserialize_message();
+	message * deserialize_message();
 
 	// to be used (internally) by objects to deserialize their members
 	// Note: this needs to be encapsulated!
@@ -62,4 +60,4 @@ protected:
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_DESERIALIZER_IMPL_HPP
+#endif // VSOMEIP_INTERNAL_DESERIALIZER_HPP

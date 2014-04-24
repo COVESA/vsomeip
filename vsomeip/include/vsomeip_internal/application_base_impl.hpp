@@ -34,17 +34,19 @@ public:
 	void start();
 	void stop();
 
-	void on_provide_service(service_id _service, instance_id _instance);
-	void on_withdraw_service(service_id _service, instance_id _instance);
-	void on_start_service(service_id _service, instance_id _instance);
-	void on_stop_service(service_id _service, instance_id _instance);
+	//void on_provide_service(service_id _service, instance_id _instance);
+	//void on_withdraw_service(service_id _service, instance_id _instance);
+	//void on_start_service(service_id _service, instance_id _instance);
+	//void on_stop_service(service_id _service, instance_id _instance);
 
-	void on_request_service(service_id _service, instance_id _instance);
-	void on_release_service(service_id _service, instance_id _instance);
+	//void on_request_service(service_id _service, instance_id _instance);
+	//void on_release_service(service_id _service, instance_id _instance);
+
+protected:
+	sd::client_manager *client_manager_;
 
 private:
 	boost::asio::io_service &service_;
-	sd::client_manager *client_manager_;
 };
 
 } // namespace vsomeip

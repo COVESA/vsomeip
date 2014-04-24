@@ -9,10 +9,11 @@
 // All rights reserved.
 //
 
-#include <vsomeip/serializer.hpp>
-#include <vsomeip/deserializer.hpp>
 #include <vsomeip_internal/constants.hpp>
+#include <vsomeip_internal/deserializer.hpp>
+#include <vsomeip_internal/message_base_impl.hpp>
 #include <vsomeip_internal/message_header_impl.hpp>
+#include <vsomeip_internal/serializer.hpp>
 
 namespace vsomeip {
 

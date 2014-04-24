@@ -24,13 +24,15 @@ machine::~machine() {
 }
 
 void machine::timer_expired(const boost::system::error_code &_error) {
-	if (!_error) {
+	if (0 == _error) {
 		process_event(ev_timeout_expired());
 	}
 }
 
 // State "not_seen"
-not_seen::not_seen() {
+not_seen::not_seen(my_context ctx)
+	: sc::state< not_seen, machine, waiting >(ctx) {
+	std::cout << "not_seen" << std::endl;
 }
 
 sc::result not_seen::react(const ev_offer_service &_event) {
@@ -38,7 +40,9 @@ sc::result not_seen::react(const ev_offer_service &_event) {
 }
 
 // State "waiting"
-waiting::waiting() {
+waiting::waiting(my_context ctx)
+	: sc::state< waiting, not_seen >(ctx) {
+	std::cout << "waiting" << std::endl;
 }
 
 sc::result waiting::react(const ev_none &_event) {
@@ -67,7 +71,9 @@ sc::result waiting::react(const ev_request_status_change &_event) {
 }
 
 // State "initializing"
-initializing::initializing() {
+initializing::initializing(my_context ctx)
+	: sc::state< initializing, not_seen >(ctx) {
+	std::cout << "initializing" << std::endl;
 }
 
 sc::result initializing::react(const ev_timeout_expired &_event) {
@@ -75,7 +81,9 @@ sc::result initializing::react(const ev_timeout_expired &_event) {
 }
 
 // State "searching"
-searching::searching() {
+searching::searching(my_context ctx)
+	: sc::state< searching, not_seen >(ctx) {
+	std::cout << "searching" << std::endl;
 }
 
 sc::result searching::react(const ev_timeout_expired &_event) {
@@ -83,7 +91,9 @@ sc::result searching::react(const ev_timeout_expired &_event) {
 }
 
 // State "seen"
-seen::seen() {
+seen::seen(my_context ctx)
+	: sc::state< seen, machine, not_requested >(ctx) {
+	std::cout << "seen" << std::endl;
 }
 
 sc::result seen::react(const ev_timeout_expired &_event) {
@@ -104,7 +114,9 @@ sc::result seen::react(const ev_service_status_change &_event) {
 }
 
 // State "not_requested"
-not_requested::not_requested() {
+not_requested::not_requested(my_context ctx)
+	: sc::state< not_requested, seen >(ctx) {
+	std::cout << "not_requested" << std::endl;
 }
 
 sc::result not_requested::react(const ev_none &_event) {
@@ -124,7 +136,9 @@ sc::result not_requested::react(const ev_request_status_change &_event) {
 }
 
 // State "requested"
-requested::requested() {
+requested::requested(my_context ctx)
+	: sc::state< requested, seen >(ctx) {
+	std::cout << "requested" << std::endl;
 }
 
 sc::result requested::react(const ev_request_status_change &_event) {

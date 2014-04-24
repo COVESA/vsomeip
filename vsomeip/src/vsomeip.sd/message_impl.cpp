@@ -6,10 +6,11 @@
 // Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
+
 #include <vsomeip/config.hpp>
-#include <vsomeip/serializer.hpp>
-#include <vsomeip/deserializer.hpp>
 #include <vsomeip_internal/constants.hpp>
+#include <vsomeip_internal/deserializer.hpp>
+#include <vsomeip_internal/serializer.hpp>
 #include <vsomeip_internal/sd/eventgroup_entry_impl.hpp>
 #include <vsomeip_internal/sd/service_entry_impl.hpp>
 #include <vsomeip_internal/sd/configuration_option_impl.hpp>

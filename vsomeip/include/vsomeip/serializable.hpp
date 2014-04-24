@@ -1,7 +1,5 @@
 //
-// deserializable.hpp
-//
-// Author: 	Lutz Bichler
+// serializable.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //

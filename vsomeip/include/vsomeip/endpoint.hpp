@@ -18,7 +18,8 @@
 
 namespace vsomeip {
 
-class endpoint : public serializable {
+class endpoint
+		: public serializable {
 public:
 	virtual ~endpoint() {};
 

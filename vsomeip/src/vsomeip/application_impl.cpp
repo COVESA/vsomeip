@@ -24,15 +24,18 @@
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip/message.hpp>
+#include <vsomeip/sd/constants.hpp>
+
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
-#include <vsomeip_internal/deserializer_impl.hpp>
+#include <vsomeip_internal/deserializer.hpp>
 #include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/message_queue.hpp>
 #include <vsomeip_internal/protocol.hpp>
-#include <vsomeip_internal/serializer_impl.hpp>
+#include <vsomeip_internal/serializer.hpp>
+#include <vsomeip_internal/sd/client_manager.hpp>
 
 using namespace boost::log::trivial;
 
@@ -57,12 +60,12 @@ application_impl::application_impl(const std::string &_name)
 	  retry_timer_(send_service_),
 	  retry_timeout_(20),
 	  is_open_(false),
-	  is_registered_(false) {
+	  is_registered_(false),
+  	  serializer_(new serializer),
+  	  deserializer_(new deserializer) {
 
-	serializer_ = new serializer_impl;
 	serializer_->create_data(
 					VSOMEIP_MAX_TCP_MESSAGE_SIZE);
-	deserializer_ = new deserializer_impl;
 }
 
 application_impl::~application_impl() {
@@ -185,43 +188,60 @@ void application_impl::service(boost::asio::io_service &_service) {
 bool application_impl::request_service(
 			service_id _service, instance_id _instance,
 			const endpoint *_location) {
-	if (_location) {
-		auto find_service = requested_.find(_service);
-		if (find_service != requested_.end()) {
-			auto find_location = find_service->second.find(_instance);
-			if (find_location != find_service->second.end()) {
-				if (find_location->second.first != _location) {
-					if (id_ != 0) {
-						send_service_command(
-							command_enum::RELEASE_SERVICE,
-							_service,
-							_instance,
-							find_location->second.first
-						);
-					}
-					find_location->second = std::make_pair(_location, daemon_queue_.get());
-				}
-			} else {
-				find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
-			}
-		} else {
-			requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+
+	bool is_requested = true;
+
+	if (client_manager_) {
+		if (_location) {
+			VSOMEIP_WARNING << "Requested location for service ["
+			                << std::hex << _service << "." << _instance
+			                << "] will be ignored.";
 		}
 
-		if (id_ != 0) {
-			send_service_command(
-				command_enum::REQUEST_SERVICE,
-				_service,
-				_instance,
-				_location
-			);
-		}
-		return true;
+		client_manager_->on_request_service(_service, _instance);
+
 	} else {
-		VSOMEIP_DEBUG
-			<< "Specification of communication endpoint is missing.";
-		return false;
+		if (_location) {
+			auto find_service = requested_.find(_service);
+			if (find_service != requested_.end()) {
+				auto find_location = find_service->second.find(_instance);
+				if (find_location != find_service->second.end()) {
+					if (find_location->second.first != _location) {
+						if (id_ != 0) {
+							send_service_command(
+								command_enum::RELEASE_SERVICE,
+								_service,
+								_instance,
+								find_location->second.first
+							);
+						}
+						find_location->second = std::make_pair(_location, daemon_queue_.get());
+					}
+				} else {
+					find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
+				}
+			} else {
+				requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+			}
+
+			if (id_ != 0) {
+				send_service_command(
+					command_enum::REQUEST_SERVICE,
+					_service,
+					_instance,
+					_location
+				);
+			}
+
+		} else {
+			VSOMEIP_ERROR << "Request for service ["
+					      << std::hex << _service << "." << _instance
+					      << "] is missing location (and SD is inactive)";
+			is_requested = false;
+		}
 	}
+
+	return is_requested;
 }
 
 bool application_impl::release_service(
@@ -806,6 +826,19 @@ void application_impl::on_request_service_ack(service_id _service, instance_id _
 void application_impl::on_message(client_id _id, const uint8_t *_data, uint32_t _size) {
 	if (_size < 8) {
 		return;
+	}
+
+	// check header to find Service Discovery messages
+	message_id header = VSOMEIP_BYTES_TO_LONG(
+							_data[0], _data[1], _data[2], _data[3]);
+	if (header == VSOMEIP_SERVICE_DISCOVERY_HEADER) {
+		// forward Service Discovery messages if Service Discovery is enabled
+		// and discard them if it is not
+		if (client_manager_) {
+			client_manager_->on_message(_data, _size);
+		} else {
+			return;
+		}
 	}
 
 	// deserialize the message

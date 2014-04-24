@@ -10,8 +10,8 @@
 //
 
 #include <vsomeip_internal/endpoint_impl.hpp>
-#include <vsomeip/serializer.hpp>
-#include <vsomeip/deserializer.hpp>
+#include <vsomeip_internal/serializer.hpp>
+#include <vsomeip_internal/deserializer.hpp>
 
 namespace vsomeip {
 

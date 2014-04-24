@@ -25,10 +25,10 @@
 #include <vsomeip_internal/client.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/constants.hpp>
-#include <vsomeip_internal/deserializer_impl.hpp>
+#include <vsomeip_internal/deserializer.hpp>
 #include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/managing_application_impl.hpp>
-#include <vsomeip_internal/serializer_impl.hpp>
+#include <vsomeip_internal/serializer.hpp>
 #include <vsomeip_internal/service.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
@@ -43,8 +43,8 @@ namespace vsomeip {
 managing_application_impl::managing_application_impl(const std::string &_name)
 	: application_base_impl(_name, service_),
 	  id_(0),
-	  serializer_(new serializer_impl),
-	  deserializer_(new deserializer_impl) {
+	  serializer_(new serializer),
+	  deserializer_(new deserializer) {
 
 	serializer_->create_data(VSOMEIP_MAX_TCP_MESSAGE_SIZE + VSOMEIP_PROTOCOL_OVERHEAD);
 }

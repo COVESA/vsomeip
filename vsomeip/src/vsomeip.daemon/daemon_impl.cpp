@@ -20,7 +20,6 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip/message_base.hpp>
-#include <vsomeip/serializer.hpp>
 #include <vsomeip/version.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
@@ -32,6 +31,7 @@
 #include <vsomeip_internal/udp_client_impl.hpp>
 #include <vsomeip_internal/udp_service_impl.hpp>
 #include <vsomeip_internal/utility.hpp>
+#include <vsomeip_internal/serializer.hpp>
 
 #include <vsomeip/sd/factory.hpp>
 #include <vsomeip_internal/sd/service_manager.hpp>
@@ -101,7 +101,7 @@ void daemon_impl::init(int _count, char **_options) {
 			)
 		);
 
-		if (*its_factory) {
+		if (0 != its_factory && 0 != (*its_factory)) {
 			service_manager_ = (*its_factory)->create_service_manager(sender_service_);
 			if (0 != service_manager_) {
 				service_manager_->set_owner(this);

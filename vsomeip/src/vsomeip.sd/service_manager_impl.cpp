@@ -101,25 +101,26 @@ void service_manager_impl::on_release_service(
 
 bool service_manager_impl::send_offer_service(service_state_machine_t *_data, const endpoint *_target) {
 	message * offer = factory_->create_message();
+	offer->set_target(_target);
 	service_entry & entry = offer->create_service_entry();
 	entry.set_type(entry_type::OFFER_SERVICE);
 	entry.set_service_id(_data->service_);
 	entry.set_instance_id(_data->instance_);
 	entry.set_major_version(_data->major_);
 	entry.set_minor_version(_data->minor_);
-	return true;
+	return send(offer, true);
 }
 
 bool service_manager_impl::send_stop_offer_service(service_state_machine_t *_data) {
-	message * offer = factory_->create_message();
-	service_entry & entry = offer->create_service_entry();
+	message * stop_offer = factory_->create_message();
+	service_entry & entry = stop_offer->create_service_entry();
 	entry.set_type(entry_type::STOP_OFFER_SERVICE);
 	entry.set_service_id(_data->service_);
 	entry.set_instance_id(_data->instance_);
 	entry.set_time_to_live(0);
 	entry.set_major_version(_data->major_);
 	entry.set_minor_version(_data->minor_);
-	return true;
+	return send(stop_offer, true);
 }
 
 bool service_manager_impl::send(message_base *_message, bool _flush) {

@@ -19,7 +19,8 @@
 
 namespace vsomeip {
 
-class message_base_impl : virtual public message_base {
+class message_base_impl
+		: virtual public message_base {
 public:
 	message_base_impl();
 	virtual ~message_base_impl();
