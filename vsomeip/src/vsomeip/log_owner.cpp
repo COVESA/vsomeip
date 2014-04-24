@@ -19,6 +19,12 @@
 #include <boost/phoenix/bind/bind_member_function.hpp>
 #include <boost/shared_ptr.hpp>
 
+// The "empty_deleter"-struct was moved from the log-package
+// to the more generic "utility"-package in V1.55. If we'd
+// use the "old" include, we get a "deprecation" warning
+// when compiling with the newer boost version. Therefore a
+// version dependent include handling is done here, which
+// can/should be removed in case GPT is updating Boost to V1.55.
 #if BOOST_VERSION < 105500
 #include <boost/log/utility/empty_deleter.hpp>
 #else
