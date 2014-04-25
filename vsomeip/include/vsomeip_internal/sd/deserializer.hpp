@@ -21,7 +21,7 @@ class deserializer
 	: public vsomeip::deserializer {
 public:
 	deserializer();
-	deserializer(uint8_t *_data, uint32_t _length);
+	deserializer(uint8_t *_data, std::size_t _length);
 	deserializer(const deserializer &_other);
 	virtual ~deserializer();
 
