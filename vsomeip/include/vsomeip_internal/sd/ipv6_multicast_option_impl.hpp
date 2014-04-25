@@ -7,7 +7,7 @@
 // All rights reserved.
 //
 #ifndef VSOMEIP_INTERNAL_SD_IPV6_MULTICAST_OPTION_IMPL_HPP
-#define VSOMEIP_INTERNAL_S_IPV6_MULTICAST_OPTION_IMPL_HPP
+#define VSOMEIP_INTERNAL_SD_IPV6_MULTICAST_OPTION_IMPL_HPP
 
 #include <vsomeip/sd/ipv6_multicast_option.hpp>
 #include <vsomeip_internal/sd/ipv6_endpoint_option_impl.hpp>
