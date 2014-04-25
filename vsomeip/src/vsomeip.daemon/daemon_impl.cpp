@@ -105,7 +105,12 @@ void daemon_impl::init(int _count, char **_options) {
 			service_manager_ = (*its_factory)->create_service_manager(sender_service_);
 			if (0 != service_manager_) {
 				service_manager_->set_owner(this);
-				VSOMEIP_INFO << "Loading of Service Manager successful!";
+				VSOMEIP_INFO << "Service Manager loaded.";
+				if (service_manager_->init())
+					VSOMEIP_INFO << "Service Manager initialized.";
+				else
+					VSOMEIP_WARNING << "Initializing Service Manager failed!";
+
 			} else {
 				VSOMEIP_ERROR << "Loading of Service Manager failed!";
 			}

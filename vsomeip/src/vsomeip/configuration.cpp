@@ -313,14 +313,14 @@ void configuration::read_configuration(const std::string &_name) {
 			if (its_options.count("someip.service_discovery.protocol"))
 				protocol_ = its_options["someip.service_discovery.protocol"].as< std::string >();
 
-			if (its_options.count("someip.service_discovery.unicast_address"))
-				unicast_address_ = its_options["someip.service_discovery.unicast_address"].as< std::string >();
+			if (its_options.count("someip.service_discovery.unicast"))
+				unicast_address_ = its_options["someip.service_discovery.unicast"].as< std::string >();
 
-			if (its_options.count("someip.service_discovery.multicast_address"))
-				multicast_address_ = its_options["someip.service_discovery.multicast_address"].as< std::string >();
+			if (its_options.count("someip.service_discovery.multicast"))
+				multicast_address_ = its_options["someip.service_discovery.multicast"].as< std::string >();
 
 			if (its_options.count("someip.service_discovery.netmask"))
-				multicast_address_ = its_options["someip.service_discovery.netmask"].as< std::string >();
+				netmask_ = its_options["someip.service_discovery.netmask"].as< std::string >();
 
 			if (its_options.count("someip.service_discovery.port"))
 				port_ = its_options["someip.service_discovery.port"].as< int >();

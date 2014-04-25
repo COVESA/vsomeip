@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -21,6 +21,7 @@
 namespace vsomeip {
 
 class application;
+class endpoint;
 class message_base;
 
 namespace sd {
@@ -30,6 +31,8 @@ class service_manager_impl
 public:
 	service_manager_impl(boost::asio::io_service &_service);
 	virtual ~service_manager_impl();
+
+	bool init();
 
 	application * get_owner() const;
 	void set_owner(application *_owner);
@@ -50,6 +53,9 @@ public:
 	bool send(message_base *_message, bool _flush);
 
 private:
+	std::string get_broadcast_address(const std::string &_address, const std::string &_mask) const;
+
+private:
 	typedef std::map< service_id,
 					  std::map< instance_id,
 			  	  	  			boost::shared_ptr< service_state_machine_t > > > service_machines_t;
@@ -58,6 +64,8 @@ private:
 
 	application *owner_;
 	boost::asio::io_service &service_;
+
+	const endpoint *broadcast_;
 
 	factory *factory_;
 };

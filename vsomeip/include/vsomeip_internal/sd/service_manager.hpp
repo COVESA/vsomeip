@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -31,6 +31,8 @@ typedef struct service_state_machine::machine service_state_machine_t;
 class service_manager {
 public:
 	virtual ~service_manager() {};
+
+	virtual bool init() = 0;
 
 	virtual application * get_owner() const = 0;
 	virtual void set_owner(application *_owner) = 0;
