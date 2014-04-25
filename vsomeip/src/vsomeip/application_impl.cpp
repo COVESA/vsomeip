@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -48,16 +48,18 @@ namespace vsomeip {
 // Object members
 ///////////////////////////////////////////////////////////////////////////////
 application_impl::application_impl(const std::string &_name)
-	: application_base_impl(_name, send_service_),
+	: application_base_impl(_name, sender_service_),
 	  id_(0),
 	  receiver_thread_(0),
 	  sender_thread_(0),
+	  sender_work_(sender_service_),
+	  receiver_work_(receiver_service_),
 	  queue_name_prefix_("/vsomeip-"),
 	  daemon_queue_name_("0"),
-	  daemon_queue_(new message_queue(send_service_, this)),
-	  application_queue_(new message_queue(receive_service_, this)),
-	  watchdog_timer_(send_service_),
-	  retry_timer_(send_service_),
+	  daemon_queue_(new message_queue(sender_service_, this)),
+	  application_queue_(new message_queue(receiver_service_, this)),
+	  watchdog_timer_(sender_service_),
+	  retry_timer_(sender_service_),
 	  retry_timeout_(20),
 	  is_open_(false),
 	  is_registered_(false),
@@ -145,7 +147,7 @@ void application_impl::start() {
 				boost::bind(
 					&application_impl::service,
 					this,
-					boost::ref(receive_service_)
+					boost::ref(receiver_service_)
 				)
 		)
 	);
@@ -155,13 +157,15 @@ void application_impl::start() {
 				boost::bind(
 					&application_impl::service,
 					this,
-					boost::ref(send_service_)
+					boost::ref(sender_service_)
 				)
 		)
 	);
 
 	sender_thread_->join();
+	VSOMEIP_INFO << "Sender thread has finished its work!";
 	receiver_thread_->join();
+	VSOMEIP_INFO << "Receiver thread has finished its work!";
 }
 
 void application_impl::stop() {
@@ -174,8 +178,8 @@ void application_impl::stop() {
 		)
 	);
 
-	receive_service_.stop();
-	send_service_.stop();
+	receiver_service_.stop();
+	sender_service_.stop();
 
 	receiver_thread_.reset();
 	sender_thread_.reset();
@@ -512,7 +516,7 @@ message_queue * application_impl::find_target_queue(client_id _id) {
 		if (found_queue != queues_.end()) {
 			requested_queue = found_queue->second;
 		} else {
-			requested_queue = new message_queue(send_service_, this);
+			requested_queue = new message_queue(sender_service_, this);
 			queues_[found_queue_name->second] = requested_queue;
 			requested_queue->async_open(
 				queue_name_prefix_ + found_queue_name->second,
@@ -806,7 +810,7 @@ void application_impl::on_request_service_ack(service_id _service, instance_id _
 			}
 		}
 	} else {
-		message_queue *queue = new message_queue(send_service_, this);
+		message_queue *queue = new message_queue(sender_service_, this);
 		queues_[_queue_name] = queue;
 		queue->async_open(
 			queue_name_prefix_ + _queue_name,
@@ -828,15 +832,14 @@ void application_impl::on_message(client_id _id, const uint8_t *_data, uint32_t 
 		return;
 	}
 
-	// check header to find Service Discovery messages
-	message_id header = VSOMEIP_BYTES_TO_LONG(
-							_data[0], _data[1], _data[2], _data[3]);
-	if (header == VSOMEIP_SERVICE_DISCOVERY_HEADER) {
-		// forward Service Discovery messages if Service Discovery is enabled
-		// and discard them if it is not
-		if (client_manager_) {
+	if (0 != client_manager_) {
+		// check header to find Service Discovery messages
+		message_id header = VSOMEIP_BYTES_TO_LONG(
+								_data[0], _data[1], _data[2], _data[3]);
+		if (header == VSOMEIP_SERVICE_DISCOVERY_HEADER) {
+			VSOMEIP_INFO << "Forwarding SD message to Client Manager";
 			client_manager_->on_message(_data, _size);
-		} else {
+
 			return;
 		}
 	}

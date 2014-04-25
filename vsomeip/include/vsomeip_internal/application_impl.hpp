@@ -108,11 +108,16 @@ private: // callbacks
 	void response_cbk(boost::system::error_code const &, message_queue *);
 
 private: // object members
-	boost::asio::io_service receive_service_;
+	boost::asio::io_service receiver_service_;
 	boost::shared_ptr< boost::thread > sender_thread_;
 
-	boost::asio::io_service send_service_;
+	boost::asio::io_service sender_service_;
 	boost::shared_ptr< boost::thread > receiver_thread_;
+
+	// Work objects for each service to avoid processing being
+	// stopped because of an empty queue
+	boost::asio::io_service::work sender_work_;
+	boost::asio::io_service::work receiver_work_;
 
 	boost::asio::system_timer watchdog_timer_;
 	boost::asio::system_timer retry_timer_;
