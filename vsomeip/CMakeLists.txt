@@ -4,14 +4,16 @@ set (CMAKE_VERBOSE_MAKEFILE off)
 
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	set(OperatingSystem "LINUX")
+	set(OS "LINUX")
+	set(DL_LIBRARY "dl")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-	set(OperatingSystem "FREEBSD")
+	set(OS "FREEBSD")
+	set(DL_LIBRARY "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-set (CMAKE_CXX_FLAGS "-D${OperatingSystem} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register")
+set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register")
 include_directories("include")
 
 # Boost
@@ -38,26 +40,26 @@ file (GLOB vsomeipd_SRC
 
 # Daemon
 add_executable(vsomeipd ${vsomeipd_SRC})
-target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} rt dl)
+target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} rt ${DL_LIBRARY})
 
 # Test executables
 add_executable(application_sample src/vsomeip.examples/application_sample.cpp)
-target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(client_sample src/vsomeip.examples/client_sample.cpp)
-target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(service_sample src/vsomeip.examples/service_sample.cpp)
-target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-client_sample src/vsomeip.examples/external-client_sample.cpp)
-target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
-target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-sd-client_sample src/vsomeip.examples/external-sd-client_sample.cpp)
-target_link_libraries(external-sd-client_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(external-sd-client_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-sd-service_sample src/vsomeip.examples/external-sd-service_sample.cpp)
-target_link_libraries(external-sd-service_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} dl)
+target_link_libraries(external-sd-service_sample vsomeip-sd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
