@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 #include <fstream>
@@ -98,6 +98,7 @@ configuration::configuration()
 	  protocol_("udp.v4"),
 	  unicast_address_("127.0.0.1"),
 	  multicast_address_("223.0.0.0"),
+	  netmask_("255.255.255.0"),
 	  port_(30490),
 	  min_initial_delay_(10),
 	  max_initial_delay_(100),
@@ -166,6 +167,11 @@ void configuration::read_configuration(const std::string &_name) {
 				"someip.service_discovery.multicast",
 				options::value< std::string >(),
 				"Multicast address to be used by Service Discovery"
+			)
+			(
+				"someip.service_discovery.netmask",
+				options::value< std::string >(),
+				"Netmask to define the subnet covered by Service Discovery"
 			)
 			(
 				"someip.service_discovery.port",
@@ -313,6 +319,9 @@ void configuration::read_configuration(const std::string &_name) {
 			if (its_options.count("someip.service_discovery.multicast_address"))
 				multicast_address_ = its_options["someip.service_discovery.multicast_address"].as< std::string >();
 
+			if (its_options.count("someip.service_discovery.netmask"))
+				multicast_address_ = its_options["someip.service_discovery.netmask"].as< std::string >();
+
 			if (its_options.count("someip.service_discovery.port"))
 				port_ = its_options["someip.service_discovery.port"].as< int >();
 
@@ -406,6 +415,10 @@ const std::string & configuration::get_unicast_address() const {
 
 const std::string & configuration::get_multicast_address() const {
 	return multicast_address_;
+}
+
+const std::string & configuration::get_netmask() const {
+	return netmask_;
 }
 
 uint16_t configuration::get_port() const {

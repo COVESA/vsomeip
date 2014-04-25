@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 #ifndef VSOMEIP_INTERNAL_CONFIGURATION_HPP
@@ -36,6 +36,7 @@ public:
 	const std::string & get_protocol() const;
 	const std::string & get_unicast_address() const;
 	const std::string & get_multicast_address() const;
+	const std::string & get_netmask() const;
 	uint16_t get_port() const;
 
 	uint32_t get_min_initial_delay() const;
@@ -73,6 +74,7 @@ private:
 	std::string protocol_;
 	std::string unicast_address_;
 	std::string multicast_address_;
+	std::string netmask_;
 	uint16_t port_;
 	uint32_t min_initial_delay_;
 	uint32_t max_initial_delay_;
