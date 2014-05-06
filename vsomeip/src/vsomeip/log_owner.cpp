@@ -46,7 +46,7 @@ using namespace boost::log::trivial;
 namespace vsomeip {
 
 log_owner::log_owner(const std::string &_name)
-	: name_(_name) {
+	: owner_base(_name) {
 	logging::add_common_attributes();
 }
 

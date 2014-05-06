@@ -121,3 +121,4 @@ private:
 } // namespace boost_ext
 
 #endif // BOOST_EXT_ASIO_MQ_MESSAGE_QUEUE_ADAPTER_HPP
+

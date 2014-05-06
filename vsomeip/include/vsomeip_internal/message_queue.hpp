@@ -16,20 +16,20 @@
 
 namespace vsomeip {
 
-class application_impl;
+class administration_proxy_impl;
 
 class message_queue
 	: public boost_ext::asio::message_queue {
 
 public:
-	message_queue(boost::asio::io_service &_service, application_impl *_application = 0)
+	message_queue(boost::asio::io_service &_service, administration_proxy_impl *_owner = 0)
 		: boost_ext::asio::message_queue(_service),
-		  application_(_application),
+		  owner_(_owner),
 		  ref_(0) {
 	};
 
-	inline application_impl * get_application() const {
-		return application_;
+	inline administration_proxy_impl * get_owner() const {
+		return owner_;
 	};
 
 	inline void add_ref() { ref_++; };
@@ -37,7 +37,7 @@ public:
 	inline uint8_t get_ref() const { return ref_; };
 
 private:
-	application_impl *application_;
+	administration_proxy_impl *owner_;
 	uint8_t ref_;
 };
 

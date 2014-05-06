@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -19,20 +19,20 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/client_impl.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/managing_proxy_impl.hpp>
 
 namespace vsomeip {
 
 template < typename Protocol, int MaxBufferSize >
 client_impl< Protocol, MaxBufferSize >::client_impl(
-		managing_application_impl *_owner, const endpoint *_location)
+		managing_proxy_impl *_owner, const endpoint *_location)
 	: participant_impl< MaxBufferSize >(_owner, _location),
 	  socket_(_owner->get_service()),
 	  connect_timer_(_owner->get_service()),
 	  flush_timer_(_owner->get_service()),
 	  local_(boost::asio::ip::address::from_string(_location->get_address()),
 			 _location->get_port()),
-	  connect_timeout_(VSOMEIP_CONNECT_TIMEOUT),
+	  connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
 	  is_connected_(false) {
 }
 
@@ -85,7 +85,7 @@ bool client_impl< Protocol, MaxBufferSize >::send(
 			send_queued();
 	} else {
 		flush_timer_.expires_from_now(
-			std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
+			std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
 		flush_timer_.async_wait(
 			boost::bind(
 				&client_impl<Protocol, MaxBufferSize>::flush_cbk,
@@ -134,7 +134,7 @@ void client_impl< Protocol, MaxBufferSize >::connect_cbk(
 		connect_timeout_ <<= 1;
 	} else {
 		connect_timer_.cancel();
-		connect_timeout_ = VSOMEIP_CONNECT_TIMEOUT;
+		connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
 		is_connected_ = true;
 		if (!packet_queue_.empty()) {
 			send_queued();

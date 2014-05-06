@@ -19,8 +19,6 @@
 
 namespace vsomeip {
 
-class endpoint;
-
 typedef client_impl< boost::asio::ip::tcp,
 					  VSOMEIP_MAX_TCP_MESSAGE_SIZE > tcp_client_base_impl;
 
@@ -28,7 +26,7 @@ class tcp_client_impl
 	: public tcp_client_base_impl {
 public:
 	tcp_client_impl(
-			managing_application_impl *_owner, const endpoint *_location);
+			managing_proxy_impl *_owner, const endpoint *_location);
 	virtual ~tcp_client_impl();
 
 	void start();

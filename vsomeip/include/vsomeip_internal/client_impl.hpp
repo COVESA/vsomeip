@@ -30,7 +30,7 @@ class client_impl
 		: virtual public client,
 		  public participant_impl<MaxBufferSize> {
 public:
-	client_impl(managing_application_impl *_owner, const endpoint *_location);
+	client_impl(managing_proxy_impl *_owner, const endpoint *_location);
 	virtual ~client_impl();
 
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);

@@ -1,5 +1,5 @@
 //
-// service_manager_impl.hpp
+// service_discovery_impl.hpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -7,15 +7,16 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_INTERNAL_SD_SERVICE_MANAGER_IMPL_HPP
-#define VSOMEIP_INTERNAL_SD_SERVICE_MANAGER_IMPL_HPP
+#ifndef VSOMEIP_INTERNAL_SD_SERVICE_DISCOVERY_IMPL_HPP
+#define VSOMEIP_INTERNAL_SD_SERVICE_DISCOVERY_IMPL_HPP
 
 #include <map>
 
 #include <boost/shared_ptr.hpp>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip_internal/sd/service_manager.hpp>
+#include <vsomeip_internal/sd/client_state_machine.hpp>
+#include <vsomeip_internal/sd/service_discovery.hpp>
 #include <vsomeip_internal/sd/service_state_machine.hpp>
 
 namespace vsomeip {
@@ -26,16 +27,20 @@ class message_base;
 
 namespace sd {
 
-class service_manager_impl
-		: public service_manager {
+class deserializer;
+
+class service_discovery_impl
+		: public service_discovery {
 public:
-	service_manager_impl(boost::asio::io_service &_service);
-	virtual ~service_manager_impl();
+	service_discovery_impl(boost::asio::io_service &_service);
+	virtual ~service_discovery_impl();
 
-	bool init();
+	void init();
+	void start();
+	void stop();
 
-	application * get_owner() const;
-	void set_owner(application *_owner);
+	daemon * get_owner() const;
+	void set_owner(daemon *_owner);
 
 	boost::asio::io_service & get_service();
 
@@ -48,8 +53,13 @@ public:
 	void on_request_service(service_id _service, instance_id _instance);
 	void on_release_service(service_id _service, instance_id _instance);
 
+	void on_message(const uint8_t *_data, uint32_t _size,
+					const endpoint *_source, const endpoint *_target);
+
+	bool send_find_service(client_state_machine_t *_service);
 	bool send_offer_service(service_state_machine_t *_service, const endpoint *_target);
 	bool send_stop_offer_service(service_state_machine_t *_service);
+
 	bool send(message_base *_message, bool _flush);
 
 private:
@@ -58,19 +68,26 @@ private:
 private:
 	typedef std::map< service_id,
 					  std::map< instance_id,
+			  	  	  			boost::shared_ptr< client_state_machine_t > > > client_machines_t;
+
+	typedef std::map< service_id,
+					  std::map< instance_id,
 			  	  	  			boost::shared_ptr< service_state_machine_t > > > service_machines_t;
 
-	service_machines_t administrated_;
+	client_machines_t its_clients_;
+	service_machines_t its_services_;
 
-	application *owner_;
+	daemon *owner_;
 	boost::asio::io_service &service_;
 
 	const endpoint *broadcast_;
+	session_id session_;
 
+	boost::shared_ptr< deserializer > deserializer_;
 	factory *factory_;
 };
 
 } // sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_INTERNAL_SD_SERVICE_MANAGER_IMPL_HPP
+#endif // VSOMEIP_INTERNAL_SD_SERVICE_DISCOVERY_IMPL_HPP

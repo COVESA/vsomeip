@@ -7,8 +7,10 @@
 // All rights reserved.
 //
 
-#ifndef VSOMEIP_DAEMON_DAEMON_HPP
-#define VSOMEIP_DAEMON_DAEMON_HPP
+#ifndef VSOMEIP_INTERNAL_DAEMON_HPP
+#define VSOMEIP_INTERNAL_DAEMON_HPP
+
+#include <string>
 
 namespace vsomeip {
 
@@ -23,13 +25,15 @@ public:
 
 	virtual ~daemon() {};
 
+	virtual std::string get_name() const = 0;
+
 	virtual void init(int _count, char **_options) = 0;
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
-	virtual bool send(const message_base *_message, bool _flush) = 0;
+	virtual bool send(message_base *_message, bool _flush) = 0;
 };
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_DAEMON_DAEMON_HPP
+#endif // VSOMEIP_INTERNAL_DAEMON_HPP

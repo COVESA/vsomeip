@@ -25,7 +25,7 @@ namespace sc = boost::statechart;
 namespace vsomeip {
 namespace sd {
 
-class service_manager;
+class service_discovery;
 
 namespace service_state_machine {
 
@@ -34,7 +34,7 @@ struct machine
 		: sc::state_machine< machine, initial >,
 		  public timer_service {
 
-	machine(service_manager *_manager);
+	machine(service_discovery *_discovery);
 	virtual ~machine();
 
 	std::string get_application_name() const;
@@ -55,7 +55,7 @@ struct machine
 	bool is_network_configured_;
 	bool is_service_ready_;
 
-	service_manager *manager_;
+	service_discovery *discovery_;
 
 	// Service data
 	service_id service_;

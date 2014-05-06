@@ -19,7 +19,7 @@ namespace options = boost::program_options;
 
 namespace vsomeip {
 
-std::string configuration::configuration_file_path_(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH);
+std::string configuration::configuration_file_path_;
 std::map< std::string, configuration * > configuration::configurations__;
 
 void configuration::init(int _options_count, char **_options) {
@@ -30,7 +30,7 @@ void configuration::init(int _options_count, char **_options) {
 		valid_options.add_options()
 			(
 				"config",
-				options::value< std::string >()->default_value("/etc/vsomeip.conf"),
+				options::value< std::string >()->default_value(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH),
 				"Path to configuration file"
 			);
 
@@ -91,10 +91,11 @@ configuration::configuration()
 	  use_dlt_logger_(false),
 	  loglevel_("info"),
 	  logfile_path_("./vsomeip.log"),
-	  use_service_discovery_(false),
-	  use_virtual_mode_(false),
+	  is_service_discovery_enabled_(false),
+	  is_watchdog_enabled_(false),
+	  is_endpoint_manager_enabled_(true),
 	  client_id_(0),
-	  receiver_slots_(10),
+	  slots_(10),
 	  protocol_("udp.v4"),
 	  unicast_address_("127.0.0.1"),
 	  multicast_address_("223.0.0.0"),
@@ -115,6 +116,7 @@ configuration::~configuration() {
 
 void configuration::read_configuration(const std::string &_name) {
 	static bool has_read = false;
+	std::cout << "Reading configuration for " << _name << std::endl;
 	if (!has_read) {
 		options::options_description its_options_description;
 		its_options_description.add_options()
@@ -129,14 +131,14 @@ void configuration::read_configuration(const std::string &_name) {
 				"Loggers (Console, File, DLT) to be used by vsomeip daemon"
 			)
 			(
-				"someip.daemon.service_discovery_enabled",
+				"someip.daemon.enable_service_discovery",
 				options::value< bool >(),
 				"Enable service discovery by vsomeip daemon"
 			)
 			(
-				"someip.daemon.virtual_mode_enabled",
+				"someip.daemon.enable_watchdog",
 				options::value< bool >(),
-				"Enable virtual mode by vsomeip daemon"
+				"Enable watchdog of vsomeip daemon"
 			)
 			(
 				"someip.application.slots",
@@ -149,9 +151,19 @@ void configuration::read_configuration(const std::string &_name) {
 				"The client identifier for the application"
 			)
 			(
-				"someip.application.service_discovery_enabled",
+				"someip.application.enable_service_discovery",
 				options::value< bool >(),
 				"Applications use / do not use service discovery"
+			)
+			(
+				"someip.application.enable_watchdog",
+				options::value< bool >(),
+				"Applications use / do not use watchdog"
+			)
+			(
+				"someip.application.enable_endpoint_manager",
+				options::value< bool >(),
+				"Applications use / do not use endpoint manager"
 			)
 			(
 				"someip.service_discovery.protocol",
@@ -235,14 +247,27 @@ void configuration::read_configuration(const std::string &_name) {
 					options::value< int >(),
 					"Application specific setting for client identifier."
 				);
-			local_override = "someip.application." + _name + ".service_discovery_enabled";
+			local_override = "someip.application." + _name + ".enable_service_discovery";
 			its_options_description.add_options()
 				(
 					local_override.c_str(),
 					options::value< bool >(),
 					"Application specific setting for service discovery usage."
 				);
-
+			local_override = "someip.application." + _name + ".enable_watchdog";
+			its_options_description.add_options()
+				(
+					local_override.c_str(),
+					options::value< bool >(),
+					"Application specific setting for watchdog usage."
+				);
+			local_override = "someip.application." + _name + ".enable_endpoint_manager";
+			its_options_description.add_options()
+				(
+					local_override.c_str(),
+					options::value< bool >(),
+					"Application specific setting for endpoint manager usage."
+				);
 		};
 
 		options::variables_map its_options;
@@ -263,6 +288,7 @@ void configuration::read_configuration(const std::string &_name) {
 				// Intentionally left empty
 			}
 
+#ifdef VSOMEIP_DEBUG
 			for (auto i : its_options) {
 				std::cout << i.first  << " --> ";
 				try {
@@ -282,6 +308,7 @@ void configuration::read_configuration(const std::string &_name) {
 
 				std::cout << std::endl;
 			}
+#endif
 
 			// General
 			if (its_options.count("someip.loggers"))
@@ -291,23 +318,29 @@ void configuration::read_configuration(const std::string &_name) {
 				read_loglevel(its_options["someip.loglevel"].as< std::string >());
 
 			// Daemon
-			if (its_options.count("someip.daemon.service_discovery_enabled"))
-				use_service_discovery_
-					= its_options["someip.daemon.service_discovery_enabled"].as< bool >();
+			if (its_options.count("someip.daemon.enable_service_discovery"))
+				is_service_discovery_enabled_
+					= its_options["someip.daemon.enable_service_discovery"].as< bool >();
 
-			if (its_options.count("someip.daemon.virtual_mode_enabled"))
-				use_virtual_mode_
-					= its_options["someip.daemon.virtual_mode_enabled"].as< bool >();
+			if (its_options.count("someip.daemon.enable_watchdog"))
+				is_watchdog_enabled_
+					= its_options["someip.daemon.enable_watchdog"].as< bool >();
 
 			// Application
 			if (its_options.count("someip.application.slots"))
-				receiver_slots_	= its_options["someip.application.slots"].as< int >();
+				slots_	= its_options["someip.application.slots"].as< int >();
 
 			if (its_options.count("someip.application.client_id"))
 				client_id_ = its_options["someip.application.slots"].as< int >();
 
-			if (its_options.count("someip.application.service_discovery_enabled"))
-				use_service_discovery_ = its_options["someip.application.service_discovery_enabled"].as< bool >();
+			if (its_options.count("someip.application.enable_service_discovery"))
+				is_service_discovery_enabled_ = its_options["someip.application.enable_service_discovery"].as< bool >();
+
+			if (its_options.count("someip.application.enable_watchdog"))
+				is_watchdog_enabled_ = its_options["someip.application.enable_watchdog"].as< bool >();
+
+			if (its_options.count("someip.application.enable_endpoint_manager"))
+				is_endpoint_manager_enabled_ = its_options["someip.application.enable_endpoint_manager"].as< bool >();
 
 			// Service Discovery
 			if (its_options.count("someip.service_discovery.protocol"))
@@ -355,14 +388,23 @@ void configuration::read_configuration(const std::string &_name) {
 
 			if (_name != "") {
 				if (its_options.count("someip.application." + _name + ".slots"))
-					receiver_slots_ = its_options["someip.application." + _name + ".slots"].as< int >();
+					slots_ = its_options["someip.application." + _name + ".slots"].as< int >();
 
 				if (its_options.count("someip.application." + _name + ".client_id")) {
 					client_id_ = its_options["someip.application." + _name + ".client_id"].as< int >();
+					std::cout << "Reading client_id = " << client_id_ << std::endl;
 				}
 
-				if (its_options.count("someip.application." + _name + ".service_discovery_enabled")) {
-					use_service_discovery_ = its_options["someip.application." + _name + ".service_discovery_enabled"].as< bool >();
+				if (its_options.count("someip.application." + _name + ".enable_service_discovery")) {
+					is_service_discovery_enabled_ = its_options["someip.application." + _name + ".enable_service_discovery"].as< bool >();
+				}
+
+				if (its_options.count("someip.application." + _name + ".enable_watchdog")) {
+					is_watchdog_enabled_ = its_options["someip.application." + _name + ".enable_watchdog"].as< bool >();
+				}
+
+				if (its_options.count("someip.application." + _name + ".enable_endpoint_manager")) {
+					is_endpoint_manager_enabled_ = its_options["someip.application." + _name + ".enable_endpoint_manager"].as< bool >();
 				}
 			}
 		}
@@ -389,20 +431,24 @@ const std::string &  configuration::get_logfile_path() const {
 	return logfile_path_;
 }
 
-bool configuration::use_service_discovery() const {
-	return use_service_discovery_;
+bool configuration::is_service_discovery_enabled() const {
+	return is_service_discovery_enabled_;
 }
 
-bool configuration::use_virtual_mode() const {
-	return use_virtual_mode_;
+bool configuration::is_watchdog_enabled() const {
+	return is_watchdog_enabled_;
+}
+
+bool configuration::is_endpoint_manager_enabled() const {
+	return is_endpoint_manager_enabled_;
 }
 
 uint16_t configuration::get_client_id() const {
 	return client_id_;
 }
 
-uint8_t configuration::get_receiver_slots() const {
-	return receiver_slots_;
+uint8_t configuration::get_slots() const {
+	return slots_;
 }
 
 const std::string & configuration::get_protocol() const {

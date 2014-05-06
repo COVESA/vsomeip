@@ -16,26 +16,26 @@
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/system_timer.hpp>
-#include <boost/log/sources/severity_logger.hpp>
-#include <boost/log/trivial.hpp>
 
+#include <vsomeip_internal/log_user.hpp>
 #include <vsomeip_internal/participant.hpp>
 #include <vsomeip_internal/statistics_owner_impl.hpp>
 
 namespace vsomeip {
 
 class endpoint;
-class managing_application_impl;
+class managing_proxy_impl;
 
 template < int MaxBufferSize >
 class participant_impl
-	: virtual public participant
+	: virtual public participant,
+	  public log_user
 #ifdef USE_VSOMEIP_STATISTICS
 	, virtual public statistics_owner_impl
 #endif
 {
 public: // provided
-	participant_impl(managing_application_impl *_owner, const endpoint *_location);
+	participant_impl(managing_proxy_impl *_owner, const endpoint *_location);
 	virtual ~participant_impl();
 
 	void enable_magic_cookies();
@@ -68,8 +68,8 @@ protected:
 	// Reference to service context
 	boost::asio::io_service &service_;
 
-	// Reference to managing application
-	managing_application_impl *owner_;
+	// Reference to managing proxy
+	managing_proxy_impl *owner_;
 
 	// The local endpoint
 	const endpoint *location_;
@@ -82,10 +82,6 @@ protected:
 
 	// Filter configuration
 	std::map< service_id, uint8_t > opened_;
-
-	// Reference to logger
-	boost::log::sources::severity_logger<
-			boost::log::trivial::severity_level > &logger_;
 };
 
 } // namespace vsomeip

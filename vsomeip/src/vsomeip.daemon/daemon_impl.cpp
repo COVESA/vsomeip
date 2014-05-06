@@ -31,12 +31,13 @@
 #include <vsomeip_internal/udp_client_impl.hpp>
 #include <vsomeip_internal/udp_service_impl.hpp>
 #include <vsomeip_internal/utility.hpp>
-#include <vsomeip_internal/serializer.hpp>
 
 #include <vsomeip/sd/factory.hpp>
-#include <vsomeip_internal/sd/service_manager.hpp>
+#include <vsomeip_internal/sd/constants.hpp>
+#include <vsomeip_internal/sd/service_discovery.hpp>
 
 #include "daemon_impl.hpp"
+#include "daemon_proxy_impl.hpp"
 
 using boost::asio::ip::tcp;
 using boost::asio::ip::udp;
@@ -53,22 +54,65 @@ daemon * daemon_impl::get_instance() {
 }
 
 daemon_impl::daemon_impl()
-	: managing_application_impl("vsomeip_daemon"),
+	: application_base_impl(get_name()),
+	  log_owner(get_name()),
+	  proxy_owner(get_name()),
+	  owner_base(get_name()),
 	  daemon_queue_(receiver_service_),
 	  queue_name_prefix_("/vsomeip-"),
 	  daemon_queue_name_("0"),
-	  watchdog_timer_(sender_service_),
 	  sender_work_(sender_service_),
-	  network_work_(service_),
-	  use_service_discovery_(false),
-	  service_manager_(0)
+	  receiver_work_(receiver_service_),
+	  network_work_(network_service_),
+	  watchdog_timer_(sender_service_),
+	  service_discovery_(0),
+	  serializer_(new serializer),
+	  deserializer_(new deserializer)
 #ifdef VSOMEIP_DAEMON_DEBUG
 	  ,dump_timer_(sender_service_)
 #endif
 {
+	serializer_->create_data(VSOMEIP_MAX_TCP_MESSAGE_SIZE);
+}
+
+daemon_impl::~daemon_impl() {
+}
+
+client_id daemon_impl::get_id() const {
+	return 0;
+}
+
+void daemon_impl::set_id(client_id _id) {
+	// intentionally left empty
+}
+
+std::string daemon_impl::get_name() const {
+	return std::string("vsomeipd");
+}
+
+void daemon_impl::set_name(const std::string &_name) {
+	// intentionally left empty
+}
+
+boost::shared_ptr< serializer > & daemon_impl::get_serializer() {
+	return serializer_;
+}
+
+boost::shared_ptr< deserializer > & daemon_impl::get_deserializer() {
+	return deserializer_;
+}
+
+boost::asio::io_service & daemon_impl::get_sender_service() {
+	return sender_service_;
+}
+
+boost::asio::io_service & daemon_impl::get_receiver_service() {
+	return sender_service_;
 }
 
 void daemon_impl::init(int _count, char **_options) {
+	proxy_.reset(new daemon_proxy_impl(*this));
+
 	configuration::init(_count, _options);
 	configuration *its_configuration = configuration::request();
 
@@ -81,19 +125,15 @@ void daemon_impl::init(int _count, char **_options) {
 	set_channel("0");
 	set_loglevel(its_configuration->get_loglevel());
 
-	use_service_discovery_ = its_configuration->use_service_discovery();
-
-	configuration::release();
-
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": initializing.";
 	daemon_queue_.async_create(
 			queue_name_prefix_ + daemon_queue_name_,
 			10,	// TODO: replace
-			VSOMEIP_QUEUE_SIZE,
+			VSOMEIP_DEFAULT_QUEUE_SIZE,
 			boost::bind(&daemon_impl::create_cbk, this,
 					boost::asio::placeholders::error));
 
-	if (use_service_discovery_) {
+	if (its_configuration->is_service_discovery_enabled()) {
 		sd::factory **its_factory = static_cast< sd::factory ** >(
 			utility::load_library(
 				VSOMEIP_SD_LIBRARY,
@@ -102,17 +142,28 @@ void daemon_impl::init(int _count, char **_options) {
 		);
 
 		if (0 != its_factory && 0 != (*its_factory)) {
-			service_manager_ = (*its_factory)->create_service_manager(sender_service_);
-			if (0 != service_manager_) {
-				service_manager_->set_owner(this);
-				VSOMEIP_INFO << "Service Manager loaded.";
-				if (service_manager_->init())
-					VSOMEIP_INFO << "Service Manager initialized.";
-				else
-					VSOMEIP_WARNING << "Initializing Service Manager failed!";
+			service_discovery_ = (*its_factory)->create_service_discovery(sender_service_);
+			if (0 != service_discovery_) {
+				service_discovery_->set_owner(this);
+				VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": Service Discovery Module loaded.";
 
+				std::string its_address = its_configuration->get_unicast_address();
+				uint16_t its_port = its_configuration->get_port();
+				ip_protocol its_protocol =
+						(its_configuration->get_protocol() == "tcp" ?
+							ip_protocol::TCP : ip_protocol::UDP);
+
+				const endpoint *its_location =
+						vsomeip::factory::get_instance()->get_endpoint(its_address, its_port, its_protocol);
+
+				if (proxy_->provide_service(VSOMEIP_SERVICE_DISCOVERY_SERVICE,
+						    				VSOMEIP_SERVICE_DISCOVERY_INSTANCE,
+						    				its_location)) {
+					service_discovery_->init();
+					VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": Service Discovery Module initialized.";
+				}
 			} else {
-				VSOMEIP_ERROR << "Loading of Service Manager failed!";
+				VSOMEIP_ERROR << "vsomeipd v" << VSOMEIP_VERSION << ": Loading Service Discovery Module failed!";
 			}
 		}
 	}
@@ -120,6 +171,8 @@ void daemon_impl::init(int _count, char **_options) {
 #ifdef VSOMEIP_DAEMON_DEBUG
 	start_dump_cycle();
 #endif
+
+	configuration::release();
 
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": initializing done.";
 }
@@ -142,7 +195,6 @@ void daemon_impl::start() {
 
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": starting done.";
 
-	managing_application_impl::start();
 	sender_thread.join();
 	receiver_thread.join();
 }
@@ -151,13 +203,17 @@ void daemon_impl::stop() {
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": stopped.";
 }
 
-bool daemon_impl::send(const message_base *_message, bool _flush) {
-	return false;
+bool daemon_impl::send(message_base *_message, bool _flush) {
+	return proxy_->send(_message, _flush);
+}
+
+void daemon_impl::handle_message(const message_base *_message) {
+
 }
 
 void daemon_impl::start_watchdog_cycle() {
 	watchdog_timer_.expires_from_now(
-			std::chrono::milliseconds(VSOMEIP_WATCHDOG_CYCLE));
+			std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_CYCLE)); // TODO: use config variable
 
 	watchdog_timer_.async_wait(
 			boost::bind(&daemon_impl::watchdog_cycle_cbk, this,
@@ -171,7 +227,7 @@ void daemon_impl::start_watchdog_check() {
 	}
 
 	watchdog_timer_.expires_from_now(
-			std::chrono::milliseconds(VSOMEIP_WATCHDOG_TIMEOUT));
+			std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT)); // TODO: use config variable
 
 	watchdog_timer_.async_wait(
 			boost::bind(&daemon_impl::watchdog_check_cbk, this,
@@ -179,25 +235,29 @@ void daemon_impl::start_watchdog_check() {
 }
 
 void daemon_impl::do_send(client_id _id, std::vector< uint8_t > &_data) {
-	auto found_application = applications_.find(_id);
-	if (found_application != applications_.end()) {
-		std::memcpy(&_data[VSOMEIP_PROTOCOL_ID], &_id, sizeof(_id));
-		send_buffers_.push_back(_data);
-		std::vector<uint8_t> &send_data = send_buffers_.back();
+	if (_id == VSOMEIP_SERVICE_DISCOVERY_CLIENT) {
 
-		found_application->second.queue_->async_send(
-			send_data.data(),
-			send_data.size(),
-			0,
-			boost::bind(
-				&daemon_impl::send_cbk,
-				this,
-				boost::asio::placeholders::error,
-				_id
-			)
-		);
 	} else {
-		VSOMEIP_WARNING << "No queue for application " << _id;
+		auto found_application = applications_.find(_id);
+		if (found_application != applications_.end()) {
+			std::memcpy(&_data[VSOMEIP_PROTOCOL_ID], &_id, sizeof(_id));
+			send_buffers_.push_back(_data);
+			std::vector<uint8_t> &send_data = send_buffers_.back();
+
+			found_application->second.queue_->async_send(
+				send_data.data(),
+				send_data.size(),
+				0,
+				boost::bind(
+					&daemon_impl::send_cbk,
+					this,
+					boost::asio::placeholders::error,
+					_id
+				)
+			);
+		} else {
+			VSOMEIP_WARNING << "No queue for application " << _id;
+		}
 	}
 }
 
@@ -222,6 +282,18 @@ void daemon_impl::receive(
 	// Read routing information
 	service_id its_service = VSOMEIP_BYTES_TO_WORD(_data[0], _data[1]);
 	method_id its_method = VSOMEIP_BYTES_TO_WORD(_data[2], _data[3]);
+
+	// Service Discovery?
+	if (its_service == VSOMEIP_SERVICE_DISCOVERY_SERVICE
+	 && its_method == VSOMEIP_SERVICE_DISCOVERY_METHOD) {
+
+		// Forward to Service Manager
+		if (service_discovery_)
+			service_discovery_->on_message(_data, _size, _source, _target);
+
+		return;
+	}
+
 	client_id its_client = VSOMEIP_BYTES_TO_WORD(_data[8], _data[9]);
 	message_type_enum its_message_type = static_cast< message_type_enum >(_data[14]);
 
@@ -233,7 +305,7 @@ void daemon_impl::receive(
 
 		auto found_service = service_channels_.find(its_service);
 		if (found_service != service_channels_.end()) {
-			its_instance = find_instance(_target,  its_service, its_message_type);
+			its_instance = proxy_->find_instance(_target,  its_service, its_message_type);
 
 			auto found_instance = found_service->second.find(its_instance);
 			if (found_instance != found_service->second.end()) {
@@ -253,7 +325,7 @@ void daemon_impl::receive(
 		if (found_client != client_channels_.end()) {
 			auto found_service = found_client->second.find(its_service);
 			if (found_service != found_client->second.end()) {
-				its_instance = find_instance(_source,  its_service, its_message_type);
+				its_instance = proxy_->find_instance(_source,  its_service, its_message_type);
 
 				auto found_instance = found_service->second.find(its_instance);
 				if (found_instance != found_service->second.end()) {
@@ -402,10 +474,10 @@ void daemon_impl::on_provide_service(client_id _id,	service_id _service, instanc
 			}
 		}
 
-		provide_service(_service, _instance, _location);
+		proxy_->provide_service(_service, _instance, _location);
 
-		if (service_manager_)
-			service_manager_->on_provide_service(_service, _instance);
+		if (service_discovery_)
+			service_discovery_->on_provide_service(_service, _instance);
 
 	} else {
 		VSOMEIP_ERROR << "Attempting to register service for unknown application!";
@@ -437,10 +509,10 @@ void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instan
 		}
 	}
 
-	withdraw_service(_service, _instance, _location);
+	proxy_->withdraw_service(_service, _instance, _location);
 
-	if (service_manager_)
-		service_manager_->on_withdraw_service(_service, _instance);
+	if (service_discovery_)
+		service_discovery_->on_withdraw_service(_service, _instance);
 }
 
 void daemon_impl::on_start_service(client_id _id, service_id _service, instance_id _instance) {
@@ -451,8 +523,8 @@ void daemon_impl::on_start_service(client_id _id, service_id _service, instance_
 		<< _service << ", " << _instance
 		<< ")";
 
-	if (service_manager_)
-		service_manager_->on_start_service(_service, _instance);
+	if (service_discovery_)
+		service_discovery_->on_start_service(_service, _instance);
 }
 
 void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_id _instance) {
@@ -463,8 +535,8 @@ void daemon_impl::on_stop_service(client_id _id, service_id _service, instance_i
 		<< _service << ", " << _instance
 		<< ")";
 
-	if (service_manager_)
-		service_manager_->on_stop_service(_service, _instance);
+	if (service_discovery_)
+		service_discovery_->on_stop_service(_service, _instance);
 }
 
 void daemon_impl::on_request_service(client_id _id, service_id _service, instance_id _instance, const endpoint *_location) {
@@ -481,7 +553,7 @@ void daemon_impl::on_request_service(client_id _id, service_id _service, instanc
 
 	// create a channel for the new service
 	client_channels_[_id][_service][_instance] = std::set< method_id >();
-	request_service(_service, _instance, _location);
+	proxy_->request_service(_service, _instance, _location);
 
 	for (auto a : applications_) {
 		auto s = a.second.services_.find(_service);
@@ -517,7 +589,7 @@ void daemon_impl::on_release_service(client_id _id, service_id _service, instanc
 		}
 	}
 
-	release_service(_service, _instance);
+	proxy_->release_service(_service, _instance);
 
 	request_info info(_id, _service, _instance, _location);
 	requests_.erase(info);
@@ -564,10 +636,10 @@ void daemon_impl::on_deregister_method(client_id _id, service_id _service, insta
 void daemon_impl::on_pong(client_id _id) {
 	auto info = applications_.find(_id);
 	if (info != applications_.end()) {
+		VSOMEIP_TRACE << "Received PONG from registered application " << _id;
 		info->second.watchdog_ = 0;
 	} else {
-		VSOMEIP_WARNING
-			<< "Received PONG from unregistered application " << _id;
+		VSOMEIP_WARNING	<< "Received PONG from unregistered application " << _id;
 	}
 }
 
@@ -615,8 +687,8 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 			std::vector< uint8_t > buffer(_data, _data + _size);
 			do_send(its_client, buffer);
 		} else {
-			const endpoint *location = find_service_location(its_service, its_instance);
-			service *source = find_service(location);
+			const endpoint *location = proxy_->find_service_location(its_service, its_instance);
+			service *source = proxy_->find_service(location);
 			const endpoint *target = find_remote(its_client);
 
 			if (0 != source && 0 != target) {
@@ -856,9 +928,9 @@ client_id daemon_impl::find_local(service_id _service, instance_id _instance, me
 client * daemon_impl::find_remote(service_id _service, instance_id _instance) const {
 	client * found_client = 0;
 
-	const endpoint *found_location = find_client_location(_service, _instance);
+	const endpoint *found_location = proxy_->find_client_location(_service, _instance);
 	if (0 != found_location) {
-		found_client = find_client(found_location);
+		found_client = proxy_->find_client(found_location);
 	}
 
 	return found_client;
@@ -896,6 +968,10 @@ void daemon_impl::save_client_location(client_id _client, const endpoint *_locat
 	}
 }
 
+void daemon_impl::catch_up_registrations() {
+	// intentionally left empty!
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Callbacks
 ///////////////////////////////////////////////////////////////////////////////
@@ -905,6 +981,7 @@ void daemon_impl::open_cbk(boost::system::error_code const &_error, client_id _i
 		send_application_info();
 	} else {
 		VSOMEIP_ERROR	<< "Opening queue for " << _id << " failed!";
+		// TODO: implement retry
 	}
 }
 
@@ -926,7 +1003,7 @@ void daemon_impl::create_cbk(boost::system::error_code const &_error) {
 		daemon_queue_.async_create(
 			queue_name_prefix_ + daemon_queue_name_,
 			10,
-			VSOMEIP_QUEUE_SIZE,
+			VSOMEIP_DEFAULT_QUEUE_SIZE,
 			boost::bind(
 				&daemon_impl::create_cbk,
 				this,
@@ -968,7 +1045,7 @@ void daemon_impl::watchdog_check_cbk(boost::system::error_code const &_error) {
 		std::list< client_id > gone;
 
 		for (auto i : applications_) {
-			if (i.second.watchdog_ > VSOMEIP_MAX_MISSING_PONGS) {
+			if (i.second.watchdog_ > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
 				VSOMEIP_WARNING	<< "Lost contact to application " << (int)i.first;
 				gone.push_back(i.first);
 				try {

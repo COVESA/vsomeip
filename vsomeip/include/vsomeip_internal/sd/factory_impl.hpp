@@ -22,9 +22,7 @@ public:
 
 	virtual ~factory_impl();
 
-	client_manager * create_client_manager(
-			boost::asio::io_service &_service) const;
-	service_manager * create_service_manager(
+	service_discovery * create_service_discovery(
 			boost::asio::io_service &_service) const;
 
 	message * create_message() const;

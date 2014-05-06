@@ -3,25 +3,25 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright © 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 
-#include <vsomeip/application.hpp>
 #include <vsomeip_internal/configuration.hpp>
-#include <vsomeip_internal/sd/service_manager.hpp>
+#include <vsomeip_internal/daemon.hpp>
+#include <vsomeip_internal/sd/service_discovery.hpp>
 #include <vsomeip_internal/sd/service_state_machine.hpp>
 
 namespace vsomeip {
 namespace sd {
 namespace service_state_machine {
 
-machine::machine(service_manager *_manager)
-	: manager_(_manager),
-	  timer_service(_manager->get_service()),
+machine::machine(service_discovery *_discovery)
+	: discovery_(_discovery),
+	  timer_service(_discovery->get_service()),
 	  is_network_configured_(false),
 	  is_service_ready_(false),
 	  run_(0) {
@@ -53,8 +53,8 @@ machine::~machine() {
 std::string machine::get_application_name() const {
 	std::string name;
 
-	if (manager_) {
-		application *its_owner = manager_->get_owner();
+	if (discovery_) {
+		daemon *its_owner = discovery_->get_owner();
 		if (its_owner) {
 			name = its_owner->get_name();
 		}
@@ -65,11 +65,11 @@ std::string machine::get_application_name() const {
 
 
 void machine::send_offer_service(const endpoint *_target) {
-	manager_->send_offer_service(this, _target);
+	discovery_->send_offer_service(this, _target);
 }
 
 void machine::send_stop_offer_service() {
-	manager_->send_stop_offer_service(this);
+	discovery_->send_stop_offer_service(this);
 }
 
 void machine::timer_expired(const boost::system::error_code &_error) {

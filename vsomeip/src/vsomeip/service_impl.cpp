@@ -16,13 +16,13 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/managing_proxy_impl.hpp>
 #include <vsomeip_internal/service_impl.hpp>
 
 namespace vsomeip {
 
 template < typename Protocol, int MaxBufferSize >
-service_impl< Protocol, MaxBufferSize >::service_impl(managing_application_impl *_owner, const endpoint *_location)
+service_impl< Protocol, MaxBufferSize >::service_impl(managing_proxy_impl *_owner, const endpoint *_location)
 	: participant_impl<MaxBufferSize>(_owner, _location),
 	  current_queue_(packet_queues_.end()),
 	  flush_timer_(_owner->get_service()) {
@@ -72,7 +72,7 @@ bool service_impl< Protocol, MaxBufferSize >::send(
 			send_queued();
 	} else {
 		flush_timer_.expires_from_now(
-				std::chrono::milliseconds(VSOMEIP_FLUSH_TIMEOUT));
+				std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use configured value
 		flush_timer_.async_wait(
 			boost::bind(
 				&service_impl<Protocol, MaxBufferSize>::flush_cbk,

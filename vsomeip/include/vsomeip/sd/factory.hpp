@@ -21,9 +21,8 @@
 namespace vsomeip {
 namespace sd {
 
-class client_manager;
 class message;
-class service_manager;
+class service_discovery;
 
 class factory {
 public:
@@ -31,9 +30,7 @@ public:
 
 	static factory * get_instance();
 
-	virtual client_manager * create_client_manager(
-				boost::asio::io_service &_service) const = 0;
-	virtual service_manager * create_service_manager(
+	virtual service_discovery * create_service_discovery(
 				boost::asio::io_service &_service) const = 0;
 
 	virtual message * create_message() const = 0;

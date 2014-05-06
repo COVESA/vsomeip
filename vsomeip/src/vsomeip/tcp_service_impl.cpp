@@ -19,7 +19,7 @@
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip_internal/log_macros.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/managing_proxy_impl.hpp>
 #include <vsomeip_internal/tcp_service_impl.hpp>
 
 namespace ip = boost::asio::ip;
@@ -27,7 +27,7 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_service_impl::tcp_service_impl(
-		managing_application_impl *_owner, const endpoint *_location)
+		managing_proxy_impl *_owner, const endpoint *_location)
 	: service_impl<ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE>(_owner, _location),
 	  acceptor_(_owner->get_service(),
 			    ip::tcp::endpoint(
@@ -119,6 +119,9 @@ void tcp_service_impl::accept_cbk(
 ///////////////////////////////////////////////////////////////////////////////
 tcp_service_impl::connection::connection(tcp_service_impl *_owner)
 	: socket_(_owner->service_), owner_(_owner) {
+
+	//boost::asio::socket_base::broadcast option(true);
+	//socket_.set_option(option);
 }
 
 tcp_service_impl::connection::ptr

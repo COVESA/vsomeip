@@ -31,12 +31,12 @@
 #define VSOMEIP_WORD_BYTE1(x) ((x) >> 8)
 
 #define VSOMEIP_LONG_BYTE0(x) ((x) & 0xFF)
-#define VSOMEIP_LONG_BYTE1(x) ((x) >> 8)
-#define VSOMEIP_LONG_BYTE2(x) ((x) >> 16)
-#define VSOMEIP_LONG_BYTE3(x) ((x) >> 24)
+#define VSOMEIP_LONG_BYTE1(x) (((x) >> 8) & 0xFF)
+#define VSOMEIP_LONG_BYTE2(x) (((x) >> 16) & 0xFF)
+#define VSOMEIP_LONG_BYTE3(x) (((x) >> 24) & 0xFF)
 
 #define VSOMEIP_LONG_WORD0(x) ((x) & 0xFFFF)
-#define VSOMEIP_LONG_WORD1(x) ((x) >> 16)
+#define VSOMEIP_LONG_WORD1(x) (((x) >> 16) & 0xFFFF)
 
 #elif __BYTE_ORDER == __BIG_ENDIAN
 
@@ -46,13 +46,13 @@
 #define VSOMEIP_WORD_BYTE0(x) ((x) >> 8)
 #define VSOMEIP_WORD_BYTE1(x) ((x) & 0xFF)
 
-#define VSOMEIP_LONG_BYTE0(x) ((x) >> 24)
-#define VSOMEIP_LONG_BYTE1(x) ((x) >> 16)
-#define VSOMEIP_LONG_BYTE2(x) ((x) >> 8)
+#define VSOMEIP_LONG_BYTE0(x) (((x) >> 24) & 0xFF)
+#define VSOMEIP_LONG_BYTE1(x) (((x) >> 16) & 0xFF)
+#define VSOMEIP_LONG_BYTE2(x) (((x) >> 8) & 0xFF)
 #define VSOMEIP_LONG_BYTE3(x) ((x) & 0xFF)
 
-#define VSOMEIP_LONG_WORD0(x) ((x) >> 16)
-#define VSOMEIP_LONG_WORD1(x) ((x) & 0xFFFF)
+#define VSOMEIP_LONG_WORD0(x) ((((x) >> 16) & 0xFFFF)
+#define VSOMEIP_LONG_WORD1(x) (((x) & 0xFFFF)
 
 #else
 

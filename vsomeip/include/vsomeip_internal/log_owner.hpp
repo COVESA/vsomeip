@@ -17,6 +17,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip_internal/owner_base.hpp>
 
 namespace vsomeip {
 
@@ -28,7 +29,7 @@ BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity",
 typedef boost::log::sinks::synchronous_sink<
 			boost::log::sinks::text_ostream_backend > sink_t;
 
-class log_owner {
+class log_owner : virtual public owner_base {
 public:
 	log_owner(const std::string &_name);
 
@@ -46,7 +47,6 @@ protected:
 		boost::log::trivial::severity_level > logger_;
 	boost::log::trivial::severity_level loglevel_;
 	std::string channel_;
-	std::string name_;
 
 	sink_t *console_sink_;
 	sink_t *file_sink_;
@@ -59,6 +59,8 @@ private:
 			     	 	 	 	 	    tag::channel > const &_channel);
 
 	void use_null_logger();
+
+friend class log_user;
 };
 
 } // namespace vsomeip

@@ -27,11 +27,12 @@ public:
 	const std::string & get_loglevel() const;
 	const std::string & get_logfile_path() const;
 
-	bool use_service_discovery() const;
-	bool use_virtual_mode() const;
+	bool is_service_discovery_enabled() const;
+	bool is_watchdog_enabled() const;
+	bool is_endpoint_manager_enabled() const;
 
 	uint16_t get_client_id() const;
-	uint8_t get_receiver_slots() const;
+	uint8_t get_slots() const;
 
 	const std::string & get_protocol() const;
 	const std::string & get_unicast_address() const;
@@ -63,12 +64,13 @@ private:
 	std::string logfile_path_;
 
 	// Daemon
-	bool use_service_discovery_;
-	bool use_virtual_mode_;
+	bool is_service_discovery_enabled_;
 
 	// Application
 	uint16_t client_id_;
-	uint8_t receiver_slots_;
+	uint8_t slots_;
+	bool is_watchdog_enabled_;
+	bool is_endpoint_manager_enabled_;
 
 	// Service Discovery
 	std::string protocol_;

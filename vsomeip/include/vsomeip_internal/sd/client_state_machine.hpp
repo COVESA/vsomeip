@@ -25,7 +25,7 @@ namespace sc = boost::statechart;
 namespace vsomeip {
 namespace sd {
 
-class client_manager;
+class service_discovery;
 
 namespace client_state_machine {
 
@@ -34,7 +34,7 @@ struct machine
 		: sc::state_machine< machine, not_seen >,
 		  public timer_service {
 
-	machine(client_manager *_manager);
+	machine(service_discovery *_discovery);
 	~machine();
 
 	uint32_t initial_delay_;
@@ -55,7 +55,7 @@ struct machine
 	major_version major_;
 	minor_version minor_;
 
-	client_manager *manager_;
+	service_discovery *discovery_;
 
 	inline bool is_ready() { return (is_network_ready_ && is_service_ready_); };
 

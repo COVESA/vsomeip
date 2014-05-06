@@ -16,14 +16,18 @@
 #include <boost/array.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/system_timer.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
 
 #include <boost_ext/asio/mq.hpp>
 
 #include <vsomeip/config.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip_internal/application_base_impl.hpp>
 #include <vsomeip_internal/daemon.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/deserializer.hpp>
+#include <vsomeip_internal/managing_proxy_impl.hpp>
+#include <vsomeip_internal/serializer.hpp>
 
 #include "application_info.hpp"
 #include "client_info.hpp"
@@ -40,22 +44,40 @@ class service;
 class message_base;
 
 namespace sd {
-class service_manager;
+class service_discovery;
 } // namespace sd
 
 class daemon_impl
-	: public daemon,
-	  public managing_application_impl {
+		: public daemon,
+		  public application_base_impl {
 public:
 	static daemon * get_instance();
 
 	daemon_impl();
+	~daemon_impl();
+
+	client_id get_id() const;
+	void set_id(client_id _id);
+
+	std::string get_name() const;
+	void set_name(const std::string &_name);
+
+	boost::asio::io_service & get_sender_service();
+	boost::asio::io_service & get_receiver_service();
 
 	void init(int _count, char **_options);
 	void start();
 	void stop();
 
-	bool send(const message_base *_message, bool _flush);
+	bool send(message_base *_message, bool _flush);
+	void handle_message(const message_base *_message);
+
+	void catch_up_registrations();
+
+	boost::shared_ptr< serializer > & get_serializer();
+	boost::shared_ptr< deserializer > & get_deserializer();
+
+	void receive(const uint8_t *, uint32_t, const endpoint *, const endpoint *);
 
 private:
 	void run_receiver();
@@ -94,8 +116,6 @@ private:
 	void start_watchdog_cycle();
 	void start_watchdog_check();
 
-	void receive(const uint8_t *, uint32_t, const endpoint *, const endpoint *);
-
 private:
 	void open_cbk(boost::system::error_code const &_error, client_id _id);
 	void create_cbk(boost::system::error_code const &_error);
@@ -117,18 +137,22 @@ private:
 	void save_client_location(client_id, const endpoint *);
 
 private:
-	boost::asio::io_service receiver_service_;
+	boost::shared_ptr< managing_proxy_impl > proxy_;
+
 	boost::asio::io_service sender_service_;
-	boost::asio::io_service network_service_;
 	boost::asio::io_service::work sender_work_;
+	boost::asio::io_service receiver_service_;
+	boost::asio::io_service::work receiver_work_;
+	boost::asio::io_service network_service_;
 	boost::asio::io_service::work network_work_;
+
 	boost::asio::system_timer watchdog_timer_;
 
 	std::string queue_name_prefix_;
 	std::string daemon_queue_name_;
 	boost_ext::asio::message_queue daemon_queue_;
 
-	uint8_t receive_buffer_[VSOMEIP_QUEUE_SIZE];
+	uint8_t receive_buffer_[VSOMEIP_DEFAULT_QUEUE_SIZE];
 
 	// buffers for sending messages
 	std::deque< std::vector< uint8_t > > send_buffers_;
@@ -138,7 +162,6 @@ private:
 
 	// requests (need to be stored as services may leave and come back)
 	std::set< request_info > requests_;
-
 
 	// Communication channels
 	typedef std::map< client_id,
@@ -160,9 +183,10 @@ private:
 
 private:
 	static client_id id__;
+	sd::service_discovery *service_discovery_;
 
-	bool use_service_discovery_;
-	sd::service_manager *service_manager_;
+	boost::shared_ptr< serializer > serializer_;
+	boost::shared_ptr< deserializer > deserializer_;
 
 #ifdef VSOMEIP_DAEMON_DEBUG
 private:

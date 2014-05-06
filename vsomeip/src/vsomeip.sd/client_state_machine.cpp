@@ -8,16 +8,16 @@
 //
 
 #include <vsomeip/application.hpp>
-#include <vsomeip_internal/sd/client_manager.hpp>
 #include <vsomeip_internal/sd/client_state_machine.hpp>
+#include <vsomeip_internal/sd/service_discovery.hpp>
 
 namespace vsomeip {
 namespace sd {
 namespace client_state_machine {
 
-machine::machine(client_manager *_manager)
-	: timer_service(_manager->get_service()),
-	  manager_(_manager) {
+machine::machine(service_discovery *_discovery)
+	: timer_service(_discovery->get_service()),
+	  discovery_(_discovery) {
 }
 
 machine::~machine() {

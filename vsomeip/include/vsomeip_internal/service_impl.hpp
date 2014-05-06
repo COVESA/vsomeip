@@ -27,7 +27,7 @@ class service_impl
 		: virtual public service,
 		  public participant_impl< MaxBufferSize > {
 public:
-	service_impl(managing_application_impl *_owner, const endpoint *_location);
+	service_impl(managing_proxy_impl *_owner, const endpoint *_location);
 
 	bool is_client() const;
 

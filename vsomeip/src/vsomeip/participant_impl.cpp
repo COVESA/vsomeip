@@ -5,7 +5,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -17,16 +17,16 @@
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/participant_impl.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/managing_proxy_impl.hpp>
 
 namespace vsomeip {
 
 template < int MaxBufferSize >
-participant_impl< MaxBufferSize >::participant_impl(managing_application_impl *_owner, const endpoint *_location)
-	: owner_(_owner),
+participant_impl< MaxBufferSize >::participant_impl(managing_proxy_impl *_owner, const endpoint *_location)
+	: log_user(*_owner),
+	  owner_(_owner),
 	  location_(_location),
 	  service_(_owner->get_service()),
-	  logger_(_owner->get_logger()),
 	  is_supporting_magic_cookies_(false),
 	  has_enabled_magic_cookies_(false) {
 }
@@ -172,7 +172,7 @@ bool participant_impl< MaxBufferSize >::resync_on_magic_cookie() {
 	return is_resynced;
 }
 
-// Instatiate template
+// Instantiate template
 template class participant_impl< VSOMEIP_MAX_TCP_MESSAGE_SIZE >;
 template class participant_impl< VSOMEIP_MAX_UDP_MESSAGE_SIZE >;
 

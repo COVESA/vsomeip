@@ -11,13 +11,12 @@
 #define VSOMEIP_APPLICATION_HPP
 
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/types.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 class message_base;
-
-typedef void (*receive_cbk_t)(const message_base *);
 
 class application {
 public:
@@ -51,17 +50,15 @@ public:
 	// send & receive
 	virtual bool send(message_base *_message, bool _flush = true) = 0;
 
-	virtual void enable_magic_cookies(
-						service_id _service, instance_id _instance) = 0;
-	virtual void disable_magic_cookies(
-						service_id _service, instance_id _instance) = 0;
+	virtual bool enable_magic_cookies(service_id _service, instance_id _instance) = 0;
+	virtual bool disable_magic_cookies(service_id _service, instance_id _instance) = 0;
 
-	virtual void register_cbk(
+	virtual void register_message_handler(
 			service_id _service, instance_id _instance, method_id _method,
-			receive_cbk_t _cbk) = 0;
-	virtual void deregister_cbk(
+			message_handler_t _handler) = 0;
+	virtual void deregister_message_handler(
 			service_id _service, instance_id _instance, method_id _method,
-			receive_cbk_t _cbk) = 0;
+			message_handler_t _handler) = 0;
 };
 
 } // namespace vsomeip

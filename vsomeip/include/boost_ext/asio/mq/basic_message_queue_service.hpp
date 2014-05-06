@@ -287,3 +287,4 @@ boost::asio::io_service::id basic_message_queue_service<MessageQueueImpl>::id;
 } // boost_ext
 
 #endif // BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE_SERVICE_HPP
+

@@ -20,8 +20,6 @@
 
 namespace vsomeip {
 
-class endpoint;
-
 typedef service_impl< boost::asio::ip::udp,
 					   VSOMEIP_MAX_UDP_MESSAGE_SIZE > udp_service_base_impl;
 
@@ -31,7 +29,7 @@ class udp_service_impl
 
 public:
 	udp_service_impl(
-			managing_application_impl *_owner, const endpoint *_location);
+			managing_proxy_impl *_owner, const endpoint *_location);
 	virtual ~udp_service_impl();
 
 	void start();

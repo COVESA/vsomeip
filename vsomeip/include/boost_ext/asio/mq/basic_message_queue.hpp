@@ -81,3 +81,4 @@ public:
 } // boost_ext
 
 #endif // BOOST_EXT_ASIO_MQ_BASIC_MESSAGE_QUEUE
+

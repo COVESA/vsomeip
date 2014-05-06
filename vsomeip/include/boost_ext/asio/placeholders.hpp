@@ -56,3 +56,4 @@ namespace
 } // namespace boost_ext
 
 #endif // BOOST_EXT_ASIO_MQ_PLACEHOLDERS_HPP
+

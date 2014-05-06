@@ -3,16 +3,17 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright �� 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
 #include <cstddef>
 
+#include <vsomeip/config.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/endpoint_impl.hpp>
-#include <vsomeip_internal/managing_application_impl.hpp>
+#include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/message_impl.hpp>
 #include <vsomeip_internal/factory_impl.hpp>
 
@@ -30,10 +31,6 @@ application * factory_impl::create_application(const std::string &_name) const {
 	return new application_impl(_name);
 }
 
-application * factory_impl::create_managing_application(const std::string &_name) const {
-	return new managing_application_impl(_name);
-}
-
 endpoint * factory_impl::get_endpoint(ip_address _address, ip_port _port, ip_protocol _protocol) {
 
 	boost::asio::ip::address endpoint_address(boost::asio::ip::address::from_string(_address));
@@ -42,7 +39,7 @@ endpoint * factory_impl::get_endpoint(ip_address _address, ip_port _port, ip_pro
 	uint32_t identifier = (((uint32_t) _protocol) << 24
 			| ((uint32_t) version) << 16 | ((uint32_t) _port));
 
-	std::map<std::string, endpoint *>& matching_identifier =
+	std::map< std::string, endpoint * >& matching_identifier =
 			endpoints_[identifier];
 
 	endpoint *requested_endpoint = 0;
