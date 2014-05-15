@@ -34,7 +34,7 @@
 #include "request_info.hpp"
 #include "service_info.hpp"
 
-#define VSOMEIP_DAEMON_DEBUG
+//#define VSOMEIP_DAEMON_DEBUG
 
 namespace vsomeip {
 

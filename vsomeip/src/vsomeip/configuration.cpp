@@ -15,6 +15,8 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip_internal/configuration.hpp>
 
+//#define VSOMEIP_CONFIGURATION_DEBUG
+
 namespace options = boost::program_options;
 
 namespace vsomeip {
@@ -288,7 +290,7 @@ void configuration::read_configuration(const std::string &_name) {
 				// Intentionally left empty
 			}
 
-#ifdef VSOMEIP_DEBUG
+#ifdef VSOMEIP_CONFIGURATION_DEBUG
 			for (auto i : its_options) {
 				std::cout << i.first  << " --> ";
 				try {

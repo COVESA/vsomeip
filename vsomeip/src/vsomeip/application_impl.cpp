@@ -188,6 +188,7 @@ void application_impl::register_message_handler(
 		message_handler_t _handler) {
 
 	message_handlers_[_service][_instance][_method].insert(_handler);
+	proxy_->register_method(_service, _instance, _method);
 }
 
 void application_impl::deregister_message_handler(
@@ -206,6 +207,7 @@ void application_impl::deregister_message_handler(
 				if (0 == found_method->second.size()) {
 					must_deregister = true;
 					found_instance->second.erase(found_method->first);
+					proxy_->deregister_method(_service, _instance, _method);
 				}
 			}
 		}

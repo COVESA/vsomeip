@@ -34,6 +34,9 @@ public:
 	virtual bool request_service(service_id _service, instance_id _instance, const endpoint *_location) = 0;
 	virtual bool release_service(service_id _servive, instance_id _instance) = 0;
 
+	virtual void register_method(service_id _service, instance_id _instance, method_id _method) = 0;
+	virtual void deregister_method(service_id _service, instance_id _instance, method_id _method) = 0;
+
 	virtual bool send(message_base *_message, bool _flush) = 0;
 
 	virtual bool enable_magic_cookies(service_id _service, instance_id _instance) = 0;

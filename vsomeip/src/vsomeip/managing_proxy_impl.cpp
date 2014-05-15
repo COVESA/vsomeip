@@ -201,6 +201,12 @@ bool managing_proxy_impl::send(message_base *_message, bool _flush) {
 	return is_sent;
 }
 
+void managing_proxy_impl::register_method(service_id _service, instance_id _instance, method_id _method) {
+}
+
+void managing_proxy_impl::deregister_method(service_id _service, instance_id _instance, method_id _method) {
+}
+
 bool managing_proxy_impl::enable_magic_cookies(	service_id _service, instance_id _instance) {
 	return false;
 }

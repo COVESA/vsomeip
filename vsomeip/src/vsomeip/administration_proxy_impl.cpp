@@ -277,6 +277,35 @@ bool administration_proxy_impl::stop_service(
 	return true;
 }
 
+
+void administration_proxy_impl::register_method(service_id _service, instance_id _instance, method_id _method) {
+	VSOMEIP_TRACE << "administration_proxy_impl::register_method";
+	if (is_registered_) {
+		send_registration_command(command_enum::REGISTER_METHOD, _service, _instance, _method);
+	} else {
+		method_info info;
+		info.service_ = _service;
+		info.instance_ = _instance;
+		info.method_ = _method;
+
+		methods_.insert(info);
+	}
+}
+
+void administration_proxy_impl::deregister_method(service_id _service, instance_id _instance, method_id _method) {
+	VSOMEIP_TRACE << "administration_proxy_impl::register_method";
+	if (is_registered_) {
+		send_registration_command(command_enum::DEREGISTER_METHOD, _service, _instance, _method);
+	} else {
+		method_info info;
+		info.service_ = _service;
+		info.instance_ = _instance;
+		info.method_ = _method;
+
+		methods_.erase(info);
+	}
+}
+
 void administration_proxy_impl::catch_up_registrations() {
 	VSOMEIP_TRACE << "administration_proxy_impl::catch_up_registrations";
 
@@ -301,6 +330,11 @@ void administration_proxy_impl::catch_up_registrations() {
 			request_service(s.first, i.first, i.second.first);
 		}
 	}
+
+	for (auto m : methods_) {
+		register_method(m.service_, m.instance_, m.method_);
+	}
+	methods_.clear();
 }
 
 void administration_proxy_impl::do_send(const std::vector< uint8_t > &_buffer) {
@@ -410,6 +444,36 @@ void administration_proxy_impl::send_service_command(
 	std::memcpy(&command[payload_size + VSOMEIP_PROTOCOL_PAYLOAD], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
 
 	its_serializer->reset();
+
+	do_send(command);
+}
+
+void administration_proxy_impl::send_registration_command(
+		command_enum _command, service_id _service, instance_id _instance, method_id _method) {
+	VSOMEIP_TRACE << "administration_proxy_impl::send_registration_command";
+
+	uint8_t command_buffer[] = {
+		0x67, 0x37, 0x6D, 0x07,
+		0x00, 0x00,
+		static_cast< uint8_t >(_command),
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x07, 0x6D, 0x37, 0x67
+	};
+
+	uint32_t payload_size = 4;
+	client_id id = owner_.get_id();
+
+	std::memcpy(&command_buffer[VSOMEIP_PROTOCOL_ID], &id, sizeof(id));
+	std::memcpy(&command_buffer[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
+	std::memcpy(&command_buffer[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
+	std::memcpy(&command_buffer[VSOMEIP_PROTOCOL_PAYLOAD+2], &_instance, sizeof(_instance));
+	std::memcpy(&command_buffer[VSOMEIP_PROTOCOL_PAYLOAD+4], &_method, sizeof(_method));
+
+	std::vector< uint8_t > command(
+		command_buffer,
+		command_buffer + sizeof(command_buffer)
+	);
 
 	do_send(command);
 }

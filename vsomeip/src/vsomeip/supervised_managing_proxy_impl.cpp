@@ -123,6 +123,12 @@ bool supervised_managing_proxy_impl::release_service(service_id _service, instan
 	return is_successful;
 }
 
+void supervised_managing_proxy_impl::register_method(service_id _service, instance_id _instance, method_id _method) {
+}
+
+void supervised_managing_proxy_impl::deregister_method(service_id _service, instance_id _instance, method_id _method) {
+}
+
 bool supervised_managing_proxy_impl::enable_magic_cookies(service_id _service, instance_id _instance) {
 	return false;
 }

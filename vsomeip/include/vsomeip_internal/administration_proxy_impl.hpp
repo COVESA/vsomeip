@@ -22,6 +22,7 @@
 #include <vsomeip/config.hpp>
 #include <vsomeip_internal/enumeration_types.hpp>
 #include <vsomeip_internal/message_queue.hpp>
+#include <vsomeip_internal/method_info.hpp>
 #include <vsomeip_internal/proxy_base_impl.hpp>
 
 namespace vsomeip {
@@ -45,6 +46,9 @@ public:
 	bool request_service(service_id _service, instance_id _instance, const endpoint *_location);
 	bool release_service(service_id _servive, instance_id _instance);
 
+	void register_method(service_id _service, instance_id _instance, method_id _method);
+	void deregister_method(service_id _service, instance_id _instance, method_id _method);
+
 	void remove_queue(const std::string &_name);
 
 protected:
@@ -56,9 +60,11 @@ protected:
 	void send_pong();
 	void send_register_application();
 	void send_deregister_application();
-	void send_service_command(command_enum _command,  service_id _service, instance_id _instance, const endpoint * _location = 0);
+	void send_service_command(command_enum _command, service_id _service, instance_id _instance, const endpoint * _location = 0);
+	void send_registration_command(command_enum _command, service_id _service, instance_id _instance, method_id _method);
 
 	void do_receive();
+
 	void process_message(std::size_t _bytes);
 	virtual void process_command(command_enum _command, client_id _client, const uint8_t *_payload, uint32_t payload_size);
 
@@ -118,6 +124,8 @@ protected:
 
 	std::map< std::string, message_queue * > queues_;
 	std::map< client_id, std::string > other_queue_names_;
+
+	std::set< method_info > methods_;
 
 	boost::mutex mutex_;
 };

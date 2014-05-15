@@ -48,6 +48,9 @@ public:
 	bool request_service(service_id _service, instance_id _instance, const endpoint *_location);
 	bool release_service(service_id _service, instance_id _instance);
 
+	void register_method(service_id _service, instance_id _instance, method_id _method);
+	void deregister_method(service_id _service, instance_id _instance, method_id _method);
+
 	bool send(message_base *_message, bool _flush);
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);

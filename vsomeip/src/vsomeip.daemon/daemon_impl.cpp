@@ -317,7 +317,7 @@ void daemon_impl::receive(
 				if (found_method != found_instance->second.end()) {
 					its_target = found_method->second;
 				} else {
-					found_method = found_instance->second.find(VSOMEIP_ANY_INSTANCE);
+					found_method = found_instance->second.find(VSOMEIP_ANY_METHOD);
 					if (found_method != found_instance->second.end()) {
 						its_target = found_method->second;
 					}
@@ -332,7 +332,14 @@ void daemon_impl::receive(
 				its_instance = proxy_->find_instance(_source,  its_service, its_message_type);
 				auto found_instance = found_service->second.find(its_instance);
 				if (found_instance != found_service->second.end()) {
-					its_target = its_client;
+					auto found_method = found_instance->second.find(its_method);
+					if (found_method == found_instance->second.end()) {
+						found_method = found_instance->second.find(VSOMEIP_ANY_METHOD);
+					}
+
+					if (found_method != found_instance->second.end()) {
+						its_target = its_client;
+					}
 				}
 			}
 		}
@@ -817,6 +824,14 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	instance_id its_instance;
 	method_id its_method;
 	endpoint *its_location = 0;
+
+#ifdef VSOMEIP_DAEMON_DEBUG
+	std::cout << "COMMAND: ";
+	for (int i = 0; i < _bytes; ++i) {
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)receive_buffer_[i] << " ";
+	}
+	std::cout << std::endl;
+#endif
 
 	std::memcpy(&start_tag, &receive_buffer_[0], sizeof(start_tag));
 	std::memcpy(&end_tag, &receive_buffer_[_bytes-4], sizeof(end_tag));
