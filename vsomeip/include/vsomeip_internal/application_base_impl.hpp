@@ -35,6 +35,8 @@ public:
 	virtual std::string get_name() const = 0;
 	virtual void set_name(const std::string &_name) = 0;
 
+	virtual bool is_managing() const = 0;
+
 	virtual boost::asio::io_service & get_sender_service() = 0;
 	virtual boost::asio::io_service & get_receiver_service() = 0;
 

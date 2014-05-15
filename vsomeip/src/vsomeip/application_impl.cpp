@@ -55,6 +55,10 @@ void application_impl::set_name(const std::string &_name) {
 	name_ = _name;
 }
 
+bool application_impl::is_managing() const {
+	return is_managing_;
+}
+
 boost::asio::io_service & application_impl::get_sender_service() {
 	return sender_service_;
 }
@@ -82,6 +86,7 @@ void application_impl::init(int _options_count, char **_options) {
 	bool is_endpoint_manager_enabled = its_configuration->is_endpoint_manager_enabled();
 
 	if (is_endpoint_manager_enabled) {
+		is_managing_ = true;
 		if (is_watchdog_enabled || is_service_discovery_enabled) {
 			VSOMEIP_DEBUG << "Application \"" << name_ << "\" uses supervised managing proxy.";
 			proxy_.reset(new supervised_managing_proxy_impl(*this));
@@ -90,6 +95,7 @@ void application_impl::init(int _options_count, char **_options) {
 			proxy_.reset(new managing_proxy_impl(*this));
 		}
 	} else {
+		is_managing_ = false;
 		VSOMEIP_DEBUG << "Application \"" << name_ << "\" uses managed proxy.";
 		proxy_.reset(new managed_proxy_impl(*this));
 	}

@@ -344,7 +344,7 @@ void administration_proxy_impl::send_register_application() {
 	std::vector< uint8_t > registration;
 
 	// Resize to the needed sizeid
-	uint32_t payload_size = application_queue_name_.size();
+	uint32_t payload_size = application_queue_name_.size() + 1; // "+ 1" for "is_managed"
 	registration.resize(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
 
 	client_id id = owner_.get_id();
@@ -354,6 +354,7 @@ void administration_proxy_impl::send_register_application() {
 	registration[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::REGISTER_APPLICATION);
 	std::memcpy(&registration[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
 	std::copy(application_queue_name_.begin(), application_queue_name_.end(), registration.begin() + VSOMEIP_PROTOCOL_PAYLOAD);
+	registration[VSOMEIP_PROTOCOL_PAYLOAD + payload_size - 1] = static_cast< uint8_t >(owner_.is_managing());
 	std::memcpy(&registration[payload_size + VSOMEIP_PROTOCOL_PAYLOAD], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
 
 	// send

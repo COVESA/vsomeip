@@ -94,6 +94,10 @@ void daemon_impl::set_name(const std::string &_name) {
 	// intentionally left empty
 }
 
+bool daemon_impl::is_managing() const {
+	return true;
+}
+
 boost::shared_ptr< serializer > & daemon_impl::get_serializer() {
 	return serializer_;
 }
@@ -326,25 +330,16 @@ void daemon_impl::receive(
 			auto found_service = found_client->second.find(its_service);
 			if (found_service != found_client->second.end()) {
 				its_instance = proxy_->find_instance(_source,  its_service, its_message_type);
-
 				auto found_instance = found_service->second.find(its_instance);
 				if (found_instance != found_service->second.end()) {
-					auto found_method = found_instance->second.find(its_method);
-					if (found_method != found_instance->second.end()) {
-						its_target = its_client;
-					} else {
-						found_method = found_instance->second.find(VSOMEIP_ANY_INSTANCE);
-						if (found_method != found_instance->second.end()) {
-							its_target = its_client;
-						}
-					}
+					its_target = its_client;
 				}
 			}
 		}
 	}
 
 	// If the target application could be found, forward the message
-	if (its_target > 0) {
+	if (its_target != VSOMEIP_UNKNOWN_ID) {
 		std::vector< uint8_t > message_buffer(
 			_size +
 			3 +
@@ -378,13 +373,14 @@ void daemon_impl::receive(
 	}
 }
 
-void daemon_impl::on_register_application(client_id _id, const std::string &_name) {
+void daemon_impl::on_register_application(client_id _id, const std::string &_name, bool _is_managing) {
 	boost_ext::asio::message_queue *application_queue =
 			new boost_ext::asio::message_queue(sender_service_);
 
 	VSOMEIP_INFO << "Registering application " << _id << " for queue " << _name;
 
 	application_info info;
+	info.is_managing_ = _is_managing;
 	info.queue_ = application_queue;
 	info.queue_name_ = _name;
 	info.watchdog_ = 0;
@@ -435,50 +431,52 @@ void daemon_impl::on_provide_service(client_id _id,	service_id _service, instanc
 
 	auto find_application = applications_.find(_id);
 	if (find_application != applications_.end()) {
-		auto find_service = find_application->second.services_.find(_service);
-		if (find_service != find_application->second.services_.end()) {
-			// the given location must not be used for another instance of the service
-			for (auto i : find_service->second) {
-				if (i.first != _instance) {
-					for (auto j : i.second) {
-						if (j == _location) {
-							// TODO: send message to application that registration has failed (reason: another service is already registered)
-							VSOMEIP_ERROR
-								<< "Registration failed as another instance of the service is already registered to the same endpoint";
-							return;
+		if (!find_application->second.is_managing_) {
+			auto find_service = find_application->second.services_.find(_service);
+			if (find_service != find_application->second.services_.end()) {
+				// the given location must not be used for another instance of the service
+				for (auto i : find_service->second) {
+					if (i.first != _instance) {
+						for (auto j : i.second) {
+							if (j == _location) {
+								// TODO: send message to application that registration has failed (reason: another service is already registered)
+								VSOMEIP_ERROR
+									<< "Registration failed as another instance of the service is already registered to the same endpoint";
+								return;
+							}
 						}
 					}
 				}
+
+				auto find_instance = find_service->second.find(_instance);
+				if (find_instance != find_service->second.end()) {
+					find_instance->second.insert(_location);
+				} else {
+					find_service->second[_instance].insert(_location);
+				}
+			} else {
+				find_application->second.services_[_service][_instance].insert(_location);
 			}
 
-			auto find_instance = find_service->second.find(_instance);
-			if (find_instance != find_service->second.end()) {
-				find_instance->second.insert(_location);
-			} else {
-				find_service->second[_instance].insert(_location);
+			// create a channel for the new service
+			service_channels_[_service][_instance][VSOMEIP_ANY_METHOD] = _id;
+
+			// maybe the new provided service was already requested
+			for (auto r : requests_) {
+				if (r.service_ == _service && r.instance_ == _instance) {
+					VSOMEIP_INFO << "  reporting service location to application " << r.id_;
+					on_request_service(r.id_, r.service_, r.instance_, r.location_);
+				} else {
+					VSOMEIP_INFO << std::hex << r.service_ << " == " << _service << ", " << r.instance_ << " == " << _instance;
+				}
 			}
-		} else {
-			find_application->second.services_[_service][_instance].insert(_location);
+
+			proxy_->provide_service(_service, _instance, _location);
 		}
 
-		// create a channel for the new service
-		service_channels_[_service][_instance][VSOMEIP_ANY_METHOD] = _id;
-
-		// maybe the new provided service was already requested
-		for (auto r : requests_) {
-			if (r.service_ == _service && r.instance_ == _instance) {
-				VSOMEIP_INFO << "  reporting service location to application " << r.id_;
-				on_request_service(r.id_, r.service_, r.instance_, r.location_);
-			} else {
-				VSOMEIP_INFO << std::hex << r.service_ << " == " << _service << ", " << r.instance_ << " == " << _instance;
-			}
-		}
-
-		proxy_->provide_service(_service, _instance, _location);
-
+		// Service Discovery needs to be informed in any case.
 		if (service_discovery_)
 			service_discovery_->on_provide_service(_service, _instance);
-
 	} else {
 		VSOMEIP_ERROR << "Attempting to register service for unknown application!";
 	}
@@ -494,22 +492,24 @@ void daemon_impl::on_withdraw_service(client_id _id, service_id _service, instan
 
 	auto find_application = applications_.find(_id);
 	if (find_application != applications_.end()) {
-		auto find_service = find_application->second.services_.find(_service);
-		if (find_service != find_application->second.services_.end()) {
-			if (0 == _location) {
-				find_service->second.erase(_instance);
-			} else {
-				auto find_instance = find_service->second.find(_instance);
-				if (find_instance != find_service->second.end()) {
-					find_instance->second.erase(_location);
+		if (!find_application->second.is_managing_) {
+			auto find_service = find_application->second.services_.find(_service);
+			if (find_service != find_application->second.services_.end()) {
+				if (0 == _location) {
+					find_service->second.erase(_instance);
+				} else {
+					auto find_instance = find_service->second.find(_instance);
+					if (find_instance != find_service->second.end()) {
+						find_instance->second.erase(_location);
+					}
 				}
+				if (find_service->second.size() == 0)
+					find_application->second.services_.erase(_service);
 			}
-			if (find_service->second.size() == 0)
-				find_application->second.services_.erase(_service);
 		}
-	}
 
-	proxy_->withdraw_service(_service, _instance, _location);
+		proxy_->withdraw_service(_service, _instance, _location);
+	}
 
 	if (service_discovery_)
 		service_discovery_->on_withdraw_service(_service, _instance);
@@ -827,8 +827,9 @@ void daemon_impl::process_command(std::size_t _bytes) {
 
 	switch (its_command) {
 	case command_enum::REGISTER_APPLICATION: {
-		std::string queue_name((char*) &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], payload_size);
-		on_register_application(its_id, queue_name);
+		std::string queue_name((char*) &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], payload_size-1);
+		bool is_managed = static_cast< bool >(receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD + payload_size - 1]);
+		on_register_application(its_id, queue_name, is_managed);
 		}
 		break;
 

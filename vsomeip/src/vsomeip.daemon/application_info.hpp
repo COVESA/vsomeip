@@ -18,12 +18,14 @@ namespace vsomeip {
 class endpoint;
 
 struct application_info {
+	// IP endpoint are managed by the daemon (true) or by the application (false).
+	bool is_managing_;
 
-	// if watchdog_ is greater than VSOMEIP_MAX_MISSING_PONGS
+	// If watchdog_ is greater than VSOMEIP_MAX_MISSING_PONGS
 	// the application is considered unavailable
 	int8_t watchdog_;
 
-	// queue the application wants to receive messages
+	// Queue the application wants to receive messages
 	boost_ext::asio::message_queue *queue_;
 
 	// Name to open the applications message queue. This name

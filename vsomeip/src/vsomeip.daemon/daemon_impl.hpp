@@ -62,6 +62,8 @@ public:
 	std::string get_name() const;
 	void set_name(const std::string &_name);
 
+	bool is_managing() const;
+
 	boost::asio::io_service & get_sender_service();
 	boost::asio::io_service & get_receiver_service();
 
@@ -90,7 +92,7 @@ private:
 	void do_broadcast(std::vector< uint8_t > &);
 	void do_receive();
 
-	void on_register_application(client_id, const std::string &);
+	void on_register_application(client_id, const std::string &, bool);
 	void on_deregister_application(client_id);
 	void on_provide_service(client_id, service_id, instance_id, const endpoint *);
 	void on_withdraw_service(client_id, service_id, instance_id, const endpoint *);

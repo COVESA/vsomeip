@@ -340,9 +340,6 @@ void managing_proxy_impl::receive(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
 
-	VSOMEIP_INFO << "[" << _source->get_address() << ":" << _source->get_port() << "] --> "
-			     << "[" << _target->get_address() << ":" << _target->get_port() << "]";
-
 	if (_data) {
 		boost::shared_ptr< deserializer > its_deserializer(owner_.get_deserializer());
 		its_deserializer->set_data(_data, _size);

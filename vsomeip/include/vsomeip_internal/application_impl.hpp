@@ -35,6 +35,8 @@ public:
 	std::string get_name() const;
 	void set_name(const std::string &_name);
 
+	bool is_managing() const;
+
 	boost::asio::io_service & get_sender_service();
 	boost::asio::io_service & get_receiver_service();
 
@@ -87,6 +89,9 @@ protected:
 protected:
 	// Application (Client) id
 	client_id id_;
+
+	//
+	bool is_managing_;
 
 	// Handler callbacks for incoming messages
 	typedef std::map< service_id,
