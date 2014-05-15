@@ -57,10 +57,12 @@ public:
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
 	bool disable_magic_cookies(service_id _service, instance_id _instance);
 
-	void register_message_handler(service_id _service, instance_id _instance, method_id _method,
-								  message_handler_t _handler);
-	void deregister_message_handler(service_id _service, instance_id _instance, method_id _method,
-								    message_handler_t _handler);
+	message_handler_id_t register_message_handler(
+			service_id _service, instance_id _instance, method_id _method,
+			message_handler_t _handler);
+	bool deregister_message_handler(
+			service_id _service, instance_id _instance, method_id _method,
+			message_handler_id_t _id);
 	void catch_up_registrations();
 
 	void handle_message(const message_base *_message);
@@ -97,7 +99,7 @@ protected:
 	typedef std::map< service_id,
 			 	 	  std::map< instance_id,
 			 	 	  	  	    std::map< method_id,
-			 	 	  	  	     	 	  std::set< message_handler_t > > > > message_handler_map_t;
+			 	 	  	  	     	 	  std::map< message_handler_id_t, message_handler_t > > > > message_handler_map_t;
 	message_handler_map_t message_handlers_;
 
 	boost::shared_ptr< serializer > serializer_;

@@ -26,16 +26,19 @@ endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_p
 
 message * the_message = the_factory->create_message();
 
-void receive(const message_base *_message) {
-	static int i = 0;
+class Connection {
+public:
+	void receive(const message_base *_message) {
+		static int i = 0;
 
-	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
-			  << "] Service has answered to client "
-			  << std::hex << _message->get_client_id()
-			  << " with "
-			  << std::dec << _message->get_length() << " bytes."
-			  << std::endl;
-}
+		std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
+				  << "] Service has answered to client "
+				  << std::hex << _message->get_client_id()
+				  << " with "
+				  << std::dec << _message->get_length() << " bytes."
+				  << std::endl;
+	}
+};
 
 void worker() {
 	bool is_sending_to_internal = true;
@@ -78,8 +81,16 @@ int main(int argc, char **argv) {
 	the_application->request_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, internal_endpoint);
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
 
-	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, receive);
-	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive);
+	Connection the_connection;
+	std::function< void (const message_base *) > func = std::bind(&Connection::receive, the_connection, std::placeholders::_1);
+
+	message_handler_id_t id = the_application->register_message_handler(
+			INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
+	std::cout << "Registered message handler with id " << id << std::endl;
+
+	message_handler_id_t id2 = the_application->register_message_handler(
+			EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);
+	std::cout << "Registered message handler with id " << id2 << std::endl;
 
 	boost::thread framework_thread(run);
 	boost::thread application_thread(worker);

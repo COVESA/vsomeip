@@ -53,12 +53,12 @@ public:
 	virtual bool enable_magic_cookies(service_id _service, instance_id _instance) = 0;
 	virtual bool disable_magic_cookies(service_id _service, instance_id _instance) = 0;
 
-	virtual void register_message_handler(
+	virtual message_handler_id_t register_message_handler(
 			service_id _service, instance_id _instance, method_id _method,
 			message_handler_t _handler) = 0;
-	virtual void deregister_message_handler(
+	virtual bool deregister_message_handler(
 			service_id _service, instance_id _instance, method_id _method,
-			message_handler_t _handler) = 0;
+			message_handler_id_t _id) = 0;
 };
 
 } // namespace vsomeip

@@ -12,11 +12,14 @@
 #ifndef VSOMEIP_TYPES_HPP
 #define VSOMEIP_TYPES_HPP
 
+#include <functional>
+
 namespace vsomeip {
 
 class message_base;
 
-typedef void (*message_handler_t)(const message_base *);
+typedef uint32_t message_handler_id_t;
+typedef std::function< void (const message_base *) > message_handler_t;
 
 } // namespace vsomeip
 

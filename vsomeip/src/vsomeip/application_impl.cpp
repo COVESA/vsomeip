@@ -183,19 +183,24 @@ bool application_impl::disable_magic_cookies(service_id _service, instance_id _i
 	return proxy_->disable_magic_cookies(_service, _instance);
 }
 
-void application_impl::register_message_handler(
-		service_id _service, instance_id _instance, method_id _method,
-		message_handler_t _handler) {
+message_handler_id_t application_impl::register_message_handler(
+				service_id _service, instance_id _instance, method_id _method,
+				message_handler_t _handler) {
 
-	message_handlers_[_service][_instance][_method].insert(_handler);
+	static boost::atomic< message_handler_id_t  > id(0);
+	message_handler_id_t handler_id = id++;
+
+	message_handlers_[_service][_instance][_method][handler_id] = _handler;
 	proxy_->register_method(_service, _instance, _method);
+
+	return handler_id;
 }
 
-void application_impl::deregister_message_handler(
+bool application_impl::deregister_message_handler(
 		service_id _service, instance_id _instance, method_id _method,
-		message_handler_t _handler) {
+		message_handler_id_t _id) {
 
-	bool must_deregister = false;
+	bool is_deregistered = false;
 
 	auto found_service = message_handlers_.find(_service);
 	if (found_service != message_handlers_.end()) {
@@ -205,13 +210,16 @@ void application_impl::deregister_message_handler(
 			if (found_method != found_service->second.end()) {
 				found_method->second.erase(_method);
 				if (0 == found_method->second.size()) {
-					must_deregister = true;
-					found_instance->second.erase(found_method->first);
-					proxy_->deregister_method(_service, _instance, _method);
+					if (0 < found_instance->second.erase(_id)) {
+						proxy_->deregister_method(_service, _instance, _method);
+						is_deregistered = true;
+					}
 				}
 			}
 		}
 	}
+
+	return is_deregistered;
 }
 
 
@@ -220,13 +228,14 @@ void application_impl::handle_message(const message_base *_message) {
 	if (found_service != message_handlers_.end()) {
 		auto found_instance = found_service->second.find(_message->get_instance_id());
 		if (found_instance != found_service->second.end()) {
-			method_id its_method = _message->get_method_id();
-			auto found_method = found_instance->second.find(_message->get_message_id());
+			auto found_method = found_instance->second.find(_message->get_method_id());
 			if (found_method != found_instance->second.end()) {
 				std::for_each(
 					found_method->second.begin(),
 					found_method->second.end(),
-					[_message](message_handler_t _func) { _func(_message); }
+					[_message](std::pair< message_handler_id_t, message_handler_t > _element) {
+						_element.second(_message);
+					}
 				);
 			} else {
 				if (_message->get_message_type() < message_type_enum::RESPONSE) {
