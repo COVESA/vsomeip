@@ -8,6 +8,7 @@
 //
 
 #include <cstring>
+#include <iostream>
 
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/message_impl.hpp>
@@ -155,9 +156,8 @@ message * deserializer::deserialize_message() {
 
 void deserializer::set_data(const uint8_t *_data,  std::size_t _length) {
 	if (0 != _data) {
-		std::size_t offset = position_ - data_.begin();
 		data_.assign(_data, _data + _length);
-		position_ = data_.begin() + offset;
+		position_ = data_.begin();
 		remaining_ = data_.end() - position_;
 	} else {
 		data_.clear();

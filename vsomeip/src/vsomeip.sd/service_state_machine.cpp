@@ -137,7 +137,7 @@ sc::result ready::react(const ev_service_status_change &_event) {
 	if (!outermost_context().is_network_configured_ || !outermost_context().is_service_ready_) {
 		outermost_context().stop_timer();
 		outermost_context().send_stop_offer_service();
-		return transit< ready >();
+		return transit< not_ready >();
 	}
 
 	return discard_event();

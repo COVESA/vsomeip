@@ -47,8 +47,7 @@ void service_discovery_impl::init() {
 		configuration *its_configuration
 			= configuration::request(owner_->get_name());
 
-		// Calculate the network name based on unicast address
-		// and netmask
+		// Calculate the network name based on unicast address and netmask
 		std::string address = its_configuration->get_unicast_address();
 		std::string netmask = its_configuration->get_netmask();
 		uint16_t port = its_configuration->get_port();
@@ -60,7 +59,6 @@ void service_discovery_impl::init() {
 						port,
 						(protocol == "tcp" ? ip_protocol::TCP : ip_protocol::UDP)
 					 );
-
 	}
 }
 
@@ -248,6 +246,11 @@ void service_discovery_impl::on_message(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
 
+	std::cout << "service_discovery_impl::on_message: got a message ("
+			  << _size
+			  << ")"
+			  << std::endl;
+
 	deserializer_->set_data(_data, _size);
 	message *its_message = deserializer_->deserialize_sd_message();
 	if (0 != its_message) {
@@ -255,9 +258,17 @@ void service_discovery_impl::on_message(
 		const std::vector< entry * > its_entries = its_message->get_entries();
 		const std::vector< option * > its_options = its_message->get_options();
 
-		std::cout << "Received SD message with " << std::dec << its_entries.size() << " entries and "
-				  << its_options.size() << " options." << std::endl;
+		std::cout << "service_discovery_impl::on_message: Message has "
+				  << std::dec
+				  << its_entries.size() << " entries and "
+				  << its_options.size() << " options."
+				  << std::endl;
+	} else {
+
+		std::cout << "service_discovery_impl::on_message: Message deserialization failed!" << std::endl;
 	}
+
+	delete its_message;
 }
 
 } // namespace sd

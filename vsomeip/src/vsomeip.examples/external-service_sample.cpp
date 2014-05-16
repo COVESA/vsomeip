@@ -1,6 +1,8 @@
 #include <iomanip>
 #include <iostream>
 
+#include <boost/thread.hpp>
+
 #include <vsomeip/vsomeip.hpp>
 
 using namespace vsomeip;
@@ -11,6 +13,24 @@ using namespace vsomeip;
 
 factory *the_factory = 0;
 application *the_application = 0;
+
+void on_off() {
+	static bool is_on = false;
+
+	while (true) {
+		usleep(10000000);
+
+		if (is_on) {
+			std::cout << "Stopping service" << std::endl;
+			the_application->stop_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE);
+		} else {
+			std::cout << "Starting service" << std::endl;
+			the_application->start_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE);
+		}
+
+		is_on = !is_on;
+	}
+}
 
 void receive_message(const message_base *_message) {
 	static int i = 0;
@@ -40,6 +60,8 @@ int main(int argc, char **argv) {
 
 	the_application->provide_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, location);
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive_message);
+
+	boost::thread on_off_thread(on_off);
 
 	the_application->start();
 }
