@@ -31,8 +31,6 @@ participant_impl< MaxBufferSize >::participant_impl(managing_proxy_impl *_owner,
 	  service_(_owner->get_service()),
 	  is_supporting_magic_cookies_(false),
 	  has_enabled_magic_cookies_(false) {
-
-	VSOMEIP_INFO << "BLUB";
 }
 
 template < int MaxBufferSize >
