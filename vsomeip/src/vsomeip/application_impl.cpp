@@ -224,6 +224,10 @@ void application_impl::handle_message(const message_base *_message) {
 		auto found_instance = found_service->second.find(_message->get_instance_id());
 		if (found_instance != found_service->second.end()) {
 			auto found_method = found_instance->second.find(_message->get_method_id());
+			if (found_method == found_instance->second.end()) {
+				found_method = found_instance->second.find(VSOMEIP_ANY_METHOD);
+			}
+
 			if (found_method != found_instance->second.end()) {
 				found_method->second(_message);
 			} else {
