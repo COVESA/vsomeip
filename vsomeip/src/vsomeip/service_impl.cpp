@@ -23,13 +23,13 @@ namespace vsomeip {
 
 template < typename Protocol, int MaxBufferSize >
 service_impl< Protocol, MaxBufferSize >::service_impl(managing_proxy_impl *_owner, const endpoint *_location)
-	: participant_impl<MaxBufferSize>(_owner, _location),
+	: participant_impl< MaxBufferSize >(_owner, _location),
 	  current_queue_(packet_queues_.end()),
 	  flush_timer_(_owner->get_service()) {
 }
 
 template < typename Protocol, int MaxBufferSize >
-bool service_impl<Protocol, MaxBufferSize>::is_client() const {
+bool service_impl< Protocol, MaxBufferSize >::is_client() const {
 	return false;
 }
 
@@ -53,6 +53,7 @@ bool service_impl< Protocol, MaxBufferSize >::send(
 		current_queue_ = packet_queues_.find(_target);
 
 	if (target_packetizer.size() + _size > MaxBufferSize) {
+		VSOMEIP_WARNING << "Implicitly flushing.";
 		target_packet_queue.push_back(target_packetizer);
 		target_packetizer.clear();
 

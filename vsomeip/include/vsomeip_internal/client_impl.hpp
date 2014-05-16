@@ -25,10 +25,10 @@ namespace vsomeip {
 
 class endpoint;
 
-template <typename Protocol, int MaxBufferSize>
+template < typename Protocol, int MaxBufferSize >
 class client_impl
 		: virtual public client,
-		  public participant_impl<MaxBufferSize> {
+		  public participant_impl< MaxBufferSize > {
 public:
 	client_impl(managing_proxy_impl *_owner, const endpoint *_location);
 	virtual ~client_impl();

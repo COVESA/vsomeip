@@ -68,7 +68,7 @@ bool client_impl< Protocol, MaxBufferSize >::send(
 	bool is_queue_empty(packet_queue_.empty());
 
 	if (packetizer_.size() + _size > MaxBufferSize) {
-		//VSOMEIP_INFO << "Implicit flush because new message cannot be buffered.";
+		VSOMEIP_WARNING << "Implicitly flushing.";
 		packet_queue_.push_back(packetizer_);
 		packetizer_.clear();
 		if (is_queue_empty && is_connected_)

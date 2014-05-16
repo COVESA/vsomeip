@@ -19,6 +19,8 @@
 #include <vsomeip_internal/participant_impl.hpp>
 #include <vsomeip_internal/managing_proxy_impl.hpp>
 
+#include <vsomeip_internal/log_macros.hpp>
+
 namespace vsomeip {
 
 template < int MaxBufferSize >
@@ -29,6 +31,8 @@ participant_impl< MaxBufferSize >::participant_impl(managing_proxy_impl *_owner,
 	  service_(_owner->get_service()),
 	  is_supporting_magic_cookies_(false),
 	  has_enabled_magic_cookies_(false) {
+
+	VSOMEIP_INFO << "BLUB";
 }
 
 template < int MaxBufferSize >
