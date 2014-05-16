@@ -1,6 +1,8 @@
 #include <chrono>
 #include <iostream>
 
+#include <boost/bind/placeholders.hpp>
+#include <boost/bind.hpp>
 #include <boost/thread.hpp>
 
 #include <vsomeip/vsomeip.hpp>
@@ -82,15 +84,10 @@ int main(int argc, char **argv) {
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
 
 	Connection the_connection;
-	std::function< void (const message_base *) > func = std::bind(&Connection::receive, the_connection, std::placeholders::_1);
+	boost::function< void (const message_base *) > func = boost::bind(&Connection::receive, &the_connection, _1);
 
-	message_handler_id_t id = the_application->register_message_handler(
-			INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
-	std::cout << "Registered message handler with id " << id << std::endl;
-
-	message_handler_id_t id2 = the_application->register_message_handler(
-			EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);
-	std::cout << "Registered message handler with id " << id2 << std::endl;
+	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
+	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);
 
 	boost::thread framework_thread(run);
 	boost::thread application_thread(worker);

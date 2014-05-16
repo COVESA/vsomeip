@@ -183,25 +183,28 @@ bool application_impl::disable_magic_cookies(service_id _service, instance_id _i
 	return proxy_->disable_magic_cookies(_service, _instance);
 }
 
-message_handler_id_t application_impl::register_message_handler(
-				service_id _service, instance_id _instance, method_id _method,
-				message_handler_t _handler) {
+bool application_impl::register_message_handler(
+		service_id _service, instance_id _instance, method_id _method,
+		message_handler_t _handler) {
 
-	static boost::atomic< message_handler_id_t  > id(0);
-	message_handler_id_t handler_id = id++;
+	auto found_service = message_handlers_.find(_service);
+	if (found_service != message_handlers_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_method = found_instance->second.find(_method);
+			if (found_method != found_instance->second.end()) {
+				return false;
+			}
+		}
+	}
 
-	message_handlers_[_service][_instance][_method][handler_id] = _handler;
+	message_handlers_[_service][_instance][_method] = _handler;
 	proxy_->register_method(_service, _instance, _method);
-
-	return handler_id;
+	return true;
 }
 
-bool application_impl::deregister_message_handler(
-		service_id _service, instance_id _instance, method_id _method,
-		message_handler_id_t _id) {
-
-	bool is_deregistered = false;
-
+void application_impl::deregister_message_handler(
+		service_id _service, instance_id _instance, method_id _method) {
 	auto found_service = message_handlers_.find(_service);
 	if (found_service != message_handlers_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -209,19 +212,11 @@ bool application_impl::deregister_message_handler(
 			auto found_method = found_service->second.find(_method);
 			if (found_method != found_service->second.end()) {
 				found_method->second.erase(_method);
-				if (0 == found_method->second.size()) {
-					if (0 < found_instance->second.erase(_id)) {
-						proxy_->deregister_method(_service, _instance, _method);
-						is_deregistered = true;
-					}
-				}
+				proxy_->deregister_method(_service, _instance, _method);
 			}
 		}
 	}
-
-	return is_deregistered;
 }
-
 
 void application_impl::handle_message(const message_base *_message) {
 	auto found_service = message_handlers_.find(_message->get_service_id());
@@ -230,13 +225,7 @@ void application_impl::handle_message(const message_base *_message) {
 		if (found_instance != found_service->second.end()) {
 			auto found_method = found_instance->second.find(_message->get_method_id());
 			if (found_method != found_instance->second.end()) {
-				std::for_each(
-					found_method->second.begin(),
-					found_method->second.end(),
-					[_message](std::pair< message_handler_id_t, message_handler_t > _element) {
-						_element.second(_message);
-					}
-				);
+				found_method->second(_message);
 			} else {
 				if (_message->get_message_type() < message_type_enum::RESPONSE) {
 					VSOMEIP_ERROR << "Unknown method " << std::hex << (int)_message->get_method_id();

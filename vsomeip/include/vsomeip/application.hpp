@@ -10,13 +10,16 @@
 #ifndef VSOMEIP_APPLICATION_HPP
 #define VSOMEIP_APPLICATION_HPP
 
+#include <boost/function.hpp>
+
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/types.hpp>
 
 namespace vsomeip {
 
 class endpoint;
 class message_base;
+
+typedef boost::function< void (const message_base *) > message_handler_t;
 
 class application {
 public:
@@ -53,12 +56,10 @@ public:
 	virtual bool enable_magic_cookies(service_id _service, instance_id _instance) = 0;
 	virtual bool disable_magic_cookies(service_id _service, instance_id _instance) = 0;
 
-	virtual message_handler_id_t register_message_handler(
-			service_id _service, instance_id _instance, method_id _method,
-			message_handler_t _handler) = 0;
-	virtual bool deregister_message_handler(
-			service_id _service, instance_id _instance, method_id _method,
-			message_handler_id_t _id) = 0;
+	virtual bool register_message_handler(
+			service_id _service, instance_id _instance, method_id _method, message_handler_t _handler) = 0;
+	virtual void deregister_message_handler(
+			service_id _service, instance_id _instance, method_id _method) = 0;
 };
 
 } // namespace vsomeip
