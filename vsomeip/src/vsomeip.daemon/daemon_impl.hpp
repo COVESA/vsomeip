@@ -72,9 +72,13 @@ public:
 	void stop();
 
 	bool send(message_base *_message, bool _flush);
-	void handle_message(const message_base *_message);
 
 	void catch_up_registrations();
+	void on_service_availability(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+
+	// Dummies
+	void handle_message(const message_base *_message);
+	void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 	boost::shared_ptr< serializer > & get_serializer();
 	boost::shared_ptr< deserializer > & get_deserializer();

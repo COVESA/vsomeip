@@ -20,6 +20,7 @@ class endpoint;
 class message_base;
 
 typedef boost::function< void (const message_base *) > message_handler_t;
+typedef boost::function< void (bool) > availability_handler_t;
 
 class application {
 public:
@@ -49,6 +50,11 @@ public:
 						service_id _service, instance_id _instance) = 0;
 	virtual bool stop_service(
 						service_id _service, instance_id _instance) = 0;
+
+	virtual bool is_service_available(service_id _service, instance_id _instance) const = 0;
+	virtual bool register_availability_handler(service_id _service, instance_id _instance,
+											   availability_handler_t _handler) = 0;
+	virtual void deregister_availability_handler(service_id _service, instance_id _instance) = 0;
 
 	// send & receive
 	virtual bool send(message_base *_message, bool _flush = true) = 0;

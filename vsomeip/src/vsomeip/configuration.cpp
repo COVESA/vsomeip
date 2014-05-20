@@ -118,7 +118,6 @@ configuration::~configuration() {
 
 void configuration::read_configuration(const std::string &_name) {
 	static bool has_read = false;
-	std::cout << "Reading configuration for " << _name << std::endl;
 	if (!has_read) {
 		options::options_description its_options_description;
 		its_options_description.add_options()
@@ -394,7 +393,6 @@ void configuration::read_configuration(const std::string &_name) {
 
 				if (its_options.count("someip.application." + _name + ".client_id")) {
 					client_id_ = its_options["someip.application." + _name + ".client_id"].as< int >();
-					std::cout << "Reading client_id = " << client_id_ << std::endl;
 				}
 
 				if (its_options.count("someip.application." + _name + ".enable_service_discovery")) {

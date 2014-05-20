@@ -20,6 +20,7 @@
 
 namespace vsomeip {
 
+class endpoint;
 class message_base;
 
 class application_base_impl :
@@ -45,6 +46,7 @@ public:
 
 	virtual void catch_up_registrations() = 0;
 	virtual void handle_message(const message_base *_message) = 0;
+	virtual void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) = 0;
 };
 
 } // namespace vsomeip

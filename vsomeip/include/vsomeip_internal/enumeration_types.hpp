@@ -42,6 +42,9 @@ enum class command_enum : uint8_t {
 
 	SOMEIP_MESSAGE = 0x40,
 
+	SOMEIP_SERVICE_AVAILABLE = 0x50,
+	SOMEIP_SERVICE_NOT_AVAILABLE = 0x51,
+
 	PING = 0xE0,
 	PONG = 0xE1
 };

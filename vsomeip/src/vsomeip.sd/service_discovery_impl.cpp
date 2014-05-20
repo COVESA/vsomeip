@@ -14,6 +14,8 @@
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
 #include <vsomeip/sd/factory.hpp>
+#include <vsomeip/sd/ipv4_endpoint_option.hpp>
+#include <vsomeip/sd/ipv6_endpoint_option.hpp>
 #include <vsomeip/sd/message.hpp>
 #include <vsomeip/sd/service_entry.hpp>
 #include <vsomeip_internal/byteorder.hpp>
@@ -138,33 +140,81 @@ std::string service_discovery_impl::get_broadcast_address(
 }
 
 void service_discovery_impl::on_provide_service(
-		service_id _service, instance_id _instance) {
+		service_id _service, instance_id _instance, const endpoint *_location) {
 	auto find_service = its_services_.find(_service);
 	if (find_service != its_services_.end()) {
 		auto find_instance = find_service->second.find(_instance);
 		if (find_instance == find_service->second.end()) {
 			service_state_machine::machine *its_machine = new service_state_machine::machine(this);
+			its_machine->service_ = _service;
+			its_machine->instance_ = _instance;
+			if (_location->get_protocol() == ip_protocol::TCP) {
+				its_machine->tcp_endpoint_ = _location;
+			} else {
+				its_machine->udp_endpoint_ = _location;
+			}
+
 			find_service->second[_instance].reset(its_machine);
+
 			its_machine->initiate();
 			its_machine->process_event(ev_none());
 			its_machine->process_event(ev_network_status_change(true, true));
+		} else {
+			service_state_machine::machine *its_machine = find_instance->second.get();
+			if (_location->get_protocol() == ip_protocol::TCP) { // TODO: handle endpoint changes
+				if (0 == its_machine->tcp_endpoint_) {
+					its_machine->tcp_endpoint_ = _location;
+				}
+			} else {
+				if (0 == its_machine->udp_endpoint_) {
+					its_machine->udp_endpoint_ = _location;
+				}
+			}
 		}
 	} else {
 		service_state_machine::machine *its_machine = new service_state_machine::machine(this);
+		its_machine->service_ = _service;
+		its_machine->instance_ = _instance;
+		if (_location->get_protocol() == ip_protocol::TCP) {
+			its_machine->tcp_endpoint_ = _location;
+		} else {
+			its_machine->udp_endpoint_ = _location;
+		}
+
+		its_services_[_service][_instance].reset(its_machine);
+
 		its_machine->initiate();
 		its_machine->process_event(ev_none());
 		its_machine->process_event(ev_network_status_change(true, true));
-		its_services_[_service][_instance].reset(its_machine);
 	}
 }
 
 void service_discovery_impl::on_withdraw_service(
-		service_id _service, instance_id _instance) {
+		service_id _service, instance_id _instance, const endpoint *_location) {
 	auto find_service = its_services_.find(_service);
 	if (find_service != its_services_.end()) {
 		auto find_instance = find_service->second.find(_instance);
 		if (find_instance != find_service->second.end()) {
-			find_service->second.erase(find_instance);
+			bool must_erase = false;
+			service_state_machine_t *its_machine = find_instance->second.get();
+			if (0 == _location) {
+				must_erase = true;
+			} else if (_location->get_protocol() == ip_protocol::TCP) {
+				if (0 == its_machine->udp_endpoint_) {
+					must_erase = true;
+				} else {
+					// TODO: stop offer on TCP endpoint
+				}
+			} else {
+				if (0 == its_machine->tcp_endpoint_) {
+					must_erase = true;
+				} else {
+					// TODO: stop offer on UDP endpoint
+				}
+			}
+
+			if (must_erase)
+				find_service->second.erase(find_instance);
 		}
 	}
 }
@@ -191,32 +241,129 @@ void service_discovery_impl::on_stop_service(
 	}
 }
 
+// TODO: connect applications to client state machines
 void service_discovery_impl::on_request_service(
-		service_id _service, instance_id _instance) {
+		client_id _client, service_id _service, instance_id _instance) {
+
+	auto find_service = its_clients_.find(_service);
+	if (find_service != its_clients_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance == find_service->second.end()) {
+			client_state_machine::machine *its_machine = new client_state_machine::machine(this);
+			its_machine->service_ = _service;
+			its_machine->instance_ = _instance;
+
+			find_service->second[_instance] = std::make_pair(
+				boost::shared_ptr< client_state_machine_t >(its_machine),
+				std::set< client_id >()
+			);
+			find_service->second[_instance].second.insert(_client);
+
+			its_machine->initiate();
+			its_machine->process_event(ev_network_status_change(true, true));
+			its_machine->process_event(ev_request_status_change(true));
+		} else {
+			find_instance->second.second.insert(_client);
+		}
+	} else {
+		client_state_machine::machine *its_machine = new client_state_machine::machine(this);
+		its_machine->service_ = _service;
+		its_machine->instance_ = _instance;
+
+		its_clients_[_service][_instance] = std::make_pair(
+			boost::shared_ptr< client_state_machine_t >(its_machine),
+			std::set< client_id >()
+		);
+		its_clients_[_service][_instance].second.insert(_client);
+
+		its_machine->initiate();
+		its_machine->process_event(ev_network_status_change(true, true));
+		its_machine->process_event(ev_request_status_change(true));
+	}
 }
 
 void service_discovery_impl::on_release_service(
-		service_id _service, instance_id _instance) {
+		client_id _client, service_id _service, instance_id _instance) {
+	auto find_service = its_clients_.find(_service);
+	if (find_service != its_clients_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			find_instance->second.second.erase(_client);
+			if (0 == find_instance->second.second.size()) {
+				find_service->second.erase(_instance);
+				if (0 == find_service->second.size()) {
+					its_clients_.erase(_service);
+				}
+			}
+		}
+	}
 }
 
 bool service_discovery_impl::send_find_service(client_state_machine_t *_data) {
-	return false;
+	boost::shared_ptr< message > find(factory_->create_message());
+	find->set_target(broadcast_);
+
+	service_entry & entry = find->create_service_entry();
+	entry.set_type(entry_type::FIND_SERVICE);
+	entry.set_service_id(_data->service_);
+	entry.set_instance_id(_data->instance_);
+	entry.set_time_to_live(0xFFFFFF); // TODO: find out what to set here
+	entry.set_major_version(0xFF); // TODO: add major version to interface and default to "Any"
+	entry.set_minor_version(0xFFFFFFFF); // TODO: add minor version to interface and default to "Any"
+	return send(find.get(), true);
 }
 
 bool service_discovery_impl::send_offer_service(service_state_machine_t *_data, const endpoint *_target) {
-	message * offer = factory_->create_message();
+	message * its_offer = factory_->create_message();
 	if (_target)
-		offer->set_target(_target);
+		its_offer->set_target(_target);
 	else
-		offer->set_target(broadcast_);
+		its_offer->set_target(broadcast_);
 
-	service_entry & entry = offer->create_service_entry();
-	entry.set_type(entry_type::OFFER_SERVICE);
-	entry.set_service_id(_data->service_);
-	entry.set_instance_id(_data->instance_);
-	entry.set_major_version(_data->major_);
-	entry.set_minor_version(_data->minor_);
-	return send(offer, true);
+	its_offer->set_interface_version(0x1);
+	//its_offer->set_message_type(message_type_enum::NOTIFICATION); // TODO: check why this causes failure...
+	its_offer->set_return_code(return_code_enum::OK);
+
+	service_entry & its_entry = its_offer->create_service_entry();
+	its_entry.set_type(entry_type::OFFER_SERVICE);
+	its_entry.set_service_id(_data->service_);
+	its_entry.set_instance_id(_data->instance_);
+	its_entry.set_time_to_live(0xFFFFFF); // TODO: set "real" time to live
+	its_entry.set_major_version(_data->major_);
+	its_entry.set_minor_version(_data->minor_);
+
+	// endpoint options
+	if (_data->tcp_endpoint_ && ip_protocol_version::V4 == _data->tcp_endpoint_->get_version() ||
+		_data->udp_endpoint_ && ip_protocol_version::V4 == _data->udp_endpoint_->get_version()) {
+
+		const endpoint *location = _data->tcp_endpoint_;
+		if (0 != location) {
+			ipv4_address its_address = boost::asio::ip::address_v4::from_string(
+					location->get_address()).to_ulong();
+
+			ipv4_endpoint_option & its_option = its_offer->create_ipv4_endpoint_option();
+			its_option.set_address(its_address);
+			its_option.set_port(location->get_port());
+			its_option.set_protocol(location->get_protocol());
+			its_entry.assign_option(its_option, 1);
+		}
+
+		location = _data->udp_endpoint_;
+		if (0 != location) {
+			ipv4_address its_address = boost::asio::ip::address_v4::from_string(
+					location->get_address()).to_ulong();
+
+			ipv4_endpoint_option & its_option = its_offer->create_ipv4_endpoint_option();
+			its_option.set_address(its_address);
+			its_option.set_port(location->get_port());
+			its_option.set_protocol(location->get_protocol());
+			its_entry.assign_option(its_option, 1);
+		}
+	} else {
+
+	}
+
+	return send(its_offer, true);
 }
 
 bool service_discovery_impl::send_stop_offer_service(service_state_machine_t *_data) {
@@ -246,29 +393,137 @@ void service_discovery_impl::on_message(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
 
-	std::cout << "service_discovery_impl::on_message: got a message ("
-			  << _size
-			  << ")"
-			  << std::endl;
-
 	deserializer_->set_data(_data, _size);
-	message *its_message = deserializer_->deserialize_sd_message();
-	if (0 != its_message) {
-
+	boost::shared_ptr< message > its_message(deserializer_->deserialize_sd_message());
+	if (its_message) {
 		const std::vector< entry * > its_entries = its_message->get_entries();
 		const std::vector< option * > its_options = its_message->get_options();
 
-		std::cout << "service_discovery_impl::on_message: Message has "
-				  << std::dec
-				  << its_entries.size() << " entries and "
-				  << its_options.size() << " options."
-				  << std::endl;
-	} else {
+		for (auto its_entry : its_entries) {
+			switch (its_entry->get_type()) {
+			case entry_type::FIND_SERVICE:
+				on_find_service(reinterpret_cast< service_entry * >(its_entry), its_options, _source);
+				break;
 
-		std::cout << "service_discovery_impl::on_message: Message deserialization failed!" << std::endl;
+			case entry_type::OFFER_SERVICE: // included STOP_OFFER_SERVICE
+				on_offer_service(reinterpret_cast< service_entry * >(its_entry), its_options);
+				break;
+
+			case entry_type::REQUEST_SERVICE:
+				// TODO: find out what REQUEST_SERVICE is meant to do!
+				break;
+			};
+		}
+	}
+}
+
+void service_discovery_impl::send_service_state(service_id _service, instance_id _instance, bool _is_available) {
+	const client_info_t *its_info = find_client_info(_service, _instance);
+	if (0 != its_info) {
+		const endpoint *its_location = its_info->first->tcp_endpoint_;
+		if (0 != its_location) {
+			for (client_id its_client : its_info->second) {
+				owner_->on_service_availability(its_client, _service, _instance, its_location, _is_available);
+			}
+		}
+
+		its_location = its_info->first->udp_endpoint_;
+		if (0 != its_location) {
+			for (client_id its_client : its_info->second) {
+				owner_->on_service_availability(its_client, _service, _instance, its_location, _is_available);
+			}
+		}
+	} else {
+		// TODO: add error message as this must not happen!
+	}
+}
+
+const service_discovery_impl::client_info_t *
+service_discovery_impl::find_client_info(service_id _service, instance_id _instance) const {
+	const client_info_t *its_info = 0;
+
+	auto find_service = its_clients_.find(_service);
+	if (find_service != its_clients_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			its_info = &(find_instance->second);
+		}
 	}
 
-	delete its_message;
+	return its_info;
+}
+
+client_state_machine_t * service_discovery_impl::find_client_machine(service_id _service, instance_id _instance) const {
+	client_state_machine_t *its_machine = 0;
+	auto client_info = find_client_info(_service, _instance);
+	if (0 != client_info)
+		its_machine = client_info->first.get();
+	return its_machine;
+}
+
+service_state_machine_t * service_discovery_impl::find_service_machine(service_id _service, instance_id _instance) const {
+	service_state_machine_t *its_machine = 0;
+
+	auto find_service = its_services_.find(_service);
+	if (find_service != its_services_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			its_machine = find_instance->second.get();
+		}
+	}
+
+	return its_machine;
+}
+
+void service_discovery_impl::on_find_service(
+		const service_entry *_entry, const std::vector< option * > &_options,
+		const endpoint *_source) {
+
+	service_id its_service = _entry->get_service_id();
+	instance_id its_instance = _entry->get_instance_id();
+
+	service_state_machine_t *its_machine = find_service_machine(its_service, its_instance);
+	if (0 != its_machine) {
+		its_machine->process_event(ev_find_service(_source));
+	}
+}
+
+void service_discovery_impl::on_offer_service(const service_entry *_entry, const std::vector< option * > &_options) {
+	service_id its_service = _entry->get_service_id();
+	instance_id its_instance = _entry->get_instance_id();
+
+	client_state_machine_t *its_machine = find_client_machine(its_service, its_instance);
+	if (0 != its_machine) {
+		if (0 < _entry->get_time_to_live()) {
+			const std::vector< uint8_t > &indices = _entry->get_options(1);
+
+			for (auto i : indices) {
+				option *its_option = _options[i];
+				if (its_option->get_type() == option_type::IP4_ENDPOINT) {
+					ipv4_endpoint_option *its_endpoint_option
+						= dynamic_cast< ipv4_endpoint_option * >(its_option);
+
+					const endpoint *its_endpoint
+						= vsomeip::factory::get_instance()->get_endpoint(
+								boost::asio::ip::address_v4(its_endpoint_option->get_address()).to_string(),
+								its_endpoint_option->get_port(),
+								its_endpoint_option->get_protocol()
+						  );
+
+					if (ip_protocol::TCP == its_endpoint->get_protocol()) {
+						its_machine->tcp_endpoint_ = its_endpoint;
+					} else {
+						its_machine->udp_endpoint_ = its_endpoint;
+					}
+				}
+			}
+
+			its_machine->process_event(ev_offer_service());
+
+		} else {
+			its_machine->process_event(ev_stop_offer_service());
+		}
+	}
 }
 
 } // namespace sd

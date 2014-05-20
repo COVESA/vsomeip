@@ -52,6 +52,11 @@ public:
 	bool request_service(service_id _service, instance_id _instance, const endpoint *_location);
 	bool release_service(service_id _service, instance_id _instance);
 
+	bool is_service_available(service_id _service, instance_id _instance) const;
+	bool register_availability_handler(service_id _service, instance_id _instance,
+									   availability_handler_t _handler);
+	void deregister_availability_handler(service_id _service, instance_id _instance);
+
 	bool send(message_base *_message, bool _flush = true);
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
@@ -64,8 +69,8 @@ public:
 			service_id _service, instance_id _instance, method_id _method);
 
 	void catch_up_registrations();
-
 	void handle_message(const message_base *_message);
+	void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 	boost::shared_ptr< serializer > & get_serializer();
 	boost::shared_ptr< deserializer > & get_deserializer();
@@ -94,6 +99,7 @@ protected:
 
 	//
 	bool is_managing_;
+	bool is_service_discovery_enabled_;
 
 	// Handler callbacks for incoming messages
 	typedef std::map< service_id,
@@ -104,6 +110,10 @@ protected:
 
 	boost::shared_ptr< serializer > serializer_;
 	boost::shared_ptr< deserializer > deserializer_;
+
+	// Available services
+	std::map< service_id, std::set< instance_id > > availability_;
+	std::map< service_id, std::map< instance_id, availability_handler_t > > availability_handlers_;
 };
 
 } // namespace vsomeip

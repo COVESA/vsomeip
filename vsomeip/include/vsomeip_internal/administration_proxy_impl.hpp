@@ -71,6 +71,7 @@ protected:
 	void on_application_info(const uint8_t *_data, uint32_t _size);
 	void on_application_lost(const uint8_t *_data, uint32_t _size);
 	void on_request_service_ack(service_id _service, instance_id _instance, const std::string &_queue_name);
+	virtual void on_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 	void remove_requested_services(message_queue *_queue);
 

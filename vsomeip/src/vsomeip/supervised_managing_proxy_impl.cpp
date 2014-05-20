@@ -94,17 +94,7 @@ bool supervised_managing_proxy_impl::stop_service(service_id _service, instance_
 }
 
 bool supervised_managing_proxy_impl::request_service(service_id _service, instance_id _instance, const endpoint *_location) {
-	bool is_successful = false;
-
-	if (administration_proxy_impl::request_service(_service, _instance, _location)) {
-		if (managing_proxy_impl::request_service(_service, _instance, _location)) {
-			is_successful = true;
-		} else {
-			administration_proxy_impl::release_service(_service, _instance);
-		}
-	}
-
-	return is_successful;
+	return administration_proxy_impl::request_service(_service, _instance, _location);
 }
 
 bool supervised_managing_proxy_impl::release_service(service_id _service, instance_id _instance) {
@@ -135,6 +125,18 @@ bool supervised_managing_proxy_impl::enable_magic_cookies(service_id _service, i
 
 bool supervised_managing_proxy_impl::disable_magic_cookies(service_id _service, instance_id _instance) {
 	return false;
+}
+
+void supervised_managing_proxy_impl::on_service_availability(
+		service_id _service, instance_id _instance, const endpoint *_location,
+		bool _is_available) {
+
+	if (_is_available)
+		managing_proxy_impl::request_service(_service, _instance, _location);
+	else
+		managing_proxy_impl::release_service(_service, _instance);
+
+	administration_proxy_impl::on_service_availability(_service, _instance, _location, _is_available);
 }
 
 } // namespace vsomeip

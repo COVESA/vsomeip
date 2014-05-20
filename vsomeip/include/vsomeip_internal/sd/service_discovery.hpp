@@ -47,14 +47,14 @@ public:
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
-	virtual void on_provide_service(service_id _service, instance_id _instance) = 0;
-	virtual void on_withdraw_service(service_id _service, instance_id _instance) = 0;
+	virtual void on_provide_service(service_id _service, instance_id _instance, const endpoint *_location) = 0;
+	virtual void on_withdraw_service(service_id _service, instance_id _instance, const endpoint *_location) = 0;
 
 	virtual void on_start_service(service_id _service, instance_id _instance) = 0;
 	virtual void on_stop_service(service_id _service, instance_id _instance) = 0;
 
-	virtual void on_request_service(service_id _service, instance_id _instance) = 0;
-	virtual void on_release_service(service_id _service, instance_id _instance) = 0;
+	virtual void on_request_service(client_id _client, service_id _service, instance_id _instance) = 0;
+	virtual void on_release_service(client_id _client, service_id _service, instance_id _instance) = 0;
 
 	virtual void on_message(const uint8_t *_data, uint32_t _size,
 							const endpoint *_source, const endpoint *_target) = 0;
@@ -62,6 +62,8 @@ public:
 	virtual bool send_find_service(client_state_machine_t *_data) = 0;
 	virtual bool send_offer_service(service_state_machine_t *_data, const endpoint *_target) = 0;
 	virtual bool send_stop_offer_service(service_state_machine_t *_data) = 0;
+
+	virtual void send_service_state(service_id _service, instance_id _instance, bool _is_available) = 0;
 };
 
 } // sd

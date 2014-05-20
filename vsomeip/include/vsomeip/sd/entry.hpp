@@ -41,6 +41,7 @@ public:
 	virtual time_to_live get_time_to_live() const = 0;
 	virtual void set_time_to_live(time_to_live _ttl) = 0;
 
+	const virtual std::vector< uint8_t > & get_options(uint8_t _run) const = 0;
 	virtual void assign_option(const option& _option, uint8_t _run) = 0;
 
 	virtual bool is_service_entry() const = 0;

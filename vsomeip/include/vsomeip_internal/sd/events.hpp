@@ -55,9 +55,9 @@ struct ev_request_status_change
 struct ev_find_service
 		: boost::statechart::event< ev_find_service > {
 
-	ev_find_service(endpoint *_source) : source_(_source) {};
+	ev_find_service(const endpoint *_source) : source_(_source) {};
 
-	endpoint *source_;
+	const endpoint *source_;
 };
 
 struct ev_offer_service

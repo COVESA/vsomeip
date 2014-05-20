@@ -45,8 +45,8 @@ struct machine
 
 	uint32_t cyclic_offer_delay_;
 
-	bool is_network_ready_;
-	bool is_service_ready_;
+	bool is_network_up_;
+	bool is_network_configured_;
 	bool is_service_requested_;
 
 	// Service data
@@ -55,13 +55,20 @@ struct machine
 	major_version major_;
 	minor_version minor_;
 
+	// endpoints
+	const endpoint *tcp_endpoint_;
+	const endpoint *udp_endpoint_;
+
 	service_discovery *discovery_;
 
-	inline bool is_ready() { return (is_network_ready_ && is_service_ready_); };
+	inline bool is_ready() { return (is_network_up_ && is_network_configured_); };
 
 	void send_find_service(endpoint *_target = 0);
+	void announce_service_state(bool _is_available);
 
 	void timer_expired(const boost::system::error_code &_error);
+
+	void log(const std::string &_message);
 };
 
 struct waiting;
@@ -82,12 +89,12 @@ struct waiting
 
 	typedef mpl::list<
 		sc::custom_reaction< ev_none >,
-		sc::custom_reaction< ev_service_status_change >,
+		sc::custom_reaction< ev_network_status_change >,
 		sc::custom_reaction< ev_request_status_change >
 	> reactions;
 
 	sc::result react(const ev_none &_event);
-	sc::result react(const ev_service_status_change &_event);
+	sc::result react(const ev_network_status_change &_event);
 	sc::result react(const ev_request_status_change &_event);
 };
 
@@ -121,12 +128,12 @@ struct seen
 	typedef mpl::list<
 		sc::custom_reaction< ev_timeout_expired >,
 		sc::custom_reaction< ev_stop_offer_service >,
-		sc::custom_reaction< ev_service_status_change >
+		sc::custom_reaction< ev_network_status_change >
 	> reactions;
 
 	sc::result react(const ev_timeout_expired &_event);
 	sc::result react(const ev_stop_offer_service &_event);
-	sc::result react(const ev_service_status_change &_event);
+	sc::result react(const ev_network_status_change &_event);
 };
 
 struct not_requested

@@ -46,8 +46,8 @@ public:
 	load_balancing_option & create_load_balancing_option();
 	protection_option & create_protection_option();
 
-	const std::vector<entry *> get_entries() const;
-	const std::vector<option *> get_options() const;
+	const std::vector< entry * > get_entries() const;
+	const std::vector< option * > get_options() const;
 
 	int16_t get_option_index(const option &_option) const;
 
@@ -61,8 +61,8 @@ private:
 private:
 	flags flags_;
 
-	std::vector<entry *> entries_;
-	std::vector<option *> options_;
+	std::vector< entry * > entries_;
+	std::vector< option * > options_;
 };
 
 } // namespace sd

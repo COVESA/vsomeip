@@ -45,6 +45,7 @@ public:
 	time_to_live get_time_to_live() const;
 	void set_time_to_live(time_to_live _time_to_live);
 
+	const std::vector< uint8_t > & get_options(uint8_t _run) const;
 	void assign_option(const option& _option, uint8_t _run);
 
 	bool is_service_entry() const;

@@ -40,6 +40,8 @@ public:
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
 	bool disable_magic_cookies(service_id _service, instance_id _instance);
+
+	void on_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 };
 
 } // namespace vsomeip

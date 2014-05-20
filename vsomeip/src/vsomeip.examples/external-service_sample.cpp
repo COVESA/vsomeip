@@ -18,7 +18,7 @@ void on_off() {
 	static bool is_on = false;
 
 	while (true) {
-		usleep(10000000);
+		usleep(3000000);
 
 		if (is_on) {
 			std::cout << "Stopping service" << std::endl;

@@ -43,18 +43,24 @@ void receive(const message_base *_message) {
 void worker() {
 	bool is_sending_to_internal = true;
 	while (1) {
+		bool is_available;
+
 		if (is_sending_to_internal) {
 			the_message->set_service_id(INTERNAL_SAMPLE_SERVICE);
 			the_message->set_instance_id(INTERNAL_SAMPLE_SERVICE_INSTANCE);
 			the_message->set_method_id(INTERNAL_SAMPLE_METHOD);
+			is_available = the_application->is_service_available(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE);
 		} else {
 			the_message->set_service_id(EXTERNAL_SAMPLE_SERVICE);
 			the_message->set_instance_id(EXTERNAL_SAMPLE_SERVICE_INSTANCE);
 			the_message->set_method_id(EXTERNAL_SAMPLE_METHOD);
+			is_available = the_application->is_service_available(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE);
 		}
 
 		usleep(100000);
-		the_application->send(the_message, true);
+
+		if (is_available)
+			the_application->send(the_message, true);
 
 		is_sending_to_internal = !is_sending_to_internal;
 	}

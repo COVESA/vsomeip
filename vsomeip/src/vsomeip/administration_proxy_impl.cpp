@@ -14,6 +14,7 @@
 #include <boost_ext/asio/placeholders.hpp>
 #include <boost_ext/process.hpp>
 
+#include <vsomeip/factory.hpp>
 #include <vsomeip_internal/administration_proxy_impl.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/configuration.hpp>
@@ -102,43 +103,35 @@ bool administration_proxy_impl::request_service(
 
 	bool is_requested = true;
 
-	if (_location) {
-		auto find_service = requested_.find(_service);
-		if (find_service != requested_.end()) {
-			auto find_location = find_service->second.find(_instance);
-			if (find_location != find_service->second.end()) {
-				if (find_location->second.first != _location) {
-					if (owner_.get_id() != 0) {
-						send_service_command(
-							command_enum::RELEASE_SERVICE,
-							_service,
-							_instance,
-							find_location->second.first
-						);
-					}
-					find_location->second = std::make_pair(_location, daemon_queue_.get());
+	auto find_service = requested_.find(_service);
+	if (find_service != requested_.end()) {
+		auto find_location = find_service->second.find(_instance);
+		if (find_location != find_service->second.end()) {
+			if (find_location->second.first != _location) {
+				if (owner_.get_id() != 0) {
+					send_service_command(
+						command_enum::RELEASE_SERVICE,
+						_service,
+						_instance,
+						find_location->second.first
+					);
 				}
-			} else {
-				find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
+				find_location->second = std::make_pair(_location, daemon_queue_.get());
 			}
 		} else {
-			requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+			find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
 		}
-
-		if (is_registered_) {
-			send_service_command(
-				command_enum::REQUEST_SERVICE,
-				_service,
-				_instance,
-				_location
-			);
-		}
-
 	} else {
-		VSOMEIP_ERROR << "Request for service ["
-					  << std::hex << _service << "." << _instance
-					  << "] is missing location (and SD is inactive)";
-		is_requested = false;
+		requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+	}
+
+	if (is_registered_) {
+		send_service_command(
+			command_enum::REQUEST_SERVICE,
+			_service,
+			_instance,
+			_location
+		);
 	}
 
 	return is_requested;
@@ -550,6 +543,7 @@ void administration_proxy_impl::process_message(std::size_t _bytes) {
 void administration_proxy_impl::process_command(command_enum _command, client_id _client, const uint8_t *_payload, uint32_t payload_size) {
 	service_id its_service;
 	instance_id its_instance;
+	const endpoint *its_location = 0;
 
 	switch (_command) {
 	case command_enum::APPLICATION_INFO:
@@ -570,6 +564,19 @@ void administration_proxy_impl::process_command(command_enum _command, client_id
 
 	case command_enum::PING:
 		send_pong();
+		break;
+
+	case command_enum::SOMEIP_SERVICE_AVAILABLE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		its_location = vsomeip::factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
+		on_service_availability(its_service, its_instance, its_location, true);
+		break;
+
+	case command_enum::SOMEIP_SERVICE_NOT_AVAILABLE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		on_service_availability(its_service, its_instance, its_location, false);
 		break;
 
 	default:
@@ -676,6 +683,25 @@ void administration_proxy_impl::on_request_service_ack(service_id _service, inst
 			)
 		);
 	}
+}
+
+void administration_proxy_impl::on_service_availability(
+		service_id _service, instance_id _instance, const endpoint *_location,
+		bool _is_available) {
+
+	auto find_service = requested_.find(_service);
+	if (find_service != requested_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			if (_is_available) {
+				find_instance->second.first = _location;
+			} else {
+				find_instance->second.first = 0;
+			}
+		}
+	}
+
+	owner_.handle_service_availability(_service, _instance, _location, _is_available);
 }
 
 void administration_proxy_impl::remove_requested_services(message_queue *_queue) {

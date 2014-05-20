@@ -10,6 +10,8 @@
 #ifndef VSOMEIP_INTERNAL_SD_SERVICE_STATE_MACHINE_HPP
 #define VSOMEIP_INTERNAL_SD_SERVICE_STATE_MACHINE_HPP
 
+#include <iomanip>
+
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/state.hpp>
@@ -44,6 +46,8 @@ struct machine
 
 	void timer_expired(const boost::system::error_code &_error);
 
+	void log(const std::string &_message);
+
 	uint32_t initial_delay_;
 
 	uint32_t repetition_base_delay_;
@@ -55,13 +59,17 @@ struct machine
 	bool is_network_configured_;
 	bool is_service_ready_;
 
-	service_discovery *discovery_;
-
 	// Service data
 	service_id service_;
 	instance_id instance_;
 	major_version major_;
 	minor_version minor_;
+
+	// endpoints
+	const endpoint *tcp_endpoint_;
+	const endpoint *udp_endpoint_;
+
+	service_discovery *discovery_;
 };
 
 struct initial

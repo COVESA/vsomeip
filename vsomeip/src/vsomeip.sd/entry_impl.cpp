@@ -77,6 +77,14 @@ void entry_impl::set_time_to_live(time_to_live _ttl) {
 	time_to_live_ = _ttl;
 }
 
+const std::vector< uint8_t > & entry_impl::get_options(uint8_t _run) const {
+	static std::vector< uint8_t > invalid_options;
+	if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN)
+		return options_[_run-1];
+
+	return invalid_options;
+}
+
 void entry_impl::assign_option(const option &_option, uint8_t _run) {
 	if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN) {
 		_run--; // Index = Run-1
@@ -114,10 +122,10 @@ bool entry_impl::serialize(vsomeip::serializer *_to) const {
 			&& _to->serialize(number_of_options);
 
 	is_successful = is_successful
-			&& _to->serialize(static_cast<uint16_t>(service_id_));
+			&& _to->serialize(static_cast< uint16_t >(service_id_));
 
 	is_successful = is_successful
-			&& _to->serialize(static_cast<uint16_t>(instance_id_));
+			&& _to->serialize(static_cast< uint16_t >(instance_id_));
 
 	return is_successful;
 }
@@ -127,17 +135,32 @@ bool entry_impl::deserialize(vsomeip::deserializer *_from) {
 
 	uint8_t tmp_type;
 	is_successful = is_successful && _from->deserialize(tmp_type);
-	type_ = static_cast<entry_type>(tmp_type);
+	type_ = static_cast< entry_type >(tmp_type);
 
-	uint32_t tmp_options;
-	is_successful = is_successful && _from->deserialize(tmp_options, true);
+	uint8_t tmp_index1;
+	is_successful = is_successful && _from->deserialize(tmp_index1);
+
+	uint8_t tmp_index2;
+	is_successful = is_successful && _from->deserialize(tmp_index2);
+
+	uint8_t tmp_numbers;
+	is_successful = is_successful && _from->deserialize(tmp_numbers);
+
+	uint8_t tmp_numbers1 = (tmp_numbers >> 4);
+	uint8_t tmp_numbers2 = (tmp_numbers & 0xF);
+
+	for (uint8_t i = tmp_index1; i < tmp_index1 + tmp_numbers1; ++i)
+		options_[0].push_back(i);
+
+	for (uint8_t i = tmp_index2; i < tmp_index2 + tmp_numbers2; ++i)
+		options_[1].push_back(i);
 
 	uint16_t tmp_id;
 	is_successful = is_successful && _from->deserialize(tmp_id);
-	service_id_ = static_cast<service_id>(tmp_id);
+	service_id_ = static_cast< service_id >(tmp_id);
 
 	is_successful = is_successful && _from->deserialize(tmp_id);
-	instance_id_ = static_cast<instance_id>(tmp_id);
+	instance_id_ = static_cast< instance_id >(tmp_id);
 
 	return is_successful;
 }

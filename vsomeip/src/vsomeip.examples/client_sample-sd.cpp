@@ -23,9 +23,6 @@ using namespace vsomeip;
 factory * the_factory = factory::get_instance();
 application * the_application = the_factory->create_application("InternalClientSample");
 
-endpoint *internal_endpoint = the_factory->get_endpoint("10.0.2.15", 30499, ip_protocol::TCP);
-endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_protocol::TCP);
-
 message * the_message = the_factory->create_message();
 
 class Connection {
@@ -86,8 +83,8 @@ int main(int argc, char **argv) {
 	}
 	the_message->get_payload().set_data(sample_message_data, sizeof(sample_message_data));
 
-	the_application->request_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, internal_endpoint);
-	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
+	the_application->request_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE);
+	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE);
 
 	Connection the_connection;
 	boost::function< void (const message_base *) > func = boost::bind(&Connection::receive, &the_connection, _1);

@@ -12,6 +12,8 @@
 
 #include <string>
 
+#include <vsomeip/primitive_types.hpp>
+
 namespace vsomeip {
 
 class endpoint;
@@ -32,6 +34,8 @@ public:
 	virtual void stop() = 0;
 
 	virtual bool send(message_base *_message, bool _flush) = 0;
+
+	virtual void on_service_availability(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) = 0;
 };
 
 } // namespace vsomeip

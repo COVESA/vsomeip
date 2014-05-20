@@ -81,6 +81,7 @@ public:
             ec = boost::asio::error::operation_aborted;
             struct mq_attr config;
             e = mq_getattr(id_, &config);
+#ifdef VSOMEIP_QUEUE_DEBUG
             std::cout << "Queue ("
             		  << name_
             		  << ") state ["
@@ -92,6 +93,7 @@ public:
             		  << ", "
             		  << config.mq_flags
             		  << "]" << std::endl;
+#endif
         }
     }
 

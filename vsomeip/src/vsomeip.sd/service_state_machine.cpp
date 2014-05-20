@@ -24,7 +24,9 @@ machine::machine(service_discovery *_discovery)
 	  timer_service(_discovery->get_service()),
 	  is_network_configured_(false),
 	  is_service_ready_(false),
-	  run_(0) {
+	  run_(0),
+	  tcp_endpoint_(0),
+	  udp_endpoint_(0) {
 
 	configuration *the_configuration = configuration::request(get_application_name());
 
@@ -78,9 +80,20 @@ void machine::timer_expired(const boost::system::error_code &_error) {
 	}
 }
 
+void machine::log(const std::string &_message) {
+	std::cout << "Service ["
+			  << std::hex << std::setfill('0') << std::setw(4) << service_
+			  << "."
+			  << std::hex << std::setfill('0') << std::setw(4) << instance_
+			  << "] enters state \""
+			  << _message
+			  << "\""
+			  << std::endl;
+}
+
 // state initial
 initial::initial(my_context ctx) : sc::state< initial, machine >(ctx) {
-	std::cout << "initial" << std::endl;
+	outermost_context().log("Initial");
 }
 
 sc::result initial::react(const ev_none &) {
@@ -93,7 +106,7 @@ sc::result initial::react(const ev_none &) {
 
 // state not_ready
 not_ready::not_ready(my_context ctx) : sc::state< not_ready, machine >(ctx) {
-	std::cout << "not_ready" << std::endl;
+	outermost_context().log("NotReady");
 }
 
 sc::result not_ready::react(const ev_network_status_change &_event) {
@@ -118,6 +131,7 @@ sc::result not_ready::react(const ev_service_status_change &_event) {
 
 // state ready
 ready::ready(my_context ctx) : state< ready, machine, initializing >(ctx) {
+	outermost_context().log("Ready");
 }
 
 sc::result ready::react(const ev_network_status_change &_event) {
@@ -145,7 +159,7 @@ sc::result ready::react(const ev_service_status_change &_event) {
 
 // state ready.initializing
 initializing::initializing(my_context ctx) : sc::state< initializing, ready >(ctx) {
-	std::cout << "ready.initializing" << std::endl;
+	outermost_context().log("Ready.Initializing");
 	outermost_context().run_ = 0;
 	outermost_context().start_timer(outermost_context().initial_delay_);
 }
@@ -160,7 +174,7 @@ sc::result initializing::react(const ev_timeout_expired &_event) {
 
 // state ready.repeating
 repeating::repeating(my_context ctx) : sc::state< repeating, ready >(ctx) {
-	std::cout << "ready.repeating" << std::endl;
+	outermost_context().log("Ready.Repeating");
 
 	outermost_context().start_timer(
 		(2 << outermost_context().run_) * outermost_context().repetition_base_delay_);
@@ -184,7 +198,7 @@ sc::result repeating::react(const ev_timeout_expired &_event) {
 
 // state ready.announcing
 announcing::announcing(my_context ctx) : sc::state< announcing, ready >(ctx) {
-	std::cout << "ready.announcing" << std::endl;
+	outermost_context().log("Ready.Announcing");
 	outermost_context().start_timer(
 		outermost_context().cyclic_offer_delay_);
 }

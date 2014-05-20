@@ -82,11 +82,17 @@ target_link_libraries(application_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY
 add_executable(client_sample src/vsomeip.examples/client_sample.cpp)
 target_link_libraries(client_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
+add_executable(client_sample-sd src/vsomeip.examples/client_sample-sd.cpp)
+target_link_libraries(client_sample-sd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
 add_executable(service_sample src/vsomeip.examples/service_sample.cpp)
 target_link_libraries(service_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-client_sample src/vsomeip.examples/external-client_sample.cpp)
 target_link_libraries(external-client_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
+add_executable(external-client_sample-sd src/vsomeip.examples/external-client_sample-sd.cpp)
+target_link_libraries(external-client_sample-sd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(external-service_sample src/vsomeip.examples/external-service_sample.cpp)
 target_link_libraries(external-service_sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
