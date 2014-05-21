@@ -79,8 +79,9 @@ void application_impl::init(int _options_count, char **_options) {
 		its_configuration->use_file_logger(),
 		its_configuration->use_dlt_logger()
 	);
-	set_loglevel(its_configuration->get_loglevel());
+
 	set_channel(name_);
+	set_loglevel(its_configuration->get_loglevel());
 
 	id_ = its_configuration->get_client_id();
 

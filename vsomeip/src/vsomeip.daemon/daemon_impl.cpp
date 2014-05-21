@@ -809,8 +809,6 @@ void daemon_impl::send_ping(client_id _id) {
 }
 
 void daemon_impl::send_application_info() {
-	std::vector< uint8_t > message_data;
-
 	// determine the message size
 	std::size_t message_size = VSOMEIP_PROTOCOL_OVERHEAD;
 	for (auto a: applications_) {
@@ -820,13 +818,14 @@ void daemon_impl::send_application_info() {
 	}
 
 	// resize vector and fill in the static part
-	message_data.resize(message_size);
+	std::vector< uint8_t > message_data(message_size);
 	std::memcpy(&message_data[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
 	std::memcpy(&message_data[message_size-4], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
 	message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::APPLICATION_INFO);
 
-	message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
-	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
+	if (message_size > VSOMEIP_PROTOCOL_OVERHEAD) {
+		message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
+		std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &message_size, sizeof(message_size));
 
 	std::size_t position = VSOMEIP_PROTOCOL_PAYLOAD;
 	for (auto a: applications_) {
@@ -846,6 +845,7 @@ void daemon_impl::send_application_info() {
 					  message_data.begin() + position);
 			position += queue_name_size;
 		}
+	}
 	}
 
 	do_broadcast(message_data);

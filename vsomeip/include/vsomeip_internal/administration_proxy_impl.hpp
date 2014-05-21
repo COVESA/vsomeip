@@ -68,7 +68,7 @@ protected:
 	void process_message(std::size_t _bytes);
 	virtual void process_command(command_enum _command, client_id _client, const uint8_t *_payload, uint32_t payload_size);
 
-	void on_application_info(const uint8_t *_data, uint32_t _size);
+	void on_application_info(client_id _client, const uint8_t *_data, uint32_t _size);
 	void on_application_lost(const uint8_t *_data, uint32_t _size);
 	void on_request_service_ack(service_id _service, instance_id _instance, const std::string &_queue_name);
 	virtual void on_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);

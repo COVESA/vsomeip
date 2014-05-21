@@ -21,6 +21,8 @@
 #include <vsomeip_internal/enumeration_types.hpp>
 #include <vsomeip_internal/log_macros.hpp>
 
+//#define VSOMEIP_DEVEL
+
 namespace vsomeip {
 
 administration_proxy_impl::administration_proxy_impl(application_base_impl &_owner)
@@ -547,7 +549,7 @@ void administration_proxy_impl::process_command(command_enum _command, client_id
 
 	switch (_command) {
 	case command_enum::APPLICATION_INFO:
-		on_application_info(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], payload_size);
+		on_application_info(_client, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], payload_size);
 		catch_up_registrations();
 		break;
 
@@ -585,16 +587,19 @@ void administration_proxy_impl::process_command(command_enum _command, client_id
 	}
 }
 
-void administration_proxy_impl::on_application_info(const uint8_t *_data, uint32_t _size) {
+void administration_proxy_impl::on_application_info(client_id _client, const uint8_t *_data, uint32_t _size) {
 	VSOMEIP_TRACE << "administration_proxy_impl::on_application_info";
+
+	VSOMEIP_DEBUG << "Client-Id (from daemon): " << _client;
+	if (_client != owner_.get_id()) {
+		owner_.set_id(_client);
+	}
+
 	uint32_t position = 0;
 	while (position + 4 < _size) {
-		client_id configured_id = owner_.get_id();
-		client_id provided_id;
-		std::memcpy(&provided_id, &_data[position], sizeof(provided_id));
+		client_id id; 
+		std::memcpy(&id, &_data[position], sizeof(id));
 		position += 4;
-
-		VSOMEIP_DEBUG << "Client-ID (from daemon): " << provided_id;
 
 		if (position + 4 < _size) {
 			uint32_t queue_name_size;
@@ -604,18 +609,9 @@ void administration_proxy_impl::on_application_info(const uint8_t *_data, uint32
 			if (position + queue_name_size <= _size) {
 				std::string queue_name((char *)&_data[position], queue_name_size);
 
-				if (queue_name == application_queue_name_) {
-					if (configured_id != 0) {
-						if (configured_id != provided_id) {
-							VSOMEIP_ERROR << "Found my (" << configured_id << ") queue ("
-								<< queue_name << ") registered for application " << provided_id;
-						}
-					} else {
-						owner_.set_id(provided_id);
-					}
-				} else {
-					VSOMEIP_DEBUG << "Found queue " << queue_name << " for application " << provided_id;
-					other_queue_names_[provided_id] = queue_name;
+				if (queue_name != application_queue_name_) {
+					VSOMEIP_DEBUG << "Found queue " << queue_name << " for application " << id;
+					other_queue_names_[id] = queue_name;
 				}
 				position += queue_name_size;
 			}

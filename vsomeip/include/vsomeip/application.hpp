@@ -55,6 +55,11 @@ public:
 	virtual bool register_availability_handler(service_id _service, instance_id _instance,
 											   availability_handler_t _handler) = 0;
 	virtual void deregister_availability_handler(service_id _service, instance_id _instance) = 0;
+#ifdef EVENTGROUPS
+	// eventgroups
+	virtual eventgroup provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) = 0;
+#endif	
+
 
 	// send & receive
 	virtual bool send(message_base *_message, bool _flush = true) = 0;

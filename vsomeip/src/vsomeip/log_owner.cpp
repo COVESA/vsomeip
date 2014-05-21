@@ -46,7 +46,7 @@ using namespace boost::log::trivial;
 namespace vsomeip {
 
 log_owner::log_owner(const std::string &_name)
-	: owner_base(_name) {
+	: owner_base(_name), loglevel_(debug), console_sink_(0), file_sink_(0)  {
 	logging::add_common_attributes();
 }
 
@@ -172,6 +172,7 @@ void log_owner::enable_dlt() {
 bool log_owner::filter(
 		logging::value_ref< severity_level, tag::severity > const &_loglevel,
 		logging::value_ref< std::string, tag::channel > const &_channel) {
+
 	return _channel == channel_ && _loglevel >= loglevel_;
 }
 
