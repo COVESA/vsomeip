@@ -25,6 +25,10 @@ payload & message_impl::get_payload() {
 	return payload_;
 }
 
+const payload & message_impl::get_payload() const {
+	return payload_;
+}
+
 bool message_impl::serialize(serializer *_to) const {
 	return (header_.serialize(_to) && payload_.serialize(_to));
 }

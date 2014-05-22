@@ -27,6 +27,7 @@ public:
 	void set_length(length _length);
 
 	payload & get_payload();
+	const payload & get_payload() const;
 
 	bool serialize(serializer *_to) const;
 	bool deserialize(deserializer *_from);

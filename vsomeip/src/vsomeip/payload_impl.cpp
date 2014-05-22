@@ -28,6 +28,10 @@ uint8_t * payload_impl::get_data() {
 	return data_.data();
 }
 
+const uint8_t * payload_impl::get_data() const {
+	return data_.data();
+}
+
 uint32_t payload_impl::get_length() const {
 	return data_.size();
 }

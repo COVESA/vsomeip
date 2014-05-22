@@ -25,8 +25,12 @@ public:
 	virtual ~message() {};
 
     /// Get a reference to the payload of the message object.
-    /// \returns Reference to the messages payload
+    /// \returns Reference to the message payload
 	virtual payload & get_payload() = 0;
+
+	/// Get a const reference to the payload of the message object
+	/// \returns constant reference to the message payload
+	virtual const payload & get_payload() const = 0;
 };
 
 } // namespace vsomeip

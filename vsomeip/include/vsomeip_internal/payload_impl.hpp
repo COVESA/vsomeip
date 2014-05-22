@@ -26,19 +26,20 @@ public:
 	payload_impl(const payload_impl& payload);
 	virtual ~payload_impl();
 
-	virtual uint8_t * get_data();
-	virtual uint32_t get_length() const;
+	uint8_t * get_data();
+	const uint8_t * get_data() const;
+	uint32_t get_length() const;
 
-	virtual void set_capacity(uint32_t _capacity);
+	void set_capacity(uint32_t _capacity);
 
-	virtual void set_data(const uint8_t *data, uint32_t length);
-	virtual void set_data(const std::vector<uint8_t>& data);
+	void set_data(const uint8_t *data, uint32_t length);
+	void set_data(const std::vector<uint8_t>& data);
 
-	virtual bool serialize(serializer *_to) const;
-	virtual bool deserialize(deserializer *_from);
+	bool serialize(serializer *_to) const;
+	bool deserialize(deserializer *_from);
 
 private:
-	std::vector<uint8_t> data_;
+	std::vector< uint8_t > data_;
 };
 
 } // namespace vsomeip

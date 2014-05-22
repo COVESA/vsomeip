@@ -23,6 +23,9 @@ public:
     /// Get the internal data buffer of the payload object.
     /// \returns Pointer to the internal data buffer
 	virtual uint8_t * get_data() = 0;
+
+	/// Get a read-only pointer to the internal data
+	virtual const uint8_t * get_data() const = 0;
     
     /// Get the length of the internal data buffer of the payload object. The
     /// length is the valid part of the internal buffer and is not necessarily

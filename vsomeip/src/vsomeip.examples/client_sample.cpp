@@ -37,8 +37,15 @@ public:
 				  << "] Service has answered to client "
 				  << std::hex << _message->get_client_id()
 				  << " with "
-				  << std::dec << _message->get_length() << " bytes."
-				  << std::endl;
+				  << std::dec << _message->get_length() << " bytes [";
+
+		const message *its_message = dynamic_cast< const message * >(_message);
+		if (its_message) {
+			const payload & its_payload = its_message->get_payload();
+			for (int i = 0; i < its_payload.get_length(); ++i)
+				std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_payload.get_data()[i] << " ";
+		}
+		std::cout << "]" << std::endl;
 	}
 };
 
