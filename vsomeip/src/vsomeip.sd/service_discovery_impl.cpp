@@ -3,7 +3,7 @@
 //
 // This file is part of the BMW Some/IP implementation.
 //
-// Copyright ������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
+// Copyright ������������������ 2013, 2014 Bayerische Motoren Werke AG (BMW).
 // All rights reserved.
 //
 
@@ -333,8 +333,8 @@ bool service_discovery_impl::send_offer_service(service_state_machine_t *_data, 
 	its_entry.set_minor_version(_data->minor_);
 
 	// endpoint options
-	if (_data->tcp_endpoint_ && ip_protocol_version::V4 == _data->tcp_endpoint_->get_version() ||
-		_data->udp_endpoint_ && ip_protocol_version::V4 == _data->udp_endpoint_->get_version()) {
+	if ((_data->tcp_endpoint_ && ip_protocol_version::V4 == _data->tcp_endpoint_->get_version()) ||
+		(_data->udp_endpoint_ && ip_protocol_version::V4 == _data->udp_endpoint_->get_version())) {
 
 		const endpoint *location = _data->tcp_endpoint_;
 		if (0 != location) {
@@ -402,15 +402,18 @@ void service_discovery_impl::on_message(
 		for (auto its_entry : its_entries) {
 			switch (its_entry->get_type()) {
 			case entry_type::FIND_SERVICE:
-				on_find_service(reinterpret_cast< service_entry * >(its_entry), its_options, _source);
+				on_find_service(dynamic_cast< service_entry * >(its_entry), its_options, _source);
 				break;
 
 			case entry_type::OFFER_SERVICE: // included STOP_OFFER_SERVICE
-				on_offer_service(reinterpret_cast< service_entry * >(its_entry), its_options);
+				on_offer_service(dynamic_cast< service_entry * >(its_entry), its_options);
 				break;
 
 			case entry_type::REQUEST_SERVICE:
 				// TODO: find out what REQUEST_SERVICE is meant to do!
+				break;
+
+			default:
 				break;
 			};
 		}
