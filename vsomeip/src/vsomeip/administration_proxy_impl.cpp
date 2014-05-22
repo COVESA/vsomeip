@@ -109,22 +109,22 @@ bool administration_proxy_impl::request_service(
 	if (find_service != requested_.end()) {
 		auto find_location = find_service->second.find(_instance);
 		if (find_location != find_service->second.end()) {
-			if (find_location->second.first != _location) {
+			if (find_location->second.location_ != _location) {
 				if (owner_.get_id() != 0) {
 					send_service_command(
 						command_enum::RELEASE_SERVICE,
 						_service,
 						_instance,
-						find_location->second.first
+						find_location->second.location_
 					);
 				}
-				find_location->second = std::make_pair(_location, daemon_queue_.get());
+				find_location->second = request_state(daemon_queue_.get(), _location);
 			}
 		} else {
-			find_service->second[_instance] = std::make_pair(_location, daemon_queue_.get());
+			find_service->second[_instance] = request_state(daemon_queue_.get(), _location);
 		}
 	} else {
-		requested_[_service][_instance] = std::make_pair(_location, daemon_queue_.get());
+		requested_[_service][_instance] = request_state(daemon_queue_.get(), _location);
 	}
 
 	if (is_registered_) {
@@ -153,7 +153,7 @@ bool administration_proxy_impl::release_service(
 					command_enum::RELEASE_SERVICE,
 					_service,
 					_instance,
-					find_instance->second.first
+					find_instance->second.location_
 				);
 			}
 			find_service->second.erase(_instance);
@@ -170,7 +170,7 @@ bool administration_proxy_impl::provide_service(
 	VSOMEIP_TRACE << "administration_proxy_impl::provide_service";
 
 	if (_location) {
-		provided_[_service][_instance].second.insert(_location);
+		provided_[_service][_instance].locations_.insert(_location);
 
 		if (is_registered_) {
 			send_service_command(
@@ -194,8 +194,8 @@ bool administration_proxy_impl::withdraw_service(
 	VSOMEIP_TRACE << "administration_proxy_impl::withdraw_service";
 
 	if (_location) {
-		provided_[_service][_instance].second.erase(_location);
-		if (provided_[_service][_instance].second.size() == 0)
+		provided_[_service][_instance].locations_.erase(_location);
+		if (provided_[_service][_instance].locations_.size() == 0)
 			provided_[_service].erase(_instance);
 	} else {
 		provided_[_service].erase(_instance);
@@ -231,7 +231,7 @@ bool administration_proxy_impl::start_service(
 		return false;
 	}
 
-	found_instance->second.first = true;
+	found_instance->second.is_started_ = true;
 
 	if (is_registered_) {
 		send_service_command(
@@ -259,7 +259,7 @@ bool administration_proxy_impl::stop_service(
 		return false;
 	}
 
-	found_instance->second.first = false;
+	found_instance->second.is_started_ = false;
 
 	if (is_registered_) {
 		send_service_command(
@@ -301,7 +301,7 @@ void administration_proxy_impl::deregister_method(service_id _service, instance_
 }
 
 bool administration_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
-	return false;
+
 }
 
 bool administration_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
@@ -321,11 +321,17 @@ bool administration_proxy_impl::remove_from_eventgroup(service_id _service, inst
 }
 
 bool administration_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
-	return false;
+
+
+
+	if (is_registered_) {
+		send_eventgroup_command(command_enum::REQUEST_EVENTGROUP, _service, _instance, _eventgroup);
+	}
 }
 
 bool administration_proxy_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
-	return false;
+	send_eventgroup_command(command_enum::RELEASE_EVENTGROUP, _service, _instance, _eventgroup);
+	return true;
 }
 
 void administration_proxy_impl::catch_up_registrations() {
@@ -333,7 +339,7 @@ void administration_proxy_impl::catch_up_registrations() {
 
 	for (auto s : provided_) {
 		for (auto i : s.second) {
-			for (auto l : i.second.second) {
+			for (auto l : i.second.locations_) {
 				provide_service(s.first, i.first, l);
 			}
 		}
@@ -341,7 +347,7 @@ void administration_proxy_impl::catch_up_registrations() {
 
 	for (auto s : provided_) {
 		for (auto i : s.second) {
-			if (i.second.first) {
+			if (i.second.is_started_) {
 				start_service(s.first, i.first);
 			}
 		}
@@ -349,7 +355,7 @@ void administration_proxy_impl::catch_up_registrations() {
 
 	for (auto s : requested_) {
 		for (auto i : s.second) {
-			request_service(s.first, i.first, i.second.first);
+			request_service(s.first, i.first, i.second.location_);
 		}
 	}
 
@@ -469,6 +475,37 @@ void administration_proxy_impl::send_service_command(
 
 	do_send(command);
 }
+
+void administration_proxy_impl::send_eventgroup_command(
+		command_enum _command,  service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint * _location) {
+	VSOMEIP_TRACE << "administration_proxy_impl::send_service_command";
+
+	client_id id = owner_.get_id();
+	boost::shared_ptr< serializer > its_serializer(owner_.get_serializer());
+	uint32_t payload_size = 6;
+	if (_location) {
+		its_serializer->serialize(reinterpret_cast<const serializable *>(_location));
+		payload_size += its_serializer->get_size();
+	}
+
+	std::vector< uint8_t > command(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
+
+	std::memcpy(&command[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_ID], &id, sizeof(id));
+	command[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(_command);
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+2], &_instance, sizeof(_instance));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+4], &_eventgroup, sizeof(_eventgroup));
+	if (_location) {
+		std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+6], its_serializer->get_data(), its_serializer->get_size());
+		its_serializer->reset();
+	}
+	std::memcpy(&command[payload_size + VSOMEIP_PROTOCOL_PAYLOAD], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+
+	do_send(command);
+}
+
 
 void administration_proxy_impl::send_registration_command(
 		command_enum _command, service_id _service, instance_id _instance, method_id _method) {
@@ -687,7 +724,7 @@ void administration_proxy_impl::on_request_service_ack(service_id _service, inst
 		if (find_service != requested_.end()) {
 			auto find_instance = find_service->second.find(_instance);
 			if (find_instance != find_service->second.end()) {
-				find_instance->second.second.reset(find_queue->second);
+				find_instance->second.queue_.reset(find_queue->second);
 			}
 		}
 	} else {
@@ -717,9 +754,9 @@ void administration_proxy_impl::on_service_availability(
 		auto find_instance = find_service->second.find(_instance);
 		if (find_instance != find_service->second.end()) {
 			if (_is_available) {
-				find_instance->second.first = _location;
+				find_instance->second.location_ = _location;
 			} else {
-				find_instance->second.first = 0;
+				find_instance->second.location_ = 0;
 			}
 		}
 	}
@@ -733,8 +770,8 @@ void administration_proxy_impl::remove_requested_services(message_queue *_queue)
 
 	for (auto& i : requested_) {
 		for (auto& j : i.second) {
-			if (j.second.second == _queue) {
-				j.second.second = 0;
+			if (j.second.queue_ == _queue) {
+				j.second.queue_ = 0;
 			}
 		}
 	}
@@ -857,7 +894,7 @@ void administration_proxy_impl::request_cbk(
 		if (find_service != requested_.end()) {
 			auto find_instance = find_service->second.find(_instance);
 			if (find_instance != find_service->second.end()) {
-				find_instance->second.second.reset(_queue);
+				find_instance->second.queue_.reset(_queue);
 			} else {
 				VSOMEIP_ERROR << "Application " << application_queue_name_
 						      << ": Requested service instance ["

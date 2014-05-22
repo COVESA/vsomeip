@@ -10,6 +10,7 @@ using namespace vsomeip;
 #define EXTERNAL_SAMPLE_SERVICE			 	0x1234
 #define EXTERNAL_SAMPLE_SERVICE_INSTANCE	0x2356
 #define EXTERNAL_SAMPLE_METHOD			 	0x0203
+#define EXTERNAL_SAMPLE_EVENTGROUP			0x4815
 
 factory *the_factory = 0;
 application *the_application = 0;
@@ -59,6 +60,9 @@ int main(int argc, char **argv) {
 	the_application->init(argc, argv);
 
 	the_application->provide_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, location);
+
+	the_application->provide_eventgroup(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP, 0);
+
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive_message);
 
 	boost::thread on_off_thread(on_off);

@@ -71,6 +71,7 @@ protected:
 	void send_register_application();
 	void send_deregister_application();
 	void send_service_command(command_enum _command, service_id _service, instance_id _instance, const endpoint * _location = 0);
+	void send_eventgroup_command(command_enum _command,  service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint * _location = 0);
 	void send_registration_command(command_enum _command, service_id _service, instance_id _instance, method_id _method);
 
 	void do_receive();
@@ -117,21 +118,51 @@ protected:
 	std::deque< std::vector< uint8_t > > send_buffers_;
 	uint8_t receive_buffer_[VSOMEIP_DEFAULT_QUEUE_SIZE];
 
-	// Provided & requested services
+	// Provided & requested services / eventgroups
+	struct service_state {
+		service_state()
+			: is_started_(false) {};
+
+		service_state(bool _is_started, const endpoint *_location)
+			: is_started_(_is_started) {};
+
+		bool is_started_;
+		std::set< const endpoint * > locations_;
+		std::set< eventgroup_id > eventgroups_;
+	};
+
 	typedef std::map< service_id,
                       std::map< instance_id,
-                                std::pair< bool,
-                                           std::set< const endpoint * > > > > provided_t;
+                                service_state > > provided_services_t;
 
 	typedef boost::intrusive_ptr< message_queue > message_queue_ptr_t;
 
+	struct request_state {
+		request_state()
+			: queue_(0), location_(0) {};
+
+		request_state(message_queue_ptr_t _queue, const endpoint *_location)
+			: queue_(_queue), location_(_location) {};
+
+		request_state & operator=(const request_state &_source) {
+			queue_ = _source.queue_;
+			location_ = _source.location_;
+			eventgroups_ = _source.eventgroups_;
+
+			return (*this);
+		}
+
+		const endpoint *location_;
+		message_queue_ptr_t queue_;
+		std::set< eventgroup_id > eventgroups_;
+	};
+
 	typedef std::map< service_id,
 	                  std::map< instance_id,
-	                  	  	    std::pair< const endpoint *,
-	                  	  	               message_queue_ptr_t > > > requested_t;
+	                  	  	    request_state > > requested_services_t;
 
-	provided_t provided_;
-	requested_t requested_;
+	provided_services_t provided_;
+	requested_services_t requested_;
 
 	std::map< std::string, message_queue * > queues_;
 	std::map< client_id, std::string > other_queue_names_;

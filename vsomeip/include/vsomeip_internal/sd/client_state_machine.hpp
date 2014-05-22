@@ -10,6 +10,8 @@
 #ifndef VSOMEIP_INTERNAL_SD_CLIENT_STATE_MACHINE_HPP
 #define VSOMEIP_INTERNAL_SD_CLIENT_STATE_MACHINE_HPP
 
+#include <set>
+
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/state.hpp>
@@ -55,9 +57,10 @@ struct machine
 	major_version major_;
 	minor_version minor_;
 
-	// endpoints
 	const endpoint *tcp_endpoint_;
 	const endpoint *udp_endpoint_;
+
+	std::set< eventgroup_id > eventgroups_;
 
 	service_discovery *discovery_;
 

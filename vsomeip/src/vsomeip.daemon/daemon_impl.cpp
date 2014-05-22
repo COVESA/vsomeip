@@ -879,6 +879,7 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	client_id its_id;
 	service_id its_service;
 	instance_id its_instance;
+	eventgroup_id its_eventgroup;
 	method_id its_method;
 	endpoint *its_location = 0;
 
@@ -950,6 +951,42 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		if (payload_size - 4 > 0)
 			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
 		on_release_service(its_id, its_service, its_instance, its_location);
+		break;
+
+	case command_enum::PROVIDE_EVENTGROUP:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+
+		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] provides eventgroup ["
+		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		break;
+
+	case command_enum::WITHDRAW_EVENTGROUP:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+
+		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] withdraws eventgroup ["
+		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		break;
+
+	case command_enum::REQUEST_EVENTGROUP:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+
+		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] requests eventgroup ["
+		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		break;
+
+	case command_enum::RELEASE_EVENTGROUP:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+
+		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] releases eventgroup ["
+		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
 		break;
 
 	case command_enum::REGISTER_METHOD:
@@ -1146,7 +1183,7 @@ void daemon_impl::watchdog_check_cbk(boost::system::error_code const &_error) {
 
 void daemon_impl::start_dump_cycle() {
 	dump_timer_.expires_from_now(
-		boost::chrono::milliseconds(VSOMEIP_DUMP_CYCLE));
+		std::chrono::milliseconds(VSOMEIP_DUMP_CYCLE));
 
 	dump_timer_.async_wait(
 		boost::bind(&daemon_impl::dump_cycle_cbk, this,

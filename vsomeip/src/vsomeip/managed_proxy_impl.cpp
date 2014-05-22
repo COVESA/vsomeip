@@ -198,7 +198,7 @@ message_queue * managed_proxy_impl::find_target_queue(service_id _service, insta
 	if (find_service != requested_.end()) {
 		auto find_instance = find_service->second.find(_instance);
 		if (find_instance != find_service->second.end()) {
-			requested_queue = find_instance->second.second.get();
+			requested_queue = find_instance->second.queue_.get();
 		}
 	}
 
