@@ -17,7 +17,7 @@ factory * the_factory = 0;
 application * the_application = 0;
 endpoint * the_endpoint = 0;
 
-void receive_message(const message_base *_message) {
+void receive_message(const message *_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++

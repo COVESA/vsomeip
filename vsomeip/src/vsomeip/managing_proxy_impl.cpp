@@ -207,6 +207,34 @@ void managing_proxy_impl::register_method(service_id _service, instance_id _inst
 void managing_proxy_impl::deregister_method(service_id _service, instance_id _instance, method_id _method) {
 }
 
+bool managing_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return false;
+}
+
+bool managing_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return false;
+}
+
+bool managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return false;
+}
+
+bool managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
+	return false;
+}
+
+bool managing_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return false;
+}
+
+bool managing_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return false;
+}
+
+bool managing_proxy_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return false;
+}
+
 bool managing_proxy_impl::enable_magic_cookies(	service_id _service, instance_id _instance) {
 	return false;
 }
@@ -349,7 +377,7 @@ void managing_proxy_impl::receive(
 	if (_data) {
 		boost::shared_ptr< deserializer > its_deserializer(owner_.get_deserializer());
 		its_deserializer->set_data(_data, _size);
-		boost::shared_ptr< message_base > its_message (its_deserializer->deserialize_message());
+		boost::shared_ptr< message > its_message (its_deserializer->deserialize_message());
 		its_deserializer->reset();
 
 		if (its_message) {

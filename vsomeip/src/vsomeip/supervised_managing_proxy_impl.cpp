@@ -119,6 +119,34 @@ void supervised_managing_proxy_impl::register_method(service_id _service, instan
 void supervised_managing_proxy_impl::deregister_method(service_id _service, instance_id _instance, method_id _method) {
 }
 
+bool supervised_managing_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return administration_proxy_impl::provide_eventgroup(_service, _instance, _eventgroup, _location);
+}
+
+bool supervised_managing_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return administration_proxy_impl::withdraw_eventgroup(_service, _instance, _eventgroup, _location);
+}
+
+bool supervised_managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return administration_proxy_impl::add_to_eventgroup(_service, _instance, _eventgroup, _event);
+}
+
+bool supervised_managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
+	return administration_proxy_impl::add_to_eventgroup(_service, _instance, _eventgroup, _field);
+}
+
+bool supervised_managing_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return administration_proxy_impl::remove_from_eventgroup(_service, _instance, _eventgroup, _event);
+}
+
+bool supervised_managing_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return administration_proxy_impl::request_eventgroup(_service, _instance, _eventgroup);
+}
+
+bool supervised_managing_proxy_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return administration_proxy_impl::release_eventgroup(_service, _instance, _eventgroup);
+}
+
 bool supervised_managing_proxy_impl::enable_magic_cookies(service_id _service, instance_id _instance) {
 	return false;
 }

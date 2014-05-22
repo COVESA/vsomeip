@@ -20,6 +20,7 @@ namespace vsomeip {
 typedef uint32_t message_id;
 typedef uint16_t service_id;
 typedef uint16_t method_id;
+typedef uint16_t event_id;
 
 typedef uint32_t length;
 

@@ -299,6 +299,30 @@ void service_discovery_impl::on_release_service(
 	}
 }
 
+void service_discovery_impl::on_provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+
+}
+
+void service_discovery_impl::on_withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+
+}
+
+void service_discovery_impl::on_add_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_event) {
+
+}
+
+void service_discovery_impl::on_remove_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+
+}
+
+void service_discovery_impl::on_request_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+
+}
+
+void service_discovery_impl::on_release_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+
+}
+
 bool service_discovery_impl::send_find_service(client_state_machine_t *_data) {
 	boost::shared_ptr< message > find(factory_->create_message());
 	find->set_target(broadcast_);

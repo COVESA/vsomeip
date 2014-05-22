@@ -41,7 +41,6 @@ namespace vsomeip {
 class endpoint;
 class client;
 class service;
-class message_base;
 
 namespace sd {
 class service_discovery;
@@ -77,7 +76,7 @@ public:
 	void on_service_availability(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 	// Dummies
-	void handle_message(const message_base *_message);
+	void handle_message(const message *_message);
 	void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 	boost::shared_ptr< serializer > & get_serializer();
@@ -89,7 +88,7 @@ private:
 	void run_receiver();
 	void run_sender();
 
-	bool is_request(const message_base *_message) const;
+	bool is_request(const message *_message) const;
 	bool is_request(const uint8_t *, uint32_t) const;
 
 	void do_send(client_id, std::vector< uint8_t > &);

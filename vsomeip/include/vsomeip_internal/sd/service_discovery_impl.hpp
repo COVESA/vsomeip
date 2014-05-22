@@ -47,12 +47,19 @@ public:
 
 	void on_provide_service(service_id _service, instance_id _instance, const endpoint *_location);
 	void on_withdraw_service(service_id _service, instance_id _instance, const endpoint *_location);
-
 	void on_start_service(service_id _service, instance_id _instance);
 	void on_stop_service(service_id _service, instance_id _instance);
 
 	void on_request_service(client_id _client, service_id _service, instance_id _instance);
 	void on_release_service(client_id _client, service_id _service, instance_id _instance);
+
+	void on_provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
+	void on_withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
+	void on_add_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_event);
+	void on_remove_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
+
+	void on_request_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup);
+	void on_release_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
 	void on_message(const uint8_t *_data, uint32_t _size,
 					const endpoint *_source, const endpoint *_target);

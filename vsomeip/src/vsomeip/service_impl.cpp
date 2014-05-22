@@ -72,8 +72,8 @@ bool service_impl< Protocol, MaxBufferSize >::send(
 		if (is_queue_empty)
 			send_queued();
 	} else {
-		flush_timer_.expires_from_now(
-				std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use configured value
+		std::chrono::milliseconds flush_timeout(VSOMEIP_DEFAULT_FLUSH_TIMEOUT);
+		flush_timer_.expires_from_now(flush_timeout); // TODO: use configured value
 		flush_timer_.async_wait(
 			boost::bind(
 				&service_impl<Protocol, MaxBufferSize>::flush_cbk,

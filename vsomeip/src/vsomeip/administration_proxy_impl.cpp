@@ -272,7 +272,6 @@ bool administration_proxy_impl::stop_service(
 	return true;
 }
 
-
 void administration_proxy_impl::register_method(service_id _service, instance_id _instance, method_id _method) {
 	VSOMEIP_TRACE << "administration_proxy_impl::register_method";
 	if (is_registered_) {
@@ -299,6 +298,34 @@ void administration_proxy_impl::deregister_method(service_id _service, instance_
 
 		methods_.erase(info);
 	}
+}
+
+bool administration_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return false;
+}
+
+bool administration_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return false;
+}
+
+bool administration_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return false;
+}
+
+bool administration_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
+	return false;
+}
+
+bool administration_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return false;
+}
+
+bool administration_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return false;
+}
+
+bool administration_proxy_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return false;
 }
 
 void administration_proxy_impl::catch_up_registrations() {

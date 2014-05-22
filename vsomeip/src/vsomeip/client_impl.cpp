@@ -7,8 +7,6 @@
 // All rights reserved.
 //
 
-#include <chrono>
-
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>

@@ -7,11 +7,11 @@
 // All rights reserved.
 //
 
-#include <chrono>
 #include <iomanip>
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/chrono.hpp>
 #include <boost/log/trivial.hpp>
 
 #include <boost_ext/asio/mq.hpp>
@@ -19,7 +19,7 @@
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
-#include <vsomeip/message_base.hpp>
+#include <vsomeip/message.hpp>
 #include <vsomeip/version.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
@@ -246,7 +246,7 @@ void daemon_impl::on_service_availability(client_id _client, service_id _service
 	do_send(_client, data);
 }
 
-void daemon_impl::handle_message(const message_base *_message) {
+void daemon_impl::handle_message(const message *_message) {
 }
 
 void daemon_impl::handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) {
@@ -766,7 +766,7 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 	}
 }
 
-bool daemon_impl::is_request(const message_base *_message) const {
+bool daemon_impl::is_request(const message *_message) const {
 	return (_message->get_message_type() < message_type_enum::RESPONSE);
 }
 
@@ -1146,7 +1146,7 @@ void daemon_impl::watchdog_check_cbk(boost::system::error_code const &_error) {
 
 void daemon_impl::start_dump_cycle() {
 	dump_timer_.expires_from_now(
-		std::chrono::milliseconds(VSOMEIP_DUMP_CYCLE));
+		boost::chrono::milliseconds(VSOMEIP_DUMP_CYCLE));
 
 	dump_timer_.async_wait(
 		boost::bind(&daemon_impl::dump_cycle_cbk, this,

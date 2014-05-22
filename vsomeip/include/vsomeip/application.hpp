@@ -17,10 +17,10 @@
 namespace vsomeip {
 
 class endpoint;
-class message_base;
+class message;
 
-typedef boost::function< void (const message_base *) > message_handler_t;
-typedef boost::function< void (bool) > availability_handler_t;
+typedef boost::function< void (const message *) > message_handler_t;
+typedef boost::function< void (service_id, instance_id, bool) > availability_handler_t;
 
 class application {
 public:
@@ -32,37 +32,50 @@ public:
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
-	// clients
-	virtual bool request_service(
-						service_id _service, instance_id _instance,
-						const endpoint *_location = 0) = 0;
-	virtual bool release_service(
-						service_id _service, instance_id _instance) = 0;
-
-	// services
+	// services (service side)
 	virtual bool provide_service(
 						service_id _service, instance_id _instance,
 						const endpoint *_location) = 0;
 	virtual bool withdraw_service(
 						service_id _service, instance_id _instance,
 						const endpoint *_location = 0) = 0;
+
 	virtual bool start_service(
 						service_id _service, instance_id _instance) = 0;
 	virtual bool stop_service(
+						service_id _service, instance_id _instance) = 0;
+
+	// services (client side)
+	virtual bool request_service(
+						service_id _service, instance_id _instance,
+						const endpoint *_location = 0) = 0;
+	virtual bool release_service(
 						service_id _service, instance_id _instance) = 0;
 
 	virtual bool is_service_available(service_id _service, instance_id _instance) const = 0;
 	virtual bool register_availability_handler(service_id _service, instance_id _instance,
 											   availability_handler_t _handler) = 0;
 	virtual void deregister_availability_handler(service_id _service, instance_id _instance) = 0;
-#ifdef EVENTGROUPS
-	// eventgroups
-	virtual eventgroup provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) = 0;
-#endif	
 
+	// eventgroups (service side)
+	virtual bool provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+									const endpoint *_location) = 0;
+	virtual bool withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+									 const endpoint *_location) = 0;
+
+	virtual bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+								   event_id _event) = 0;
+	virtual bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+								   message *_field) = 0;
+	virtual bool remove_from_eventgroup(service_id _service, instance_id _instance,
+										eventgroup_id _eventgroup, event_id _event) = 0;
+
+	// eventgroups (client side)
+	virtual bool request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) = 0;
+	virtual bool release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) = 0;
 
 	// send & receive
-	virtual bool send(message_base *_message, bool _flush = true) = 0;
+	virtual bool send(message *_message, bool _flush = true) = 0;
 
 	virtual bool enable_magic_cookies(service_id _service, instance_id _instance) = 0;
 	virtual bool disable_magic_cookies(service_id _service, instance_id _instance) = 0;

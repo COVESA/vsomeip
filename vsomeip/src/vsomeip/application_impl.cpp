@@ -255,13 +255,41 @@ void application_impl::handle_service_availability(service_id _service, instance
 		if (found_service_availability_handlers != availability_handlers_.end()) {
 			auto found_service_instance_availability_handler = found_service_availability_handlers->second.find(_instance);
 			if (found_service_instance_availability_handler != found_service_availability_handlers->second.end()) {
-				found_service_instance_availability_handler->second(_is_available);
+				found_service_instance_availability_handler->second(_service, _instance, _is_available);
 			}
 		}
 	}
 }
 
-bool application_impl::send(message_base *_message, bool _flush) {
+bool application_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return proxy_->provide_eventgroup(_service, _instance, _eventgroup, _location);
+}
+
+bool application_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+	return proxy_->withdraw_eventgroup(_service, _instance, _eventgroup, _location);
+}
+
+bool application_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return proxy_->add_to_eventgroup(_service, _instance, _eventgroup, _event);
+}
+
+bool application_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_field) {
+	return proxy_->add_to_eventgroup(_service, _instance, _eventgroup, _field);
+}
+
+bool application_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+	return proxy_->remove_from_eventgroup(_service, _instance, _eventgroup, _event);
+}
+
+bool application_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return proxy_->request_eventgroup(_service, _instance, _eventgroup);
+}
+
+bool application_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	return proxy_->release_eventgroup(_service, _instance, _eventgroup);
+}
+
+bool application_impl::send(message *_message, bool _flush) {
 	return proxy_->send(_message, _flush);
 }
 
@@ -308,7 +336,7 @@ void application_impl::deregister_message_handler(
 	}
 }
 
-void application_impl::handle_message(const message_base *_message) {
+void application_impl::handle_message(const message *_message) {
 	auto found_service = message_handlers_.find(_message->get_service_id());
 	if (found_service != message_handlers_.end()) {
 		auto found_instance = found_service->second.find(_message->get_instance_id());
@@ -342,7 +370,7 @@ void application_impl::handle_message(const message_base *_message) {
 	}
 }
 
-void application_impl::send_error_message(const message_base *_request, return_code_enum _error) {
+void application_impl::send_error_message(const message *_request, return_code_enum _error) {
 	boost::shared_ptr< message > response (vsomeip::factory::get_instance()->create_response(_request));
 	response->set_return_code(_error);
 	send(response.get());

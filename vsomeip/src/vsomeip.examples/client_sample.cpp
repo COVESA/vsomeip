@@ -30,21 +30,18 @@ message * the_message = the_factory->create_message();
 
 class Connection {
 public:
-	void receive(const message_base *_message) {
+	void receive(const message *_message) {
 		static int i = 0;
 
 		std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
 				  << "] Service has answered to client "
 				  << std::hex << _message->get_client_id()
 				  << " with "
-				  << std::dec << _message->get_length() << " bytes [";
+				  << std::dec << _message->get_length() << " bytes [ ";
 
-		const message *its_message = dynamic_cast< const message * >(_message);
-		if (its_message) {
-			const payload & its_payload = its_message->get_payload();
-			for (int i = 0; i < its_payload.get_length(); ++i)
-				std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_payload.get_data()[i] << " ";
-		}
+		const payload & its_payload = _message->get_payload();
+		for (int i = 0; i < its_payload.get_length(); ++i)
+			std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_payload.get_data()[i] << " ";
 		std::cout << "]" << std::endl;
 	}
 };
@@ -97,7 +94,7 @@ int main(int argc, char **argv) {
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
 
 	Connection the_connection;
-	boost::function< void (const message_base *) > func = boost::bind(&Connection::receive, &the_connection, _1);
+	boost::function< void (const message *) > func = boost::bind(&Connection::receive, &the_connection, _1);
 
 	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);

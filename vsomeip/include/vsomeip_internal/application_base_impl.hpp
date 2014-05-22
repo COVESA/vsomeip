@@ -21,7 +21,7 @@
 namespace vsomeip {
 
 class endpoint;
-class message_base;
+class message;
 
 class application_base_impl :
 			virtual public log_owner,
@@ -45,7 +45,7 @@ public:
 	virtual boost::shared_ptr< deserializer > & get_deserializer() = 0;
 
 	virtual void catch_up_registrations() = 0;
-	virtual void handle_message(const message_base *_message) = 0;
+	virtual void handle_message(const message *_message) = 0;
 	virtual void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) = 0;
 };
 
