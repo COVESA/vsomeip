@@ -544,6 +544,7 @@ bool service_discovery_impl::update_client(
 		service_id _service, instance_id _instance, const endpoint *_location,
 		bool _is_available) {
 	owner_.on_service_availability(_client, _service, _instance, _location, _is_available);
+	return true;
 }
 
 } // namespace sd

@@ -295,7 +295,7 @@ bool application_impl::update_field(const field *_field) {
 		_field->get_payload().get_length()
 	);
 
-	proxy_->send(its_message.get(), false, true);
+	return proxy_->send(its_message.get(), false, true);
 }
 
 bool application_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
