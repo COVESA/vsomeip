@@ -13,10 +13,14 @@
 #define INTERNAL_SAMPLE_SERVICE			 	0x1234
 #define INTERNAL_SAMPLE_SERVICE_INSTANCE	0x5678
 #define INTERNAL_SAMPLE_METHOD			 	0x0205
+#define INTERNAL_SAMPLE_EVENTGROUP			0x4263
+#define INTERNAL_SAMPLE_EVENT				0x0077
 
 #define EXTERNAL_SAMPLE_SERVICE			 	0x1234
 #define EXTERNAL_SAMPLE_SERVICE_INSTANCE	0x2356
 #define EXTERNAL_SAMPLE_METHOD			 	0x0203
+#define EXTERNAL_SAMPLE_EVENTGROUP			0x4815
+#define EXTERNAL_SAMPLE_EVENT				0x0077
 
 using namespace vsomeip;
 
@@ -27,16 +31,40 @@ message * the_message = the_factory->create_message();
 
 class Connection {
 public:
-	void receive(const message *_message) {
+	void on_method(const message *_message) {
 		static int i = 0;
+
+		const payload &its_payload = _message->get_payload();
+		uint32_t length = its_payload.get_length();
+		const uint8_t *data = its_payload.get_data();
 
 		std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
 				  << "] Service has answered to client "
 				  << std::hex << _message->get_client_id()
-				  << " with "
-				  << std::dec << _message->get_length() << " bytes."
-				  << std::endl;
+				  << " with [ ";
+		for (uint32_t j = 0; j < length; ++j)
+			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)data[j] << " ";
+		std::cout << "]" << std::endl;
 	}
+
+	void on_event(const message *_message) {
+		static int i = 0;
+
+		const payload &its_payload = _message->get_payload();
+		uint32_t length = its_payload.get_length();
+		const uint8_t *data = its_payload.get_data();
+
+		std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
+				  << "] Service has updated field ["
+				  << std::hex << _message->get_method_id()
+				  << "] for client ["
+				  << std::hex << _message->get_client_id()
+				  << "] to [ ";
+		for (uint32_t j = 0; j < length; ++j)
+			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)data[j] << " ";
+		std::cout << "]" << std::endl;
+	}
+
 };
 
 void worker() {
@@ -86,11 +114,17 @@ int main(int argc, char **argv) {
 	the_application->request_service(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE);
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE);
 
-	Connection the_connection;
-	boost::function< void (const message *) > func = boost::bind(&Connection::receive, &the_connection, _1);
+	the_application->request_eventgroup(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_EVENTGROUP);
+	the_application->request_eventgroup(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP);
 
-	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
-	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);
+	Connection the_connection;
+	boost::function< void (const message *) > method_handler = boost::bind(&Connection::on_method, &the_connection, _1);
+	boost::function< void (const message *) > event_handler = boost::bind(&Connection::on_event, &the_connection, _1);
+
+	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, method_handler);
+	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, method_handler);
+
+	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_EVENT, event_handler);
 
 	boost::thread framework_thread(run);
 	boost::thread application_thread(worker);

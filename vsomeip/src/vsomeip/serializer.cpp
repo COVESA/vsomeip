@@ -90,21 +90,25 @@ void serializer::create_data(uint32_t _capacity) {
 		delete [] data_;
 
 	data_ = new uint8_t[_capacity];
-	// TODO: check memory allocation
-
 	position_ = data_;
-	capacity_ = _capacity;
-	remaining_ = _capacity;
+	if (0 != data_) {
+		capacity_ = remaining_ = _capacity;
+	} else {
+		capacity_ = remaining_ = 0;
+	}
 }
 
 void serializer::set_data(uint8_t *_data, uint32_t _capacity) {
-	if (0 != data_)
-		delete [] data_;
+	delete [] data_;
 
 	data_ = _data;
 	position_ = _data;
-	capacity_ = _capacity;
-	remaining_ = _capacity;
+
+	if (0 != data_) {
+		capacity_ = remaining_ = _capacity;
+	} else {
+		capacity_ = remaining_ = 0;
+	}
 }
 
 void serializer::reset() {

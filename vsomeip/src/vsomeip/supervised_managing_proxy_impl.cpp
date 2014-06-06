@@ -100,13 +100,19 @@ bool supervised_managing_proxy_impl::request_service(service_id _service, instan
 bool supervised_managing_proxy_impl::release_service(service_id _service, instance_id _instance) {
 	bool is_successful = false;
 
-	const endpoint *location = find_client_location(_service, _instance);
-
 	if (administration_proxy_impl::release_service(_service, _instance)) {
 		if (managing_proxy_impl::release_service(_service, _instance)) {
 			is_successful = true;
 		} else {
-			administration_proxy_impl::request_service(_service, _instance, location);
+			const endpoint *unreliable = find_client_location(_service, _instance, false);
+			if (0 != unreliable) {
+				administration_proxy_impl::request_service(_service, _instance, unreliable);
+			}
+
+			const endpoint *reliable = find_client_location(_service, _instance, true);
+			if (0 != reliable) {
+				administration_proxy_impl::request_service(_service, _instance, reliable);
+			}
 		}
 	}
 
@@ -127,16 +133,12 @@ bool supervised_managing_proxy_impl::withdraw_eventgroup(service_id _service, in
 	return administration_proxy_impl::withdraw_eventgroup(_service, _instance, _eventgroup, _location);
 }
 
-bool supervised_managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return administration_proxy_impl::add_to_eventgroup(_service, _instance, _eventgroup, _event);
+bool supervised_managing_proxy_impl::add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	return administration_proxy_impl::add_field(_service, _instance, _eventgroup, _field);
 }
 
-bool supervised_managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
-	return administration_proxy_impl::add_to_eventgroup(_service, _instance, _eventgroup, _field);
-}
-
-bool supervised_managing_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return administration_proxy_impl::remove_from_eventgroup(_service, _instance, _eventgroup, _event);
+bool supervised_managing_proxy_impl::remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	return administration_proxy_impl::remove_field(_service, _instance, _eventgroup, _field);
 }
 
 bool supervised_managing_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
@@ -168,4 +170,3 @@ void supervised_managing_proxy_impl::on_service_availability(
 }
 
 } // namespace vsomeip
-

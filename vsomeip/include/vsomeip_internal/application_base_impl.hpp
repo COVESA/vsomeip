@@ -46,7 +46,12 @@ public:
 
 	virtual void catch_up_registrations() = 0;
 	virtual void handle_message(const message *_message) = 0;
-	virtual void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) = 0;
+	virtual void handle_availability(
+					service_id _service, instance_id _instance,
+					const endpoint *_location, bool _is_available) = 0;
+	virtual void handle_subscription(
+					service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+					const endpoint *_location, bool _is_subscribing) = 0;
 };
 
 } // namespace vsomeip

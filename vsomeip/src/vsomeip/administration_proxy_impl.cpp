@@ -15,6 +15,8 @@
 #include <boost_ext/process.hpp>
 
 #include <vsomeip/factory.hpp>
+#include <vsomeip/field.hpp>
+#include <vsomeip/payload.hpp>
 #include <vsomeip_internal/administration_proxy_impl.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/configuration.hpp>
@@ -40,7 +42,6 @@ administration_proxy_impl::administration_proxy_impl(application_base_impl &_own
 }
 
 administration_proxy_impl::~administration_proxy_impl() {
-
 }
 
 void administration_proxy_impl::init() {
@@ -300,38 +301,129 @@ void administration_proxy_impl::deregister_method(service_id _service, instance_
 	}
 }
 
-bool administration_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
+bool administration_proxy_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_multicast) {
+	bool is_provided = false;
 
+	auto found_service = provided_.find(_service);
+	if (found_service != provided_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (found_eventgroup == found_instance->second.eventgroups_.end()) {
+				found_instance->second.eventgroups_.insert(std::make_pair(_eventgroup, eventgroup_info(_multicast)));
+				if (is_registered_) {
+					send_eventgroup_command(command_enum::PROVIDE_EVENTGROUP, _service, _instance, _eventgroup, _multicast);
+				}
+			}
+		}
+	}
+
+	return is_provided;
 }
 
-bool administration_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
-	return false;
+bool administration_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_multicast) {
+	bool is_withdrawn = false;
+
+	auto found_service = provided_.find(_service);
+	if (found_service != provided_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (found_eventgroup != found_instance->second.eventgroups_.end()) {
+				found_instance->second.eventgroups_.erase(_eventgroup);
+				if (is_registered_) {
+					send_eventgroup_command(command_enum::WITHDRAW_EVENTGROUP, _service, _instance, _eventgroup, _multicast);
+				}
+			}
+		}
+	}
+
+	return is_withdrawn;
 }
 
-bool administration_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return false;
+bool administration_proxy_impl::add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	bool is_added = false;
+
+	auto found_service = provided_.find(_service);
+	if (found_service != provided_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (found_eventgroup != found_instance->second.eventgroups_.end()) {
+				found_eventgroup->second.fields_.insert(_field);
+				if (is_registered_) {
+					send_field_command(command_enum::ADD_FIELD,
+							           _service, _instance, _eventgroup,
+							           _field->get_event(), _field->get_payload());
+				}
+			}
+		}
+	}
+
+	return is_added;
 }
 
-bool administration_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
-	return false;
-}
+bool administration_proxy_impl::remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	bool is_added = false;
 
-bool administration_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return false;
+	auto found_service = provided_.find(_service);
+	if (found_service != provided_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (found_eventgroup != found_instance->second.eventgroups_.end()) {
+				found_eventgroup->second.fields_.erase(_field);
+				if (is_registered_) {
+					send_field_command(command_enum::REMOVE_FIELD,
+							           _service, _instance, _eventgroup,
+							           _field->get_event(), _field->get_payload());
+				}
+			}
+		}
+	}
+
+	return is_added;
 }
 
 bool administration_proxy_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	bool is_requested = false;
 
-
-
-	if (is_registered_) {
-		send_eventgroup_command(command_enum::REQUEST_EVENTGROUP, _service, _instance, _eventgroup);
+	auto found_service = requested_.find(_service);
+	if (found_service != requested_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (found_eventgroup == found_instance->second.eventgroups_.end()) {
+				found_instance->second.eventgroups_.insert(_eventgroup);
+				if (is_registered_) {
+					send_eventgroup_command(command_enum::REQUEST_EVENTGROUP, _service, _instance, _eventgroup);
+				}
+			}
+			is_requested = true;
+		}
 	}
+
+	return is_requested;
 }
 
 bool administration_proxy_impl::release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
-	send_eventgroup_command(command_enum::RELEASE_EVENTGROUP, _service, _instance, _eventgroup);
-	return true;
+	bool is_released = false;
+
+	auto found_service = requested_.find(_service);
+	if (found_service != requested_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto find_eventgroup = found_instance->second.eventgroups_.find(_eventgroup);
+			if (find_eventgroup != found_instance->second.eventgroups_.end()) {
+				found_instance->second.eventgroups_.erase(_eventgroup);
+				if (is_registered_) {
+					send_eventgroup_command(command_enum::RELEASE_EVENTGROUP, _service, _instance, _eventgroup);
+				}
+			}
+		}
+	}
+
+	return is_released;
 }
 
 void administration_proxy_impl::catch_up_registrations() {
@@ -341,6 +433,12 @@ void administration_proxy_impl::catch_up_registrations() {
 		for (auto i : s.second) {
 			for (auto l : i.second.locations_) {
 				provide_service(s.first, i.first, l);
+			}
+			for (auto e : i.second.eventgroups_) {
+				send_eventgroup_command(command_enum::PROVIDE_EVENTGROUP, s.first, i.first, e.first, e.second.multicast_);
+				for (auto f : e.second.fields_) {
+					send_field_command(command_enum::ADD_FIELD, s.first, i.first, e.first, f->get_event(), f->get_payload());
+				}
 			}
 		}
 	}
@@ -356,6 +454,9 @@ void administration_proxy_impl::catch_up_registrations() {
 	for (auto s : requested_) {
 		for (auto i : s.second) {
 			request_service(s.first, i.first, i.second.location_);
+			for (auto e : i.second.eventgroups_) {
+				send_eventgroup_command(command_enum::REQUEST_EVENTGROUP, s.first, i.first, e);
+			}
 		}
 	}
 
@@ -506,6 +607,34 @@ void administration_proxy_impl::send_eventgroup_command(
 	do_send(command);
 }
 
+void administration_proxy_impl::send_field_command(
+		command_enum _command,
+		service_id _service, instance_id _instance, eventgroup_id _eventgroup,
+		event_id _field, const payload &_payload) {
+	VSOMEIP_TRACE << "administration_proxy_impl::send_field_command";
+
+	client_id id = owner_.get_id();
+	boost::shared_ptr< serializer > its_serializer(owner_.get_serializer());
+	uint32_t payload_size = 8 + _payload.get_length();
+
+	std::vector< uint8_t > command(payload_size + VSOMEIP_PROTOCOL_OVERHEAD);
+
+	std::memcpy(&command[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_ID], &id, sizeof(id));
+	command[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(_command);
+
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
+
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+2], &_instance, sizeof(_instance));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+4], &_eventgroup, sizeof(_eventgroup));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+6], &_field, sizeof(_field));
+	std::memcpy(&command[VSOMEIP_PROTOCOL_PAYLOAD+8], _payload.get_data(), _payload.get_length());
+
+	std::memcpy(&command[payload_size + VSOMEIP_PROTOCOL_PAYLOAD], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+
+	do_send(command);
+}
 
 void administration_proxy_impl::send_registration_command(
 		command_enum _command, service_id _service, instance_id _instance, method_id _method) {
@@ -569,7 +698,7 @@ void administration_proxy_impl::send_pong() {
 
 void administration_proxy_impl::process_message(std::size_t _bytes) {
 	VSOMEIP_TRACE << "administration_proxy_impl::process_message";
-#ifdef VSOMEIP_DEVEL
+#if 0
 		for (std::size_t i = 0; i < _bytes; ++i) {
 			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)receive_buffer_[i] << " ";
 		}
@@ -609,6 +738,7 @@ void administration_proxy_impl::process_message(std::size_t _bytes) {
 void administration_proxy_impl::process_command(command_enum _command, client_id _client, const uint8_t *_payload, uint32_t payload_size) {
 	service_id its_service;
 	instance_id its_instance;
+	eventgroup_id its_eventgroup;
 	const endpoint *its_location = 0;
 
 	switch (_command) {
@@ -643,6 +773,22 @@ void administration_proxy_impl::process_command(command_enum _command, client_id
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		on_service_availability(its_service, its_instance, its_location, false);
+		break;
+
+	case command_enum::SOMEIP_SUBSCRIBE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+		its_location = vsomeip::factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+6], payload_size - 6);
+		owner_.handle_subscription(its_service, its_instance, its_eventgroup, its_location, true);
+		break;
+
+	case command_enum::SOMEIP_UNSUBSCRIBE:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+		its_location = vsomeip::factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+6], payload_size - 6);
+		owner_.handle_subscription(its_service, its_instance, its_eventgroup, its_location, false);
 		break;
 
 	default:
@@ -761,7 +907,7 @@ void administration_proxy_impl::on_service_availability(
 		}
 	}
 
-	owner_.handle_service_availability(_service, _instance, _location, _is_available);
+	owner_.handle_availability(_service, _instance, _location, _is_available);
 }
 
 void administration_proxy_impl::remove_requested_services(message_queue *_queue) {

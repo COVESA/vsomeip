@@ -42,6 +42,9 @@ public:
 	virtual void open_filter(service_id _service_id) = 0;
 	virtual void close_filter(service_id _service_id) = 0;
 
+	virtual void join(const std::string &_multicast_address) = 0;
+	virtual void leave(const std::string &_multicast_address) = 0;
+
 	virtual void enable_magic_cookies() = 0;
 	virtual void disable_magic_cookies() = 0;
 };

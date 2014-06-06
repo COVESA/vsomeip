@@ -14,6 +14,7 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/endpoint.hpp>
+#include <vsomeip/field.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/application.hpp>
 #include <vsomeip/factory.hpp>

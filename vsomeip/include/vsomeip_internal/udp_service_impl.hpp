@@ -45,6 +45,9 @@ public:
 
 	const uint8_t * get_buffer() const;
 
+	void join(const std::string &_multicast_address);
+	void leave(const std::string &_multicast_address);
+
 private:
 	buffer_type buffer_;
 	socket_type socket_;

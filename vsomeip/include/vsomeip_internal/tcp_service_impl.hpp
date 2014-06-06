@@ -46,6 +46,9 @@ public:
 
 	const uint8_t * get_buffer() const;
 
+	void join(const std::string &);
+	void leave(const std::string &);
+
 private:
 	class connection
 		: public boost::enable_shared_from_this<connection> {

@@ -7,6 +7,8 @@
 // All rights reserved.
 //
 
+#include <iostream>
+
 #include <vsomeip_internal/constants.hpp>
 #include <vsomeip_internal/deserializer.hpp>
 #include <vsomeip_internal/serializer.hpp>
@@ -43,13 +45,13 @@ bool eventgroup_entry_impl::serialize(vsomeip::serializer *_to) const {
 				&& _to->serialize(vsomeip_protocol_reserved_byte);
 
 	is_successful = is_successful
-				&& _to->serialize(static_cast<uint32_t>(time_to_live_), true);
+				&& _to->serialize(static_cast< uint32_t >(time_to_live_), true);
 
 	is_successful = is_successful
 			&& _to->serialize(vsomeip_protocol_reserved_word);
 
 	is_successful = is_successful
-			&& _to->serialize(static_cast<uint16_t>(eventgroup_id_));
+			&& _to->serialize(static_cast< uint16_t >(eventgroup_id_));
 
 	return is_successful;
 }
@@ -57,14 +59,19 @@ bool eventgroup_entry_impl::serialize(vsomeip::serializer *_to) const {
 bool eventgroup_entry_impl::deserialize(vsomeip::deserializer *_from) {
 	bool is_successful = entry_impl::deserialize(_from);
 
-	uint16_t reserved;
-	is_successful = is_successful
-			&& _from->deserialize(reserved);
+	uint8_t reserved0;
+	is_successful = is_successful && _from->deserialize(reserved0);
+
+	uint32_t tmp_time_to_live;
+	is_successful = is_successful && _from->deserialize(tmp_time_to_live, true);
+	time_to_live_ = static_cast<time_to_live>(tmp_time_to_live);
+
+	uint16_t reserved1;
+	is_successful = is_successful && _from->deserialize(reserved1);
 
 	uint16_t tmp_eventgroup_id = 0;
-	is_successful = is_successful
-			&& _from->deserialize(tmp_eventgroup_id);
-	eventgroup_id_ = static_cast<eventgroup_id>(tmp_eventgroup_id);
+	is_successful = is_successful && _from->deserialize(tmp_eventgroup_id);
+	eventgroup_id_ = static_cast< eventgroup_id >(tmp_eventgroup_id);
 
 	return is_successful;
 }

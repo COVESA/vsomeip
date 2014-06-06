@@ -100,7 +100,7 @@ configuration::configuration()
 	  slots_(10),
 	  protocol_("udp.v4"),
 	  unicast_address_("127.0.0.1"),
-	  multicast_address_("223.0.0.0"),
+	  multicast_address_(""),
 	  netmask_("255.255.255.0"),
 	  port_(30490),
 	  min_initial_delay_(10),

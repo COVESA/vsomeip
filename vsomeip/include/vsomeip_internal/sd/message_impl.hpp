@@ -42,7 +42,9 @@ public:
 
 	configuration_option & create_configuration_option();
 	ipv4_endpoint_option & create_ipv4_endpoint_option();
+	ipv4_multicast_option & create_ipv4_multicast_option();
 	ipv6_endpoint_option & create_ipv6_endpoint_option();
+	ipv6_multicast_option & create_ipv6_multicast_option();
 	load_balancing_option & create_load_balancing_option();
 	protection_option & create_protection_option();
 

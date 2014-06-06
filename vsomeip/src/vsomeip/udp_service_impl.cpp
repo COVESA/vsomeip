@@ -12,6 +12,8 @@
 #include <iostream>
 
 #include <boost/asio/placeholders.hpp>
+#include <boost/asio/ip/address.hpp>
+#include <boost/asio/ip/multicast.hpp>
 #include <boost/bind.hpp>
 
 #include <vsomeip/endpoint.hpp>
@@ -101,6 +103,36 @@ ip_protocol udp_service_impl::get_protocol() const {
 
 const uint8_t * udp_service_impl::get_buffer() const {
 	return buffer_.data();
+}
+
+void udp_service_impl::join(const std::string &_multicast_address) {
+	if (ip_protocol_version::V4 == location_->get_version()) {
+		try {
+			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+			socket_.set_option(boost::asio::ip::multicast::join_group(
+							   boost::asio::ip::address::from_string(_multicast_address)));
+		}
+		catch (...) {
+
+		}
+	} else {
+		// TODO: support multicast for IPv6
+	}
+}
+
+void udp_service_impl::leave(const std::string &_multicast_address) {
+	if (ip_protocol_version::V4 == location_->get_version()) {
+		try {
+			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+			socket_.set_option(boost::asio::ip::multicast::leave_group(
+							   boost::asio::ip::address::from_string(_multicast_address)));
+		}
+		catch (...) {
+
+		}
+	} else {
+		// TODO: support multicast for IPv6
+	}
 }
 
 } // namespace vsomeip

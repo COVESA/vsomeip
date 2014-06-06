@@ -19,6 +19,9 @@
 #define VSOMEIP_SD_FACTORY_SYMBOL_STRING 	"VSOMEIP_SD_FACTORY"
 
 namespace vsomeip {
+
+class daemon;
+
 namespace sd {
 
 class message;
@@ -30,8 +33,7 @@ public:
 
 	static factory * get_instance();
 
-	virtual service_discovery * create_service_discovery(
-				boost::asio::io_service &_service) const = 0;
+	virtual service_discovery * create_service_discovery(daemon &_daemon) const = 0;
 
 	virtual message * create_message() const = 0;
 };

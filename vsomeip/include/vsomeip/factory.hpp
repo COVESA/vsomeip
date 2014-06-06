@@ -17,8 +17,8 @@ namespace vsomeip {
 
 class application;
 class endpoint;
+class field;
 class message;
-class message_base;
 
 class factory {
 public:
@@ -32,7 +32,9 @@ public:
 	virtual endpoint * get_endpoint(const uint8_t *_bytes, uint32_t _size) = 0;
 
 	virtual message * create_message() const = 0;
-	virtual message * create_response(const message_base *_request) const = 0;
+	virtual message * create_response(const message *_request) const = 0;
+
+	virtual field * create_field(application *_application, service_id _service, instance_id _instance, event_id _event) const = 0;
 };
 
 } // namespace vsomeip

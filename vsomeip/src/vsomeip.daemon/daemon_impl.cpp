@@ -98,12 +98,20 @@ bool daemon_impl::is_managing() const {
 	return true;
 }
 
+boost::log::sources::severity_logger< boost::log::trivial::severity_level > & daemon_impl::get_logger() {
+	return logger_;
+}
+
 boost::shared_ptr< serializer > & daemon_impl::get_serializer() {
 	return serializer_;
 }
 
 boost::shared_ptr< deserializer > & daemon_impl::get_deserializer() {
 	return deserializer_;
+}
+
+boost::asio::io_service & daemon_impl::get_service() {
+	return get_sender_service();
 }
 
 boost::asio::io_service & daemon_impl::get_sender_service() {
@@ -146,23 +154,31 @@ void daemon_impl::init(int _count, char **_options) {
 		);
 
 		if (0 != its_factory && 0 != (*its_factory)) {
-			service_discovery_ = (*its_factory)->create_service_discovery(sender_service_);
+			service_discovery_ = (*its_factory)->create_service_discovery(*this);
 			if (0 != service_discovery_) {
-				service_discovery_->set_owner(this);
 				VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": Service Discovery Module loaded.";
 
-				std::string its_address = its_configuration->get_unicast_address();
+				unicast_ = its_configuration->get_unicast_address();
+				std::string its_multicast = its_configuration->get_multicast_address();
 				uint16_t its_port = its_configuration->get_port();
 				ip_protocol its_protocol =
 						(its_configuration->get_protocol() == "tcp" ?
 							ip_protocol::TCP : ip_protocol::UDP);
 
 				const endpoint *its_location =
-						vsomeip::factory::get_instance()->get_endpoint(its_address, its_port, its_protocol);
+						vsomeip::factory::get_instance()->get_endpoint(unicast_, its_port, its_protocol);
 
 				if (proxy_->provide_service(VSOMEIP_SERVICE_DISCOVERY_SERVICE,
 						    				VSOMEIP_SERVICE_DISCOVERY_INSTANCE,
 						    				its_location)) {
+
+					if (ip_protocol::UDP == its_protocol) {
+						service *its_service = proxy_->find_service(its_location);
+						if (0 != its_service) {
+							its_service->join(its_multicast);
+						}
+					}
+
 					service_discovery_->init();
 					VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": Service Discovery Module initialized.";
 				}
@@ -207,14 +223,20 @@ void daemon_impl::stop() {
 	VSOMEIP_INFO << "vsomeipd v" << VSOMEIP_VERSION << ": stopped.";
 }
 
-bool daemon_impl::send(message_base *_message, bool _flush) {
-	return proxy_->send(_message, _flush);
+bool daemon_impl::send(message_base *_message, bool _reliable, bool _flush) {
+	return proxy_->send(_message, _reliable, _flush);
 }
 
 void daemon_impl::on_service_availability(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) {
 	uint32_t location_size = 0;
 	if (_location) {
 		proxy_->request_service(_service, _instance, _location);
+
+		if (service_discovery_)
+			service_discovery_->on_service_available(
+					_service, _instance,
+					proxy_->find_client_location(_service, _instance, true),
+					proxy_->find_client_location(_service, _instance, false));
 
 		serializer_->serialize(_location);
 		location_size = serializer_->get_size();
@@ -246,10 +268,44 @@ void daemon_impl::on_service_availability(client_id _client, service_id _service
 	do_send(_client, data);
 }
 
+void daemon_impl::on_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing) {
+	client_id id = find_local(_service, _instance, VSOMEIP_ANY_METHOD);
+	if (id != VSOMEIP_UNKNOWN_ID && 0 != _location) {
+		serializer_->serialize(_location);
+
+		uint32_t payload_size = 6 + serializer_->get_size();
+
+		std::vector< uint8_t > data(VSOMEIP_PROTOCOL_OVERHEAD + payload_size);
+
+		std::memcpy(&data[0], &VSOMEIP_PROTOCOL_START_TAG, sizeof(VSOMEIP_PROTOCOL_START_TAG));
+		std::memset(&data[VSOMEIP_PROTOCOL_ID], id, sizeof(id));
+
+		if (_is_subscribing) {
+			data[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::SOMEIP_SUBSCRIBE);
+		} else {
+			data[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::SOMEIP_UNSUBSCRIBE);
+		}
+
+		std::memcpy(&data[VSOMEIP_PROTOCOL_PAYLOAD_SIZE], &payload_size, sizeof(payload_size));
+		std::memcpy(&data[VSOMEIP_PROTOCOL_PAYLOAD], &_service, sizeof(_service));
+		std::memcpy(&data[VSOMEIP_PROTOCOL_PAYLOAD+2], &_instance, sizeof(_instance));
+		std::memcpy(&data[VSOMEIP_PROTOCOL_PAYLOAD+4], &_eventgroup, sizeof(_eventgroup));
+		std::memcpy(&data[VSOMEIP_PROTOCOL_PAYLOAD+6], serializer_->get_data(), serializer_->get_size());
+		std::memcpy(&data[payload_size + VSOMEIP_PROTOCOL_PAYLOAD], &VSOMEIP_PROTOCOL_END_TAG, sizeof(VSOMEIP_PROTOCOL_END_TAG));
+
+		serializer_->reset();
+
+		do_send(id, data);
+	}
+}
+
 void daemon_impl::handle_message(const message *_message) {
 }
 
-void daemon_impl::handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) {
+void daemon_impl::handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) {
+}
+
+void daemon_impl::handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing) {
 }
 
 void daemon_impl::start_watchdog_cycle() {
@@ -468,14 +524,6 @@ void daemon_impl::on_deregister_application(client_id _id) {
 }
 
 void daemon_impl::on_provide_service(client_id _id,	service_id _service, instance_id _instance, const endpoint *_location) {
-
-	VSOMEIP_DEBUG
-		<< "APPLICATION " << "(" << _id
-		<< ") PROVIDES ("
-		<< std::hex << std::setw(4) << std::setfill('0')
-		<< _service << ", " << _instance
-		<< ")";
-
 	auto find_application = applications_.find(_id);
 	if (find_application != applications_.end()) {
 		if (!find_application->second.is_managing_) {
@@ -692,6 +740,42 @@ void daemon_impl::on_deregister_method(client_id _id, service_id _service, insta
 	}
 }
 
+void daemon_impl::on_request_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	eventgroups_[_service][_instance][_eventgroup].clients_.insert(_client);
+
+	for (auto e : eventgroups_[_service][_instance][_eventgroup].events_) {
+		events_[e]._clients.insert(_client);
+	}
+
+	if (service_discovery_)
+		service_discovery_->on_request_eventgroup(_client, _service, _instance, _eventgroup);
+}
+
+void daemon_impl::on_release_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	auto found_service = eventgroups_.find(_service);
+	if (found_service != eventgroups_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.find(_eventgroup);
+			if (found_eventgroup != found_instance->second.end()) {
+				found_eventgroup->second.clients_.erase(_client);
+				if (service_discovery_)
+					service_discovery_->on_request_eventgroup(_client, _service, _instance, _eventgroup);
+			}
+		}
+	}
+}
+
+void daemon_impl::on_add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _field,
+		                       const uint8_t *_payload, uint32_t _payload_size) {
+	eventgroups_[_service][_instance][_eventgroup].events_.insert(_field);
+	events_[_field].payload_.assign(_payload, _payload + _payload_size);
+
+	for (auto c : eventgroups_[_service][_instance][_eventgroup].clients_) {
+		events_[_field]._clients.insert(c);
+	}
+}
+
 void daemon_impl::on_pong(client_id _id) {
 	auto info = applications_.find(_id);
 	if (info != applications_.end()) {
@@ -718,8 +802,9 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 
 	// extract instance identifier & flush parameter from internal message part
 	instance_id its_instance;
-	std::memcpy(&its_instance, &_data[_size - 7], sizeof(instance_id));
+	std::memcpy(&its_instance, &_data[_size - 9], sizeof(instance_id));
 
+	bool reliable = static_cast< bool >(_data[_size - 7]);
 	bool flush = static_cast< bool >(_data[_size - 5]);
 
 	// route message
@@ -729,7 +814,7 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 			std::vector< uint8_t > buffer(_data, _data + _size);
 			do_send(its_application, buffer);
 		} else {
-			client *target = find_remote(its_service, its_instance);
+			client *target = find_remote(its_service, its_instance, reliable);
 			if (0 != target) {
 				target->send(payload, payload_size - 3, flush);
 			} else {
@@ -746,7 +831,7 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 			std::vector< uint8_t > buffer(_data, _data + _size);
 			do_send(its_client, buffer);
 		} else {
-			const endpoint *location = proxy_->find_service_location(its_service, its_instance);
+			const endpoint *location = proxy_->find_service_location(its_service, its_instance, reliable);
 			service *source = proxy_->find_service(location);
 			const endpoint *target = find_remote(its_client);
 
@@ -766,13 +851,30 @@ void daemon_impl::on_send_message(client_id _id, const uint8_t *_data, uint32_t 
 	}
 }
 
+void daemon_impl::on_update_field(uint8_t *_data, uint32_t _size) {
+	if (service_discovery_) { // as SOME/IP Eventgroups do not work without
+		uint8_t *payload = &_data[VSOMEIP_PROTOCOL_PAYLOAD];
+		method_id its_field = VSOMEIP_BYTES_TO_WORD(payload[2], payload[3]);
+
+		auto found_event = events_.find(its_field);
+		if (found_event != events_.end()) {
+			_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast< uint8_t >(command_enum::SOMEIP_MESSAGE);
+			for (auto c : found_event->second._clients) {
+				payload[8] = VSOMEIP_WORD_BYTE1(c);
+				payload[9] = VSOMEIP_WORD_BYTE0(c);
+				on_send_message(c, _data, _size);
+			}
+		}
+	}
+}
+
 bool daemon_impl::is_request(const message *_message) const {
-	return (_message->get_message_type() < message_type_enum::RESPONSE);
+	return (_message->get_message_type() < message_type_enum::NOTIFICATION);
 }
 
 bool daemon_impl::is_request(const uint8_t *_data, uint32_t _size) const {
 	return (_size >= VSOMEIP_POS_MESSAGE_TYPE &&
-			static_cast< message_type_enum >(_data[VSOMEIP_POS_MESSAGE_TYPE]) < message_type_enum::RESPONSE);
+			static_cast< message_type_enum >(_data[VSOMEIP_POS_MESSAGE_TYPE]) < message_type_enum::NOTIFICATION);
 }
 
 void daemon_impl::send_request_service_ack(client_id _id, service_id _service, instance_id _instance, const std::string &_queue_name) {
@@ -880,10 +982,11 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	service_id its_service;
 	instance_id its_instance;
 	eventgroup_id its_eventgroup;
+	event_id its_field;
 	method_id its_method;
 	endpoint *its_location = 0;
 
-#ifdef VSOMEIP_DAEMON_DEBUG
+#if 0
 	std::cout << "COMMAND: ";
 	for (int i = 0; i < _bytes; ++i) {
 		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)receive_buffer_[i] << " ";
@@ -941,14 +1044,15 @@ void daemon_impl::process_command(std::size_t _bytes) {
 	case command_enum::REQUEST_SERVICE:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
-		its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
+		if (payload_size > 4)
+			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
 		on_request_service(its_id, its_service, its_instance, its_location);
 		break;
 
 	case command_enum::RELEASE_SERVICE:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
-		if (payload_size - 4 > 0)
+		if (payload_size > 4)
 			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], payload_size - 4);
 		on_release_service(its_id, its_service, its_instance, its_location);
 		break;
@@ -957,36 +1061,47 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
-
-		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] provides eventgroup ["
-		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		if (payload_size > 6)
+			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+6], payload_size - 6);
+		if (service_discovery_)
+			service_discovery_->on_provide_eventgroup(its_service, its_instance, its_eventgroup, its_location);
 		break;
 
 	case command_enum::WITHDRAW_EVENTGROUP:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+		if (payload_size > 6)
+			its_location = factory::get_instance()->get_endpoint(&receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+6], payload_size - 6);
+		if (service_discovery_)
+			service_discovery_->on_withdraw_eventgroup(its_service, its_instance, its_eventgroup, its_location);
+		break;
 
-		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] withdraws eventgroup ["
-		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+	case command_enum::ADD_FIELD:
+		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
+		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
+		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
+		std::memcpy(&its_field, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+6], sizeof(its_field));
+		on_add_field(its_service, its_instance, its_eventgroup, its_field,
+				     &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+8], payload_size-8);
+		break;
+
+	case command_enum::REMOVE_FIELD:
+		VSOMEIP_WARNING << "Removing fields is not (yet) implemented!";
 		break;
 
 	case command_enum::REQUEST_EVENTGROUP:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
-
-		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] requests eventgroup ["
-		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		on_request_eventgroup(its_id, its_service, its_instance, its_eventgroup);
 		break;
 
 	case command_enum::RELEASE_EVENTGROUP:
 		std::memcpy(&its_service, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD], sizeof(its_service));
 		std::memcpy(&its_instance, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+2], sizeof(its_instance));
 		std::memcpy(&its_eventgroup, &receive_buffer_[VSOMEIP_PROTOCOL_PAYLOAD+4], sizeof(its_eventgroup));
-
-		VSOMEIP_DEBUG << "Client [" << std::hex << std::setw(4) << std::setfill('0') << its_id << "] releases eventgroup ["
-		              << its_service << "." << its_instance << "." << its_eventgroup << "]";
+		on_release_eventgroup(its_id, its_service, its_instance, its_eventgroup);
 		break;
 
 	case command_enum::REGISTER_METHOD:
@@ -1008,7 +1123,11 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		break;
 
 	case command_enum::SOMEIP_MESSAGE:
-		on_send_message(its_id, &receive_buffer_[0], _bytes);
+		on_send_message(its_id, receive_buffer_, _bytes);
+		break;
+
+	case command_enum::SOMEIP_FIELD:
+		on_update_field(receive_buffer_, _bytes);
 		break;
 
 	default:
@@ -1016,7 +1135,6 @@ void daemon_impl::process_command(std::size_t _bytes) {
 		break;
 	}
 }
-
 
 client_id daemon_impl::find_local(service_id _service, instance_id _instance, method_id _method) const {
 	client_id found_client = VSOMEIP_UNKNOWN_ID;
@@ -1035,10 +1153,10 @@ client_id daemon_impl::find_local(service_id _service, instance_id _instance, me
 	return found_client;
 }
 
-client * daemon_impl::find_remote(service_id _service, instance_id _instance) const {
+client * daemon_impl::find_remote(service_id _service, instance_id _instance, bool _reliable) const {
 	client * found_client = 0;
 
-	const endpoint *found_location = proxy_->find_client_location(_service, _instance);
+	const endpoint *found_location = proxy_->find_client_location(_service, _instance, _reliable);
 	if (0 != found_location) {
 		found_client = proxy_->find_client(found_location);
 	}
@@ -1080,6 +1198,15 @@ void daemon_impl::save_client_location(client_id _client, const endpoint *_locat
 
 void daemon_impl::catch_up_registrations() {
 	// intentionally left empty!
+}
+
+service * daemon_impl::find_multicast_service(ip_port _port) const {
+	const endpoint *its_location = vsomeip::factory::get_instance()->get_endpoint(
+								   	   unicast_,
+								   	   _port,
+								   	   ip_protocol::UDP
+								   );
+	return proxy_->find_or_create_service(its_location);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

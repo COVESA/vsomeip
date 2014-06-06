@@ -25,7 +25,9 @@ class service_entry;
 class option;
 class configuration_option;
 class ipv4_endpoint_option;
+class ipv4_multicast_option;
 class ipv6_endpoint_option;
+class ipv6_multicast_option;
 class load_balancing_option;
 class protection_option;
 
@@ -44,7 +46,9 @@ public:
 
 	virtual configuration_option & create_configuration_option() = 0;
 	virtual ipv4_endpoint_option & create_ipv4_endpoint_option() = 0;
+	virtual ipv4_multicast_option & create_ipv4_multicast_option() = 0;
 	virtual ipv6_endpoint_option & create_ipv6_endpoint_option() = 0;
+	virtual ipv6_multicast_option & create_ipv6_multicast_option() = 0;
 	virtual load_balancing_option & create_load_balancing_option() = 0;
 	virtual protection_option & create_protection_option() = 0;
 

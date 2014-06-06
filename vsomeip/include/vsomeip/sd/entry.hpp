@@ -10,6 +10,8 @@
 #ifndef VSOMEIP_SD_ENTRY_HPP
 #define VSOMEIP_SD_ENTRY_HPP
 
+#include <vector>
+
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/serializable.hpp>
 #include <vsomeip/deserializable.hpp>

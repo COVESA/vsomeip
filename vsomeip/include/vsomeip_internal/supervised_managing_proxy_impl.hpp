@@ -41,9 +41,8 @@ public:
 	bool provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 	bool withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field);
-	bool remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
+	bool add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
+	bool remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
 
 	bool request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 	bool release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);

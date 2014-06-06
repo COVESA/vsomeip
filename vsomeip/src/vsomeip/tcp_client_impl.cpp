@@ -13,6 +13,7 @@
 #include <boost/asio/write.hpp>
 #include <boost/bind.hpp>
 
+#include <vsomeip/factory.hpp>
 #include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/tcp_client_impl.hpp>
 
@@ -27,6 +28,14 @@ tcp_client_impl::tcp_client_impl(
 }
 
 tcp_client_impl::~tcp_client_impl() {
+}
+
+const endpoint * tcp_client_impl::get_local_endpoint() const {
+	return vsomeip::factory::get_instance()->get_endpoint(
+				socket_.local_endpoint().address().to_string(),
+				socket_.local_endpoint().port(),
+				ip_protocol::TCP
+		   );
 }
 
 void tcp_client_impl::start() {
@@ -111,6 +120,12 @@ void tcp_client_impl::send_magic_cookie() {
 	} else {
 		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
 	}
+}
+
+void tcp_client_impl::join(const std::string &) {
+}
+
+void tcp_client_impl::leave(const std::string &) {
 }
 
 } // namespace vsomeip

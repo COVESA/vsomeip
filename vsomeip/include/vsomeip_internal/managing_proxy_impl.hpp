@@ -54,14 +54,13 @@ public:
 	bool provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 	bool withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field);
-	bool remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
+	bool add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
+	bool remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
 
 	bool request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 	bool release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
-	bool send(message_base *_message, bool _flush);
+	bool send(message_base *_message, bool _reliable, bool _flush);
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
 	bool disable_magic_cookies(service_id _service, instance_id _instance);
@@ -71,8 +70,8 @@ public:
 
 	// The following methods are specific for this proxy type and
 	// used by the daemon implementation only...
-	const endpoint * find_client_location(service_id, instance_id) const;
-	const endpoint * find_service_location(service_id, instance_id) const;
+	const endpoint * find_client_location(service_id, instance_id, bool) const;
+	const endpoint * find_service_location(service_id, instance_id, bool) const;
 
 	client * find_client(const endpoint *) const;
 	client * create_client(const endpoint *);
@@ -88,7 +87,8 @@ private:
 	// locations of clients & services
 	typedef std::map< service_id,
 					   std::map< instance_id,
-								 const endpoint * > > location_map_t;
+								 std::map< bool,
+								           const endpoint * > > > location_map_t;
 
 	location_map_t client_locations_;
 	location_map_t service_locations_;
@@ -99,7 +99,8 @@ private:
 
 	// instances on an endpoint
 	typedef std::map< const endpoint *,
-					  std::map< service_id, instance_id > > instance_map_t;
+					  std::map< service_id,
+					  	  	    instance_id > > instance_map_t;
 
 	instance_map_t client_instances_;
 	instance_map_t service_instances_;

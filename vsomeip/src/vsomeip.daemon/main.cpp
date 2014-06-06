@@ -20,5 +20,3 @@ main(int argc, char **argv) {
 	// start the daemon
 	the_daemon->start();
 }
-
-

@@ -13,40 +13,42 @@
 #include <map>
 #include <set>
 
+#include <boost/log/sources/severity_logger.hpp>
+#include <boost/log/trivial.hpp>
 #include <boost/shared_ptr.hpp>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip_internal/sd/client_state_machine.hpp>
 #include <vsomeip_internal/sd/service_discovery.hpp>
-#include <vsomeip_internal/sd/service_state_machine.hpp>
 
 namespace vsomeip {
 
 class application;
+class daemon;
 class endpoint;
 class message_base;
 
 namespace sd {
 
+class client_proxy;
 class deserializer;
+class group;
+class service_proxy;
 
 class service_discovery_impl
 		: public service_discovery {
 public:
-	service_discovery_impl(boost::asio::io_service &_service);
+	service_discovery_impl(daemon& _owner);
 	virtual ~service_discovery_impl();
 
 	void init();
 	void start();
 	void stop();
 
-	daemon * get_owner() const;
-	void set_owner(daemon *_owner);
-
 	boost::asio::io_service & get_service();
 
 	void on_provide_service(service_id _service, instance_id _instance, const endpoint *_location);
 	void on_withdraw_service(service_id _service, instance_id _instance, const endpoint *_location);
+
 	void on_start_service(service_id _service, instance_id _instance);
 	void on_stop_service(service_id _service, instance_id _instance);
 
@@ -55,55 +57,56 @@ public:
 
 	void on_provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 	void on_withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
-	void on_add_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_event);
-	void on_remove_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
 
 	void on_request_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 	void on_release_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
+	void on_service_available(service_id _service, instance_id _instance, const endpoint *_reliable, const endpoint *_unreliable);
+
 	void on_message(const uint8_t *_data, uint32_t _size,
 					const endpoint *_source, const endpoint *_target);
 
-	bool send_find_service(client_state_machine_t *_service);
-	bool send_offer_service(service_state_machine_t *_service, const endpoint *_target);
-	bool send_stop_offer_service(service_state_machine_t *_service);
+	bool send(message *_message);
 
-	bool send(message_base *_message, bool _flush);
-
-	void send_service_state(service_id _service, instance_id _instance, bool _is_available);
+	bool update_client(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 
 private:
-	typedef std::pair< boost::shared_ptr< client_state_machine_t >,
-	  	           	   std::set< client_id > > client_info_t;
+	client_proxy * find_client(service_id _service, instance_id _instance) const;
+	client_proxy * find_or_create_client(service_id _service, instance_id _instance);
 
-	typedef std::map< service_id,
-					  std::map< instance_id,
-					  	  	  	client_info_t > > client_machines_t;
+	service_proxy * find_service(service_id _service, instance_id _instance) const;
+	service_proxy * find_or_create_service(service_id _service, instance_id _instance);
 
-	typedef std::map< service_id,
-					  std::map< instance_id,
-			  	  	  			boost::shared_ptr< service_state_machine_t > > > service_machines_t;
-
-private:
-	const client_info_t * find_client_info(service_id _service, instance_id _instance) const;
-	client_state_machine_t * find_client_machine(service_id _service, instance_id _instance) const;
-	service_state_machine_t * find_service_machine(service_id _service, instance_id _instance) const;
+	group * find_client_group(service_id _service, instance_id _instance) const;
+	group * find_service_group(service_id _service, instance_id _instance) const;
 
 	std::string get_broadcast_address(const std::string &_address, const std::string &_mask) const;
 
-	void on_find_service(const service_entry *_entry, const std::vector< option * > &_options, const endpoint *_source);
-	void on_offer_service(const service_entry *_entry, const std::vector< option * > &_options);
+	void on_find_service(const service_entry *_entry, const std::vector< option * > &_options, const endpoint *_source, bool _is_unicast_enabled);
+	void on_offer_service(const service_entry *_entry, const std::vector< option * > &_options, const endpoint *_source);
+
+	void on_subscribe_eventgroup(const eventgroup_entry *_entry, const std::vector< option * > &_options, const endpoint *_source);
+	void on_subscribe_eventgroup_ack(const eventgroup_entry *_entry, const std::vector< option * > &_options);
 
 private:
-	client_machines_t its_clients_;
-	service_machines_t its_services_;
-
-	daemon *owner_;
+	daemon &owner_;
 	boost::asio::io_service &service_;
+	boost::log::sources::severity_logger<
+		boost::log::trivial::severity_level > & logger_;
 
+	std::set< boost::shared_ptr< group > > groups_;
+	boost::shared_ptr< group > default_group_;
+
+	// Broadcast address of the network
 	const endpoint *broadcast_;
+
+	// Multicast address used to distribute service discovery messages
+	const endpoint *multicast_;
+
+	// Session - ID (incremented for each message that is sent to the network)
 	session_id session_;
 
+	// Helper to receive and send messages
 	boost::shared_ptr< deserializer > deserializer_;
 	factory *factory_;
 };

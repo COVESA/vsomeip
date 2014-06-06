@@ -29,7 +29,9 @@ public:
 	endpoint * get_endpoint(const uint8_t *_bytes, uint32_t _size);
 
 	message * create_message() const;
-	message * create_response(const message_base *_request) const;
+	message * create_response(const message *_request) const;
+
+	field * create_field(application *_application, service_id _service, instance_id _instance, event_id _event) const;
 
 private:
 	std::map< uint32_t, std::map< std::string, endpoint * > > endpoints_;
@@ -38,4 +40,3 @@ private:
 } // namespace vsomeip
 
 #endif // VSOMEIP_INTERNAL_FACTORY_IMPL_HPP
-

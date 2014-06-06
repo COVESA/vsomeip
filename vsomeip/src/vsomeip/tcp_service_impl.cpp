@@ -197,6 +197,12 @@ void tcp_service_impl::connection::receive_cbk(
 	owner_->receive_cbk(_error, _bytes);
 }
 
+void tcp_service_impl::join(const std::string &) {
+}
+
+void tcp_service_impl::leave(const std::string &) {
+}
+
 } // namespace vsomeip
 
 

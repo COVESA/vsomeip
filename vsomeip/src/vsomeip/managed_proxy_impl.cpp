@@ -48,23 +48,21 @@ void managed_proxy_impl::stop() {
 	administration_proxy_impl::stop();
 }
 
-bool managed_proxy_impl::send(message_base *_message, bool _flush) {
+bool managed_proxy_impl::send(message_base *_message, bool _reliable, bool _flush) {
 	if (0 == _message) {
 		VSOMEIP_WARNING << "managed_proxy_impl::send: called without message object";
 		return false;
 	}
 
 	instance_id instance = _message->get_instance_id();
-	client_id id = owner_.get_id();
-
 	message_type_enum message_type = _message->get_message_type();
-	if (message_type < message_type_enum::RESPONSE)
-		_message->set_client_id(id);
+	client_id id = owner_.get_id();
 
 	uint32_t message_size =
 			VSOMEIP_STATIC_HEADER_SIZE
 			+ _message->get_length()
 			+ sizeof(instance)
+			+ sizeof(_reliable)
 			+ sizeof(_flush)
 			+ VSOMEIP_PROTOCOL_OVERHEAD;
 
@@ -83,7 +81,12 @@ bool managed_proxy_impl::send(message_base *_message, bool _flush) {
 
 	// Sender & Message Type
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_ID], &id, sizeof(id));
-	message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::SOMEIP_MESSAGE);
+
+	if (0xFE & its_serializer->get_data()[2]) {
+		message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::SOMEIP_MESSAGE);
+	} else {
+		message_data[VSOMEIP_PROTOCOL_COMMAND] = static_cast<uint8_t>(command_enum::SOMEIP_FIELD);
+	}
 
 	// Payload length & Message
 	message_size -= VSOMEIP_PROTOCOL_OVERHEAD;
@@ -92,9 +95,10 @@ bool managed_proxy_impl::send(message_base *_message, bool _flush) {
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD], its_serializer->get_data(), message_size);
 	its_serializer->reset();
 
-	// Instance & Flush Parameter
+	// Instance, Reliable & Flush Parameter
 	std::memcpy(&message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size], &instance, sizeof(instance));
-	message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size + sizeof(instance)] = static_cast< uint8_t >(_flush);
+	message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size + sizeof(instance)] = static_cast< uint8_t >(_reliable);
+	message_data[VSOMEIP_PROTOCOL_PAYLOAD + message_size + sizeof(instance) + sizeof(_reliable)] = static_cast< uint8_t >(_flush);
 
 	send_buffers_.push_back(message_data);
 

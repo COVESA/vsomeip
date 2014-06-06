@@ -10,6 +10,7 @@
 #ifndef VSOMEIP_APPLICATION_IMPL_HPP
 #define VSOMEIP_APPLICATION_IMPL_HPP
 
+#include <map>
 #include <set>
 
 #include <boost/asio/io_service.hpp>
@@ -62,15 +63,14 @@ public:
 	bool withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
 							 const endpoint *_location);
 
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup,
-								   event_id _event);
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _event, message *_field);
-	bool remove_from_eventgroup(service_id _service, instance_id _instance,	eventgroup_id _eventgroup, event_id _event);
+	bool add_field(service_id _service, instance_id _instance, eventgroup_id _event, field *_field);
+	bool remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
+	bool update_field(const field *_field);
 
 	bool request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 	bool release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
-	bool send(message *_message, bool _flush = true);
+	bool send(message *_message, bool _reliable, bool _flush);
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
 	bool disable_magic_cookies(service_id _service, instance_id _instance);
@@ -83,7 +83,8 @@ public:
 
 	void catch_up_registrations();
 	void handle_message(const message *_message);
-	void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+	void handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+	void handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing);
 
 	boost::shared_ptr< serializer > & get_serializer();
 	boost::shared_ptr< deserializer > & get_deserializer();
@@ -91,6 +92,7 @@ public:
 protected:
 	void service(boost::asio::io_service &_service);
 	void send_error_message(const message *_request, return_code_enum _error);
+	std::set< field * > * find_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
 protected:
 	// Threads for independently run sending & receiving
@@ -107,14 +109,22 @@ protected:
 	boost::asio::io_service::work receiver_work_;
 
 protected:
-	// Application (Client) id
+	// Application info (Client-Id / Session-Id)
 	client_id id_;
+	session_id session_;
 
 	// Application properties
 	bool is_managing_;
 	bool is_service_discovery_enabled_;
 
-	// Handler callbacks for incoming messages
+	// Eventgroups
+	typedef std::map< service_id,
+					  std::map< instance_id,
+					  	  	    std::map< eventgroup_id,
+					  	  	    		  std::set< field * > > > > eventgroup_map_t;
+	eventgroup_map_t eventgroups_;
+
+	// Callbacks for incoming messages
 	typedef std::map< service_id,
 			 	 	  std::map< instance_id,
 			 	 	  	  	    std::map< method_id,

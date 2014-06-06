@@ -33,6 +33,9 @@ class log_owner : virtual public owner_base {
 public:
 	log_owner(const std::string &_name);
 
+	boost::log::sources::severity_logger<
+		boost::log::trivial::severity_level > & get_logger();
+
 	void configure_logging(bool _use_console, bool _use_file, bool _use_dlt);
 
 	void set_channel(const std::string &_id);

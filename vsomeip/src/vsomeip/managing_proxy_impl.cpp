@@ -47,11 +47,13 @@ bool managing_proxy_impl::request_service(
 	client * its_client = 0;
 
 	if (0 != _location) {
-		its_client = find_or_create_client(_location);
-		client_locations_[_service][_instance] = _location;
-		client_instances_[_location][_service] = _instance;
+		bool is_reliable = (ip_protocol::TCP == _location->get_protocol());
 
+		its_client = find_or_create_client(_location);
 		if (its_client) {
+			client_locations_[_service][_instance][is_reliable] = _location;
+			client_instances_[_location][_service] = _instance;
+
 			its_client->open_filter(_service);
 		}
 	} else {
@@ -65,36 +67,55 @@ bool managing_proxy_impl::request_service(
 bool managing_proxy_impl::release_service(
 			service_id _service, instance_id _instance) {
 
-	bool is_released(false);
-	const endpoint *its_location = find_service_location(_service, _instance);
 	client_locations_[_service].erase(_instance);
 	if (0 == client_locations_[_service].size())
 		client_locations_.erase(_service);
-	client_instances_[its_location].erase(_service);
-	if (0 == client_instances_[its_location].size())
-		client_instances_.erase(its_location);
 
-	if (its_location) {
-		client *its_client = find_client(its_location);
+	const endpoint *its_reliable = find_service_location(_service, _instance, true);
+	client_instances_[its_reliable].erase(_service);
+	if (0 == client_instances_[its_reliable].size())
+		client_instances_.erase(its_reliable);
+
+	if (its_reliable) {
+		client *its_client = find_client(its_reliable);
 		if (its_client) {
 			its_client->close_filter(_service);
 		}
 	}
 
-	return is_released;
+	const endpoint *its_unreliable = find_service_location(_service, _instance, false);
+	client_instances_[its_unreliable].erase(_service);
+	if (0 == client_instances_[its_unreliable].size())
+		client_instances_.erase(its_unreliable);
+
+	if (its_unreliable) {
+		client *its_client = find_client(its_unreliable);
+		if (its_client) {
+			its_client->close_filter(_service);
+		}
+	}
+
+	return true;
 }
 
 bool managing_proxy_impl::provide_service(
 	service_id _service, instance_id _instance,
 	const endpoint *_location) {
 
-	service *its_service = find_or_create_service(_location);
-	service_locations_[_service][_instance] = _location;
-	service_instances_[_location][_service] = _instance;
+	service *its_service = 0;
 
-	if (its_service) {
-		its_service->open_filter(_service);
+	if (_location) {
+		bool is_reliable = (ip_protocol::TCP == _location->get_protocol());
+
+		its_service = find_or_create_service(_location);
+		service_locations_[_service][_instance][is_reliable] = _location;
+		service_instances_[_location][_service] = _instance;
+
+		if (its_service) {
+			its_service->open_filter(_service);
+		}
 	}
+
 	return (0 != its_service);
 }
 
@@ -102,25 +123,57 @@ bool managing_proxy_impl::withdraw_service(
 	service_id _service, instance_id _instance,
 	const endpoint *_location) {
 
-	service_locations_[_service].erase(_instance);
+	if (0 == _location) {
+		service_locations_[_service].erase(_instance);
 		if (0 == service_locations_[_service].size())
 			service_locations_.erase(_service);
-	service_instances_[_location].erase(_service);
-	if (0 == service_instances_[_location].size())
-		service_instances_.erase(_location);
 
-	service *its_service = find_service(_location);
-	if (its_service) {
-		its_service->close_filter(_service);
+		const endpoint *its_reliable = find_service_location(_service, _instance, true);
+		if (0 != its_reliable) {
+			service_instances_[its_reliable].erase(_service);
+			if (0 == service_instances_.size())
+				service_instances_.erase(its_reliable);
+
+			service *its_service = find_service(its_reliable);
+			if (its_service) {
+				its_service->close_filter(_service);
+			}
+		}
+
+		const endpoint *its_unreliable = find_service_location(_service, _instance, false);
+		if (0 != its_unreliable) {
+			service_instances_[its_unreliable].erase(_service);
+			if (0 == service_instances_.size())
+				service_instances_.erase(its_unreliable);
+
+			service *its_service = find_service(its_unreliable);
+			if (its_service) {
+				its_service->close_filter(_service);
+			}
+
+		}
+	} else {
+		service_instances_[_location].erase(_service);
+		if (0 == service_instances_[_location].size())
+			service_instances_.erase(_location);
+
+		service *its_service = find_service(_location);
+		if (its_service) {
+			its_service->close_filter(_service);
+		}
 	}
-	return (0 != its_service);
+	return true;
 }
 
 bool managing_proxy_impl::start_service(
 			service_id _service, instance_id _instance) {
 	bool is_started(false);
-	const endpoint *its_location = find_service_location(_service, _instance);
-	if (its_location) {
+	const endpoint *its_location = find_service_location(_service, _instance, true);
+	if (0 == its_location) {
+		its_location = find_service_location(_service, _instance, false);
+	}
+
+	if (0 != its_location) {
 		service *its_service = find_service(its_location);
 		if (its_service) {
 			its_service->start();
@@ -133,8 +186,12 @@ bool managing_proxy_impl::start_service(
 bool managing_proxy_impl::stop_service(
 			service_id _service, instance_id _instance) {
 	bool is_stopped(false);
-	const endpoint *its_location = find_service_location(_service, _instance);
-	if (its_location) {
+	const endpoint *its_location = find_service_location(_service, _instance, true);
+	if (0 == its_location) {
+		its_location = find_service_location(_service, _instance, false);
+	}
+
+	if (0 != its_location) {
 		service *its_service = find_service(its_location);
 		if (its_service) {
 			its_service->stop();
@@ -144,22 +201,22 @@ bool managing_proxy_impl::stop_service(
 	return is_stopped;
 }
 
-bool managing_proxy_impl::send(message_base *_message, bool _flush) {
+bool managing_proxy_impl::send(message_base *_message, bool _reliable, bool _flush) {
 	bool is_sent = false;
 
 	if (0 != _message) {
-
 		message_type_enum message_type = _message->get_message_type();
-		if (message_type < message_type_enum::RESPONSE) {
+		if (message_type < message_type_enum::NOTIFICATION) {
 			_message->set_client_id(owner_.get_id());
 		}
 
 		boost::shared_ptr< serializer > its_serializer(owner_.get_serializer());
 		if (its_serializer->serialize(_message)) {
-			if (message_type < message_type_enum::RESPONSE) {
+			if (message_type < message_type_enum::NOTIFICATION) {
 				const endpoint *target = find_client_location(
 											_message->get_service_id(),
-											_message->get_instance_id()
+											_message->get_instance_id(),
+											_reliable
 										 );
 
 				if (0 != target) {
@@ -177,7 +234,8 @@ bool managing_proxy_impl::send(message_base *_message, bool _flush) {
 			} else {
 				const endpoint *source = find_service_location(
 											_message->get_service_id(),
-											_message->get_instance_id()
+											_message->get_instance_id(),
+											_reliable
 								   	     );
 
 				service * the_service = find_service(source);
@@ -215,15 +273,11 @@ bool managing_proxy_impl::withdraw_eventgroup(service_id _service, instance_id _
 	return false;
 }
 
-bool managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+bool managing_proxy_impl::add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
 	return false;
 }
 
-bool managing_proxy_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field) {
-	return false;
-}
-
-bool managing_proxy_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
+bool managing_proxy_impl::remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
 	return false;
 }
 
@@ -248,28 +302,34 @@ boost::asio::io_service & managing_proxy_impl::get_service() {
 }
 
 const endpoint * managing_proxy_impl::find_client_location(
-					service_id _service, instance_id _instance) const {
+					service_id _service, instance_id _instance, bool _is_reliable) const {
 
 	const endpoint *the_location = 0;
 	auto found_client = client_locations_.find(_service);
 	if (found_client != client_locations_.end()) {
 		auto found_instance = found_client->second.find(_instance);
 		if (found_instance != found_client->second.end()) {
-			the_location = found_instance->second;
+			auto found_reliable = found_instance->second.find(_is_reliable);
+			if (found_reliable != found_instance->second.end()) {
+				the_location = found_reliable->second;
+			}
 		}
 	}
 	return the_location;
 }
 
 const endpoint * managing_proxy_impl::find_service_location(
-					service_id _service, instance_id _instance) const {
+					service_id _service, instance_id _instance, bool _is_reliable) const {
 
 	const endpoint *the_location = 0;
 	auto found_client = service_locations_.find(_service);
 	if (found_client != service_locations_.end()) {
 		auto found_instance = found_client->second.find(_instance);
 		if (found_instance != found_client->second.end()) {
-			the_location = found_instance->second;
+			auto found_reliable = found_instance->second.find(_is_reliable);
+			if (found_reliable != found_instance->second.end()) {
+				the_location = found_reliable->second;
+			}
 		}
 	}
 	return the_location;
@@ -286,10 +346,10 @@ client * managing_proxy_impl::find_client(const endpoint *_location) const {
 client * managing_proxy_impl::create_client(const endpoint *_location) {
 	client *the_client = 0;
 	if (0 != _location) {
-		if (_location->get_protocol() == ip_protocol::UDP) {
-			the_client = new udp_client_impl(this, _location);
-		} else if (_location->get_protocol() == ip_protocol::TCP) {
+		if (_location->get_protocol() == ip_protocol::TCP) {
 			the_client = new tcp_client_impl(this, _location);
+		} else if (_location->get_protocol() == ip_protocol::UDP) {
+			the_client = new udp_client_impl(this, _location);
 		} else {
 			VSOMEIP_ERROR << "Unsupported/unknown transport protocol";
 		}

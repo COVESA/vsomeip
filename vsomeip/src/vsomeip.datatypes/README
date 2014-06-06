@@ -1,0 +1,3 @@
+This folder shall contain (optional) implementations of the SOME/IP datatypes. 
+These shall be used as an alternative way to define the content of payloads
+of messages or events.

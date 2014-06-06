@@ -15,6 +15,7 @@
 #include <vsomeip_internal/endpoint_impl.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/message_impl.hpp>
+#include <vsomeip_internal/field_impl.hpp>
 #include <vsomeip_internal/factory_impl.hpp>
 
 namespace vsomeip {
@@ -87,7 +88,7 @@ message * factory_impl::create_message() const {
 	return new message_impl;
 }
 
-message * factory_impl::create_response(const message_base *_request) const {
+message * factory_impl::create_response(const message *_request) const {
 	message *response = 0;
 	if (0 != _request) {
 		response = new message_impl;
@@ -104,6 +105,11 @@ message * factory_impl::create_response(const message_base *_request) const {
 
 	return response;
 }
+
+field * factory_impl::create_field(application *_application, service_id _service, instance_id _instance, event_id _event) const {
+	return new field_impl(_application, _service, _instance, _event);
+}
+
 
 } // namespace vsomeip
 

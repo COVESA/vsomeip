@@ -11,6 +11,7 @@ using namespace vsomeip;
 #define EXTERNAL_SAMPLE_SERVICE_INSTANCE	0x2356
 #define EXTERNAL_SAMPLE_METHOD			 	0x0203
 #define EXTERNAL_SAMPLE_EVENTGROUP			0x4815
+#define EXTERNAL_SAMPLE_FIELD				0x0077
 
 factory *the_factory = 0;
 application *the_application = 0;
@@ -60,8 +61,11 @@ int main(int argc, char **argv) {
 	the_application->init(argc, argv);
 
 	the_application->provide_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, location);
-
 	the_application->provide_eventgroup(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP, 0);
+
+	field *sample_field = the_factory->create_field(the_application, EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_FIELD);
+
+	the_application->add_field(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP, sample_field);
 
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, receive_message);
 

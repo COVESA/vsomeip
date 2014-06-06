@@ -15,6 +15,7 @@
 
 #include <vsomeip/config.hpp>
 #include <vsomeip/endpoint.hpp>
+#include <vsomeip/factory.hpp>
 #include <vsomeip_internal/client_impl.hpp>
 #include <vsomeip_internal/log_macros.hpp>
 #include <vsomeip_internal/managing_proxy_impl.hpp>

@@ -1,5 +1,5 @@
 //
-// application_base_impl.cpp
+// application_impl.cpp
 //
 // This file is part of the BMW Some/IP implementation.
 //
@@ -9,6 +9,7 @@
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
+#include <vsomeip/field.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip_internal/application_impl.hpp>
 #include <vsomeip_internal/configuration.hpp>
@@ -31,6 +32,7 @@ application_impl::application_impl(const std::string &_name)
 	  sender_work_(sender_service_),
 	  receiver_work_(receiver_service_),
 	  id_(0),
+	  session_(0),
 	  serializer_(new serializer),
 	  deserializer_(new deserializer),
 	  is_service_discovery_enabled_(false),
@@ -213,13 +215,14 @@ void application_impl::deregister_availability_handler(service_id _service, inst
 	}
 }
 
-void application_impl::handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available)  {
+void application_impl::handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available)  {
 	if (_is_available) {
 		VSOMEIP_DEBUG << "Service ["
 					  << std::hex << std::setw(4) << std::setfill('0')
 					  << _service << "." << _instance
 					  << "] is available on "
-					  << _location->get_address() << ":" << _location->get_port();
+					  << _location->get_address() << ":" << _location->get_port()
+					  << " (" << (ip_protocol::TCP == _location->get_protocol() ? "TCP" : "UDP") << ")";
 	} else {
 		VSOMEIP_DEBUG << "Service ["
 					  << std::hex << std::setw(4) << std::setfill('0')
@@ -261,6 +264,9 @@ void application_impl::handle_service_availability(service_id _service, instance
 	}
 }
 
+void application_impl::handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing) {
+}
+
 bool application_impl::provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
 	return proxy_->provide_eventgroup(_service, _instance, _eventgroup, _location);
 }
@@ -269,16 +275,27 @@ bool application_impl::withdraw_eventgroup(service_id _service, instance_id _ins
 	return proxy_->withdraw_eventgroup(_service, _instance, _eventgroup, _location);
 }
 
-bool application_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return proxy_->add_to_eventgroup(_service, _instance, _eventgroup, _event);
+bool application_impl::add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	return proxy_->add_field(_service, _instance, _eventgroup, _field);
 }
 
-bool application_impl::add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_field) {
-	return proxy_->add_to_eventgroup(_service, _instance, _eventgroup, _field);
+bool application_impl::remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field) {
+	return proxy_->remove_field(_service, _instance, _eventgroup, _field);
 }
 
-bool application_impl::remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-	return proxy_->remove_from_eventgroup(_service, _instance, _eventgroup, _event);
+bool application_impl::update_field(const field *_field) {
+	boost::shared_ptr< message > its_message(vsomeip::factory::get_instance()->create_message());
+	its_message->set_service_id(_field->get_service());
+	its_message->set_instance_id(_field->get_instance());
+	its_message->set_method_id(_field->get_event());
+	its_message->set_message_type(message_type_enum::NOTIFICATION);
+	its_message->set_return_code(return_code_enum::OK);
+	its_message->get_payload().set_data(
+		_field->get_payload().get_data(),
+		_field->get_payload().get_length()
+	);
+
+	proxy_->send(its_message.get(), false, true);
 }
 
 bool application_impl::request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
@@ -289,8 +306,30 @@ bool application_impl::release_eventgroup(service_id _service, instance_id _inst
 	return proxy_->release_eventgroup(_service, _instance, _eventgroup);
 }
 
-bool application_impl::send(message *_message, bool _flush) {
-	return proxy_->send(_message, _flush);
+std::set< field * > * application_impl::find_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
+	std::set< field * > *its_eventgroup = 0;
+
+	auto found_service = eventgroups_.find(_service);
+	if (found_service != eventgroups_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_eventgroup = found_instance->second.find(_eventgroup);
+			if (found_eventgroup != found_instance->second.end()) {
+				its_eventgroup = &(found_eventgroup->second);
+			}
+		}
+	}
+
+	return its_eventgroup;
+}
+
+bool application_impl::send(message *_message, bool _reliable, bool _flush) {
+	if (_message->get_message_type() < message_type_enum::NOTIFICATION) {
+		_message->set_client_id(id_);
+		_message->set_session_id(session_++); // Assumption: ++ is atomic...
+	}
+
+	return proxy_->send(_message, _reliable, _flush);
 }
 
 bool application_impl::enable_magic_cookies(service_id _service, instance_id _instance) {
@@ -373,7 +412,7 @@ void application_impl::handle_message(const message *_message) {
 void application_impl::send_error_message(const message *_request, return_code_enum _error) {
 	boost::shared_ptr< message > response (vsomeip::factory::get_instance()->create_response(_request));
 	response->set_return_code(_error);
-	send(response.get());
+	send(response.get(), (ip_protocol::TCP == _request->get_source()->get_protocol()), true);
 }
 
 void application_impl::catch_up_registrations() {

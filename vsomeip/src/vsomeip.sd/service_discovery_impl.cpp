@@ -7,71 +7,94 @@
 // All rights reserved.
 //
 
+#include <iomanip>
 #include <sstream>
 
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/ip/address_v6.hpp>
 
 #include <vsomeip/endpoint.hpp>
 #include <vsomeip/factory.hpp>
+#include <vsomeip/sd/eventgroup_entry.hpp>
 #include <vsomeip/sd/factory.hpp>
 #include <vsomeip/sd/ipv4_endpoint_option.hpp>
+#include <vsomeip/sd/ipv4_multicast_option.hpp>
 #include <vsomeip/sd/ipv6_endpoint_option.hpp>
+#include <vsomeip/sd/ipv6_multicast_option.hpp>
 #include <vsomeip/sd/message.hpp>
 #include <vsomeip/sd/service_entry.hpp>
 #include <vsomeip_internal/byteorder.hpp>
 #include <vsomeip_internal/configuration.hpp>
 #include <vsomeip_internal/daemon.hpp>
+#include <vsomeip_internal/service.hpp>
+#include <vsomeip_internal/log_macros.hpp>
+#include <vsomeip_internal/sd/client_proxy.hpp>
 #include <vsomeip_internal/sd/constants.hpp>
 #include <vsomeip_internal/sd/deserializer.hpp>
+#include <vsomeip_internal/sd/group.hpp>
 #include <vsomeip_internal/sd/service_discovery_impl.hpp>
-#include <vsomeip_internal/sd/service_state_machine.hpp>
+#include <vsomeip_internal/sd/service_proxy.hpp>
 
 namespace vsomeip {
 namespace sd {
 
-service_discovery_impl::service_discovery_impl(boost::asio::io_service &_service)
-	: service_(_service),
+service_discovery_impl::service_discovery_impl(daemon &_owner)
+	: owner_(_owner),
+	  service_(_owner.get_service()),
+	  logger_(_owner.get_logger()),
 	  factory_(factory::get_instance()),
-	  owner_(0),
 	  session_(1),
-	  deserializer_(new deserializer) {
+	  broadcast_(0),
+	  multicast_(0),
+	  deserializer_(new deserializer),
+	  default_group_(new group("default", this)) {
+
+	groups_.insert(default_group_);
 }
 
 service_discovery_impl::~service_discovery_impl() {
 }
 
-daemon * service_discovery_impl::get_owner() const {
-	return owner_;
-}
-
 void service_discovery_impl::init() {
-	if (0 != owner_) {
-		configuration *its_configuration
-			= configuration::request(owner_->get_name());
+	configuration *its_configuration
+		= configuration::request(owner_.get_name());
 
-		// Calculate the network name based on unicast address and netmask
-		std::string address = its_configuration->get_unicast_address();
-		std::string netmask = its_configuration->get_netmask();
-		uint16_t port = its_configuration->get_port();
-		std::string protocol = its_configuration->get_protocol();
+	// Calculate the network name based on unicast address and netmask
+	std::string address = its_configuration->get_unicast_address();
+	std::string netmask = its_configuration->get_netmask();
+	uint16_t port = its_configuration->get_port();
+	std::string protocol = its_configuration->get_protocol();
 
-		std::string broadcast_address = get_broadcast_address(address, netmask);
-		broadcast_ = vsomeip::factory::get_instance()->get_endpoint(
-						broadcast_address,
+	std::string broadcast_address = get_broadcast_address(address, netmask);
+
+	vsomeip::factory *base_factory = vsomeip::factory::get_instance();
+
+	broadcast_ = base_factory->get_endpoint(
+					broadcast_address,
+					port,
+					(protocol == "tcp" ? ip_protocol::TCP : ip_protocol::UDP)
+				 );
+
+	std::string multicast_address = its_configuration->get_multicast_address();
+	if (multicast_address != "") {
+		multicast_ = base_factory->get_endpoint(
+						multicast_address,
 						port,
 						(protocol == "tcp" ? ip_protocol::TCP : ip_protocol::UDP)
-					 );
+			         );
 	}
+
+	for (auto a_group : groups_)
+		a_group->init();
 }
 
 void service_discovery_impl::start() {
+	for (auto a_group : groups_)
+		a_group->start();
 }
 
 void service_discovery_impl::stop() {
-}
-
-void service_discovery_impl::set_owner(daemon *_owner) {
-	owner_ = _owner;
 }
 
 boost::asio::io_service & service_discovery_impl::get_service() {
@@ -139,418 +162,388 @@ std::string service_discovery_impl::get_broadcast_address(
 	return result;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Helper
+///////////////////////////////////////////////////////////////////////////////
+client_proxy * service_discovery_impl::find_client(service_id _service, instance_id _instance) const {
+	client_proxy *its_proxy = 0;
+
+	for (auto i : groups_) {
+		its_proxy = i->find_client(_service, _instance);
+		if (0 != its_proxy)
+			break;
+	}
+
+	return its_proxy;
+}
+
+client_proxy * service_discovery_impl::find_or_create_client(service_id _service, instance_id _instance) {
+	client_proxy *its_proxy = find_client(_service, _instance);
+	if (0 == its_proxy) {
+		its_proxy = default_group_->add_client(_service, _instance);
+	}
+	return its_proxy;
+}
+
+service_proxy * service_discovery_impl::find_service(service_id _service, instance_id _instance) const {
+	service_proxy *its_proxy = 0;
+
+	for (auto i : groups_) {
+		its_proxy = i->find_service(_service, _instance);
+		if (0 != its_proxy)
+			break;
+	}
+
+	return its_proxy;
+}
+
+service_proxy * service_discovery_impl::find_or_create_service(service_id _service, instance_id _instance) {
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 == its_proxy) {
+		its_proxy = default_group_->add_service(_service, _instance);
+	}
+	return its_proxy;
+}
+
+group * service_discovery_impl::find_client_group(service_id _service, instance_id _instance) const {
+	group *its_group = 0;
+
+	for (auto i : groups_) {
+		auto its_proxy = i->find_client(_service, _instance);
+		if (0 != its_proxy) {
+			its_group = i.get();
+			break;
+		}
+	}
+	return its_group;
+}
+
+group * service_discovery_impl::find_service_group(service_id _service, instance_id _instance) const {
+	group *its_group = 0;
+
+	for (auto i : groups_) {
+		auto its_proxy = i->find_service(_service, _instance);
+		if (0 != its_proxy) {
+			its_group = i.get();
+			break;
+		}
+	}
+	return its_group;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Application interface
+///////////////////////////////////////////////////////////////////////////////
 void service_discovery_impl::on_provide_service(
 		service_id _service, instance_id _instance, const endpoint *_location) {
-	auto find_service = its_services_.find(_service);
-	if (find_service != its_services_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance == find_service->second.end()) {
-			service_state_machine::machine *its_machine = new service_state_machine::machine(this);
-			its_machine->service_ = _service;
-			its_machine->instance_ = _instance;
-			if (_location->get_protocol() == ip_protocol::TCP) {
-				its_machine->tcp_endpoint_ = _location;
-			} else {
-				its_machine->udp_endpoint_ = _location;
-			}
-
-			find_service->second[_instance].reset(its_machine);
-
-			its_machine->initiate();
-			its_machine->process_event(ev_none());
-			its_machine->process_event(ev_network_status_change(true, true));
-		} else {
-			service_state_machine::machine *its_machine = find_instance->second.get();
-			if (_location->get_protocol() == ip_protocol::TCP) { // TODO: handle endpoint changes
-				if (0 == its_machine->tcp_endpoint_) {
-					its_machine->tcp_endpoint_ = _location;
-				}
-			} else {
-				if (0 == its_machine->udp_endpoint_) {
-					its_machine->udp_endpoint_ = _location;
-				}
-			}
-		}
+	service_proxy *its_proxy = find_or_create_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->provide(_location);
 	} else {
-		service_state_machine::machine *its_machine = new service_state_machine::machine(this);
-		its_machine->service_ = _service;
-		its_machine->instance_ = _instance;
-		if (_location->get_protocol() == ip_protocol::TCP) {
-			its_machine->tcp_endpoint_ = _location;
-		} else {
-			its_machine->udp_endpoint_ = _location;
-		}
-
-		its_services_[_service][_instance].reset(its_machine);
-
-		its_machine->initiate();
-		its_machine->process_event(ev_none());
-		its_machine->process_event(ev_network_status_change(true, true));
+		VSOMEIP_ERROR << "Could not provide service ["
+				      << std::hex << std::setw(4) << std::setfill('0')
+					  << _service << "." << _instance
+					  << "]. Creation of service proxy failed!";
 	}
 }
 
 void service_discovery_impl::on_withdraw_service(
 		service_id _service, instance_id _instance, const endpoint *_location) {
-	auto find_service = its_services_.find(_service);
-	if (find_service != its_services_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			bool must_erase = false;
-			service_state_machine_t *its_machine = find_instance->second.get();
-			if (0 == _location) {
-				must_erase = true;
-			} else if (_location->get_protocol() == ip_protocol::TCP) {
-				if (0 == its_machine->udp_endpoint_) {
-					must_erase = true;
-				} else {
-					// TODO: stop offer on TCP endpoint
-				}
-			} else {
-				if (0 == its_machine->tcp_endpoint_) {
-					must_erase = true;
-				} else {
-					// TODO: stop offer on UDP endpoint
-				}
-			}
-
-			if (must_erase)
-				find_service->second.erase(find_instance);
-		}
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->withdraw(_location);
+	} else {
+		VSOMEIP_WARNING << "Could not withdraw service ["
+				      << std::hex << std::setw(4) << std::setfill('0')
+					  << _service << "." << _instance
+					  << "]. Service proxy does not exist!";
 	}
 }
 
 void service_discovery_impl::on_start_service(
 		service_id _service, instance_id _instance) {
-	auto find_service = its_services_.find(_service);
-	if (find_service != its_services_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			find_instance->second->process_event(ev_service_status_change(true));
-		}
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->start();
 	}
 }
 
 void service_discovery_impl::on_stop_service(
 		service_id _service, instance_id _instance) {
-	auto find_service = its_services_.find(_service);
-	if (find_service != its_services_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			find_instance->second->process_event(ev_service_status_change(false));
-		}
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->stop();
 	}
 }
 
-// TODO: connect applications to client state machines
 void service_discovery_impl::on_request_service(
 		client_id _client, service_id _service, instance_id _instance) {
-
-	auto find_service = its_clients_.find(_service);
-	if (find_service != its_clients_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance == find_service->second.end()) {
-			client_state_machine::machine *its_machine = new client_state_machine::machine(this);
-			its_machine->service_ = _service;
-			its_machine->instance_ = _instance;
-
-			find_service->second[_instance] = std::make_pair(
-				boost::shared_ptr< client_state_machine_t >(its_machine),
-				std::set< client_id >()
-			);
-			find_service->second[_instance].second.insert(_client);
-
-			its_machine->initiate();
-			its_machine->process_event(ev_network_status_change(true, true));
-			its_machine->process_event(ev_request_status_change(true));
-		} else {
-			find_instance->second.second.insert(_client);
-		}
-	} else {
-		client_state_machine::machine *its_machine = new client_state_machine::machine(this);
-		its_machine->service_ = _service;
-		its_machine->instance_ = _instance;
-
-		its_clients_[_service][_instance] = std::make_pair(
-			boost::shared_ptr< client_state_machine_t >(its_machine),
-			std::set< client_id >()
-		);
-		its_clients_[_service][_instance].second.insert(_client);
-
-		its_machine->initiate();
-		its_machine->process_event(ev_network_status_change(true, true));
-		its_machine->process_event(ev_request_status_change(true));
+	client_proxy *its_proxy = find_or_create_client(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->request(_client);
 	}
 }
 
 void service_discovery_impl::on_release_service(
 		client_id _client, service_id _service, instance_id _instance) {
-	auto find_service = its_clients_.find(_service);
-	if (find_service != its_clients_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			find_instance->second.second.erase(_client);
-			if (0 == find_instance->second.second.size()) {
-				find_service->second.erase(_instance);
-				if (0 == find_service->second.size()) {
-					its_clients_.erase(_service);
-				}
-			}
-		}
+	client_proxy *its_proxy = find_client(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->release(_client);
 	}
 }
 
 void service_discovery_impl::on_provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
-
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->provide_eventgroup(_eventgroup, _location);
+	}
 }
 
 void service_discovery_impl::on_withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location) {
-
-}
-
-void service_discovery_impl::on_add_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message *_event) {
-
-}
-
-void service_discovery_impl::on_remove_event(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event) {
-
+	service_proxy *its_proxy = find_service(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->withdraw_eventgroup(_eventgroup);
+	}
 }
 
 void service_discovery_impl::on_request_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
-
+	client_proxy *its_proxy = find_or_create_client(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->subscribe(_client, _eventgroup);
+	}
 }
 
 void service_discovery_impl::on_release_eventgroup(client_id _client, service_id _service, instance_id _instance, eventgroup_id _eventgroup) {
-
+	client_proxy *its_proxy = find_or_create_client(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->unsubscribe(_client, _eventgroup);
+	}
 }
 
-bool service_discovery_impl::send_find_service(client_state_machine_t *_data) {
-	boost::shared_ptr< message > find(factory_->create_message());
-	find->set_target(broadcast_);
-
-	service_entry & entry = find->create_service_entry();
-	entry.set_type(entry_type::FIND_SERVICE);
-	entry.set_service_id(_data->service_);
-	entry.set_instance_id(_data->instance_);
-	entry.set_time_to_live(0xFFFFFF); // TODO: find out what to set here
-	entry.set_major_version(0xFF); // TODO: add major version to interface and default to "Any"
-	entry.set_minor_version(0xFFFFFFFF); // TODO: add minor version to interface and default to "Any"
-	return send(find.get(), true);
+///////////////////////////////////////////////////////////////////////////////
+// Interface functions
+///////////////////////////////////////////////////////////////////////////////
+void service_discovery_impl::on_service_available(
+		service_id _service, instance_id _instance, const endpoint *_reliable, const endpoint *_unreliable) {
+	client_proxy *its_proxy = find_client(_service, _instance);
+	if (0 != its_proxy) {
+		its_proxy->set_local(_reliable, _unreliable);
+	}
 }
 
-bool service_discovery_impl::send_offer_service(service_state_machine_t *_data, const endpoint *_target) {
-	message * its_offer = factory_->create_message();
-	if (_target)
-		its_offer->set_target(_target);
-	else
-		its_offer->set_target(broadcast_);
+bool service_discovery_impl::send(message *_message) {
+	// Enable Unicast
+	_message->set_unicast_flag(true);
 
-	its_offer->set_interface_version(0x1);
-	//its_offer->set_message_type(message_type_enum::NOTIFICATION); // TODO: check why this causes failure...
-	its_offer->set_return_code(return_code_enum::OK);
+	// Session
+	session_id old_session = session_;
+	session_++;
 
-	service_entry & its_entry = its_offer->create_service_entry();
-	its_entry.set_type(entry_type::OFFER_SERVICE);
-	its_entry.set_service_id(_data->service_);
-	its_entry.set_instance_id(_data->instance_);
-	its_entry.set_time_to_live(0xFFFFFF); // TODO: set "real" time to live
-	its_entry.set_major_version(_data->major_);
-	its_entry.set_minor_version(_data->minor_);
-
-	// endpoint options
-	if ((_data->tcp_endpoint_ && ip_protocol_version::V4 == _data->tcp_endpoint_->get_version()) ||
-		(_data->udp_endpoint_ && ip_protocol_version::V4 == _data->udp_endpoint_->get_version())) {
-
-		const endpoint *location = _data->tcp_endpoint_;
-		if (0 != location) {
-			ipv4_address its_address = boost::asio::ip::address_v4::from_string(
-					location->get_address()).to_ulong();
-
-			ipv4_endpoint_option & its_option = its_offer->create_ipv4_endpoint_option();
-			its_option.set_address(its_address);
-			its_option.set_port(location->get_port());
-			its_option.set_protocol(location->get_protocol());
-			its_entry.assign_option(its_option, 1);
-		}
-
-		location = _data->udp_endpoint_;
-		if (0 != location) {
-			ipv4_address its_address = boost::asio::ip::address_v4::from_string(
-					location->get_address()).to_ulong();
-
-			ipv4_endpoint_option & its_option = its_offer->create_ipv4_endpoint_option();
-			its_option.set_address(its_address);
-			its_option.set_port(location->get_port());
-			its_option.set_protocol(location->get_protocol());
-			its_entry.assign_option(its_option, 1);
-		}
-	} else {
-
+	if (old_session > session_) {
+		session_ = 1;
+		_message->set_reboot_flag(false);
 	}
 
-	return send(its_offer, true);
-}
+	_message->set_session_id(session_);
 
-bool service_discovery_impl::send_stop_offer_service(service_state_machine_t *_data) {
-	message * stop_offer = factory_->create_message();
-	stop_offer->set_target(broadcast_);
-
-	service_entry & entry = stop_offer->create_service_entry();
-	entry.set_type(entry_type::STOP_OFFER_SERVICE);
-	entry.set_service_id(_data->service_);
-	entry.set_instance_id(_data->instance_);
-	entry.set_time_to_live(0);
-	entry.set_major_version(_data->major_);
-	entry.set_minor_version(_data->minor_);
-	return send(stop_offer, true);
-}
-
-bool service_discovery_impl::send(message_base *_message, bool _flush) {
-	if (owner_) {
-		_message->set_session_id(session_++);
-		return owner_->send(_message, _flush);
+	// Target address
+	const endpoint *target = _message->get_target();
+	if (0 == target) {
+		if (0 != multicast_) {
+			_message->set_target(multicast_);
+		} else {
+			_message->set_target(broadcast_);
+		}
 	}
 
-	return false;
+	bool is_reliable = (ip_protocol::TCP == _message->get_target()->get_protocol());
+	return owner_.send(_message, is_reliable, true);
 }
 
 void service_discovery_impl::on_message(
 		const uint8_t *_data, uint32_t _size,
 		const endpoint *_source, const endpoint *_target) {
 
+#if 0
+	std::cout << "SD: ";
+	for (uint32_t i = 0; i < _size; ++i)
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	std::cout << std::endl;
+#endif
+
 	deserializer_->set_data(_data, _size);
 	boost::shared_ptr< message > its_message(deserializer_->deserialize_sd_message());
+
 	if (its_message) {
 		const std::vector< entry * > its_entries = its_message->get_entries();
 		const std::vector< option * > its_options = its_message->get_options();
+		bool is_unicast_enabled = its_message->get_unicast_flag();
 
 		for (auto its_entry : its_entries) {
 			switch (its_entry->get_type()) {
 			case entry_type::FIND_SERVICE:
-				on_find_service(dynamic_cast< service_entry * >(its_entry), its_options, _source);
+				on_find_service(dynamic_cast< service_entry * >(its_entry), its_options, _source, is_unicast_enabled);
 				break;
 
-			case entry_type::OFFER_SERVICE: // included STOP_OFFER_SERVICE
-				on_offer_service(dynamic_cast< service_entry * >(its_entry), its_options);
+			case entry_type::OFFER_SERVICE: // includes STOP_OFFER_SERVICE
+				on_offer_service(dynamic_cast< service_entry * >(its_entry), its_options, _source);
 				break;
 
 			case entry_type::REQUEST_SERVICE:
-				// TODO: find out what REQUEST_SERVICE is meant to do!
+				//on_request_service(_source, dynamic_cast< service_entry * >(its_entry), its_option);
+				break;
+
+			case entry_type::SUBSCRIBE_EVENTGROUP: // includes STOP_SUBSCRIBE_EVENTGROUP
+				on_subscribe_eventgroup(dynamic_cast< eventgroup_entry * >(its_entry), its_options, _source);
+				break;
+
+			case entry_type::SUBSCRIBE_EVENTGROUP_ACK: // includes STOP_SUBSCRIBE_EVENTGROUP_ACK
+				on_subscribe_eventgroup_ack(dynamic_cast< eventgroup_entry * >(its_entry), its_options);
 				break;
 
 			default:
 				break;
 			};
 		}
-	}
-}
-
-void service_discovery_impl::send_service_state(service_id _service, instance_id _instance, bool _is_available) {
-	const client_info_t *its_info = find_client_info(_service, _instance);
-	if (0 != its_info) {
-		const endpoint *its_location = its_info->first->tcp_endpoint_;
-		if (0 != its_location) {
-			for (client_id its_client : its_info->second) {
-				owner_->on_service_availability(its_client, _service, _instance, its_location, _is_available);
-			}
-		}
-
-		its_location = its_info->first->udp_endpoint_;
-		if (0 != its_location) {
-			for (client_id its_client : its_info->second) {
-				owner_->on_service_availability(its_client, _service, _instance, its_location, _is_available);
-			}
-		}
 	} else {
-		// TODO: add error message as this must not happen!
+		VSOMEIP_ERROR << "[SD] Deserialization failed. Message discarded!";
 	}
-}
-
-const service_discovery_impl::client_info_t *
-service_discovery_impl::find_client_info(service_id _service, instance_id _instance) const {
-	const client_info_t *its_info = 0;
-
-	auto find_service = its_clients_.find(_service);
-	if (find_service != its_clients_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			its_info = &(find_instance->second);
-		}
-	}
-
-	return its_info;
-}
-
-client_state_machine_t * service_discovery_impl::find_client_machine(service_id _service, instance_id _instance) const {
-	client_state_machine_t *its_machine = 0;
-	auto client_info = find_client_info(_service, _instance);
-	if (0 != client_info)
-		its_machine = client_info->first.get();
-	return its_machine;
-}
-
-service_state_machine_t * service_discovery_impl::find_service_machine(service_id _service, instance_id _instance) const {
-	service_state_machine_t *its_machine = 0;
-
-	auto find_service = its_services_.find(_service);
-	if (find_service != its_services_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			its_machine = find_instance->second.get();
-		}
-	}
-
-	return its_machine;
 }
 
 void service_discovery_impl::on_find_service(
+		const service_entry *_entry, const std::vector< option * > &_options,
+		const endpoint *_source, bool _is_unicast_enabled) {
+
+	service_id its_service = _entry->get_service_id();
+	instance_id its_instance = _entry->get_instance_id();
+
+	group *its_group = find_service_group(its_service, its_instance);
+	if (0 != its_group) {
+		its_group->on_find_service(its_service, its_instance, _source, _is_unicast_enabled);
+	}
+}
+
+void service_discovery_impl::on_offer_service(
 		const service_entry *_entry, const std::vector< option * > &_options,
 		const endpoint *_source) {
 
 	service_id its_service = _entry->get_service_id();
 	instance_id its_instance = _entry->get_instance_id();
 
-	service_state_machine_t *its_machine = find_service_machine(its_service, its_instance);
-	if (0 != its_machine) {
-		its_machine->process_event(ev_find_service(_source));
+	const endpoint *its_tcp = 0;
+	const endpoint *its_udp = 0;
+
+	client_proxy *its_proxy = find_or_create_client(its_service, its_instance);
+	if (0 != its_proxy) {
+		const std::vector< uint8_t > &its_options = _entry->get_options(1);
+		for (auto i : its_options) {
+			if (option_type::IP4_ENDPOINT == _options[i]->get_type()) {
+				ipv4_endpoint_option *its_endpoint_option = dynamic_cast< ipv4_endpoint_option * >(_options[i]);
+				if (ip_protocol::TCP == its_endpoint_option->get_protocol()) {
+					its_tcp = vsomeip::factory::get_instance()->get_endpoint(
+								boost::asio::ip::address_v4(its_endpoint_option->get_address()).to_string(),
+								its_endpoint_option->get_port(),
+								ip_protocol::TCP
+						  	  );
+				} else {
+					its_udp = vsomeip::factory::get_instance()->get_endpoint(
+								boost::asio::ip::address_v4(its_endpoint_option->get_address()).to_string(),
+								its_endpoint_option->get_port(),
+								ip_protocol::UDP
+						  	  );
+				}
+			} else {
+				// TODO: support IPv6
+			}
+		}
+
+		its_proxy->set_available(its_tcp, its_udp, (_entry->get_time_to_live() > 0));
 	}
 }
 
-void service_discovery_impl::on_offer_service(const service_entry *_entry, const std::vector< option * > &_options) {
+void service_discovery_impl::on_subscribe_eventgroup(
+		const eventgroup_entry *_entry, const std::vector< option * > &_options,
+		const endpoint *_source) {
 	service_id its_service = _entry->get_service_id();
 	instance_id its_instance = _entry->get_instance_id();
+	eventgroup_id its_eventgroup = _entry->get_eventgroup_id();
 
-	client_state_machine_t *its_machine = find_client_machine(its_service, its_instance);
-	if (0 != its_machine) {
-		if (0 < _entry->get_time_to_live()) {
-			const std::vector< uint8_t > &indices = _entry->get_options(1);
+	const endpoint *its_reliable = 0;
+	const endpoint *its_unreliable = 0;
 
-			for (auto i : indices) {
-				option *its_option = _options[i];
-				if (its_option->get_type() == option_type::IP4_ENDPOINT) {
-					ipv4_endpoint_option *its_endpoint_option
-						= dynamic_cast< ipv4_endpoint_option * >(its_option);
-
-					const endpoint *its_endpoint
-						= vsomeip::factory::get_instance()->get_endpoint(
+	service_proxy *its_proxy = find_or_create_service(its_service, its_instance);
+	if (0 != its_proxy) {
+		const std::vector< uint8_t > &its_options = _entry->get_options(1);
+		for (auto i : its_options) {
+			if (option_type::IP4_ENDPOINT == _options[i]->get_type()) {
+				ipv4_endpoint_option *its_endpoint_option = dynamic_cast< ipv4_endpoint_option * >(_options[i]);
+				if (ip_protocol::TCP == its_endpoint_option->get_protocol()) {
+					its_reliable = vsomeip::factory::get_instance()->get_endpoint(
 								boost::asio::ip::address_v4(its_endpoint_option->get_address()).to_string(),
 								its_endpoint_option->get_port(),
-								its_endpoint_option->get_protocol()
-						  );
+								ip_protocol::TCP
+							  );
+				} else {
+					its_unreliable = vsomeip::factory::get_instance()->get_endpoint(
+								boost::asio::ip::address_v4(its_endpoint_option->get_address()).to_string(),
+								its_endpoint_option->get_port(),
+								ip_protocol::UDP
+							  );
+				}
+			} else {
+				// TODO: support IPv6
+			}
+		}
 
-					if (ip_protocol::TCP == its_endpoint->get_protocol()) {
-						its_machine->tcp_endpoint_ = its_endpoint;
-					} else {
-						its_machine->udp_endpoint_ = its_endpoint;
-					}
+		its_proxy->subscribe(its_eventgroup, _source, its_reliable, its_unreliable, (_entry->get_time_to_live() == 0));
+	}
+}
+
+void service_discovery_impl::on_subscribe_eventgroup_ack(
+		const eventgroup_entry *_entry, const std::vector< option * > &_options) {
+	service_id its_service = _entry->get_service_id();
+	instance_id its_instance = _entry->get_instance_id();
+	eventgroup_id its_eventgroup = _entry->get_eventgroup_id();
+
+	client_proxy *its_proxy = find_client(its_service, its_instance);
+	if (0 != its_proxy) {
+		option *its_multicast_option = 0;
+
+		const std::vector< uint8_t > &its_options = _entry->get_options(1);
+		for (auto i : its_options) {
+			if (option_type::IP4_MULTICAST == _options[its_options[i]]->get_type() ||
+				option_type::IP6_MULTICAST == _options[its_options[i]]->get_type()) {
+				if (0 == its_multicast_option) {
+					its_multicast_option = _options[0];
+				} else {
+					// TODO: error: "SubscribeEventgroupAck must not contain more than one option!";
+				}
+			} else {
+				// TODO: warning: "Unsupported option!"
+			}
+		}
+
+		ipv4_multicast_option *its_option = dynamic_cast< ipv4_multicast_option * >(its_multicast_option);
+		if (0 != its_option) {
+			service *the_service = owner_.find_multicast_service(its_option->get_port());
+			if (0 != the_service) {
+				if (_entry->get_time_to_live()) {
+					the_service->join(boost::asio::ip::address_v4(its_option->get_address()).to_string());
+				} else {
+					the_service->leave(boost::asio::ip::address_v4(its_option->get_address()).to_string());
 				}
 			}
-
-			its_machine->process_event(ev_offer_service());
-
-		} else {
-			its_machine->process_event(ev_stop_offer_service());
 		}
+
+		// TODO: support IPv6
 	}
+}
+
+bool service_discovery_impl::update_client(
+		client_id _client,
+		service_id _service, instance_id _instance, const endpoint *_location,
+		bool _is_available) {
+	owner_.on_service_availability(_client, _service, _instance, _location, _is_available);
 }
 
 } // namespace sd

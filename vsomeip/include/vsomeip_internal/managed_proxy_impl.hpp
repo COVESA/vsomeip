@@ -37,7 +37,7 @@ public:
 	void start();
 	void stop();
 
-	bool send(message_base *_message, bool _flush);
+	bool send(message_base *_message, bool _reliable, bool _flush);
 
 	bool enable_magic_cookies(service_id _service, instance_id _instance);
 	bool disable_magic_cookies(service_id _service, instance_id _instance);

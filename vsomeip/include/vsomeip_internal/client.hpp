@@ -16,10 +16,14 @@
 
 namespace vsomeip {
 
+class endpoint;
+
 class client
 		: virtual public participant {
 public:
 	virtual ~client() {};
+
+	virtual const endpoint * get_local_endpoint() const = 0;
 
 	virtual bool send(
 			const uint8_t *_data, uint32_t _size, bool _flush = true) = 0;

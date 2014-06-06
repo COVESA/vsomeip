@@ -34,9 +34,14 @@ public:
 	void start();
 	void send_queued();
 
+	const endpoint * get_local_endpoint() const;
+
 	ip_address get_remote_address() const;
 	ip_port get_remote_port() const;
 	ip_protocol get_protocol() const;
+
+	void join(const std::string &_multicast_address);
+	void leave(const std::string &_multicast_address);
 
 private:
 	void connect();

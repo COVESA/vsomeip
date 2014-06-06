@@ -67,8 +67,8 @@ protected:
 	uint32_t connect_timeout_;
 	bool is_connected_;
 
-	std::deque<std::vector<uint8_t>> packet_queue_;
-	std::vector<uint8_t> packetizer_;
+	std::deque<std::vector< uint8_t > > packet_queue_;
+	std::vector< uint8_t > packetizer_;
 
 	virtual void send_queued() = 0;
 };

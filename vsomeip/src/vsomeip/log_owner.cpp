@@ -50,6 +50,10 @@ log_owner::log_owner(const std::string &_name)
 	logging::add_common_attributes();
 }
 
+boost::log::sources::severity_logger< boost::log::trivial::severity_level > & log_owner::get_logger() {
+	return logger_;
+}
+
 void log_owner::configure_logging(bool _use_console, bool _use_file, bool _use_dlt) {
 	if (_use_console)
 		enable_console();

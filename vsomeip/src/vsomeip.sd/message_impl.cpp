@@ -15,7 +15,9 @@
 #include <vsomeip_internal/sd/service_entry_impl.hpp>
 #include <vsomeip_internal/sd/configuration_option_impl.hpp>
 #include <vsomeip_internal/sd/ipv4_endpoint_option_impl.hpp>
+#include <vsomeip_internal/sd/ipv4_multicast_option_impl.hpp>
 #include <vsomeip_internal/sd/ipv6_endpoint_option_impl.hpp>
+#include <vsomeip_internal/sd/ipv6_multicast_option_impl.hpp>
 #include <vsomeip_internal/sd/load_balancing_option_impl.hpp>
 #include <vsomeip_internal/sd/protection_option_impl.hpp>
 #include <vsomeip_internal/sd/message_impl.hpp>
@@ -110,8 +112,24 @@ ipv4_endpoint_option& message_impl::create_ipv4_endpoint_option() {
 	return *tmp_option;
 }
 
+ipv4_multicast_option& message_impl::create_ipv4_multicast_option() {
+	ipv4_multicast_option_impl *tmp_option = new ipv4_multicast_option_impl;
+	//TODO: throw OutOfMemoryException if allocation fails
+	tmp_option->set_owning_message(this);
+	options_.push_back(tmp_option);
+	return *tmp_option;
+}
+
 ipv6_endpoint_option& message_impl::create_ipv6_endpoint_option() {
 	ipv6_endpoint_option_impl *tmp_option = new ipv6_endpoint_option_impl;
+	//TODO: throw OutOfMemoryException if allocation fails
+	tmp_option->set_owning_message(this);
+	options_.push_back(tmp_option);
+	return *tmp_option;
+}
+
+ipv6_multicast_option& message_impl::create_ipv6_multicast_option() {
+	ipv6_multicast_option_impl *tmp_option = new ipv6_multicast_option_impl;
 	//TODO: throw OutOfMemoryException if allocation fails
 	tmp_option->set_owning_message(this);
 	options_.push_back(tmp_option);
@@ -243,18 +261,18 @@ entry * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
 		switch (deserialized_entry_type) {
 		case entry_type::FIND_SERVICE:
 		case entry_type::OFFER_SERVICE:
-			//case entry_type::STOP_OFFER_SERVICE:
+		//case entry_type::STOP_OFFER_SERVICE:
 		case entry_type::REQUEST_SERVICE:
 			deserialized_entry = new service_entry_impl;
 			break;
 
 		case entry_type::FIND_EVENT_GROUP:
 		case entry_type::PUBLISH_EVENTGROUP:
-			//case entry_type::STOP_PUBLISH_EVENTGROUP:
+		//case entry_type::STOP_PUBLISH_EVENTGROUP:
 		case entry_type::SUBSCRIBE_EVENTGROUP:
-			//case entry_type::STOP_SUBSCRIBE_EVENTGROUP:
+		//case entry_type::STOP_SUBSCRIBE_EVENTGROUP:
 		case entry_type::SUBSCRIBE_EVENTGROUP_ACK:
-			//case entry_type::STOP_SUBSCRIBE_EVENTGROUP_ACK:
+		//case entry_type::STOP_SUBSCRIBE_EVENTGROUP_ACK:
 			deserialized_entry = new eventgroup_entry_impl;
 			break;
 
@@ -263,10 +281,12 @@ entry * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
 		};
 
 		// deserialize object
-		if (!deserialized_entry->deserialize(_from)) {
-			delete deserialized_entry;
-			deserialized_entry = 0;
-		};
+		if (0 != deserialized_entry) {
+			if (!deserialized_entry->deserialize(_from)) {
+				delete deserialized_entry;
+				deserialized_entry = 0;
+			};
+		}
 	}
 
 	return deserialized_entry;
@@ -295,8 +315,14 @@ option * message_impl::deserialize_option(vsomeip::deserializer *_from) {
 		case option_type::IP4_ENDPOINT:
 			deserialized_option = new ipv4_endpoint_option_impl;
 			break;
+		case option_type::IP4_MULTICAST:
+			deserialized_option = new ipv4_multicast_option_impl;
+			break;
 		case option_type::IP6_ENDPOINT:
 			deserialized_option = new ipv6_endpoint_option_impl;
+			break;
+		case option_type::IP6_MULTICAST:
+			deserialized_option = new ipv6_multicast_option_impl;
 			break;
 
 		default:

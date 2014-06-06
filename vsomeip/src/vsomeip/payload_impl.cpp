@@ -9,16 +9,21 @@
 
 #include <vsomeip_internal/deserializer.hpp>
 #include <vsomeip_internal/payload_impl.hpp>
+#include <vsomeip_internal/payload_owner.hpp>
 #include <vsomeip_internal/serializer.hpp>
 
 namespace vsomeip {
 
 payload_impl::payload_impl()
-	: data_() {
+	: data_(), owner_(0) {
 }
 
-payload_impl::payload_impl(const payload_impl& payload)
-	: data_(payload.data_) {
+payload_impl::payload_impl(const payload_owner *_owner)
+	: data_(), owner_(_owner) {
+}
+
+payload_impl::payload_impl(const payload_impl& _payload)
+	: data_(_payload.data_) {
 }
 
 payload_impl::~payload_impl() {
@@ -41,11 +46,39 @@ void payload_impl::set_capacity(uint32_t _capacity) {
 }
 
 void payload_impl::set_data(const uint8_t *data, const uint32_t length) {
+	bool is_changed = false;
+	if (data_.size() != length) {
+		is_changed = true;
+	} else {
+		for (std::size_t i = 0; i < length; ++i) {
+			if (data_[i] != data[i]) {
+				is_changed = true;
+				break;
+			}
+		}
+	}
 	data_.assign(data, data + length);
+
+	if (is_changed && owner_)
+		owner_->notify();
 }
 
 void payload_impl::set_data(const std::vector<uint8_t>& data) {
+	bool is_changed = false;
+	if (data_.size() != data.size()) {
+		is_changed = true;
+	} else {
+		for (std::size_t i = 0; i < data.size(); ++i) {
+			if (data_[i] != data[i]) {
+				is_changed = true;
+				break;
+			}
+		}
+	}
 	data_ = data;
+
+	if (is_changed && owner_)
+		owner_->notify();
 }
 
 bool payload_impl::serialize(serializer *_to) const {

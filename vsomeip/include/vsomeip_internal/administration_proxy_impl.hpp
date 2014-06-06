@@ -27,6 +27,8 @@
 
 namespace vsomeip {
 
+class payload;
+
 class administration_proxy_impl
 			: virtual public proxy_base_impl {
 public:
@@ -52,12 +54,11 @@ public:
 	bool provide_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 	bool withdraw_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location);
 
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
-	bool add_to_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, message_base *_field);
-	bool remove_from_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _event);
-
 	bool request_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 	bool release_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
+
+	bool add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
+	bool remove_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, field *_field);
 
 	void remove_queue(const std::string &_name);
 
@@ -72,6 +73,7 @@ protected:
 	void send_deregister_application();
 	void send_service_command(command_enum _command, service_id _service, instance_id _instance, const endpoint * _location = 0);
 	void send_eventgroup_command(command_enum _command,  service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint * _location = 0);
+	void send_field_command(command_enum _command, service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _field, const payload &_payload);
 	void send_registration_command(command_enum _command, service_id _service, instance_id _instance, method_id _method);
 
 	void do_receive();
@@ -118,6 +120,15 @@ protected:
 	std::deque< std::vector< uint8_t > > send_buffers_;
 	uint8_t receive_buffer_[VSOMEIP_DEFAULT_QUEUE_SIZE];
 
+	// Eventgroups consist of events/field and may contain a multicast
+	struct eventgroup_info {
+		eventgroup_info(const endpoint *_multicast)
+			: multicast_(_multicast) {};
+
+		const endpoint *multicast_;
+		std::set< field * > fields_;
+	};
+
 	// Provided & requested services / eventgroups
 	struct service_state {
 		service_state()
@@ -128,7 +139,7 @@ protected:
 
 		bool is_started_;
 		std::set< const endpoint * > locations_;
-		std::set< eventgroup_id > eventgroups_;
+		std::map< eventgroup_id, eventgroup_info > eventgroups_;
 	};
 
 	typedef std::map< service_id,

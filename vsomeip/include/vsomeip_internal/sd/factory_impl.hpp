@@ -13,6 +13,9 @@
 #include <vsomeip/sd/factory.hpp>
 
 namespace vsomeip {
+
+class daemon;
+
 namespace sd {
 
 class factory_impl
@@ -22,8 +25,7 @@ public:
 
 	virtual ~factory_impl();
 
-	service_discovery * create_service_discovery(
-			boost::asio::io_service &_service) const;
+	service_discovery * create_service_discovery(daemon &_owner) const;
 
 	message * create_message() const;
 };

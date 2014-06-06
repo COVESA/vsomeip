@@ -34,7 +34,7 @@
 #include "request_info.hpp"
 #include "service_info.hpp"
 
-#define VSOMEIP_DAEMON_DEBUG
+//#define VSOMEIP_DAEMON_DEBUG
 
 namespace vsomeip {
 
@@ -55,6 +55,8 @@ public:
 	daemon_impl();
 	~daemon_impl();
 
+	boost::log::sources::severity_logger< boost::log::trivial::severity_level > & get_logger();
+
 	client_id get_id() const;
 	void set_id(client_id _id);
 
@@ -63,6 +65,7 @@ public:
 
 	bool is_managing() const;
 
+	boost::asio::io_service & get_service();
 	boost::asio::io_service & get_sender_service();
 	boost::asio::io_service & get_receiver_service();
 
@@ -70,19 +73,24 @@ public:
 	void start();
 	void stop();
 
-	bool send(message_base *_message, bool _flush);
+	bool send(message_base *_message, bool _reliable, bool _flush);
 
 	void catch_up_registrations();
 	void on_service_availability(client_id _client, service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+	void on_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing);
+	void on_add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _field, const uint8_t *payload, uint32_t payload_size);
 
 	// Dummies
 	void handle_message(const message *_message);
-	void handle_service_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+	void handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
+	void handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing);
 
 	boost::shared_ptr< serializer > & get_serializer();
 	boost::shared_ptr< deserializer > & get_deserializer();
 
 	void receive(const uint8_t *, uint32_t, const endpoint *, const endpoint *);
+
+	service * find_multicast_service(ip_port _port) const;
 
 private:
 	void run_receiver();
@@ -103,10 +111,14 @@ private:
 	void on_stop_service(client_id, service_id, instance_id);
 	void on_request_service(client_id, service_id, instance_id, const endpoint *);
 	void on_release_service(client_id, service_id, instance_id, const endpoint *);
+	void on_request_eventgroup(client_id, service_id, instance_id, eventgroup_id);
+	void on_release_eventgroup(client_id, service_id, instance_id, eventgroup_id);
 
 	void on_pong(client_id);
 
 	void on_send_message(client_id, const uint8_t *, uint32_t);
+	void on_update_field(uint8_t *, uint32_t);
+
 	void on_register_method(client_id, service_id, instance_id, method_id);
 	void on_deregister_method(client_id, service_id, instance_id, method_id);
 
@@ -134,7 +146,7 @@ private:
 	void watchdog_check_cbk(boost::system::error_code const &_error);
 
 	client_id find_local(service_id, instance_id, method_id) const;
-	client * find_remote(service_id, instance_id) const;
+	client * find_remote(service_id _service, instance_id _instance, bool _is_reliable) const;
 
 	bool is_local(client_id) const;
 	const endpoint * find_remote(client_id) const;
@@ -186,9 +198,27 @@ private:
 
 	client_location_map_t client_locations_;
 
+	// Events(?) & Fields
+	struct eventgroup_info {
+		std::set< client_id > clients_;
+		std::set< event_id > events_;
+	};
+	std::map< service_id,
+			  std::map< instance_id,
+			  	  	    std::map< eventgroup_id,
+			  	  	    		  eventgroup_info > > > eventgroups_;
+
+	struct field_info {
+		std::vector< uint8_t > payload_;
+		std::set< client_id > _clients;
+	};
+	std::map< event_id, field_info > events_;
+
 private:
 	static client_id id__;
 	sd::service_discovery *service_discovery_;
+
+	std::string unicast_;
 
 	boost::shared_ptr< serializer > serializer_;
 	boost::shared_ptr< deserializer > deserializer_;

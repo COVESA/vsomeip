@@ -9,9 +9,12 @@
 // All rights reserved.
 //
 
+#include <boost/asio/ip/multicast.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/bind.hpp>
 
+#include <vsomeip/endpoint.hpp>
+#include <vsomeip/factory.hpp>
 #include <vsomeip_internal/udp_client_impl.hpp>
 
 namespace vsomeip {
@@ -23,6 +26,15 @@ udp_client_impl::udp_client_impl(
 
 udp_client_impl::~udp_client_impl() {
 }
+
+const endpoint * udp_client_impl::get_local_endpoint() const {
+	return vsomeip::factory::get_instance()->get_endpoint(
+				socket_.local_endpoint().address().to_string(),
+				socket_.local_endpoint().port(),
+				ip_protocol::UDP
+		   );
+}
+
 
 void udp_client_impl::connect() {
 	socket_.async_connect(
@@ -79,6 +91,36 @@ ip_port udp_client_impl::get_remote_port() const {
 
 ip_protocol udp_client_impl::get_protocol() const {
 	return ip_protocol::UDP;
+}
+
+void udp_client_impl::join(const std::string &_multicast_address) {
+	if (ip_protocol_version::V4 == location_->get_version()) {
+		try {
+			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+			socket_.set_option(boost::asio::ip::multicast::join_group(
+							   boost::asio::ip::address::from_string(_multicast_address)));
+		}
+		catch (...) {
+
+		}
+	} else {
+		// TODO: support multicast for IPv6
+	}
+}
+
+void udp_client_impl::leave(const std::string &_multicast_address) {
+	if (ip_protocol_version::V4 == location_->get_version()) {
+		try {
+			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+			socket_.set_option(boost::asio::ip::multicast::leave_group(
+							   boost::asio::ip::address::from_string(_multicast_address)));
+		}
+		catch (...) {
+
+		}
+	} else {
+		// TODO: support multicast for IPv6
+	}
 }
 
 } // namespace vsomeip
