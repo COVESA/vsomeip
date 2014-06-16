@@ -58,7 +58,7 @@ void on_off() {
 	}
 }
 
-void receive_message(const message *_message) {
+void receive_message(std::shared_ptr< const message > &_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
@@ -68,7 +68,7 @@ void receive_message(const message *_message) {
 			  << std::dec << _message->get_length() << " bytes."
 			  << std::endl;
 
-	message *response = the_factory->create_response(_message);
+	message *response = the_factory->create_response(_message.get());
 
 	uint8_t payload_data[] = { 0x11, 0x22, 0x44, 0x66, 0x88 };
 	response->get_payload().set_data(payload_data, sizeof(payload_data));

@@ -81,7 +81,7 @@ public:
 	void on_add_field(service_id _service, instance_id _instance, eventgroup_id _eventgroup, event_id _field, const uint8_t *payload, uint32_t payload_size);
 
 	// Dummies
-	void handle_message(const message *_message);
+	void handle_message(std::shared_ptr< const message > &_message);
 	void handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 	void handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing);
 

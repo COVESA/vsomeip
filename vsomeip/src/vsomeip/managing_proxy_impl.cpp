@@ -437,7 +437,7 @@ void managing_proxy_impl::receive(
 	if (_data) {
 		boost::shared_ptr< deserializer > its_deserializer(owner_.get_deserializer());
 		its_deserializer->set_data(_data, _size);
-		boost::shared_ptr< message > its_message (its_deserializer->deserialize_message());
+		message *its_message = its_deserializer->deserialize_message();
 		its_deserializer->reset();
 
 		if (its_message) {
@@ -449,7 +449,8 @@ void managing_proxy_impl::receive(
 			instance_id its_instance = find_instance(_target, its_service, its_message_type);
 			its_message->set_instance_id(its_instance);
 
-			owner_.handle_message(its_message.get());
+			std::shared_ptr< const message > tmp(its_message);
+			owner_.handle_message(tmp);
 		} else {
 			VSOMEIP_ERROR << "Message deserialization error!";
 		}

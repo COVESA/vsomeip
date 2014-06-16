@@ -10,7 +10,8 @@
 #ifndef VSOMEIP_APPLICATION_HPP
 #define VSOMEIP_APPLICATION_HPP
 
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
 #include <vsomeip/primitive_types.hpp>
 
@@ -20,8 +21,8 @@ class endpoint;
 class field;
 class message;
 
-typedef boost::function< void (const message *) > message_handler_t;
-typedef boost::function< void (service_id, instance_id, bool) > availability_handler_t;
+typedef std::function< void (std::shared_ptr< const message > &) > message_handler_t;
+typedef std::function< void (service_id, instance_id, bool) > availability_handler_t;
 
 class application {
 public:

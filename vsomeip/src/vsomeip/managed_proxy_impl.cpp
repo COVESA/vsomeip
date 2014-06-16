@@ -164,15 +164,16 @@ void managed_proxy_impl::on_message(client_id _id, const uint8_t *_data, uint32_
 
 	boost::shared_ptr< deserializer > its_deserializer(owner_.get_deserializer());
 	its_deserializer->set_data(_data, message_size + VSOMEIP_STATIC_HEADER_SIZE);
-	boost::shared_ptr< message > its_message(its_deserializer->deserialize_message());
+	message  *its_message = its_deserializer->deserialize_message();
 	its_deserializer->reset();
 
-	instance_id its_instance;
-	std::memcpy(&its_instance, &_data[message_size + VSOMEIP_STATIC_HEADER_SIZE], sizeof(its_instance));
-	its_message->set_instance_id(its_instance);
-
 	if (its_message) {
-		owner_.handle_message(its_message.get());
+		instance_id its_instance;
+		std::memcpy(&its_instance, &_data[message_size + VSOMEIP_STATIC_HEADER_SIZE], sizeof(its_instance));
+		its_message->set_instance_id(its_instance);
+
+		std::shared_ptr< const message > tmp(its_message);
+		owner_.handle_message(tmp);
 	}
 }
 
