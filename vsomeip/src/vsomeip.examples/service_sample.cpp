@@ -58,7 +58,7 @@ void on_off() {
 	}
 }
 
-void receive_message(std::shared_ptr< const message > &_message) {
+void receive_message(std::shared_ptr< message > &_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++

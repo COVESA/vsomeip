@@ -299,7 +299,7 @@ void daemon_impl::on_subscription(service_id _service, instance_id _instance, ev
 	}
 }
 
-void daemon_impl::handle_message(std::shared_ptr< const message > &_message) {
+void daemon_impl::handle_message(std::shared_ptr< message > &_message) {
 }
 
 void daemon_impl::handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available) {

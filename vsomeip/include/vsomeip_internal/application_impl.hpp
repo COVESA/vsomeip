@@ -82,7 +82,7 @@ public:
 			service_id _service, instance_id _instance, method_id _method);
 
 	void catch_up_registrations();
-	void handle_message(std::shared_ptr< const message > &_message);
+	void handle_message(std::shared_ptr< message > &_message);
 	void handle_availability(service_id _service, instance_id _instance, const endpoint *_location, bool _is_available);
 	void handle_subscription(service_id _service, instance_id _instance, eventgroup_id _eventgroup, const endpoint *_location, bool _is_subscribing);
 
@@ -91,7 +91,7 @@ public:
 
 protected:
 	void service(boost::asio::io_service &_service);
-	void send_error_message(std::shared_ptr< const message > &_request, return_code_enum _error);
+	void send_error_message(std::shared_ptr< message > &_request, return_code_enum _error);
 	std::set< field * > * find_eventgroup(service_id _service, instance_id _instance, eventgroup_id _eventgroup);
 
 protected:

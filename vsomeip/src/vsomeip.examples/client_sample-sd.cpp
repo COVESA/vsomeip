@@ -31,7 +31,7 @@ message * the_message = the_factory->create_message();
 
 class Connection {
 public:
-	void on_method(std::shared_ptr< const message > &_message) {
+	void on_method(std::shared_ptr< message > &_message) {
 		static int i = 0;
 
 		const payload &its_payload = _message->get_payload();
@@ -47,7 +47,7 @@ public:
 		std::cout << "]" << std::endl;
 	}
 
-	void on_event(std::shared_ptr< const message > &_message) {
+	void on_event(std::shared_ptr< message > &_message) {
 		static int i = 0;
 
 		const payload &its_payload = _message->get_payload();
@@ -118,8 +118,8 @@ int main(int argc, char **argv) {
 	the_application->request_eventgroup(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP);
 
 	Connection the_connection;
-	boost::function< void (std::shared_ptr< const message > &) > method_handler = boost::bind(&Connection::on_method, &the_connection, _1);
-	boost::function< void (std::shared_ptr< const message > &) > event_handler = boost::bind(&Connection::on_event, &the_connection, _1);
+	boost::function< void (std::shared_ptr< message > &) > method_handler = boost::bind(&Connection::on_method, &the_connection, _1);
+	boost::function< void (std::shared_ptr< message > &) > event_handler = boost::bind(&Connection::on_event, &the_connection, _1);
 
 	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, method_handler);
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, method_handler);

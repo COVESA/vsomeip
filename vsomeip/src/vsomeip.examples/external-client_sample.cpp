@@ -29,7 +29,7 @@ endpoint *external_endpoint = the_factory->get_endpoint("127.0.0.1", 30498, ip_p
 
 message * the_message = the_factory->create_message();
 
-void receive(std::shared_ptr< const message > &_message) {
+void receive(std::shared_ptr< message > &_message) {
 	static int i = 0;
 
 	std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++

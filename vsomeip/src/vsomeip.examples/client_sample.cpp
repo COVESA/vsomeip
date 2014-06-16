@@ -30,7 +30,7 @@ message * the_message = the_factory->create_message();
 
 class Connection {
 public:
-	void receive(std::shared_ptr< const message > &_message) {
+	void receive(std::shared_ptr< message > &_message) {
 		static int i = 0;
 
 		std::cout << "[" << std::dec << std::setw(4) << std::setfill('0') << i++
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 	the_application->request_service(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, external_endpoint);
 
 	Connection the_connection;
-	boost::function< void (std::shared_ptr< const message > &) > func = boost::bind(&Connection::receive, &the_connection, _1);
+	boost::function< void (std::shared_ptr< message > &) > func = boost::bind(&Connection::receive, &the_connection, _1);
 
 	the_application->register_message_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_METHOD, func);
 	the_application->register_message_handler(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_METHOD, func);

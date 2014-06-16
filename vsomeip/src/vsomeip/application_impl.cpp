@@ -375,7 +375,7 @@ void application_impl::deregister_message_handler(
 	}
 }
 
-void application_impl::handle_message(std::shared_ptr< const message > &_message) {
+void application_impl::handle_message(std::shared_ptr< message > &_message) {
 	auto found_service = message_handlers_.find(_message->get_service_id());
 	if (found_service != message_handlers_.end()) {
 		auto found_instance = found_service->second.find(_message->get_instance_id());
@@ -409,7 +409,7 @@ void application_impl::handle_message(std::shared_ptr< const message > &_message
 	}
 }
 
-void application_impl::send_error_message(std::shared_ptr< const message > &_request, return_code_enum _error) {
+void application_impl::send_error_message(std::shared_ptr< message > &_request, return_code_enum _error) {
 	std::shared_ptr< message > response (vsomeip::factory::get_instance()->create_response(_request.get()));
 	response->set_return_code(_error);
 	send(response.get(), (ip_protocol::TCP == _request->get_source()->get_protocol()), true);

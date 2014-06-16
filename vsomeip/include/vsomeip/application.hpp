@@ -21,7 +21,7 @@ class endpoint;
 class field;
 class message;
 
-typedef std::function< void (std::shared_ptr< const message > &) > message_handler_t;
+typedef std::function< void (std::shared_ptr< message > &) > message_handler_t;
 typedef std::function< void (service_id, instance_id, bool) > availability_handler_t;
 
 class application {
