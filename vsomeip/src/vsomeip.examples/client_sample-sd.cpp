@@ -65,6 +65,10 @@ public:
 		std::cout << "]" << std::endl;
 	}
 
+	void on_avail(service_id s, instance_id i, bool a) {
+		std::cout << "Service [" << std::hex << s << "." << i << "] is "
+				  << (a ? "available!" : "not available!") << std::endl;
+	}
 };
 
 void worker() {
@@ -100,6 +104,10 @@ void run() {
 
 int main(int argc, char **argv) {
 	the_application->init(argc, argv);
+	Connection the_connection;
+	std::function< void (service_id, instance_id, bool) > avail_handler
+			= std::bind(&Connection::on_avail, &the_connection, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	the_application->register_availability_handler(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, avail_handler);
 
 	the_message->set_session_id(0x4234);
 	the_message->set_message_type(message_type_enum::REQUEST);
@@ -117,7 +125,6 @@ int main(int argc, char **argv) {
 	the_application->request_eventgroup(INTERNAL_SAMPLE_SERVICE, INTERNAL_SAMPLE_SERVICE_INSTANCE, INTERNAL_SAMPLE_EVENTGROUP);
 	the_application->request_eventgroup(EXTERNAL_SAMPLE_SERVICE, EXTERNAL_SAMPLE_SERVICE_INSTANCE, EXTERNAL_SAMPLE_EVENTGROUP);
 
-	Connection the_connection;
 	boost::function< void (std::shared_ptr< message > &) > method_handler = boost::bind(&Connection::on_method, &the_connection, _1);
 	boost::function< void (std::shared_ptr< message > &) > event_handler = boost::bind(&Connection::on_event, &the_connection, _1);
 
