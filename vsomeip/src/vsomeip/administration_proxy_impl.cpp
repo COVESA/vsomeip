@@ -39,6 +39,9 @@ administration_proxy_impl::administration_proxy_impl(application_base_impl &_own
 	  is_registered_(false),
 	  is_open_(false),
 	  is_created_(false) {
+
+	// ensure the daemon queue will not be removed
+	daemon_queue_->add_ref();
 }
 
 administration_proxy_impl::~administration_proxy_impl() {
