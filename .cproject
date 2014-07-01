@@ -21,7 +21,7 @@
 					<folderInfo id="cdt.managedbuild.config.gnu.cross.exe.debug.79466970." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.cross.exe.debug.1888828021" name="Cross GCC">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.2029579316" isAbstract="false" osList="all"/>
-							<builder arguments="-C ${ProjDirPath}/build" buildPath="${workspace_loc:/vsomeip.redesign}/" command="make" id="cdt.managedbuild.builder.gnu.cross.211807288" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder"/>
+							<builder arguments="-C ${ProjDirPath}/build" buildPath="${workspace_loc:/ascgit017.vSomeIP}" command="make" id="cdt.managedbuild.builder.gnu.cross.211807288" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
