@@ -1,0 +1,83 @@
+// Copyright (C) 2014 BMW Group
+// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef VSOMEIP_CLIENT_ENDPOINT_IMPL_HPP
+#define VSOMEIP_CLIENT_ENDPOINT_IMPL_HPP
+
+#include <deque>
+#include <mutex>
+#include <vector>
+
+#include <boost/array.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/ip/udp.hpp>
+#include <boost/utility.hpp>
+
+#include "endpoint_impl.hpp"
+
+namespace vsomeip {
+
+class endpoint;
+class endpoint_host;
+
+template < typename Protocol, int MaxBufferSize >
+class client_endpoint_impl
+		: public endpoint_impl< MaxBufferSize >,
+		  public std::enable_shared_from_this< client_endpoint_impl< Protocol, MaxBufferSize > > {
+public:
+	typedef typename Protocol::socket socket_type;
+	typedef typename Protocol::endpoint endpoint_type;
+
+	client_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			    		 endpoint_type _remote,
+			    		 boost::asio::io_service &_io);
+	virtual ~client_endpoint_impl();
+
+	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+	bool flush();
+
+	void stop();
+	void restart();
+
+	bool is_client() const;
+	const uint8_t * get_buffer() const;
+
+public:
+	void connect_cbk(boost::system::error_code const &_error);
+	void wait_connect_cbk(boost::system::error_code const &_error);
+	void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+	void flush_cbk(boost::system::error_code const &_error);
+	void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+
+public:
+	virtual void connect() = 0;
+	virtual void receive() = 0;
+
+protected:
+	socket_type socket_;
+	endpoint_type remote_;
+	boost::array< byte_t, MaxBufferSize > buffer_;
+
+	boost::asio::system_timer flush_timer_;
+	boost::asio::system_timer connect_timer_;
+	uint32_t connect_timeout_;
+	bool is_connected_;
+
+	// send data
+	std::deque< std::vector< byte_t > > packet_queue_;
+	std::vector< byte_t > packetizer_;
+
+	// receive data
+	std::vector< byte_t > message_;
+
+	std::mutex mutex_;
+
+	virtual void send_queued() = 0;
+};
+
+} // namespace vsomeip
+
+#endif // VSOMEIP_CLIENT_ENDPOINT_IMPL_HPP

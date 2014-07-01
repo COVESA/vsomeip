@@ -1,0 +1,41 @@
+<!-- vsomeip test configuration file -->
+<someip>
+	<unicast>10.0.2.15</unicast>
+	<logging> 
+		<level>debug</level>
+		<console>true</console>
+		<file>false</file>
+		<dlt>false</dlt>
+	</logging>
+	<services>
+		<servicegroup> 
+			<name>default</name>
+			<delays>
+				<initial>
+					<min>10</min>
+					<max>100</max>
+				</initial>
+				<repetition-base>200</repetition-base>
+				<cyclic-offer>2000</cyclic-offer>
+				<cyclic-request>2001</cyclic-request>
+			</delays>
+			<service>
+				<service-id>0x1234</service-id>
+				<instance-id>0x5678</instance-id>
+				<major>0x1</major>
+				<minor>0x1</minor>
+				<ttl>4000</ttl>
+				<port>30500</port>
+				<multicast>225.225.225.1</multicast>
+			</service>
+		</servicegroup>
+	</services>
+	<routing>
+		<host>client-sample</host>
+	</routing>
+	<service-discovery>
+		<host>client-sample</host>
+		<protocol>udp</protocol>
+		<port>30490</port>
+	</service-discovery>
+</someip>

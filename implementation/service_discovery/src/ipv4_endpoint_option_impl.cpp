@@ -1,0 +1,50 @@
+// Copyright (C) 2014 BMW Group
+// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <vsomeip/constants.hpp>
+
+#include "../include/ipv4_option_impl.hpp"
+#include "../../message/include/deserializer.hpp"
+#include "../../message/include/serializer.hpp"
+
+namespace vsomeip {
+namespace sd {
+
+ipv4_option_impl::ipv4_option_impl(bool _is_multicast) {
+	length_ = (1 + 4 + 1 + 1 + 2);
+	type_ = (_is_multicast ? option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
+}
+
+ipv4_option_impl::~ipv4_option_impl() {
+}
+
+bool ipv4_option_impl::operator ==(const option_impl &_other) const {
+	if (type_ != _other.get_type())
+		return false;
+
+	const ipv4_option_impl & other = dynamic_cast< const ipv4_option_impl & >(_other);
+	return true;
+}
+
+bool ipv4_option_impl::is_multicast() const {
+	return (type_ == option_type_e::IP4_MULTICAST);
+}
+
+bool ipv4_option_impl::serialize(vsomeip::serializer *_to) const {
+	bool is_successful = option_impl::serialize(_to);
+	// TODO: serialize specific part
+	return is_successful;
+}
+
+bool ipv4_option_impl::deserialize(vsomeip::deserializer *_from) {
+	bool is_successful = option_impl::deserialize(_from);
+	// TODO: serialize specific part
+	return is_successful;
+}
+
+} // namespace sd
+} // namespace vsomeip
+
