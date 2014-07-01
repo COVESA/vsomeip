@@ -9,6 +9,7 @@
 #include "../include/application_impl.hpp"
 #include "../include/runtime_impl.hpp"
 #include "../../message/include/message_impl.hpp"
+#include "../../message/include/payload_impl.hpp"
 
 namespace vsomeip {
 
@@ -43,6 +44,18 @@ std::shared_ptr< message > runtime_impl::create_response(std::shared_ptr< messag
 	its_response->set_message_type(message_type_e::RESPONSE);
 	its_response->set_return_code(return_code_e::E_OK);
 	return its_response;
+}
+
+std::shared_ptr< message > runtime_impl::create_notification() const {
+	std::shared_ptr< message_impl > its_request = std::make_shared< message_impl >();
+	its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
+	its_request->set_message_type(message_type_e::NOTIFICATION);
+	its_request->set_return_code(return_code_e::E_OK);
+	return its_request;
+}
+
+std::shared_ptr< payload > runtime_impl::create_payload() const {
+	return std::make_shared< payload_impl >();
 }
 
 } // namespace vsomeip

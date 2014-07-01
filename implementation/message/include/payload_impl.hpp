@@ -11,16 +11,16 @@
 
 namespace vsomeip {
 
-class payload_owner;
 class serializer;
 class deserializer;
 
-class payload_impl : public payload {
+class payload_impl: public payload {
 public:
 	payload_impl();
-	payload_impl(const payload_owner *_owner);
 	payload_impl(const payload_impl& _payload);
 	virtual ~payload_impl();
+
+	bool operator == (const payload &_other);
 
 	byte_t * get_data();
 	const byte_t * get_data() const;
@@ -36,7 +36,6 @@ public:
 
 private:
 	std::vector< byte_t > data_;
-	const payload_owner *owner_;
 };
 
 } // namespace vsomeip

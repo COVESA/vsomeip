@@ -14,6 +14,7 @@ namespace vsomeip {
 
 class application;
 class message;
+class payload;
 
 class runtime {
 public:
@@ -22,8 +23,13 @@ public:
 	virtual ~runtime() {};
 
 	virtual std::shared_ptr< application > create_application(const std::string &_name) const = 0;
+
 	virtual std::shared_ptr< message > create_request() const = 0;
 	virtual std::shared_ptr< message > create_response(std::shared_ptr< message > &_request) const = 0;
+
+	virtual std::shared_ptr< message > create_notification() const = 0;
+
+	virtual std::shared_ptr< payload > create_payload() const = 0;
 };
 
 } // namespace vsomeip

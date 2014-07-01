@@ -8,13 +8,20 @@
 #define VSOMEIP_PAYLOAD_HPP
 
 #include <vector>
+
+#include <vsomeip/deserializable.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/serializable.hpp>
 
 namespace vsomeip {
 
-class payload {
+class payload :
+		public serializable,
+		public deserializable {
 public:
 	virtual ~payload() {};
+
+	virtual bool operator == (const payload &_other) = 0;
 
 	virtual byte_t * get_data() = 0;
 	virtual const byte_t * get_data() const = 0;

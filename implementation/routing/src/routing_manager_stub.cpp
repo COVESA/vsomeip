@@ -135,11 +135,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size, endpo
 				break;
 
 			case VSOMEIP_REMOVE_EVENT_OR_FIELD:
-				routing_->remove_event_or_field(its_client, its_service, its_instance, its_eventgroup, its_event);
+				//routing_->remove_event_or_field(its_client, its_service, its_instance, its_eventgroup, its_event);
 				break;
 
 			case VSOMEIP_ADD_FIELD:
-				routing_->add_field(its_client, its_service, its_instance, its_eventgroup, its_event, its_value);
+				//routing_->add_field(its_client, its_service, its_instance, its_eventgroup, its_event, its_value);
 				break;
 
 			case VSOMEIP_SEND:

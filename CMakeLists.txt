@@ -55,12 +55,12 @@ include_directories( ${Boost_INCLUDE_DIR} )
 
 # Base library
 file(GLOB vsomeip_SRC
-    "implementation/application/src/*.cpp"
     "implementation/configuration/src/*.cpp"
     "implementation/endpoints/src/*.cpp"
     "implementation/logging/src/*.cpp"
     "implementation/message/src/*.cpp"
     "implementation/routing/src/*.cpp"
+    "implementation/runtime/src/*.cpp"
     "implementation/utility/src/*.cpp"
 )
 

@@ -6,12 +6,13 @@
 
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_proxy.hpp"
+#include "../../routing/include/routing_manager.hpp"
 
 namespace vsomeip {
 namespace sd {
 
 service_discovery_proxy::service_discovery_proxy(service_discovery_host *_host)
-	: host_(_host), io_(_host->get_io()) {
+	: host_(_host),routing_(_host->get_routing_manager()), io_(_host->get_routing_manager()->get_io()) {
 }
 
 service_discovery_proxy::~service_discovery_proxy() {

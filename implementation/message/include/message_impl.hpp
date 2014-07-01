@@ -7,10 +7,13 @@
 #ifndef VSOMEIP_MESSAGE_IMPL_HPP
 #define VSOMEIP_MESSAGE_IMPL_HPP
 
+#include <memory>
+
 #include "message_base_impl.hpp"
-#include "payload_impl.hpp"
 
 namespace vsomeip {
+
+class payload;
 
 class message_impl
 		: virtual public message,
@@ -21,14 +24,14 @@ public:
 	length_t get_length() const;
 	void set_length(length_t _length);
 
-	payload & get_payload();
-	const payload & get_payload() const;
+	std::shared_ptr< payload > get_payload() const;
+	void set_payload(std::shared_ptr< payload > _payload);
 
 	bool serialize(serializer *_to) const;
 	bool deserialize(deserializer *_from);
 
 protected: // members
-	payload_impl payload_;
+	std::shared_ptr< payload > payload_;
 };
 
 } // namespace vsomeip

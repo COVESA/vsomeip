@@ -41,10 +41,11 @@ public:
 		request_->set_instance(SAMPLE_INSTANCE_ID);
 		request_->set_method(SAMPLE_METHOD_ID);
 
-		vsomeip::payload &its_payload = request_->get_payload();
-		std::vector< vsomeip::byte_t > its_sample_payload;
-		for (std::size_t i = 0; i < 10; ++i) its_sample_payload.push_back(i % 256);
-		its_payload.set_data(its_sample_payload);
+		std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
+		std::vector< vsomeip::byte_t > its_payload_data;
+		for (std::size_t i = 0; i < 10; ++i) its_payload_data.push_back(i % 256);
+		its_payload->set_data(its_payload_data);
+		request_->set_payload(its_payload);
 	}
 
 	void start() {

@@ -7,6 +7,8 @@
 #ifndef VSOMEIP_MESSAGE_HPP
 #define VSOMEIP_MESSAGE_HPP
 
+#include <memory>
+
 #include <vsomeip/message_base.hpp>
 
 namespace vsomeip {
@@ -18,8 +20,8 @@ class message
 public:
 	virtual ~message() {};
 
-	virtual payload & get_payload() = 0;
-	virtual const payload & get_payload() const = 0;
+	virtual std::shared_ptr< payload > get_payload() const = 0;
+	virtual void set_payload(std::shared_ptr< payload > _payload) = 0;
 };
 
 } // namespace vsomeip

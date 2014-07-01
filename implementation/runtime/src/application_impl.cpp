@@ -199,23 +199,22 @@ void application_impl::unsubscribe(
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance) {
-	return true; // TODO: depend on SD
+	return true; // TODO: ask routing manager (proxy)
 }
 
-void application_impl::add_event(
+std::shared_ptr< event > application_impl::add_event(
 		service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-
+	return routing_->add_event(client_, _service, _instance, _eventgroup, _event);
 }
 
-void application_impl::add_field(
+std::shared_ptr< event > application_impl::add_field(
 		service_t _service, instance_t _instance,
-		eventgroup_t _eventgroup, event_t _event, std::vector< byte_t > &_value) {
-
+		eventgroup_t _eventgroup, event_t _event, std::shared_ptr< payload > _payload) {
+	return routing_->add_field(client_, _service, _instance, _eventgroup, _event, _payload);
 }
 
-void application_impl::remove_event_or_field(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-
+void application_impl::remove_event_or_field(std::shared_ptr< event > _event) {
+	routing_->remove_event_or_field(_event);
 }
 
 void application_impl::send(std::shared_ptr< message > _message, bool _flush, bool _reliable) {
@@ -226,12 +225,6 @@ void application_impl::send(std::shared_ptr< message > _message, bool _flush, bo
 		}
 		routing_->send(client_, _message, _flush, _reliable);
 	}
-}
-
-void application_impl::set(
-		service_t _service, instance_t _instance,
-		event_t _event, std::vector< byte_t > &_value) {
-	// TODO: change signature to use payload
 }
 
 bool application_impl::register_message_handler(
@@ -344,6 +337,10 @@ void application_impl::on_error() {
 	std::cerr << "ERROR" << std::endl;
 }
 
+// Interface "service_discovery_host"
+routing_manager * application_impl::get_routing_manager() const {
+	return routing_.get();
+}
 
 // Internal
 void application_impl::service(boost::asio::io_service &_io) {

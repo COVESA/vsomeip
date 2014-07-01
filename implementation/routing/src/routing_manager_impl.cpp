@@ -23,6 +23,7 @@
 #include "../../endpoints/include/udp_server_endpoint_impl.hpp"
 #include "../../message/include/byteorder.hpp"
 #include "../../message/include/deserializer.hpp"
+#include "../../message/include/event_impl.hpp"
 #include "../../message/include/serializer.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -115,21 +116,24 @@ void routing_manager_impl::stop_publish_eventgroup(client_t its_client,
 
 }
 
-void routing_manager_impl::add_event(client_t its_client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-		event_t _event) {
+std::shared_ptr< event > routing_manager_impl::add_event(client_t _client,
+		service_t _service, instance_t _instance,
+		eventgroup_t _eventgroup, event_t _event) {
 
+	return std::make_shared< event_impl >(io_);
 }
 
-void routing_manager_impl::add_field(client_t its_client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-		event_t _event, std::vector< byte_t > &_value) {
-
+std::shared_ptr< event > routing_manager_impl::add_field(client_t _client,
+		service_t _service, instance_t _instance,
+		eventgroup_t _eventgroup, event_t _event,
+		std::shared_ptr< payload > _payload) {
+	std::shared_ptr< event > its_event = add_event(_client, _service, _instance,
+												   _eventgroup, _event);
+	its_event->set_payload(_payload);
+	return its_event;
 }
 
-void routing_manager_impl::remove_event_or_field(client_t its_client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-		event_t _event) {
+void routing_manager_impl::remove_event_or_field(std::shared_ptr< event > _event) {
 
 }
 

@@ -12,6 +12,9 @@
 #include <boost/asio/io_service.hpp>
 
 namespace vsomeip {
+
+class routing_manager;
+
 namespace sd {
 
 class service_discovery;
@@ -20,7 +23,7 @@ class service_discovery_host {
 public:
 	virtual ~service_discovery_host() {};
 
-	virtual boost::asio::io_service & get_io() = 0;
+	virtual routing_manager * get_routing_manager() const = 0;
 
 private:
 	std::shared_ptr< service_discovery > discovery_;

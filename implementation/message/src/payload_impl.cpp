@@ -6,17 +6,12 @@
 
 #include "../include/deserializer.hpp"
 #include "../include/payload_impl.hpp"
-#include "../include/payload_owner.hpp"
 #include "../include/serializer.hpp"
 
 namespace vsomeip {
 
 payload_impl::payload_impl()
-	: data_(), owner_(0) {
-}
-
-payload_impl::payload_impl(const payload_owner *_owner)
-	: data_(), owner_(_owner) {
+	: data_() {
 }
 
 payload_impl::payload_impl(const payload_impl& _payload)
@@ -24,6 +19,18 @@ payload_impl::payload_impl(const payload_impl& _payload)
 }
 
 payload_impl::~payload_impl() {
+}
+
+bool payload_impl::operator==(const payload &_other) {
+	bool is_equal(true);
+	try {
+		const payload_impl &other = dynamic_cast< const payload_impl & >(_other);
+		is_equal = (data_ == other.data_);
+	}
+	catch (...) {
+		is_equal = false;
+	}
+	return is_equal;
 }
 
 byte_t * payload_impl::get_data() {
@@ -43,39 +50,11 @@ void payload_impl::set_capacity(length_t _capacity) {
 }
 
 void payload_impl::set_data(const byte_t *_data, const length_t _length) {
-	bool is_changed = false;
-	if (data_.size() != _length) {
-		is_changed = true;
-	} else {
-		for (std::size_t i = 0; i < _length; ++i) {
-			if (data_[i] != _data[i]) {
-				is_changed = true;
-				break;
-			}
-		}
-	}
 	data_.assign(_data, _data + _length);
-
-	if (is_changed && owner_)
-		owner_->notify();
 }
 
 void payload_impl::set_data(const std::vector< byte_t > &_data) {
-	bool is_changed = false;
-	if (data_.size() != _data.size()) {
-		is_changed = true;
-	} else {
-		for (std::size_t i = 0; i < _data.size(); ++i) {
-			if (data_[i] != _data[i]) {
-				is_changed = true;
-				break;
-			}
-		}
-	}
 	data_ = _data;
-
-	if (is_changed && owner_)
-		owner_->notify();
 }
 
 bool payload_impl::serialize(serializer *_to) const {

@@ -58,17 +58,16 @@ public:
 			service_t _service, instance_t _instance,
 			eventgroup_t _eventgroup);
 
-	void add_event(client_t _client,
+	std::shared_ptr< event > add_event(client_t _client,
 			service_t _service, instance_t _instance,
 			eventgroup_t _eventgroup, event_t _event);
 
-	void add_field(client_t _client,
-			service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-			event_t _event, std::vector< byte_t > &_value);
-
-	void remove_event_or_field(client_t _client,
+	std::shared_ptr< event > add_field(client_t _client,
 			service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup, event_t _event);
+			eventgroup_t _eventgroup, event_t _event,
+			std::shared_ptr< payload > _payload);
+
+	void remove_event_or_field(std::shared_ptr< event > _event);
 
 	void request_service(client_t _client,
 			service_t _service, instance_t _instance,
@@ -130,6 +129,13 @@ private:
 	std::map< service_t, std::map< instance_t, std::shared_ptr< routing_info > > > services_;
 	std::map< uint16_t, std::map< bool, std::shared_ptr< endpoint > > > service_endpoints_;
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
+
+	// Eventgroups
+	std::map< service_t,
+			  std::map< instance_t,
+			  	  	    std::map< eventgroup_t,
+			  	  	    		  std::set< std::shared_ptr< endpoint > > > > > eventgroups_;
+	std::map< service_t, std::map< instance_t, std::map< event_t, eventgroup_t > > > events_;
 
 	std::recursive_mutex endpoint_mutex_;
 	std::mutex serialize_mutex_;

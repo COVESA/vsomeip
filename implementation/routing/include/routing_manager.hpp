@@ -17,6 +17,7 @@
 namespace vsomeip {
 
 class endpoint;
+class event;
 
 class routing_manager {
 public:
@@ -44,18 +45,16 @@ public:
 					service_t _service, instance_t _instance,
 					eventgroup_t _eventgroup) = 0;
 
-	virtual void add_event(client_t _client,
+	virtual std::shared_ptr< event > add_event(client_t _client,
 					service_t _service, instance_t _instance,
 					eventgroup_t _eventgroup, event_t _event) = 0;
 
-	virtual void add_field(client_t _client,
+	virtual std::shared_ptr< event > add_field(client_t _client,
 					service_t _service, instance_t _instance,
-					eventgroup_t _eventgroup,
-					event_t _event, std::vector< byte_t > &_value) = 0;
+					eventgroup_t _eventgroup, event_t _event,
+					std::shared_ptr< payload > _payload) = 0;
 
-	virtual void remove_event_or_field(client_t _client,
-					service_t service, instance_t _instance,
-					eventgroup_t _eventgroup, event_t _event) = 0;
+	virtual void remove_event_or_field(std::shared_ptr< event > _event) = 0;
 
 	virtual void request_service(client_t _client,
 					service_t _service, instance_t _instance,

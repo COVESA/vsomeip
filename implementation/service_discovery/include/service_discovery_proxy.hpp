@@ -12,6 +12,9 @@
 #include "service_discovery.hpp"
 
 namespace vsomeip {
+
+class routing_manager;
+
 namespace sd {
 
 class service_discovery_host;
@@ -30,6 +33,7 @@ public:
 private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
+	routing_manager *routing_;
 };
 
 } // namespace sd

@@ -69,20 +69,16 @@ public:
 	bool is_available(service_t _service, instance_t _instance);
 
 	// Define content of eventgroups
-	void add_event(service_t _service, instance_t _instance,
-				   eventgroup_t _eventgroup, event_t _event);
+	std::shared_ptr< event > add_event(service_t _service,
+			instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
-	void add_field(service_t _service, instance_t _instance,
-				   eventgroup_t _eventgroup, event_t _event,
-				   std::vector< uint8_t > &_value);
+	std::shared_ptr< event > add_field(service_t _service,
+			instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+			std::shared_ptr< payload > _payload);
 
-	void remove_event_or_field(service_t _service, instance_t _instance,
-							   eventgroup_t _eventgroup, event_t _event);
-
+	void remove_event_or_field(std::shared_ptr< event > _event /* or field */);
 
 	void send(std::shared_ptr< message > _message, bool _flush, bool _reliable);
-	void set(service_t _service, instance_t _instance,
-			 event_t _event, std::vector< byte_t > &_value);
 
 	bool register_message_handler(service_t _service, instance_t _instance,
 			method_t _method, message_handler_t _handler);
@@ -103,6 +99,7 @@ public:
 	void on_error();
 
 	// service_discovery_host
+	routing_manager * get_routing_manager() const;
 
 private:
 	void service(boost::asio::io_service &_io);
