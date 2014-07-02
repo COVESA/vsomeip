@@ -8,6 +8,7 @@
 #define VSOMEIP_CFG_CONFIGURATION_IMPL_HPP
 
 #include <map>
+#include <memory>
 #include <mutex>
 
 #include <boost/property_tree/ptree.hpp>
@@ -74,8 +75,8 @@ private:
 	bool get_applications_configuration(boost::property_tree::ptree &_tree);
 
 	bool get_servicegroup_configuration(const boost::property_tree::ptree &_tree);
-	bool get_delays_configuration(boost::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
-	bool get_service_configuration(boost::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
+	bool get_delays_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
+	bool get_service_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
 	bool get_application_configuration(const boost::property_tree::ptree &_tree);
 
 	service * find_service(service_t _service, instance_t _instance) const;
@@ -93,7 +94,7 @@ private:
 	std::string logfile_;
 	boost::log::trivial::severity_level loglevel_;
 
-	std::map< service_t, std::map< instance_t, boost::shared_ptr< service > > > services_;
+	std::map< service_t, std::map< instance_t, std::shared_ptr< service > > > services_;
 
 	std::string routing_host_;
 

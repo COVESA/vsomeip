@@ -77,7 +77,7 @@ void message_impl::set_length(length_t _length) {
 }
 
 std::shared_ptr< eventgroupentry_impl > message_impl::create_eventgroup_entry() {
-	std::shared_ptr< eventgroupentry_impl > its_entry(new eventgroupentry_impl);
+	std::shared_ptr< eventgroupentry_impl > its_entry(std::make_shared< eventgroupentry_impl>());
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_entry->set_owning_message(this);
 	entries_.push_back(its_entry);
@@ -85,7 +85,7 @@ std::shared_ptr< eventgroupentry_impl > message_impl::create_eventgroup_entry() 
 }
 
 std::shared_ptr< serviceentry_impl > message_impl::create_service_entry() {
-	std::shared_ptr< serviceentry_impl > its_entry(new serviceentry_impl);
+	std::shared_ptr< serviceentry_impl > its_entry(std::make_shared< serviceentry_impl >());
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_entry->set_owning_message(this);
 	entries_.push_back(its_entry);
@@ -93,7 +93,7 @@ std::shared_ptr< serviceentry_impl > message_impl::create_service_entry() {
 }
 
 std::shared_ptr< configuration_option_impl > message_impl::create_configuration_option() {
-	std::shared_ptr< configuration_option_impl > its_option(new configuration_option_impl);
+	std::shared_ptr< configuration_option_impl > its_option(std::make_shared< configuration_option_impl >());
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_option->set_owning_message(this);
 	options_.push_back(its_option);
@@ -101,7 +101,7 @@ std::shared_ptr< configuration_option_impl > message_impl::create_configuration_
 }
 
 std::shared_ptr< ipv4_option_impl > message_impl::create_ipv4_option(bool _is_multicast) {
-	std::shared_ptr< ipv4_option_impl > its_option(new ipv4_option_impl(_is_multicast));
+	std::shared_ptr< ipv4_option_impl > its_option(std::make_shared< ipv4_option_impl >(_is_multicast));
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_option->set_owning_message(this);
 	options_.push_back(its_option);
@@ -109,7 +109,7 @@ std::shared_ptr< ipv4_option_impl > message_impl::create_ipv4_option(bool _is_mu
 }
 
 std::shared_ptr< ipv6_option_impl > message_impl::create_ipv6_option(bool _is_multicast) {
-	std::shared_ptr< ipv6_option_impl > its_option(new ipv6_option_impl(_is_multicast));
+	std::shared_ptr< ipv6_option_impl > its_option(std::make_shared< ipv6_option_impl >(_is_multicast));
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_option->set_owning_message(this);
 	options_.push_back(its_option);
@@ -117,7 +117,7 @@ std::shared_ptr< ipv6_option_impl > message_impl::create_ipv6_option(bool _is_mu
 }
 
 std::shared_ptr< load_balancing_option_impl > message_impl::create_load_balancing_option() {
-	std::shared_ptr< load_balancing_option_impl > its_option(new load_balancing_option_impl);
+	std::shared_ptr< load_balancing_option_impl > its_option(std::make_shared< load_balancing_option_impl >());
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_option->set_owning_message(this);
 	options_.push_back(its_option);
@@ -125,7 +125,7 @@ std::shared_ptr< load_balancing_option_impl > message_impl::create_load_balancin
 }
 
 std::shared_ptr< protection_option_impl > message_impl::create_protection_option() {
-	std::shared_ptr< protection_option_impl > its_option(new protection_option_impl);
+	std::shared_ptr< protection_option_impl > its_option(std::make_shared< protection_option_impl >());
 	//TODO: throw OutOfMemoryException if allocation fails
 	its_option->set_owning_message(this);
 	options_.push_back(its_option);

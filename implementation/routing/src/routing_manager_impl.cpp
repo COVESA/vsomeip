@@ -32,8 +32,8 @@ namespace vsomeip {
 routing_manager_impl::routing_manager_impl(routing_manager_host *_host)
 	: host_(_host),
 	  io_(_host->get_io()),
-	  deserializer_(new deserializer),
-	  serializer_(new serializer),
+	  deserializer_(std::make_shared< deserializer>()),
+	  serializer_(std::make_shared< serializer >()),
 	  configuration_(host_->get_configuration()) {
 }
 

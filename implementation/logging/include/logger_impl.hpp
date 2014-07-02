@@ -7,6 +7,7 @@
 #ifndef VSOMEIP_LOGGER_IMPL_HPP
 #define VSOMEIP_LOGGER_IMPL_HPP
 
+#include <memory>
 #include <string>
 
 #include <boost/log/sinks/sync_frontend.hpp>
@@ -45,9 +46,9 @@ private:
 		boost::log::trivial::severity_level > logger_;
 	boost::log::trivial::severity_level loglevel_;
 
-	sink_t *console_sink_;
-	sink_t *file_sink_;
-	//dlt_sink *dlt_sink_;
+	boost::shared_ptr< sink_t > console_sink_;
+	boost::shared_ptr< sink_t > file_sink_;
+	//boost::shared_ptr< dlt_sink > dlt_sink_;
 
 private:
 	void use_null_logger();

@@ -37,7 +37,7 @@ public:
 	virtual void reset();
 
 private:
-	uint8_t *data_;
+	uint8_t * data_;
 	uint32_t capacity_;
 
 	uint8_t *position_;

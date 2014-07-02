@@ -59,6 +59,20 @@ void event_impl::set_update_on_change(bool _is_active) {
 
 void event_impl::set_update_cycle(std::chrono::milliseconds &_cycle) {
 	cycle_ = _cycle;
+	cycle_timer_.cancel();
+
+	if (std::chrono::milliseconds::zero() != _cycle) {
+		cycle_timer_.expires_from_now(cycle_);
+
+		std::function< void (boost::system::error_code const &) > its_handler
+					= [this, its_handler] (boost::system::error_code const &_error) {
+							// TODO: Tell the RM[I|P] to do the update
+							cycle_timer_.expires_from_now(cycle_);
+							cycle_timer_.async_wait(its_handler);
+					  };
+
+		cycle_timer_.async_wait(its_handler);
+	}
 }
 
 } // namespace vsomeip

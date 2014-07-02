@@ -7,6 +7,10 @@
 #ifndef VSOMEIP_CFG_SERVICE_HPP
 #define VSOMEIP_CFG_SERVICE_HPP
 
+#include <memory>
+
+#include <vsomeip/primitive_types.hpp>
+
 namespace vsomeip {
 namespace cfg {
 
@@ -19,7 +23,7 @@ struct service {
 	uint16_t unreliable_;
 	std::string multicast_;
 
-	boost::shared_ptr< servicegroup > group_;
+	std::shared_ptr< servicegroup > group_;
 };
 
 } // namespace cfg

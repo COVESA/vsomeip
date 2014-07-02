@@ -171,7 +171,7 @@ bool configuration_impl::get_services_configuration(boost::property_tree::ptree 
 bool configuration_impl::get_servicegroup_configuration(const boost::property_tree::ptree &_tree) {
 	bool is_loaded(true);
 	try {
-		boost::shared_ptr< servicegroup > its_servicegroup(new servicegroup);
+		std::shared_ptr< servicegroup > its_servicegroup(std::make_shared< servicegroup >());
 		its_servicegroup->address_ = "local"; // Default
 		for (auto i = _tree.begin(); i != _tree.end(); ++i) {
 			std::string its_key(i->first);
@@ -193,7 +193,7 @@ bool configuration_impl::get_servicegroup_configuration(const boost::property_tr
 	return is_loaded;
 }
 
-bool configuration_impl::get_delays_configuration(boost::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree) {
+bool configuration_impl::get_delays_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree) {
 	bool is_loaded(true);
 	try {
 		std::stringstream its_converter;
@@ -230,10 +230,10 @@ bool configuration_impl::get_delays_configuration(boost::shared_ptr< servicegrou
 	return is_loaded;
 }
 
-bool configuration_impl::get_service_configuration(boost::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree) {
+bool configuration_impl::get_service_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree) {
 	bool is_loaded(true);
 	try {
-		boost::shared_ptr< service > its_service(new service);
+		std::shared_ptr< service > its_service(std::make_shared< service >());
 		its_service->group_ = _group;
 
 		for (auto i = _tree.begin(); i != _tree.end(); ++i) {

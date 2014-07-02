@@ -49,7 +49,7 @@ logger & logger_impl::get_logger() {
 }
 
 logger_impl::logger_impl()
-	: loglevel_(debug), console_sink_(0), file_sink_(0)  {
+	: loglevel_(debug) {
 	logging::add_common_attributes();
 }
 
@@ -95,11 +95,9 @@ void logger_impl::enable_console() {
 		)
 	);
 
-	console_sink_ = new sink_t(backend);
-	boost::shared_ptr< sink_t > sink(console_sink_);
-	sink->set_formatter(vsomeip_log_format);
-
-	logging::core::get()->add_sink(sink);
+	console_sink_ = boost::make_shared< sink_t >(backend);
+	console_sink_->set_formatter(vsomeip_log_format);
+	logging::core::get()->add_sink(console_sink_);
 }
 
 void logger_impl::enable_file(const std::string &_path) {
@@ -115,14 +113,12 @@ void logger_impl::enable_file(const std::string &_path) {
 	boost::shared_ptr< sinks::text_ostream_backend > backend
 		= boost::make_shared< sinks::text_ostream_backend >();
 	backend->add_stream(
-		boost::shared_ptr< std::ostream >(new std::ofstream(_path))
+		boost::shared_ptr< std::ostream >(boost::make_shared< std::ofstream>(_path))
 	);
 
-	file_sink_ = new sink_t(backend);
-	boost::shared_ptr< sink_t > sink(file_sink_);
-	sink->set_formatter(vsomeip_log_format);
-
-	logging::core::get()->add_sink(sink);
+	file_sink_ = boost::make_shared< sink_t>(backend);
+	file_sink_->set_formatter(vsomeip_log_format);
+	logging::core::get()->add_sink(file_sink_);
 }
 
 void logger_impl::enable_dlt() {
@@ -138,10 +134,8 @@ void logger_impl::use_null_logger() {
 		)
 	);
 
-	file_sink_ = new sink_t(backend);
-	boost::shared_ptr< sink_t > sink(file_sink_);
-
-	logging::core::get()->add_sink(sink);
+	file_sink_ = boost::make_shared< sink_t>(backend);
+	logging::core::get()->add_sink(file_sink_);
 }
 
 } // namespace vsomeip

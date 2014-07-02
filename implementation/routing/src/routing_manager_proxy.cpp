@@ -28,8 +28,8 @@ routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host)
 	  client_(_host->get_client()),
 	  sender_(0),
 	  receiver_(0),
-	  serializer_(new serializer),
-	  deserializer_(new deserializer) {
+	  serializer_(std::make_shared< serializer>()),
+	  deserializer_(std::make_shared< deserializer >()) {
 }
 
 routing_manager_proxy::~routing_manager_proxy() {
