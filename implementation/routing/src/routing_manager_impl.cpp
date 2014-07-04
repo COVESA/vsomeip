@@ -15,7 +15,8 @@
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_impl.hpp"
 #include "../include/routing_manager_stub.hpp"
-#include "../include/service_info.hpp"
+#include "../include/servicegroup.hpp"
+#include "../include/serviceinfo.hpp"
 #include "../../configuration/include/internal.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_client_endpoint_impl.hpp"
@@ -102,7 +103,7 @@ void routing_manager_impl::offer_service(client_t _client,
 	local_services_[_service][_instance] = _client;
 
 	// Remote route (incoming only)
-	service_info *its_info = find_service(_service, _instance);
+	serviceinfo *its_info = find_service(_service, _instance);
 	if (its_info) {
 		if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
 			its_info->set_ttl(_ttl);
@@ -172,7 +173,7 @@ void routing_manager_impl::request_service(client_t _client,
 		service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
 
-	service_info *its_info = find_service(_service, _instance);
+	serviceinfo *its_info = find_service(_service, _instance);
 	if (nullptr != its_info) {
 		if ((_major > its_info->get_major()) ||
 			(_major == its_info->get_major() && _minor > its_info->get_minor()) ||
@@ -189,7 +190,7 @@ void routing_manager_impl::request_service(client_t _client,
 
 void routing_manager_impl::release_service(client_t _client,
 		service_t _service, instance_t _instance) {
-	service_info *its_info = find_service(_service, _instance);
+	serviceinfo *its_info = find_service(_service, _instance);
 	if (nullptr != its_info) {
 		its_info->remove_client(_client);
 	} else {
@@ -297,23 +298,16 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size, insta
 	}
 }
 
-const std::set< std::shared_ptr< service_info > > & routing_manager_impl::get_services() const {
-	static std::set< std::shared_ptr< service_info > > its_services;
-	its_services.clear();
-	for (auto i : services_) {
-		for (auto j : i.second) {
-			its_services.insert(j.second);
-		}
-	}
-	return its_services;
+const std::map< std::string, std::shared_ptr< servicegroup > > & routing_manager_impl::get_servicegroups() const {
+	return servicegroups_;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE
 ///////////////////////////////////////////////////////////////////////////////
-service_info * routing_manager_impl::find_service(
+serviceinfo * routing_manager_impl::find_service(
 					service_t _service, instance_t _instance) {
-	service_info *its_info = 0;
+	serviceinfo *its_info = 0;
 	auto found_service = services_.find(_service);
 	if (found_service != services_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -329,7 +323,7 @@ void routing_manager_impl::create_service(
 					major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
 
 	if (configuration_) {
-		std::shared_ptr< service_info > its_info(std::make_shared< service_info >(_major, _minor, _ttl));
+		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(_major, _minor, _ttl));
 
 		uint16_t its_reliable_port = configuration_->get_reliable_port(_service, _instance);
 		uint16_t its_unreliable_port = configuration_->get_unreliable_port(_service, _instance);
@@ -352,6 +346,12 @@ void routing_manager_impl::create_service(
 		}
 
 		if (VSOMEIP_ILLEGAL_PORT != its_reliable_port || VSOMEIP_ILLEGAL_PORT != its_unreliable_port) {
+			std::string its_servicegroup = configuration_->get_group(_service, _instance);
+			auto found_servicegroup = servicegroups_.find(its_servicegroup);
+			if (found_servicegroup == servicegroups_.end()) {
+				servicegroups_[its_servicegroup] = std::make_shared< servicegroup >(its_servicegroup);
+			}
+			servicegroups_[its_servicegroup]->add_service(its_info);
 			services_[_service][_instance] = its_info;
 		} else {
 			host_->on_error(); // TODO: Define configuration error "No valid port for service!"

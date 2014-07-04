@@ -7,7 +7,6 @@
 #include "../include/servicegroup.hpp"
 
 namespace vsomeip {
-namespace sd {
 
 servicegroup::servicegroup(const std::string &_name)
 	: name_(_name) {
@@ -16,15 +15,18 @@ servicegroup::servicegroup(const std::string &_name)
 servicegroup::~servicegroup() {
 }
 
-void servicegroup::add_service(std::shared_ptr< service_info > _service) {
+std::string servicegroup::get_name() const {
+	return name_;
+}
+
+void servicegroup::add_service(std::shared_ptr< serviceinfo > _service) {
 	services_.insert(_service);
 }
 
-void servicegroup::remove_service(std::shared_ptr< service_info > _service) {
+void servicegroup::remove_service(std::shared_ptr< serviceinfo > _service) {
 	services_.erase(_service);
 }
 
-} // namespace sd
 } // namespace vsomeip
 
 

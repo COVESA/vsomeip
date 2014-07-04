@@ -11,11 +11,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#define SAMPLE_CYCLE		100
-
-#define SAMPLE_SERVICE_ID	0x1234
-#define SAMPLE_INSTANCE_ID	0x5678
-#define SAMPLE_METHOD_ID	0x0421
+#include "sample-ids.hpp"
 
 class client_sample {
 public:
@@ -30,6 +26,8 @@ public:
 				std::bind(&client_sample::on_availability,
 						  this,
 						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+
+		app_->offer_service(OTHER_SAMPLE_SERVICE_ID, OTHER_SAMPLE_INSTANCE_ID);
 		app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
 		app_->register_message_handler(
 				vsomeip::VSOMEIP_ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::VSOMEIP_ANY_METHOD,
@@ -74,8 +72,6 @@ public:
 				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
 				<< "]";
 
-
-		//std::this_thread::sleep_for(std::chrono::milliseconds(SAMPLE_CYCLE));
 		send();
 	}
 
@@ -100,7 +96,6 @@ private:
 
 
 int main(int argc, char **argv) {
-	// determine path
 	std::string its_sample_name("client-sample");
 
 	int i = 0;
@@ -118,6 +113,3 @@ int main(int argc, char **argv) {
 	its_sample.start();
 	return 0;
 }
-
-
-

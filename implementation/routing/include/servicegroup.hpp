@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_SERVICEGROUP_HPP
-#define VSOMEIP_SD_SERVICEGROUP_HPP
+#ifndef VSOMEIP_SERVICEGROUP_HPP
+#define VSOMEIP_SERVICEGROUP_HPP
 
 #include <memory>
 #include <set>
@@ -13,24 +13,23 @@
 
 namespace vsomeip {
 
-class service_info;
-
-namespace sd {
+class serviceinfo;
 
 class servicegroup {
 public:
 	servicegroup(const std::string &_name);
 	virtual ~servicegroup();
 
-	void add_service(std::shared_ptr< service_info > _service);
-	void remove_service(std::shared_ptr< service_info > _service);
+	std::string get_name() const;
+
+	void add_service(std::shared_ptr< serviceinfo > _service);
+	void remove_service(std::shared_ptr< serviceinfo > _service);
 
 private:
 	std::string name_;
-	std::set< std::shared_ptr< service_info > > services_;
+	std::set< std::shared_ptr< serviceinfo > > services_;
 };
 
-} // namespace sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_SD_SERVICEGROUP_HPP
+#endif // VSOMEIP_SERVICEGROUP_HPP

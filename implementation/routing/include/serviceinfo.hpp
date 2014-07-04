@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICE_ROUTING_INFO_HPP
-#define VSOMEIP_SERVICE_ROUTING_INFO_HPP
+#ifndef VSOMEIP_SERVICEINFO_HPP
+#define VSOMEIP_SERVICEINFO_HPP
 
 #include <memory>
 #include <set>
@@ -16,10 +16,10 @@ namespace vsomeip {
 
 class endpoint;
 
-class service_info {
+class serviceinfo {
 public:
-	service_info(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
-	~service_info();
+	serviceinfo(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
+	~serviceinfo();
 
 	major_version_t get_major() const;
 	minor_version_t get_minor() const;

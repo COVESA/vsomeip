@@ -33,7 +33,7 @@ std::shared_ptr< message > runtime_impl::create_request() const {
 	return its_request;
 }
 
-std::shared_ptr< message > runtime_impl::create_response(std::shared_ptr< message > &_request) const {
+std::shared_ptr< message > runtime_impl::create_response(const std::shared_ptr< message > &_request) const {
 	std::shared_ptr< message_impl > its_response = std::make_shared< message_impl >();
 	its_response->set_service(_request->get_service());
 	its_response->set_instance(_request->get_instance());

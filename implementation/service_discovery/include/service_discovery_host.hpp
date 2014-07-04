@@ -7,14 +7,14 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_HOST_HPP
 #define VSOMEIP_SERVICE_DISCOVERY_HOST_HPP
 
+#include <map>
 #include <memory>
-#include <set>
 
 #include <boost/asio/io_service.hpp>
 
 namespace vsomeip {
 
-class service_info;
+class servicegroup;
 
 namespace sd {
 
@@ -23,7 +23,7 @@ public:
 	virtual ~service_discovery_host() {};
 
 	virtual boost::asio::io_service & get_io() = 0;
-	virtual const std::set< std::shared_ptr< service_info > > & get_services() const = 0;
+	virtual const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const = 0;
 };
 
 } // namespace sd

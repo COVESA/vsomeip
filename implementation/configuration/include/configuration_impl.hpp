@@ -40,7 +40,11 @@ public:
 	const std::string & get_logfile() const;
 	boost::log::trivial::severity_level get_loglevel() const;
 
+	std::string get_group(service_t _service, instance_t _instance) const;
 	std::string get_address(service_t _service, instance_t _instance) const;
+	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
+	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
+	std::string get_multicast(service_t _service, instance_t _instance) const;
 
 	uint32_t get_min_initial_delay(service_t _service, instance_t _instance) const;
 	uint32_t get_max_initial_delay(service_t _service, instance_t _instance) const;
@@ -51,14 +55,9 @@ public:
 	uint32_t get_cyclic_offer_delay(service_t _service, instance_t _instance) const;
 	uint32_t get_cyclic_request_delay(service_t _service, instance_t _instance) const;
 
-	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
-	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
-	std::string get_multicast(service_t _service, instance_t _instance) const;
-
 	const std::string & get_routing_host() const;
 
 	bool is_service_discovery_enabled() const;
-	const std::string & get_service_discovery_host() const;
 	const std::string & get_service_discovery_protocol() const;
 	uint16_t get_service_discovery_port() const;
 

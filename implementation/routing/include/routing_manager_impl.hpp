@@ -25,7 +25,8 @@ class configuration;
 class deserializer;
 class routing_manager_host;
 class routing_manager_stub;
-class service_info;
+class servicegroup;
+class serviceinfo;
 class serializer;
 class service_endpoint;
 
@@ -107,7 +108,7 @@ public:
 	void remove_local(client_t _client);
 	endpoint * find_local(service_t _service, instance_t _instance);
 
-	const std::set< std::shared_ptr< service_info > > & get_services() const;
+	const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const;
 
 private:
 	void on_message(const byte_t *_data, length_t _length, instance_t _instance);
@@ -115,7 +116,7 @@ private:
 	client_t find_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);
 
-	service_info * find_service(service_t _service, instance_t _instance);
+	serviceinfo * find_service(service_t _service, instance_t _instance);
 	void create_service(service_t _service, instance_t _instance,
 						major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
@@ -146,8 +147,8 @@ private:
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
 
 	// Servicegroups
-	std::map< std::string, std::set< std::shared_ptr< service_info > > > servicegroups_;
-	std::map< service_t, std::map< instance_t, std::shared_ptr< service_info > > > services_;
+	std::map< std::string, std::shared_ptr< servicegroup > > servicegroups_;
+	std::map< service_t, std::map< instance_t, std::shared_ptr< serviceinfo > > > services_;
 
 	// Eventgroups
 	std::map< service_t,

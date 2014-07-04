@@ -212,11 +212,9 @@ int main(int argc, char **argv) {
 	check<std::string>(its_address_s, DESIRED_ADDRESS_4466_0321, "ADDRESS_TEST_4466_0321");
 
 	// 5. Service discovery
-	std::string host = its_configuration->get_service_discovery_host();
 	std::string protocol = its_configuration->get_service_discovery_protocol();
 	uint16_t port = its_configuration->get_service_discovery_port();
 
-	check<std::string>(host, DESIRED_HOST, "SERVICE DISCOVERY HOST");
 	check<std::string>(protocol, DESIRED_PROTOCOL, "SERVICE DISCOVERY PROTOCOL");
 	check<uint16_t>(port, DESIRED_PORT, "SERVICE DISCOVERY PORT");
 

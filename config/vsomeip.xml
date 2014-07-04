@@ -31,6 +31,14 @@
 				</ports>
 				<multicast>225.225.225.1</multicast>
 			</service>
+			<service>
+				<service-id>0x0248</service-id>
+				<instance-id>0x5422</instance-id>
+				<ports>
+					<unreliable>31010</unreliable>
+				</ports>
+				<multicast>225.225.225.2</multicast>
+			</service>
 		</servicegroup>
 		<servicegroup>
 			<address>10.0.2.15</address>

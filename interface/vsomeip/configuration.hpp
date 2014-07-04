@@ -38,10 +38,10 @@ public:
 	virtual const std::string & get_routing_host() const = 0;
 
 	virtual bool is_service_discovery_enabled() const = 0;
-	virtual const std::string & get_service_discovery_host() const = 0;
 	virtual const std::string & get_service_discovery_protocol() const = 0;
 	virtual uint16_t get_service_discovery_port() const = 0;
 
+	virtual std::string get_group(service_t _service, instance_t _instance) const = 0;
 	virtual std::string get_address(service_t _service, instance_t _instance) const = 0;
 
 	virtual uint32_t get_min_initial_delay(service_t _service, instance_t _instance) const = 0;

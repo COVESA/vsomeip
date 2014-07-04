@@ -14,9 +14,11 @@
 #include "../../endpoints/include/endpoint_host.hpp"
 
 namespace vsomeip {
-namespace sd {
 
 class servicegroup;
+
+namespace sd {
+
 class service_discovery_host;
 
 class service_discovery_impl:

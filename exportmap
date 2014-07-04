@@ -11,11 +11,14 @@ global:
 		*vsomeip::message_base_impl::*;
 		*vsomeip::runtime;
 		vsomeip::runtime::get*;
+		*vsomeip::servicegroup;
+		vsomeip::servicegroup::*;
+		*vsomeip::serviceinfo;
+		vsomeip::serviceinfo::*;
 		*vsomeip::sd::runtime;
-		vsomeip::sd::runtime::get*;
-		*vsomeip::sd::servicegroup;
-		vsomeip::sd::servicegroup::*;
+		vsomeip::sd::runtime::*;
 	}; 
-local: 
+	VSOMEIP_SD_RUNTIME;
+local:
 	*;
 };

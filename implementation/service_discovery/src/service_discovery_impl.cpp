@@ -6,9 +6,9 @@
 
 #include <vsomeip/logger.hpp>
 
-#include "../include/servicegroup.hpp"
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_impl.hpp"
+#include "../../routing/include/servicegroup.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -26,17 +26,24 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
-	const std::set< std::shared_ptr< service_info > > &its_offers = host_->get_services();
+	VSOMEIP_INFO << "sdi::init";
 }
 
 void service_discovery_impl::start() {
+	VSOMEIP_INFO << "sdi::start";
+	const std::map< std::string, std::shared_ptr< servicegroup > > &its_groups = host_->get_servicegroups();
+	for (auto i : its_groups) {
+		VSOMEIP_INFO << "Initializing servicegroup \"" << i.first << "\"";
+	}
 }
 
 void service_discovery_impl::stop() {
+	VSOMEIP_INFO << "sdi::stop";
 }
 
 void service_discovery_impl::offer_service(service_t _service, instance_t _instance) {
 	VSOMEIP_DEBUG << "sdi::offer_service [" << std::hex << _service << "." << _instance << "]";
+
 }
 
 void service_discovery_impl::stop_offer_service(service_t _service, instance_t _instance) {
@@ -45,14 +52,16 @@ void service_discovery_impl::stop_offer_service(service_t _service, instance_t _
 
 void service_discovery_impl::request_service(service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
+	VSOMEIP_DEBUG << "sdi::request_service [" << std::hex << _service << "." << _instance << "]";
 }
 
 void service_discovery_impl::release_service(service_t _service, instance_t _instance) {
-
+	VSOMEIP_DEBUG << "sdi::release_service [" << std::hex << _service << "." << _instance << "]";
 }
+
 // Interface endpoint_host
 void service_discovery_impl::on_message(const byte_t *_data, length_t _length, endpoint *_receiver) {
-
+	VSOMEIP_DEBUG << "sdi::on_message";
 }
 
 } // namespace sd

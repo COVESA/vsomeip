@@ -484,6 +484,15 @@ uint32_t configuration_impl::get_cyclic_request_delay(service_t _service, instan
 	return its_delay;
 }
 
+std::string configuration_impl::get_group(service_t _service, instance_t _instance) const {
+	std::string its_group("default");
+	service *its_service = find_service(_service, _instance);
+	if (nullptr != its_service) {
+		its_group = its_service->group_->name_;
+	}
+	return its_group;
+}
+
 std::string configuration_impl::get_address(service_t _service, instance_t _instance) const {
 	std::string its_address("");
 
@@ -527,10 +536,6 @@ const std::string & configuration_impl::get_routing_host() const {
 
 bool configuration_impl::is_service_discovery_enabled() const {
 	return is_service_discovery_enabled_;
-}
-
-const std::string & configuration_impl::get_service_discovery_host() const {
-	return service_discovery_host_;
 }
 
 const std::string & configuration_impl::get_service_discovery_protocol() const {
