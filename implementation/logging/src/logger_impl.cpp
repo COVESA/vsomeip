@@ -44,7 +44,7 @@ namespace vsomeip {
 
 logger_impl logger_impl::the_logger__;
 
-logger & logger_impl::get_logger() {
+logger & logger_impl::get() {
 	return the_logger__;
 }
 

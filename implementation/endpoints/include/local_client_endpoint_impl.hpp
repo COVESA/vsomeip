@@ -7,9 +7,11 @@
 #ifndef VSOMEIP_LOCAL_CLIENT_ENDPOINT_IMPL_HPP
 #define VSOMEIP_LOCAL_CLIENT_ENDPOINT_IMPL_HPP
 
+#include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/defines.hpp>
+
 #include "client_endpoint_impl.hpp"
 
 namespace vsomeip {

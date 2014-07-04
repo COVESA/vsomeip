@@ -14,17 +14,13 @@ namespace sd {
 
 class service_discovery;
 class service_discovery_host;
-class service_discovery_stub;
 
 class runtime {
 public:
+	static runtime * get();
 	virtual ~runtime() {};
 
-	static runtime * get();
-
-	virtual std::shared_ptr< service_discovery > create_service_discovery(service_discovery_host *_host) = 0;
-	virtual std::shared_ptr< service_discovery_stub > create_service_discovery_stub(service_discovery *_discovery) = 0;
-	virtual std::shared_ptr< service_discovery > create_service_discovery_proxy(service_discovery_host *_host) = 0;
+	virtual std::shared_ptr< service_discovery > create_service_discovery(service_discovery_host *_host) const = 0;
 };
 
 } // namespace sd

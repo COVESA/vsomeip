@@ -14,8 +14,9 @@
 
 #include <boost/asio/io_service.hpp>
 
-#include "../../endpoints/include/endpoint_host.hpp"
 #include "routing_manager.hpp"
+#include "../../endpoints/include/endpoint_host.hpp"
+#include "../../service_discovery/include/service_discovery_host.hpp"
 
 namespace vsomeip {
 
@@ -23,13 +24,21 @@ class client_endpoint;
 class configuration;
 class deserializer;
 class routing_manager_host;
-class routing_info;
+class routing_manager_stub;
+class service_info;
 class serializer;
 class service_endpoint;
+
+namespace sd {
+
+class service_discovery;
+
+} // namespace sd
 
 class routing_manager_impl:
 		public routing_manager,
 		public endpoint_host,
+		public sd::service_discovery_host,
 		public std::enable_shared_from_this< routing_manager_impl > {
 public:
 	routing_manager_impl(routing_manager_host *_host);
@@ -98,13 +107,15 @@ public:
 	void remove_local(client_t _client);
 	endpoint * find_local(service_t _service, instance_t _instance);
 
+	const std::set< std::shared_ptr< service_info > > & get_services() const;
+
 private:
 	void on_message(const byte_t *_data, length_t _length, instance_t _instance);
 
 	client_t find_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);
 
-	routing_info * find_service(service_t _service, instance_t _instance);
+	service_info * find_service(service_t _service, instance_t _instance);
 	void create_service(service_t _service, instance_t _instance,
 						major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
@@ -116,19 +127,27 @@ private:
 
 private:
 	boost::asio::io_service &io_;
-
 	routing_manager_host *host_;
-	std::shared_ptr< deserializer > deserializer_;
-	std::shared_ptr< serializer > serializer_;
+
 	std::shared_ptr< configuration > configuration_;
 
+	std::shared_ptr< deserializer > deserializer_;
+	std::shared_ptr< serializer > serializer_;
+
+	std::shared_ptr< routing_manager_stub > stub_;
+	std::shared_ptr< sd::service_discovery > discovery_;
+
+	// Routing info
 	std::map< client_t, std::shared_ptr< endpoint > > local_clients_;
 	std::map< service_t, std::map< instance_t, client_t > > local_services_;
 
 	std::map< client_t, std::shared_ptr< endpoint > > clients_;
-	std::map< service_t, std::map< instance_t, std::shared_ptr< routing_info > > > services_;
 	std::map< uint16_t, std::map< bool, std::shared_ptr< endpoint > > > service_endpoints_;
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
+
+	// Servicegroups
+	std::map< std::string, std::set< std::shared_ptr< service_info > > > servicegroups_;
+	std::map< service_t, std::map< instance_t, std::shared_ptr< service_info > > > services_;
 
 	// Eventgroups
 	std::map< service_t,

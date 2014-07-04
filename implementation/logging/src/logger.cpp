@@ -8,8 +8,8 @@
 
 namespace vsomeip {
 
-logger & logger::get_logger() {
-	return logger_impl::get_logger();
+logger & logger::get() {
+	return logger_impl::get();
 }
 
 } // namespace vsomeip

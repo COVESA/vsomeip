@@ -29,7 +29,7 @@ routing_manager_stub::~routing_manager_stub() {
 }
 
 void routing_manager_stub::init() {
-	std::string its_endpoint_path(VSOMEIP_ROUTING_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
+	std::string its_endpoint_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
 	::unlink(its_endpoint_path.c_str());
 	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path;
 	endpoint_ = std::make_shared< local_server_endpoint_impl >(
@@ -50,7 +50,7 @@ void routing_manager_stub::stop() {
 	watchdog_timer_.cancel();
 	endpoint_->stop();
 
-	std::string its_endpoint_path(VSOMEIP_ROUTING_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
+	std::string its_endpoint_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
 	::unlink(its_endpoint_path.c_str());
 }
 

@@ -8,6 +8,7 @@
 #define VSOMEIP_SERVICE_ROUTING_INFO_HPP
 
 #include <memory>
+#include <set>
 
 #include <vsomeip/primitive_types.hpp>
 
@@ -15,10 +16,10 @@ namespace vsomeip {
 
 class endpoint;
 
-class routing_info {
+class service_info {
 public:
-	routing_info(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
-	~routing_info();
+	service_info(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
+	~service_info();
 
 	major_version_t get_major() const;
 	minor_version_t get_minor() const;
@@ -32,6 +33,9 @@ public:
 	std::shared_ptr< endpoint > & get_unreliable_endpoint();
 	void set_unreliable_endpoint(std::shared_ptr< endpoint > &_endpoint);
 
+	void add_client(client_t _client);
+	void remove_client(client_t _client);
+
 private:
 	major_version_t major_;
 	minor_version_t minor_;
@@ -39,6 +43,8 @@ private:
 
 	std::shared_ptr< endpoint > reliable_endpoint_;
 	std::shared_ptr< endpoint > unreliable_endpoint_;
+
+	std::set< client_t > requesters_;
 };
 
 } // namespace vsomeip

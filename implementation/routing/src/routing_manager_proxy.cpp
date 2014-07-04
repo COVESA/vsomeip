@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <mutex>
 
+#include <vsomeip/configuration.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/logger.hpp>
 
@@ -19,6 +20,8 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/event_impl.hpp"
 #include "../../message/include/serializer.hpp"
+#include "../../service_discovery/include/runtime.hpp"
+#include "../../utility/include/utility.hpp"
 
 namespace vsomeip {
 
@@ -48,14 +51,14 @@ void routing_manager_proxy::init() {
 
 	serializer_->create_data(its_max_message_size);
 
-	std::string its_sender_path(VSOMEIP_ROUTING_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
+	std::string its_sender_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
 	sender_ = std::make_shared< local_client_endpoint_impl >(
 				    shared_from_this(),
 				    boost::asio::local::stream_protocol::endpoint(its_sender_path),
 				    io_);
 
 	std::stringstream its_client;
-	its_client << VSOMEIP_ROUTING_BASE_PATH << std::hex << client_;
+	its_client << VSOMEIP_BASE_PATH << std::hex << client_;
 
 	::unlink(its_client.str().c_str());
 	receiver_ = std::make_shared< local_server_endpoint_impl >(
@@ -82,10 +85,11 @@ void routing_manager_proxy::stop() {
 	// Tell the stub we are no longer active
 	deregister_application();
 
-	receiver_->stop();
+	if (receiver_)
+		receiver_->stop();
 
 	std::stringstream its_client;
-	its_client << VSOMEIP_ROUTING_BASE_PATH << std::hex << client_;
+	its_client << VSOMEIP_BASE_PATH << std::hex << client_;
 	::unlink(its_client.str().c_str());
 }
 
@@ -264,7 +268,7 @@ void routing_manager_proxy::on_deregister_application(client_t _client) {
 
 void routing_manager_proxy::on_message(
 		const byte_t *_data, length_t _size, endpoint *_receiver) {
-#if 1
+#if 0
 	std::cout << "rmp::on_message: ";
 	for (int i = 0; i < _size; ++i)
 		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
@@ -401,6 +405,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 	}
 }
 
+std::set< std::shared_ptr< service_info > > routing_manager_proxy::get_services() const {
+	std::set< std::shared_ptr< service_info > > its_services;
+	return its_services;
+}
+
 void routing_manager_proxy::register_application() {
 	byte_t its_command[] = {
 			VSOMEIP_REGISTER_APPLICATION,
@@ -438,7 +447,7 @@ endpoint * routing_manager_proxy::find_local(client_t _client) {
 
 endpoint * routing_manager_proxy::create_local(client_t _client) {
 	std::stringstream its_path;
-	its_path << VSOMEIP_ROUTING_BASE_PATH << std::hex << _client;
+	its_path << VSOMEIP_BASE_PATH << std::hex << _client;
 
 	VSOMEIP_DEBUG << "Connecting to [" << std::hex << _client
 				  << "] at " << its_path.str();

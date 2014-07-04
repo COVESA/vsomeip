@@ -9,6 +9,7 @@
 
 #include <map>
 
+#include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/enable_shared_from_this.hpp>
 

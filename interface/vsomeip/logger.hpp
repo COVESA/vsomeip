@@ -16,7 +16,7 @@ namespace vsomeip {
 
 class logger {
 public:
-	static logger & get_logger();
+	static logger & get();
 
 	virtual ~logger() {};
 
@@ -24,12 +24,12 @@ public:
 		boost::log::trivial::severity_level > & get_internal() = 0;
 };
 
-#define VSOMEIP_FATAL BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::fatal)
-#define VSOMEIP_ERROR BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::error)
-#define VSOMEIP_WARNING BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::warning)
-#define VSOMEIP_INFO BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::info)
-#define VSOMEIP_DEBUG BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::debug)
-#define VSOMEIP_TRACE BOOST_LOG_SEV(vsomeip::logger::get_logger().get_internal(), boost::log::trivial::severity_level::trace)
+#define VSOMEIP_FATAL BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::fatal)
+#define VSOMEIP_ERROR BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::error)
+#define VSOMEIP_WARNING BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::warning)
+#define VSOMEIP_INFO BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::info)
+#define VSOMEIP_DEBUG BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::debug)
+#define VSOMEIP_TRACE BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::trace)
 
 } // namespace vsomeip
 

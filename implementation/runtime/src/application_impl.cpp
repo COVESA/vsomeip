@@ -15,17 +15,12 @@
 #include "../../message/include/serializer.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_proxy.hpp"
-#include "../../routing/include/routing_manager_stub.hpp"
-#include "../../service_discovery/include/runtime.hpp"
-#include "../../service_discovery/include/service_discovery_impl.hpp"
-#include "../../service_discovery/include/service_discovery_proxy.hpp"
-#include "../../service_discovery/include/service_discovery_stub.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip {
 
 application_impl::application_impl(const std::string &_name)
-	: name_(_name), routing_(0), discovery_(0), signals_(host_io_, SIGINT, SIGTERM) {
+	: name_(_name), routing_(0), signals_(host_io_, SIGINT, SIGTERM) {
 }
 
 application_impl::~application_impl() {
@@ -56,38 +51,11 @@ bool application_impl::init(int _argc, char **_argv) {
 		// Routing
 		if (name_ == configuration_->get_routing_host()) {
 			routing_ = std::make_shared< routing_manager_impl >(this);
-			routing_stub_ = std::make_shared< routing_manager_stub >(routing_.get());
 		} else {
 			routing_ = std::make_shared< routing_manager_proxy >(this);
 		}
 
-		if (configuration_->is_service_discovery_enabled()) {
-			VSOMEIP_INFO << "Service Discovery enabled.";
-			sd::runtime **its_runtime = static_cast< sd::runtime ** >(
-											utility::load_library(
-											VSOMEIP_SD_LIBRARY,
-											VSOMEIP_SD_RUNTIME_SYMBOL_STRING)
-										);
-
-			if (0 != its_runtime && 0 != (*its_runtime)) {
-				VSOMEIP_INFO << "Service Discovery module loaded.";
-				if (name_ == configuration_->get_service_discovery_host()) {
-					discovery_ = (*its_runtime)->create_service_discovery(this);
-					discovery_stub_ = (*its_runtime)->create_service_discovery_stub(discovery_.get());
-				} else {
-					discovery_ = (*its_runtime)->create_service_discovery_proxy(this);
-				}
-			}
-		}
-
 		routing_->init();
-		if (routing_stub_)
-			routing_stub_->init();
-
-		if (discovery_)
-			discovery_->init();
-		if (discovery_stub_)
-			discovery_stub_->init();
 
 		// Smallest allowed session identifier
 		session_ = 0x0001;
@@ -118,15 +86,9 @@ bool application_impl::init(int _argc, char **_argv) {
 }
 
 void application_impl::start() {
+	VSOMEIP_DEBUG << "Client [" << std::hex << client_ << "]: starting up...";
 	if (routing_)
 		routing_->start();
-	if (routing_stub_)
-		routing_stub_->start();
-
-	if (discovery_)
-		discovery_->start();
-	if (discovery_stub_)
-		discovery_stub_->start();
 
 	// start the threads that process the io service queues
 	std::thread its_host_thread(std::bind(&application_impl::service, this, std::ref(host_io_)));
@@ -135,15 +97,8 @@ void application_impl::start() {
 
 void application_impl::stop() {
 	VSOMEIP_DEBUG << "Client [" << std::hex << client_ << "]: shutting down...";
-	if (routing_stub_)
-		routing_stub_->stop();
 	if (routing_)
 		routing_->stop();
-
-	if (discovery_stub_)
-		discovery_stub_->stop();
-	if (discovery_)
-		discovery_->stop();
 
 	host_io_.stop();
 }

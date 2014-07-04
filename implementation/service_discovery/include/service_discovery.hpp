@@ -9,6 +9,8 @@
 
 #include <boost/asio/io_service.hpp>
 
+#include <vsomeip/primitive_types.hpp>
+
 namespace vsomeip {
 namespace sd {
 
@@ -21,6 +23,13 @@ public:
 	virtual void init() = 0;
 	virtual void start() = 0;
 	virtual void stop() = 0;
+
+	virtual void offer_service(service_t _service, instance_t _instance) = 0;
+	virtual void stop_offer_service(service_t _service, instance_t _instance) = 0;
+
+	virtual void request_service(service_t _service, instance_t _instance,
+					major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
+	virtual void release_service(service_t _service, instance_t _instance) = 0;
 };
 
 } // namespace sd

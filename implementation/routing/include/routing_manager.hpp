@@ -8,6 +8,7 @@
 #define VSOMEIP_ROUTING_MANAGER
 
 #include <memory>
+#include <set>
 #include <vector>
 
 #include <boost/asio/io_service.hpp>
@@ -18,6 +19,7 @@ namespace vsomeip {
 
 class endpoint;
 class event;
+class service_info;
 
 class routing_manager {
 public:

@@ -44,7 +44,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(DL_LIBRARY "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register")
+set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register -Wl,-export-dynamic -Wl,--version-script=../exportmap")
 include_directories(
 	"interface" 
 )

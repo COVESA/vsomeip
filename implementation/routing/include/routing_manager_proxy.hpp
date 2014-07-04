@@ -12,11 +12,12 @@
 
 #include <boost/asio/io_service.hpp>
 
-#include "../../endpoints/include/endpoint_host.hpp"
 #include "routing_manager.hpp"
+#include "../../endpoints/include/endpoint_host.hpp"
 
 namespace vsomeip {
 
+class configuration;
 class routing_manager_host;
 
 class routing_manager_proxy:
@@ -91,6 +92,8 @@ public:
 	endpoint * find_local(service_t _service, instance_t _instance);
 	endpoint * find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
+
+	std::set< std::shared_ptr< service_info > > get_services() const;
 
 private:
 	void register_application();

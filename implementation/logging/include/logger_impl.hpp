@@ -27,7 +27,7 @@ typedef boost::log::sinks::synchronous_sink<
 
 class logger_impl: public logger {
 public:
-	static logger & get_logger();
+	static logger & get();
 	static void init(const std::string &_path);
 
 	logger_impl();

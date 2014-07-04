@@ -8,8 +8,6 @@
 
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
-#include "../include/service_discovery_proxy.hpp"
-#include "../include/service_discovery_stub_impl.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -22,16 +20,8 @@ runtime * runtime_impl::get() {
 runtime_impl::~runtime_impl() {
 }
 
-std::shared_ptr< service_discovery > runtime_impl::create_service_discovery(service_discovery_host *_host) {
+std::shared_ptr< service_discovery > runtime_impl::create_service_discovery(service_discovery_host *_host) const {
 	return std::make_shared< service_discovery_impl >(_host);
-}
-
-std::shared_ptr< service_discovery_stub > runtime_impl::create_service_discovery_stub(service_discovery *_discovery) {
-	return std::make_shared< service_discovery_stub_impl >(_discovery);
-}
-
-std::shared_ptr< service_discovery > runtime_impl::create_service_discovery_proxy(service_discovery_host *_host) {
-	return std::make_shared< service_discovery_proxy >(_host);
 }
 
 } // namespace sd

@@ -1,0 +1,21 @@
+{
+global: 
+	extern "C++" {
+		*vsomeip::configuration;
+		vsomeip::configuration::*;
+		*vsomeip::deserializer;
+		vsomeip::deserializer::*;
+		*vsomeip::logger;
+		vsomeip::logger::get*;
+		*vsomeip::message_base_impl;
+		*vsomeip::message_base_impl::*;
+		*vsomeip::runtime;
+		vsomeip::runtime::get*;
+		*vsomeip::sd::runtime;
+		vsomeip::sd::runtime::get*;
+		*vsomeip::sd::servicegroup;
+		vsomeip::sd::servicegroup::*;
+	}; 
+local: 
+	*;
+};

@@ -15,7 +15,6 @@
 #include <vsomeip/application.hpp>
 
 #include "../../routing/include/routing_manager_host.hpp"
-#include "../../service_discovery/include/service_discovery_host.hpp"
 
 namespace vsomeip {
 
@@ -24,15 +23,9 @@ class logger;
 class routing_manager;
 class routing_manager_stub;
 
-namespace sd {
-class service_discovery;
-class service_discovery_stub;
-} // namespace sd
-
 class application_impl
 		: public application,
 		  public routing_manager_host,
-		  public sd::service_discovery_host,
 		  public std::enable_shared_from_this< application_impl > {
 public:
 	application_impl(const std::string &_name);
@@ -115,15 +108,6 @@ private:
 
 	// Proxy to or the Routing Manager itself
 	std::shared_ptr< routing_manager > routing_;
-
-	// Stub to export the Routing Manager
-	std::shared_ptr< routing_manager_stub > routing_stub_;
-
-	// Proxy to or the Service Discovery itself
-	std::shared_ptr< sd::service_discovery > discovery_;
-
-	// Stub to export the Service Discovery
-	std::shared_ptr< sd::service_discovery_stub > discovery_stub_;
 
 	// Method/Event (=Member) handlers
 	std::map< service_t,
