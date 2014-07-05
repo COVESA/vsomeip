@@ -5,6 +5,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/logger.hpp>
@@ -35,6 +36,12 @@ void * utility::load_library(const std::string &_path, const std::string &_symbo
 	}
 
 	return its_symbol;
+}
+
+
+bool utility::exists(const std::string &_path) {
+	struct stat its_stat;
+	return (stat(_path.c_str(), &its_stat) == 0);
 }
 
 } // namespace vsomeip

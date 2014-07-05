@@ -34,6 +34,8 @@ public:
 	}
 
 	static uint32_t get_message_size(std::vector< byte_t > &_data);
+
+	static bool exists(const std::string &_path);
 };
 
 } // namespace vsomeip

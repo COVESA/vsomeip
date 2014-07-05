@@ -35,16 +35,20 @@ endforeach ()
 
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    set (OS "LINUX")
-    set (DL_LIBRARY "dl")
+    set(OS "LINUX")
+    set(DL_LIBRARY "dl")
+    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=../exportmap")
+    set(NO_DEPRECATED "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-    set (OS "FREEBSD")
+    set(OS "FREEBSD")
     set(DL_LIBRARY "")
+    set(EXPORTSYMBOLS "")
+    set(NO_DEPRECATED "-Wno-deprecated-register")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 -Wno-deprecated-register -Wl,-export-dynamic -Wl,--version-script=../exportmap")
+set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
 include_directories(
 	"interface" 
 )

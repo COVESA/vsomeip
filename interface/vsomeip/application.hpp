@@ -24,7 +24,7 @@ public:
 	virtual ~application() {};
 
 	// Lifecycle
-	virtual bool init(int _argc, char **_argv) = 0;
+	virtual bool init() = 0;
 	virtual void start() = 0;
 	virtual void stop() = 0;
 

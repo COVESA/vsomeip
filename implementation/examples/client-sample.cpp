@@ -21,7 +21,7 @@ public:
 	}
 
 	void init(int argc, char **argv) {
-		app_->init(argc, argv);
+		app_->init();
 		app_->register_availability_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
 				std::bind(&client_sample::on_availability,
 						  this,

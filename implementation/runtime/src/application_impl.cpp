@@ -26,21 +26,21 @@ application_impl::application_impl(const std::string &_name)
 application_impl::~application_impl() {
 }
 
-bool application_impl::init(int _argc, char **_argv) {
+bool application_impl::init() {
 	bool is_initialized(false);
 
-	// determine path
+	// Set default path
 	std::string its_path(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH);
 
-	int i = 0;
-	while (i < _argc-1) {
-		if (std::string("--someip") == _argv[i]) {
-			its_path = _argv[i+1];
-			break;
-		}
+	// Override with path from environment
+	const char *its_env_path = getenv(VSOMEIP_ENV_CONFIGURATION_FILE_PATH);
+	if (nullptr != its_env_path && utility::exists(its_env_path))
+		its_path = its_env_path;
 
- 		i++;
-	}
+	// Override with local path
+	std::string its_local_path(VSOMEIP_LOCAL_CONFIGURATION_FILE_PATH);
+	if (utility::exists(its_local_path))
+		its_path = its_local_path;
 
 	configuration_.reset(configuration::get(its_path));
 	VSOMEIP_INFO << "Using configuration file: " << its_path;

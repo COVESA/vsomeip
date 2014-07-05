@@ -31,7 +31,7 @@ public:
 	application_impl(const std::string &_name);
 	~application_impl();
 
-	bool init(int _argc, char **_argv);
+	bool init();
 	void start();
 	void stop();
 

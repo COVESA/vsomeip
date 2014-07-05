@@ -19,7 +19,7 @@ public:
 	}
 
 	void init(int argc, char **argv) {
-		app_->init(argc, argv);
+		app_->init();
 
 		app_->register_message_handler(
 			SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
