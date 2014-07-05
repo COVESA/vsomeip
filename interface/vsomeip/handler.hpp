@@ -16,6 +16,7 @@ namespace vsomeip {
 
 class message;
 
+typedef std::function< void (event_type_e) > event_handler_t;
 typedef std::function< void (std::shared_ptr< message > &) > message_handler_t;
 typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
 

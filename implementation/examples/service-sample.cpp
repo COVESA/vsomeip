@@ -15,18 +15,21 @@
 class service_sample {
 public:
 	service_sample()
-		: app_(vsomeip::runtime::get()->create_application("service-sample")) {
+		: app_(vsomeip::runtime::get()->create_application()), is_registered_(false) {
 	}
 
-	void init(int argc, char **argv) {
-		app_->init();
-
+	void init() {
 		app_->register_message_handler(
-			SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
-			std::bind(&service_sample::on_message,
-			this,
-			std::placeholders::_1)
-		);
+					SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
+					std::bind(&service_sample::on_message,
+					this,
+					std::placeholders::_1)
+				);
+
+		app_->register_event_handler(
+				std::bind(&service_sample::on_event, this, std::placeholders::_1));
+
+		app_->init();
 	}
 
 	void start() {
@@ -35,6 +38,21 @@ public:
 
 	void offer() {
 		app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+	}
+
+	void on_event(vsomeip::event_type_e _event) {
+		VSOMEIP_INFO << "Application " << app_->get_name()
+					 << " is "
+				     << (_event == vsomeip::event_type_e::REGISTERED ? "registered." : "deregistered.");
+
+		if (_event == vsomeip::event_type_e::REGISTERED) {
+			if (!is_registered_) {
+				is_registered_= true;
+				offer();
+			}
+		} else {
+			is_registered_ = false;
+		}
 	}
 
 	void on_message(std::shared_ptr< vsomeip::message > &_request) {
@@ -58,28 +76,14 @@ public:
 
 private:
 	std::shared_ptr< vsomeip::application > app_;
+	bool is_registered_;
 };
-
-void run(void *arg) {
-	service_sample *its_sample = (service_sample*)arg;
-
-	VSOMEIP_INFO << "Updating offer for service ["
-			  << std::hex << SAMPLE_SERVICE_ID << "." << SAMPLE_INSTANCE_ID
-			  << "]";
-	its_sample->offer();
-	std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-}
 
 
 int main(int argc, char **argv) {
 	service_sample its_sample;
-	its_sample.init(argc, argv);
-
-	std::thread runner(run, &its_sample);
-
+	its_sample.init();
 	its_sample.start();
-
-	runner.join();
 
 	return 0;
 }

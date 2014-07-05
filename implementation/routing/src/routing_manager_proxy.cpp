@@ -324,6 +324,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
 	std::cout << std::endl;
 #endif
+	event_type_e its_state(event_type_e::DEREGISTERED);
 
 	std::map< service_t, std::map< instance_t, client_t > > old_local_services
 		= local_services_;
@@ -342,6 +343,8 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 
 			if (its_client != client_) {
 				(void)find_or_create_local(its_client);
+			} else {
+				its_state = event_type_e::REGISTERED;
 			}
 
 			if (i + sizeof(uint32_t) <= _size) {
@@ -369,6 +372,9 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 			}
 		}
 	}
+
+	// inform host about its own registration state
+	host_->on_event(its_state);
 
 	// Check for services that are no longer available
 	for (auto i : old_local_services) {

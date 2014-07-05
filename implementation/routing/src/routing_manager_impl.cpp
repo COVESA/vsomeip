@@ -96,8 +96,9 @@ void routing_manager_impl::stop() {
 void routing_manager_impl::offer_service(client_t _client,
 		service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
-#if 0
-	std::cout << "RM: Service [" << std::hex << _service << "." << _instance << "] is offered." << std::endl;
+#if 1
+	std::cout << "RM: Client [ " << std::hex << _client << "] offers service ["
+			  << std::hex << _service << "." << _instance << "]" << std::endl;
 #endif
 	// Local route
 	local_services_[_service][_instance] = _client;
@@ -223,7 +224,7 @@ void routing_manager_impl::send(client_t _client,
 	client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
 	service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
 	bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-#if 0
+#if 1
 	std::cout << "Message ["
 			  << std::hex << its_service << "." << _instance
 			  << "] "
@@ -424,6 +425,8 @@ endpoint * routing_manager_impl::create_local(client_t _client) {
 
 	std::stringstream its_path;
 	its_path << VSOMEIP_BASE_PATH << std::hex << _client;
+
+	std::cout << "Creating endpoint for " << its_path.str() << std::endl;
 
 	std::shared_ptr< endpoint > its_endpoint
 		= std::make_shared< local_client_endpoint_impl >(

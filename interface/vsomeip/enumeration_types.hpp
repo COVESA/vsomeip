@@ -11,6 +11,12 @@
 
 namespace vsomeip {
 
+enum class event_type_e : uint8_t {
+	REGISTERED = 0x0,
+	DEREGISTERED = 0x1
+};
+
+
 // SIP_RPC_684
 enum class message_type_e : uint8_t {
 	REQUEST = 0x00,

@@ -15,12 +15,12 @@
 
 class client_sample {
 public:
-	client_sample(const std::string &_name)
-		: app_(vsomeip::runtime::get()->create_application(_name)),
-		  name_(_name), request_(vsomeip::runtime::get()->create_request()) {
+	client_sample()
+		: app_(vsomeip::runtime::get()->create_application()),
+		  request_(vsomeip::runtime::get()->create_request()) {
 	}
 
-	void init(int argc, char **argv) {
+	void init() {
 		app_->init();
 		app_->register_availability_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
 				std::bind(&client_sample::on_availability,
@@ -91,25 +91,12 @@ public:
 private:
 	std::shared_ptr< vsomeip::application > app_;
 	std::shared_ptr< vsomeip::message > request_;
-	std::string name_;
 };
 
 
 int main(int argc, char **argv) {
-	std::string its_sample_name("client-sample");
-
-	int i = 0;
-	while (i < argc-1) {
-		if (std::string("--name") == argv[i]) {
-			its_sample_name = argv[i+1];
-			break;
-		}
-
-		i++;
-	}
-
-	client_sample its_sample(its_sample_name);
-	its_sample.init(argc, argv);
+	client_sample its_sample;
+	its_sample.init();
 	its_sample.start();
 	return 0;
 }

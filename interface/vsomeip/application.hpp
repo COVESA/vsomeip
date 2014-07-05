@@ -23,6 +23,8 @@ class application {
 public:
 	virtual ~application() {};
 
+	virtual const std::string & get_name() const = 0;
+
 	// Lifecycle
 	virtual bool init() = 0;
 	virtual void start() = 0;
@@ -75,17 +77,21 @@ public:
 	virtual void send(std::shared_ptr< message > _message,
 					bool _flush = true,	bool _reliable = false) = 0;
 
+	// Receive events (Non-SOME/IP)
+	virtual void register_event_handler(event_handler_t _handler) = 0;
+	virtual void unregister_event_handler() = 0;
+
 	// Receive messages
-	virtual bool register_message_handler(service_t _service,
+	virtual void register_message_handler(service_t _service,
 					instance_t _instance, method_t _method,
 					message_handler_t _handler) = 0;
-	virtual bool unregister_message_handler(service_t _service,
+	virtual void unregister_message_handler(service_t _service,
 					instance_t _instance, method_t _method) = 0;
 
 	// Receive availability
-	virtual bool register_availability_handler(service_t _service,
+	virtual void register_availability_handler(service_t _service,
 					instance_t _instance, availability_handler_t _handler) = 0;
-	virtual bool unregister_availability_handler(service_t _service,
+	virtual void unregister_availability_handler(service_t _service,
 					instance_t _instance) = 0;
 };
 

@@ -73,20 +73,25 @@ public:
 
 	void send(std::shared_ptr< message > _message, bool _flush, bool _reliable);
 
-	bool register_message_handler(service_t _service, instance_t _instance,
+	void register_event_handler(event_handler_t _handler);
+	void unregister_event_handler();
+
+	void register_message_handler(service_t _service, instance_t _instance,
 			method_t _method, message_handler_t _handler);
-	bool unregister_message_handler(service_t _service, instance_t _instance,
+	void unregister_message_handler(service_t _service, instance_t _instance,
 			method_t _method);
 
-	bool register_availability_handler(service_t _service, instance_t _instance,
+	void register_availability_handler(service_t _service, instance_t _instance,
 			availability_handler_t _handler);
-	bool unregister_availability_handler(service_t _service, instance_t _instance);
+	void unregister_availability_handler(service_t _service, instance_t _instance);
 
 	// routing_manager_host
 	const std::string & get_name() const;
 	client_t get_client() const;
 	std::shared_ptr< configuration > get_configuration() const;
 	boost::asio::io_service & get_io();
+
+	void on_event(event_type_e _event);
 	void on_availability(service_t _service, instance_t _instance, bool _is_available) const;
 	void on_message(std::shared_ptr< message > _message);
 	void on_error();
@@ -108,6 +113,9 @@ private:
 
 	// Proxy to or the Routing Manager itself
 	std::shared_ptr< routing_manager > routing_;
+
+	// (Non-SOME/IP) Event handler
+	event_handler_t handler_;
 
 	// Method/Event (=Member) handlers
 	std::map< service_t,

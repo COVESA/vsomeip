@@ -29,6 +29,18 @@ application_impl::~application_impl() {
 bool application_impl::init() {
 	bool is_initialized(false);
 
+	// Application name
+	if (name_ == "") {
+		const char *its_name = getenv(VSOMEIP_APPLICATION_NAME);
+		if (nullptr != its_name) {
+			name_ = its_name;
+		} else {
+			VSOMEIP_ERROR << "Missing application name. "
+				"Please set environment variable VSOMEIP_APPLICATION_NAME.";
+			return false;
+		}
+	}
+
 	// Set default path
 	std::string its_path(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH);
 
@@ -182,21 +194,41 @@ void application_impl::send(std::shared_ptr< message > _message, bool _flush, bo
 	}
 }
 
-bool application_impl::register_message_handler(
-		service_t _service, instance_t _instance, method_t _method, message_handler_t _handler) {
-	std::cout << "Registering for message ["
-			  << std::hex
-			  << _service << "." << _instance << "." << _method
-			  << "]" << std::endl;
-
-	members_[_service][_instance][_method] = _handler;
-	return true;
+void application_impl::register_event_handler(event_handler_t _handler) {
+	handler_ = _handler;
 }
 
-bool application_impl::unregister_message_handler(
-		service_t _service, instance_t _instance, method_t _method) {
-	bool its_result = false;
+void application_impl::unregister_event_handler() {
+	handler_ = nullptr;
+}
 
+void application_impl::register_availability_handler(
+		service_t _service, instance_t _instance, availability_handler_t _handler) {
+	availability_[_service][_instance] = _handler;
+}
+
+void application_impl::unregister_availability_handler(
+		service_t _service, instance_t _instance) {
+	auto found_service = availability_.find(_service);
+	if (found_service != availability_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			found_service->second.erase(_instance);
+		}
+	}
+}
+
+void application_impl::register_message_handler(
+		service_t _service, instance_t _instance, method_t _method, message_handler_t _handler) {
+	VSOMEIP_DEBUG << "Registering for message ["
+			<< std::hex << _service << "." << _instance << "." << _method
+			  << "]";
+
+	members_[_service][_instance][_method] = _handler;
+}
+
+void application_impl::unregister_message_handler(
+		service_t _service, instance_t _instance, method_t _method) {
 	auto found_service = members_.find(_service);
 	if (found_service != members_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -204,33 +236,9 @@ bool application_impl::unregister_message_handler(
 			auto found_method = found_instance->second.find(_method);
 			if (found_method != found_instance->second.end()) {
 				found_instance->second.erase(_method);
-				its_result = true;
 			}
 		}
 	}
-
-	return its_result;
-}
-
-bool application_impl::register_availability_handler(
-		service_t _service, instance_t _instance, availability_handler_t _handler) {
-	availability_[_service][_instance] = _handler;
-	return true;
-}
-
-bool application_impl::unregister_availability_handler(
-		service_t _service, instance_t _instance) {
-	bool its_result = false;
-
-	auto found_service = availability_.find(_service);
-	if (found_service != availability_.end()) {
-		auto found_instance = found_service->second.find(_instance);
-		if (found_instance != found_service->second.end()) {
-			found_service->second.erase(_instance);
-			its_result = true;
-		}
-	}
-	return its_result;
 }
 
 // Interface "routing_manager_host"
@@ -248,6 +256,11 @@ std::shared_ptr< configuration > application_impl::get_configuration() const {
 
 boost::asio::io_service & application_impl::get_io() {
 	return host_io_;
+}
+
+void application_impl::on_event(event_type_e _event) {
+	if (handler_)
+		handler_(_event);
 }
 
 void application_impl::on_availability(service_t _service, instance_t _instance, bool _is_available) const {
