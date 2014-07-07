@@ -430,6 +430,12 @@ boost::log::trivial::severity_level configuration_impl::get_loglevel() const {
 	return loglevel_;
 }
 
+std::set< std::string > configuration_impl::get_servicegroups() const {
+	std::set< std::string > its_keys;
+	for (auto i : servicegroups_) its_keys.insert(i.first);
+	return its_keys;
+}
+
 uint32_t configuration_impl::get_min_initial_delay(const std::string &_name) const {
 	uint32_t its_delay = 0;
 

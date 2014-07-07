@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <vsomeip/configuration.hpp>
 #include <vsomeip/logger.hpp>
 
 #include "../include/service_discovery_fsm.hpp"
@@ -17,7 +18,7 @@ namespace sd {
 service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
 	: host_(_host),
 	  io_(_host->get_io()),
-	  default_(new service_discovery_fsm("default", this)) {
+	  default_(std::make_shared< service_discovery_fsm >("default", this)) {
 }
 
 service_discovery_impl::~service_discovery_impl() {
@@ -32,6 +33,17 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
+	std::shared_ptr< configuration > its_configuration = host_->get_configuration();
+	if (its_configuration) {
+		std::set< std::string > its_servicegroups = its_configuration->get_servicegroups();
+		for (auto its_group : its_servicegroups) {
+			if (its_group != "default") {
+				additional_[its_group] = std::make_shared< service_discovery_fsm >(its_group, this);
+			}
+		}
+	} else {
+		VSOMEIP_ERROR << "SD: no configuration found!";
+	}
 }
 
 void service_discovery_impl::start() {

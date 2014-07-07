@@ -47,6 +47,8 @@ struct fsm:
 	uint32_t repetition_base_delay_;
 	uint8_t repetition_max_;
 	uint32_t cyclic_offer_delay_;
+
+	bool is_up_;
 };
 
 struct inactive:

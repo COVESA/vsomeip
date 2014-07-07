@@ -47,6 +47,7 @@ public:
 
 	std::string get_group(service_t _service, instance_t _instance) const;
 
+	std::set< std::string > get_servicegroups() const;
 	uint32_t get_min_initial_delay(const std::string &_name) const;
 	uint32_t get_max_initial_delay(const std::string &_name) const;
 	uint32_t get_repetition_base_delay(const std::string &_name) const;

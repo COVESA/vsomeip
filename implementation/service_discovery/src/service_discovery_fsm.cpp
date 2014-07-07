@@ -42,10 +42,19 @@ inactive::inactive(my_context context): sc::state< inactive, fsm >(context) {
 }
 
 sc::result inactive::react(const ev_none &_event) {
+	if (outermost_context().is_up_) {
+		return transit< active >();
+	}
+
 	return discard_event();
 }
 
 sc::result inactive::react(const ev_status_change &_event) {
+	outermost_context().is_up_ = _event.is_up_;
+	if (outermost_context().is_up_) {
+		return transit< active >();
+	}
+
 	return discard_event();
 }
 
@@ -60,6 +69,10 @@ active::~active() {
 }
 
 sc::result active::react(const ev_status_change &_event) {
+	outermost_context().is_up_ = _event.is_up_;
+	if (!outermost_context().is_up_)
+		return transit< inactive >();
+
 	return discard_event();
 }
 
@@ -68,10 +81,11 @@ sc::result active::react(const ev_status_change &_event) {
 ///////////////////////////////////////////////////////////////////////////////
 initial::initial(my_context _context): sc::state< initial, active >(_context) {
 	VSOMEIP_DEBUG << "sd::inactive.initial";
+	outermost_context().start_timer(outermost_context().initial_delay_);
 }
 
 sc::result initial::react(const ev_timeout &_event) {
-	return discard_event();
+	return transit< repeat >();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

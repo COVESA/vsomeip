@@ -86,9 +86,13 @@ void routing_manager_impl::init() {
 void routing_manager_impl::start() {
 	stub_->start();
 	if (discovery_) discovery_->start();
+
+	host_->on_event(event_type_e::REGISTERED);
 }
 
 void routing_manager_impl::stop() {
+	host_->on_event(event_type_e::DEREGISTERED);
+
 	if (discovery_) discovery_->stop();
 	stub_->stop();
 }

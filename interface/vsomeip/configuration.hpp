@@ -44,6 +44,7 @@ public:
 	virtual std::string get_group(service_t _service, instance_t _instance) const = 0;
 	virtual std::string get_address(service_t _service, instance_t _instance) const = 0;
 
+	virtual std::set< std::string > get_servicegroups() const = 0;
 	virtual uint32_t get_min_initial_delay(const std::string &_name) const = 0;
 	virtual uint32_t get_max_initial_delay(const std::string &_name) const = 0;
 	virtual uint32_t get_repetition_base_delay(const std::string &_name) const = 0;

@@ -260,12 +260,6 @@ void routing_manager_proxy::set(client_t _client,
 		event_t _event, const std::vector< byte_t > &_value) {
 }
 
-void routing_manager_proxy::on_register_application(client_t _client) {
-}
-
-void routing_manager_proxy::on_deregister_application(client_t _client) {
-}
-
 void routing_manager_proxy::on_message(
 		const byte_t *_data, length_t _size, endpoint *_receiver) {
 #if 0

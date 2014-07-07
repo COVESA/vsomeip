@@ -7,6 +7,7 @@
 #ifndef VSOMEIP_SERVICE_DISCOVERY_IMPL
 #define VSOMEIP_SERVICE_DISCOVERY_IMPL
 
+#include <map>
 #include <memory>
 #include <set>
 
@@ -50,8 +51,8 @@ private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
 
-	std::unique_ptr< service_discovery_fsm > default_;
-	std::set< std::unique_ptr< service_discovery_fsm > > additional_; // one fsm represents one service group
+	std::shared_ptr< service_discovery_fsm > default_;
+	std::map< std::string, std::shared_ptr< service_discovery_fsm > > additional_; // one fsm represents one service group
 
 	std::shared_ptr< endpoint > endpoint_;
 };

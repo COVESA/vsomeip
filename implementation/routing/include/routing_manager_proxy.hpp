@@ -83,8 +83,6 @@ public:
 			service_t _service, instance_t _instance,
 	      	event_t _event, const std::vector< byte_t > &_value);
 
-	void on_register_application(client_t _client);
-	void on_deregister_application(client_t _client);
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 	void on_routing_info(const byte_t *_data, uint32_t _size);
 
