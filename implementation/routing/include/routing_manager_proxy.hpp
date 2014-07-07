@@ -86,12 +86,12 @@ public:
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 	void on_routing_info(const byte_t *_data, uint32_t _size);
 
+	bool is_available(service_t _service, instance_t _instance) const;
+
 	endpoint * find_local(client_t _client);
 	endpoint * find_local(service_t _service, instance_t _instance);
 	endpoint * find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
-
-	std::set< std::shared_ptr< service_info > > get_services() const;
 
 private:
 	void register_application();

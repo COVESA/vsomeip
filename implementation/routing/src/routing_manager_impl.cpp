@@ -303,6 +303,26 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size, insta
 	}
 }
 
+bool routing_manager_impl::is_available(service_t _service, instance_t _instance) const {
+	auto find_local_service = local_services_.find(_service);
+	if (find_local_service != local_services_.end()) {
+		auto find_local_instance = find_local_service->second.find(_instance);
+		if (find_local_instance != find_local_service->second.end()) {
+			return true;
+		}
+	}
+
+	auto find_remote_service = remote_services_.find(_service);
+	if (find_remote_service != remote_services_.end()) {
+		auto find_remote_instance = find_remote_service->second.find(_instance);
+		if (find_remote_instance != find_remote_service->second.end()) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 const std::map< std::string, std::shared_ptr< servicegroup > > & routing_manager_impl::get_servicegroups() const {
 	return servicegroups_;
 }
@@ -421,8 +441,8 @@ endpoint * routing_manager_impl::find_or_create_service_endpoint(uint16_t _port,
 endpoint * routing_manager_impl::find_local(client_t _client) {
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
 	endpoint *its_endpoint(0);
-	auto found_endpoint = clients_.find(_client);
-	if (found_endpoint != clients_.end()) {
+	auto found_endpoint = local_clients_.find(_client);
+	if (found_endpoint != local_clients_.end()) {
 		its_endpoint = found_endpoint->second.get();
 	}
 	return its_endpoint;
@@ -439,7 +459,7 @@ endpoint * routing_manager_impl::create_local(client_t _client) {
 				shared_from_this(),
 				boost::asio::local::stream_protocol::endpoint(its_path.str()),
 				io_);
-	clients_[_client] = its_endpoint;
+	local_clients_[_client] = its_endpoint;
 	its_endpoint->start();
 	return its_endpoint.get();
 }
@@ -456,7 +476,7 @@ void routing_manager_impl::remove_local(client_t _client) {
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
 	endpoint *its_endpoint = find_local(_client);
 	its_endpoint->stop();
-	clients_.erase(_client);
+	local_clients_.erase(_client);
 }
 
 endpoint * routing_manager_impl::find_local(service_t _service, instance_t _instance) {

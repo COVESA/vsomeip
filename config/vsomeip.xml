@@ -1,6 +1,6 @@
 <!-- vsomeip test configuration file -->
 <someip>
-	<unicast>127.0.0.1</unicast>
+	<address>10.0.2.15</address>
 	<logging> 
 		<level>trace</level>
 		<console>true</console>
@@ -42,7 +42,8 @@
 			</service>
 		</servicegroup>
 		<servicegroup>
-			<address>10.0.2.15</address>
+			<name>remote</name>
+			<address>10.0.2.17</address>
 			<service>
 				<service-id>0x4466</service-id>
 				<instance-id>0x0421</instance-id>

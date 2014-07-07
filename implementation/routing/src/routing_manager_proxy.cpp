@@ -405,9 +405,17 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 	}
 }
 
-std::set< std::shared_ptr< service_info > > routing_manager_proxy::get_services() const {
-	std::set< std::shared_ptr< service_info > > its_services;
-	return its_services;
+bool routing_manager_proxy::is_available(service_t _service, instance_t _instance) const {
+	auto found_local_service = local_services_.find(_service);
+	if (found_local_service != local_services_.end()) {
+		auto found_local_instance = found_local_service->second.find(_instance);
+		if (found_local_instance != found_local_service->second.end()) {
+			return true;
+		}
+	}
+
+	// TODO: ask routing manager for external services
+	return false;
 }
 
 void routing_manager_proxy::register_application() {

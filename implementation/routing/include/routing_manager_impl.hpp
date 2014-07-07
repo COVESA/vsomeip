@@ -104,6 +104,8 @@ public:
 
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 
+	bool is_available(service_t _service, instance_t _instance) const;
+
 	endpoint * find_local(client_t _client);
 	endpoint * find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
@@ -140,12 +142,19 @@ private:
 	std::shared_ptr< sd::service_discovery > discovery_;
 
 	// Routing info
+
+	// Local
 	std::map< client_t, std::shared_ptr< endpoint > > local_clients_;
 	std::map< service_t, std::map< instance_t, client_t > > local_services_;
 
-	std::map< client_t, std::shared_ptr< endpoint > > clients_;
+	// Server endpoints for local services
 	std::map< uint16_t, std::map< bool, std::shared_ptr< endpoint > > > service_endpoints_;
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
+
+	// Client endpoints for remote services
+	std::map< service_t,
+			  std::map< instance_t,
+			  	  	  	std::map< bool, std::shared_ptr< endpoint > > > > remote_services_;
 
 	// Servicegroups
 	std::map< std::string, std::shared_ptr< servicegroup > > servicegroups_;
@@ -158,6 +167,7 @@ private:
 			  	  	    		  std::set< std::shared_ptr< endpoint > > > > > eventgroups_;
 	std::map< service_t, std::map< instance_t, std::map< event_t, eventgroup_t > > > events_;
 
+	// Mutexes
 	std::recursive_mutex endpoint_mutex_;
 	std::mutex serialize_mutex_;
 };

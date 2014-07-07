@@ -49,6 +49,7 @@ struct fsm:
 	uint32_t cyclic_offer_delay_;
 
 	bool is_up_;
+	uint8_t run_;
 };
 
 struct inactive:
@@ -123,11 +124,18 @@ public:
 	const std::string & get_name() const;
 	boost::asio::io_service & get_io();
 
+	void start();
+	void stop();
+
+	inline void process(const sc::event_base &_event) {
+		fsm_->process_event(_event);
+	}
+
 private:
 	std::string name_;
 
 	service_discovery *discovery_;
-	_sd::fsm fsm_;
+	std::shared_ptr< _sd::fsm > fsm_ ;
 };
 
 } // namespace sd

@@ -81,6 +81,8 @@ public:
 					service_t _service, instance_t _instance,
 			      	event_t _event, const std::vector< byte_t > &_value) = 0;
 
+	virtual bool is_available(service_t _service, instance_t _instance) const = 0;
+
 	virtual endpoint * find_local(client_t _client) = 0;
 	virtual endpoint * find_local(service_t _service, instance_t _instance) = 0;
 	virtual endpoint * find_or_create_local(client_t _client) = 0;

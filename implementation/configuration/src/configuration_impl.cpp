@@ -436,6 +436,18 @@ std::set< std::string > configuration_impl::get_servicegroups() const {
 	return its_keys;
 }
 
+bool configuration_impl::is_local_servicegroup(const std::string &_name) const {
+	bool is_local(false);
+
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) {
+		is_local = (its_servicegroup->address_ == "local" ||
+					its_servicegroup->address_ == get_address().to_string());
+	}
+
+	return is_local;
+}
+
 uint32_t configuration_impl::get_min_initial_delay(const std::string &_name) const {
 	uint32_t its_delay = 0;
 

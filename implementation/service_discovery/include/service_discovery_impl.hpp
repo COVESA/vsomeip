@@ -25,7 +25,8 @@ class service_discovery_host;
 
 class service_discovery_impl:
 		public service_discovery,
-		public endpoint_host {
+		public endpoint_host,
+		public std::enable_shared_from_this< service_discovery_impl > {
 public:
 	service_discovery_impl(service_discovery_host *_host);
 	virtual ~service_discovery_impl();

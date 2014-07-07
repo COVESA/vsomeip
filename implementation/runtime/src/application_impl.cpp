@@ -166,7 +166,7 @@ void application_impl::unsubscribe(
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance) {
-	return true; // TODO: ask routing manager (proxy)
+	return routing_->is_available(_service, _instance);
 }
 
 std::shared_ptr< event > application_impl::add_event(

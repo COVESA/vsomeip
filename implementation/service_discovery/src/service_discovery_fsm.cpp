@@ -38,7 +38,8 @@ void fsm::timer_expired(const boost::system::error_code &_error) {
 // State "Inactive"
 ///////////////////////////////////////////////////////////////////////////////
 inactive::inactive(my_context context): sc::state< inactive, fsm >(context) {
-	VSOMEIP_DEBUG << "sd::inactive";
+	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::inactive";
+	outermost_context().run_ = 0;
 }
 
 sc::result inactive::react(const ev_none &_event) {
@@ -62,10 +63,11 @@ sc::result inactive::react(const ev_status_change &_event) {
 // State "Active"
 ///////////////////////////////////////////////////////////////////////////////
 active::active(my_context _context): sc::state< active, fsm, initial >(_context) {
-	VSOMEIP_DEBUG << "sd::active";
+	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active";
 }
 
 active::~active() {
+	outermost_context().stop_timer();
 }
 
 sc::result active::react(const ev_status_change &_event) {
@@ -80,7 +82,7 @@ sc::result active::react(const ev_status_change &_event) {
 // State "Active.Initial"
 ///////////////////////////////////////////////////////////////////////////////
 initial::initial(my_context _context): sc::state< initial, active >(_context) {
-	VSOMEIP_DEBUG << "sd::inactive.initial";
+	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.initial";
 	outermost_context().start_timer(outermost_context().initial_delay_);
 }
 
@@ -92,11 +94,17 @@ sc::result initial::react(const ev_timeout &_event) {
 // State "Active.Repeat"
 ///////////////////////////////////////////////////////////////////////////////
 repeat::repeat(my_context _context): sc::state< repeat, active >(_context) {
-	VSOMEIP_DEBUG << "sd::inactive.repeat";
+	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.repeat";
+	uint32_t its_timeout = (outermost_context().repetition_base_delay_ << outermost_context().run_);
+	outermost_context().run_ ++;
+	outermost_context().start_timer(its_timeout);
 }
 
 sc::result repeat::react(const ev_timeout &_event) {
-	return discard_event();
+	if (outermost_context().run_ < outermost_context().repetition_max_)
+		return transit< repeat >();
+
+	return transit< announce >();
 }
 
 sc::result repeat::react(const ev_find_service &_event) {
@@ -107,11 +115,12 @@ sc::result repeat::react(const ev_find_service &_event) {
 // State "Active.Announce"
 ///////////////////////////////////////////////////////////////////////////////
 announce::announce(my_context _context): sc::state< announce, active  >(_context) {
-	VSOMEIP_DEBUG << "sd::inactive.announce";
+	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.announce";
+	outermost_context().start_timer(outermost_context().cyclic_offer_delay_);
 }
 
 sc::result announce::react(const ev_timeout &_event) {
-	return discard_event();
+	return transit< announce >();
 }
 
 sc::result announce::react(const ev_find_service &_event) {
@@ -125,7 +134,7 @@ sc::result announce::react(const ev_find_service &_event) {
 ///////////////////////////////////////////////////////////////////////////////
 service_discovery_fsm::service_discovery_fsm(
 		const std::string &_name, service_discovery *_discovery)
-	: name_(_name), discovery_(_discovery), fsm_(this) {
+	: name_(_name), discovery_(_discovery), fsm_(std::make_shared< _sd::fsm >(this)) {
 
 	std::shared_ptr< configuration > its_configuration
 		= discovery_->get_configuration();
@@ -135,21 +144,21 @@ service_discovery_fsm::service_discovery_fsm(
 		its_configuration->get_min_initial_delay(name_),
 		its_configuration->get_max_initial_delay(name_)
 	);
-	fsm_.initial_delay_ = its_distribution(its_generator);
+	fsm_->initial_delay_ = its_distribution(its_generator);
 
-	fsm_.repetition_base_delay_
+	fsm_->repetition_base_delay_
 		= its_configuration->get_repetition_base_delay(name_);
-	fsm_.repetition_max_
+	fsm_->repetition_max_
 		= its_configuration->get_repetition_max(name_);
 
-	fsm_.cyclic_offer_delay_
+	fsm_->cyclic_offer_delay_
 		= its_configuration->get_cyclic_offer_delay(name_);
 
 	VSOMEIP_INFO << "SD configuration ["
-			<< fsm_.initial_delay_ << ":"
-			<< fsm_.repetition_base_delay_ << ":"
-			<< (int)fsm_.repetition_max_ << ":"
-			<< fsm_.cyclic_offer_delay_ << "]";
+			<< fsm_->initial_delay_ << ":"
+			<< fsm_->repetition_base_delay_ << ":"
+			<< (int)fsm_->repetition_max_ << ":"
+			<< fsm_->cyclic_offer_delay_ << "]";
 }
 
 const std::string & service_discovery_fsm::get_name() const {
@@ -158,6 +167,13 @@ const std::string & service_discovery_fsm::get_name() const {
 
 boost::asio::io_service & service_discovery_fsm::get_io() {
 	return discovery_->get_io();
+}
+
+void service_discovery_fsm::start() {
+	fsm_->initiate();
+}
+
+void service_discovery_fsm::stop() {
 }
 
 } // namespace sd

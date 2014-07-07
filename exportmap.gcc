@@ -5,6 +5,10 @@ global:
 		vsomeip::configuration::*;
 		*vsomeip::deserializer;
 		vsomeip::deserializer::*;
+		*vsomeip::tcp*;
+		vsomeip::tcp*;
+		*vsomeip::udp*;
+		vsomeip::udp*;
 		*vsomeip::logger;
 		vsomeip::logger::get*;
 		*vsomeip::message_base_impl;
