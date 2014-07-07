@@ -6,8 +6,7 @@
 
 #include <vsomeip/logger.hpp>
 
-#include "../include/find_fsm.hpp"
-#include "../include/offer_fsm.hpp"
+#include "../include/service_discovery_fsm.hpp"
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_impl.hpp"
 #include "../../routing/include/servicegroup.hpp"
@@ -18,10 +17,14 @@ namespace sd {
 service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
 	: host_(_host),
 	  io_(_host->get_io()),
-	  find_(new find_fsm(_host->get_io())) {
+	  default_(new service_discovery_fsm("default", this)) {
 }
 
 service_discovery_impl::~service_discovery_impl() {
+}
+
+std::shared_ptr< configuration > service_discovery_impl::get_configuration() const {
+	return host_->get_configuration();
 }
 
 boost::asio::io_service & service_discovery_impl::get_io() {
@@ -32,11 +35,7 @@ void service_discovery_impl::init() {
 }
 
 void service_discovery_impl::start() {
-	const std::map< std::string, std::shared_ptr< servicegroup > > &its_groups = host_->get_servicegroups();
-	for (auto i : its_groups) {
-		VSOMEIP_INFO << "Initializing servicegroup \"" << i.first << "\"";
 
-	}
 }
 
 void service_discovery_impl::stop() {

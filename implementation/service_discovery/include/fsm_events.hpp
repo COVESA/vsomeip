@@ -25,6 +25,21 @@ struct ev_status_change: sc::event< ev_status_change > {
 	bool is_up_;
 };
 
+struct ev_find_service: sc::event< ev_find_service > {
+
+	ev_find_service(service_t _service, instance_t _instance,
+			major_version_t _major, minor_version_t _minor, ttl_t _ttl)
+		: service_(_service), instance_(_instance),
+		  major_(_major), minor_(_minor), ttl_(_ttl) {
+	}
+
+	service_t service_;
+	instance_t instance_;
+	major_version_t major_;
+	minor_version_t minor_;
+	ttl_t ttl_;
+};
+
 } // namespace sd
 } // namespace vsomeip
 

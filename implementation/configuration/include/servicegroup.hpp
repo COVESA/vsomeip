@@ -14,8 +14,8 @@ struct servicegroup {
 	std::string name_; // Name of the ServiceGroup
 	std::string address_; // either "local" or an IP address
 
-	uint32_t initial_delay_min_;
-	uint32_t initial_delay_max_;
+	uint32_t min_initial_delay_;
+	uint32_t max_initial_delay_;
 	uint32_t repetition_base_delay_;
 	uint32_t cyclic_offer_delay_;
 	uint32_t cyclic_request_delay_;

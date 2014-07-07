@@ -40,20 +40,19 @@ public:
 	const std::string & get_logfile() const;
 	boost::log::trivial::severity_level get_loglevel() const;
 
-	std::string get_group(service_t _service, instance_t _instance) const;
 	std::string get_address(service_t _service, instance_t _instance) const;
 	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
 	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
 	std::string get_multicast(service_t _service, instance_t _instance) const;
 
-	uint32_t get_min_initial_delay(service_t _service, instance_t _instance) const;
-	uint32_t get_max_initial_delay(service_t _service, instance_t _instance) const;
+	std::string get_group(service_t _service, instance_t _instance) const;
 
-	uint32_t get_repetition_base_delay(service_t _service, instance_t _instance) const;
-	uint8_t get_repetition_max(service_t _service, instance_t _instance) const;
-
-	uint32_t get_cyclic_offer_delay(service_t _service, instance_t _instance) const;
-	uint32_t get_cyclic_request_delay(service_t _service, instance_t _instance) const;
+	uint32_t get_min_initial_delay(const std::string &_name) const;
+	uint32_t get_max_initial_delay(const std::string &_name) const;
+	uint32_t get_repetition_base_delay(const std::string &_name) const;
+	uint8_t get_repetition_max(const std::string &_name) const;
+	uint32_t get_cyclic_offer_delay(const std::string &_name) const;
+	uint32_t get_cyclic_request_delay(const std::string &_name) const;
 
 	const std::string & get_routing_host() const;
 
@@ -78,6 +77,7 @@ private:
 	bool get_service_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
 	bool get_application_configuration(const boost::property_tree::ptree &_tree);
 
+	servicegroup * find_servicegroup(const std::string &_name) const;
 	service * find_service(service_t _service, instance_t _instance) const;
 
 private:
@@ -93,6 +93,7 @@ private:
 	std::string logfile_;
 	boost::log::trivial::severity_level loglevel_;
 
+	std::map< std::string, std::shared_ptr< servicegroup > > servicegroups_;
 	std::map< service_t, std::map< instance_t, std::shared_ptr< service > > > services_;
 
 	std::string routing_host_;

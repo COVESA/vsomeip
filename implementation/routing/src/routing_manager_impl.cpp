@@ -303,6 +303,10 @@ const std::map< std::string, std::shared_ptr< servicegroup > > & routing_manager
 	return servicegroups_;
 }
 
+std::shared_ptr< configuration > routing_manager_impl::get_configuration() const {
+	return host_->get_configuration();
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE
 ///////////////////////////////////////////////////////////////////////////////

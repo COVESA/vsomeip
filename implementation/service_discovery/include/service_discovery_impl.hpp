@@ -15,10 +15,11 @@
 
 namespace vsomeip {
 
+class endpoint;
+
 namespace sd {
 
-class find_fsm;
-class offer_fsm;
+class service_discovery_fsm;
 class service_discovery_host;
 
 class service_discovery_impl:
@@ -28,6 +29,7 @@ public:
 	service_discovery_impl(service_discovery_host *_host);
 	virtual ~service_discovery_impl();
 
+	std::shared_ptr< configuration > get_configuration() const;
 	boost::asio::io_service & get_io();
 
 	void init();
@@ -48,8 +50,10 @@ private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
 
-	std::unique_ptr< find_fsm > find_;
-	std::set< std::unique_ptr< offer_fsm > > offers_; // one fsm represents one service group
+	std::unique_ptr< service_discovery_fsm > default_;
+	std::set< std::unique_ptr< service_discovery_fsm > > additional_; // one fsm represents one service group
+
+	std::shared_ptr< endpoint > endpoint_;
 };
 
 } // namespace sd

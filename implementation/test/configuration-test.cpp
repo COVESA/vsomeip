@@ -151,12 +151,13 @@ int main(int argc, char **argv) {
 	check<std::string>(its_multicast, DESIRED_MULTICAST_2277_0022, "MULTICAST_TEST_2277_0022");
 
 	std::string its_address_s = its_configuration->get_address(0x1234, 0x0022);
-	uint32_t its_min_initial_delay = its_configuration->get_min_initial_delay(0x1234, 0x0022);
-	uint32_t its_max_initial_delay = its_configuration->get_max_initial_delay(0x1234, 0x0022);
-	uint32_t its_repetition_base_delay = its_configuration->get_repetition_base_delay(0x1234, 0x0022);
-	uint8_t its_repetition_max = its_configuration->get_repetition_max(0x1234, 0x0022);
-	uint32_t its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(0x1234, 0x0022);
-	uint32_t its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(0x1234, 0x0022);
+	std::string its_group_name = its_configuration->get_group(0x1234, 0x0022);
+	uint32_t its_min_initial_delay = its_configuration->get_min_initial_delay(its_group_name);
+	uint32_t its_max_initial_delay = its_configuration->get_max_initial_delay(its_group_name);
+	uint32_t its_repetition_base_delay = its_configuration->get_repetition_base_delay(its_group_name);
+	uint8_t its_repetition_max = its_configuration->get_repetition_max(its_group_name);
+	uint32_t its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(its_group_name);
+	uint32_t its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(its_group_name);
 
 	check<std::string>(its_address_s, DESIRED_ADDRESS_1234_0022, "ADDRESS_TEST_1234_0022");
 	check<uint32_t>(its_min_initial_delay, DESIRED_MIN_INITIAL_DELAY_1234_0022, "MIN_INITIAL_DELAY_TEST_1234_0022");
@@ -166,12 +167,13 @@ int main(int argc, char **argv) {
 	check<uint32_t>(its_cyclic_offer_delay, DESIRED_CYCLIC_OFFER_DELAY_1234_0022, "CYCLIC_OFFER_DELAY_TEST_1234_0022");
 	check<uint32_t>(its_cyclic_request_delay, DESIRED_CYCLIC_REQUEST_DELAY_1234_0022, "CYCLIC_REQUEST_DELAY_TEST_1234_0022");
 
-	its_min_initial_delay = its_configuration->get_min_initial_delay(0x1234, 0x0023);
-	its_max_initial_delay = its_configuration->get_max_initial_delay(0x1234, 0x0023);
-	its_repetition_base_delay = its_configuration->get_repetition_base_delay(0x1234, 0x0023);
-	its_repetition_max = its_configuration->get_repetition_max(0x1234, 0x0023);
-	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(0x1234, 0x0023);
-	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(0x1234, 0x0023);
+	its_group_name = its_configuration->get_group(0x1234, 0x0023);
+	its_min_initial_delay = its_configuration->get_min_initial_delay(its_group_name);
+	its_max_initial_delay = its_configuration->get_max_initial_delay(its_group_name);
+	its_repetition_base_delay = its_configuration->get_repetition_base_delay(its_group_name);
+	its_repetition_max = its_configuration->get_repetition_max(its_group_name);
+	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(its_group_name);
+	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(its_group_name);
 
 	check<uint32_t>(its_min_initial_delay, DESIRED_MIN_INITIAL_DELAY_1234_0022, "MIN_INITIAL_DELAY_TEST_1234_0023");
 	check<uint32_t>(its_max_initial_delay, DESIRED_MAX_INITIAL_DELAY_1234_0022, "MAX_INITIAL_DELAY_TEST_1234_0023");
@@ -180,12 +182,13 @@ int main(int argc, char **argv) {
 	check<uint32_t>(its_cyclic_offer_delay, DESIRED_CYCLIC_OFFER_DELAY_1234_0022, "CYCLIC_OFFER_DELAY_TEST_1234_0023");
 	check<uint32_t>(its_cyclic_request_delay, DESIRED_CYCLIC_REQUEST_DELAY_1234_0022, "CYCLIC_REQUEST_DELAY_TEST_1234_0023");
 
-	its_min_initial_delay = its_configuration->get_min_initial_delay(0x2277, 0x0022);
-	its_max_initial_delay = its_configuration->get_max_initial_delay(0x2277, 0x0022);
-	its_repetition_base_delay = its_configuration->get_repetition_base_delay(0x2277, 0x0022);
-	its_repetition_max = its_configuration->get_repetition_max(0x2277, 0x0022);
-	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(0x2277, 0x0022);
-	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(0x2277, 0x0022);
+	its_group_name = its_configuration->get_group(0x2277, 0x0022);
+	its_min_initial_delay = its_configuration->get_min_initial_delay(its_group_name);
+	its_max_initial_delay = its_configuration->get_max_initial_delay(its_group_name);
+	its_repetition_base_delay = its_configuration->get_repetition_base_delay(its_group_name);
+	its_repetition_max = its_configuration->get_repetition_max(its_group_name);
+	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(its_group_name);
+	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(its_group_name);
 
 	check<uint32_t>(its_min_initial_delay, DESIRED_MIN_INITIAL_DELAY_2277_0022, "MIN_INITIAL_DELAY_TEST_2277_0022");
 	check<uint32_t>(its_max_initial_delay, DESIRED_MAX_INITIAL_DELAY_2277_0022, "MAX_INITIAL_DELAY_TEST_2277_0022");
@@ -194,12 +197,13 @@ int main(int argc, char **argv) {
 	check<uint32_t>(its_cyclic_offer_delay, DESIRED_CYCLIC_OFFER_DELAY_2277_0022, "CYCLIC_OFFER_DELAY_TEST_2277_0022");
 	check<uint32_t>(its_cyclic_request_delay, DESIRED_CYCLIC_REQUEST_DELAY_2277_0022, "CYCLIC_REQUEST_DELAY_TEST_2277_0022");
 
-	its_min_initial_delay = its_configuration->get_min_initial_delay(0x2266, 0x0022);
-	its_max_initial_delay = its_configuration->get_max_initial_delay(0x2266, 0x0022);
-	its_repetition_base_delay = its_configuration->get_repetition_base_delay(0x2266, 0x0022);
-	its_repetition_max = its_configuration->get_repetition_max(0x2266, 0x0022);
-	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(0x2266, 0x0022);
-	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(0x2266, 0x0022);
+	its_group_name = its_configuration->get_group(0x2266, 0x0022);
+	its_min_initial_delay = its_configuration->get_min_initial_delay(its_group_name);
+	its_max_initial_delay = its_configuration->get_max_initial_delay(its_group_name);
+	its_repetition_base_delay = its_configuration->get_repetition_base_delay(its_group_name);
+	its_repetition_max = its_configuration->get_repetition_max(its_group_name);
+	its_cyclic_offer_delay = its_configuration->get_cyclic_offer_delay(its_group_name);
+	its_cyclic_request_delay = its_configuration->get_cyclic_request_delay(its_group_name);
 
 	check<uint32_t>(its_min_initial_delay, DESIRED_MIN_INITIAL_DELAY_2277_0022, "MIN_INITIAL_DELAY_TEST_2266_0022");
 	check<uint32_t>(its_max_initial_delay, DESIRED_MAX_INITIAL_DELAY_2277_0022, "MAX_INITIAL_DELAY_TEST_2266_0022");

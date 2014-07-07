@@ -14,7 +14,7 @@
 
 namespace vsomeip {
 
-class servicegroup;
+class configuration;
 
 namespace sd {
 
@@ -23,7 +23,7 @@ public:
 	virtual ~service_discovery_host() {};
 
 	virtual boost::asio::io_service & get_io() = 0;
-	virtual const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const = 0;
+	virtual std::shared_ptr< configuration > get_configuration() const = 0;
 };
 
 } // namespace sd

@@ -44,14 +44,12 @@ public:
 	virtual std::string get_group(service_t _service, instance_t _instance) const = 0;
 	virtual std::string get_address(service_t _service, instance_t _instance) const = 0;
 
-	virtual uint32_t get_min_initial_delay(service_t _service, instance_t _instance) const = 0;
-	virtual uint32_t get_max_initial_delay(service_t _service, instance_t _instance) const = 0;
-
-	virtual uint32_t get_repetition_base_delay(service_t _service, instance_t _instance) const = 0;
-	virtual uint8_t get_repetition_max(service_t _service, instance_t _instance) const = 0;
-
-	virtual uint32_t get_cyclic_offer_delay(service_t _service, instance_t _instance) const = 0;
-	virtual uint32_t get_cyclic_request_delay(service_t _service, instance_t _instance) const = 0;
+	virtual uint32_t get_min_initial_delay(const std::string &_name) const = 0;
+	virtual uint32_t get_max_initial_delay(const std::string &_name) const = 0;
+	virtual uint32_t get_repetition_base_delay(const std::string &_name) const = 0;
+	virtual uint8_t get_repetition_max(const std::string &_name) const = 0;
+	virtual uint32_t get_cyclic_offer_delay(const std::string &_name) const = 0;
+	virtual uint32_t get_cyclic_request_delay(const std::string &_name) const = 0;
 
 	virtual uint16_t get_reliable_port(service_t _service, instance_t _instance) const = 0;
 	virtual uint16_t get_unreliable_port(service_t _service, instance_t _instance) const = 0;

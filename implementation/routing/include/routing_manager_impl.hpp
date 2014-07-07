@@ -46,6 +46,7 @@ public:
 	~routing_manager_impl();
 
 	boost::asio::io_service & get_io();
+	std::shared_ptr< configuration > get_configuration() const;
 
 	void init();
 	void start();

@@ -186,6 +186,7 @@ bool configuration_impl::get_servicegroup_configuration(const boost::property_tr
 				is_loaded = is_loaded && get_service_configuration(its_servicegroup, i->second);
 			}
 		}
+		servicegroups_[its_servicegroup->name_] = its_servicegroup;
 	}
 	catch (...) {
 		is_loaded = false;
@@ -202,8 +203,8 @@ bool configuration_impl::get_delays_configuration(std::shared_ptr< servicegroup 
 			std::string its_key(i->first);
 
 			if (its_key == "initial") {
-				_group->initial_delay_min_ = i->second.get< uint32_t >("min");
-				_group->initial_delay_max_ = i->second.get< uint32_t >("max");
+				_group->min_initial_delay_ = i->second.get< uint32_t >("min");
+				_group->max_initial_delay_ = i->second.get< uint32_t >("max");
 			} else if (its_key == "repetition-base") {
 				its_converter << std::dec << i->second.data();
 				its_converter >> _group->repetition_base_delay_;
@@ -429,57 +430,56 @@ boost::log::trivial::severity_level configuration_impl::get_loglevel() const {
 	return loglevel_;
 }
 
-uint32_t configuration_impl::get_min_initial_delay(service_t _service, instance_t _instance) const {
+uint32_t configuration_impl::get_min_initial_delay(const std::string &_name) const {
 	uint32_t its_delay = 0;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_delay = its_service->group_->initial_delay_min_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_delay = its_servicegroup->min_initial_delay_;
 
 	return its_delay;
 }
 
-uint32_t configuration_impl::get_max_initial_delay(service_t _service, instance_t _instance) const {
+uint32_t configuration_impl::get_max_initial_delay(const std::string &_name) const {
 	uint32_t its_delay = 0xFFFFFFFF;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_delay = its_service->group_->initial_delay_max_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_delay = its_servicegroup->max_initial_delay_;
 
 	return its_delay;
 }
 
-uint32_t configuration_impl::get_repetition_base_delay(service_t _service, instance_t _instance) const {
+uint32_t configuration_impl::get_repetition_base_delay(const std::string &_name) const {
 	uint32_t its_delay = 0xFFFFFFFF;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_delay = its_service->group_->repetition_base_delay_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_delay = its_servicegroup->repetition_base_delay_;
 
 	return its_delay;
 }
 
-uint8_t configuration_impl::get_repetition_max(service_t _service, instance_t _instance) const {
+uint8_t configuration_impl::get_repetition_max(const std::string &_name) const {
 	uint8_t its_max = 0;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_max = its_service->group_->repetition_max_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_max = its_servicegroup->repetition_max_;
 
 	return its_max;
 }
 
-uint32_t configuration_impl::get_cyclic_offer_delay(service_t _service, instance_t _instance) const {
+uint32_t configuration_impl::get_cyclic_offer_delay(const std::string &_name) const {
 	uint32_t its_delay = 0xFFFFFFFF;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_delay = its_service->group_->cyclic_offer_delay_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_delay = its_servicegroup->cyclic_offer_delay_;
 
 	return its_delay;
-
 }
 
-uint32_t configuration_impl::get_cyclic_request_delay(service_t _service, instance_t _instance) const {
+uint32_t configuration_impl::get_cyclic_request_delay(const std::string &_name) const {
 	uint32_t its_delay = 0xFFFFFFFF;
 
-	service *its_service = find_service(_service, _instance);
-	if (its_service) its_delay = its_service->group_->cyclic_request_delay_;
+	servicegroup *its_servicegroup = find_servicegroup(_name);
+	if (its_servicegroup) its_delay = its_servicegroup->cyclic_request_delay_;
 
 	return its_delay;
 }
@@ -568,8 +568,17 @@ std::set< std::pair< service_t, instance_t > > configuration_impl::get_remote_se
 	return its_remote_services;
 }
 
+servicegroup *configuration_impl::find_servicegroup(const std::string &_name) const {
+	servicegroup *its_servicegroup(0);
+	auto find_servicegroup = servicegroups_.find(_name);
+	if (find_servicegroup != servicegroups_.end()) {
+		its_servicegroup = find_servicegroup->second.get();
+	}
+	return its_servicegroup;
+}
+
 service *configuration_impl::find_service(service_t _service, instance_t _instance) const {
-	service *its_service = 0;
+	service *its_service(0);
 	auto find_service = services_.find(_service);
 	if (find_service != services_.end()) {
 		auto find_instance = find_service->second.find(_instance);
