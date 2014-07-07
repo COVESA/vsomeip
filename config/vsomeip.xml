@@ -19,6 +19,7 @@
 					<max>100</max>
 				</initial>
 				<repetition-base>200</repetition-base>
+				<repetition-max>3</repetition-max>
 				<cyclic-offer>2000</cyclic-offer>
 				<cyclic-request>2001</cyclic-request>
 			</delays>
