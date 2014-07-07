@@ -6,6 +6,8 @@
 
 #include <vsomeip/logger.hpp>
 
+#include "../include/find_fsm.hpp"
+#include "../include/offer_fsm.hpp"
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_impl.hpp"
 #include "../../routing/include/servicegroup.hpp"
@@ -15,7 +17,8 @@ namespace sd {
 
 service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
 	: host_(_host),
-	  io_(_host->get_io()) {
+	  io_(_host->get_io()),
+	  find_(new find_fsm(_host->get_io())) {
 }
 
 service_discovery_impl::~service_discovery_impl() {
@@ -26,24 +29,21 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
-	VSOMEIP_INFO << "sdi::init";
 }
 
 void service_discovery_impl::start() {
-	VSOMEIP_INFO << "sdi::start";
 	const std::map< std::string, std::shared_ptr< servicegroup > > &its_groups = host_->get_servicegroups();
 	for (auto i : its_groups) {
 		VSOMEIP_INFO << "Initializing servicegroup \"" << i.first << "\"";
+
 	}
 }
 
 void service_discovery_impl::stop() {
-	VSOMEIP_INFO << "sdi::stop";
 }
 
 void service_discovery_impl::offer_service(service_t _service, instance_t _instance) {
 	VSOMEIP_DEBUG << "sdi::offer_service [" << std::hex << _service << "." << _instance << "]";
-
 }
 
 void service_discovery_impl::stop_offer_service(service_t _service, instance_t _instance) {

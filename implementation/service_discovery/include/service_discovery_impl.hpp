@@ -15,10 +15,10 @@
 
 namespace vsomeip {
 
-class servicegroup;
-
 namespace sd {
 
+class find_fsm;
+class offer_fsm;
 class service_discovery_host;
 
 class service_discovery_impl:
@@ -48,7 +48,8 @@ private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
 
-	std::set< std::unique_ptr< servicegroup > > groups_;
+	std::unique_ptr< find_fsm > find_;
+	std::set< std::unique_ptr< offer_fsm > > offers_; // one fsm represents one service group
 };
 
 } // namespace sd

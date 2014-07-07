@@ -37,7 +37,7 @@ endforeach ()
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(OS "LINUX")
     set(DL_LIBRARY "dl")
-    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=../exportmap")
+    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=../exportmap.gcc")
     set(NO_DEPRECATED "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 

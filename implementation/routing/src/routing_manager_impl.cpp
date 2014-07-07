@@ -426,8 +426,6 @@ endpoint * routing_manager_impl::create_local(client_t _client) {
 	std::stringstream its_path;
 	its_path << VSOMEIP_BASE_PATH << std::hex << _client;
 
-	std::cout << "Creating endpoint for " << its_path.str() << std::endl;
-
 	std::shared_ptr< endpoint > its_endpoint
 		= std::make_shared< local_client_endpoint_impl >(
 				shared_from_this(),

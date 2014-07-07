@@ -9,8 +9,7 @@
 namespace vsomeip {
 namespace sd {
 
-fsm_base::fsm_base(boost::asio::io_service &_service)
-	: timer_(_service) {
+fsm_base::fsm_base(boost::asio::io_service &_io) : timer_(_io) {
 }
 
 fsm_base::~fsm_base() {
@@ -39,6 +38,3 @@ uint32_t fsm_base::expired_from_now() {
 
 } // namespace sd
 } // namespace vsomeip
-
-
-

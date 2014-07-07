@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_OFFER_FSM_HPP
-#define VSOMEIP_SD_OFFER_FSM_HPP
+#ifndef VSOMEIP_SD_FIND_FSM_HPP
+#define VSOMEIP_SD_FIND_FSM_HPP
 
 #include <boost/mpl/list.hpp>
 #include <boost/statechart/custom_reaction.hpp>
@@ -19,8 +19,7 @@
 namespace vsomeip {
 namespace sd {
 
-class offer_fsm;
-class service_discovery;
+class find_fsm;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Machine
@@ -28,18 +27,18 @@ class service_discovery;
 namespace mpl = boost::mpl;
 namespace sc = boost::statechart;
 
-namespace _offer {
+namespace _find {
 
 struct inactive;
 struct fsm:
 		sc::state_machine< fsm, inactive >, public fsm_base {
 
-	fsm(offer_fsm *_fsm);
+	fsm(find_fsm *_fsm);
 	virtual ~fsm();
 
 	void timer_expired(const boost::system::error_code &_error);
 
-	offer_fsm *fsm_;
+	find_fsm *fsm_;
 };
 
 struct inactive:
@@ -56,24 +55,23 @@ struct inactive:
 	sc::result react(const ev_status_change &_event);
 };
 
-} // namespace _offer
+} // namespace _find
 
 ///////////////////////////////////////////////////////////////////////////////
 // Interface
 ///////////////////////////////////////////////////////////////////////////////
-class offer_fsm {
+class find_fsm {
 public:
-	offer_fsm(const std::string &_name, boost::asio::io_service &_io);
+	find_fsm(boost::asio::io_service &_io);
 
 	boost::asio::io_service & get_io();
 
 private:
 	boost::asio::io_service &io_;
-	std::string name_;
-	_offer::fsm fsm_;
+	_find::fsm fsm_;
 };
 
 } // namespace sd
 } // namespace vsomeip
 
-#endif // VSOMEIP_SD_OFFER_FSM_HPP
+#endif // VSOMEIP_SD_FIND_FSM_HPP
