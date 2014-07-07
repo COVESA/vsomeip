@@ -19,6 +19,7 @@ class message_impl
 		: virtual public message,
 		  virtual public message_base_impl {
 public:
+	message_impl();
 	virtual ~message_impl();
 
 	length_t get_length() const;

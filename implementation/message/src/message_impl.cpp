@@ -13,8 +13,11 @@
 
 namespace vsomeip {
 
+message_impl::message_impl(): payload_(runtime::get()->create_payload()) {
+}
+
 message_impl::~message_impl() {
-};
+}
 
 length_t message_impl::get_length() const {
 	return VSOMEIP_SOMEIP_HEADER_SIZE + (payload_ ? payload_->get_length() : 0);
