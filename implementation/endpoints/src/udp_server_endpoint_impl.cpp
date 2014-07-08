@@ -106,6 +106,32 @@ void udp_server_endpoint_impl::leave(const std::string &_multicast_address) {
 	}
 }
 
+bool udp_server_endpoint_impl::is_v4() const {
+	return socket_.local_endpoint().address().is_v4();
+}
+
+bool udp_server_endpoint_impl::get_address(std::vector< byte_t > &_address) const {
+	boost::asio::ip::address its_address = socket_.local_endpoint().address();
+	if (its_address.is_v4()) {
+		boost::asio::ip::address_v4 its_address_v4 = its_address.to_v4();
+		boost::asio::ip::address_v4::bytes_type its_bytes = its_address_v4.to_bytes();
+		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+	} else {
+		boost::asio::ip::address_v6 its_address_v6 = its_address.to_v6();
+		boost::asio::ip::address_v6::bytes_type its_bytes = its_address_v6.to_bytes();
+		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+	}
+	return true;
+}
+
+unsigned short udp_server_endpoint_impl::get_port() const {
+	return socket_.local_endpoint().port();
+}
+
+bool udp_server_endpoint_impl::is_udp() const {
+	return false;
+}
+
 // TODO: find a better way to structure the receive functions
 void udp_server_endpoint_impl::receive_cbk(boost::system::error_code const &_error, std::size_t _bytes) {
 		if (!_error && 0 < _bytes) {

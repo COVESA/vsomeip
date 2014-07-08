@@ -88,6 +88,31 @@ void tcp_server_endpoint_impl::join(const std::string &) {
 void tcp_server_endpoint_impl::leave(const std::string &) {
 }
 
+bool tcp_server_endpoint_impl::is_v4() const {
+	return acceptor_.local_endpoint().address().is_v4();
+}
+
+bool tcp_server_endpoint_impl::get_address(std::vector< byte_t > &_address) const {
+	boost::asio::ip::address its_address = acceptor_.local_endpoint().address();
+	if (its_address.is_v4()) {
+		boost::asio::ip::address_v4 its_address_v4 = its_address.to_v4();
+		boost::asio::ip::address_v4::bytes_type its_bytes = its_address_v4.to_bytes();
+		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+	} else {
+		boost::asio::ip::address_v6 its_address_v6 = its_address.to_v6();
+		boost::asio::ip::address_v6::bytes_type its_bytes = its_address_v6.to_bytes();
+		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+	}
+	return true;
+}
+
+unsigned short tcp_server_endpoint_impl::get_port() const {
+	return acceptor_.local_endpoint().port();
+}
+
+bool tcp_server_endpoint_impl::is_udp() const {
+	return false;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // class tcp_service_impl::connection

@@ -97,6 +97,7 @@ repeat::repeat(my_context _context): sc::state< repeat, active >(_context) {
 	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.repeat";
 	uint32_t its_timeout = (outermost_context().repetition_base_delay_ << outermost_context().run_);
 	outermost_context().run_ ++;
+	outermost_context().fsm_->send(false);
 	outermost_context().start_timer(its_timeout);
 }
 
@@ -117,6 +118,7 @@ sc::result repeat::react(const ev_find_service &_event) {
 announce::announce(my_context _context): sc::state< announce, active  >(_context) {
 	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.announce";
 	outermost_context().start_timer(outermost_context().cyclic_offer_delay_);
+	outermost_context().fsm_->send(true);
 }
 
 sc::result announce::react(const ev_timeout &_event) {
@@ -174,6 +176,10 @@ void service_discovery_fsm::start() {
 }
 
 void service_discovery_fsm::stop() {
+}
+
+void service_discovery_fsm::send(bool _is_announcing) {
+	discovery_->send(name_, _is_announcing);
 }
 
 } // namespace sd

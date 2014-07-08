@@ -141,11 +141,11 @@ const std::vector< std::shared_ptr< option_impl > > message_impl::get_options() 
 }
 
 // TODO: throw exception to signal "OptionNotFound"
-int16_t message_impl::get_option_index(const option_impl &_option) const {
+int16_t message_impl::get_option_index(const std::shared_ptr< option_impl > &_option) const {
 	int16_t i = 0;
 
 	while (i < options_.size()) {
-		if (*(options_[i].get()) == _option)
+		if (options_[i] == _option)
 			return i;
 		i++;
 	}
@@ -158,7 +158,7 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 
 	is_successful = is_successful && _to->serialize(flags_);
 	is_successful = is_successful
-			&& _to->serialize(vsomeip::protocol::reserved_long, true);
+			&& _to->serialize(protocol::reserved_long, true);
 
 	uint32_t entries_length = (entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
 	is_successful = is_successful && _to->serialize(entries_length);

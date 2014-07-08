@@ -12,6 +12,8 @@
 
 #include <boost/asio/io_service.hpp>
 
+#include "../../routing/include/routing_types.hpp"
+
 namespace vsomeip {
 
 class configuration;
@@ -24,6 +26,10 @@ public:
 
 	virtual boost::asio::io_service & get_io() = 0;
 	virtual std::shared_ptr< configuration > get_configuration() const = 0;
+
+	virtual service_map_t get_offered_services(const std::string &_name) const = 0;
+
+	virtual void send(client_t _client, std::shared_ptr< message > _message, bool _flush, bool _reliable) = 0;
 };
 
 } // namespace sd

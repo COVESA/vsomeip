@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#include <vsomeip/message.hpp>
+
 #include "../include/primitive_types.hpp"
 #include "../../message/include/message_base_impl.hpp"
 
@@ -27,7 +29,9 @@ class ipv6_option_impl;
 class load_balancing_option_impl;
 class protection_option_impl;
 
-class message_impl: public vsomeip::message_base_impl {
+class message_impl:
+		public vsomeip::message,
+		public vsomeip::message_base_impl {
 public:
 	message_impl();
 	virtual ~message_impl();
@@ -53,7 +57,10 @@ public:
 	const std::vector< std::shared_ptr< entry_impl > > get_entries() const;
 	const std::vector< std::shared_ptr< option_impl > > get_options() const;
 
-	int16_t get_option_index(const option_impl &_option) const;
+	int16_t get_option_index(const std::shared_ptr< option_impl > &_option) const;
+
+	std::shared_ptr< payload > get_payload() const;
+	void set_payload(std::shared_ptr< payload > _payload);
 
 	bool serialize(vsomeip::serializer *_to) const;
 	bool deserialize(vsomeip::deserializer *_from);

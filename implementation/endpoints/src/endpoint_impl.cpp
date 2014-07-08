@@ -121,6 +121,26 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie() {
 }
 */
 
+template < int MaxBufferSize >
+bool endpoint_impl< MaxBufferSize >::is_v4() const {
+	return false;
+}
+
+template < int MaxBufferSize >
+bool endpoint_impl< MaxBufferSize >::get_address(std::vector< byte_t > &_address) const {
+	return false;
+}
+
+template < int MaxBufferSize >
+unsigned short endpoint_impl< MaxBufferSize >::get_port() const {
+	return 0;
+}
+
+template < int MaxBufferSize >
+bool endpoint_impl< MaxBufferSize >::is_udp() const {
+	return false;
+}
+
 // Instantiate template
 template class endpoint_impl< VSOMEIP_MAX_LOCAL_MESSAGE_SIZE >;
 template class endpoint_impl< VSOMEIP_MAX_TCP_MESSAGE_SIZE >;

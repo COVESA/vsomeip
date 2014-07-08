@@ -11,8 +11,6 @@
 
 namespace vsomeip {
 
-class message_base;
-
 class endpoint
 {
 public:
@@ -32,6 +30,11 @@ public:
 
 	virtual void enable_magic_cookies() = 0;
 	virtual void disable_magic_cookies() = 0;
+
+	virtual bool is_v4() const = 0;
+	virtual bool get_address(std::vector< byte_t > &_address) const = 0;
+	virtual unsigned short get_port() const = 0;
+	virtual bool is_udp() const = 0;
 };
 
 } // namespace vsomeip

@@ -11,6 +11,8 @@
 #include <set>
 #include <string>
 
+#include "routing_types.hpp"
+
 namespace vsomeip {
 
 class serviceinfo;
@@ -22,12 +24,14 @@ public:
 
 	std::string get_name() const;
 
-	void add_service(std::shared_ptr< serviceinfo > _service);
-	void remove_service(std::shared_ptr< serviceinfo > _service);
+	bool add_service(service_t _service, instance_t _instance, std::shared_ptr< serviceinfo > _info);
+	bool remove_service(service_t _service, instance_t _instance);
+
+	service_map_t get_services() const;
 
 private:
 	std::string name_;
-	std::set< std::shared_ptr< serviceinfo > > services_;
+	service_map_t services_;
 };
 
 } // namespace vsomeip

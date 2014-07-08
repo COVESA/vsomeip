@@ -18,6 +18,7 @@ public:
 	virtual ~runtime_impl();
 
 	std::shared_ptr< service_discovery > create_service_discovery(service_discovery_host *_host) const;
+	std::shared_ptr< message_impl > create_message() const;
 };
 
 } // namespace sd

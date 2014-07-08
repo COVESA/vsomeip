@@ -7,6 +7,7 @@
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/logger.hpp>
 
 #include "../include/tcp_client_endpoint_impl.hpp"
 
@@ -99,7 +100,7 @@ void tcp_client_endpoint_impl::send_magic_cookie() {
 			data + sizeof(data)
 		);
 	} else {
-		//VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
+		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
 	}
 }
 

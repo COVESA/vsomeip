@@ -93,7 +93,7 @@ public:
 			service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
 	void send(client_t _client,
-			std::shared_ptr< message > _message, bool _reliable, bool _flush);
+			std::shared_ptr< message > _message, bool _flush, bool _reliable);
 
 	void send(client_t _client,
 			const byte_t *_data, uint32_t _size, instance_t _instance, bool _flush, bool _reliable);
@@ -112,6 +112,7 @@ public:
 	endpoint * find_local(service_t _service, instance_t _instance);
 
 	const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const;
+	service_map_t get_offered_services(const std::string &_name) const;
 
 private:
 	void on_message(const byte_t *_data, length_t _length, instance_t _instance);
@@ -166,6 +167,9 @@ private:
 			  	  	    std::map< eventgroup_t,
 			  	  	    		  std::set< std::shared_ptr< endpoint > > > > > eventgroups_;
 	std::map< service_t, std::map< instance_t, std::map< event_t, eventgroup_t > > > events_;
+
+	// Requested (but unknown)
+	std::set< std::shared_ptr< serviceinfo > > requested_;
 
 	// Mutexes
 	std::recursive_mutex endpoint_mutex_;

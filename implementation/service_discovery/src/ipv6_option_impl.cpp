@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "../include/constants.hpp"
 #include "../include/ipv6_option_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
@@ -31,16 +32,47 @@ bool ipv6_option_impl::operator ==(const option_impl &_other) const {
 	return true; // TODO:
 }
 
+const std::vector< byte_t > & ipv6_option_impl::get_address() const {
+	return address_;
+}
+
+void ipv6_option_impl::set_address(const std::vector< byte_t > &_address) {
+	address_ = _address;
+}
+
+unsigned short ipv6_option_impl::get_port() const {
+	return port_;
+}
+
+void ipv6_option_impl::set_port(unsigned short _port) {
+	port_ = _port;
+}
+
+bool ipv6_option_impl::is_udp() const {
+	return is_udp_;
+}
+
+void ipv6_option_impl::set_udp(bool _is_udp) {
+	is_udp_ = _is_udp;
+}
 
 bool ipv6_option_impl::serialize(vsomeip::serializer *_to) const {
 	bool is_successful = option_impl::serialize(_to);
-	// TODO: deserialize content
+	_to->serialize(&address_[0], address_.size());
+	_to->serialize(protocol::reserved_byte);
+	_to->serialize(is_udp_ ? protocol::udp : protocol::tcp);
+	_to->serialize(port_);
 	return is_successful;
 }
 
 bool ipv6_option_impl::deserialize(vsomeip::deserializer *_from) {
 	bool is_successful = option_impl::deserialize(_from);
-	// TODO: deserialize content
+	uint8_t its_reserved;
+	_from->deserialize(&address_[0], 4);
+	_from->deserialize(its_reserved);
+	_from->deserialize(its_reserved);
+	is_udp_ = (protocol::udp == its_reserved);
+	_from->deserialize(port_);
 	return is_successful;
 }
 

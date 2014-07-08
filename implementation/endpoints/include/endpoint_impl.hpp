@@ -33,8 +33,14 @@ public:
 	void open_filter(service_t _service);
 	void close_filter(service_t _service);
 
+	// Dummy implementations as we only need these for server endpoints
+	// TODO: redesign to avoid dummy implementations
+	bool is_v4() const;
+	bool get_address(std::vector< byte_t > &_address) const;
+	unsigned short get_port() const;
+	bool is_udp() const;
+
 public: // required
-	virtual bool is_client() const = 0;
 	virtual const uint8_t * get_buffer() const = 0;
 
 	virtual void receive() = 0;

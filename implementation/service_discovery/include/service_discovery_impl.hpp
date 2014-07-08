@@ -13,6 +13,7 @@
 
 #include "service_discovery.hpp"
 #include "../../endpoints/include/endpoint_host.hpp"
+#include "../../routing/include/routing_types.hpp"
 
 namespace vsomeip {
 
@@ -45,15 +46,24 @@ public:
 			major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 	void release_service(service_t _service, instance_t _instance);
 
+	void send(const std::string &_name, bool _is_announcing);
+
 	// endpoint_host
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
+
+private:
+	void insert_service_entries(std::shared_ptr< message_impl > &_message,
+			service_map_t &_services, bool _is_offer);
 
 private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
 
 	std::shared_ptr< service_discovery_fsm > default_;
-	std::map< std::string, std::shared_ptr< service_discovery_fsm > > additional_; // one fsm represents one service group
+	std::map< std::string,
+			  std::shared_ptr< service_discovery_fsm > > additional_;
+
+	service_map_t requested_;
 
 	std::shared_ptr< endpoint > endpoint_;
 };

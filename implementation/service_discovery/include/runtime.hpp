@@ -10,8 +10,10 @@
 #include <memory>
 
 namespace vsomeip {
+
 namespace sd {
 
+class message_impl;
 class service_discovery;
 class service_discovery_host;
 
@@ -21,6 +23,7 @@ public:
 	virtual ~runtime() {};
 
 	virtual std::shared_ptr< service_discovery > create_service_discovery(service_discovery_host *_host) const = 0;
+	virtual std::shared_ptr< message_impl > create_message() const = 0;
 };
 
 } // namespace sd

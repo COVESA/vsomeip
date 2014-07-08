@@ -19,12 +19,43 @@ std::string servicegroup::get_name() const {
 	return name_;
 }
 
-void servicegroup::add_service(std::shared_ptr< serviceinfo > _service) {
-	services_.insert(_service);
+bool servicegroup::add_service(
+		service_t _service, instance_t _instance,
+		std::shared_ptr< serviceinfo > _info) {
+	bool its_result(true);
+	auto find_service = services_.find(_service);
+	if (find_service != services_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			its_result = false;
+		} else {
+			find_service->second[_instance] = _info;
+		}
+	} else {
+		services_[_service][_instance] = _info;
+	}
+
+	return its_result;
 }
 
-void servicegroup::remove_service(std::shared_ptr< serviceinfo > _service) {
-	services_.erase(_service);
+bool servicegroup::remove_service(service_t _service, instance_t _instance) {
+	bool its_result(false);
+	auto find_service = services_.find(_service);
+	if (find_service != services_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			find_service->second.erase(_instance);
+			if (0 == find_service->second.size()) {
+				services_.erase(_service);
+			}
+			its_result = true;
+		}
+	}
+	return its_result;
+}
+
+service_map_t servicegroup::get_services() const {
+	return services_;
 }
 
 } // namespace vsomeip

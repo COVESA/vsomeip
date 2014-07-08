@@ -82,7 +82,7 @@ const std::vector< uint8_t > & entry_impl::get_options(uint8_t _run) const {
 	return invalid_options;
 }
 
-void entry_impl::assign_option(const option_impl &_option, uint8_t _run) {
+void entry_impl::assign_option(const std::shared_ptr< option_impl > &_option, uint8_t _run) {
 	if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN) {
 		_run--; // Index = Run-1
 

@@ -127,6 +127,8 @@ public:
 	void start();
 	void stop();
 
+	void send(bool _is_announcing);
+
 	inline void process(const sc::event_base &_event) {
 		fsm_->process_event(_event);
 	}

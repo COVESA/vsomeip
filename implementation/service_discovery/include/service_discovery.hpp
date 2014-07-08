@@ -34,6 +34,8 @@ public:
 	virtual void request_service(service_t _service, instance_t _instance,
 					major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
 	virtual void release_service(service_t _service, instance_t _instance) = 0;
+
+	virtual void send(const std::string &_name, bool _is_announcing) = 0;
 };
 
 } // namespace sd

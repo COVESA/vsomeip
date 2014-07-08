@@ -37,13 +37,13 @@ bool eventgroupentry_impl::serialize(vsomeip::serializer *_to) const {
 	bool is_successful = entry_impl::serialize(_to);
 
 	is_successful = is_successful
-				&& _to->serialize(vsomeip::protocol::reserved_byte);
+				&& _to->serialize(protocol::reserved_byte);
 
 	is_successful = is_successful
 				&& _to->serialize(static_cast< uint32_t >(ttl_), true);
 
 	is_successful = is_successful
-			&& _to->serialize(vsomeip::protocol::reserved_word);
+			&& _to->serialize(protocol::reserved_word);
 
 	is_successful = is_successful
 			&& _to->serialize(static_cast< uint16_t >(eventgroup_));

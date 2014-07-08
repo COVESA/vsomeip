@@ -42,6 +42,11 @@ public:
 	void join(const std::string &);
 	void leave(const std::string &);
 
+	bool is_v4() const;
+	bool get_address(std::vector< byte_t > &_address) const;
+	unsigned short get_port() const;
+	bool is_udp() const;
+
 private:
 	class connection
 		: public boost::enable_shared_from_this< connection > {

@@ -36,7 +36,7 @@ bool option_impl::serialize(vsomeip::serializer *_to) const {
 	return (0 != _to
 			&& _to->serialize(length_)
 			&& _to->serialize(static_cast<uint8_t>(type_))
-			&& _to->serialize(vsomeip::protocol::reserved_byte));
+			&& _to->serialize(protocol::reserved_byte));
 }
 
 bool option_impl::deserialize(vsomeip::deserializer *_from) {

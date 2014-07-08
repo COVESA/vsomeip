@@ -323,12 +323,24 @@ bool routing_manager_impl::is_available(service_t _service, instance_t _instance
 	return false;
 }
 
-const std::map< std::string, std::shared_ptr< servicegroup > > & routing_manager_impl::get_servicegroups() const {
+const std::map< std::string, std::shared_ptr< servicegroup > > &
+routing_manager_impl::get_servicegroups() const {
 	return servicegroups_;
 }
 
 std::shared_ptr< configuration > routing_manager_impl::get_configuration() const {
 	return host_->get_configuration();
+}
+
+service_map_t routing_manager_impl::get_offered_services(const std::string &_name) const {
+	service_map_t its_offers;
+
+	auto find_servicegroup = servicegroups_.find(_name);
+	if (find_servicegroup != servicegroups_.end()) {
+		return find_servicegroup->second->get_services();
+	}
+
+	return its_offers;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -380,7 +392,7 @@ void routing_manager_impl::create_service(
 			if (found_servicegroup == servicegroups_.end()) {
 				servicegroups_[its_servicegroup] = std::make_shared< servicegroup >(its_servicegroup);
 			}
-			servicegroups_[its_servicegroup]->add_service(its_info);
+			servicegroups_[its_servicegroup]->add_service(_service, _instance, its_info);
 			services_[_service][_instance] = its_info;
 		} else {
 			host_->on_error(); // TODO: Define configuration error "No valid port for service!"

@@ -7,6 +7,7 @@
 #ifndef VSOMEIP_SD_ENTRY_IMPL_HPP
 #define VSOMEIP_SD_ENTRY_IMPL_HPP
 
+#include <memory>
 #include <vector>
 
 #include <vsomeip/primitive_types.hpp>
@@ -46,7 +47,7 @@ public:
 	void set_ttl(ttl_t _ttl);
 
 	const std::vector< uint8_t > & get_options(uint8_t _run) const;
-	void assign_option(const option_impl &_option, uint8_t _run);
+	void assign_option(const std::shared_ptr< option_impl > &_option, uint8_t _run);
 
 	bool is_service_entry() const;
 	bool is_eventgroup_entry() const;
