@@ -88,16 +88,16 @@ public:
 
 	bool is_available(service_t _service, instance_t _instance) const;
 
-	endpoint * find_local(client_t _client);
-	endpoint * find_local(service_t _service, instance_t _instance);
-	endpoint * find_or_create_local(client_t _client);
+	std::shared_ptr< endpoint > find_local(client_t _client);
+	std::shared_ptr< endpoint > find_local(service_t _service, instance_t _instance);
+	std::shared_ptr< endpoint > find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
 
 private:
 	void register_application();
 	void deregister_application();
 
-	endpoint * create_local(client_t _client);
+	std::shared_ptr< endpoint > create_local(client_t _client);
 
 	bool is_request(byte_t _message_type) const;
 

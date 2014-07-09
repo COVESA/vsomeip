@@ -226,7 +226,7 @@ void routing_manager_impl::send(client_t its_client,
 
 void routing_manager_impl::send(client_t _client,
 		const byte_t *_data, length_t _size, instance_t _instance, bool _flush, bool _reliable) {
-	endpoint *its_target(nullptr);
+	std::shared_ptr< endpoint > its_target;
 
 	client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
 	service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
@@ -265,7 +265,9 @@ void routing_manager_impl::send(client_t _client,
 				on_message(_data, _size, _instance);
 			} else {
 				if (is_request) {
-
+					its_target = find_remote_client(its_service, _instance, _reliable);
+					if (its_target)
+						its_target->send(_data, _size, _flush);
 				} else {
 
 				}
@@ -525,17 +527,17 @@ std::shared_ptr< endpoint > routing_manager_impl::find_or_create_server_endpoint
 	return its_endpoint;
 }
 
-endpoint * routing_manager_impl::find_local(client_t _client) {
+std::shared_ptr< endpoint > routing_manager_impl::find_local(client_t _client) {
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
-	endpoint *its_endpoint(0);
+	std::shared_ptr< endpoint > its_endpoint;
 	auto found_endpoint = local_clients_.find(_client);
 	if (found_endpoint != local_clients_.end()) {
-		its_endpoint = found_endpoint->second.get();
+		its_endpoint = found_endpoint->second;
 	}
 	return its_endpoint;
 }
 
-endpoint * routing_manager_impl::create_local(client_t _client) {
+std::shared_ptr< endpoint > routing_manager_impl::create_local(client_t _client) {
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
 
 	std::stringstream its_path;
@@ -548,12 +550,12 @@ endpoint * routing_manager_impl::create_local(client_t _client) {
 				io_);
 	local_clients_[_client] = its_endpoint;
 	its_endpoint->start();
-	return its_endpoint.get();
+	return its_endpoint;
 }
 
-endpoint * routing_manager_impl::find_or_create_local(client_t _client) {
-	endpoint *its_endpoint(find_local(_client));
-	if (0 == its_endpoint) {
+std::shared_ptr< endpoint > routing_manager_impl::find_or_create_local(client_t _client) {
+	std::shared_ptr< endpoint > its_endpoint(find_local(_client));
+	if (!its_endpoint) {
 		its_endpoint = create_local(_client);
 	}
 	return its_endpoint;
@@ -561,12 +563,12 @@ endpoint * routing_manager_impl::find_or_create_local(client_t _client) {
 
 void routing_manager_impl::remove_local(client_t _client) {
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
-	endpoint *its_endpoint = find_local(_client);
+	std::shared_ptr< endpoint > its_endpoint = find_local(_client);
 	its_endpoint->stop();
 	local_clients_.erase(_client);
 }
 
-endpoint * routing_manager_impl::find_local(service_t _service, instance_t _instance) {
+std::shared_ptr< endpoint > routing_manager_impl::find_local(service_t _service, instance_t _instance) {
 	return find_local(find_local_client(_service, _instance));
 }
 
@@ -592,6 +594,22 @@ instance_t routing_manager_impl::find_instance(service_t _service, endpoint * _e
 		}
 	}
 	return its_instance;
+}
+
+std::shared_ptr< endpoint > routing_manager_impl::find_remote_client(
+		service_t _service, instance_t _instance, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint;
+	auto found_service = remote_services_.find(_service);
+	if (found_service != remote_services_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			auto found_reliability = found_instance->second.find(_reliable);
+			if (found_reliability != found_instance->second.end()) {
+				its_endpoint = found_reliability->second;
+			}
+		}
+	}
+	return its_endpoint;
 }
 
 void routing_manager_impl::init_routing_info() {

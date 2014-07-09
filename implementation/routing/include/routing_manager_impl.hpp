@@ -107,11 +107,11 @@ public:
 	bool is_available(service_t _service, instance_t _instance) const;
 
 	// interface to stub
-	endpoint * create_local(client_t _client);
-	endpoint * find_local(client_t _client);
-	endpoint * find_or_create_local(client_t _client);
+	std::shared_ptr< endpoint > create_local(client_t _client);
+	std::shared_ptr< endpoint > find_local(client_t _client);
+	std::shared_ptr< endpoint > find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
-	endpoint * find_local(service_t _service, instance_t _instance);
+	std::shared_ptr< endpoint > find_local(service_t _service, instance_t _instance);
 
 	// interface "service_discovery_host"
 	const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const;
@@ -129,6 +129,7 @@ private:
 	void create_service(service_t _service, instance_t _instance,
 						major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
+	std::shared_ptr< endpoint > find_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
 	std::shared_ptr< endpoint > create_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
 	std::shared_ptr< endpoint > find_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);

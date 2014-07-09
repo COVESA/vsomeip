@@ -200,8 +200,8 @@ void routing_manager_stub::on_stop_offer_service(
 }
 
 void routing_manager_stub::send_routing_info(client_t _client) {
-	endpoint *its_endpoint = routing_->find_local(_client);
-	if (0 != its_endpoint) {
+	std::shared_ptr< endpoint > its_endpoint = routing_->find_local(_client);
+	if (its_endpoint) {
 		uint32_t its_capacity = 4096; // TODO: dynamic resizing
 		std::vector< byte_t > its_command(its_capacity);
 		its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_ROUTING_INFO;
@@ -256,7 +256,7 @@ void routing_manager_stub::broadcast_routing_info() {
 
 void routing_manager_stub::broadcast(std::vector< byte_t > &_command) const {
 	for (auto a : routing_info_) {
-		endpoint *its_endpoint = routing_->find_local(a.first);
+		std::shared_ptr< endpoint > its_endpoint = routing_->find_local(a.first);
 		if (its_endpoint) {
 			its_endpoint->send(&_command[0], _command.size(), true);
 		}

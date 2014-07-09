@@ -217,7 +217,7 @@ void routing_manager_proxy::send(client_t _client,
 		const byte_t *_data, length_t _size,
 		instance_t _instance,
 		bool _flush, bool _reliable) {
-	endpoint *its_target(0);
+	std::shared_ptr< endpoint > its_target;
 
 	if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
 		if (is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
@@ -232,7 +232,7 @@ void routing_manager_proxy::send(client_t _client,
 
 		// If no direct endpoint could be found, route to stub
 		if (!its_target)
-			its_target = sender_.get();
+			its_target = sender_;
 
 		std::vector< byte_t > its_command(VSOMEIP_COMMAND_HEADER_SIZE + _size +
 									sizeof(instance_t) + sizeof(bool) + sizeof(bool));
@@ -444,16 +444,16 @@ void routing_manager_proxy::deregister_application() {
 }
 
 
-endpoint * routing_manager_proxy::find_local(client_t _client) {
-	endpoint *its_endpoint(0);
+std::shared_ptr< endpoint > routing_manager_proxy::find_local(client_t _client) {
+	std::shared_ptr< endpoint > its_endpoint;
 	auto found_endpoint = local_endpoints_.find(_client);
 	if (found_endpoint != local_endpoints_.end()) {
-		its_endpoint = found_endpoint->second.get();
+		its_endpoint = found_endpoint->second;
 	}
 	return its_endpoint;
 }
 
-endpoint * routing_manager_proxy::create_local(client_t _client) {
+std::shared_ptr< endpoint > routing_manager_proxy::create_local(client_t _client) {
 	std::stringstream its_path;
 	its_path << VSOMEIP_BASE_PATH << std::hex << _client;
 
@@ -469,11 +469,11 @@ endpoint * routing_manager_proxy::create_local(client_t _client) {
 	local_endpoints_[_client] = its_endpoint;
 	its_endpoint->start();
 
-	return its_endpoint.get();
+	return its_endpoint;
 }
 
-endpoint * routing_manager_proxy::find_or_create_local(client_t _client) {
-	endpoint *its_endpoint(find_local(_client));
+std::shared_ptr< endpoint > routing_manager_proxy::find_or_create_local(client_t _client) {
+	std::shared_ptr< endpoint > its_endpoint(find_local(_client));
 	if (0 == its_endpoint) {
 		its_endpoint = create_local(_client);
 	}
@@ -481,13 +481,13 @@ endpoint * routing_manager_proxy::find_or_create_local(client_t _client) {
 }
 
 void routing_manager_proxy::remove_local(client_t _client) {
-	endpoint *its_endpoint = find_local(_client);
+	std::shared_ptr< endpoint > its_endpoint(find_local(_client));
 	if (its_endpoint)
 		its_endpoint->stop();
 	local_endpoints_.erase(_client);
 }
 
-endpoint * routing_manager_proxy::find_local(service_t _service, instance_t _instance) {
+std::shared_ptr< endpoint > routing_manager_proxy::find_local(service_t _service, instance_t _instance) {
 	client_t its_client(0);
 	auto found_service = local_services_.find(_service);
 	if (found_service != local_services_.end()) {
