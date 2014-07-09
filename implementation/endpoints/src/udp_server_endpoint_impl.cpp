@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/multicast.hpp>
 
@@ -134,7 +136,12 @@ bool udp_server_endpoint_impl::is_udp() const {
 
 // TODO: find a better way to structure the receive functions
 void udp_server_endpoint_impl::receive_cbk(boost::system::error_code const &_error, std::size_t _bytes) {
-		if (!_error && 0 < _bytes) {
+	if (!_error && 0 < _bytes) {
+#if 1
+		for (std::size_t i = 0; i < _bytes; ++i)
+			std::cout << std::setw(2) << std::setfill('0') << (int)get_buffer()[i] << " ";
+		std::cout << std::endl;
+#endif
 		const uint8_t *buffer = get_buffer();
 		message_.insert(message_.end(), buffer, buffer + _bytes);
 

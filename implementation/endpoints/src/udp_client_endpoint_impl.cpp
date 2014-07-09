@@ -6,6 +6,8 @@
 
 #include <boost/asio/ip/multicast.hpp>
 
+#include <vsomeip/logger.hpp>
+
 #include "../include/udp_client_endpoint_impl.hpp"
 
 namespace vsomeip {
@@ -44,6 +46,7 @@ void udp_client_endpoint_impl::start() {
 }
 
 void udp_client_endpoint_impl::send_queued() {
+	VSOMEIP_DEBUG << "UDP CLIENT SENDING";
 	socket_.async_send(
 		boost::asio::buffer(
 			&packet_queue_.front()[0],

@@ -260,6 +260,12 @@ void routing_manager_proxy::set(client_t _client,
 		event_t _event, const std::vector< byte_t > &_value) {
 }
 
+void routing_manager_proxy::on_connect(std::shared_ptr< endpoint > _endpoint) {
+}
+
+void routing_manager_proxy::on_disconnect(std::shared_ptr< endpoint > _endpoint) {
+}
+
 void routing_manager_proxy::on_message(
 		const byte_t *_data, length_t _size, endpoint *_receiver) {
 #if 0

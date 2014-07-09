@@ -102,7 +102,6 @@ public:
 			service_t _service, instance_t _instance,
 	      	event_t _event, const std::vector< byte_t > &_value);
 
-	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 
 	bool is_available(service_t _service, instance_t _instance) const;
 
@@ -112,6 +111,11 @@ public:
 	std::shared_ptr< endpoint > find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
 	std::shared_ptr< endpoint > find_local(service_t _service, instance_t _instance);
+
+	// interface "endpoint_host"
+	void on_connect(std::shared_ptr< endpoint > _endpoint);
+	void on_disconnect(std::shared_ptr< endpoint > _endpoint);
+	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 
 	// interface "service_discovery_host"
 	const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const;

@@ -13,6 +13,7 @@
 #include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/logger.hpp>
 
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
@@ -132,12 +133,21 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::connect_cbk(
 
 		// next time we wait longer
 		connect_timeout_ <<= 1;
+
+		if (is_connected_) {
+			is_connected_ = false;
+			this->host_->on_disconnect(this->shared_from_this());
+		}
 	} else {
 		connect_timer_.cancel();
 		connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
-		is_connected_ = true;
-		if (!packet_queue_.empty()) {
-			send_queued();
+
+		if (!is_connected_) {
+			is_connected_ = true;
+			this->host_->on_connect(this->shared_from_this());
+			if (!packet_queue_.empty()) {
+				send_queued();
+			}
 		}
 		receive();
 	}

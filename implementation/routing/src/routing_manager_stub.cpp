@@ -58,6 +58,14 @@ routing_manager * routing_manager_stub::get_manager() {
 	return routing_;
 }
 
+void routing_manager_stub::on_connect(std::shared_ptr< endpoint > _endpoint) {
+
+}
+
+void routing_manager_stub::on_disconnect(std::shared_ptr< endpoint > _endpoint) {
+
+}
+
 void routing_manager_stub::on_message(const byte_t *_data, length_t _size, endpoint *_receiver) {
 #if 0
 	std::cout << "rms::on_message: ";

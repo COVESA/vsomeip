@@ -296,6 +296,38 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size, endpo
 	}
 }
 
+void routing_manager_impl::on_connect(std::shared_ptr< endpoint > _endpoint) {
+	for (auto &its_service : remote_services_) {
+		for (auto &its_instance : its_service.second) {
+			auto found_endpoint = its_instance.second.find(false);
+			if (found_endpoint != its_instance.second.end()) {
+				host_->on_availability(its_service.first, its_instance.first, true);
+			} else {
+				found_endpoint = its_instance.second.find(true);
+				if (found_endpoint != its_instance.second.end()) {
+					host_->on_availability(its_service.first, its_instance.first, true);
+				}
+			}
+		}
+	}
+}
+
+void routing_manager_impl::on_disconnect(std::shared_ptr< endpoint > _endpoint) {
+	for (auto &its_service : remote_services_) {
+		for (auto &its_instance : its_service.second) {
+			auto found_endpoint = its_instance.second.find(false);
+			if (found_endpoint != its_instance.second.end()) {
+				host_->on_availability(its_service.first, its_instance.first, false);
+			} else {
+				found_endpoint = its_instance.second.find(true);
+				if (found_endpoint != its_instance.second.end()) {
+					host_->on_availability(its_service.first, its_instance.first, false);
+				}
+			}
+		}
+	}
+}
+
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size, instance_t _instance) {
 #if 0
 	std::cout << "rmi::on_message: ";

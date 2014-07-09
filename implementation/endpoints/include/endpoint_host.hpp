@@ -7,6 +7,8 @@
 #ifndef VSOMEIP_ENDPOINT_HOST_HPP
 #define VSOMEIP_ENDPOINT_HOST_HPP
 
+#include <memory>
+
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
@@ -17,6 +19,8 @@ class endpoint_host {
 public:
 	virtual ~endpoint_host() {};
 
+	virtual void on_connect(std::shared_ptr< endpoint > _endpoint) = 0;
+	virtual void on_disconnect(std::shared_ptr< endpoint > _endpoint) = 0;
 	virtual void on_message(const byte_t *_data, length_t _length, endpoint *_receiver) = 0;
 };
 

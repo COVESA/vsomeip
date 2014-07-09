@@ -31,6 +31,9 @@ public:
 	void stop();
 
 	routing_manager * get_manager();
+
+	void on_connect(std::shared_ptr< endpoint > _endpoint);
+	void on_disconnect(std::shared_ptr< endpoint > _endpoint);
 	void on_message(const byte_t *_data, const length_t _length, endpoint *_receiver);
 
 private:
