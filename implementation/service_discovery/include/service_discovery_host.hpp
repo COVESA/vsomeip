@@ -27,6 +27,9 @@ public:
 	virtual boost::asio::io_service & get_io() = 0;
 	virtual std::shared_ptr< configuration > get_configuration() const = 0;
 
+	virtual void create_service_discovery_endpoint(
+					const std::string &_address, uint16_t _port, const std::string &_protocol) = 0;
+
 	virtual service_map_t get_offered_services(const std::string &_name) const = 0;
 
 	virtual void send(client_t _client, std::shared_ptr< message > _message, bool _flush, bool _reliable) = 0;

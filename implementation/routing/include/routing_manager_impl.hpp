@@ -106,29 +106,39 @@ public:
 
 	bool is_available(service_t _service, instance_t _instance) const;
 
+	// interface to stub
+	endpoint * create_local(client_t _client);
 	endpoint * find_local(client_t _client);
 	endpoint * find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
 	endpoint * find_local(service_t _service, instance_t _instance);
 
+	// interface "service_discovery_host"
 	const std::map< std::string, std::shared_ptr< servicegroup > > & get_servicegroups() const;
 	service_map_t get_offered_services(const std::string &_name) const;
+	void create_service_discovery_endpoint(const std::string &_address,
+			uint16_t _port, const std::string &_protocol);
 
 private:
 	void on_message(const byte_t *_data, length_t _length, instance_t _instance);
 
-	client_t find_client(service_t _service, instance_t _instance);
+	client_t find_local_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);
 
 	serviceinfo * find_service(service_t _service, instance_t _instance);
 	void create_service(service_t _service, instance_t _instance,
 						major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
-	endpoint * find_service_endpoint(uint16_t _port, bool _reliable);
-	endpoint * create_service_endpoint(uint16_t _port, bool _reliable);
-	endpoint * find_or_create_service_endpoint(uint16_t _port, bool _reliable);
 
-	endpoint * create_local(client_t _client);
+	std::shared_ptr< endpoint > create_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_or_create_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
+
+	std::shared_ptr< endpoint > create_server_endpoint(uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_server_endpoint(uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_or_create_server_endpoint(uint16_t _port, bool _reliable);
+
+	void init_routing_info();
 
 private:
 	boost::asio::io_service &io_;
@@ -149,10 +159,13 @@ private:
 	std::map< service_t, std::map< instance_t, client_t > > local_services_;
 
 	// Server endpoints for local services
-	std::map< uint16_t, std::map< bool, std::shared_ptr< endpoint > > > service_endpoints_;
+	std::map< uint16_t, std::map< bool, std::shared_ptr< endpoint > > > server_endpoints_;
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
 
 	// Client endpoints for remote services
+	std::map< std::string,
+			  std::map< uint16_t,
+			  	  	    std::map< bool, std::shared_ptr< endpoint > > > > client_endpoints_;
 	std::map< service_t,
 			  std::map< instance_t,
 			  	  	  	std::map< bool, std::shared_ptr< endpoint > > > > remote_services_;

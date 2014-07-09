@@ -12,7 +12,6 @@
 #include <set>
 
 #include "service_discovery.hpp"
-#include "../../endpoints/include/endpoint_host.hpp"
 #include "../../routing/include/routing_types.hpp"
 
 namespace vsomeip {
@@ -26,7 +25,6 @@ class service_discovery_host;
 
 class service_discovery_impl:
 		public service_discovery,
-		public endpoint_host,
 		public std::enable_shared_from_this< service_discovery_impl > {
 public:
 	service_discovery_impl(service_discovery_host *_host);
@@ -64,8 +62,6 @@ private:
 			  std::shared_ptr< service_discovery_fsm > > additional_;
 
 	service_map_t requested_;
-
-	std::shared_ptr< endpoint > endpoint_;
 };
 
 } // namespace sd

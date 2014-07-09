@@ -60,6 +60,7 @@ public:
 
 	bool is_service_discovery_enabled() const;
 	const std::string & get_service_discovery_protocol() const;
+	const std::string & get_service_discovery_address() const;
 	uint16_t get_service_discovery_port() const;
 
 	client_t get_id(const std::string &_name) const;
@@ -103,6 +104,7 @@ private:
 	bool is_service_discovery_enabled_;
 	std::string service_discovery_host_;
 	std::string service_discovery_protocol_;
+	std::string service_discovery_address_;
 	uint16_t service_discovery_port_;
 
 	std::map< std::string, client_t > applications_;

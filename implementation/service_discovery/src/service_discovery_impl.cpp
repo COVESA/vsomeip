@@ -57,25 +57,14 @@ void service_discovery_impl::init() {
 		VSOMEIP_ERROR << "SD: no configuration found!";
 	}
 
-	// SD endpoint
-	boost::asio::ip::address its_address = its_configuration->get_address();
-	uint16_t its_port = its_configuration->get_service_discovery_port();
-	if (its_configuration->get_service_discovery_protocol() == "tcp") {
-		endpoint_ = std::make_shared< tcp_server_endpoint_impl >(
-						shared_from_this(),
-						boost::asio::ip::tcp::endpoint(its_address, its_port),
-						io_);
-	} else {
-		endpoint_ = std::make_shared< udp_server_endpoint_impl >(
-						shared_from_this(),
-						boost::asio::ip::udp::endpoint(its_address, its_port),
-						io_);
-	}
+	host_->create_service_discovery_endpoint(
+		its_configuration->get_service_discovery_address(),
+		its_configuration->get_service_discovery_port(),
+		its_configuration->get_service_discovery_protocol()
+	);
 }
 
 void service_discovery_impl::start() {
-	endpoint_->start();
-
 	default_->start();
 	for (auto &its_group : additional_) {
 		its_group.second->start();

@@ -333,6 +333,8 @@ bool configuration_impl::get_service_discovery_configuration(boost::property_tre
 				service_discovery_host_ = its_value;
 			} else if (its_key == "protocol") {
 				service_discovery_protocol_ = its_value;
+			} else if (its_key == "address") {
+				service_discovery_address_ = its_value;
 			} else if (its_key == "port") {
 				its_converter << its_value;
 				its_converter >> service_discovery_port_;
@@ -558,6 +560,10 @@ bool configuration_impl::is_service_discovery_enabled() const {
 
 const std::string & configuration_impl::get_service_discovery_protocol() const {
 	return service_discovery_protocol_;
+}
+
+const std::string & configuration_impl::get_service_discovery_address() const {
+	return service_discovery_address_;
 }
 
 uint16_t configuration_impl::get_service_discovery_port() const {

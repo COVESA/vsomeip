@@ -27,6 +27,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/event_impl.hpp"
 #include "../../message/include/serializer.hpp"
+#include "../../service_discovery/include/constants.hpp"
 #include "../../service_discovery/include/runtime.hpp"
 #include "../../service_discovery/include/service_discovery_impl.hpp"
 #include "../../utility/include/utility.hpp"
@@ -80,6 +81,8 @@ void routing_manager_impl::init() {
 			discovery_ = (*its_runtime)->create_service_discovery(this);
 			discovery_->init();
 		}
+	} else {
+		init_routing_info();
 	}
 }
 
@@ -258,10 +261,14 @@ void routing_manager_impl::send(client_t _client,
 			// Check whether hosting application should get the message
 			// If not, check routes to external
 			if ((its_client == host_->get_client() && !is_request) ||
-				(find_client(its_service, _instance) == host_->get_client() && is_request)) {
+				(find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
 				on_message(_data, _size, _instance);
 			} else {
-				VSOMEIP_ERROR << "Must route to other device. Not implemented yet.";
+				if (is_request) {
+
+				} else {
+
+				}
 			}
 		}
 	}
@@ -332,6 +339,20 @@ std::shared_ptr< configuration > routing_manager_impl::get_configuration() const
 	return host_->get_configuration();
 }
 
+void routing_manager_impl::create_service_discovery_endpoint(
+		const std::string &_address, uint16_t _port, const std::string &_protocol) {
+/*
+	endpoint *its_endpoint = find_service_endpoint(sd::VSOMEIP_SD_SERVICE, sd::VSOMEIP_SD_INSTANCE);
+	if (nullptr != its_endpoint) {
+		bool is_reliable = (_protocol != "udp");
+
+		its_endpoint = create_service_endpoint(_port, is_reliable);
+		its_endpoint->join(_address);
+		its_endpoint->start();
+	}
+*/
+}
+
 service_map_t routing_manager_impl::get_offered_services(const std::string &_name) const {
 	service_map_t its_offers;
 
@@ -371,7 +392,7 @@ void routing_manager_impl::create_service(
 
 		if (its_reliable_port != VSOMEIP_ILLEGAL_PORT) {
 			std::shared_ptr< endpoint > its_reliable_endpoint(
-				find_or_create_service_endpoint(its_reliable_port, true));
+				find_or_create_server_endpoint(its_reliable_port, true));
 			its_info->set_reliable_endpoint(its_reliable_endpoint);
 
 			// TODO: put this in a method and check whether an assignment already exists!
@@ -380,7 +401,7 @@ void routing_manager_impl::create_service(
 
 		if (its_unreliable_port != VSOMEIP_ILLEGAL_PORT) {
 			std::shared_ptr< endpoint > its_unreliable_endpoint(
-				find_or_create_service_endpoint(its_unreliable_port, false));
+				find_or_create_server_endpoint(its_unreliable_port, false));
 			its_info->set_unreliable_endpoint(its_unreliable_endpoint);
 
 			service_instances_[_service][its_unreliable_endpoint.get()] = _instance;
@@ -402,38 +423,27 @@ void routing_manager_impl::create_service(
 	}
 }
 
-endpoint * routing_manager_impl::find_service_endpoint(uint16_t _port, bool _reliable) {
-	endpoint *its_endpoint(0);
-
-	auto found_port = service_endpoints_.find(_port);
-	if (found_port != service_endpoints_.end()) {
-		auto found_endpoint = found_port->second.find(_reliable);
-		if (found_endpoint != found_port->second.end()) {
-			its_endpoint = found_endpoint->second.get();
-		}
-	}
-
-	return its_endpoint;
-}
-
-endpoint * routing_manager_impl::create_service_endpoint(uint16_t _port, bool _reliable) {
-	endpoint *its_endpoint(0);
+std::shared_ptr< endpoint > routing_manager_impl::create_client_endpoint(
+		const std::string &_address, uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint;
 
 	try {
-		boost::asio::ip::address its_address = configuration_->get_address();
+		boost::asio::ip::address its_address = boost::asio::ip::address::from_string(_address);
 		if (_reliable) {
-			its_endpoint = new tcp_server_endpoint_impl(
+			its_endpoint = std::make_shared< tcp_client_endpoint_impl >(
 				shared_from_this(),
 				boost::asio::ip::tcp::endpoint(its_address, _port),
 				io_
 			);
 		} else {
-			its_endpoint = new udp_server_endpoint_impl(
+			its_endpoint = std::make_shared< udp_client_endpoint_impl >(
 				shared_from_this(),
 				boost::asio::ip::udp::endpoint(its_address, _port),
 				io_
 			);
 		}
+
+		client_endpoints_[_address][_port][_reliable] = its_endpoint;
 	}
 	catch (std::exception &e) {
 		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
@@ -442,10 +452,75 @@ endpoint * routing_manager_impl::create_service_endpoint(uint16_t _port, bool _r
 	return its_endpoint;
 }
 
-endpoint * routing_manager_impl::find_or_create_service_endpoint(uint16_t _port, bool _reliable) {
-	endpoint *its_endpoint = find_service_endpoint(_port, _reliable);
+std::shared_ptr< endpoint > routing_manager_impl::find_client_endpoint(
+				const std::string &_address, uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint;
+	auto found_address = client_endpoints_.find(_address);
+	if (found_address != client_endpoints_.end()) {
+		auto found_port = found_address->second.find(_port);
+		if (found_port != found_address->second.end()) {
+			auto found_endpoint = found_port->second.find(_reliable);
+			if (found_endpoint != found_port->second.end()) {
+				its_endpoint = found_endpoint->second;
+			}
+		}
+	}
+	return its_endpoint;
+}
+
+std::shared_ptr< endpoint > routing_manager_impl::find_or_create_client_endpoint(
+				const std::string &_address, uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint = find_client_endpoint(_address, _port, _reliable);
 	if (0 == its_endpoint) {
-		its_endpoint = create_service_endpoint(_port, _reliable);
+		its_endpoint = create_client_endpoint(_address, _port, _reliable);
+	}
+	return its_endpoint;
+}
+
+std::shared_ptr< endpoint > routing_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint;
+
+	try {
+		boost::asio::ip::address its_address = configuration_->get_address();
+		if (_reliable) {
+			its_endpoint = std::make_shared< tcp_server_endpoint_impl >(
+				shared_from_this(),
+				boost::asio::ip::tcp::endpoint(its_address, _port),
+				io_
+			);
+		} else {
+			its_endpoint = std::make_shared< udp_server_endpoint_impl >(
+				shared_from_this(),
+				boost::asio::ip::udp::endpoint(its_address, _port),
+				io_
+			);
+		}
+
+		server_endpoints_[_port][_reliable] = its_endpoint;
+	}
+	catch (std::exception &e) {
+		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
+	}
+
+	return its_endpoint;
+}
+
+std::shared_ptr< endpoint > routing_manager_impl::find_server_endpoint(uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint;
+	auto found_port = server_endpoints_.find(_port);
+	if (found_port != server_endpoints_.end()) {
+		auto found_endpoint = found_port->second.find(_reliable);
+		if (found_endpoint != found_port->second.end()) {
+			its_endpoint = found_endpoint->second;
+		}
+	}
+	return its_endpoint;
+}
+
+std::shared_ptr< endpoint > routing_manager_impl::find_or_create_server_endpoint(uint16_t _port, bool _reliable) {
+	std::shared_ptr< endpoint > its_endpoint = find_server_endpoint(_port, _reliable);
+	if (0 == its_endpoint) {
+		its_endpoint = create_server_endpoint(_port, _reliable);
 	}
 	return its_endpoint;
 }
@@ -492,10 +567,10 @@ void routing_manager_impl::remove_local(client_t _client) {
 }
 
 endpoint * routing_manager_impl::find_local(service_t _service, instance_t _instance) {
-	return find_local(find_client(_service, _instance));
+	return find_local(find_local_client(_service, _instance));
 }
 
-client_t routing_manager_impl::find_client(service_t _service, instance_t _instance) {
+client_t routing_manager_impl::find_local_client(service_t _service, instance_t _instance) {
 	client_t its_client(0);
 	auto found_service = local_services_.find(_service);
 	if (found_service != local_services_.end()) {
@@ -517,6 +592,27 @@ instance_t routing_manager_impl::find_instance(service_t _service, endpoint * _e
 		}
 	}
 	return its_instance;
+}
+
+void routing_manager_impl::init_routing_info() {
+	VSOMEIP_INFO << "Service Discovery disabled. Using static routing information.";
+	for (auto i : configuration_->get_remote_services()) {
+		std::string its_address = configuration_->get_address(i.first, i.second);
+		uint16_t its_reliable_port = configuration_->get_reliable_port(i.first, i.second);
+		uint16_t its_unreliable_port = configuration_->get_unreliable_port(i.first, i.second);
+
+		if (VSOMEIP_INVALID_PORT != its_reliable_port) {
+			VSOMEIP_DEBUG << "Configuring [" << std::hex << i.first << "." << i.second
+					<< "] --> (TCP:" << its_address << ":" << std::dec << its_reliable_port << ")";
+			remote_services_[i.first][i.second][true] = create_client_endpoint(its_address, its_reliable_port, true);
+ 		}
+
+		if (VSOMEIP_INVALID_PORT != its_unreliable_port) {
+			VSOMEIP_DEBUG << "Configuring [" << std::hex << i.first << "." << i.second
+					<< "] --> (UDP:" << its_address << ":" << std::dec << its_unreliable_port << ")";
+			remote_services_[i.first][i.second][false] = create_client_endpoint(its_address, its_unreliable_port, false);
+		}
+	}
 }
 
 } // namespace vsomeip

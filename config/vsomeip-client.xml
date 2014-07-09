@@ -1,0 +1,46 @@
+<!-- vsomeip test configuration file -->
+<someip>
+	<address>192.168.56.101</address>
+	<logging> 
+		<level>trace</level>
+		<console>true</console>
+		<file>
+			<enable>false</enable>
+			<path>/tmp/vsomeip.log</path>
+		</file>
+		<dlt>false</dlt>
+	</logging>
+	<services>
+		<servicegroup>
+			<name>remote</name>
+			<address>192.168.56.102</address>
+			<service>
+				<service-id>0x1234</service-id>
+				<instance-id>0x5678</instance-id>
+				<ports>
+					<reliable>30507</reliable>
+				</ports>
+			</service>
+		</servicegroup>
+	</services>
+	<routing>
+		<host>client-sample</host>
+	</routing>
+	<service-discovery>
+		<enabled>false</enabled>
+		<host>client-sample</host>
+		<protocol>udp</protocol>
+		<address>224.244.224.245</address>
+		<port>30490</port>
+	</service-discovery>
+	<applications>
+		<application>
+			<name>client-sample</name>
+			<id>0x1343</id>
+		</application>
+		<application>
+			<name>other-client-sample</name>
+			<id>0x1344</id>
+		</application>
+	</applications>
+</someip>
