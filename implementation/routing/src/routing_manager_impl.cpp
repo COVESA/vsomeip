@@ -266,10 +266,13 @@ void routing_manager_impl::send(client_t _client,
 			} else {
 				if (is_request) {
 					its_target = find_remote_client(its_service, _instance, _reliable);
-					if (its_target)
+					if (its_target) {
 						its_target->send(_data, _size, _flush);
+					} else {
+						VSOMEIP_ERROR << "Routing error. Client from remote service could not be found!";
+					}
 				} else {
-
+					VSOMEIP_ERROR << "Routing error. Routing to remote clients not yet implemented!";
 				}
 			}
 		}
@@ -446,6 +449,7 @@ std::shared_ptr< endpoint > routing_manager_impl::create_client_endpoint(
 		}
 
 		client_endpoints_[_address][_port][_reliable] = its_endpoint;
+		its_endpoint->start();
 	}
 	catch (std::exception &e) {
 		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
@@ -499,6 +503,7 @@ std::shared_ptr< endpoint > routing_manager_impl::create_server_endpoint(uint16_
 		}
 
 		server_endpoints_[_port][_reliable] = its_endpoint;
+		its_endpoint->start();
 	}
 	catch (std::exception &e) {
 		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
@@ -629,6 +634,10 @@ void routing_manager_impl::init_routing_info() {
 			VSOMEIP_DEBUG << "Configuring [" << std::hex << i.first << "." << i.second
 					<< "] --> (UDP:" << its_address << ":" << std::dec << its_unreliable_port << ")";
 			remote_services_[i.first][i.second][false] = create_client_endpoint(its_address, its_unreliable_port, false);
+		}
+
+		if (VSOMEIP_INVALID_PORT != its_reliable_port || VSOMEIP_INVALID_PORT != its_unreliable_port) {
+			host_->on_availability(i.first, i.second, true);
 		}
 	}
 }

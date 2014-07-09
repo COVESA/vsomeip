@@ -47,6 +47,8 @@ public:
 	}
 
 	void start() {
+		if (app_->is_available(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID))
+			on_availability(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, true);
 		app_->start();
 	}
 

@@ -18,7 +18,7 @@
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
 				<ports>
-					<reliable>30507</reliable>
+					<unreliable>30507</unreliable>
 				</ports>
 			</service>
 		</servicegroup>
