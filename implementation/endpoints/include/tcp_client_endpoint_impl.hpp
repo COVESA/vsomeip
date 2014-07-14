@@ -32,7 +32,7 @@ public:
 	void leave(const std::string &);
 
 private:
-	void send_magic_cookie();
+	void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
 	void connect();
 	void receive();

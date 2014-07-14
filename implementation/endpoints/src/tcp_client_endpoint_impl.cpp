@@ -62,7 +62,7 @@ void tcp_client_endpoint_impl::receive() {
 
 void tcp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 	if (has_enabled_magic_cookies_)
-		send_magic_cookie();
+		send_magic_cookie(_buffer);
 	boost::asio::async_write(
 		socket_,
 		boost::asio::buffer(*_buffer),
@@ -76,24 +76,21 @@ void tcp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 	);
 }
 
-void tcp_client_endpoint_impl::send_magic_cookie() {
+void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) {
 	static uint8_t data[] = { 0xFF, 0xFF, 0x00, 0x00,
 							  0x00, 0x00, 0x00, 0x08,
 							  0xDE, 0xAD, 0xBE, 0xEF,
 							  0x01, 0x01, 0x01, 0x00 };
-/*
-	std::vector<uint8_t>& current_packet = packet_queue_.front();
-
-	if (VSOMEIP_MAX_TCP_MESSAGE_SIZE - current_packet.size() >=
+	if (VSOMEIP_MAX_TCP_MESSAGE_SIZE - _buffer->size() >=
 		VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
-		current_packet.insert(
-			current_packet.begin(),
+		_buffer->insert(
+			_buffer->begin(),
 			data,
 			data + sizeof(data)
 		);
 	} else {
 		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
-	} */
+	}
 }
 
 void tcp_client_endpoint_impl::join(const std::string &) {

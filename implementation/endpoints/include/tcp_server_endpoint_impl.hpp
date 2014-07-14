@@ -65,7 +65,7 @@ private:
 
 	private:
 		connection(tcp_server_endpoint_impl *_owner);
-		void send_magic_cookie();
+		void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
 		tcp_server_endpoint_impl::socket_type socket_;
 		tcp_server_endpoint_impl *server_;
