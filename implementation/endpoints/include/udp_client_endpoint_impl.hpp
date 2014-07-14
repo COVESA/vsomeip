@@ -38,7 +38,7 @@ public:
 	virtual ~udp_client_endpoint_impl();
 
 	void start();
-	void send_queued(buffer_ptr_t _buffer);
+	void send_queued(message_buffer_ptr_t _buffer);
 
 	void join(const std::string &_multicast_address);
 	void leave(const std::string &_multicast_address);

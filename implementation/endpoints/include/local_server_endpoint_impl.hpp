@@ -28,7 +28,8 @@ class local_server_endpoint_impl
 	: public local_server_endpoint_base_impl {
 
 public:
-	local_server_endpoint_impl(std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io);
+	local_server_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			endpoint_type _local, boost::asio::io_service &_io);
 	virtual ~local_server_endpoint_impl();
 
 	void start();
@@ -37,9 +38,7 @@ public:
 	void restart();
 	void receive();
 
-	const uint8_t * get_buffer() const;
-
-	void send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data);
+	void send_queued(endpoint_type _target, message_buffer_ptr_t _data);
 	endpoint_type get_remote() const;
 
 	void join(const std::string &);
@@ -57,7 +56,7 @@ private:
 
 		void start();
 
-		void send_queued(buffer_ptr_t _data);
+		void send_queued(message_buffer_ptr_t _data);
 
 	private:
 		connection(local_server_endpoint_impl *_owner);
@@ -68,10 +67,10 @@ private:
 		local_server_endpoint_impl *server_;
 
 		// the current message
-		std::vector< byte_t > message_;
+		message_buffer_t message_;
 
 	private:
-		void receive_cbk(buffer_ptr_t _buffer,
+		void receive_cbk(packet_buffer_ptr_t _buffer,
 				boost::system::error_code const &_error, std::size_t _bytes);
 	};
 

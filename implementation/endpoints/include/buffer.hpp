@@ -10,12 +10,16 @@
 #include <array>
 #include <memory>
 
+#include <vsomeip/defines.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
-typedef std::vector< byte_t > buffer_t;
-typedef std::shared_ptr< buffer_t > buffer_ptr_t;
+typedef std::array< byte_t, VSOMEIP_PACKET_SIZE > packet_buffer_t;
+typedef std::shared_ptr< packet_buffer_t > packet_buffer_ptr_t;
+
+typedef std::vector< byte_t > message_buffer_t;
+typedef std::shared_ptr< message_buffer_t > message_buffer_ptr_t;
 
 } // namespace vsomeip
 

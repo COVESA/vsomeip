@@ -26,7 +26,7 @@ public:
 	virtual ~tcp_client_endpoint_impl();
 
 	void start();
-	void send_queued(buffer_ptr_t _buffer);
+	void send_queued(message_buffer_ptr_t _buffer);
 
 	void join(const std::string &);
 	void leave(const std::string &);

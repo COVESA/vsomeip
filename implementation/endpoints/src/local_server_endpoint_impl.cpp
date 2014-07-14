@@ -46,10 +46,10 @@ void local_server_endpoint_impl::stop() {
 
 }
 
-void local_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data) {
+void local_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
 	auto connection_iterator = connections_.find(_target);
 	if (connection_iterator != connections_.end())
-		connection_iterator->second->send_queued(_data);
+		connection_iterator->second->send_queued(_buffer);
 }
 
 void local_server_endpoint_impl::receive() {
@@ -113,7 +113,8 @@ local_server_endpoint_impl::socket_type & local_server_endpoint_impl::connection
 }
 
 void local_server_endpoint_impl::connection::start() {
-	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE);
+	packet_buffer_ptr_t its_buffer
+		= std::make_shared< packet_buffer_t >();
 	socket_.async_receive(
 		boost::asio::buffer(*its_buffer),
 		std::bind(
@@ -126,7 +127,7 @@ void local_server_endpoint_impl::connection::start() {
 	);
 }
 
-void local_server_endpoint_impl::connection::send_queued(buffer_ptr_t _buffer) {
+void local_server_endpoint_impl::connection::send_queued(message_buffer_ptr_t _buffer) {
 #if 0
 		std::stringstream msg;
 		msg << "lse::sq: ";
@@ -151,7 +152,7 @@ void local_server_endpoint_impl::connection::send_magic_cookie() {
 }
 
 void local_server_endpoint_impl::connection::receive_cbk(
-		buffer_ptr_t _buffer,
+		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 
 	static std::size_t its_start = -1;

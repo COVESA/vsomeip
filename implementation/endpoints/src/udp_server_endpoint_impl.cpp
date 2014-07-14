@@ -40,13 +40,15 @@ void udp_server_endpoint_impl::stop() {
 }
 
 void udp_server_endpoint_impl::receive() {
-	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
+	packet_buffer_ptr_t its_buffer
+		= std::make_shared< packet_buffer_t >();
 	socket_.async_receive_from(
 		boost::asio::buffer(*its_buffer),
 		remote_,
 		std::bind(
 			&udp_server_endpoint_impl::receive_cbk,
-			std::dynamic_pointer_cast< udp_server_endpoint_impl >(shared_from_this()),
+			std::dynamic_pointer_cast<
+				udp_server_endpoint_impl >(shared_from_this()),
 			its_buffer,
 	        std::placeholders::_1,
 	        std::placeholders::_2
@@ -58,7 +60,7 @@ void udp_server_endpoint_impl::restart() {
 	receive();
 }
 
-void udp_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data) {
+void udp_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
 #if 0
 		std::stringstream msg;
 		msg << "usei::sq: ";
@@ -67,12 +69,12 @@ void udp_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_pt
 		VSOMEIP_DEBUG << msg.str();
 #endif
  	socket_.async_send_to(
-		boost::asio::buffer(*_data),
+		boost::asio::buffer(*_buffer),
 		_target,
 		std::bind(
 			&udp_server_endpoint_base_impl::send_cbk,
 			shared_from_this(),
-			_data,
+			_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -141,7 +143,7 @@ bool udp_server_endpoint_impl::is_udp() const {
 
 // TODO: find a better way to structure the receive functions
 void udp_server_endpoint_impl::receive_cbk(
-		buffer_ptr_t _buffer,
+		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 #if 0
 	std::stringstream msg;

@@ -58,19 +58,19 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::send(
 				endpoint_type its_target = found_session->second;
 
 				// find queue and packetizer (buffer)
-				std::shared_ptr< buffer_t > target_packetizer;
+				std::shared_ptr< std::vector< byte_t > > target_packetizer;
 
 				auto found_packetizer = packetizer_.find(its_target);
 				if (found_packetizer != packetizer_.end()) {
 					target_packetizer = found_packetizer->second;
 				} else {
-					target_packetizer = std::make_shared< buffer_t >();
+					target_packetizer = std::make_shared< message_buffer_t >();
 					packetizer_.insert(std::make_pair(its_target, target_packetizer));
 				}
 
 				if (target_packetizer->size() + _size > MaxBufferSize) {
 					send_queued(its_target, target_packetizer);
-					packetizer_[its_target] = std::make_shared< buffer_t >();
+					packetizer_[its_target] = std::make_shared< message_buffer_t >();
 				}
 
 				target_packetizer->insert(target_packetizer->end(), _data, _data + _size);
@@ -78,7 +78,7 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::send(
 				if (_flush) {
 					flush_timer_.cancel();
 					send_queued(its_target, target_packetizer);
-					packetizer_[its_target] = std::make_shared< buffer_t >();
+					packetizer_[its_target] = std::make_shared< message_buffer_t >();
 				} else {
 					std::chrono::milliseconds flush_timeout(VSOMEIP_DEFAULT_FLUSH_TIMEOUT);
 					flush_timer_.expires_from_now(flush_timeout); // TODO: use configured value
@@ -106,7 +106,7 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::flush(endpoint_type _targe
 	auto i = packetizer_.find(_target);
 	if (i != packetizer_.end() && !i->second->empty()) {
 		send_queued(_target, i->second);
-		i->second = std::make_shared< buffer_t >();
+		i->second = std::make_shared< message_buffer_t >();
 		is_flushed = true;
 	}
 
@@ -120,7 +120,7 @@ void server_endpoint_impl< Protocol, MaxBufferSize >::connect_cbk(
 
 template < typename Protocol, int MaxBufferSize >
 void server_endpoint_impl< Protocol, MaxBufferSize >::send_cbk(
-		buffer_ptr_t _buffer,
+		message_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 #if 0
 		std::stringstream msg;

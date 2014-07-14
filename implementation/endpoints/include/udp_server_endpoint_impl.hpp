@@ -38,9 +38,7 @@ public:
 	void restart();
 	void receive();
 
-	const uint8_t * get_buffer() const;
-
-	void send_queued(endpoint_type _target, buffer_ptr_t _buffer);
+	void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
 	endpoint_type get_remote() const;
 
 	void join(const std::string &_multicast_address);
@@ -52,15 +50,14 @@ public:
 	bool is_udp() const;
 
 public:
-	void receive_cbk(buffer_ptr_t _buffer,
+	void receive_cbk(packet_buffer_ptr_t _buffer,
 			boost::system::error_code const &_error, std::size_t _size);
 
 private:
 	socket_type socket_;
-
 	endpoint_type remote_;
 
-	std::vector< byte_t > message_;
+	message_buffer_t message_;
 };
 
 } // namespace vsomeip

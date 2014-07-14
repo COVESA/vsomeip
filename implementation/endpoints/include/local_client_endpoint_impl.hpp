@@ -28,7 +28,7 @@ public:
 
 	void start();
 
-	void send_queued(buffer_ptr_t _data);
+	void send_queued(message_buffer_ptr_t _data);
 
 	void join(const std::string &);
 	void leave(const std::string &);
@@ -40,7 +40,7 @@ private:
 	void receive();
 
 	void send_tag_cbk(boost::system::error_code const &_error, std::size_t _bytes);
-	void receive_cbk(buffer_ptr_t _buffer,
+	void receive_cbk(packet_buffer_ptr_t _buffer,
 			boost::system::error_code const &_error, std::size_t _bytes);
 };
 

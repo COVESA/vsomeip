@@ -40,7 +40,7 @@ void udp_client_endpoint_impl::start() {
 	receive();
 }
 
-void udp_client_endpoint_impl::send_queued(buffer_ptr_t _buffer) {
+void udp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 #if 0
 	std::stringstream msg;
 	msg << "ucei<" << this << ">::sq: ";
@@ -62,7 +62,8 @@ void udp_client_endpoint_impl::send_queued(buffer_ptr_t _buffer) {
 }
 
 void udp_client_endpoint_impl::receive() {
-	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
+	packet_buffer_ptr_t its_buffer
+		= std::make_shared< packet_buffer_t >();
 	socket_.async_receive_from(
 		boost::asio::buffer(*its_buffer),
 		remote_,

@@ -48,9 +48,9 @@ public:
 public:
 	void connect_cbk(boost::system::error_code const &_error);
 	void wait_connect_cbk(boost::system::error_code const &_error);
-	void send_cbk(std::shared_ptr< buffer_t >, boost::system::error_code const &_error, std::size_t _bytes);
+	void send_cbk(message_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(boost::system::error_code const &_error);
-	void receive_cbk(buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
+	void receive_cbk(packet_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 
 public:
 	virtual void connect() = 0;
@@ -66,16 +66,15 @@ protected:
 	bool is_connected_;
 
 	// send data
-	//std::deque< std::vector< byte_t > > packet_queue_;
-	std::shared_ptr< std::vector< byte_t  > > packetizer_;
+	message_buffer_ptr_t packetizer_;
 
 	// receive data
-	std::vector< byte_t > message_;
+	message_buffer_t message_;
 
 	std::mutex mutex_;
 
 	uint32_t queued_;
-	virtual void send_queued(std::shared_ptr< std::vector< byte_t > >) = 0;
+	virtual void send_queued(message_buffer_ptr_t) = 0;
 };
 
 } // namespace vsomeip

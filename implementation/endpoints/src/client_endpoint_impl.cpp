@@ -33,7 +33,7 @@ client_endpoint_impl< Protocol, MaxBufferSize >::client_endpoint_impl(
 	  connect_timer_(_io),
 	  flush_timer_(_io),
 	  remote_(_remote),
-	  packetizer_(std::make_shared< buffer_t >()),
+	  packetizer_(std::make_shared< message_buffer_t >()),
 	  connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
 	  is_connected_(false) {
 }
@@ -72,7 +72,7 @@ bool client_endpoint_impl< Protocol, MaxBufferSize >::send(
 #endif
 	if (packetizer_->size() + _size > MaxBufferSize) {
 		send_queued(packetizer_);
-		packetizer_ = std::make_shared< buffer_t >();
+		packetizer_ = std::make_shared< message_buffer_t >();
 	}
 
 	packetizer_->insert(packetizer_->end(), _data, _data + _size);
@@ -80,7 +80,7 @@ bool client_endpoint_impl< Protocol, MaxBufferSize >::send(
 	if (_flush) {
 		flush_timer_.cancel();
 		send_queued(packetizer_);
-		packetizer_ = std::make_shared< buffer_t >();
+		packetizer_ = std::make_shared< message_buffer_t >();
 	} else {
 		flush_timer_.expires_from_now(
 			std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
@@ -102,7 +102,7 @@ bool client_endpoint_impl< Protocol, MaxBufferSize >::flush() {
 
 	if (!packetizer_->empty()) {
 		send_queued(packetizer_);
-		packetizer_ = std::make_shared< buffer_t >();
+		packetizer_ = std::make_shared< message_buffer_t >();
 	} else {
 		is_successful = false;
 	}
@@ -156,7 +156,7 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::wait_connect_cbk(
 
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::send_cbk(
-		buffer_ptr_t _buffer,
+		message_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 #if 0
 		std::stringstream msg;
@@ -182,7 +182,7 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::flush_cbk(
 
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::receive_cbk(
-		buffer_ptr_t _buffer,
+		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 
 	if (!_error && 0 < _bytes) {

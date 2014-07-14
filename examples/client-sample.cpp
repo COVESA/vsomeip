@@ -103,37 +103,36 @@ public:
 				<< "/"
 				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
 				<< "]";
-		if (session_ == _response->get_session()) {
-			send();
-		} else {
-			std::cout << "WRONG RESPONSE!" << std::endl;
-		}
+		send();
 	}
 
 	void send() {
 		if (!be_quiet_)
 		{
-			std::unique_lock< std::mutex > its_lock(mutex_);
+			std::lock_guard< std::mutex > its_lock(mutex_);
+			blocked_ = true;
 			condition_.notify_one();
 		}
 	}
 
 	void run() {
 		while (running_) {
-			std::unique_lock< std::mutex > its_lock(mutex_);
-			condition_.wait(its_lock);
-			std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
-			app_->send(request_, true, use_tcp_);
-			VSOMEIP_INFO << "Client/Session ["
-					<< std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
-					<< "/"
-					<< std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
-					<< "] sent a request to Service ["
-					<< std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
-					<< "."
-					<< std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
-					<< "]";
-			session_ = request_->get_session();
+			{
+				std::unique_lock< std::mutex > its_lock(mutex_);
+				while (!blocked_) condition_.wait(its_lock);
+				std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
+				app_->send(request_, true, use_tcp_);
+				VSOMEIP_INFO << "Client/Session ["
+						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
+						<< "/"
+						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
+						<< "] sent a request to Service ["
+						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
+						<< "."
+						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
+						<< "]";
+				blocked_ = false;
+			}
 		}
 	}
 
@@ -148,6 +147,7 @@ private:
 	std::condition_variable condition_;
 	std::thread sender_;
 	bool running_;
+	bool blocked_;
 };
 
 

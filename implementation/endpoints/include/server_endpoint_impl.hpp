@@ -41,16 +41,16 @@ public:
 
 public:
 	void connect_cbk(boost::system::error_code const &_error);
-	void send_cbk(std::shared_ptr< buffer_t > _data,
+	void send_cbk(message_buffer_ptr_t _buffer,
 			boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(endpoint_type _target, const boost::system::error_code &_error);
 
 public:
-	virtual void send_queued(endpoint_type _target, buffer_ptr_t _buffer) = 0;
+	virtual void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) = 0;
 	virtual endpoint_type get_remote() const = 0;
 
 protected:
-	std::map< endpoint_type, std::shared_ptr< buffer_t > > packetizer_;
+	std::map< endpoint_type, message_buffer_ptr_t > packetizer_;
 	std::map< client_t, std::map< session_t, endpoint_type > > clients_;
 
 	boost::asio::system_timer flush_timer_;

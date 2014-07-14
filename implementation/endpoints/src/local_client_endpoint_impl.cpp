@@ -41,21 +41,21 @@ void local_client_endpoint_impl::connect() {
 }
 
 void local_client_endpoint_impl::receive() {
-	std::shared_ptr< buffer_t > its_data
-		= std::make_shared< buffer_t >(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE);
+	packet_buffer_ptr_t its_buffer
+		= std::make_shared< packet_buffer_t >();
 	socket_.async_receive(
-		boost::asio::buffer(*its_data),
+		boost::asio::buffer(*its_buffer),
 		std::bind(
 			&local_client_endpoint_impl::receive_cbk,
 			std::dynamic_pointer_cast< local_client_endpoint_impl >(shared_from_this()),
-			its_data,
+			its_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
 	);
 }
 
-void local_client_endpoint_impl::send_queued(buffer_ptr_t _buffer) {
+void local_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 #if 0
 	std::stringstream msg;
 	msg << "lce<" << this << ">::sq: ";
@@ -122,9 +122,9 @@ void local_client_endpoint_impl::send_tag_cbk(
 }
 
 void local_client_endpoint_impl::receive_cbk(
-		buffer_ptr_t _buffer,
+		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-	VSOMEIP_ERROR << "Local endpoints must not receive messages!";
+	VSOMEIP_ERROR << "Local client endpoints must not receive messages!";
 }
 
 } // namespace vsomeip
