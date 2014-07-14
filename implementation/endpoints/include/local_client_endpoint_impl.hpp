@@ -23,11 +23,12 @@ typedef client_endpoint_impl<
 class local_client_endpoint_impl
 	: public local_client_endpoint_base_impl {
 public:
-	local_client_endpoint_impl(std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io);
+	local_client_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			endpoint_type _local, boost::asio::io_service &_io);
 
 	void start();
 
-	void send_queued();
+	void send_queued(buffer_ptr_t _data);
 
 	void join(const std::string &);
 	void leave(const std::string &);
@@ -39,7 +40,8 @@ private:
 	void receive();
 
 	void send_tag_cbk(boost::system::error_code const &_error, std::size_t _bytes);
-	void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+	void receive_cbk(buffer_ptr_t _buffer,
+			boost::system::error_code const &_error, std::size_t _bytes);
 };
 
 } // namespace vsomeip

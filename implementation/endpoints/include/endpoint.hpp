@@ -20,7 +20,7 @@ public:
 	virtual void stop() = 0;
 
 	virtual bool send(const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
-	virtual bool flush() = 0;
+	virtual void receive() = 0;
 
 	virtual void open_filter(service_t _service_id) = 0;
 	virtual void close_filter(service_t _service_id) = 0;

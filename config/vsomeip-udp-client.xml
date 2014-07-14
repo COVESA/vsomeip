@@ -11,34 +11,15 @@
 		<dlt>false</dlt>
 	</logging>
 	<services>
-		<servicegroup> 
-			<name>default</name>
-			<delays>
-				<initial>
-					<min>10</min>
-					<max>100</max>
-				</initial>
-				<repetition-base>200</repetition-base>
-				<repetition-max>3</repetition-max>
-				<cyclic-offer>2000</cyclic-offer>
-				<cyclic-request>2001</cyclic-request>
-			</delays>
+		<servicegroup>
+			<name>remote</name>
+			<address>192.168.56.102</address>
 			<service>
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
 				<ports>
-					<reliable>30506</reliable>
-					<unreliable>31000</unreliable>
+					<unreliable>30507</unreliable>
 				</ports>
-				<multicast>225.225.225.1</multicast>
-			</service>
-			<service>
-				<service-id>0x0248</service-id>
-				<instance-id>0x5422</instance-id>
-				<ports>
-					<unreliable>31010</unreliable>
-				</ports>
-				<multicast>225.225.225.2</multicast>
 			</service>
 		</servicegroup>
 	</services>
@@ -46,7 +27,7 @@
 		<host>client-sample</host>
 	</routing>
 	<service-discovery>
-		<enabled>true</enabled>
+		<enabled>false</enabled>
 		<protocol>udp</protocol>
 		<address>224.244.224.245</address>
 		<port>30490</port>
@@ -57,12 +38,16 @@
 			<id>0x1343</id>
 		</application>
 		<application>
-			<name>other-client-sample</name>
+			<name>second-client-sample</name>
 			<id>0x1344</id>
 		</application>
 		<application>
-			<name>service-sample</name>
-			<id>0x1277</id>
+			<name>third-client-sample</name>
+			<id>0x1345</id>
+		</application>
+		<application>
+			<name>fourth-client-sample</name>
+			<id>0x1346</id>
 		</application>
 	</applications>
 </someip>

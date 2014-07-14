@@ -6,6 +6,7 @@
 
 #include <iomanip>
 #include <memory>
+#include <sstream>
 
 #include <vsomeip/configuration.hpp>
 #include <vsomeip/constants.hpp>
@@ -57,12 +58,6 @@ void routing_manager_impl::init() {
 		its_max_message_size = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
 
 	serializer_->create_data(its_max_message_size);
-	if (!configuration_->is_service_discovery_enabled()) {
-		for (auto s : configuration_->get_remote_services()) {
-			VSOMEIP_DEBUG << "Remote service loaded ["
-					<< std::hex << s.first << "." << s.second << "]";
-		}
-	}
 
 	// TODO: Only instantiate the stub if needed
 	stub_ = std::make_shared< routing_manager_stub >(this);
@@ -103,9 +98,9 @@ void routing_manager_impl::stop() {
 void routing_manager_impl::offer_service(client_t _client,
 		service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
-#if 1
-	std::cout << "RM: Client [ " << std::hex << _client << "] offers service ["
-			  << std::hex << _service << "." << _instance << "]" << std::endl;
+#if 0
+	VSOMEIP_DEBUG << "RM: Client [ " << std::hex << _client << "] offers service ["
+			<< std::hex << _service << "." << _instance << "]";
 #endif
 	// Local route
 	local_services_[_service][_instance] = _client;
@@ -116,7 +111,7 @@ void routing_manager_impl::offer_service(client_t _client,
 		if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
 			its_info->set_ttl(_ttl);
 		} else {
-			host_->on_error();
+			host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
 		}
 	} else {
 		create_service(_service, _instance, _major, _minor, _ttl);
@@ -186,7 +181,7 @@ void routing_manager_impl::request_service(client_t _client,
 		if ((_major > its_info->get_major()) ||
 			(_major == its_info->get_major() && _minor > its_info->get_minor()) ||
 			(_ttl > its_info->get_ttl())) {
-			host_->on_error(); // TODO: Service locally available, but not with the specified properties
+			host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
 		} else {
 			its_info->add_client(_client);
 		}
@@ -231,15 +226,7 @@ void routing_manager_impl::send(client_t _client,
 	client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
 	service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
 	bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-#if 1
-	std::cout << "Message ["
-			  << std::hex << its_service << "." << _instance
-			  << "] "
-			  << (is_request ? "from " : "to ")
-			  << "client ["
-			  << std::hex << its_client
-			  << "]" << std::endl;
-#endif
+
 	if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
 		if (is_request) {
 			its_target = find_local(its_service, _instance);
@@ -262,7 +249,7 @@ void routing_manager_impl::send(client_t _client,
 			// If not, check routes to external
 			if ((its_client == host_->get_client() && !is_request) ||
 				(find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
-				on_message(_data, _size, _instance);
+				deliver_message(_data, _size, _instance);
 			} else {
 				if (is_request) {
 					its_target = find_remote_client(its_service, _instance, _reliable);
@@ -272,7 +259,21 @@ void routing_manager_impl::send(client_t _client,
 						VSOMEIP_ERROR << "Routing error. Client from remote service could not be found!";
 					}
 				} else {
-					VSOMEIP_ERROR << "Routing error. Routing to remote clients not yet implemented!";
+					serviceinfo *its_info = find_service(its_service, _instance);
+					if (its_info) {
+						if (_reliable) {
+							its_target = its_info->get_reliable_endpoint();
+						} else {
+							its_target = its_info->get_unreliable_endpoint();
+						}
+						if (its_target) {
+							its_target->send(_data, _size, _flush);
+						} else {
+							VSOMEIP_ERROR << "Routing error. Service endpoint could not be found!";
+						}
+					} else {
+						VSOMEIP_ERROR << "Routing error. Service could not be found!";
+					}
 				}
 			}
 		}
@@ -285,11 +286,33 @@ void routing_manager_impl::set(client_t its_client,
 }
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size, endpoint *_receiver) {
+#if 0
+	std::stringstream msg;
+	msg << "rmi::on_message: ";
+	for (uint32_t i = 0; i < _size; ++i)
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
+#endif
 	if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
 		service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
 		instance_t its_instance = find_instance(its_service, _receiver);
 		if (its_instance != VSOMEIP_ANY_INSTANCE) {
-			on_message(_data, _size, its_instance);
+			client_t its_client(VSOMEIP_ROUTING_CLIENT);
+			if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+				its_client = find_local_client(its_service, its_instance);
+			} else {
+				its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
+			}
+
+			if (its_client == host_->get_client()) {
+				deliver_message(_data, _size, its_instance);
+			} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
+				send(its_client, _data, _size, its_instance, true, false);
+			} else {
+				VSOMEIP_ERROR << "Could not determine target application!";
+			}
+		} else {
+			VSOMEIP_ERROR << "Could not determine service instance!";
 		}
 	} else {
 		//send_error(); // TODO: send error "malformed message"
@@ -328,14 +351,7 @@ void routing_manager_impl::on_disconnect(std::shared_ptr< endpoint > _endpoint) 
 	}
 }
 
-void routing_manager_impl::on_message(const byte_t *_data, length_t _size, instance_t _instance) {
-#if 0
-	std::cout << "rmi::on_message: ";
-	for (int i = 0; i < _size; ++i)
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-	std::cout << std::endl;
-#endif
-
+void routing_manager_impl::deliver_message(const byte_t *_data, length_t _size, instance_t _instance) {
 	deserializer_->set_data(_data, _size);
 	std::shared_ptr< message > its_message(deserializer_->deserialize_message());
 	if (its_message) {
@@ -420,7 +436,6 @@ serviceinfo * routing_manager_impl::find_service(
 void routing_manager_impl::create_service(
 					service_t _service, instance_t _instance,
 					major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
-
 	if (configuration_) {
 		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(_major, _minor, _ttl));
 
@@ -453,10 +468,10 @@ void routing_manager_impl::create_service(
 			servicegroups_[its_servicegroup]->add_service(_service, _instance, its_info);
 			services_[_service][_instance] = its_info;
 		} else {
-			host_->on_error(); // TODO: Define configuration error "No valid port for service!"
+			host_->on_error(error_code_e::PORT_CONFIGURATION_MISSING);
 		}
 	} else {
-		host_->on_error(); // TODO: Define configuration error!
+		host_->on_error(error_code_e::CONFIGURATION_MISSING);
 	}
 }
 
@@ -484,7 +499,7 @@ std::shared_ptr< endpoint > routing_manager_impl::create_client_endpoint(
 		its_endpoint->start();
 	}
 	catch (std::exception &e) {
-		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
+		host_->on_error(error_code_e::CLIENT_ENDPOINT_CREATION_FAILED);
 	}
 
 	return its_endpoint;
@@ -538,7 +553,7 @@ std::shared_ptr< endpoint > routing_manager_impl::create_server_endpoint(uint16_
 		its_endpoint->start();
 	}
 	catch (std::exception &e) {
-		host_->on_error(); // Define error for "Server endpoint could not be created. Reason: ...
+		host_->on_error(error_code_e::SERVER_ENDPOINT_CREATION_FAILED);
 	}
 
 	return its_endpoint;
@@ -652,23 +667,34 @@ std::shared_ptr< endpoint > routing_manager_impl::find_remote_client(
 void routing_manager_impl::init_routing_info() {
 	VSOMEIP_INFO << "Service Discovery disabled. Using static routing information.";
 	for (auto i : configuration_->get_remote_services()) {
+		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(
+				VSOMEIP_DEFAULT_MAJOR, VSOMEIP_DEFAULT_MINOR, VSOMEIP_DEFAULT_TTL));
+
 		std::string its_address = configuration_->get_address(i.first, i.second);
 		uint16_t its_reliable_port = configuration_->get_reliable_port(i.first, i.second);
 		uint16_t its_unreliable_port = configuration_->get_unreliable_port(i.first, i.second);
 
 		if (VSOMEIP_INVALID_PORT != its_reliable_port) {
-			VSOMEIP_DEBUG << "Configuring [" << std::hex << i.first << "." << i.second
-					<< "] --> (TCP:" << its_address << ":" << std::dec << its_reliable_port << ")";
-			remote_services_[i.first][i.second][true] = create_client_endpoint(its_address, its_reliable_port, true);
+			VSOMEIP_DEBUG << "Routing info: [" << std::hex << i.first << "." << i.second
+					<< "] -> TCP:" << its_address << ":" << std::dec << its_reliable_port;
+			std::shared_ptr< endpoint > its_endpoint(create_client_endpoint(its_address, its_reliable_port, true));
+			remote_services_[i.first][i.second][true] = its_endpoint;
+			service_instances_[i.first][its_endpoint.get()] = i.second;
+			its_info->set_reliable_endpoint(its_endpoint);
  		}
 
 		if (VSOMEIP_INVALID_PORT != its_unreliable_port) {
-			VSOMEIP_DEBUG << "Configuring [" << std::hex << i.first << "." << i.second
-					<< "] --> (UDP:" << its_address << ":" << std::dec << its_unreliable_port << ")";
-			remote_services_[i.first][i.second][false] = create_client_endpoint(its_address, its_unreliable_port, false);
+			VSOMEIP_DEBUG << "Routing info: [" << std::hex << i.first << "." << i.second
+					<< "] --> UDP:" << its_address << ":" << std::dec << its_unreliable_port;
+			std::shared_ptr< endpoint > its_endpoint(create_client_endpoint(its_address, its_unreliable_port, false));
+			remote_services_[i.first][i.second][false] = its_endpoint;
+			service_instances_[i.first][its_endpoint.get()] = i.second;
+			its_info->set_reliable_endpoint(its_endpoint);
 		}
 
 		if (VSOMEIP_INVALID_PORT != its_reliable_port || VSOMEIP_INVALID_PORT != its_unreliable_port) {
+			services_[i.first][i.second] = its_info;
+			stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, i.first, i.second);
 			host_->on_availability(i.first, i.second, true);
 		}
 	}

@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <iomanip>
+#include <sstream>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -32,17 +33,13 @@ client_endpoint_impl< Protocol, MaxBufferSize >::client_endpoint_impl(
 	  connect_timer_(_io),
 	  flush_timer_(_io),
 	  remote_(_remote),
+	  packetizer_(std::make_shared< buffer_t >()),
 	  connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
 	  is_connected_(false) {
 }
 
 template < typename Protocol, int MaxBufferSize >
 client_endpoint_impl< Protocol, MaxBufferSize >::~client_endpoint_impl() {
-}
-
-template < typename Protocol, int MaxBufferSize >
-const uint8_t * client_endpoint_impl< Protocol, MaxBufferSize >::get_buffer() const {
-	return buffer_.data();
 }
 
 template < typename Protocol, int MaxBufferSize >
@@ -66,24 +63,24 @@ template < typename Protocol, int MaxBufferSize >
 bool client_endpoint_impl< Protocol, MaxBufferSize >::send(
 		const uint8_t *_data, uint32_t _size, bool _flush) {
 	std::unique_lock< std::mutex > its_lock(mutex_);
-
-	bool is_queue_empty(packet_queue_.empty());
-
-	if (packetizer_.size() + _size > MaxBufferSize) {
-		packet_queue_.push_back(packetizer_);
-		packetizer_.clear();
-		if (is_queue_empty && is_connected_)
-			send_queued();
+#if 0
+	std::stringstream msg;
+	msg << "cei<" << this << ">::send: ";
+	for (uint32_t i = 0; i < _size; i++)
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
+#endif
+	if (packetizer_->size() + _size > MaxBufferSize) {
+		send_queued(packetizer_);
+		packetizer_ = std::make_shared< buffer_t >();
 	}
 
-	packetizer_.insert(packetizer_.end(), _data, _data + _size);
+	packetizer_->insert(packetizer_->end(), _data, _data + _size);
 
 	if (_flush) {
 		flush_timer_.cancel();
-		packet_queue_.push_back(packetizer_);
-		packetizer_.clear();
-		if (is_queue_empty && is_connected_)
-			send_queued();
+		send_queued(packetizer_);
+		packetizer_ = std::make_shared< buffer_t >();
 	} else {
 		flush_timer_.expires_from_now(
 			std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
@@ -103,10 +100,9 @@ template < typename Protocol, int MaxBufferSize >
 bool client_endpoint_impl< Protocol, MaxBufferSize >::flush() {
 	bool is_successful(true);
 
-	if (!packetizer_.empty()) {
-		packet_queue_.push_back(packetizer_);
-		packetizer_.clear();
-		send_queued();
+	if (!packetizer_->empty()) {
+		send_queued(packetizer_);
+		packetizer_ = std::make_shared< buffer_t >();
 	} else {
 		is_successful = false;
 	}
@@ -117,7 +113,6 @@ bool client_endpoint_impl< Protocol, MaxBufferSize >::flush() {
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::connect_cbk(
 		boost::system::error_code const &_error) {
-
 	if (_error) {
 		socket_.close();
 
@@ -145,10 +140,8 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::connect_cbk(
 		if (!is_connected_) {
 			is_connected_ = true;
 			this->host_->on_connect(this->shared_from_this());
-			if (!packet_queue_.empty()) {
-				send_queued();
-			}
 		}
+
 		receive();
 	}
 }
@@ -156,7 +149,6 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::connect_cbk(
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::wait_connect_cbk(
 		boost::system::error_code const &_error) {
-
 	if (!_error) {
 		connect();
 	}
@@ -164,20 +156,19 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::wait_connect_cbk(
 
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::send_cbk(
+		buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-
-	if (!_error && _bytes > 0) {
-		packet_queue_.pop_front();
-
-		if (!packet_queue_.empty()) {
-			send_queued();
-		}
-	} else {
-		if (_error == boost::asio::error::broken_pipe) {
-			is_connected_ = false;
-			socket_.close();
-			connect();
-		}
+#if 0
+		std::stringstream msg;
+		msg << "cei<" << this << ">::scb (" << _error.message() << "): ";
+		for (std::size_t i = 0; i < _data->size(); ++i)
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
+#endif
+	if (_error == boost::asio::error::broken_pipe) {
+		is_connected_ = false;
+		socket_.close();
+		connect();
 	}
 }
 
@@ -191,17 +182,23 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::flush_cbk(
 
 template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::receive_cbk(
+		buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 
-	static uint32_t message_counter = 0;
-
 	if (!_error && 0 < _bytes) {
-		const uint8_t *buffer = get_buffer();
-		message_.insert(message_.end(), buffer, buffer + _bytes);
+#if 0
+		std::stringstream msg;
+		msg << "cei::rcb (" << _error.message() << "): ";
+		for (std::size_t i = 0; i < _bytes; ++i)
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
+#endif
+		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
 
 		bool has_full_message;
 		do {
 			uint32_t current_message_size = utility::get_message_size(message_);
+
 			has_full_message = (current_message_size > 0 && current_message_size <= message_.size());
 			if (has_full_message) {
 				this->host_->on_message(&message_[0], current_message_size, this);

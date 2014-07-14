@@ -124,7 +124,7 @@ public:
 			uint16_t _port, const std::string &_protocol);
 
 private:
-	void on_message(const byte_t *_data, length_t _length, instance_t _instance);
+	void deliver_message(const byte_t *_data, length_t _length, instance_t _instance);
 
 	client_t find_local_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);

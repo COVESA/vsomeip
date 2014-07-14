@@ -94,7 +94,7 @@ public:
 	void on_event(event_type_e _event);
 	void on_availability(service_t _service, instance_t _instance, bool _is_available) const;
 	void on_message(std::shared_ptr< message > _message);
-	void on_error();
+	void on_error(error_code_e _error);
 
 	// service_discovery_host
 	routing_manager * get_routing_manager() const;

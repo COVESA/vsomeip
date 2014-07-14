@@ -14,11 +14,14 @@
 
 class service_sample {
 public:
-	service_sample()
-		: app_(vsomeip::runtime::get()->create_application()), is_registered_(false) {
+	service_sample(bool _use_tcp)
+		: app_(vsomeip::runtime::get()->create_application()),
+		  is_registered_(false),
+		  use_tcp_(_use_tcp) {
 	}
 
 	void init() {
+		app_->init();
 		app_->register_message_handler(
 					SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
 					std::bind(&service_sample::on_message,
@@ -28,8 +31,6 @@ public:
 
 		app_->register_event_handler(
 				std::bind(&service_sample::on_event, this, std::placeholders::_1));
-
-		app_->init();
 	}
 
 	void start() {
@@ -71,17 +72,34 @@ public:
 		its_payload->set_data(its_payload_data);
 		its_response->set_payload(its_payload);
 
-		app_->send(its_response);
+		app_->send(its_response, true, use_tcp_);
 	}
 
 private:
 	std::shared_ptr< vsomeip::application > app_;
 	bool is_registered_;
+	bool use_tcp_;
 };
 
 
 int main(int argc, char **argv) {
-	service_sample its_sample;
+	bool use_tcp = false;
+
+	std::string tcp_enable("--tcp");
+	std::string udp_enable("--udp");
+
+	for (int i = 1; i < argc; i++) {
+		if (tcp_enable == argv[i]) {
+			use_tcp = true;
+			break;
+		}
+		if (udp_enable == argv[i]) {
+			use_tcp = false;
+			break;
+		}
+	}
+
+	service_sample its_sample(use_tcp);
 	its_sample.init();
 	its_sample.start();
 

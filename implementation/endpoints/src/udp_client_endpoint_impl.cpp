@@ -4,6 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+#include <sstream>
+
 #include <boost/asio/ip/multicast.hpp>
 
 #include <vsomeip/logger.hpp>
@@ -20,14 +23,6 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
 }
 
-//const endpoint * udp_client_endpoint_impl::get_local_endpoint() const {
-//	return vsomeip::factory::get_instance()->get_endpoint(
-//				socket_.local_endpoint().address().to_string(),
-//				socket_.local_endpoint().port(),
-//				ip_protocol::UDP
-//		   );
-//}
-
 void udp_client_endpoint_impl::connect() {
 	socket_.async_connect(
 		remote_,
@@ -40,34 +35,41 @@ void udp_client_endpoint_impl::connect() {
 }
 
 void udp_client_endpoint_impl::start() {
-	socket_.open(remote_.protocol());
+	socket_.open(boost::asio::ip::udp::v4());
 	connect();
 	receive();
 }
 
-void udp_client_endpoint_impl::send_queued() {
-	VSOMEIP_DEBUG << "UDP CLIENT SENDING";
+void udp_client_endpoint_impl::send_queued(buffer_ptr_t _buffer) {
+#if 0
+	std::stringstream msg;
+	msg << "ucei<" << this << ">::sq: ";
+	for (std::size_t i = 0; i < _buffer->size(); i++)
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
+#endif
 	socket_.async_send(
-		boost::asio::buffer(
-			&packet_queue_.front()[0],
-			packet_queue_.front().size()
-		),
+		boost::asio::buffer(*_buffer),
 		std::bind(
 			&udp_client_endpoint_base_impl::send_cbk,
 			shared_from_this(),
+			_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
 	);
+	receive();
 }
 
 void udp_client_endpoint_impl::receive() {
+	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
 	socket_.async_receive_from(
-		boost::asio::buffer(buffer_),
+		boost::asio::buffer(*its_buffer),
 		remote_,
 		std::bind(
 			&udp_client_endpoint_base_impl::receive_cbk,
 			shared_from_this(),
+			its_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)

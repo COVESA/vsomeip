@@ -5,9 +5,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <sstream>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/multicast.hpp>
+
+#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
@@ -22,7 +25,6 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
 		std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io)
 	: server_endpoint_impl< ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >(_host, _local, _io),
 	  socket_(_io, _local) {
-
 	boost::asio::socket_base::broadcast option(true);
 	socket_.set_option(option);
 }
@@ -38,12 +40,14 @@ void udp_server_endpoint_impl::stop() {
 }
 
 void udp_server_endpoint_impl::receive() {
+	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
 	socket_.async_receive_from(
-		boost::asio::buffer(buffer_),
+		boost::asio::buffer(*its_buffer),
 		remote_,
 		std::bind(
 			&udp_server_endpoint_impl::receive_cbk,
 			std::dynamic_pointer_cast< udp_server_endpoint_impl >(shared_from_this()),
+			its_buffer,
 	        std::placeholders::_1,
 	        std::placeholders::_2
 		)
@@ -54,20 +58,21 @@ void udp_server_endpoint_impl::restart() {
 	receive();
 }
 
-const uint8_t * udp_server_endpoint_impl::get_buffer() const {
-	return buffer_.data();
-}
-
-void udp_server_endpoint_impl::send_queued() {
+void udp_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data) {
+#if 0
+		std::stringstream msg;
+		msg << "usei::sq: ";
+		for (std::size_t i = 0; i < _data->size(); ++i)
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_data)[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
+#endif
  	socket_.async_send_to(
-		boost::asio::buffer(
-			&current_queue_->second.front()[0],
-			current_queue_->second.front().size()
-		),
-		current_queue_->first,
+		boost::asio::buffer(*_data),
+		_target,
 		std::bind(
 			&udp_server_endpoint_base_impl::send_cbk,
 			shared_from_this(),
+			_data,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -135,15 +140,18 @@ bool udp_server_endpoint_impl::is_udp() const {
 }
 
 // TODO: find a better way to structure the receive functions
-void udp_server_endpoint_impl::receive_cbk(boost::system::error_code const &_error, std::size_t _bytes) {
-	if (!_error && 0 < _bytes) {
-#if 1
-		for (std::size_t i = 0; i < _bytes; ++i)
-			std::cout << std::setw(2) << std::setfill('0') << (int)get_buffer()[i] << " ";
-		std::cout << std::endl;
+void udp_server_endpoint_impl::receive_cbk(
+		buffer_ptr_t _buffer,
+		boost::system::error_code const &_error, std::size_t _bytes) {
+#if 0
+	std::stringstream msg;
+	msg << "usei::rcb(" << _error.message() << "): ";
+	for (std::size_t i = 0; i < _bytes; ++i)
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
 #endif
-		const uint8_t *buffer = get_buffer();
-		message_.insert(message_.end(), buffer, buffer + _bytes);
+	if (!_error && 0 < _bytes) {
+		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
 
 		bool has_full_message;
 		do {
@@ -153,7 +161,9 @@ void udp_server_endpoint_impl::receive_cbk(boost::system::error_code const &_err
 				if (utility::is_request(message_[VSOMEIP_MESSAGE_TYPE_POS])) {
 					client_t its_client;
 					std::memcpy(&its_client, &message_[VSOMEIP_CLIENT_POS_MIN], sizeof(client_t));
-					clients_[its_client] = remote_;
+					session_t its_session;
+					std::memcpy(&its_session, &message_[VSOMEIP_SESSION_POS_MIN], sizeof(session_t));
+					clients_[its_client][its_session] = remote_;
 				}
 
 				this->host_->on_message(&message_[0], current_message_size, this);

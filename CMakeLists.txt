@@ -79,13 +79,13 @@ add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} rt ${DL_LIBRARY})
 
 # Executables
-add_executable(configuration-test implementation/test/configuration-test.cpp)
+add_executable(configuration-test test/configuration-test.cpp)
 target_link_libraries(configuration-test vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(client-sample implementation/examples/client-sample.cpp)
+add_executable(client-sample examples/client-sample.cpp)
 target_link_libraries(client-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(service-sample implementation/examples/service-sample.cpp)
+add_executable(service-sample examples/service-sample.cpp)
 target_link_libraries(service-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 ###################################################################################################

@@ -5,10 +5,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <sstream>
 
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/local_client_endpoint_impl.hpp"
@@ -39,18 +41,29 @@ void local_client_endpoint_impl::connect() {
 }
 
 void local_client_endpoint_impl::receive() {
+	std::shared_ptr< buffer_t > its_data
+		= std::make_shared< buffer_t >(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE);
 	socket_.async_receive(
-		boost::asio::buffer(buffer_),
+		boost::asio::buffer(*its_data),
 		std::bind(
 			&local_client_endpoint_impl::receive_cbk,
 			std::dynamic_pointer_cast< local_client_endpoint_impl >(shared_from_this()),
+			its_data,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
 	);
 }
 
-void local_client_endpoint_impl::send_queued() {
+void local_client_endpoint_impl::send_queued(buffer_ptr_t _buffer) {
+#if 0
+	std::stringstream msg;
+	msg << "lce<" << this << ">::sq: ";
+	for (std::size_t i = 0; i < _data->size(); i++)
+		msg << std::setw(2) << std::setfill('0') << std::hex << (int)(*_buffer)[i] << " ";
+	msg << std::endl;
+#endif
+
 	static byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
 	static byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
 
@@ -68,22 +81,13 @@ void local_client_endpoint_impl::send_queued() {
 		)
 	);
 
-#if 0
-	std::cout << "lce(s): ";
-	for (std::size_t i = 0; i < packet_queue_.front().size(); i++)
-		std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)packet_queue_.front()[i] << " ";
-	std::cout << std::endl;
-#endif
-
 	boost::asio::async_write(
 		socket_,
-		boost::asio::buffer(
-			&packet_queue_.front()[0],
-			packet_queue_.front().size()
-		),
+		boost::asio::buffer(*_buffer),
 		std::bind(
 			&client_endpoint_impl::send_cbk,
 			this->shared_from_this(),
+			_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -118,7 +122,9 @@ void local_client_endpoint_impl::send_tag_cbk(
 }
 
 void local_client_endpoint_impl::receive_cbk(
+		buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
+	VSOMEIP_ERROR << "Local endpoints must not receive messages!";
 }
 
 } // namespace vsomeip

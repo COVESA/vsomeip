@@ -29,12 +29,14 @@ routing_manager_stub::~routing_manager_stub() {
 }
 
 void routing_manager_stub::init() {
-	std::string its_endpoint_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
-	::unlink(its_endpoint_path.c_str());
-	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path;
+	std::stringstream its_endpoint_path;
+	its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	::unlink(its_endpoint_path.str().c_str());
+
+	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path.str();
 	endpoint_ = std::make_shared< local_server_endpoint_impl >(
 			    	shared_from_this(),
-			    	boost::asio::local::stream_protocol::endpoint(its_endpoint_path),
+			    	boost::asio::local::stream_protocol::endpoint(its_endpoint_path.str()),
 			    	io_
 			    );
 }
@@ -50,8 +52,9 @@ void routing_manager_stub::stop() {
 	watchdog_timer_.cancel();
 	endpoint_->stop();
 
-	std::string its_endpoint_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
-	::unlink(its_endpoint_path.c_str());
+	std::stringstream its_endpoint_path;
+	its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	::unlink(its_endpoint_path.str().c_str());
 }
 
 routing_manager * routing_manager_stub::get_manager() {
@@ -187,7 +190,6 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 
 void routing_manager_stub::on_offer_service(
 		client_t _client, service_t _service, instance_t _instance) {
-
 	routing_info_[_client].second[_service].insert(_instance);
 	broadcast_routing_info();
 }
@@ -243,6 +245,9 @@ void routing_manager_stub::send_routing_info(client_t _client) {
 			std::memcpy(&its_command[its_size_pos], &its_entry_size, sizeof(uint32_t));
 		}
 
+
+
+
 		its_size -= VSOMEIP_COMMAND_PAYLOAD_POS;
 		std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size, sizeof(its_size));
 		its_size += VSOMEIP_COMMAND_PAYLOAD_POS;
@@ -264,9 +269,11 @@ void routing_manager_stub::broadcast_routing_info() {
 
 void routing_manager_stub::broadcast(std::vector< byte_t > &_command) const {
 	for (auto a : routing_info_) {
-		std::shared_ptr< endpoint > its_endpoint = routing_->find_local(a.first);
-		if (its_endpoint) {
-			its_endpoint->send(&_command[0], _command.size(), true);
+		if (a.first > 0) {
+			std::shared_ptr< endpoint > its_endpoint = routing_->find_local(a.first);
+			if (its_endpoint) {
+				its_endpoint->send(&_command[0], _command.size(), true);
+			}
 		}
 	}
 }
@@ -320,10 +327,11 @@ void routing_manager_stub::check_watchdog() {
 			std::list< client_t > lost;
 
 			for (auto i : routing_info_) {
-				if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
-					VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
-					lost.push_back(i.first);
-
+				if (i.first > 0) {
+					if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
+						VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
+						lost.push_back(i.first);
+					}
 				}
 			}
 
@@ -355,6 +363,5 @@ void routing_manager_stub::send_application_lost(std::list< client_t > &_lost) {
 
 	broadcast(its_command);
 }
-
 
 } // namespace vsomeip

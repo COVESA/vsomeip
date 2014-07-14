@@ -28,7 +28,8 @@ class udp_server_endpoint_impl
 	: public udp_server_endpoint_base_impl {
 
 public:
-	udp_server_endpoint_impl(std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io);
+	udp_server_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			endpoint_type _local, boost::asio::io_service &_io);
 	virtual ~udp_server_endpoint_impl();
 
 	void start();
@@ -39,7 +40,7 @@ public:
 
 	const uint8_t * get_buffer() const;
 
-	void send_queued();
+	void send_queued(endpoint_type _target, buffer_ptr_t _buffer);
 	endpoint_type get_remote() const;
 
 	void join(const std::string &_multicast_address);
@@ -51,10 +52,10 @@ public:
 	bool is_udp() const;
 
 public:
-	void receive_cbk(boost::system::error_code const &_error, std::size_t _size);
+	void receive_cbk(buffer_ptr_t _buffer,
+			boost::system::error_code const &_error, std::size_t _size);
 
 private:
-	buffer_type buffer_;
 	socket_type socket_;
 
 	endpoint_type remote_;

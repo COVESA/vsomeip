@@ -183,7 +183,7 @@ void deserializer::reset() {
 	remaining_ = data_.size();
 }
 
-#ifdef VSOMEIP_DEBUG
+#ifdef VSOMEIP_DEBUG_
 void deserializer::show_data() const {
 	std::cout << "("
 			  << std::hex << std::setw(2) << std::setfill('0') << (int)*position_ << ", "

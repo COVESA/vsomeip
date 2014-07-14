@@ -16,6 +16,7 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/utility.hpp>
 
+#include "buffer.hpp"
 #include "endpoint_impl.hpp"
 
 namespace vsomeip {
@@ -43,14 +44,13 @@ public:
 	void restart();
 
 	bool is_client() const;
-	const uint8_t * get_buffer() const;
 
 public:
 	void connect_cbk(boost::system::error_code const &_error);
 	void wait_connect_cbk(boost::system::error_code const &_error);
-	void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+	void send_cbk(std::shared_ptr< buffer_t >, boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(boost::system::error_code const &_error);
-	void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+	void receive_cbk(buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 
 public:
 	virtual void connect() = 0;
@@ -59,7 +59,6 @@ public:
 protected:
 	socket_type socket_;
 	endpoint_type remote_;
-	boost::array< byte_t, MaxBufferSize > buffer_;
 
 	boost::asio::system_timer flush_timer_;
 	boost::asio::system_timer connect_timer_;
@@ -67,15 +66,16 @@ protected:
 	bool is_connected_;
 
 	// send data
-	std::deque< std::vector< byte_t > > packet_queue_;
-	std::vector< byte_t > packetizer_;
+	//std::deque< std::vector< byte_t > > packet_queue_;
+	std::shared_ptr< std::vector< byte_t  > > packetizer_;
 
 	// receive data
 	std::vector< byte_t > message_;
 
 	std::mutex mutex_;
 
-	virtual void send_queued() = 0;
+	uint32_t queued_;
+	virtual void send_queued(std::shared_ptr< std::vector< byte_t > >) = 0;
 };
 
 } // namespace vsomeip

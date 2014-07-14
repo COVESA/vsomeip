@@ -1,6 +1,6 @@
 <!-- vsomeip test configuration file -->
 <someip>
-	<address>192.168.56.101</address>
+	<address>192.168.56.102</address>
 	<logging> 
 		<level>trace</level>
 		<console>true</console>
@@ -27,39 +27,22 @@
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
 				<ports>
-					<reliable>30506</reliable>
-					<unreliable>31000</unreliable>
+					<unreliable>30507</unreliable>
 				</ports>
-				<multicast>225.225.225.1</multicast>
-			</service>
-			<service>
-				<service-id>0x0248</service-id>
-				<instance-id>0x5422</instance-id>
-				<ports>
-					<unreliable>31010</unreliable>
-				</ports>
-				<multicast>225.225.225.2</multicast>
 			</service>
 		</servicegroup>
 	</services>
 	<routing>
-		<host>client-sample</host>
+		<host>service-sample</host>
 	</routing>
 	<service-discovery>
-		<enabled>true</enabled>
+		<enabled>false</enabled>
+		<host>client-sample</host>
 		<protocol>udp</protocol>
 		<address>224.244.224.245</address>
 		<port>30490</port>
 	</service-discovery>
 	<applications>
-		<application>
-			<name>client-sample</name>
-			<id>0x1343</id>
-		</application>
-		<application>
-			<name>other-client-sample</name>
-			<id>0x1344</id>
-		</application>
 		<application>
 			<name>service-sample</name>
 			<id>0x1277</id>

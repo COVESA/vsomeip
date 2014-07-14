@@ -41,8 +41,6 @@ public:
 	bool is_udp() const;
 
 public: // required
-	virtual const uint8_t * get_buffer() const = 0;
-
 	virtual void receive() = 0;
 	virtual void restart() = 0;
 

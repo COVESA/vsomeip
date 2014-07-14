@@ -21,11 +21,12 @@ typedef client_endpoint_impl<
 class tcp_client_endpoint_impl
 	: public tcp_client_endpoint_base_impl {
 public:
-	tcp_client_endpoint_impl(std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io);
+	tcp_client_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			endpoint_type _local, boost::asio::io_service &_io);
 	virtual ~tcp_client_endpoint_impl();
 
 	void start();
-	void send_queued();
+	void send_queued(buffer_ptr_t _buffer);
 
 	void join(const std::string &);
 	void leave(const std::string &);

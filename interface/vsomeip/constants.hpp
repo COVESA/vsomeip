@@ -18,7 +18,7 @@ const std::string VSOMEIP_BASE_PATH = "/tmp/vsomeip-";
 
 const major_version_t VSOMEIP_DEFAULT_MAJOR = 0x01;
 const minor_version_t VSOMEIP_DEFAULT_MINOR = 0x000000;
-const ttl_t VSOMEIP_DEFAULT_TTL = 3600;
+const ttl_t VSOMEIP_DEFAULT_TTL = 0xFFFFFF; // basically means "forever"
 
 const std::string VSOMEIP_DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t VSOMEIP_DEFAULT_PORT = 30500;

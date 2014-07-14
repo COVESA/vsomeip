@@ -36,13 +36,14 @@ public:
 	void on_disconnect(std::shared_ptr< endpoint > _endpoint);
 	void on_message(const byte_t *_data, const length_t _length, endpoint *_receiver);
 
+	void on_offer_service(client_t _client, service_t _service, instance_t _instance);
+
 private:
 	void broadcast(std::vector< byte_t > &_command) const;
 
 	void on_register_application(client_t _client);
 	void on_deregister_application(client_t _client);
 
-	void on_offer_service(client_t _client, service_t _service, instance_t _instance);
 	void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance);
 
 	void broadcast_routing_info();

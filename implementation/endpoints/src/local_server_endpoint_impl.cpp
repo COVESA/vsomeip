@@ -7,8 +7,11 @@
 #include <deque>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #include <boost/asio/write.hpp>
+
+#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/local_server_endpoint_impl.hpp"
@@ -43,10 +46,10 @@ void local_server_endpoint_impl::stop() {
 
 }
 
-void local_server_endpoint_impl::send_queued() {
-	auto connection_iterator = connections_.find(current_queue_->first);
+void local_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data) {
+	auto connection_iterator = connections_.find(_target);
 	if (connection_iterator != connections_.end())
-		connection_iterator->second->send_queued();
+		connection_iterator->second->send_queued(_data);
 }
 
 void local_server_endpoint_impl::receive() {
@@ -55,10 +58,6 @@ void local_server_endpoint_impl::receive() {
 
 void local_server_endpoint_impl::restart() {
 	current_->start();
-}
-
-const uint8_t * local_server_endpoint_impl::get_buffer() const {
-	return current_->get_buffer();
 }
 
 local_server_endpoint_impl::endpoint_type local_server_endpoint_impl::get_remote() const {
@@ -87,14 +86,14 @@ void local_server_endpoint_impl::accept_cbk(
 		connection::ptr _connection, boost::system::error_code const &_error) {
 
 	if (!_error) {
-			socket_type &new_connection_socket = _connection->get_socket();
-			endpoint_type remote = new_connection_socket.remote_endpoint();
+		socket_type &new_connection_socket = _connection->get_socket();
+		endpoint_type remote = new_connection_socket.remote_endpoint();
 
-			connections_[remote] = _connection;
-			_connection->start();
-		}
+		connections_[remote] = _connection;
+		_connection->start();
+	}
 
-		start();
+	start();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -113,35 +112,35 @@ local_server_endpoint_impl::socket_type & local_server_endpoint_impl::connection
 	return socket_;
 }
 
-const uint8_t * local_server_endpoint_impl::connection::get_buffer() const {
-	return buffer_.data();
-}
-
 void local_server_endpoint_impl::connection::start() {
+	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE);
 	socket_.async_receive(
-		boost::asio::buffer(buffer_),
+		boost::asio::buffer(*its_buffer),
 		std::bind(
 			&local_server_endpoint_impl::connection::receive_cbk,
 			shared_from_this(),
+			its_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
 	);
 }
 
-void local_server_endpoint_impl::connection::send_queued() {
-	std::deque<std::vector<uint8_t>> &current_queue
-		= server_->current_queue_->second;
-
+void local_server_endpoint_impl::connection::send_queued(buffer_ptr_t _buffer) {
+#if 0
+		std::stringstream msg;
+		msg << "lse::sq: ";
+		for (std::size_t i = 0; i < _buffer->size(); i++)
+			msg << std::setw(2) << std::setfill('0') << std::hex << (int)(*_buffer)[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
+#endif
 	boost::asio::async_write(
 		socket_,
-		boost::asio::buffer(
-			&current_queue.front()[0],
-			current_queue.front().size()
-		),
+		boost::asio::buffer(*_buffer),
 		std::bind(
 			&local_server_endpoint_base_impl::send_cbk,
 			server_->shared_from_this(),
+			_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -152,21 +151,22 @@ void local_server_endpoint_impl::connection::send_magic_cookie() {
 }
 
 void local_server_endpoint_impl::connection::receive_cbk(
+		buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 
 	static std::size_t its_start = -1;
 	std::size_t its_end;
 
 	if (!_error && 0 < _bytes) {
-		const uint8_t *buffer = get_buffer();
-		message_.insert(message_.end(), buffer, buffer + _bytes);
-
 #if 0
-		std::cout << "lse(r): ";
+		std::stringstream msg;
+		msg << "lse::c<" << this << ">rcb: ";
 		for (std::size_t i = 0; i < _bytes; i++)
-			std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)get_buffer()[i] << " ";
-		std::cout << std::endl;
+			msg << std::setw(2) << std::setfill('0') << std::hex << (int)(*_buffer)[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
 #endif
+
+		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
 
 		do {
 			if (its_start == -1) {

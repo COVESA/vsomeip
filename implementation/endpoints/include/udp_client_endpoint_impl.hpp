@@ -33,12 +33,12 @@ class udp_client_endpoint_impl
 	: virtual public udp_client_endpoint_base_impl {
 
 public:
-	udp_client_endpoint_impl(
-			std::shared_ptr< endpoint_host > _host, endpoint_type _remote, boost::asio::io_service &_io);
+	udp_client_endpoint_impl(std::shared_ptr< endpoint_host > _host,
+			endpoint_type _remote, boost::asio::io_service &_io);
 	virtual ~udp_client_endpoint_impl();
 
 	void start();
-	void send_queued();
+	void send_queued(buffer_ptr_t _buffer);
 
 	void join(const std::string &_multicast_address);
 	void leave(const std::string &_multicast_address);
@@ -46,9 +46,6 @@ public:
 private:
 	void connect();
 	void receive();
-
-private:
-	endpoint_type remote_;
 };
 
 } // namespace vsomeip

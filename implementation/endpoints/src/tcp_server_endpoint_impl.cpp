@@ -5,8 +5,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <deque>
+#include <iomanip>
 
 #include <boost/asio/write.hpp>
+
+#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
@@ -19,7 +22,7 @@ namespace vsomeip {
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(
 		std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io)
 	: tcp_server_endpoint_base_impl(_host, _local, _io),
-	  acceptor_(_io, _local) {
+	  acceptor_(_io, _local), current_(0) {
 	is_supporting_magic_cookies_ = true;
 }
 
@@ -46,22 +49,10 @@ void tcp_server_endpoint_impl::stop() {
 	acceptor_.close();
 }
 
-void tcp_server_endpoint_impl::receive() {
-	// intentionally left empty
-}
-
-void tcp_server_endpoint_impl::restart() {
-	current_->start();
-}
-
-const uint8_t * tcp_server_endpoint_impl::get_buffer() const {
-	return current_->get_buffer();
-}
-
-void tcp_server_endpoint_impl::send_queued() {
-	auto connection_iterator = connections_.find(current_queue_->first);
+void tcp_server_endpoint_impl::send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data) {
+	auto connection_iterator = connections_.find(_target);
 	if (connection_iterator != connections_.end())
-		connection_iterator->second->send_queued();
+		connection_iterator->second->send_queued(_data);
 }
 
 tcp_server_endpoint_impl::endpoint_type tcp_server_endpoint_impl::get_remote() const {
@@ -130,16 +121,14 @@ tcp_server_endpoint_impl::socket_type & tcp_server_endpoint_impl::connection::ge
 	return socket_;
 }
 
-const uint8_t * tcp_server_endpoint_impl::connection::get_buffer() const {
-	return buffer_.data();
-}
-
 void tcp_server_endpoint_impl::connection::start() {
+	buffer_ptr_t its_buffer = std::make_shared< buffer_t >(VSOMEIP_MAX_TCP_MESSAGE_SIZE);
 	socket_.async_receive(
-		boost::asio::buffer(buffer_),
+		boost::asio::buffer(*its_buffer),
 		std::bind(
 			&tcp_server_endpoint_impl::connection::receive_cbk,
 			shared_from_this(),
+			its_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -150,22 +139,17 @@ void tcp_server_endpoint_impl::connection::stop() {
 	socket_.close();
 }
 
-void tcp_server_endpoint_impl::connection::send_queued() {
+void tcp_server_endpoint_impl::connection::send_queued(buffer_ptr_t _buffer) {
 	if (server_->has_enabled_magic_cookies_)
 		send_magic_cookie();
 
-	std::deque<std::vector<uint8_t>> &current_queue
-		= server_->current_queue_->second;
-
 	boost::asio::async_write(
 		socket_,
-		boost::asio::buffer(
-			&current_queue.front()[0],
-			current_queue.front().size()
-		),
+		boost::asio::buffer(*_buffer),
 		std::bind(
 			&tcp_server_endpoint_base_impl::send_cbk,
 			server_->shared_from_this(),
+			_buffer,
 			std::placeholders::_1,
 			std::placeholders::_2
 		)
@@ -177,7 +161,7 @@ void tcp_server_endpoint_impl::connection::send_magic_cookie() {
 							   0x00, 0x00, 0x00, 0x08,
 							   0xDE, 0xAD, 0xBE, 0xEF,
 							   0x01, 0x01, 0x02, 0x00 };
-
+/*
 	std::vector<uint8_t>& current_packet
 		= server_->current_queue_->second.front();
 
@@ -188,14 +172,19 @@ void tcp_server_endpoint_impl::connection::send_magic_cookie() {
 			data,
 			data + sizeof(data)
 		);
-	}
+	} */
 }
 
 void tcp_server_endpoint_impl::connection::receive_cbk(
+		buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
 	if (!_error && 0 < _bytes) {
-		const uint8_t *buffer = get_buffer();
-		message_.insert(message_.end(), buffer, buffer + _bytes);
+#if 0
+		for (std::size_t i = 0; i < _bytes; ++i)
+			std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_buffer[i] << " ";
+		std::cout << std::endl;
+#endif
+		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
 
 		bool has_full_message;
 		do {
@@ -205,7 +194,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
 				if (utility::is_request(message_[VSOMEIP_MESSAGE_TYPE_POS])) {
 					client_t its_client;
 					std::memcpy(&its_client, &message_[VSOMEIP_CLIENT_POS_MIN], sizeof(client_t));
-					server_->clients_[its_client] = socket_.remote_endpoint();
+					session_t its_session;
+					std::memcpy(&its_session, &message_[VSOMEIP_SESSION_POS_MIN], sizeof(session_t));
+					server_->clients_[its_client][its_session] = socket_.remote_endpoint();
 				}
 
 				server_->host_->on_message(&message_[0], current_message_size, server_);
@@ -213,10 +204,17 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
 			}
 		} while (has_full_message);
 
-		server_->restart();
-	} else {
-		server_->receive();
+		start();
 	}
+}
+
+// Dummies
+void tcp_server_endpoint_impl::receive() {
+	// intentionally left empty
+}
+
+void tcp_server_endpoint_impl::restart() {
+	// intentionally left empty
 }
 
 } // namespace vsomeip

@@ -51,11 +51,8 @@ void routing_manager_proxy::init() {
 
 	serializer_->create_data(its_max_message_size);
 
-	std::string its_sender_path(VSOMEIP_BASE_PATH + VSOMEIP_ROUTING_ENDPOINT);
-	sender_ = std::make_shared< local_client_endpoint_impl >(
-				    shared_from_this(),
-				    boost::asio::local::stream_protocol::endpoint(its_sender_path),
-				    io_);
+	std::stringstream its_sender_path;
+	sender_ = create_local(VSOMEIP_ROUTING_CLIENT);
 
 	std::stringstream its_client;
 	its_client << VSOMEIP_BASE_PATH << std::hex << client_;
@@ -66,7 +63,6 @@ void routing_manager_proxy::init() {
 					    boost::asio::local::stream_protocol::endpoint(its_client.str()),
 					    io_);
 
-	VSOMEIP_DEBUG << "Routing to " << its_sender_path;
 	VSOMEIP_DEBUG << "Listening at " << its_client.str();
 }
 
@@ -274,7 +270,6 @@ void routing_manager_proxy::on_message(
 		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
 	std::cout << std::endl;
 #endif
-
 	byte_t its_command;
 	client_t its_client;
 	length_t its_length;
@@ -364,8 +359,6 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data, uint32_t _size)
 
 					if (its_client != client_)
 						local_services_[its_service][its_instance] = its_client;
-
-					host_->on_availability(its_service, its_instance, true);
 				}
 
 				i += its_services_size;
@@ -473,7 +466,6 @@ std::shared_ptr< endpoint > routing_manager_proxy::create_local(client_t _client
 				io_);
 
 	local_endpoints_[_client] = its_endpoint;
-	its_endpoint->start();
 
 	return its_endpoint;
 }
@@ -482,6 +474,7 @@ std::shared_ptr< endpoint > routing_manager_proxy::find_or_create_local(client_t
 	std::shared_ptr< endpoint > its_endpoint(find_local(_client));
 	if (0 == its_endpoint) {
 		its_endpoint = create_local(_client);
+		its_endpoint->start();
 	}
 	return its_endpoint;
 }

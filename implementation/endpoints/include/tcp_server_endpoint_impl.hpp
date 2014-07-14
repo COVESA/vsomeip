@@ -31,12 +31,7 @@ public:
 	void start();
 	void stop();
 
-	void restart();
-	void receive();
-
-	const uint8_t * get_buffer() const;
-
-	void send_queued();
+	void send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data);
 	endpoint_type get_remote() const;
 
 	void join(const std::string &);
@@ -46,6 +41,12 @@ public:
 	bool get_address(std::vector< byte_t > &_address) const;
 	unsigned short get_port() const;
 	bool is_udp() const;
+
+	// dummies to implement endpoint_impl interface
+	// TODO: think about a better design!
+	void receive();
+	void restart();
+	const uint8_t * get_buffer() const;
 
 private:
 	class connection
@@ -60,21 +61,20 @@ private:
 		void start();
 		void stop();
 
-		void send_queued();
-		const uint8_t * get_buffer() const;
+		void send_queued(buffer_ptr_t _buffer);
 
 	private:
 		connection(tcp_server_endpoint_impl *_owner);
 		void send_magic_cookie();
 
 		tcp_server_endpoint_impl::socket_type socket_;
-		buffer_type buffer_;
 		tcp_server_endpoint_impl *server_;
 
 		std::vector< byte_t > message_;
 
 	private:
-		void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+		void receive_cbk(buffer_ptr_t _buffer,
+				boost::system::error_code const &_error, std::size_t _bytes);
 	};
 
 	boost::asio::ip::tcp::acceptor acceptor_;

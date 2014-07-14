@@ -11,6 +11,8 @@
 
 #include <boost/asio/io_service.hpp>
 
+#include <vsomeip/error.hpp>
+
 namespace vsomeip {
 
 class configuration;
@@ -28,7 +30,7 @@ public:
 	virtual void on_availability(service_t _service, instance_t _instance, bool _is_available) const = 0;
 	virtual void on_event(event_type_e _event) = 0;
 	virtual void on_message(std::shared_ptr< message > _message) = 0;
-	virtual void on_error() = 0;
+	virtual void on_error(error_code_e _error) = 0;
 };
 
 } // namespace vsomeip

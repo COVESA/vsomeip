@@ -14,6 +14,8 @@
 #include <boost/enable_shared_from_this.hpp>
 
 #include <vsomeip/defines.hpp>
+
+#include "buffer.hpp"
 #include "server_endpoint_impl.hpp"
 
 namespace vsomeip {
@@ -37,7 +39,7 @@ public:
 
 	const uint8_t * get_buffer() const;
 
-	void send_queued();
+	void send_queued(endpoint_type _target, std::shared_ptr< buffer_t > _data);
 	endpoint_type get_remote() const;
 
 	void join(const std::string &);
@@ -55,8 +57,7 @@ private:
 
 		void start();
 
-		void send_queued();
-		const uint8_t * get_buffer() const;
+		void send_queued(buffer_ptr_t _data);
 
 	private:
 		connection(local_server_endpoint_impl *_owner);
@@ -64,14 +65,14 @@ private:
 		void send_magic_cookie();
 
 		local_server_endpoint_impl::socket_type socket_;
-		buffer_type buffer_;
 		local_server_endpoint_impl *server_;
 
 		// the current message
 		std::vector< byte_t > message_;
 
 	private:
-		void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+		void receive_cbk(buffer_ptr_t _buffer,
+				boost::system::error_code const &_error, std::size_t _bytes);
 	};
 
 	boost::asio::local::stream_protocol::acceptor acceptor_;
