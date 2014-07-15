@@ -27,10 +27,12 @@
 			<service>
 				<service-id>0x1234</service-id>
 				<instance-id>0x0022</instance-id>
-				<ports>
-					<reliable>30506</reliable>
-					<unreliable>31000</unreliable>
-				</ports>
+				<reliable>
+					<port>30506</port>
+				</reliable>
+				<unreliable>
+					<port>31000</port>
+				</unreliable>
 				<multicast>225.225.225.1</multicast>
 			</service>
 			<service>

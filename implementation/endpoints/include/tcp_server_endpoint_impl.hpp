@@ -73,6 +73,7 @@ private:
 		message_buffer_t message_;
 
 	private:
+		bool is_magic_cookie() const;
 		void receive_cbk(packet_buffer_ptr_t _buffer,
 				boost::system::error_code const &_error, std::size_t _bytes);
 	};

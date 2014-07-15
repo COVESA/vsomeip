@@ -312,7 +312,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size, endpo
 				VSOMEIP_ERROR << "Could not determine target application!";
 			}
 		} else {
-			VSOMEIP_ERROR << "Could not determine service instance!";
+			VSOMEIP_ERROR << "Could not determine service instance for [" << its_service << "]";
 		}
 	} else {
 		//send_error(); // TODO: send error "malformed message"
@@ -487,6 +487,9 @@ std::shared_ptr< endpoint > routing_manager_impl::create_client_endpoint(
 				boost::asio::ip::tcp::endpoint(its_address, _port),
 				io_
 			);
+			if (configuration_->has_enabled_magic_cookies(_address, _port)) {
+				its_endpoint->enable_magic_cookies();
+			}
 		} else {
 			its_endpoint = std::make_shared< udp_client_endpoint_impl >(
 				shared_from_this(),
@@ -541,6 +544,9 @@ std::shared_ptr< endpoint > routing_manager_impl::create_server_endpoint(uint16_
 				boost::asio::ip::tcp::endpoint(its_address, _port),
 				io_
 			);
+			if (configuration_->has_enabled_magic_cookies(its_address.to_string(), _port)) {
+				its_endpoint->enable_magic_cookies();
+			}
 		} else {
 			its_endpoint = std::make_shared< udp_server_endpoint_impl >(
 				shared_from_this(),

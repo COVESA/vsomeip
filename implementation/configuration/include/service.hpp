@@ -19,6 +19,7 @@ struct service {
 	instance_t instance_;
 
 	uint16_t reliable_;
+	bool use_magic_cookies_;
 
 	uint16_t unreliable_;
 	std::string multicast_;

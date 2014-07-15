@@ -234,7 +234,12 @@ bool configuration_impl::get_delays_configuration(std::shared_ptr< servicegroup 
 bool configuration_impl::get_service_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree) {
 	bool is_loaded(true);
 	try {
+		bool use_magic_cookies(false);
+
 		std::shared_ptr< service > its_service(std::make_shared< service >());
+		its_service->reliable_ = its_service->unreliable_ = VSOMEIP_ILLEGAL_PORT;
+		its_service->use_magic_cookies_ = false;
+
 		its_service->group_ = _group;
 
 		for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -244,24 +249,24 @@ bool configuration_impl::get_service_configuration(std::shared_ptr< servicegroup
 
 			if (its_key == "multicast") {
 				its_service->multicast_ = its_value;
-			} else if (its_key == "ports") {
+			} else if (its_key == "reliable") {
 				try {
-					its_value = i->second.get_child("reliable").data();
+					its_value = i->second.get_child("port").data();
 					its_converter << its_value;
 					its_converter >> its_service->reliable_;
+
+					its_value = i->second.get_child("use-magic-cookies").data();
+					use_magic_cookies = ("true" == its_value);
 				}
 				catch (...) {
-					its_service->reliable_ = VSOMEIP_ILLEGAL_PORT;
 				}
+			} else if (its_key == "unreliable") {
 				try {
-					its_converter.str("");
-					its_converter.clear();
-					its_value = i->second.get_child("unreliable").data();
+					its_value = i->second.get_child("port").data();
 					its_converter << its_value;
 					its_converter >> its_service->unreliable_;
 				}
 				catch (...) {
-					its_service->unreliable_ = VSOMEIP_ILLEGAL_PORT;
 				}
 			} else {
 				// Trim "its_value"
@@ -289,6 +294,12 @@ bool configuration_impl::get_service_configuration(std::shared_ptr< servicegroup
 
 		if (is_loaded) {
 			services_[its_service->service_][its_service->instance_] = its_service;
+		}
+
+		if (use_magic_cookies) {
+			std::string its_address(_group->address_);
+			if (its_address == "local") its_address = get_address().to_string();
+			magic_cookies_[its_address].insert(its_service->reliable_);
 		}
 	}
 	catch (...) {
@@ -530,6 +541,18 @@ uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _i
 	if (its_service) its_reliable = its_service->reliable_;
 
 	return its_reliable;
+}
+
+bool configuration_impl::has_enabled_magic_cookies(std::string _address, uint16_t _port) const {
+	bool has_enabled(false);
+	auto find_address = magic_cookies_.find(_address);
+	if (find_address != magic_cookies_.end()) {
+		auto find_port = find_address->second.find(_port);
+		if (find_port != find_address->second.end()) {
+			has_enabled = true;
+		}
+	}
+	return has_enabled;
 }
 
 uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t _instance) const {

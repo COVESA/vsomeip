@@ -26,9 +26,9 @@
 			<service>
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
-				<ports>
-					<unreliable>30507</unreliable>
-				</ports>
+				<unreliable>
+					<port>30507</port>
+				</unreliable>
 			</service>
 		</servicegroup>
 	</services>

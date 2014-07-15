@@ -43,6 +43,8 @@ public:
 	void join(const std::string &_multicast_address);
 	void leave(const std::string &_multicast_address);
 
+	void receive_cbk(packet_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
+
 private:
 	void connect();
 	void receive();

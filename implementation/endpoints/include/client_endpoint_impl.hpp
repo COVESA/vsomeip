@@ -50,7 +50,6 @@ public:
 	void wait_connect_cbk(boost::system::error_code const &_error);
 	void send_cbk(message_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 	void flush_cbk(boost::system::error_code const &_error);
-	void receive_cbk(packet_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 
 public:
 	virtual void connect() = 0;

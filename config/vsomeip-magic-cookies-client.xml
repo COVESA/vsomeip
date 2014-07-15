@@ -17,9 +17,10 @@
 			<service>
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
-				<unreliable>
-					<port>30507</port>
-				</unreliable>
+				<reliable>
+					<port>30511</port>
+					<use-magic-cookies>true</use-magic-cookies>
+				</reliable>
 			</service>
 		</servicegroup>
 	</services>
@@ -48,6 +49,6 @@
 		<application>
 			<name>fourth-client-sample</name>
 			<id>0x1346</id>
-		</application>
+		</application>		
 	</applications>
 </someip>

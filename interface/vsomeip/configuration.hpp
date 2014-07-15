@@ -43,8 +43,6 @@ public:
 	virtual uint16_t get_service_discovery_port() const = 0;
 
 	virtual std::string get_group(service_t _service, instance_t _instance) const = 0;
-	virtual std::string get_address(service_t _service, instance_t _instance) const = 0;
-
 	virtual std::set< std::string > get_servicegroups() const = 0;
 
 	virtual bool is_local_servicegroup(const std::string &_name) const = 0;
@@ -55,7 +53,9 @@ public:
 	virtual uint32_t get_cyclic_offer_delay(const std::string &_name) const = 0;
 	virtual uint32_t get_cyclic_request_delay(const std::string &_name) const = 0;
 
+	virtual std::string get_address(service_t _service, instance_t _instance) const = 0;
 	virtual uint16_t get_reliable_port(service_t _service, instance_t _instance) const = 0;
+	virtual bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const = 0;
 	virtual uint16_t get_unreliable_port(service_t _service, instance_t _instance) const = 0;
 	virtual std::string get_multicast(service_t _service, instance_t _instance) const = 0;
 

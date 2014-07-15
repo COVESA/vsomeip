@@ -13,6 +13,7 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/system_timer.hpp>
 
+#include "buffer.hpp"
 #include "endpoint.hpp"
 
 namespace vsomeip {
@@ -28,7 +29,6 @@ public:
 	virtual ~endpoint_impl();
 
 	void enable_magic_cookies();
-	void disable_magic_cookies();
 
 	void open_filter(service_t _service);
 	void close_filter(service_t _service);
@@ -41,12 +41,13 @@ public:
 	bool is_udp() const;
 
 public: // required
+	virtual bool is_client() const = 0;
 	virtual void receive() = 0;
 	virtual void restart() = 0;
 
-private:
+protected:
 	virtual bool is_magic_cookie() const;
-	bool resync_on_magic_cookie();
+	bool resync_on_magic_cookie(message_buffer_t &_buffer);
 
 protected:
 	// Reference to service context

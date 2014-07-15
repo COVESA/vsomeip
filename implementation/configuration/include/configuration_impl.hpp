@@ -40,14 +40,9 @@ public:
 	const std::string & get_logfile() const;
 	boost::log::trivial::severity_level get_loglevel() const;
 
-	std::string get_address(service_t _service, instance_t _instance) const;
-	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
-	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
-	std::string get_multicast(service_t _service, instance_t _instance) const;
-
 	std::string get_group(service_t _service, instance_t _instance) const;
-
 	std::set< std::string > get_servicegroups() const;
+
 	bool is_local_servicegroup(const std::string &_name) const;
 	uint32_t get_min_initial_delay(const std::string &_name) const;
 	uint32_t get_max_initial_delay(const std::string &_name) const;
@@ -55,6 +50,12 @@ public:
 	uint8_t get_repetition_max(const std::string &_name) const;
 	uint32_t get_cyclic_offer_delay(const std::string &_name) const;
 	uint32_t get_cyclic_request_delay(const std::string &_name) const;
+
+	std::string get_address(service_t _service, instance_t _instance) const;
+	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
+	bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
+	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
+	std::string get_multicast(service_t _service, instance_t _instance) const;
 
 	const std::string & get_routing_host() const;
 
@@ -108,6 +109,8 @@ private:
 	uint16_t service_discovery_port_;
 
 	std::map< std::string, client_t > applications_;
+
+	std::map< std::string, std::set< uint16_t > > magic_cookies_;
 };
 
 } // namespace cfg

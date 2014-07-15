@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <deque>
 #include <iomanip>
 
 #include <boost/asio/write.hpp>
 
+#include <vsomeip/constants.hpp>
 #include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
@@ -158,30 +158,30 @@ void tcp_server_endpoint_impl::connection::send_queued(message_buffer_ptr_t _buf
 }
 
 void tcp_server_endpoint_impl::connection::send_magic_cookie(message_buffer_ptr_t &_buffer) {
-	static uint8_t data[] = { 0xFF, 0xFF, 0x80, 0x00,
-							   0x00, 0x00, 0x00, 0x08,
-							   0xDE, 0xAD, 0xBE, 0xEF,
-							   0x01, 0x01, 0x02, 0x00 };
-
 	if (VSOMEIP_MAX_TCP_MESSAGE_SIZE - _buffer->size() >=
 		VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
 		_buffer->insert(
 			_buffer->begin(),
-			data,
-			data + sizeof(data)
+			server_cookie,
+			server_cookie + sizeof(server_cookie)
 		);
 	}
+}
+
+bool tcp_server_endpoint_impl::connection::is_magic_cookie() const {
+	return (0 == std::memcmp(client_cookie, &message_[0], sizeof(client_cookie)));
 }
 
 void tcp_server_endpoint_impl::connection::receive_cbk(
 		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-	if (!_error && 0 < _bytes) {
 #if 0
-		for (std::size_t i = 0; i < _bytes; ++i)
-			std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_buffer[i] << " ";
-		std::cout << std::endl;
+	std::stringstream msg;
+	for (std::size_t i = 0; i < _bytes; ++i)
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer))[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
 #endif
+	if (!_error && 0 < _bytes) {
 		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
 
 		bool has_full_message;
@@ -189,16 +189,24 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
 			uint32_t current_message_size = utility::get_message_size(message_);
 			has_full_message = (current_message_size > 0 && current_message_size <= message_.size());
 			if (has_full_message) {
-				if (utility::is_request(message_[VSOMEIP_MESSAGE_TYPE_POS])) {
-					client_t its_client;
-					std::memcpy(&its_client, &message_[VSOMEIP_CLIENT_POS_MIN], sizeof(client_t));
-					session_t its_session;
-					std::memcpy(&its_session, &message_[VSOMEIP_SESSION_POS_MIN], sizeof(session_t));
-					server_->clients_[its_client][its_session] = socket_.remote_endpoint();
+				if (is_magic_cookie()) {
+					server_->has_enabled_magic_cookies_ = true;
+				} else {
+					if (utility::is_request(message_[VSOMEIP_MESSAGE_TYPE_POS])) {
+						client_t its_client;
+						std::memcpy(&its_client, &message_[VSOMEIP_CLIENT_POS_MIN], sizeof(client_t));
+						session_t its_session;
+						std::memcpy(&its_session, &message_[VSOMEIP_SESSION_POS_MIN], sizeof(session_t));
+						server_->clients_[its_client][its_session] = socket_.remote_endpoint();
+					}
+					server_->host_->on_message(&message_[0], current_message_size, server_);
 				}
-
-				server_->host_->on_message(&message_[0], current_message_size, server_);
 				message_.erase(message_.begin(), message_.begin() + current_message_size);
+			} else if (server_->has_enabled_magic_cookies_ && message_.size() > 0){
+				has_full_message = server_->resync_on_magic_cookie(message_);
+			} else if (message_.size() > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
+				VSOMEIP_ERROR << "Message exceeds maximum message size. Resetting receiver.";
+				message_.clear();
 			}
 		} while (has_full_message);
 

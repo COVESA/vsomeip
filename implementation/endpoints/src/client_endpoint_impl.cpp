@@ -180,38 +180,6 @@ void client_endpoint_impl< Protocol, MaxBufferSize >::flush_cbk(
 	}
 }
 
-template < typename Protocol, int MaxBufferSize >
-void client_endpoint_impl< Protocol, MaxBufferSize >::receive_cbk(
-		packet_buffer_ptr_t _buffer,
-		boost::system::error_code const &_error, std::size_t _bytes) {
-
-	if (!_error && 0 < _bytes) {
-#if 0
-		std::stringstream msg;
-		msg << "cei::rcb (" << _error.message() << "): ";
-		for (std::size_t i = 0; i < _bytes; ++i)
-			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
-		VSOMEIP_DEBUG << msg.str();
-#endif
-		message_.insert(message_.end(), _buffer->begin(), _buffer->begin() + _bytes);
-
-		bool has_full_message;
-		do {
-			uint32_t current_message_size = utility::get_message_size(message_);
-
-			has_full_message = (current_message_size > 0 && current_message_size <= message_.size());
-			if (has_full_message) {
-				this->host_->on_message(&message_[0], current_message_size, this);
-				message_.erase(message_.begin(), message_.begin() + current_message_size);
-			}
-		} while (has_full_message);
-
-		restart();
-	} else {
-		receive();
-	}
-}
-
 // Instantiate template
 template class client_endpoint_impl< boost::asio::local::stream_protocol, VSOMEIP_MAX_LOCAL_MESSAGE_SIZE >;
 template class client_endpoint_impl< boost::asio::ip::tcp, VSOMEIP_MAX_TCP_MESSAGE_SIZE >;

@@ -20,6 +20,7 @@ public:
 	virtual void stop() = 0;
 
 	virtual bool send(const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
+	virtual void enable_magic_cookies() = 0;
 	virtual void receive() = 0;
 
 	virtual void open_filter(service_t _service_id) = 0;
@@ -27,9 +28,6 @@ public:
 
 	virtual void join(const std::string &_multicast_address) = 0;
 	virtual void leave(const std::string &_multicast_address) = 0;
-
-	virtual void enable_magic_cookies() = 0;
-	virtual void disable_magic_cookies() = 0;
 
 	virtual bool is_v4() const = 0;
 	virtual bool get_address(std::vector< byte_t > &_address) const = 0;

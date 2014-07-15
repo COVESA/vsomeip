@@ -1,6 +1,6 @@
 <!-- vsomeip test configuration file -->
 <someip>
-	<address>192.168.56.101</address>
+	<address>192.168.56.102</address>
 	<logging> 
 		<level>trace</level>
 		<console>true</console>
@@ -11,20 +11,30 @@
 		<dlt>false</dlt>
 	</logging>
 	<services>
-		<servicegroup>
-			<name>remote</name>
-			<address>192.168.56.102</address>
+		<servicegroup> 
+			<name>default</name>
+			<delays>
+				<initial>
+					<min>10</min>
+					<max>100</max>
+				</initial>
+				<repetition-base>200</repetition-base>
+				<repetition-max>3</repetition-max>
+				<cyclic-offer>2000</cyclic-offer>
+				<cyclic-request>2001</cyclic-request>
+			</delays>
 			<service>
 				<service-id>0x1234</service-id>
 				<instance-id>0x5678</instance-id>
-				<ports>
-					<unreliable>30507</unreliable>
-				</ports>
+				<reliable>
+					<port>30511</port>
+					<use-magic-cookies>true</use-magic-cookies>
+				</reliable>
 			</service>
 		</servicegroup>
 	</services>
 	<routing>
-		<host>second-client-sample</host>
+		<host>service-sample</host>
 	</routing>
 	<service-discovery>
 		<enabled>false</enabled>
@@ -34,20 +44,8 @@
 	</service-discovery>
 	<applications>
 		<application>
-			<name>client-sample</name>
-			<id>0x1343</id>
-		</application>
-		<application>
-			<name>second-client-sample</name>
-			<id>0x1344</id>
-		</application>
-		<application>
-			<name>third-client-sample</name>
-			<id>0x1345</id>
-		</application>
-		<application>
-			<name>fourth-client-sample</name>
-			<id>0x1346</id>
+			<name>service-sample</name>
+			<id>0x1277</id>
 		</application>
 	</applications>
 </someip>

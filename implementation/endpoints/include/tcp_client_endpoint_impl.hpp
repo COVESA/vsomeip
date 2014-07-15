@@ -32,7 +32,10 @@ public:
 	void leave(const std::string &);
 
 private:
+	bool is_magic_cookie() const;
 	void send_magic_cookie(message_buffer_ptr_t &_buffer);
+
+	void receive_cbk(packet_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
 
 	void connect();
 	void receive();

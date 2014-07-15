@@ -78,15 +78,19 @@ file(GLOB vsomeip-sd_SRC
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} rt ${DL_LIBRARY})
 
-# Executables
-add_executable(configuration-test test/configuration-test.cpp)
-target_link_libraries(configuration-test vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
-
+# Examples
 add_executable(client-sample examples/client-sample.cpp)
 target_link_libraries(client-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(service-sample examples/service-sample.cpp)
 target_link_libraries(service-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
+# Test
+add_executable(configuration-test test/configuration-test.cpp)
+target_link_libraries(configuration-test vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
+add_executable(magic-cookies-test-client test/magic-cookies-test-client.cpp)
+target_link_libraries(magic-cookies-test-client vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 ###################################################################################################
 
