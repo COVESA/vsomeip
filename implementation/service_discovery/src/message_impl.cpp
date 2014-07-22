@@ -173,12 +173,12 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 		is_successful = is_successful && (*it)->serialize(_to);
 
 	uint32_t options_length = 0;
-	for (size_t i = 0; i < options_.size(); ++i)
-		options_length += (options_[i]->get_length() + VSOMEIP_SOMEIP_HEADER_SIZE);
+	for (auto its_option : options_)
+		options_length += its_option->get_length() + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE;
 	is_successful = is_successful && _to->serialize(options_length);
 
-	for (auto it = options_.begin(); it != options_.end(); ++it)
-		is_successful = is_successful && (*it)->serialize(_to);
+	for (auto its_option : options_)
+		is_successful = is_successful && its_option->serialize(_to);
 
 	return is_successful;
 }

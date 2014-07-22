@@ -30,7 +30,7 @@ routing_manager_stub::~routing_manager_stub() {
 
 void routing_manager_stub::init() {
 	std::stringstream its_endpoint_path;
-	its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	its_endpoint_path << base_path << VSOMEIP_ROUTING_CLIENT;
 	::unlink(its_endpoint_path.str().c_str());
 
 	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path.str();
@@ -53,7 +53,7 @@ void routing_manager_stub::stop() {
 	endpoint_->stop();
 
 	std::stringstream its_endpoint_path;
-	its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	its_endpoint_path << base_path << VSOMEIP_ROUTING_CLIENT;
 	::unlink(its_endpoint_path.str().c_str());
 }
 

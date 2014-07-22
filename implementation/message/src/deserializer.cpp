@@ -5,7 +5,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <cstring>
-#include <iostream>
+
+#ifdef VSOMEIP_DEBUGGING
+#include <iomanip>
+#include <sstream>
+
+#include <vsomeip/logger.hpp>
+#endif
 
 #include "../include/byteorder.hpp"
 #include "../include/message_impl.hpp"
@@ -18,7 +24,7 @@ deserializer::deserializer()
 	  remaining_(0) {
 }
 
-deserializer::deserializer(uint8_t *_data, std::size_t _length)
+deserializer::deserializer(byte_t *_data, std::size_t _length)
 	: data_(_data, _data + _length),
 	  position_(data_.begin()),
 	  remaining_(_length) {
@@ -92,20 +98,20 @@ bool deserializer::deserialize(uint8_t *_data, std::size_t _length) {
 	if (_length > remaining_)
 		return false;
 
-	::memcpy(_data, &_data[position_ - data_.begin()], _length);
+	std::memcpy(_data, &data_[position_ - data_.begin()], _length);
 	position_ += _length;
 	remaining_ -= _length;
 
 	return true;
 }
 
-bool deserializer::deserialize(std::vector<uint8_t>& _value) {
+bool deserializer::deserialize(std::vector< uint8_t >& _value) {
 	if (_value.capacity() > remaining_)
 		return false;
 
 	_value.assign(position_, position_ + _value.capacity());
-	remaining_ -= _value.capacity();
 	position_ += _value.capacity();
+	remaining_ -= _value.capacity();
 
 	return true;
 }
@@ -151,7 +157,7 @@ message * deserializer::deserialize_message() {
 	return deserialized_message;
 }
 
-void deserializer::set_data(const uint8_t *_data,  std::size_t _length) {
+void deserializer::set_data(const byte_t *_data,  std::size_t _length) {
 	if (0 != _data) {
 		data_.assign(_data, _data + _length);
 		position_ = data_.begin();
@@ -163,7 +169,7 @@ void deserializer::set_data(const uint8_t *_data,  std::size_t _length) {
 	}
 }
 
-void deserializer::append_data(const uint8_t *_data, std::size_t _length) {
+void deserializer::append_data(const byte_t *_data, std::size_t _length) {
 	std::size_t offset = (position_ - data_.begin());
 	data_.insert(data_.end(), _data, _data + _length);
 	position_ = data_.begin() + offset;
@@ -183,14 +189,15 @@ void deserializer::reset() {
 	remaining_ = data_.size();
 }
 
-#ifdef VSOMEIP_DEBUG_
-void deserializer::show_data() const {
-	std::cout << "("
-			  << std::hex << std::setw(2) << std::setfill('0') << (int)*position_ << ", "
-			  << std:: dec << remaining_ << ") ";
+#ifdef VSOMEIP_DEBUGGING
+void deserializer::show() const {
+	std::stringstream its_message;
+	its_message << "("
+			<< std::hex << std::setw(2) << std::setfill('0') << (int)*position_ << ", "
+			<< std:: dec << remaining_ << ") ";
 	for (int i = 0; i < data_.size(); ++i)
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << " ";
-	std::cout << std::dec << std::endl;
+		its_message << std::hex << std::setw(2) << std::setfill('0') << (int)data_[i] << " ";
+	VSOMEIP_DEBUG << its_message;
 }
 #endif
 

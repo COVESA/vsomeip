@@ -8,6 +8,8 @@
 #include <vsomeip/logger.hpp>
 
 #include "../include/constants.hpp"
+#include "../include/defines.hpp"
+#include "../include/deserializer.hpp"
 #include "../include/ipv4_option_impl.hpp"
 #include "../include/ipv6_option_impl.hpp"
 #include "../include/message_impl.hpp"
@@ -25,8 +27,10 @@ namespace vsomeip {
 namespace sd {
 
 service_discovery_impl::service_discovery_impl(service_discovery_host *_host) :
-		host_(_host), io_(_host->get_io()), default_(
-				std::make_shared < service_discovery_fsm > ("default", this)) {
+		host_(_host),
+		io_(_host->get_io()),
+		default_(std::make_shared < service_discovery_fsm > ("default", this)),
+		deserializer_(std::make_shared< deserializer >()) {
 }
 
 service_discovery_impl::~service_discovery_impl() {
@@ -199,9 +203,12 @@ void service_discovery_impl::send(const std::string &_name, bool _is_announcing)
 }
 
 // Interface endpoint_host
-void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
-		endpoint *_receiver) {
-	VSOMEIP_DEBUG << "sdi::on_message";
+void service_discovery_impl::on_message(const byte_t *_data, length_t _length) {
+	deserializer_->set_data(_data, _length);
+	std::shared_ptr< message_impl > its_message(deserializer_->deserialize_sd_message());
+	if (its_message) {
+		VSOMEIP_DEBUG << "Got a Service Discovery message.";
+	}
 }
 
 } // namespace sd

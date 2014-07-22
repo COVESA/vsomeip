@@ -32,9 +32,9 @@ public:
 
 	// Provide services
 	virtual void offer_service(service_t _service, instance_t _instance,
-					major_version_t _major = VSOMEIP_DEFAULT_MAJOR,
-					minor_version_t _minor = VSOMEIP_DEFAULT_MINOR, ttl_t _ttl =
-					VSOMEIP_DEFAULT_TTL) = 0;
+					major_version_t _major = default_major,
+					minor_version_t _minor = default_minor,
+					ttl_t _ttl = default_ttl) = 0;
 
 	virtual void stop_offer_service(service_t _service,
 					instance_t _instance) = 0;
@@ -48,9 +48,9 @@ public:
 
 	// Consume services
 	virtual void request_service(service_t _service, instance_t _instance,
-					major_version_t _major = VSOMEIP_ANY_MAJOR,
-					minor_version_t _minor = VSOMEIP_ANY_MINOR,
-					ttl_t _ttl = VSOMEIP_ANY_TTL) = 0;
+					major_version_t _major = any_major,
+					minor_version_t _minor = any_minor,
+					ttl_t _ttl = any_ttl) = 0;
 
 	virtual void release_service(service_t _service, instance_t _instance) = 0;
 

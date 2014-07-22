@@ -68,7 +68,7 @@ bool ipv6_option_impl::serialize(vsomeip::serializer *_to) const {
 bool ipv6_option_impl::deserialize(vsomeip::deserializer *_from) {
 	bool is_successful = option_impl::deserialize(_from);
 	uint8_t its_reserved;
-	_from->deserialize(&address_[0], 4);
+	_from->deserialize(&address_[0], 16);
 	_from->deserialize(its_reserved);
 	_from->deserialize(its_reserved);
 	is_udp_ = (protocol::udp == its_reserved);

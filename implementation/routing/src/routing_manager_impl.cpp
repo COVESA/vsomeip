@@ -28,7 +28,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/event_impl.hpp"
 #include "../../message/include/serializer.hpp"
-#include "../../service_discovery/include/constants.hpp"
+#include "../../service_discovery/include/defines.hpp"
 #include "../../service_discovery/include/runtime.hpp"
 #include "../../service_discovery/include/service_discovery_impl.hpp"
 #include "../../utility/include/utility.hpp"
@@ -296,24 +296,29 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size, endpo
 #endif
 	if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
 		service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-		instance_t its_instance = find_instance(its_service, _receiver);
-		if (its_instance != VSOMEIP_ANY_INSTANCE) {
-			client_t its_client(VSOMEIP_ROUTING_CLIENT);
-			if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-				its_client = find_local_client(its_service, its_instance);
-			} else {
-				its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-			}
-
-			if (its_client == host_->get_client()) {
-				deliver_message(_data, _size, its_instance);
-			} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
-				send(its_client, _data, _size, its_instance, true, false);
-			} else {
-				VSOMEIP_ERROR << "Could not determine target application!";
-			}
+		if (its_service == VSOMEIP_SD_SERVICE) {
+			if (discovery_)
+				discovery_->on_message(_data, _size);
 		} else {
-			VSOMEIP_ERROR << "Could not determine service instance for [" << its_service << "]";
+			instance_t its_instance = find_instance(its_service, _receiver);
+			if (its_instance != any_instance) {
+				client_t its_client(VSOMEIP_ROUTING_CLIENT);
+				if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+					its_client = find_local_client(its_service, its_instance);
+				} else {
+					its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
+				}
+
+				if (its_client == host_->get_client()) {
+					deliver_message(_data, _size, its_instance);
+				} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
+					send(its_client, _data, _size, its_instance, true, false);
+				} else {
+					VSOMEIP_ERROR << "Could not determine target application!";
+				}
+			} else {
+				VSOMEIP_ERROR << "Could not determine service instance for [" << its_service << "]";
+			}
 		}
 	} else {
 		//send_error(); // TODO: send error "malformed message"
@@ -402,7 +407,7 @@ void routing_manager_impl::create_service_discovery_endpoint(
 		its_service_endpoint = create_server_endpoint(_port, is_reliable);
 
 		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(
-				VSOMEIP_ANY_MAJOR, VSOMEIP_ANY_MINOR, VSOMEIP_ANY_TTL));
+				any_major, any_minor, any_ttl));
 		if (is_reliable) {
 			its_info->set_reliable_endpoint(its_service_endpoint);
 		} else {
@@ -410,7 +415,7 @@ void routing_manager_impl::create_service_discovery_endpoint(
 		}
 
 		// routing info
-		services_[vsomeip::sd::VSOMEIP_SD_SERVICE][vsomeip::sd::VSOMEIP_SD_INSTANCE] = its_info;
+		services_[VSOMEIP_SD_SERVICE][VSOMEIP_SD_INSTANCE] = its_info;
 
 		its_service_endpoint->join(_address);
 		its_service_endpoint->start();
@@ -453,7 +458,7 @@ void routing_manager_impl::create_service(
 		uint16_t its_reliable_port = configuration_->get_reliable_port(_service, _instance);
 		uint16_t its_unreliable_port = configuration_->get_unreliable_port(_service, _instance);
 
-		if (its_reliable_port != VSOMEIP_ILLEGAL_PORT) {
+		if (its_reliable_port != illegal_port) {
 			std::shared_ptr< endpoint > its_reliable_endpoint(
 				find_or_create_server_endpoint(its_reliable_port, true));
 			its_info->set_reliable_endpoint(its_reliable_endpoint);
@@ -462,7 +467,7 @@ void routing_manager_impl::create_service(
 			service_instances_[_service][its_reliable_endpoint.get()] = _instance;
 		}
 
-		if (its_unreliable_port != VSOMEIP_ILLEGAL_PORT) {
+		if (its_unreliable_port != illegal_port) {
 			std::shared_ptr< endpoint > its_unreliable_endpoint(
 				find_or_create_server_endpoint(its_unreliable_port, false));
 			its_info->set_unreliable_endpoint(its_unreliable_endpoint);
@@ -470,7 +475,7 @@ void routing_manager_impl::create_service(
 			service_instances_[_service][its_unreliable_endpoint.get()] = _instance;
 		}
 
-		if (VSOMEIP_ILLEGAL_PORT != its_reliable_port || VSOMEIP_ILLEGAL_PORT != its_unreliable_port) {
+		if (illegal_port != its_reliable_port || illegal_port != its_unreliable_port) {
 			std::string its_servicegroup = configuration_->get_group(_service, _instance);
 			auto found_servicegroup = servicegroups_.find(its_servicegroup);
 			if (found_servicegroup == servicegroups_.end()) {
@@ -615,7 +620,7 @@ std::shared_ptr< endpoint > routing_manager_impl::create_local(client_t _client)
 	std::unique_lock< std::recursive_mutex > its_lock(endpoint_mutex_);
 
 	std::stringstream its_path;
-	its_path << VSOMEIP_BASE_PATH << std::hex << _client;
+	its_path << base_path << std::hex << _client;
 
 	std::shared_ptr< endpoint > its_endpoint
 		= std::make_shared< local_client_endpoint_impl >(
@@ -690,7 +695,7 @@ void routing_manager_impl::init_routing_info() {
 	VSOMEIP_INFO << "Service Discovery disabled. Using static routing information.";
 	for (auto i : configuration_->get_remote_services()) {
 		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(
-				VSOMEIP_DEFAULT_MAJOR, VSOMEIP_DEFAULT_MINOR, VSOMEIP_DEFAULT_TTL));
+				default_major, default_minor, default_ttl));
 
 		std::string its_address = configuration_->get_address(i.first, i.second);
 		uint16_t its_reliable_port = configuration_->get_reliable_port(i.first, i.second);

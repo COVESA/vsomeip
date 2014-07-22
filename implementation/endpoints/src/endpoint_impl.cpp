@@ -66,14 +66,14 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 
 		if (is_client()) {
 			its_cookie_identifier
-				= static_cast< uint8_t >(VSOMEIP_MAGIC_COOKIE_SERVICE_MESSAGE_ID);
+				= static_cast< uint8_t >(magic_cookie_service_message);
 			its_cookie_type
-				= static_cast< uint8_t >(VSOMEIP_MAGIC_COOKIE_SERVICE_MESSAGE_TYPE);
+				= static_cast< uint8_t >(magic_cookie_service_message_type);
 		} else {
 			its_cookie_identifier
-				= static_cast< uint8_t >(VSOMEIP_MAGIC_COOKIE_CLIENT_MESSAGE_ID);
+				= static_cast< uint8_t >(magic_cookie_client_message);
 			its_cookie_type
-				= static_cast< uint8_t >(VSOMEIP_MAGIC_COOKIE_CLIENT_MESSAGE_TYPE);
+				= static_cast< uint8_t >(magic_cookie_client_message_type);
 		}
 
 		do {

@@ -8,6 +8,7 @@
 #include <vsomeip/message.hpp>
 
 #include "../include/constants.hpp"
+#include "../include/defines.hpp"
 #include "../include/message_impl.hpp"
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
@@ -34,10 +35,10 @@ std::shared_ptr< message_impl > runtime_impl::create_message() const {
 	its_message->set_method(VSOMEIP_SD_METHOD);
 	its_message->set_client(VSOMEIP_SD_CLIENT);
 	// session must be set dynamically
-	its_message->set_protocol_version(VSOMEIP_SD_PROTOCOL_VERSION);
-	its_message->set_interface_version(VSOMEIP_SD_INTERFACE_VERSION);
-	its_message->set_message_type(VSOMEIP_SD_MESSAGE_TYPE);
-	its_message->set_return_code(VSOMEIP_SD_RETURN_CODE);
+	its_message->set_protocol_version(protocol_version);
+	its_message->set_interface_version(interface_version);
+	its_message->set_message_type(message_type);
+	its_message->set_return_code(return_code);
 	return its_message;
 }
 

@@ -18,6 +18,7 @@
 #include "../include/servicegroup.hpp"
 #include "../include/service.hpp"
 #include "../../logging/include/logger_impl.hpp"
+#include "../../service_discovery/include/defines.hpp"
 
 namespace vsomeip {
 namespace cfg {
@@ -237,7 +238,7 @@ bool configuration_impl::get_service_configuration(std::shared_ptr< servicegroup
 		bool use_magic_cookies(false);
 
 		std::shared_ptr< service > its_service(std::make_shared< service >());
-		its_service->reliable_ = its_service->unreliable_ = VSOMEIP_ILLEGAL_PORT;
+		its_service->reliable_ = its_service->unreliable_ = illegal_port;
 		its_service->use_magic_cookies_ = false;
 
 		its_service->group_ = _group;
@@ -535,7 +536,7 @@ std::string configuration_impl::get_address(service_t _service, instance_t _inst
 }
 
 uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _instance) const {
-	uint16_t its_reliable = VSOMEIP_ILLEGAL_PORT;
+	uint16_t its_reliable = illegal_port;
 
 	service *its_service = find_service(_service, _instance);
 	if (its_service) its_reliable = its_service->reliable_;
@@ -556,7 +557,7 @@ bool configuration_impl::has_enabled_magic_cookies(std::string _address, uint16_
 }
 
 uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t _instance) const {
-	uint16_t its_unreliable = VSOMEIP_ILLEGAL_PORT;
+	uint16_t its_unreliable = illegal_port;
 
 	service *its_service = find_service(_service, _instance);
 	if (its_service) its_unreliable = its_service->unreliable_;
@@ -565,7 +566,7 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t 
 }
 
 std::string configuration_impl::get_multicast(service_t _service, instance_t _instance) const {
-	std::string its_multicast(VSOMEIP_DEFAULT_MULTICAST);
+	std::string its_multicast(default_multicast);
 
 	service *its_service = find_service(_service, _instance);
 	if (its_service) its_multicast = its_service->multicast_;

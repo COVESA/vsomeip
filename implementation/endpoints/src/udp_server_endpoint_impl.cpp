@@ -62,7 +62,7 @@ void udp_server_endpoint_impl::restart() {
 }
 
 void udp_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
-#if 0
+#if 1
 		std::stringstream msg;
 		msg << "usei::sq(" << _target.address().to_string() << ":" << _target.port() << "): ";
 		for (std::size_t i = 0; i < _buffer->size(); ++i)

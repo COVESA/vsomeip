@@ -50,7 +50,7 @@ public:
 						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
 		app_->register_message_handler(
-				vsomeip::VSOMEIP_ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::VSOMEIP_ANY_METHOD,
+				vsomeip::any_service, SAMPLE_INSTANCE_ID, vsomeip::any_method,
 				std::bind(&client_sample::on_message,
 						  this,
 						  std::placeholders::_1));

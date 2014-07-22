@@ -18,12 +18,12 @@ class message;
 class deserializer {
 public:
 	deserializer();
-	deserializer(uint8_t *_data, std::size_t _length);
+	deserializer(byte_t *_data, std::size_t _length);
 	deserializer(const deserializer& _other);
 	virtual ~deserializer();
 
-	void set_data(const uint8_t *_data, std::size_t _length);
-	void append_data(const uint8_t *_data, std::size_t _length);
+	void set_data(const byte_t *_data, std::size_t _length);
+	void append_data(const byte_t *_data, std::size_t _length);
 	void drop_data(std::size_t _length);
 
 	std::size_t get_available() const;
@@ -46,12 +46,12 @@ public:
 	bool look_ahead(std::size_t _index, uint32_t &_value) const;
 
 	void reset();
-#ifdef VSOMEIP_DEBUG
-	void show_data() const;
+#ifdef VSOMEIP_DEBUGGING
+	void show() const;
 #endif
 protected:
-	std::vector< uint8_t > data_;
-	std::vector< uint8_t >::iterator position_;
+	std::vector< byte_t > data_;
+	std::vector< byte_t >::iterator position_;
 	std::size_t remaining_;
 };
 

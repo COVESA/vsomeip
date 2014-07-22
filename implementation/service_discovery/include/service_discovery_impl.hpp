@@ -46,8 +46,7 @@ public:
 
 	void send(const std::string &_name, bool _is_announcing);
 
-	// endpoint_host
-	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
+	void on_message(const byte_t *_data, length_t _length);
 
 private:
 	void insert_service_entries(std::shared_ptr< message_impl > &_message,
@@ -56,6 +55,8 @@ private:
 private:
 	boost::asio::io_service &io_;
 	service_discovery_host *host_;
+
+	std::shared_ptr< deserializer > deserializer_;
 
 	std::shared_ptr< service_discovery_fsm > default_;
 	std::map< std::string,

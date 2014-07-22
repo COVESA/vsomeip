@@ -13,14 +13,14 @@
 namespace vsomeip {
 namespace sd {
 
-const service_t VSOMEIP_SD_SERVICE = 0xFFFF;
-const instance_t VSOMEIP_SD_INSTANCE = 0x0000;
-const method_t  VSOMEIP_SD_METHOD  = 0x8100;
-const client_t VSOMEIP_SD_CLIENT = 0x0000;
-const protocol_version_t VSOMEIP_SD_PROTOCOL_VERSION = 0x01;
-const interface_version_t VSOMEIP_SD_INTERFACE_VERSION = 0x01;
-const message_type_e VSOMEIP_SD_MESSAGE_TYPE = message_type_e::NOTIFICATION;
-const return_code_e VSOMEIP_SD_RETURN_CODE = return_code_e::E_OK;
+const service_t service = 0xFFFF;
+const instance_t instance = 0x0000;
+const method_t  method  = 0x8100;
+const client_t client = 0x0000;
+const protocol_version_t protocol_version = 0x01;
+const interface_version_t interface_version = 0x01;
+const message_type_e message_type = message_type_e::NOTIFICATION;
+const return_code_e return_code = return_code_e::E_OK;
 
 namespace protocol {
 

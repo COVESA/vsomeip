@@ -5,10 +5,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <cstring>
+
+#ifdef VSOMEIP_DEBUGGING
 #include <iomanip>
 #include <sstream>
 
 #include <vsomeip/logger.hpp>
+#endif
+
 #include <vsomeip/serializable.hpp>
 
 #include "../include/byteorder.hpp"
@@ -75,7 +79,7 @@ bool serializer::serialize(const uint8_t *_data, uint32_t _length) {
 	return true;
 }
 
-uint8_t * serializer::get_data() const {
+byte_t * serializer::get_data() const {
 	return data_;
 }
 
@@ -91,7 +95,7 @@ void serializer::create_data(uint32_t _capacity) {
 	if (0 != data_)
 		delete [] data_;
 
-	data_ = new uint8_t[_capacity];
+	data_ = new byte_t[_capacity];
 	position_ = data_;
 	if (0 != data_) {
 		capacity_ = remaining_ = _capacity;
@@ -100,7 +104,7 @@ void serializer::create_data(uint32_t _capacity) {
 	}
 }
 
-void serializer::set_data(uint8_t *_data, uint32_t _capacity) {
+void serializer::set_data(byte_t *_data, uint32_t _capacity) {
 	delete [] data_;
 
 	data_ = _data;
@@ -118,6 +122,7 @@ void serializer::reset() {
 	remaining_ = capacity_;
 }
 
+#ifdef VSOMEIP_DEBUGGING
 void serializer::show() {
 	std::stringstream its_data;
 	its_data << "SERIALIZED: ";
@@ -125,5 +130,6 @@ void serializer::show() {
 		its_data << std::setw(2) << std::setfill('0') << std::hex << (int)data_[i];
 	VSOMEIP_DEBUG << its_data.str();
 }
+#endif
 
 } // namespace vsomeip

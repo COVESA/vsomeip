@@ -36,6 +36,8 @@ public:
 	virtual void release_service(service_t _service, instance_t _instance) = 0;
 
 	virtual void send(const std::string &_name, bool _is_announcing) = 0;
+
+	virtual void on_message(const byte_t *_data, length_t _length) = 0;
 };
 
 } // namespace sd

@@ -7,8 +7,9 @@
 #ifndef VSOMEIP_SERIALIZER_HPP
 #define VSOMEIP_SERIALIZER_HPP
 
-#include <cstdint>
 #include <vector>
+
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
@@ -36,13 +37,14 @@ public:
 
 	virtual void reset();
 
+#ifdef VSOMEIP_DEBUGGING
 	virtual void show();
-
+#endif
 private:
-	uint8_t * data_;
+	byte_t * data_;
 	uint32_t capacity_;
 
-	uint8_t *position_;
+	byte_t *position_;
 	uint32_t remaining_;
 };
 

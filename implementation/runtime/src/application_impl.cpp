@@ -281,17 +281,17 @@ void application_impl::on_message(std::shared_ptr< message > _message) {
 	// find list of handlers
 	auto found_service = members_.find(its_service);
 	if (found_service == members_.end()) {
-		found_service = members_.find(VSOMEIP_ANY_SERVICE);
+		found_service = members_.find(any_service);
 	}
 	if (found_service != members_.end()) {
 		auto found_instance = found_service->second.find(its_instance);
 		if (found_instance == found_service->second.end()) {
-			found_instance = found_service->second.find(VSOMEIP_ANY_SERVICE);
+			found_instance = found_service->second.find(any_instance);
 		}
 		if (found_instance != found_service->second.end()) {
 			auto found_method = found_instance->second.find(its_method);
 			if (found_method == found_instance->second.end()) {
-				found_method = found_instance->second.find(VSOMEIP_ANY_METHOD);
+				found_method = found_instance->second.find(any_method);
 			}
 
 			if (found_method != found_instance->second.end()) {
