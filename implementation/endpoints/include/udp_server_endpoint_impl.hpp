@@ -40,6 +40,7 @@ public:
 
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
 	endpoint_type get_remote() const;
+	endpoint_type get_cast() const;
 
 	void join(const std::string &_multicast_address);
 	void leave(const std::string &_multicast_address);
@@ -54,8 +55,12 @@ public:
 			boost::system::error_code const &_error, std::size_t _size);
 
 private:
+	void set_broadcast();
+
+private:
 	socket_type socket_;
 	endpoint_type remote_;
+	endpoint_type cast_;
 
 	message_buffer_t message_;
 };

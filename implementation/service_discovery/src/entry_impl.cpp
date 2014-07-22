@@ -99,7 +99,7 @@ void entry_impl::assign_option(const std::shared_ptr< option_impl > &_option, ui
 }
 
 bool entry_impl::serialize(vsomeip::serializer *_to) const {
-	bool is_successful = (0 != _to && _to->serialize(static_cast<uint8_t>(type_)));
+	bool is_successful = (0 != _to && _to->serialize(static_cast< uint8_t >(type_)));
 
 	uint8_t index_first_option_run = 0;
 	if (options_[0].size() > 0)

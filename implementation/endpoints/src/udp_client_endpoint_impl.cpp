@@ -37,7 +37,7 @@ void udp_client_endpoint_impl::connect() {
 }
 
 void udp_client_endpoint_impl::start() {
-	socket_.open(boost::asio::ip::udp::v4());
+	socket_.open(remote_.protocol());
 	connect();
 	receive();
 }

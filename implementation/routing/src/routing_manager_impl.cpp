@@ -287,7 +287,7 @@ void routing_manager_impl::set(client_t its_client,
 }
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size, endpoint *_receiver) {
-#if 0
+#if 1
 	std::stringstream msg;
 	msg << "rmi::on_message: ";
 	for (uint32_t i = 0; i < _size; ++i)
@@ -396,23 +396,24 @@ std::shared_ptr< configuration > routing_manager_impl::get_configuration() const
 void routing_manager_impl::create_service_discovery_endpoint(
 		const std::string &_address, uint16_t _port, const std::string &_protocol) {
 	bool is_reliable = (_protocol != "udp");
-	std::shared_ptr< endpoint > its_endpoint = find_server_endpoint(_port, is_reliable);
-	if (!its_endpoint) {
-		its_endpoint = create_server_endpoint(_port, is_reliable);
+
+	std::shared_ptr< endpoint > its_service_endpoint = find_server_endpoint(_port, is_reliable);
+	if (!its_service_endpoint) {
+		its_service_endpoint = create_server_endpoint(_port, is_reliable);
 
 		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(
 				VSOMEIP_ANY_MAJOR, VSOMEIP_ANY_MINOR, VSOMEIP_ANY_TTL));
 		if (is_reliable) {
-			its_info->set_reliable_endpoint(its_endpoint);
+			its_info->set_reliable_endpoint(its_service_endpoint);
 		} else {
-			its_info->set_unreliable_endpoint(its_endpoint);
+			its_info->set_unreliable_endpoint(its_service_endpoint);
 		}
 
 		// routing info
 		services_[vsomeip::sd::VSOMEIP_SD_SERVICE][vsomeip::sd::VSOMEIP_SD_INSTANCE] = its_info;
 
-		its_endpoint->join(_address);
-		its_endpoint->start();
+		its_service_endpoint->join(_address);
+		its_service_endpoint->start();
 	}
 }
 
@@ -558,6 +559,11 @@ std::shared_ptr< endpoint > routing_manager_impl::create_server_endpoint(uint16_
 				its_endpoint->enable_magic_cookies();
 			}
 		} else {
+			if (its_address.is_v4()) {
+				its_address = boost::asio::ip::address_v4::any();
+			} else {
+				// TODO: how is "ANY" specified in IPv6?
+			}
 			its_endpoint = std::make_shared< udp_server_endpoint_impl >(
 				shared_from_this(),
 				boost::asio::ip::udp::endpoint(its_address, _port),

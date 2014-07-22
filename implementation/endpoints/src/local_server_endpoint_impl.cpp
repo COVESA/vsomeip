@@ -64,6 +64,10 @@ local_server_endpoint_impl::endpoint_type local_server_endpoint_impl::get_remote
 	return current_->get_socket().remote_endpoint();
 }
 
+local_server_endpoint_impl::endpoint_type local_server_endpoint_impl::get_cast() const {
+	return get_remote(); // TODO: change inheritance to separate local from ip endpoints
+}
+
 void local_server_endpoint_impl::remove_connection(local_server_endpoint_impl::connection *_connection) {
 	std::map< endpoint_type, connection::ptr >::iterator i = connections_.end();
 	for (i = connections_.begin(); i != connections_.end(); i++) {

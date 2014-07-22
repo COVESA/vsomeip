@@ -24,7 +24,8 @@ namespace vsomeip {
 udp_server_endpoint_impl::udp_server_endpoint_impl(
 		std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io)
 	: server_endpoint_impl< ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >(_host, _local, _io),
-	  socket_(_io, _local) {
+	  socket_(_io, _local),
+	  cast_(_local) {
 	boost::asio::socket_base::broadcast option(true);
 	socket_.set_option(option);
 }
@@ -63,9 +64,9 @@ void udp_server_endpoint_impl::restart() {
 void udp_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
 #if 0
 		std::stringstream msg;
-		msg << "usei::sq: ";
-		for (std::size_t i = 0; i < _data->size(); ++i)
-			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_data)[i] << " ";
+		msg << "usei::sq(" << _target.address().to_string() << ":" << _target.port() << "): ";
+		for (std::size_t i = 0; i < _buffer->size(); ++i)
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
 		VSOMEIP_DEBUG << msg.str();
 #endif
  	socket_.async_send_to(
@@ -85,15 +86,21 @@ udp_server_endpoint_impl::endpoint_type udp_server_endpoint_impl::get_remote() c
 	return remote_;
 }
 
+udp_server_endpoint_impl::endpoint_type udp_server_endpoint_impl::get_cast() const {
+	return cast_;
+}
+
 void udp_server_endpoint_impl::join(const std::string &_multicast_address) {
 	if (local_.address().is_v4()) {
 		try {
+			cast_.address(boost::asio::ip::address::from_string(_multicast_address));
 			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+			socket_.set_option(boost::asio::ip::multicast::enable_loopback(false));
 			socket_.set_option(boost::asio::ip::multicast::join_group(
-							   boost::asio::ip::address::from_string(_multicast_address)));
+					boost::asio::ip::address::from_string(_multicast_address).to_v4()));
 		}
-		catch (...) {
-
+		catch (const std::exception &e) {
+			VSOMEIP_ERROR << e.what();
 		}
 	} else {
 		// TODO: support multicast for IPv6
@@ -103,9 +110,9 @@ void udp_server_endpoint_impl::join(const std::string &_multicast_address) {
 void udp_server_endpoint_impl::leave(const std::string &_multicast_address) {
 	if (local_.address().is_v4()) {
 		try {
-			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
 			socket_.set_option(boost::asio::ip::multicast::leave_group(
 							   boost::asio::ip::address::from_string(_multicast_address)));
+			cast_.address(cast_.address().to_v4().broadcast());
 		}
 		catch (...) {
 

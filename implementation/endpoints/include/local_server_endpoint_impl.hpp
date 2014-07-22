@@ -40,6 +40,7 @@ public:
 
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _data);
 	endpoint_type get_remote() const;
+	endpoint_type get_cast() const;
 
 	void join(const std::string &);
 	void leave(const std::string &);

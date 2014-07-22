@@ -17,6 +17,7 @@
 
 #include "../include/server_endpoint_impl.hpp"
 #include "../../configuration/include/internal.hpp"
+#include "../../utility/include/utility.hpp"
 
 namespace vsomeip {
 
@@ -42,9 +43,15 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::send(
 		msg << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
 	VSOMEIP_DEBUG << msg.str();
 #endif
-	bool is_sent(false);
+
+	endpoint_type its_target;
+	bool is_valid_target(false);
+
 	if (VSOMEIP_SESSION_POS_MAX < _size) {
 		std::unique_lock< std::mutex > its_lock(mutex_);
+
+		service_t its_service;
+		std::memcpy(&its_service, &_data[VSOMEIP_SERVICE_POS_MIN], sizeof(service_t));
 
 		client_t its_client;
 		std::memcpy(&its_client, &_data[VSOMEIP_CLIENT_POS_MIN], sizeof(client_t));
@@ -55,48 +62,53 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::send(
 		if (found_client != clients_.end()) {
 			auto found_session = found_client->second.find(its_session);
 			if (found_session != found_client->second.end()) {
-				endpoint_type its_target = found_session->second;
+				its_target = found_session->second;
+				is_valid_target = true;
+			}
+		} else if (its_service == 0xFFFF) {
+			its_target = get_cast();
+			is_valid_target = true;
+		}
 
-				// find queue and packetizer (buffer)
-				std::shared_ptr< std::vector< byte_t > > target_packetizer;
+		if (is_valid_target) {
+			// find queue and packetizer (buffer)
+			std::shared_ptr< std::vector< byte_t > > target_packetizer;
 
-				auto found_packetizer = packetizer_.find(its_target);
-				if (found_packetizer != packetizer_.end()) {
-					target_packetizer = found_packetizer->second;
-				} else {
-					target_packetizer = std::make_shared< message_buffer_t >();
-					packetizer_.insert(std::make_pair(its_target, target_packetizer));
-				}
+			auto found_packetizer = packetizer_.find(its_target);
+			if (found_packetizer != packetizer_.end()) {
+				target_packetizer = found_packetizer->second;
+			} else {
+				target_packetizer = std::make_shared< message_buffer_t >();
+				packetizer_.insert(std::make_pair(its_target, target_packetizer));
+			}
 
-				if (target_packetizer->size() + _size > MaxBufferSize) {
-					send_queued(its_target, target_packetizer);
-					packetizer_[its_target] = std::make_shared< message_buffer_t >();
-				}
+			if (target_packetizer->size() + _size > MaxBufferSize) {
+				send_queued(its_target, target_packetizer);
+				packetizer_[its_target] = std::make_shared< message_buffer_t >();
+			}
 
-				target_packetizer->insert(target_packetizer->end(), _data, _data + _size);
+			target_packetizer->insert(target_packetizer->end(), _data, _data + _size);
 
-				if (_flush) {
-					flush_timer_.cancel();
-					send_queued(its_target, target_packetizer);
-					packetizer_[its_target] = std::make_shared< message_buffer_t >();
-				} else {
-					std::chrono::milliseconds flush_timeout(VSOMEIP_DEFAULT_FLUSH_TIMEOUT);
-					flush_timer_.expires_from_now(flush_timeout); // TODO: use configured value
-					flush_timer_.async_wait(
-						std::bind(
-							&server_endpoint_impl<Protocol, MaxBufferSize>::flush_cbk,
-							this->shared_from_this(),
-							its_target,
-							std::placeholders::_1
-						)
-					);
-				}
-				is_sent = true;
+			if (_flush) {
+				flush_timer_.cancel();
+				send_queued(its_target, target_packetizer);
+				packetizer_[its_target] = std::make_shared< message_buffer_t >();
+			} else {
+				std::chrono::milliseconds flush_timeout(VSOMEIP_DEFAULT_FLUSH_TIMEOUT);
+				flush_timer_.expires_from_now(flush_timeout); // TODO: use configured value
+				flush_timer_.async_wait(
+					std::bind(
+						&server_endpoint_impl<Protocol, MaxBufferSize>::flush_cbk,
+						this->shared_from_this(),
+						its_target,
+						std::placeholders::_1
+					)
+				);
 			}
 		}
 	}
 
-	return is_sent;
+	return is_valid_target;
 }
 
 template < typename Protocol, int MaxBufferSize >

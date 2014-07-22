@@ -31,8 +31,8 @@ public:
 	uint16_t get_length() const;
 	option_type_e get_type() const;
 
-	bool serialize(vsomeip::serializer *_to) const;
-	bool deserialize(vsomeip::deserializer *_from);
+	virtual bool serialize(vsomeip::serializer *_to) const;
+	virtual bool deserialize(vsomeip::deserializer *_from);
 
 protected:
 	uint16_t length_;

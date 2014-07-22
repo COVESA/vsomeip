@@ -5,7 +5,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 
+#include <vsomeip/logger.hpp>
 #include <vsomeip/serializable.hpp>
 
 #include "../include/byteorder.hpp"
@@ -113,6 +116,14 @@ void serializer::set_data(uint8_t *_data, uint32_t _capacity) {
 void serializer::reset() {
 	position_ = data_;
 	remaining_ = capacity_;
+}
+
+void serializer::show() {
+	std::stringstream its_data;
+	its_data << "SERIALIZED: ";
+	for (int i = 0; i < position_ - data_; ++i)
+		its_data << std::setw(2) << std::setfill('0') << std::hex << (int)data_[i];
+	VSOMEIP_DEBUG << its_data.str();
 }
 
 } // namespace vsomeip

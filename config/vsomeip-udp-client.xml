@@ -1,6 +1,7 @@
 <!-- vsomeip test configuration file -->
 <someip>
 	<address>192.168.56.101</address>
+	<netmask>24</address>
 	<logging> 
 		<level>trace</level>
 		<console>true</console>

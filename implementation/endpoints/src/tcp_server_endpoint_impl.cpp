@@ -59,6 +59,10 @@ tcp_server_endpoint_impl::endpoint_type tcp_server_endpoint_impl::get_remote() c
 	return current_->get_socket().remote_endpoint();
 }
 
+tcp_server_endpoint_impl::endpoint_type tcp_server_endpoint_impl::get_cast() const {
+	return get_remote();
+}
+
 void tcp_server_endpoint_impl::accept_cbk(
 		connection::ptr _connection, boost::system::error_code const &_error) {
 

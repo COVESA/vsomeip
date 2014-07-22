@@ -8,6 +8,7 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
+#include <vsomeip/logger.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
@@ -38,13 +39,10 @@ message_impl::~message_impl() {
 
 length_t message_impl::get_length() const {
 	length_t current_length = VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_SD_DATA_SIZE;
-
 	current_length += (entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
-
 	for (size_t i = 0; i < options_.size(); ++i) {
 		current_length += (options_[i]->get_length() + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE);
 	}
-
 	return current_length;
 }
 

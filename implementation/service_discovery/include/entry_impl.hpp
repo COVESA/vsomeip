@@ -54,8 +54,8 @@ public:
 
 	void set_type(entry_type_e _type);
 
-	bool serialize(vsomeip::serializer *_to) const;
-	bool deserialize(vsomeip::deserializer *_from);
+	virtual bool serialize(vsomeip::serializer *_to) const;
+	virtual bool deserialize(vsomeip::deserializer *_from);
 
 protected:
 	entry_type_e type_;

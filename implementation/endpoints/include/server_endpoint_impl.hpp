@@ -48,6 +48,7 @@ public:
 public:
 	virtual void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) = 0;
 	virtual endpoint_type get_remote() const = 0;
+	virtual endpoint_type get_cast() const = 0;
 
 protected:
 	std::map< endpoint_type, message_buffer_ptr_t > packetizer_;

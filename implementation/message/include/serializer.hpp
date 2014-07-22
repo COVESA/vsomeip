@@ -36,6 +36,8 @@ public:
 
 	virtual void reset();
 
+	virtual void show();
+
 private:
 	uint8_t * data_;
 	uint32_t capacity_;
