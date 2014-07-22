@@ -266,6 +266,7 @@ void routing_manager_impl::send(client_t _client,
 						} else {
 							its_target = its_info->get_unreliable_endpoint();
 						}
+
 						if (its_target) {
 							its_target->send(_data, _size, _flush);
 						} else {
@@ -394,16 +395,25 @@ std::shared_ptr< configuration > routing_manager_impl::get_configuration() const
 
 void routing_manager_impl::create_service_discovery_endpoint(
 		const std::string &_address, uint16_t _port, const std::string &_protocol) {
-/*
-	endpoint *its_endpoint = find_service_endpoint(sd::VSOMEIP_SD_SERVICE, sd::VSOMEIP_SD_INSTANCE);
-	if (nullptr != its_endpoint) {
-		bool is_reliable = (_protocol != "udp");
+	bool is_reliable = (_protocol != "udp");
+	std::shared_ptr< endpoint > its_endpoint = find_server_endpoint(_port, is_reliable);
+	if (!its_endpoint) {
+		its_endpoint = create_server_endpoint(_port, is_reliable);
 
-		its_endpoint = create_service_endpoint(_port, is_reliable);
+		std::shared_ptr< serviceinfo > its_info(std::make_shared< serviceinfo >(
+				VSOMEIP_ANY_MAJOR, VSOMEIP_ANY_MINOR, VSOMEIP_ANY_TTL));
+		if (is_reliable) {
+			its_info->set_reliable_endpoint(its_endpoint);
+		} else {
+			its_info->set_unreliable_endpoint(its_endpoint);
+		}
+
+		// routing info
+		services_[vsomeip::sd::VSOMEIP_SD_SERVICE][vsomeip::sd::VSOMEIP_SD_INSTANCE] = its_info;
+
 		its_endpoint->join(_address);
 		its_endpoint->start();
 	}
-*/
 }
 
 service_map_t routing_manager_impl::get_offered_services(const std::string &_name) const {

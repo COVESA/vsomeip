@@ -36,8 +36,7 @@
 		<host>service-sample</host>
 	</routing>
 	<service-discovery>
-		<enabled>false</enabled>
-		<host>client-sample</host>
+		<enabled>true</enabled>
 		<protocol>udp</protocol>
 		<address>224.244.224.245</address>
 		<port>30490</port>

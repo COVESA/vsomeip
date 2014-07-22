@@ -20,6 +20,7 @@
 #include "../include/protection_option_impl.hpp"
 #include "../include/message_impl.hpp"
 #include "../../message/include/deserializer.hpp"
+#include "../../message/include/payload_impl.hpp"
 #include "../../message/include/serializer.hpp"
 
 namespace vsomeip {
@@ -151,6 +152,13 @@ int16_t message_impl::get_option_index(const std::shared_ptr< option_impl > &_op
 	}
 
 	return -1;
+}
+
+std::shared_ptr< payload > message_impl::get_payload() const {
+	return std::make_shared< payload_impl >();
+}
+
+void message_impl::set_payload(std::shared_ptr< payload > _payload) {
 }
 
 bool message_impl::serialize(vsomeip::serializer *_to) const {

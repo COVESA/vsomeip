@@ -461,8 +461,8 @@ bool configuration_impl::is_local_servicegroup(const std::string &_name) const {
 	return is_local;
 }
 
-uint32_t configuration_impl::get_min_initial_delay(const std::string &_name) const {
-	uint32_t its_delay = 0;
+int32_t configuration_impl::get_min_initial_delay(const std::string &_name) const {
+	int32_t its_delay = VSOMEIP_DEFAULT_MIN_INITIAL_DELAY;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_delay = its_servicegroup->min_initial_delay_;
@@ -470,8 +470,8 @@ uint32_t configuration_impl::get_min_initial_delay(const std::string &_name) con
 	return its_delay;
 }
 
-uint32_t configuration_impl::get_max_initial_delay(const std::string &_name) const {
-	uint32_t its_delay = 0xFFFFFFFF;
+int32_t configuration_impl::get_max_initial_delay(const std::string &_name) const {
+	int32_t its_delay = VSOMEIP_DEFAULT_MAX_INITIAL_DELAY;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_delay = its_servicegroup->max_initial_delay_;

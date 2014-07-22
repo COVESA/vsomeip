@@ -141,10 +141,16 @@ service_discovery_fsm::service_discovery_fsm(
 	std::shared_ptr< configuration > its_configuration
 		= discovery_->get_configuration();
 
+	int32_t its_min_initial_delay = its_configuration->get_min_initial_delay(name_);
+	int32_t its_max_initial_delay = its_configuration->get_max_initial_delay(name_);
+
+	VSOMEIP_DEBUG << "Inital delay ["
+			<< its_min_initial_delay << ", " << its_max_initial_delay << "]";
+
 	boost::random::mt19937 its_generator;
 	boost::random::uniform_int_distribution<> its_distribution(
-		its_configuration->get_min_initial_delay(name_),
-		its_configuration->get_max_initial_delay(name_)
+		its_min_initial_delay,
+		its_max_initial_delay
 	);
 	fsm_->initial_delay_ = its_distribution(its_generator);
 

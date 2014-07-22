@@ -44,8 +44,8 @@ public:
 	std::set< std::string > get_servicegroups() const;
 
 	bool is_local_servicegroup(const std::string &_name) const;
-	uint32_t get_min_initial_delay(const std::string &_name) const;
-	uint32_t get_max_initial_delay(const std::string &_name) const;
+	int32_t get_min_initial_delay(const std::string &_name) const;
+	int32_t get_max_initial_delay(const std::string &_name) const;
 	uint32_t get_repetition_base_delay(const std::string &_name) const;
 	uint8_t get_repetition_max(const std::string &_name) const;
 	uint32_t get_cyclic_offer_delay(const std::string &_name) const;
