@@ -21,7 +21,10 @@ namespace sd {
 ///////////////////////////////////////////////////////////////////////////////
 namespace _sd {
 
-fsm::fsm(service_discovery_fsm *_fsm): fsm_(_fsm), fsm_base(_fsm->get_io()) {
+fsm::fsm(service_discovery_fsm *_fsm):
+		fsm_(_fsm),
+		fsm_base(_fsm->get_io()),
+		is_up_(true) {
 	configuration *its_configuration = configuration::get();
 }
 

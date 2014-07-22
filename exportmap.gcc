@@ -3,6 +3,8 @@ global:
 	extern "C++" {
 		*vsomeip::configuration;
 		vsomeip::configuration::*;
+		*vsomeip::serializer;
+		vsomeip::serializer::*;
 		*vsomeip::deserializer;
 		vsomeip::deserializer::*;
 		*vsomeip::tcp*;
@@ -13,6 +15,8 @@ global:
 		vsomeip::logger::get*;
 		*vsomeip::message_base_impl;
 		*vsomeip::message_base_impl::*;
+		*vsomeip::message_header_impl;
+		*vsomeip::message_header_impl::*;
 		*vsomeip::runtime;
 		vsomeip::runtime::get*;
 		*vsomeip::application_impl;

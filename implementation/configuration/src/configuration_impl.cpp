@@ -479,8 +479,8 @@ int32_t configuration_impl::get_max_initial_delay(const std::string &_name) cons
 	return its_delay;
 }
 
-uint32_t configuration_impl::get_repetition_base_delay(const std::string &_name) const {
-	uint32_t its_delay = 0xFFFFFFFF;
+int32_t configuration_impl::get_repetition_base_delay(const std::string &_name) const {
+	int32_t its_delay = VSOMEIP_DEFAULT_REPETITION_BASE_DELAY;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_delay = its_servicegroup->repetition_base_delay_;
@@ -489,7 +489,7 @@ uint32_t configuration_impl::get_repetition_base_delay(const std::string &_name)
 }
 
 uint8_t configuration_impl::get_repetition_max(const std::string &_name) const {
-	uint8_t its_max = 0;
+	uint8_t its_max = VSOMEIP_DEFAULT_REPETITION_MAX;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_max = its_servicegroup->repetition_max_;
@@ -497,8 +497,8 @@ uint8_t configuration_impl::get_repetition_max(const std::string &_name) const {
 	return its_max;
 }
 
-uint32_t configuration_impl::get_cyclic_offer_delay(const std::string &_name) const {
-	uint32_t its_delay = 0xFFFFFFFF;
+int32_t configuration_impl::get_cyclic_offer_delay(const std::string &_name) const {
+	uint32_t its_delay = VSOMEIP_DEFAULT_CYCLIC_OFFER_DELAY;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_delay = its_servicegroup->cyclic_offer_delay_;
@@ -506,8 +506,8 @@ uint32_t configuration_impl::get_cyclic_offer_delay(const std::string &_name) co
 	return its_delay;
 }
 
-uint32_t configuration_impl::get_cyclic_request_delay(const std::string &_name) const {
-	uint32_t its_delay = 0xFFFFFFFF;
+int32_t configuration_impl::get_cyclic_request_delay(const std::string &_name) const {
+	uint32_t its_delay = VSOMEIP_DEFAULT_CYCLIC_REQUEST_DELAY;
 
 	servicegroup *its_servicegroup = find_servicegroup(_name);
 	if (its_servicegroup) its_delay = its_servicegroup->cyclic_request_delay_;
