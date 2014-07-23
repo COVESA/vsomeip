@@ -9,10 +9,18 @@
 namespace vsomeip {
 
 serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor, ttl_t _ttl)
-	: major_(_major), minor_(_minor), ttl_(_ttl) {
+	: group_(0), major_(_major), minor_(_minor), ttl_(_ttl) {
 }
 
 serviceinfo::~serviceinfo() {
+}
+
+servicegroup * serviceinfo::get_group() const {
+	return group_;
+}
+
+void serviceinfo::set_group(servicegroup *_group) {
+	group_ = _group;
 }
 
 major_version_t serviceinfo::get_major() const {
@@ -31,20 +39,19 @@ void serviceinfo::set_ttl(ttl_t _ttl) {
 	ttl_ = _ttl;
 }
 
-std::shared_ptr< endpoint > & serviceinfo::get_reliable_endpoint() {
-	return reliable_endpoint_;
+std::shared_ptr< endpoint > & serviceinfo::get_endpoint(bool _reliable) {
+	if (_reliable)
+		return reliable_;
+
+	return unreliable_;
 }
 
-void serviceinfo::set_reliable_endpoint(std::shared_ptr< endpoint > &_endpoint) {
-	reliable_endpoint_ = _endpoint;
-}
-
-std::shared_ptr< endpoint > & serviceinfo::get_unreliable_endpoint() {
-	return unreliable_endpoint_;
-}
-
-void serviceinfo::set_unreliable_endpoint(std::shared_ptr< endpoint > &_endpoint) {
-	unreliable_endpoint_ = _endpoint;
+void serviceinfo::set_endpoint(std::shared_ptr< endpoint > &_endpoint, bool _reliable) {
+	if (_reliable) {
+		reliable_ = _endpoint;
+	} else {
+		unreliable_ = _endpoint;
+	}
 }
 
 void serviceinfo::add_client(client_t _client) {

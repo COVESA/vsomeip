@@ -15,11 +15,15 @@
 namespace vsomeip {
 
 class endpoint;
+class servicegroup;
 
 class serviceinfo {
 public:
 	serviceinfo(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 	~serviceinfo();
+
+	servicegroup * get_group() const;
+	void set_group(servicegroup *_group);
 
 	major_version_t get_major() const;
 	minor_version_t get_minor() const;
@@ -27,22 +31,21 @@ public:
 	ttl_t get_ttl() const;
 	void set_ttl(ttl_t _ttl);
 
-	std::shared_ptr< endpoint > & get_reliable_endpoint();
-	void set_reliable_endpoint(std::shared_ptr< endpoint > &_endpoint);
-
-	std::shared_ptr< endpoint > & get_unreliable_endpoint();
-	void set_unreliable_endpoint(std::shared_ptr< endpoint > &_endpoint);
+	std::shared_ptr< endpoint > & get_endpoint(bool _reliable);
+	void set_endpoint(std::shared_ptr< endpoint > &_endpoint, bool _reliable);
 
 	void add_client(client_t _client);
 	void remove_client(client_t _client);
 
 private:
+	servicegroup *group_;
+
 	major_version_t major_;
 	minor_version_t minor_;
 	ttl_t ttl_;
 
-	std::shared_ptr< endpoint > reliable_endpoint_;
-	std::shared_ptr< endpoint > unreliable_endpoint_;
+	std::shared_ptr< endpoint > reliable_;
+	std::shared_ptr< endpoint > unreliable_;
 
 	std::set< client_t > requesters_;
 };

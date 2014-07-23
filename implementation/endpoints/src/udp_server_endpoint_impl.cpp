@@ -62,7 +62,7 @@ void udp_server_endpoint_impl::restart() {
 }
 
 void udp_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
-#if 1
+#if 0
 		std::stringstream msg;
 		msg << "usei::sq(" << _target.address().to_string() << ":" << _target.port() << "): ";
 		for (std::size_t i = 0; i < _buffer->size(); ++i)
@@ -122,20 +122,22 @@ void udp_server_endpoint_impl::leave(const std::string &_multicast_address) {
 	}
 }
 
-bool udp_server_endpoint_impl::is_v4() const {
-	return socket_.local_endpoint().address().is_v4();
-}
-
-bool udp_server_endpoint_impl::get_address(std::vector< byte_t > &_address) const {
+bool udp_server_endpoint_impl::get_address(ipv4_address_t &_address) const {
 	boost::asio::ip::address its_address = socket_.local_endpoint().address();
 	if (its_address.is_v4()) {
-		boost::asio::ip::address_v4 its_address_v4 = its_address.to_v4();
-		boost::asio::ip::address_v4::bytes_type its_bytes = its_address_v4.to_bytes();
-		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+		_address = its_address.to_v4().to_bytes();
 	} else {
-		boost::asio::ip::address_v6 its_address_v6 = its_address.to_v6();
-		boost::asio::ip::address_v6::bytes_type its_bytes = its_address_v6.to_bytes();
-		_address.assign(its_bytes.data(), its_bytes.data() + sizeof(its_bytes));
+		return false;
+	}
+	return true;
+}
+
+bool udp_server_endpoint_impl::get_address(ipv6_address_t &_address) const {
+	boost::asio::ip::address its_address = socket_.local_endpoint().address();
+	if (its_address.is_v6()) {
+		_address = its_address.to_v6().to_bytes();
+	} else {
+		return false;
 	}
 	return true;
 }

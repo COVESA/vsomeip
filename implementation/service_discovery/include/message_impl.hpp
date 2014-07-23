@@ -54,8 +54,8 @@ public:
 	std::shared_ptr< load_balancing_option_impl > create_load_balancing_option();
 	std::shared_ptr< protection_option_impl > create_protection_option();
 
-	const std::vector< std::shared_ptr< entry_impl > > get_entries() const;
-	const std::vector< std::shared_ptr< option_impl > > get_options() const;
+	const std::vector< std::shared_ptr< entry_impl > > & get_entries() const;
+	const std::vector< std::shared_ptr< option_impl > > & get_options() const;
 
 	int16_t get_option_index(const std::shared_ptr< option_impl > &_option) const;
 

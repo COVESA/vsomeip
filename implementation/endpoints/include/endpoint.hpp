@@ -29,8 +29,8 @@ public:
 	virtual void join(const std::string &_multicast_address) = 0;
 	virtual void leave(const std::string &_multicast_address) = 0;
 
-	virtual bool is_v4() const = 0;
-	virtual bool get_address(std::vector< byte_t > &_address) const = 0;
+	virtual bool get_address(ipv4_address_t &_address) const = 0;
+	virtual bool get_address(ipv6_address_t &_address) const = 0;
 	virtual unsigned short get_port() const = 0;
 	virtual bool is_udp() const = 0;
 };

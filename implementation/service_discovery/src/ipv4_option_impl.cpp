@@ -30,11 +30,11 @@ bool ipv4_option_impl::operator ==(const option_impl &_other) const {
 	return true;
 }
 
-const std::vector< byte_t > & ipv4_option_impl::get_address() const {
+const ipv4_address_t & ipv4_option_impl::get_address() const {
 	return address_;
 }
 
-void ipv4_option_impl::set_address(const std::vector< byte_t > &_address) {
+void ipv4_option_impl::set_address(const ipv4_address_t &_address) {
 	address_ = _address;
 }
 
@@ -70,8 +70,7 @@ bool ipv4_option_impl::serialize(vsomeip::serializer *_to) const {
 bool ipv4_option_impl::deserialize(vsomeip::deserializer *_from) {
 	bool is_successful = option_impl::deserialize(_from);
 	uint8_t its_reserved;
-	address_.resize(4);
-	_from->deserialize(address_);
+	_from->deserialize(address_.data(), 4);
 	_from->deserialize(its_reserved);
 	_from->deserialize(its_reserved);
 	is_udp_ = (protocol::udp == its_reserved);

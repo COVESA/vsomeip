@@ -7,8 +7,6 @@
 #ifndef VSOMEIP_SD_IPV4_OPTION_IMPL_HPP
 #define VSOMEIP_SD_IPV4_OPTION_IMPL_HPP
 
-#include <vector>
-
 #include <vsomeip/primitive_types.hpp>
 
 #include "option_impl.hpp"
@@ -22,8 +20,8 @@ public:
 	virtual ~ipv4_option_impl();
 	bool operator == (const option_impl &_option) const;
 
-	const std::vector< byte_t > & get_address() const;
-	void set_address(const std::vector< byte_t > &_address);
+	const ipv4_address_t & get_address() const;
+	void set_address(const ipv4_address_t &_address);
 
 	unsigned short get_port() const;
 	void set_port(unsigned short _port);
@@ -37,7 +35,7 @@ public:
 	bool deserialize(vsomeip::deserializer *_from);
 
 protected:
-	std::vector< byte_t > address_;
+	ipv4_address_t address_;
 	unsigned short port_;
 	bool is_udp_;
 };

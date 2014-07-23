@@ -115,12 +115,12 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::is_v4() const {
+bool endpoint_impl< MaxBufferSize >::get_address(ipv4_address_t &_address) const {
 	return false;
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::get_address(std::vector< byte_t > &_address) const {
+bool endpoint_impl< MaxBufferSize >::get_address(ipv6_address_t &_address) const {
 	return false;
 }
 

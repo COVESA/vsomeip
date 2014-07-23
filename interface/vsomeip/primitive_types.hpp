@@ -7,6 +7,7 @@
 #ifndef VSOMEIP_PRIMITIVE_TYPES_HPP
 #define VSOMEIP_PRIMITIVE_TYPES_HPP
 
+#include <array>
 #include <cstdint>
 
 namespace vsomeip {
@@ -34,6 +35,10 @@ typedef uint8_t protocol_version_t;
 typedef uint8_t interface_version_t;
 
 typedef uint8_t byte_t;
+
+// Addresses
+typedef std::array< byte_t, 4 > ipv4_address_t;
+typedef std::array< byte_t, 16 > ipv6_address_t;
 
 } // namespace vsomeip
 

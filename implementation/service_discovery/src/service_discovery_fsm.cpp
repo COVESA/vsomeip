@@ -41,7 +41,7 @@ void fsm::timer_expired(const boost::system::error_code &_error) {
 // State "Inactive"
 ///////////////////////////////////////////////////////////////////////////////
 inactive::inactive(my_context context): sc::state< inactive, fsm >(context) {
-	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::inactive";
+	VSOMEIP_TRACE << "sd<" << outermost_context().fsm_->get_name() << ">::inactive";
 	outermost_context().run_ = 0;
 }
 
@@ -66,7 +66,7 @@ sc::result inactive::react(const ev_status_change &_event) {
 // State "Active"
 ///////////////////////////////////////////////////////////////////////////////
 active::active(my_context _context): sc::state< active, fsm, initial >(_context) {
-	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active";
+	VSOMEIP_TRACE << "sd<" << outermost_context().fsm_->get_name() << ">::active";
 }
 
 active::~active() {
@@ -85,7 +85,7 @@ sc::result active::react(const ev_status_change &_event) {
 // State "Active.Initial"
 ///////////////////////////////////////////////////////////////////////////////
 initial::initial(my_context _context): sc::state< initial, active >(_context) {
-	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.initial";
+	VSOMEIP_TRACE << "sd<" << outermost_context().fsm_->get_name() << ">::active.initial";
 	outermost_context().start_timer(outermost_context().initial_delay_);
 }
 
@@ -97,7 +97,7 @@ sc::result initial::react(const ev_timeout &_event) {
 // State "Active.Repeat"
 ///////////////////////////////////////////////////////////////////////////////
 repeat::repeat(my_context _context): sc::state< repeat, active >(_context) {
-	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.repeat";
+	VSOMEIP_TRACE << "sd<" << outermost_context().fsm_->get_name() << ">::active.repeat";
 	uint32_t its_timeout = (outermost_context().repetition_base_delay_ << outermost_context().run_);
 	outermost_context().run_ ++;
 	outermost_context().fsm_->send(false);
@@ -119,7 +119,7 @@ sc::result repeat::react(const ev_find_service &_event) {
 // State "Active.Announce"
 ///////////////////////////////////////////////////////////////////////////////
 announce::announce(my_context _context): sc::state< announce, active  >(_context) {
-	VSOMEIP_DEBUG << "sd<" << outermost_context().fsm_->get_name() << ">::active.announce";
+	VSOMEIP_TRACE << "sd<" << outermost_context().fsm_->get_name() << ">::active.announce";
 	outermost_context().start_timer(outermost_context().cyclic_offer_delay_);
 	outermost_context().fsm_->send(true);
 }
@@ -147,7 +147,7 @@ service_discovery_fsm::service_discovery_fsm(
 	int32_t its_min_initial_delay = its_configuration->get_min_initial_delay(name_);
 	int32_t its_max_initial_delay = its_configuration->get_max_initial_delay(name_);
 
-	VSOMEIP_DEBUG << "Inital delay ["
+	VSOMEIP_TRACE << "Inital delay ["
 			<< its_min_initial_delay << ", " << its_max_initial_delay << "]";
 
 	boost::random::mt19937 its_generator;

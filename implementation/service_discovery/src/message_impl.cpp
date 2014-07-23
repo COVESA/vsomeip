@@ -131,11 +131,11 @@ std::shared_ptr< protection_option_impl > message_impl::create_protection_option
 	return its_option;
 }
 
-const std::vector< std::shared_ptr< entry_impl > > message_impl::get_entries() const {
+const std::vector< std::shared_ptr< entry_impl > >  & message_impl::get_entries() const {
 	return entries_;
 }
 
-const std::vector< std::shared_ptr< option_impl > > message_impl::get_options() const {
+const std::vector< std::shared_ptr< option_impl > >  & message_impl::get_options() const {
 	return options_;
 }
 

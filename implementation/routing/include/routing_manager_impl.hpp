@@ -12,6 +12,7 @@
 #include <mutex>
 #include <vector>
 
+#include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
 
 #include "routing_manager.hpp"
@@ -129,21 +130,25 @@ private:
 	client_t find_local_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);
 
-	serviceinfo * find_service(service_t _service, instance_t _instance);
-	void create_service(service_t _service, instance_t _instance,
-						major_version_t _major, minor_version_t _minor, ttl_t _ttl);
+	std::shared_ptr< serviceinfo > find_service(service_t _service, instance_t _instance);
+	std::shared_ptr< serviceinfo > create_service(service_t _service, instance_t _instance,
+										major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
 	std::shared_ptr< endpoint > find_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
-	std::shared_ptr< endpoint > create_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
-	std::shared_ptr< endpoint > find_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
-	std::shared_ptr< endpoint > find_or_create_client_endpoint(const std::string &_address, uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > create_client_endpoint(const boost::asio::ip::address &_address, uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_client_endpoint(const boost::asio::ip::address &_address, uint16_t _port, bool _reliable);
+	std::shared_ptr< endpoint > find_or_create_client_endpoint(const boost::asio::ip::address &_address, uint16_t _port, bool _reliable);
 
 	std::shared_ptr< endpoint > create_server_endpoint(uint16_t _port, bool _reliable);
 	std::shared_ptr< endpoint > find_server_endpoint(uint16_t _port, bool _reliable);
 	std::shared_ptr< endpoint > find_or_create_server_endpoint(uint16_t _port, bool _reliable);
 
 	void init_routing_info();
+	void add_routing_info(service_t _service, instance_t _instance,
+			major_version_t _major, minor_version_t _minor, ttl_t _ttl,
+			const boost::asio::ip::address &_address, uint16_t _port, bool _reliable);
+	void del_routing_info(service_t _service, instance_t _instance, bool _reliable);
 
 private:
 	boost::asio::io_service &io_;
@@ -168,7 +173,7 @@ private:
 	std::map< service_t, std::map< endpoint *, instance_t > > service_instances_;
 
 	// Client endpoints for remote services
-	std::map< std::string,
+	std::map< boost::asio::ip::address,
 			  std::map< uint16_t,
 			  	  	    std::map< bool, std::shared_ptr< endpoint > > > > client_endpoints_;
 	std::map< service_t,

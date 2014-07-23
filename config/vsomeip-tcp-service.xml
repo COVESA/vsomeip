@@ -1,8 +1,8 @@
 <!-- vsomeip test configuration file -->
 <someip>
-	<address>192.168.56.102</address>
+	<address>192.168.56.101</address>
 	<logging> 
-		<level>trace</level>
+		<level>debug</level>
 		<console>true</console>
 		<file>
 			<enable>false</enable>

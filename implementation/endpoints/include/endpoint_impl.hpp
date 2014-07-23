@@ -35,8 +35,8 @@ public:
 
 	// Dummy implementations as we only need these for server endpoints
 	// TODO: redesign to avoid dummy implementations
-	bool is_v4() const;
-	bool get_address(std::vector< byte_t > &_address) const;
+	bool get_address(ipv4_address_t &_address) const;
+	bool get_address(ipv6_address_t &_address) const;
 	unsigned short get_port() const;
 	bool is_udp() const;
 

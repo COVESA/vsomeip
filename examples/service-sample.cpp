@@ -4,8 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <chrono>
+#include <condition_variable>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <thread>
 
 #include <vsomeip/vsomeip.hpp>
@@ -17,10 +20,13 @@ public:
 	service_sample(bool _use_tcp)
 		: app_(vsomeip::runtime::get()->create_application()),
 		  is_registered_(false),
-		  use_tcp_(_use_tcp) {
+		  use_tcp_(_use_tcp),
+		  offer_thread_(std::bind(&service_sample::run, this)) {
 	}
 
 	void init() {
+		std::lock_guard< std::mutex > its_lock(mutex_);
+
 		app_->init();
 		app_->register_message_handler(
 					SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
@@ -31,6 +37,9 @@ public:
 
 		app_->register_event_handler(
 				std::bind(&service_sample::on_event, this, std::placeholders::_1));
+
+		blocked_ = true;
+		condition_.notify_one();
 	}
 
 	void start() {
@@ -41,6 +50,10 @@ public:
 		app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
 	}
 
+	void stop_offer() {
+		app_->stop_offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+	}
+
 	void on_event(vsomeip::event_type_e _event) {
 		VSOMEIP_INFO << "Application " << app_->get_name()
 					 << " is "
@@ -49,7 +62,6 @@ public:
 		if (_event == vsomeip::event_type_e::REGISTERED) {
 			if (!is_registered_) {
 				is_registered_= true;
-				offer();
 			}
 		} else {
 			is_registered_ = false;
@@ -75,12 +87,28 @@ public:
 		app_->send(its_response, true, use_tcp_);
 	}
 
+	void run() {
+		std::unique_lock< std::mutex > its_lock(mutex_);
+		while (!blocked_) condition_.wait(its_lock);
+
+		bool is_offer(true);
+		while (true) {
+			if (is_offer) offer();
+			else stop_offer();
+			std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+			is_offer = !is_offer;
+		}
+	}
+
 private:
 	std::shared_ptr< vsomeip::application > app_;
 	bool is_registered_;
 	bool use_tcp_;
+	std::thread offer_thread_;
+	std::mutex mutex_;
+	std::condition_variable condition_;
+	bool blocked_;
 };
-
 
 int main(int argc, char **argv) {
 	bool use_tcp = false;

@@ -20,6 +20,9 @@ class endpoint;
 
 namespace sd {
 
+class eventgroupentry_impl;
+class option_impl;
+class serviceentry_impl;
 class service_discovery_fsm;
 class service_discovery_host;
 
@@ -37,9 +40,6 @@ public:
 	void start();
 	void stop();
 
-	void offer_service(service_t _service, instance_t _instance);
-	void stop_offer_service(service_t _service, instance_t _instance);
-
 	void request_service(service_t _service, instance_t _instance,
 			major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 	void release_service(service_t _service, instance_t _instance);
@@ -49,8 +49,16 @@ public:
 	void on_message(const byte_t *_data, length_t _length);
 
 private:
+	void insert_service_option(std::shared_ptr< message_impl > &_message,
+			std::shared_ptr< serviceentry_impl > &_entry,
+			std::shared_ptr< endpoint > _endpoint);
 	void insert_service_entries(std::shared_ptr< message_impl > &_message,
 			service_map_t &_services, bool _is_offer);
+
+	void process_serviceentry(std::shared_ptr< serviceentry_impl > &_entry,
+			const std::vector< std::shared_ptr< option_impl > > &_options);
+	void process_eventgroupentry(std::shared_ptr< eventgroupentry_impl > &_entry,
+			const std::vector< std::shared_ptr< option_impl > > &_options);
 
 private:
 	boost::asio::io_service &io_;

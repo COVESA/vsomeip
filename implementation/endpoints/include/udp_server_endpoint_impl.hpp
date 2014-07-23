@@ -45,8 +45,8 @@ public:
 	void join(const std::string &_multicast_address);
 	void leave(const std::string &_multicast_address);
 
-	bool is_v4() const;
-	bool get_address(std::vector< byte_t > &_address) const;
+	bool get_address(ipv4_address_t &_address) const;
+	bool get_address(ipv6_address_t &_address) const;
 	unsigned short get_port() const;
 	bool is_udp() const;
 

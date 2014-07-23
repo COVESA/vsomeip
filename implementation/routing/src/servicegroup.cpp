@@ -5,6 +5,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../include/servicegroup.hpp"
+#include "../include/serviceinfo.hpp"
 
 namespace vsomeip {
 
@@ -34,6 +35,8 @@ bool servicegroup::add_service(
 	} else {
 		services_[_service][_instance] = _info;
 	}
+
+	_info->set_group(this);
 
 	return its_result;
 }

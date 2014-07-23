@@ -59,8 +59,9 @@ boost::log::sources::severity_logger< boost::log::trivial::severity_level > & lo
 
 void logger_impl::init(const std::string &_path) {
 	configuration *its_configuration = configuration::get(_path);
-
 	the_logger__.loglevel_ = its_configuration->get_loglevel();
+	logging::core::get()->set_filter(
+		logging::trivial::severity >= the_logger__.loglevel_);
 
 	if (its_configuration->has_console_log())
 		the_logger__.enable_console();
