@@ -34,7 +34,7 @@ public:
 	virtual service_map_t get_offered_services(
 			const std::string &_name) const = 0;
 
-	virtual void send(client_t _client, std::shared_ptr<message> _message,
+	virtual bool send(client_t _client, std::shared_ptr<message> _message,
 			bool _flush, bool _reliable) = 0;
 
 	virtual void add_routing_info(service_t _service, instance_t _instance,

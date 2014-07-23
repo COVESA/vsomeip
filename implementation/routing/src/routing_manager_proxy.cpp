@@ -199,20 +199,23 @@ void routing_manager_proxy::unsubscribe(client_t _client,
 		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
 }
 
-void routing_manager_proxy::send(client_t its_client,
+bool routing_manager_proxy::send(client_t its_client,
 		std::shared_ptr< message > _message,
 		bool _flush, bool _reliable) {
+	bool is_sent(false);
 	std::unique_lock< std::mutex > its_lock(serialize_mutex_);
 	if (serializer_->serialize(_message.get())) {
-		send(its_client, serializer_->get_data(), serializer_->get_size(), _message->get_instance(), _flush, _reliable);
+		is_sent = send(its_client, serializer_->get_data(), serializer_->get_size(), _message->get_instance(), _flush, _reliable);
 		serializer_->reset();
 	}
+	return is_sent;
 }
 
-void routing_manager_proxy::send(client_t _client,
+bool routing_manager_proxy::send(client_t _client,
 		const byte_t *_data, length_t _size,
 		instance_t _instance,
 		bool _flush, bool _reliable) {
+	bool is_sent(false);
 	std::shared_ptr< endpoint > its_target;
 
 	if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
@@ -247,8 +250,9 @@ void routing_manager_proxy::send(client_t _client,
 		std::cout << std::endl;
 #endif
 
-		its_target->send(&its_command[0], its_command.size());
+		is_sent = its_target->send(&its_command[0], its_command.size());
 	}
+	return is_sent;
 }
 
 void routing_manager_proxy::set(client_t _client,

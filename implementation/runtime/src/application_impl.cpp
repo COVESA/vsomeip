@@ -188,9 +188,11 @@ void application_impl::send(std::shared_ptr< message > _message, bool _flush, bo
 	if (routing_) {
 		if (utility::is_request(_message)) {
 			_message->set_client(client_);
-			_message->set_session(session_++);
+			_message->set_session(session_);
 		}
-		routing_->send(client_, _message, _flush, _reliable);
+		if (routing_->send(client_, _message, _flush, _reliable)) {
+			session_++;
+		}
 	}
 }
 

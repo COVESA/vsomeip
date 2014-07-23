@@ -201,17 +201,22 @@ void routing_manager_impl::unsubscribe(client_t its_client,
 		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
 }
 
-void routing_manager_impl::send(client_t its_client,
+bool routing_manager_impl::send(client_t its_client,
 		std::shared_ptr< message > _message, bool _reliable, bool _flush) {
+	bool is_sent(false);
 	std::unique_lock< std::mutex > its_lock(serialize_mutex_);
 	if (serializer_->serialize(_message.get())) {
-		send(its_client, serializer_->get_data(), serializer_->get_size(), _message->get_instance(), _reliable, _flush);
+		is_sent = send(its_client, serializer_->get_data(), serializer_->get_size(),
+					   _message->get_instance(), _reliable, _flush);
 		serializer_->reset();
 	}
+	return is_sent;
 }
 
-void routing_manager_impl::send(client_t _client,
+bool routing_manager_impl::send(client_t _client,
 		const byte_t *_data, length_t _size, instance_t _instance, bool _flush, bool _reliable) {
+	bool is_sent(false);
+
 	std::shared_ptr< endpoint > its_target;
 
 	client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
@@ -234,18 +239,18 @@ void routing_manager_impl::send(client_t _client,
 			std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size], &_instance, sizeof(instance_t));
 			std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size + sizeof(instance_t)], &_reliable, sizeof(bool));
 			std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size + sizeof(instance_t) + sizeof(bool)] , &_flush, sizeof(bool));
-			its_target->send(&its_command[0], its_command.size(), _flush);
+			is_sent = its_target->send(&its_command[0], its_command.size(), _flush);
 		} else {
 			// Check whether hosting application should get the message
 			// If not, check routes to external
 			if ((its_client == host_->get_client() && !is_request) ||
 				(find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
-				deliver_message(_data, _size, _instance);
+				is_sent = deliver_message(_data, _size, _instance);
 			} else {
 				if (is_request) {
 					its_target = find_remote_client(its_service, _instance, _reliable);
 					if (its_target) {
-						its_target->send(_data, _size, _flush);
+						is_sent = its_target->send(_data, _size, _flush);
 					} else {
 						VSOMEIP_ERROR << "Routing error. Client from remote service could not be found!";
 					}
@@ -254,7 +259,7 @@ void routing_manager_impl::send(client_t _client,
 					if (its_info) {
 						its_target = its_info->get_endpoint(_reliable);
 						if (its_target) {
-							its_target->send(_data, _size, _flush);
+							is_sent = its_target->send(_data, _size, _flush);
 						} else {
 							VSOMEIP_ERROR << "Routing error. Service endpoint could not be found!";
 						}
@@ -265,6 +270,8 @@ void routing_manager_impl::send(client_t _client,
 			}
 		}
 	}
+
+	return is_sent;
 }
 
 void routing_manager_impl::set(client_t its_client,
@@ -343,16 +350,19 @@ void routing_manager_impl::on_disconnect(std::shared_ptr< endpoint > _endpoint) 
 	}
 }
 
-void routing_manager_impl::deliver_message(const byte_t *_data, length_t _size, instance_t _instance) {
+bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size, instance_t _instance) {
+	bool is_sent(false);
 	deserializer_->set_data(_data, _size);
 	std::shared_ptr< message > its_message(deserializer_->deserialize_message());
 	if (its_message) {
 		its_message->set_instance(_instance);
 		host_->on_message(its_message);
+		is_sent = true;
 	} else {
 		// TODO: send error "Malformed Message"
 		//send_error();
 	}
+	return is_sent;
 }
 
 bool routing_manager_impl::is_available(service_t _service, instance_t _instance) const {
