@@ -701,7 +701,9 @@ void routing_manager_impl::add_routing_info(
 	service_instances_[_service][its_endpoint.get()] = _instance;
 	services_[_service][_instance] = its_info;
 	stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance);
-	host_->on_availability(_service, _instance, true);
+
+	if (its_endpoint->is_connected())
+		host_->on_availability(_service, _instance, true);
 }
 
 void routing_manager_impl::del_routing_info(
@@ -709,6 +711,8 @@ void routing_manager_impl::del_routing_info(
 	std::shared_ptr< serviceinfo > its_info(find_service(_service, _instance));
 	if (its_info) {
 		std::shared_ptr< endpoint > its_empty_endpoint;
+
+		// TODO: only tell the application if the service is completely gone
 		host_->on_availability(_service, _instance, false);
 		stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance);
 

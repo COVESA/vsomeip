@@ -34,6 +34,11 @@ bool server_endpoint_impl< Protocol, MaxBufferSize >::is_client() const {
 }
 
 template < typename Protocol, int MaxBufferSize >
+bool server_endpoint_impl< Protocol, MaxBufferSize >::is_connected() const {
+	return true;
+}
+
+template < typename Protocol, int MaxBufferSize >
 bool server_endpoint_impl< Protocol, MaxBufferSize >::send(
 		const uint8_t *_data, uint32_t _size, bool _flush) {
 #if 0

@@ -241,17 +241,6 @@ void service_discovery_impl::process_serviceentry(
 	minor_version_t its_minor = _entry->get_minor_version();
 	ttl_t its_ttl = _entry->get_ttl();
 
-	VSOMEIP_DEBUG << "Service ["
-			<< std::hex << std::setw(4) << std::setfill('0')
-			<< its_service << "." << its_instance
-			<< "], version "
-			<< std::dec
-			<< (int)its_major << "." << its_minor
-			<< " is offered for "
-			<< its_ttl
-			<< " seconds.";
-
-	// process options
 	for (auto i : { 1, 2 }) {
 		for (auto its_index : _entry->get_options(i)) {
 			std::vector< byte_t > its_option_address;

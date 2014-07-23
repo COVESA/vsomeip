@@ -45,6 +45,8 @@ public:
 
 	bool is_client() const;
 
+	bool is_connected() const;
+
 public:
 	void connect_cbk(boost::system::error_code const &_error);
 	void wait_connect_cbk(boost::system::error_code const &_error);

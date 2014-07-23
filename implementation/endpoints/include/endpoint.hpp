@@ -19,6 +19,8 @@ public:
 	virtual void start() = 0;
 	virtual void stop() = 0;
 
+	virtual bool is_connected() const = 0;
+
 	virtual bool send(const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
 	virtual void enable_magic_cookies() = 0;
 	virtual void receive() = 0;

@@ -35,6 +35,7 @@ public:
 			endpoint_type _local, boost::asio::io_service &_io);
 
 	bool is_client() const;
+	bool is_connected() const;
 
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
 	bool flush(endpoint_type _target);

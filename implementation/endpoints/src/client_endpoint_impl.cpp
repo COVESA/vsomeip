@@ -48,6 +48,11 @@ bool client_endpoint_impl< Protocol, MaxBufferSize >::is_client() const {
 }
 
 template < typename Protocol, int MaxBufferSize >
+bool client_endpoint_impl< Protocol, MaxBufferSize >::is_connected() const {
+	return is_connected_;
+}
+
+template < typename Protocol, int MaxBufferSize >
 void client_endpoint_impl< Protocol, MaxBufferSize >::stop() {
 	if (socket_.is_open()) {
 		socket_.close();
