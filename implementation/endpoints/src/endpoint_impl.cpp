@@ -66,14 +66,14 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 
 		if (is_client()) {
 			its_cookie_identifier
-				= static_cast< uint8_t >(magic_cookie_service_message);
+				= static_cast< uint8_t >(MAGIC_COOKIE_SERVICE_MESSAGE);
 			its_cookie_type
-				= static_cast< uint8_t >(magic_cookie_service_message_type);
+				= static_cast< uint8_t >(MAGIC_COOKIE_SERVICE_MESSAGE_TYPE);
 		} else {
 			its_cookie_identifier
-				= static_cast< uint8_t >(magic_cookie_client_message);
+				= static_cast< uint8_t >(MAGIC_COOKIE_CLIENT_MESSAGE);
 			its_cookie_type
-				= static_cast< uint8_t >(magic_cookie_client_message_type);
+				= static_cast< uint8_t >(MAGIC_COOKIE_CLIENT_MESSAGE_TYPE);
 		}
 
 		do {

@@ -7,7 +7,7 @@
 #ifndef VSOMEIP_APPLICATION_HPP
 #define VSOMEIP_APPLICATION_HPP
 
-#include <vector>
+#include <memory>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -21,9 +21,13 @@ class payload;
 
 class application {
 public:
-	virtual ~application() {};
+	virtual ~application() {
+	}
+	;
 
+	// get name
 	virtual const std::string & get_name() const = 0;
+	virtual client_t get_client() const = 0;
 
 	// Lifecycle
 	virtual bool init() = 0;
@@ -32,50 +36,48 @@ public:
 
 	// Provide services
 	virtual void offer_service(service_t _service, instance_t _instance,
-					major_version_t _major = default_major,
-					minor_version_t _minor = default_minor,
-					ttl_t _ttl = default_ttl) = 0;
+			major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
+					DEFAULT_MINOR, ttl_t _ttl = DEFAULT_TTL) = 0;
 
 	virtual void stop_offer_service(service_t _service,
-					instance_t _instance) = 0;
+			instance_t _instance) = 0;
 
 	virtual void publish_eventgroup(service_t _service, instance_t _instance,
-					eventgroup_t _eventgroup, major_version_t _major,
-					ttl_t _ttl) = 0;
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) = 0;
 
 	virtual void stop_publish_eventgroup(service_t _service,
-					instance_t _instance, eventgroup_t _eventgroup) = 0;
+			instance_t _instance, eventgroup_t _eventgroup) = 0;
 
 	// Consume services
 	virtual void request_service(service_t _service, instance_t _instance,
-					major_version_t _major = any_major,
-					minor_version_t _minor = any_minor,
-					ttl_t _ttl = any_ttl) = 0;
+			major_version_t _major = ANY_MAJOR, minor_version_t _minor =
+					ANY_MINOR, ttl_t _ttl = ANY_TTL) = 0;
 
 	virtual void release_service(service_t _service, instance_t _instance) = 0;
 
 	virtual void subscribe(service_t _service, instance_t _instance,
-					eventgroup_t _eventgroup) = 0;
+			eventgroup_t _eventgroup, major_version_t _major = ANY_MAJOR,
+			ttl_t _ttl = ANY_TTL) = 0;
 
 	virtual void unsubscribe(service_t _service, instance_t _instance,
-					eventgroup_t _eventgroup) = 0;
+			eventgroup_t _eventgroup) = 0;
 
 	virtual bool is_available(service_t _service, instance_t _instance) = 0;
 
 	// Define content of eventgroups
-	virtual std::shared_ptr< event > add_event(service_t _service,
-				instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+	virtual std::shared_ptr<event> add_event(service_t _service,
+			instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
-	virtual std::shared_ptr< event > add_field(service_t _service,
-				instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-				std::shared_ptr< payload > _payload) = 0;
+	virtual std::shared_ptr<event> add_field(service_t _service,
+			instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+			std::shared_ptr<payload> _payload) = 0;
 
 	virtual void remove_event_or_field(
-					std::shared_ptr< event > _event /* or field */) = 0;
+			std::shared_ptr<event> _event /* or field */) = 0;
 
 	// Send messages
-	virtual void send(std::shared_ptr< message > _message,
-					bool _flush = true,	bool _reliable = false) = 0;
+	virtual void send(std::shared_ptr<message> _message, bool _flush = true,
+			bool _reliable = false) = 0;
 
 	// Receive events (Non-SOME/IP)
 	virtual void register_event_handler(event_handler_t _handler) = 0;
@@ -83,16 +85,16 @@ public:
 
 	// Receive messages
 	virtual void register_message_handler(service_t _service,
-					instance_t _instance, method_t _method,
-					message_handler_t _handler) = 0;
+			instance_t _instance, method_t _method,
+			message_handler_t _handler) = 0;
 	virtual void unregister_message_handler(service_t _service,
-					instance_t _instance, method_t _method) = 0;
+			instance_t _instance, method_t _method) = 0;
 
 	// Receive availability
 	virtual void register_availability_handler(service_t _service,
-					instance_t _instance, availability_handler_t _handler) = 0;
+			instance_t _instance, availability_handler_t _handler) = 0;
 	virtual void unregister_availability_handler(service_t _service,
-					instance_t _instance) = 0;
+			instance_t _instance) = 0;
 };
 
 } // namespace vsomeip

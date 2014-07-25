@@ -1,0 +1,86 @@
+{
+	"unicast" : "192.168.56.101",
+	"netmask" : "255.255.255.0",
+	"logging" : 
+	{
+		"level" : "debug",
+		"console" : "true",
+		"file" : { "enable" : "true", "path" : "/var/log/vsomeip.log" },
+		"dlt" : "true"
+	},
+	"applications" :
+	[
+		{
+			"name" : "client-sample",
+			"id" : "0x1343"
+		},
+		{
+			"name" : "second-client-sample",
+			"id" : "0x1344"
+		},
+		{
+			"name" : "third-client-sample",
+			"id" : "0x1345"
+		},
+		{
+			"name" : "fourth-client-sample",
+			"id" : "0x1346"
+		}
+	],
+	"servicegroups" : 
+	[
+		{
+			"name" : "remote",
+			"unicast" : "192.168.56.102",
+			"services" : 
+			[
+				{
+					"service" : "0x1234",
+					"instance" : "0x5678",
+					"reliable" : { "port" : "30509", "magic-cookies" : false },
+					"events" : 
+					[
+						{
+							"event" : "0x0777",
+							"is_field" : true
+						},
+						{
+							"event" : "0x0778",
+							"is_field" : false
+						},
+						{
+							"event" : "0x0779",
+							"is_field" : true
+						}
+					],
+					"eventgroups" :
+					[
+						{
+							"eventgroup" : "0x4455",
+							"multicast" : "224.225.226.223",
+							"events" : [ "0x777", "0x778" ] 
+						},
+						{
+							"eventgroup" : "0x4465",
+							"multicast" : "224.225.226.228",
+							"events" : [ "0x778", "0x779" ] 
+						},
+						{
+							"eventgroup" : "0x4555",
+							"multicast" : "224.225.226.233",
+							"events" : [ "0x777", "0x779" ] 
+						}
+					]
+				}
+			]
+		}
+	],
+	"routing" : "client-sample",
+	"service-discovery" :
+	{
+		"enable" : "true",
+		"multicast" : "224.0.0.1",
+		"port" : "30490",
+		"protocol" : "udp"
+	}
+}

@@ -64,7 +64,7 @@ public:
 			instance_t _instance);
 
 	void subscribe(client_t _client, service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup);
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
 
 	void unsubscribe(client_t _client, service_t _service, instance_t _instance,
 			eventgroup_t _eventgroup);

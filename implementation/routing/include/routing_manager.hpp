@@ -65,7 +65,8 @@ public:
 			instance_t _instance) = 0;
 
 	virtual void subscribe(client_t _client, service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup) = 0;
+			instance_t _instance, eventgroup_t _eventgroup,
+			major_version_t _major, ttl_t _ttl) = 0;
 
 	virtual void unsubscribe(client_t _client, service_t _service,
 			instance_t _instance, eventgroup_t _eventgroup) = 0;

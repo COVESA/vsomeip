@@ -19,9 +19,11 @@ namespace sd {
 
 class service_discovery {
 public:
-	virtual ~service_discovery() {};
+	virtual ~service_discovery() {
+	}
+	;
 
-	virtual std::shared_ptr< configuration > get_configuration() const = 0;
+	virtual std::shared_ptr<configuration> get_configuration() const = 0;
 	virtual boost::asio::io_service & get_io() = 0;
 
 	virtual void init() = 0;
@@ -29,8 +31,13 @@ public:
 	virtual void stop() = 0;
 
 	virtual void request_service(service_t _service, instance_t _instance,
-					major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
+			major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
 	virtual void release_service(service_t _service, instance_t _instance) = 0;
+
+	virtual void subscribe(service_t _service, instance_t _instance,
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) = 0;
+	virtual void unsubscribe(service_t _service, instance_t _instance,
+			eventgroup_t _eventgroup) = 0;
 
 	virtual void send(const std::string &_name, bool _is_announcing) = 0;
 
@@ -41,7 +48,4 @@ public:
 } // namespace vsomeip
 
 #endif // VSOMEIP_SERVICE_DISCOVERY_HPP
-
-
-
 

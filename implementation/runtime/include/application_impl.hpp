@@ -23,10 +23,9 @@ class logger;
 class routing_manager;
 class routing_manager_stub;
 
-class application_impl
-		: public application,
-		  public routing_manager_host,
-		  public std::enable_shared_from_this< application_impl > {
+class application_impl: public application,
+		public routing_manager_host,
+		public std::enable_shared_from_this<application_impl> {
 public:
 	application_impl(const std::string &_name);
 	~application_impl();
@@ -36,42 +35,40 @@ public:
 	void stop();
 
 	void offer_service(service_t _service, instance_t _instance,
-					   major_version_t _major, minor_version_t _minor, ttl_t _ttl);
+			major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 
 	void stop_offer_service(service_t _service, instance_t _instance);
 
 	void publish_eventgroup(service_t _service, instance_t _instance,
-							eventgroup_t _eventgroup,
-							major_version_t _major, ttl_t _ttl);
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
 
 	void stop_publish_eventgroup(service_t _service, instance_t _instance,
-								 eventgroup_t _eventgroup);
+			eventgroup_t _eventgroup);
 
 	// Consume services
 	void request_service(service_t _service, instance_t _instance,
-					major_version_t _major, minor_version_t _minor,
-					ttl_t _ttl);
+			major_version_t _major, minor_version_t _minor, ttl_t _ttl);
 	void release_service(service_t _service, instance_t _instance);
 
 	void subscribe(service_t _service, instance_t _instance,
-				   eventgroup_t _eventgroup);
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
 
 	void unsubscribe(service_t _service, instance_t _instance,
-					 eventgroup_t _eventgroup);
+			eventgroup_t _eventgroup);
 
 	bool is_available(service_t _service, instance_t _instance);
 
 	// Define content of eventgroups
-	std::shared_ptr< event > add_event(service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+	std::shared_ptr<event> add_event(service_t _service, instance_t _instance,
+			eventgroup_t _eventgroup, event_t _event);
 
-	std::shared_ptr< event > add_field(service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-			std::shared_ptr< payload > _payload);
+	std::shared_ptr<event> add_field(service_t _service, instance_t _instance,
+			eventgroup_t _eventgroup, event_t _event,
+			std::shared_ptr<payload> _payload);
 
-	void remove_event_or_field(std::shared_ptr< event > _event /* or field */);
+	void remove_event_or_field(std::shared_ptr<event> _event /* or field */);
 
-	void send(std::shared_ptr< message > _message, bool _flush, bool _reliable);
+	void send(std::shared_ptr<message> _message, bool _flush, bool _reliable);
 
 	void register_event_handler(event_handler_t _handler);
 	void unregister_event_handler();
@@ -83,17 +80,19 @@ public:
 
 	void register_availability_handler(service_t _service, instance_t _instance,
 			availability_handler_t _handler);
-	void unregister_availability_handler(service_t _service, instance_t _instance);
+	void unregister_availability_handler(service_t _service,
+			instance_t _instance);
 
 	// routing_manager_host
 	const std::string & get_name() const;
 	client_t get_client() const;
-	std::shared_ptr< configuration > get_configuration() const;
+	std::shared_ptr<configuration> get_configuration() const;
 	boost::asio::io_service & get_io();
 
 	void on_event(event_type_e _event);
-	void on_availability(service_t _service, instance_t _instance, bool _is_available) const;
-	void on_message(std::shared_ptr< message > _message);
+	void on_availability(service_t _service, instance_t _instance,
+			bool _is_available) const;
+	void on_message(std::shared_ptr<message> _message);
 	void on_error(error_code_e _error);
 
 	// service_discovery_host
@@ -107,26 +106,22 @@ private:
 	session_t session_;
 
 	std::string name_;
-	std::shared_ptr< configuration > configuration_;
+	std::shared_ptr<configuration> configuration_;
 
 	boost::asio::io_service host_io_;
 
 	// Proxy to or the Routing Manager itself
-	std::shared_ptr< routing_manager > routing_;
+	std::shared_ptr<routing_manager> routing_;
 
 	// (Non-SOME/IP) Event handler
 	event_handler_t handler_;
 
 	// Method/Event (=Member) handlers
-	std::map< service_t,
-	          std::map< instance_t,
-	                    std::map< method_t,
-	                              message_handler_t > > > members_;
+	std::map<service_t,
+			std::map<instance_t, std::map<method_t, message_handler_t> > > members_;
 
 	// Availability handlers
-	std::map< service_t,
-			  std::map< instance_t,
-			  	  	    availability_handler_t > > availability_;
+	std::map<service_t, std::map<instance_t, availability_handler_t> > availability_;
 
 	// Signals
 	boost::asio::signal_set signals_;

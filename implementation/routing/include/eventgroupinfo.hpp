@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICEINFO_HPP
-#define VSOMEIP_SERVICEINFO_HPP
+#ifndef VSOMEIP_EVENTGROUPINFO_HPP
+#define VSOMEIP_EVENTGROUPINFO_HPP
 
 #include <memory>
 #include <set>
@@ -15,41 +15,34 @@
 namespace vsomeip {
 
 class endpoint;
-class servicegroup;
 
-class serviceinfo {
+class eventgroupinfo {
 public:
-	serviceinfo(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
-	~serviceinfo();
+	eventgroupinfo(major_version_t _major, ttl_t _ttl);
+	~eventgroupinfo();
 
 	servicegroup * get_group() const;
 	void set_group(servicegroup *_group);
 
 	major_version_t get_major() const;
-	minor_version_t get_minor() const;
 
 	ttl_t get_ttl() const;
 	void set_ttl(ttl_t _ttl);
 
-	std::shared_ptr< endpoint > & get_endpoint(bool _reliable);
-	void set_endpoint(std::shared_ptr< endpoint > &_endpoint, bool _reliable);
+	std::shared_ptr<endpoint> & get_multicast();
+	void set_multicast(std::shared_ptr<endpoint> &_multicast);
 
 	void add_client(client_t _client);
 	void remove_client(client_t _client);
 
 private:
-	servicegroup *group_;
-
 	major_version_t major_;
-	minor_version_t minor_;
 	ttl_t ttl_;
 
-	std::shared_ptr< endpoint > reliable_;
-	std::shared_ptr< endpoint > unreliable_;
-
-	std::set< client_t > requesters_;
+	std::shared_ptr<endpoint> multicast_;
+	std::set< client_t > subscribed_;
 };
 
 } // namespace vsomeip
 
-#endif // VSOMEIP_SERVICEINFO_HPP
+#endif // VSOMEIP_EVENTGROUPINFO_HPP

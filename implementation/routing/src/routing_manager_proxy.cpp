@@ -192,7 +192,7 @@ void routing_manager_proxy::release_service(client_t _client,
 }
 
 void routing_manager_proxy::subscribe(client_t _client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+		service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
 }
 
 void routing_manager_proxy::unsubscribe(client_t _client,

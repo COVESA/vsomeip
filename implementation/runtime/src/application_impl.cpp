@@ -98,7 +98,6 @@ bool application_impl::init() {
 }
 
 void application_impl::start() {
-	VSOMEIP_DEBUG << "Client [" << std::hex << client_ << "]: starting up...";
 	if (routing_)
 		routing_->start();
 
@@ -108,7 +107,6 @@ void application_impl::start() {
 }
 
 void application_impl::stop() {
-	VSOMEIP_DEBUG << "Client [" << std::hex << client_ << "]: shutting down...";
 	if (routing_)
 		routing_->stop();
 
@@ -154,9 +152,9 @@ void application_impl::release_service(
 }
 
 void application_impl::subscribe(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+		service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
 	if (routing_)
-		routing_->subscribe(client_, _service, _instance, _eventgroup);
+		routing_->subscribe(client_, _service, _instance, _eventgroup, _major, _ttl);
 }
 
 void application_impl::unsubscribe(
@@ -166,7 +164,7 @@ void application_impl::unsubscribe(
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance) {
-	return routing_->is_available(_service, _instance);
+	return routing_ && routing_->is_available(_service, _instance);
 }
 
 std::shared_ptr< event > application_impl::add_event(
@@ -181,17 +179,22 @@ std::shared_ptr< event > application_impl::add_field(
 }
 
 void application_impl::remove_event_or_field(std::shared_ptr< event > _event) {
-	routing_->remove_event_or_field(_event);
+	if (routing_)
+		routing_->remove_event_or_field(_event);
 }
 
 void application_impl::send(std::shared_ptr< message > _message, bool _flush, bool _reliable) {
 	if (routing_) {
-		if (utility::is_request(_message)) {
+		// in case of requests set the request-id (client-id|session-id)
+		bool is_request = utility::is_request(_message);
+		if (is_request) {
 			_message->set_client(client_);
 			_message->set_session(session_);
 		}
+
+		// in case of successful sending, increment the session-id
 		if (routing_->send(client_, _message, _flush, _reliable)) {
-			session_++;
+			if (is_request) session_++;
 		}
 	}
 }
@@ -222,10 +225,6 @@ void application_impl::unregister_availability_handler(
 
 void application_impl::register_message_handler(
 		service_t _service, instance_t _instance, method_t _method, message_handler_t _handler) {
-	VSOMEIP_DEBUG << "Registering for message ["
-			<< std::hex << _service << "." << _instance << "." << _method
-			  << "]";
-
 	members_[_service][_instance][_method] = _handler;
 }
 
@@ -283,17 +282,17 @@ void application_impl::on_message(std::shared_ptr< message > _message) {
 	// find list of handlers
 	auto found_service = members_.find(its_service);
 	if (found_service == members_.end()) {
-		found_service = members_.find(any_service);
+		found_service = members_.find(ANY_SERVICE);
 	}
 	if (found_service != members_.end()) {
 		auto found_instance = found_service->second.find(its_instance);
 		if (found_instance == found_service->second.end()) {
-			found_instance = found_service->second.find(any_instance);
+			found_instance = found_service->second.find(ANY_INSTANCE);
 		}
 		if (found_instance != found_service->second.end()) {
 			auto found_method = found_instance->second.find(its_method);
 			if (found_method == found_instance->second.end()) {
-				found_method = found_instance->second.find(any_method);
+				found_method = found_instance->second.find(ANY_METHOD);
 			}
 
 			if (found_method != found_instance->second.end()) {

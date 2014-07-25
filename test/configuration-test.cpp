@@ -20,23 +20,18 @@
 
 #define DESIRED_RELIABLE_1234_0022	30506
 #define DESIRED_UNRELIABLE_1234_0022	31000
-#define DESIRED_MULTICAST_1234_0022	"225.225.225.1"
 
 #define DESIRED_RELIABLE_1234_0023 	30503
-#define DESIRED_UNRELIABLE_1234_0023	vsomeip::illegal_port
-#define DESIRED_MULTICAST_1234_0023	"225.225.225.2"
+#define DESIRED_UNRELIABLE_1234_0023	vsomeip::ILLEGAL_PORT
 
 #define DESIRED_RELIABLE_2277_0022	30505
 #define DESIRED_UNRELIABLE_2277_0022	31001
-#define DESIRED_MULTICAST_2277_0022	"225.225.225.3"
 
 #define DESIRED_RELIABLE_2266_0022	30505
 #define DESIRED_UNRELIABLE_2266_0022	30507
-#define DESIRED_MULTICAST_2266_0022	"225.225.226.1"
 
 #define DESIRED_RELIABLE_4466_0321	30506
 #define DESIRED_UNRELIABLE_4466_0321	30444
-#define DESIRED_MULTICAST_4466_0321	"225.225.228.1"
 
 #define DESIRED_ADDRESS_1234_0022					"local"
 #define DESIRED_MIN_INITIAL_DELAY_1234_0022			10
@@ -92,7 +87,7 @@ int main(int argc, char **argv) {
 	}
 
 	// 2. Check host address
-	boost::asio::ip::address its_address = its_configuration->get_address();
+	boost::asio::ip::address its_address = its_configuration->get_unicast();
 	check<std::string>(its_address.to_string(), DESIRED_ADDRESS, "HOST ADDRESS");
 
 	// 3. Check logging
@@ -111,44 +106,33 @@ int main(int argc, char **argv) {
 	// 4. Services
 	uint16_t its_reliable = its_configuration->get_reliable_port(0x1234, 0x0022);
 	uint16_t its_unreliable = its_configuration->get_unreliable_port(0x1234, 0x0022);
-	std::string its_multicast = its_configuration->get_multicast(0x1234, 0x0022);
 
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_1234_0022, "RELIABLE_TEST_1234_0022");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_1234_0022, "UNRELIABLE_TEST_1234_0022");
-	check<std::string>(its_multicast, DESIRED_MULTICAST_1234_0022, "MULTICAST_TEST_1234_0022");
 
 	its_reliable = its_configuration->get_reliable_port(0x1234, 0x0023);
 	its_unreliable = its_configuration->get_unreliable_port(0x1234, 0x0023);
-	its_multicast = its_configuration->get_multicast(0x1234, 0x0023);
-
 
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_1234_0023, "RELIABLE_TEST_1234_0023");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_1234_0023, "UNRELIABLE_TEST_1234_0023");
-	check<std::string>(its_multicast, DESIRED_MULTICAST_1234_0023, "MULTICAST_TEST_1234_0023");
 
 	its_reliable = its_configuration->get_reliable_port(0x2277, 0x0022);
 	its_unreliable = its_configuration->get_unreliable_port(0x2277, 0x0022);
-	its_multicast = its_configuration->get_multicast(0x2277, 0x0022);
 
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_2277_0022, "RELIABLE_TEST_2277_0022");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_2277_0022, "UNRELIABLE_TEST_2277_0022");
-	check<std::string>(its_multicast, DESIRED_MULTICAST_2277_0022, "MULTICAST_TEST_2277_0022");
 
 	its_reliable = its_configuration->get_reliable_port(0x4466, 0x0321);
 	its_unreliable = its_configuration->get_unreliable_port(0x4466, 0x0321);
-	its_multicast = its_configuration->get_multicast(0x4466, 0x0321);
 
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_4466_0321, "RELIABLE_TEST_4466_0321");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_4466_0321, "UNRELIABLE_TEST_4466_0321");
-	check<std::string>(its_multicast, DESIRED_MULTICAST_4466_0321, "MULTICAST_TEST_4466_0321");
 
 	its_reliable = its_configuration->get_reliable_port(0x2277, 0x0022);
 	its_unreliable = its_configuration->get_unreliable_port(0x2277, 0x0022);
-	its_multicast = its_configuration->get_multicast(0x2277, 0x0022);
 
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_2277_0022, "RELIABLE_TEST_2277_0022");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_2277_0022, "UNRELIABLE_TEST_2277_0022");
-	check<std::string>(its_multicast, DESIRED_MULTICAST_2277_0022, "MULTICAST_TEST_2277_0022");
 
 	std::string its_address_s = its_configuration->get_address(0x1234, 0x0022);
 	std::string its_group_name = its_configuration->get_group(0x1234, 0x0022);

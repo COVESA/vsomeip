@@ -30,7 +30,7 @@ public:
 
 	bool load(const std::string &_path);
 
-	const boost::asio::ip::address & get_address() const;
+	const boost::asio::ip::address & get_unicast() const;
 	bool is_v4() const;
 	bool is_v6() const;
 
@@ -55,14 +55,13 @@ public:
 	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
 	bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
 	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
-	std::string get_multicast(service_t _service, instance_t _instance) const;
 
 	const std::string & get_routing_host() const;
 
 	bool is_service_discovery_enabled() const;
-	const std::string & get_service_discovery_protocol() const;
-	const std::string & get_service_discovery_address() const;
+	const std::string & get_service_discovery_multicast() const;
 	uint16_t get_service_discovery_port() const;
+	const std::string & get_service_discovery_protocol() const;
 
 	client_t get_id(const std::string &_name) const;
 
@@ -79,6 +78,8 @@ private:
 	bool get_servicegroup_configuration(const boost::property_tree::ptree &_tree);
 	bool get_delays_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
 	bool get_service_configuration(std::shared_ptr< servicegroup > &_group, const boost::property_tree::ptree &_tree);
+	bool get_event_configuration(std::shared_ptr<service> &_service, const boost::property_tree::ptree &_tree);
+	bool get_eventgroup_configuration(std::shared_ptr<service> &_service, const boost::property_tree::ptree &_tree);
 	bool get_application_configuration(const boost::property_tree::ptree &_tree);
 
 	servicegroup * find_servicegroup(const std::string &_name) const;
@@ -89,7 +90,7 @@ private:
 	static std::mutex mutex_;
 
 	// Configuration data
-	boost::asio::ip::address address_;
+	boost::asio::ip::address unicast_;
 
 	bool has_console_log_;
 	bool has_file_log_;
@@ -103,10 +104,9 @@ private:
 	std::string routing_host_;
 
 	bool is_service_discovery_enabled_;
-	std::string service_discovery_host_;
-	std::string service_discovery_protocol_;
-	std::string service_discovery_address_;
+	std::string service_discovery_multicast_;
 	uint16_t service_discovery_port_;
+	std::string service_discovery_protocol_;
 
 	std::map< std::string, client_t > applications_;
 

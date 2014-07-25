@@ -168,14 +168,14 @@ void tcp_server_endpoint_impl::connection::send_magic_cookie(message_buffer_ptr_
 		VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
 		_buffer->insert(
 			_buffer->begin(),
-			server_cookie,
-			server_cookie + sizeof(server_cookie)
+			SERVICE_COOKIE,
+			SERVICE_COOKIE + sizeof(SERVICE_COOKIE)
 		);
 	}
 }
 
 bool tcp_server_endpoint_impl::connection::is_magic_cookie() const {
-	return (0 == std::memcmp(client_cookie, &message_[0], sizeof(client_cookie)));
+	return (0 == std::memcmp(CLIENT_COOKIE, &message_[0], sizeof(CLIENT_COOKIE)));
 }
 
 void tcp_server_endpoint_impl::connection::receive_cbk(

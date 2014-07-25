@@ -25,7 +25,7 @@ public:
 
 	virtual bool load(const std::string &_path) = 0;
 
-	virtual const boost::asio::ip::address & get_address() const = 0;
+	virtual const boost::asio::ip::address & get_unicast() const = 0;
 	virtual bool is_v4() const = 0;
 	virtual bool is_v6() const = 0;
 
@@ -38,9 +38,9 @@ public:
 	virtual const std::string & get_routing_host() const = 0;
 
 	virtual bool is_service_discovery_enabled() const = 0;
-	virtual const std::string & get_service_discovery_protocol() const = 0;
-	virtual const std::string & get_service_discovery_address() const = 0;
+	virtual const std::string & get_service_discovery_multicast() const = 0;
 	virtual uint16_t get_service_discovery_port() const = 0;
+	virtual const std::string & get_service_discovery_protocol() const = 0;
 
 	virtual std::string get_group(service_t _service, instance_t _instance) const = 0;
 	virtual std::set< std::string > get_servicegroups() const = 0;
@@ -57,7 +57,6 @@ public:
 	virtual uint16_t get_reliable_port(service_t _service, instance_t _instance) const = 0;
 	virtual bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const = 0;
 	virtual uint16_t get_unreliable_port(service_t _service, instance_t _instance) const = 0;
-	virtual std::string get_multicast(service_t _service, instance_t _instance) const = 0;
 
 	virtual std::set< std::pair< service_t, instance_t > > get_remote_services() const = 0;
 

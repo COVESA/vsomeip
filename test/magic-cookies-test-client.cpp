@@ -41,7 +41,7 @@ public:
 						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
 		app_->register_message_handler(
-				vsomeip::any_service, SAMPLE_INSTANCE_ID, vsomeip::any_method,
+				vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,
 				std::bind(&client_sample::on_message,
 						  this,
 						  std::placeholders::_1));
@@ -61,8 +61,8 @@ public:
 		if (_event == vsomeip::event_type_e::REGISTERED) {
 			VSOMEIP_INFO << "Client registration done.";
 			app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
-								  vsomeip::any_major, vsomeip::any_minor,
-								  vsomeip::any_ttl);
+								  vsomeip::ANY_MAJOR, vsomeip::ANY_MINOR,
+								  vsomeip::ANY_TTL);
 		}
 	}
 

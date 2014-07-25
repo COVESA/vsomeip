@@ -1,0 +1,52 @@
+{
+	"unicast" : "192.168.56.101",
+	"logging" :
+	{ 
+		"level" : "trace",
+		"console" : "true",
+		"file" : { "enable" : "false", "path" : "/var/log/vsomeip.log" },
+		"dlt" : "false"
+	},
+	"applications" :
+	[
+		{
+			"name" : "client-sample",
+			"id" : 0x1343
+		},
+		{
+			"name" : "second-client-sample",
+			"id" : 0x1344
+		},
+		{
+			"name" : "third-client-sample",
+			"id" : 0x1345
+		},
+		{
+			"name" : "fourth-client-sample",
+			"id" : 0x1346
+		}
+	],
+	"servicegroups" :
+	[
+		{
+			"name" : "remote",
+			"address" : "192.168.56.102",
+			"services" :
+			[
+				{
+					"service" : "0x1234",
+					"instance" : "0x5678",
+					"reliable" : { "port" : 30511, "magic-cookies" : "true" },
+				}
+			]
+		}
+	],
+	"routing" : "client-sample",
+	"service-discovery" :
+	{
+		"enable" : "false",
+		"multicast" : "224.244.224.245",
+		"port" : "30490",
+		"protocol" : "udp"
+	}
+}

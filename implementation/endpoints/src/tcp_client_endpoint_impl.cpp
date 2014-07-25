@@ -83,7 +83,7 @@ void tcp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 }
 
 bool tcp_client_endpoint_impl::is_magic_cookie() const {
-	return (0 == std::memcmp(server_cookie, &message_[0], sizeof(server_cookie)));
+	return (0 == std::memcmp(SERVICE_COOKIE, &message_[0], sizeof(SERVICE_COOKIE)));
 }
 
 void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) {
@@ -91,8 +91,8 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
 		VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
 		_buffer->insert(
 			_buffer->begin(),
-			client_cookie,
-			client_cookie + sizeof(client_cookie)
+			CLIENT_COOKIE,
+			CLIENT_COOKIE + sizeof(CLIENT_COOKIE)
 		);
 	} else {
 		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";

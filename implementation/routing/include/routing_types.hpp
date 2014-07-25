@@ -16,10 +16,18 @@ namespace vsomeip {
 
 class serviceinfo;
 
-typedef std::map< service_t,
-				  std::map< instance_t,
-				  	  	    std::shared_ptr< serviceinfo > > > service_map_t;
+typedef std::map<service_t,
+		    std::map<instance_t,
+		    	std::shared_ptr<serviceinfo> > > service_map_t;
 
-} // namespace vsomeip
+class eventgroupinfo;
+
+typedef std::map<service_t,
+			std::map<instance_t,
+				std::map<eventgroup_t,
+					std::shared_ptr<eventgroupinfo> > > > eventgroup_map_t;
+
+}
+// namespace vsomeip
 
 #endif // VSOMEIP_ROUTING_TYPES_HPP

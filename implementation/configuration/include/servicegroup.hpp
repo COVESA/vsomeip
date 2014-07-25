@@ -12,7 +12,7 @@ namespace cfg {
 
 struct servicegroup {
 	std::string name_; // Name of the ServiceGroup
-	std::string address_; // either "local" or an IP address
+	std::string unicast_; // either "local" or an IP address
 
 	uint32_t min_initial_delay_;
 	uint32_t max_initial_delay_;

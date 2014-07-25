@@ -24,6 +24,7 @@ namespace vsomeip {
 class client_endpoint;
 class configuration;
 class deserializer;
+class eventgroupinfo;
 class routing_manager_host;
 class routing_manager_stub;
 class servicegroup;
@@ -83,7 +84,7 @@ public:
 			instance_t _instance);
 
 	void subscribe(client_t _client, service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup);
+			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
 
 	void unsubscribe(client_t _client, service_t _service, instance_t _instance,
 			eventgroup_t _eventgroup);
@@ -104,8 +105,7 @@ public:
 	std::shared_ptr<endpoint> find_local(client_t _client);
 	std::shared_ptr<endpoint> find_or_create_local(client_t _client);
 	void remove_local(client_t _client);
-	std::shared_ptr<endpoint> find_local(service_t _service,
-			instance_t _instance);
+	std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance);
 
 	// interface "endpoint_host"
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
@@ -113,13 +113,16 @@ public:
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
 
 	// interface "service_discovery_host"
-	const std::map<std::string, std::shared_ptr<servicegroup> > & get_servicegroups() const;
+	typedef std::map<std::string,
+					 std::shared_ptr<servicegroup> > servicegroups_t;
+	const servicegroups_t  & get_servicegroups() const;
 	service_map_t get_offered_services(const std::string &_name) const;
 	void create_service_discovery_endpoint(const std::string &_address,
 			uint16_t _port, const std::string &_protocol);
 
 private:
-	bool deliver_message(const byte_t *_data, length_t _length,	instance_t _instance);
+	bool deliver_message(const byte_t *_data, length_t _length,
+			instance_t _instance);
 
 	client_t find_local_client(service_t _service, instance_t _instance);
 	instance_t find_instance(service_t _service, endpoint *_endpoint);
@@ -195,9 +198,7 @@ private:
 			std::map<instance_t,
 					std::map<eventgroup_t, std::set<std::shared_ptr<endpoint> > > > > eventgroups_;
 	std::map<service_t, std::map<instance_t, std::map<event_t, eventgroup_t> > > events_;
-
-	// Requested (but unknown)
-	std::set<std::shared_ptr<serviceinfo> > requested_;
+	std::map<eventgroup_t, std::set<client_t> > eventgroup_clients_;
 
 	// Mutexes
 	std::recursive_mutex endpoint_mutex_;
