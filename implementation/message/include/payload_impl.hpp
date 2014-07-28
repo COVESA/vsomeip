@@ -17,6 +17,8 @@ class deserializer;
 class payload_impl: public payload {
 public:
 	payload_impl();
+	payload_impl(const byte_t *_data, uint32_t _size);
+	payload_impl(const std::vector< byte_t > &_value);
 	payload_impl(const payload_impl& _payload);
 	virtual ~payload_impl();
 

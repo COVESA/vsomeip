@@ -144,27 +144,6 @@ void routing_manager_impl::stop_publish_eventgroup(client_t its_client,
 
 }
 
-std::shared_ptr<event> routing_manager_impl::add_event(client_t _client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-		event_t _event) {
-
-	return std::make_shared < event_impl > (io_);
-}
-
-std::shared_ptr<event> routing_manager_impl::add_field(client_t _client,
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-		event_t _event, std::shared_ptr<payload> _payload) {
-	std::shared_ptr<event> its_event = add_event(_client, _service, _instance,
-			_eventgroup, _event);
-	its_event->set_payload(_payload);
-	return its_event;
-}
-
-void routing_manager_impl::remove_event_or_field(
-		std::shared_ptr<event> _event) {
-
-}
-
 void routing_manager_impl::request_service(client_t _client, service_t _service,
 		instance_t _instance, major_version_t _major, minor_version_t _minor,
 		ttl_t _ttl) {
@@ -325,7 +304,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 
 void routing_manager_impl::set(client_t its_client, service_t _service,
 		instance_t _instance, event_t _event,
-		const std::vector<byte_t> &_value) {
+		const std::shared_ptr<payload> &_value) {
 }
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size,

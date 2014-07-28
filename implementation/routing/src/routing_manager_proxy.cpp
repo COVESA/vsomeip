@@ -161,27 +161,6 @@ void routing_manager_proxy::stop_publish_eventgroup(client_t _client,
 		sender_->send(its_command, sizeof(its_command));
 }
 
-std::shared_ptr< event > routing_manager_proxy::add_event(client_t _client,
-		service_t _service, instance_t _instance,
-		eventgroup_t _eventgroup, event_t _event) {
-
-	return std::make_shared< event_impl >(io_);
-}
-
-std::shared_ptr< event > routing_manager_proxy::add_field(client_t _client,
-		service_t _service, instance_t _instance,
-		eventgroup_t _eventgroup, event_t _event,
-		std::shared_ptr< payload > _payload) {
-	std::shared_ptr< event > its_event = add_event(_client, _service, _instance,
-												   _eventgroup, _event);
-	its_event->set_payload(_payload);
-	return its_event;
-}
-
-void routing_manager_proxy::remove_event_or_field(std::shared_ptr< event > _event) {
-
-}
-
 void routing_manager_proxy::request_service(client_t _client,
 		service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
@@ -257,7 +236,7 @@ bool routing_manager_proxy::send(client_t _client,
 
 void routing_manager_proxy::set(client_t _client,
 		service_t _service, instance_t _instance,
-		event_t _event, const std::vector< byte_t > &_value) {
+		event_t _event, const std::shared_ptr<payload> &_value) {
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr< endpoint > _endpoint) {

@@ -17,14 +17,20 @@ public:
 
 	virtual ~runtime_impl();
 
-	std::shared_ptr< application > create_application(const std::string &_name) const;
+	std::shared_ptr<application> create_application(
+			const std::string &_name) const;
 
-	std::shared_ptr< message > create_request() const;
-	std::shared_ptr< message > create_response(const std::shared_ptr< message > &_request) const;
+	std::shared_ptr<message> create_request() const;
+	std::shared_ptr<message> create_response(
+			const std::shared_ptr<message> &_request) const;
 
-	std::shared_ptr< message > create_notification() const;
+	std::shared_ptr<message> create_notification() const;
 
-	std::shared_ptr< payload > create_payload() const;
+	std::shared_ptr<payload> create_payload() const;
+	std::shared_ptr<payload> create_payload(
+			const byte_t *_data, uint32_t _size) const;
+	std::shared_ptr<payload> create_payload(
+			const std::vector<byte_t> &_data) const;
 };
 
 } // namespace vsomeip

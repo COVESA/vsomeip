@@ -21,9 +21,7 @@ class payload;
 
 class application {
 public:
-	virtual ~application() {
-	}
-	;
+	virtual ~application() {};
 
 	// get name
 	virtual const std::string & get_name() const = 0;
@@ -64,20 +62,13 @@ public:
 
 	virtual bool is_available(service_t _service, instance_t _instance) = 0;
 
-	// Define content of eventgroups
-	virtual std::shared_ptr<event> add_event(service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
-
-	virtual std::shared_ptr<event> add_field(service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-			std::shared_ptr<payload> _payload) = 0;
-
-	virtual void remove_event_or_field(
-			std::shared_ptr<event> _event /* or field */) = 0;
-
 	// Send messages
 	virtual void send(std::shared_ptr<message> _message, bool _flush = true,
 			bool _reliable = false) = 0;
+
+	// Set events/fields
+	virtual void set(service_t _service, instance_t _instance, event_t _event,
+			const std::shared_ptr<payload> &_value) = 0;
 
 	// Receive events (Non-SOME/IP)
 	virtual void register_event_handler(event_handler_t _handler) = 0;

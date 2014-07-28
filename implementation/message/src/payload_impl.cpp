@@ -14,6 +14,14 @@ payload_impl::payload_impl()
 	: data_() {
 }
 
+payload_impl::payload_impl(const byte_t *_data, uint32_t _size) {
+	data_.assign(_data, _data + _size);
+}
+
+payload_impl::payload_impl(const std::vector<byte_t> &_data)
+	: data_(_data) {
+}
+
 payload_impl::payload_impl(const payload_impl& _payload)
 	: data_(_payload.data_) {
 }

@@ -9,6 +9,9 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
@@ -22,14 +25,21 @@ public:
 
 	virtual ~runtime() {};
 
-	virtual std::shared_ptr< application > create_application(const std::string &_name = "") const = 0;
+	virtual std::shared_ptr<application> create_application(
+			const std::string &_name = "") const = 0;
 
-	virtual std::shared_ptr< message > create_request() const = 0;
-	virtual std::shared_ptr< message > create_response(const std::shared_ptr< message > &_request) const = 0;
+	virtual std::shared_ptr<message> create_request() const = 0;
+	virtual std::shared_ptr<message> create_response(
+			const std::shared_ptr<message> &_request) const = 0;
 
-	virtual std::shared_ptr< message > create_notification() const = 0;
+	virtual std::shared_ptr<message> create_notification() const = 0;
 
-	virtual std::shared_ptr< payload > create_payload() const = 0;
+	virtual std::shared_ptr<payload> create_payload() const = 0;
+	virtual std::shared_ptr<payload> create_payload(
+			const byte_t *_data, uint32_t _size) const = 0;
+	virtual std::shared_ptr<payload> create_payload(
+			const std::vector<byte_t> &_data) const = 0;
+
 };
 
 } // namespace vsomeip

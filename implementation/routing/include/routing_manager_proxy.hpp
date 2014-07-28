@@ -47,15 +47,6 @@ public:
 	void stop_publish_eventgroup(client_t _client, service_t _service,
 			instance_t _instance, eventgroup_t _eventgroup);
 
-	std::shared_ptr<event> add_event(client_t _client, service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-
-	std::shared_ptr<event> add_field(client_t _client, service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-			std::shared_ptr<payload> _payload);
-
-	void remove_event_or_field(std::shared_ptr<event> _event);
-
 	void request_service(client_t _client, service_t _service,
 			instance_t _instance, major_version_t _major,
 			minor_version_t _minor, ttl_t _ttl);
@@ -76,7 +67,7 @@ public:
 			instance_t _instance, bool _flush = true, bool _reliable = false);
 
 	void set(client_t _client, service_t _service, instance_t _instance,
-			event_t _event, const std::vector<byte_t> &_value);
+			event_t _event, const std::shared_ptr<payload> &_value);
 
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);

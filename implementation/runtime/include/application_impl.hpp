@@ -58,17 +58,9 @@ public:
 
 	bool is_available(service_t _service, instance_t _instance);
 
-	// Define content of eventgroups
-	std::shared_ptr<event> add_event(service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup, event_t _event);
-
-	std::shared_ptr<event> add_field(service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup, event_t _event,
-			std::shared_ptr<payload> _payload);
-
-	void remove_event_or_field(std::shared_ptr<event> _event /* or field */);
-
 	void send(std::shared_ptr<message> _message, bool _flush, bool _reliable);
+	void set(service_t _service, instance_t _instance, event_t _event,
+			const std::shared_ptr<payload> &_payload);
 
 	void register_event_handler(event_handler_t _handler);
 	void unregister_event_handler();

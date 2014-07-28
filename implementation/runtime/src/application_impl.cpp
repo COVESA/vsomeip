@@ -19,8 +19,8 @@
 
 namespace vsomeip {
 
-application_impl::application_impl(const std::string &_name)
-	: name_(_name), routing_(0), signals_(host_io_, SIGINT, SIGTERM) {
+application_impl::application_impl(const std::string &_name) :
+		name_(_name), routing_(0), signals_(host_io_, SIGINT, SIGTERM) {
 }
 
 application_impl::~application_impl() {
@@ -36,7 +36,7 @@ bool application_impl::init() {
 			name_ = its_name;
 		} else {
 			VSOMEIP_ERROR << "Missing application name. "
-				"Please set environment variable VSOMEIP_APPLICATION_NAME.";
+					"Please set environment variable VSOMEIP_APPLICATION_NAME.";
 			return false;
 		}
 	}
@@ -62,9 +62,9 @@ bool application_impl::init() {
 
 		// Routing
 		if (name_ == configuration_->get_routing_host()) {
-			routing_ = std::make_shared< routing_manager_impl >(this);
+			routing_ = std::make_shared < routing_manager_impl > (this);
 		} else {
-			routing_ = std::make_shared< routing_manager_proxy >(this);
+			routing_ = std::make_shared < routing_manager_proxy > (this);
 		}
 
 		routing_->init();
@@ -72,26 +72,27 @@ bool application_impl::init() {
 		// Smallest allowed session identifier
 		session_ = 0x0001;
 
-		VSOMEIP_DEBUG << "Application(" << name_ << ", " << std::hex << client_ << ") is initialized.";
+		VSOMEIP_DEBUG << "Application(" << name_ << ", " << std::hex << client_
+				<< ") is initialized.";
 
 		is_initialized = true;
 	}
 
 	// Register signal handler
-	std::function< void (boost::system::error_code const &, int) > its_signal_handler
-			= [this] (boost::system::error_code const &_error, int _signal) {
-					if (!_error) {
-						switch (_signal) {
-						case SIGTERM:
-						case SIGINT:
-							stop();
-							exit(0);
-							break;
-						default:
-							break;
-						}
+	std::function<void(boost::system::error_code const &, int)> its_signal_handler =
+			[this] (boost::system::error_code const &_error, int _signal) {
+				if (!_error) {
+					switch (_signal) {
+					case SIGTERM:
+					case SIGINT:
+						stop();
+						exit(0);
+						break;
+					default:
+						break;
 					}
-			  };
+				}
+			};
 	signals_.async_wait(its_signal_handler);
 
 	return is_initialized;
@@ -102,7 +103,8 @@ void application_impl::start() {
 		routing_->start();
 
 	// start the threads that process the io service queues
-	std::thread its_host_thread(std::bind(&application_impl::service, this, std::ref(host_io_)));
+	std::thread its_host_thread(
+			std::bind(&application_impl::service, this, std::ref(host_io_)));
 	its_host_thread.join();
 }
 
@@ -113,52 +115,56 @@ void application_impl::stop() {
 	host_io_.stop();
 }
 
-void application_impl::offer_service(
-		service_t _service, instance_t _instance,
+void application_impl::offer_service(service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
 	if (routing_)
-		routing_->offer_service(client_, _service, _instance, _major, _minor, _ttl);
+		routing_->offer_service(client_, _service, _instance, _major, _minor,
+				_ttl);
 }
 
-void application_impl::stop_offer_service(
-		service_t _service, instance_t _instance) {
+void application_impl::stop_offer_service(service_t _service,
+		instance_t _instance) {
 	if (routing_)
 		routing_->stop_offer_service(client_, _service, _instance);
 }
 
-void application_impl::publish_eventgroup(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
+void application_impl::publish_eventgroup(service_t _service,
+		instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+		ttl_t _ttl) {
 	if (routing_)
-		routing_->publish_eventgroup(client_, _service, _instance, _eventgroup, _major, _ttl);
+		routing_->publish_eventgroup(client_, _service, _instance, _eventgroup,
+				_major, _ttl);
 }
 
-void application_impl::stop_publish_eventgroup(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+void application_impl::stop_publish_eventgroup(service_t _service,
+		instance_t _instance, eventgroup_t _eventgroup) {
 	if (routing_)
-		routing_->stop_publish_eventgroup(client_, _service, _instance, _eventgroup);
+		routing_->stop_publish_eventgroup(client_, _service, _instance,
+				_eventgroup);
 }
 
-void application_impl::request_service(
-		service_t _service, instance_t _instance,
+void application_impl::request_service(service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
 	if (routing_)
-		routing_->request_service(client_, _service, _instance, _major, _minor, _ttl);
+		routing_->request_service(client_, _service, _instance, _major, _minor,
+				_ttl);
 }
 
-void application_impl::release_service(
-		service_t _service, instance_t _instance) {
+void application_impl::release_service(service_t _service,
+		instance_t _instance) {
 	if (routing_)
 		routing_->release_service(client_, _service, _instance);
 }
 
-void application_impl::subscribe(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
+void application_impl::subscribe(service_t _service, instance_t _instance,
+		eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
 	if (routing_)
-		routing_->subscribe(client_, _service, _instance, _eventgroup, _major, _ttl);
+		routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
+				_ttl);
 }
 
-void application_impl::unsubscribe(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+void application_impl::unsubscribe(service_t _service, instance_t _instance,
+		eventgroup_t _eventgroup) {
 	if (routing_)
 		routing_->unsubscribe(client_, _service, _instance, _eventgroup);
 }
@@ -167,23 +173,8 @@ bool application_impl::is_available(service_t _service, instance_t _instance) {
 	return routing_ && routing_->is_available(_service, _instance);
 }
 
-std::shared_ptr< event > application_impl::add_event(
-		service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-	return routing_->add_event(client_, _service, _instance, _eventgroup, _event);
-}
-
-std::shared_ptr< event > application_impl::add_field(
-		service_t _service, instance_t _instance,
-		eventgroup_t _eventgroup, event_t _event, std::shared_ptr< payload > _payload) {
-	return routing_->add_field(client_, _service, _instance, _eventgroup, _event, _payload);
-}
-
-void application_impl::remove_event_or_field(std::shared_ptr< event > _event) {
-	if (routing_)
-		routing_->remove_event_or_field(_event);
-}
-
-void application_impl::send(std::shared_ptr< message > _message, bool _flush, bool _reliable) {
+void application_impl::send(std::shared_ptr<message> _message, bool _flush,
+		bool _reliable) {
 	if (routing_) {
 		// in case of requests set the request-id (client-id|session-id)
 		bool is_request = utility::is_request(_message);
@@ -191,12 +182,21 @@ void application_impl::send(std::shared_ptr< message > _message, bool _flush, bo
 			_message->set_client(client_);
 			_message->set_session(session_);
 		}
-
 		// in case of successful sending, increment the session-id
 		if (routing_->send(client_, _message, _flush, _reliable)) {
-			if (is_request) session_++;
+			if (is_request) {
+				session_++;
+				if (0 == session_) {
+					session_++;
+				}
+			}
 		}
 	}
+}
+
+void application_impl::set(service_t _service, instance_t _instance, event_t,
+		const std::shared_ptr<payload> &_payload) {
+
 }
 
 void application_impl::register_event_handler(event_handler_t _handler) {
@@ -207,13 +207,13 @@ void application_impl::unregister_event_handler() {
 	handler_ = nullptr;
 }
 
-void application_impl::register_availability_handler(
-		service_t _service, instance_t _instance, availability_handler_t _handler) {
+void application_impl::register_availability_handler(service_t _service,
+		instance_t _instance, availability_handler_t _handler) {
 	availability_[_service][_instance] = _handler;
 }
 
-void application_impl::unregister_availability_handler(
-		service_t _service, instance_t _instance) {
+void application_impl::unregister_availability_handler(service_t _service,
+		instance_t _instance) {
 	auto found_service = availability_.find(_service);
 	if (found_service != availability_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -223,13 +223,13 @@ void application_impl::unregister_availability_handler(
 	}
 }
 
-void application_impl::register_message_handler(
-		service_t _service, instance_t _instance, method_t _method, message_handler_t _handler) {
+void application_impl::register_message_handler(service_t _service,
+		instance_t _instance, method_t _method, message_handler_t _handler) {
 	members_[_service][_instance][_method] = _handler;
 }
 
-void application_impl::unregister_message_handler(
-		service_t _service, instance_t _instance, method_t _method) {
+void application_impl::unregister_message_handler(service_t _service,
+		instance_t _instance, method_t _method) {
 	auto found_service = members_.find(_service);
 	if (found_service != members_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -251,7 +251,7 @@ client_t application_impl::get_client() const {
 	return client_;
 }
 
-std::shared_ptr< configuration > application_impl::get_configuration() const {
+std::shared_ptr<configuration> application_impl::get_configuration() const {
 	return configuration_;
 }
 
@@ -264,7 +264,8 @@ void application_impl::on_event(event_type_e _event) {
 		handler_(_event);
 }
 
-void application_impl::on_availability(service_t _service, instance_t _instance, bool _is_available) const {
+void application_impl::on_availability(service_t _service, instance_t _instance,
+		bool _is_available) const {
 	auto found_service = availability_.find(_service);
 	if (found_service != availability_.end()) {
 		auto found_instance = found_service->second.find(_instance);
@@ -274,7 +275,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
 	}
 }
 
-void application_impl::on_message(std::shared_ptr< message > _message) {
+void application_impl::on_message(std::shared_ptr<message> _message) {
 	service_t its_service = _message->get_service();
 	instance_t its_instance = _message->get_instance();
 	method_t its_method = _message->get_method();
@@ -303,7 +304,7 @@ void application_impl::on_message(std::shared_ptr< message > _message) {
 }
 
 void application_impl::on_error(error_code_e _error) {
-	std::cerr << "ERROR " << (int)_error << std::endl;
+	std::cerr << "ERROR " << (int) _error << std::endl;
 }
 
 // Interface "service_discovery_host"

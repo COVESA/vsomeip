@@ -13,6 +13,7 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/logger.hpp>
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/runtime.hpp>
 
 #include "../include/routing_manager.hpp"
 #include "../include/routing_manager_stub.hpp"
@@ -21,8 +22,9 @@
 
 namespace vsomeip {
 
-routing_manager_stub::routing_manager_stub(routing_manager *_routing)
-	: routing_(_routing), io_(_routing->get_io()), watchdog_timer_(_routing->get_io()) {
+routing_manager_stub::routing_manager_stub(routing_manager *_routing) :
+		routing_(_routing), io_(_routing->get_io()), watchdog_timer_(
+				_routing->get_io()) {
 }
 
 routing_manager_stub::~routing_manager_stub() {
@@ -34,11 +36,10 @@ void routing_manager_stub::init() {
 	::unlink(its_endpoint_path.str().c_str());
 
 	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path.str();
-	endpoint_ = std::make_shared< local_server_endpoint_impl >(
-			    	shared_from_this(),
-			    	boost::asio::local::stream_protocol::endpoint(its_endpoint_path.str()),
-			    	io_
-			    );
+	endpoint_ =
+			std::make_shared < local_server_endpoint_impl
+					> (shared_from_this(), boost::asio::local::stream_protocol::endpoint(
+							its_endpoint_path.str()), io_);
 }
 
 void routing_manager_stub::start() {
@@ -61,19 +62,20 @@ routing_manager * routing_manager_stub::get_manager() {
 	return routing_;
 }
 
-void routing_manager_stub::on_connect(std::shared_ptr< endpoint > _endpoint) {
+void routing_manager_stub::on_connect(std::shared_ptr<endpoint> _endpoint) {
 
 }
 
-void routing_manager_stub::on_disconnect(std::shared_ptr< endpoint > _endpoint) {
+void routing_manager_stub::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 
 }
 
-void routing_manager_stub::on_message(const byte_t *_data, length_t _size, endpoint *_receiver) {
+void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
+		endpoint *_receiver) {
 #if 0
 	std::cout << "rms::on_message: ";
 	for (int i = 0; i < _size; ++i)
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
 	std::cout << std::endl;
 #endif
 
@@ -88,28 +90,32 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size, endpo
 		major_version_t its_major;
 		minor_version_t its_minor;
 		ttl_t its_ttl;
-		std::vector< byte_t > its_value;
+		std::shared_ptr<payload> its_payload;
 		const byte_t *its_data;
 		uint32_t its_size;
 		bool its_reliable;
 		bool its_flush;
 
 		its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
-		std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS], sizeof(its_client));
-		std::memcpy(&its_size, &_data[VSOMEIP_COMMAND_SIZE_POS_MIN], sizeof(its_size));
+		std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
+				sizeof(its_client));
+		std::memcpy(&its_size, &_data[VSOMEIP_COMMAND_SIZE_POS_MIN],
+				sizeof(its_size));
 
 		if (its_size <= _size - VSOMEIP_COMMAND_HEADER_SIZE) {
 			switch (its_command) {
 			case VSOMEIP_REGISTER_APPLICATION:
-				(void)routing_->find_or_create_local(its_client);
+				(void) routing_->find_or_create_local(its_client);
 				routing_info_[its_client].first = 0;
 				broadcast_routing_info();
-				VSOMEIP_DEBUG << "Application/Client " << its_client << " got registered!";
+				VSOMEIP_DEBUG << "Application/Client " << its_client
+						<< " got registered!";
 				break;
 
 			case VSOMEIP_DEREGISTER_APPLICATION:
 				on_deregister_application(its_client);
-				VSOMEIP_DEBUG << "Application/Client " << its_client << " got deregistered!";
+				VSOMEIP_DEBUG << "Application/Client " << its_client
+						<< " got deregistered!";
 				break;
 
 			case VSOMEIP_PONG:
@@ -117,52 +123,58 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size, endpo
 				break;
 
 			case VSOMEIP_OFFER_SERVICE:
-				std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS], sizeof(its_service));
-				std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS+2], sizeof(its_instance));
-				std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS+4], sizeof(its_major));
-				std::memcpy(&its_minor, &_data[VSOMEIP_COMMAND_PAYLOAD_POS+5], sizeof(its_minor));
-				std::memcpy(&its_ttl, &_data[VSOMEIP_COMMAND_PAYLOAD_POS+9], sizeof(its_ttl));
-				routing_->offer_service(its_client, its_service, its_instance, its_major, its_minor, its_ttl);
+				std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+						sizeof(its_service));
+				std::memcpy(&its_instance,
+						&_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
+						sizeof(its_instance));
+				std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
+						sizeof(its_major));
+				std::memcpy(&its_minor, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 5],
+						sizeof(its_minor));
+				std::memcpy(&its_ttl, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
+						sizeof(its_ttl));
+				routing_->offer_service(its_client, its_service, its_instance,
+						its_major, its_minor, its_ttl);
 				on_offer_service(its_client, its_service, its_instance);
 				break;
 
 			case VSOMEIP_STOP_OFFER_SERVICE:
-				std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS], sizeof(its_service));
-				std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS+2], sizeof(its_instance));
-				routing_->stop_offer_service(its_client, its_service, its_instance);
+				std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+						sizeof(its_service));
+				std::memcpy(&its_instance,
+						&_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
+						sizeof(its_instance));
+				routing_->stop_offer_service(its_client, its_service,
+						its_instance);
 				on_stop_offer_service(its_client, its_service, its_instance);
 				break;
 
 			case VSOMEIP_PUBLISH_EVENTGROUP:
-				routing_->publish_eventgroup(its_client, its_service, its_instance, its_eventgroup, its_major, its_ttl);
+				routing_->publish_eventgroup(its_client, its_service,
+						its_instance, its_eventgroup, its_major, its_ttl);
 				break;
 
 			case VSOMEIP_STOP_PUBLISH_EVENTGROUP:
-				routing_->stop_publish_eventgroup(its_client, its_service, its_instance, its_eventgroup);
-				break;
-
-			case VSOMEIP_ADD_EVENT:
-				routing_->add_event(its_client, its_service, its_instance, its_eventgroup, its_event);
-				break;
-
-			case VSOMEIP_REMOVE_EVENT_OR_FIELD:
-				//routing_->remove_event_or_field(its_client, its_service, its_instance, its_eventgroup, its_event);
-				break;
-
-			case VSOMEIP_ADD_FIELD:
-				//routing_->add_field(its_client, its_service, its_instance, its_eventgroup, its_event, its_value);
+				routing_->stop_publish_eventgroup(its_client, its_service,
+						its_instance, its_eventgroup);
 				break;
 
 			case VSOMEIP_SEND:
 				its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
-				std::memcpy(&its_instance, &_data[_size-4], sizeof(its_instance));
-				its_flush = static_cast< bool >(_data[_size-2]);
-				its_reliable = static_cast< bool >(_data[_size-1]);
-				routing_->send(its_client, its_data, its_size, its_instance, its_flush, its_reliable);
+				std::memcpy(&its_instance, &_data[_size - 4],
+						sizeof(its_instance));
+				its_flush = static_cast<bool>(_data[_size - 2]);
+				its_reliable = static_cast<bool>(_data[_size - 1]);
+				routing_->send(its_client, its_data, its_size, its_instance,
+						its_flush, its_reliable);
 				break;
 
 			case VSOMEIP_SET:
-				routing_->set(its_client, its_service, its_instance, its_event, its_value);
+				its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
+				its_payload = runtime::get()->create_payload(its_data, its_size);
+				routing_->set(its_client, its_service, its_instance, its_event,
+						its_payload);
 				break;
 			}
 		}
@@ -178,7 +190,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 	if (its_info != routing_info_.end()) {
 		for (auto &its_service : its_info->second.second) {
 			for (auto &its_instance : its_service.second) {
-				routing_->stop_offer_service(_client, its_service.first, its_instance);
+				routing_->stop_offer_service(_client, its_service.first,
+						its_instance);
 			}
 		}
 	}
@@ -188,14 +201,14 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 	broadcast_routing_info();
 }
 
-void routing_manager_stub::on_offer_service(
-		client_t _client, service_t _service, instance_t _instance) {
+void routing_manager_stub::on_offer_service(client_t _client,
+		service_t _service, instance_t _instance) {
 	routing_info_[_client].second[_service].insert(_instance);
 	broadcast_routing_info();
 }
 
-void routing_manager_stub::on_stop_offer_service(
-		client_t _client, service_t _service, instance_t _instance) {
+void routing_manager_stub::on_stop_offer_service(client_t _client,
+		service_t _service, instance_t _instance) {
 	auto found_client = routing_info_.find(_client);
 	if (found_client != routing_info_.end()) {
 		auto found_service = found_client->second.second.find(_service);
@@ -210,12 +223,13 @@ void routing_manager_stub::on_stop_offer_service(
 }
 
 void routing_manager_stub::send_routing_info(client_t _client) {
-	std::shared_ptr< endpoint > its_endpoint = routing_->find_local(_client);
+	std::shared_ptr<endpoint> its_endpoint = routing_->find_local(_client);
 	if (its_endpoint) {
 		uint32_t its_capacity = 4096; // TODO: dynamic resizing
-		std::vector< byte_t > its_command(its_capacity);
+		std::vector<byte_t> its_command(its_capacity);
 		its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_ROUTING_INFO;
-		std::memset(&its_command[VSOMEIP_COMMAND_CLIENT_POS], 0, sizeof(client_t));
+		std::memset(&its_command[VSOMEIP_COMMAND_CLIENT_POS], 0,
+				sizeof(client_t));
 		uint32_t its_size = VSOMEIP_COMMAND_PAYLOAD_POS;
 		for (auto &info : routing_info_) {
 			uint32_t its_size_pos = its_size;
@@ -227,34 +241,37 @@ void routing_manager_stub::send_routing_info(client_t _client) {
 			its_size += sizeof(client_t);
 
 			for (auto &service : info.second.second) {
-				uint32_t its_service_entry_size	= sizeof(service_t) + service.second.size() * sizeof(instance_t);
+				uint32_t its_service_entry_size = sizeof(service_t)
+						+ service.second.size() * sizeof(instance_t);
 
-				std::memcpy(&its_command[its_size], &its_service_entry_size, sizeof(uint32_t));
+				std::memcpy(&its_command[its_size], &its_service_entry_size,
+						sizeof(uint32_t));
 				its_size += sizeof(uint32_t);
 
-				std::memcpy(&its_command[its_size], &service.first, sizeof(service_t));
+				std::memcpy(&its_command[its_size], &service.first,
+						sizeof(service_t));
 				its_size += sizeof(service_t);
 
 				for (auto &instance : service.second) {
-					std::memcpy(&its_command[its_size], &instance, sizeof(instance_t));
+					std::memcpy(&its_command[its_size], &instance,
+							sizeof(instance_t));
 					its_size += sizeof(instance_t);
 				}
 			}
 
 			its_entry_size = its_size - its_entry_size - sizeof(uint32_t);
-			std::memcpy(&its_command[its_size_pos], &its_entry_size, sizeof(uint32_t));
+			std::memcpy(&its_command[its_size_pos], &its_entry_size,
+					sizeof(uint32_t));
 		}
 
-
-
-
 		its_size -= VSOMEIP_COMMAND_PAYLOAD_POS;
-		std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size, sizeof(its_size));
+		std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+				sizeof(its_size));
 		its_size += VSOMEIP_COMMAND_PAYLOAD_POS;
 #if 0
 		std::cout << "rms::send_routing_info ";
 		for (int i = 0; i < its_size; ++i)
-			std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
+		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
 		std::cout << std::endl;
 #endif
 		its_endpoint->send(&its_command[0], its_size, true);
@@ -267,10 +284,11 @@ void routing_manager_stub::broadcast_routing_info() {
 	}
 }
 
-void routing_manager_stub::broadcast(std::vector< byte_t > &_command) const {
+void routing_manager_stub::broadcast(std::vector<byte_t> &_command) const {
 	for (auto a : routing_info_) {
 		if (a.first > 0) {
-			std::shared_ptr< endpoint > its_endpoint = routing_->find_local(a.first);
+			std::shared_ptr<endpoint> its_endpoint = routing_->find_local(
+					a.first);
 			if (its_endpoint) {
 				its_endpoint->send(&_command[0], _command.size(), true);
 			}
@@ -281,12 +299,9 @@ void routing_manager_stub::broadcast(std::vector< byte_t > &_command) const {
 // Watchdog
 void routing_manager_stub::broadcast_ping() const {
 	const byte_t its_ping[] = {
-			VSOMEIP_PING,
-			0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00,
-	};
+	VSOMEIP_PING, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, };
 
-	std::vector< byte_t > its_command(sizeof(its_ping));
+	std::vector<byte_t> its_command(sizeof(its_ping));
 	its_command.assign(its_ping, its_ping + sizeof(its_ping));
 	broadcast(its_command);
 }
@@ -296,7 +311,8 @@ void routing_manager_stub::on_pong(client_t _client) {
 	if (found_info != routing_info_.end()) {
 		found_info->second.first = 0;
 	} else {
-		std::cerr << "Received PONG from unregistered application!" << std::endl;
+		std::cerr << "Received PONG from unregistered application!"
+				<< std::endl;
 	}
 }
 
@@ -304,11 +320,11 @@ void routing_manager_stub::start_watchdog() {
 	watchdog_timer_.expires_from_now(
 			std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_CYCLE)); // TODO: use config variable
 
-	std::function< void (boost::system::error_code const &) > its_callback =
-		[this](boost::system::error_code const &_error) {
-			if (!_error)
+	std::function<void(boost::system::error_code const &)> its_callback =
+			[this](boost::system::error_code const &_error) {
+				if (!_error)
 				check_watchdog();
-		};
+			};
 
 	watchdog_timer_.async_wait(its_callback);
 }
@@ -322,42 +338,44 @@ void routing_manager_stub::check_watchdog() {
 	watchdog_timer_.expires_from_now(
 			std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT)); // TODO: use config variable
 
-	std::function< void (boost::system::error_code const &) > its_callback =
-		[this](boost::system::error_code const &_error) {
-			std::list< client_t > lost;
+	std::function<void(boost::system::error_code const &)> its_callback =
+			[this](boost::system::error_code const &_error) {
+				std::list< client_t > lost;
 
-			for (auto i : routing_info_) {
-				if (i.first > 0) {
-					if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
-						VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
-						lost.push_back(i.first);
+				for (auto i : routing_info_) {
+					if (i.first > 0) {
+						if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
+							VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
+							lost.push_back(i.first);
+						}
 					}
 				}
-			}
 
-			for (auto i : lost) {
-				routing_info_.erase(i);
-			}
+				for (auto i : lost) {
+					routing_info_.erase(i);
+				}
 
-			if (0 < lost.size())
+				if (0 < lost.size())
 				send_application_lost(lost);
 
-			start_watchdog();
-		};
+				start_watchdog();
+			};
 
 	watchdog_timer_.async_wait(its_callback);
 }
 
-void routing_manager_stub::send_application_lost(std::list< client_t > &_lost) {
+void routing_manager_stub::send_application_lost(std::list<client_t> &_lost) {
 	uint32_t its_size = _lost.size() * sizeof(client_t);
-	std::vector< byte_t > its_command(VSOMEIP_COMMAND_HEADER_SIZE + its_size);
+	std::vector<byte_t> its_command(VSOMEIP_COMMAND_HEADER_SIZE + its_size);
 	its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_APPLICATION_LOST;
 	std::memset(&its_command[VSOMEIP_COMMAND_CLIENT_POS], 0, sizeof(client_t));
-	std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size, sizeof(uint32_t));
+	std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+			sizeof(uint32_t));
 
 	uint32_t its_offset = 0;
 	for (auto i : _lost) {
-		std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS+its_offset], &i, sizeof(client_t));
+		std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + its_offset], &i,
+				sizeof(client_t));
 		its_offset += sizeof(client_t);
 	}
 
