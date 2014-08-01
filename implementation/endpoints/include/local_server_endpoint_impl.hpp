@@ -38,12 +38,12 @@ public:
 	void restart();
 	void receive();
 
+	bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+               const byte_t *_data, uint32_t _size, bool _flush);
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _data);
-	endpoint_type get_remote() const;
-	endpoint_type get_cast() const;
 
-	void join(const std::string &);
-	void leave(const std::string &);
+	endpoint_type get_remote() const;
+	bool get_multicast(service_t, event_t, endpoint_type &) const;
 
 private:
 	class connection

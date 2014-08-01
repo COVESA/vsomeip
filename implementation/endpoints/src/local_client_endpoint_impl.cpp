@@ -111,12 +111,6 @@ void local_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 void local_client_endpoint_impl::send_magic_cookie() {
 }
 
-void local_client_endpoint_impl::join(const std::string &) {
-}
-
-void local_client_endpoint_impl::leave(const std::string &) {
-}
-
 void local_client_endpoint_impl::send_tag_cbk(
 		boost::system::error_code const &_error, std::size_t _bytes) {
 }

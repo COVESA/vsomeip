@@ -19,9 +19,7 @@ namespace sd {
 
 class service_discovery {
 public:
-	virtual ~service_discovery() {
-	}
-	;
+	virtual ~service_discovery() {};
 
 	virtual std::shared_ptr<configuration> get_configuration() const = 0;
 	virtual boost::asio::io_service & get_io() = 0;

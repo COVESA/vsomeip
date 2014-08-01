@@ -10,38 +10,44 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/logger.hpp>
 
+#include "../include/byteorder.hpp"
 #include "../include/utility.hpp"
-#include "../../message/include/byteorder.hpp"
 
 namespace vsomeip {
 
-uint32_t utility::get_message_size(std::vector< byte_t > &_data) {
-	uint32_t its_size(0);
-	if (VSOMEIP_SOMEIP_HEADER_SIZE <= _data.size()) {
-		its_size = VSOMEIP_SOMEIP_HEADER_SIZE +
-				   VSOMEIP_BYTES_TO_LONG(
-						   _data[4], _data[5], _data[6], _data[7]);
-	}
-	return its_size;
+bool utility::is_notification(const byte_t *_data) {
+  return (0 == _data[VSOMEIP_CLIENT_POS_MIN]
+      && 0 == _data[VSOMEIP_CLIENT_POS_MAX]
+      && 0 == _data[VSOMEIP_SESSION_POS_MIN]
+      && 0 == _data[VSOMEIP_SESSION_POS_MAX]);
 }
 
-void * utility::load_library(const std::string &_path, const std::string &_symbol) {
-	void * its_symbol = 0;
-
-	void *handle = dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-	if (0 != handle) {
-		its_symbol = dlsym(handle, _symbol.c_str());
-	} else {
-		VSOMEIP_ERROR << "Loading failed: (" << dlerror() << ")";
-	}
-
-	return its_symbol;
+uint32_t utility::get_message_size(std::vector<byte_t> &_data) {
+  uint32_t its_size(0);
+  if (VSOMEIP_SOMEIP_HEADER_SIZE <= _data.size()) {
+    its_size = VSOMEIP_SOMEIP_HEADER_SIZE
+        + VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7]);
+  }
+  return its_size;
 }
 
+void * utility::load_library(const std::string &_path,
+                             const std::string &_symbol) {
+  void * its_symbol = 0;
+
+  void *handle = dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+  if (0 != handle) {
+    its_symbol = dlsym(handle, _symbol.c_str());
+  } else {
+    VSOMEIP_ERROR << "Loading failed: (" << dlerror() << ")";
+  }
+
+  return its_symbol;
+}
 
 bool utility::exists(const std::string &_path) {
-	struct stat its_stat;
-	return (stat(_path.c_str(), &its_stat) == 0);
+  struct stat its_stat;
+  return (stat(_path.c_str(), &its_stat) == 0);
 }
 
-} // namespace vsomeip
+}  // namespace vsomeip

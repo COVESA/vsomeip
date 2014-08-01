@@ -33,6 +33,8 @@ public:
 					_type <= message_type_e::REQUEST_NO_RETURN_ACK));
 	}
 
+	static bool is_notification(const byte_t *_data);
+
 	static uint32_t get_message_size(std::vector< byte_t > &_data);
 
 	static bool exists(const std::string &_path);

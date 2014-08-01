@@ -57,7 +57,7 @@ bool servicegroup::remove_service(service_t _service, instance_t _instance) {
 	return its_result;
 }
 
-service_map_t servicegroup::get_services() const {
+services_t servicegroup::get_services() const {
 	return services_;
 }
 

@@ -13,40 +13,65 @@
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
 
-#include "../../routing/include/routing_types.hpp"
+#include "../../routing/include/types.hpp"
 
 namespace vsomeip {
 
 class configuration;
+class endpoint;
 
 namespace sd {
 
 class service_discovery_host {
-public:
-	virtual ~service_discovery_host() {};
+ public:
+  virtual ~service_discovery_host() {};
 
-	virtual boost::asio::io_service & get_io() = 0;
-	virtual std::shared_ptr<configuration> get_configuration() const = 0;
+  virtual boost::asio::io_service & get_io() = 0;
+  virtual std::shared_ptr<configuration> get_configuration() const = 0;
 
-	virtual void create_service_discovery_endpoint(const std::string &_address,
-			uint16_t _port, const std::string &_protocol) = 0;
+  virtual void create_service_discovery_endpoint(const std::string &_address,
+                                                 uint16_t _port,
+                                                 bool _reliable) = 0;
 
-	virtual service_map_t get_offered_services(
-			const std::string &_name) const = 0;
+  virtual services_t get_offered_services(const std::string &_name) const = 0;
+  virtual std::shared_ptr<eventgroupinfo> find_eventgroup(
+      service_t _service, instance_t _instance,
+      eventgroup_t _eventgroup) const = 0;
 
-	virtual bool send(client_t _client, std::shared_ptr<message> _message,
-			bool _flush, bool _reliable) = 0;
+  virtual bool send(client_t _client, std::shared_ptr<message> _message,
+                    bool _flush, bool _reliable) = 0;
 
-	virtual void add_routing_info(service_t _service, instance_t _instance,
-			major_version_t _major, minor_version_t _minor, ttl_t _ttl,
-			const boost::asio::ip::address &_address, uint16_t _port,
-			bool _reliable) = 0;
+  virtual bool send_subscribe(const boost::asio::ip::address &_address,
+                              uint16_t _port, bool _reliable,
+                              const byte_t *_data, uint32_t _size) = 0;
 
-	virtual void del_routing_info(service_t _service, instance_t _instance,
-			bool _reliable) = 0;
+  virtual void add_routing_info(service_t _service, instance_t _instance,
+                                major_version_t _major, minor_version_t _minor,
+                                ttl_t _ttl,
+                                const boost::asio::ip::address &_address,
+                                uint16_t _port, bool _reliable) = 0;
+
+  virtual void del_routing_info(service_t _service, instance_t _instance,
+                                bool _reliable) = 0;
+
+  virtual void add_subscription(service_t _service, instance_t _instance,
+                                eventgroup_t _eventgroup,
+                                const boost::asio::ip::address &_address,
+                                uint16_t _reliable_port,
+                                uint16_t _unreliable_port) = 0;
+
+  virtual void del_subscription(service_t _service, instance_t _instance,
+                                eventgroup_t _eventgroup,
+                                const boost::asio::ip::address &_address,
+                                uint16_t _reliable_port,
+                                uint16_t _unreliable_port) = 0;
+
+  virtual std::shared_ptr<endpoint> find_remote_client(service_t _service,
+                                                       instance_t _instance,
+                                                       bool _reliable) = 0;
 };
 
-} // namespace sd
-} // namespace vsomeip
+}  // namespace sd
+}  // namespace vsomeip
 
 #endif // VSOMEIP_SERVICE_DISCOVERY_HOST_HPP

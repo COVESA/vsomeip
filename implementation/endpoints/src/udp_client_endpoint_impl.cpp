@@ -79,30 +79,33 @@ void udp_client_endpoint_impl::receive() {
 	);
 }
 
-void udp_client_endpoint_impl::join(const std::string &_multicast_address) {
+unsigned short udp_client_endpoint_impl::get_port() const {
+  return socket_.local_endpoint().port();
+}
+
+void udp_client_endpoint_impl::join(const std::string &_address) {
+
 	if (remote_.address().is_v4()) {
 		try {
 			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
 			socket_.set_option(boost::asio::ip::multicast::join_group(
-							   boost::asio::ip::address::from_string(_multicast_address)));
+							   boost::asio::ip::address::from_string(_address)));
 		}
 		catch (...) {
-
 		}
 	} else {
 		// TODO: support multicast for IPv6
 	}
 }
 
-void udp_client_endpoint_impl::leave(const std::string &_multicast_address) {
+void udp_client_endpoint_impl::leave(const std::string &_address) {
 	if (remote_.address().is_v4()) {
 		try {
 			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
 			socket_.set_option(boost::asio::ip::multicast::leave_group(
-							   boost::asio::ip::address::from_string(_multicast_address)));
+							   boost::asio::ip::address::from_string(_address)));
 		}
 		catch (...) {
-
 		}
 	} else {
 		// TODO: support multicast for IPv6
@@ -112,11 +115,10 @@ void udp_client_endpoint_impl::leave(const std::string &_multicast_address) {
 void udp_client_endpoint_impl::receive_cbk(
 		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-
 	if (!_error && 0 < _bytes) {
 #if 0
 		std::stringstream msg;
-		msg << "cei::rcb (" << _error.message() << "): ";
+		msg << "ucei::rcb(" << _error.message() << "): ";
 		for (std::size_t i = 0; i < _bytes; ++i)
 			msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
 		VSOMEIP_DEBUG << msg.str();
@@ -133,11 +135,9 @@ void udp_client_endpoint_impl::receive_cbk(
 				this->message_.erase(this->message_.begin(), this->message_.begin() + current_message_size);
 			}
 		} while (has_full_message);
-
-		restart();
-	} else {
-		receive();
 	}
+
+	receive();
 }
 
 } // namespace vsomeip

@@ -51,7 +51,11 @@ public:
 	int32_t get_cyclic_offer_delay(const std::string &_name) const;
 	int32_t get_cyclic_request_delay(const std::string &_name) const;
 
-	std::string get_address(service_t _service, instance_t _instance) const;
+	std::string get_unicast(service_t _service, instance_t _instance) const;
+	std::string get_multicast_address(service_t _service, instance_t _instance) const;
+	uint16_t get_multicast_port(service_t _service, instance_t _instance) const;
+	uint16_t get_multicast_group(service_t _service, instance_t _instance) const;
+
 	uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
 	bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
 	uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
@@ -66,6 +70,10 @@ public:
 	client_t get_id(const std::string &_name) const;
 
 	std::set< std::pair< service_t, instance_t > > get_remote_services() const;
+
+	std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::set<event_t> > > > get_eventgroups() const;
+	std::map<service_t, std::map<instance_t, std::set<event_t> > > get_events() const;
+	void set_event(std::shared_ptr<event> &_event) const;
 
 private:
 	bool get_someip_configuration(boost::property_tree::ptree &_tree);

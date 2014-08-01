@@ -32,17 +32,15 @@ public:
 	void start();
 	void stop();
 
+	bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+	             const byte_t *_data, uint32_t _size, bool _flush);
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
+
 	endpoint_type get_remote() const;
-	endpoint_type get_cast() const;
+	bool get_multicast(service_t, event_t, endpoint_type &) const;
 
-	void join(const std::string &);
-	void leave(const std::string &);
-
-	bool get_address(ipv4_address_t &_address) const;
-	bool get_address(ipv6_address_t &_address) const;
 	unsigned short get_port() const;
-	bool is_udp() const;
+	bool is_reliable() const;
 
 	// dummies to implement endpoint_impl interface
 	// TODO: think about a better design!

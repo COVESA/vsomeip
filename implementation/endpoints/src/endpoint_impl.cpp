@@ -10,7 +10,6 @@
 
 #include "../include/endpoint_host.hpp"
 #include "../include/endpoint_impl.hpp"
-#include "../../message/include/byteorder.hpp"
 
 namespace vsomeip {
 
@@ -115,13 +114,20 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::get_address(ipv4_address_t &_address) const {
-	return false;
+void endpoint_impl< MaxBufferSize >::join(const std::string &) {
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::get_address(ipv6_address_t &_address) const {
-	return false;
+void endpoint_impl< MaxBufferSize >::leave(const std::string &) {
+}
+
+template < int MaxBufferSize >
+void endpoint_impl< MaxBufferSize >::add_multicast(
+		service_t, event_t, const std::string &, uint16_t) {
+}
+
+template < int MaxBufferSize >
+void endpoint_impl< MaxBufferSize >::remove_multicast(service_t, event_t) {
 }
 
 template < int MaxBufferSize >
@@ -130,7 +136,7 @@ unsigned short endpoint_impl< MaxBufferSize >::get_port() const {
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::is_udp() const {
+bool endpoint_impl< MaxBufferSize >::is_reliable() const {
 	return false;
 }
 

@@ -24,6 +24,10 @@ struct service {
 	uint16_t reliable_;
 	uint16_t unreliable_;
 
+	std::string multicast_address_;
+	uint16_t multicast_port_;
+	eventgroup_t multicast_group_;
+
 	bool use_magic_cookies_;
 
 	std::shared_ptr<servicegroup> group_;

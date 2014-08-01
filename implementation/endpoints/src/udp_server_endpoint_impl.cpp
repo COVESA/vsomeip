@@ -14,7 +14,7 @@
 
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
-#include "../../message/include/byteorder.hpp"
+#include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace ip = boost::asio::ip;
@@ -24,8 +24,7 @@ namespace vsomeip {
 udp_server_endpoint_impl::udp_server_endpoint_impl(
 		std::shared_ptr< endpoint_host > _host, endpoint_type _local, boost::asio::io_service &_io)
 	: server_endpoint_impl< ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE >(_host, _local, _io),
-	  socket_(_io, _local),
-	  cast_(_local) {
+	  socket_(_io, _local) {
 	boost::asio::socket_base::broadcast option(true);
 	socket_.set_option(option);
 }
@@ -38,6 +37,8 @@ void udp_server_endpoint_impl::start() {
 }
 
 void udp_server_endpoint_impl::stop() {
+	if (socket_.is_open())
+		socket_.close();
 }
 
 void udp_server_endpoint_impl::receive() {
@@ -59,6 +60,13 @@ void udp_server_endpoint_impl::receive() {
 
 void udp_server_endpoint_impl::restart() {
 	receive();
+}
+
+bool udp_server_endpoint_impl::send_to(
+    const boost::asio::ip::address &_address, uint16_t _port,
+    const byte_t *_data, uint32_t _size, bool _flush) {
+  endpoint_type its_target(_address, _port);
+  return send_intern(its_target, _data, _size, _flush);
 }
 
 void udp_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
@@ -86,18 +94,27 @@ udp_server_endpoint_impl::endpoint_type udp_server_endpoint_impl::get_remote() c
 	return remote_;
 }
 
-udp_server_endpoint_impl::endpoint_type udp_server_endpoint_impl::get_cast() const {
-	return cast_;
+bool udp_server_endpoint_impl::get_multicast(service_t _service, event_t _event,
+		udp_server_endpoint_impl::endpoint_type &_target) const {
+	bool is_valid(false);
+	auto find_service = multicasts_.find(_service);
+	if (find_service != multicasts_.end()) {
+		auto find_event = find_service->second.find(_event);
+		if (find_event != find_service->second.end()) {
+			_target = find_event->second;
+			is_valid = true;
+		}
+	}
+	return is_valid;
 }
 
-void udp_server_endpoint_impl::join(const std::string &_multicast_address) {
+void udp_server_endpoint_impl::join(const std::string &_address) {
 	if (local_.address().is_v4()) {
 		try {
-			cast_.address(boost::asio::ip::address::from_string(_multicast_address));
 			socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
 			socket_.set_option(boost::asio::ip::multicast::enable_loopback(false));
 			socket_.set_option(boost::asio::ip::multicast::join_group(
-					boost::asio::ip::address::from_string(_multicast_address).to_v4()));
+					boost::asio::ip::address::from_string(_address).to_v4()));
 		}
 		catch (const std::exception &e) {
 			VSOMEIP_ERROR << e.what();
@@ -107,12 +124,11 @@ void udp_server_endpoint_impl::join(const std::string &_multicast_address) {
 	}
 }
 
-void udp_server_endpoint_impl::leave(const std::string &_multicast_address) {
+void udp_server_endpoint_impl::leave(const std::string &_address) {
 	if (local_.address().is_v4()) {
 		try {
 			socket_.set_option(boost::asio::ip::multicast::leave_group(
-							   boost::asio::ip::address::from_string(_multicast_address)));
-			cast_.address(cast_.address().to_v4().broadcast());
+							   boost::asio::ip::address::from_string(_address)));
 		}
 		catch (...) {
 
@@ -122,32 +138,24 @@ void udp_server_endpoint_impl::leave(const std::string &_multicast_address) {
 	}
 }
 
-bool udp_server_endpoint_impl::get_address(ipv4_address_t &_address) const {
-	boost::asio::ip::address its_address = socket_.local_endpoint().address();
-	if (its_address.is_v4()) {
-		_address = its_address.to_v4().to_bytes();
-	} else {
-		return false;
-	}
-	return true;
+void udp_server_endpoint_impl::add_multicast(service_t _service, instance_t _instance,
+		const std::string &_address, uint16_t _port) {
+	endpoint_type its_endpoint(boost::asio::ip::address::from_string(_address), _port);
+	multicasts_[_service][_instance] = its_endpoint;
 }
 
-bool udp_server_endpoint_impl::get_address(ipv6_address_t &_address) const {
-	boost::asio::ip::address its_address = socket_.local_endpoint().address();
-	if (its_address.is_v6()) {
-		_address = its_address.to_v6().to_bytes();
-	} else {
-		return false;
+void udp_server_endpoint_impl::remove_multicast(service_t _service, instance_t _instance) {
+	auto found_service = multicasts_.find(_service);
+	if (found_service != multicasts_.end()) {
+		auto found_instance = found_service->second.find(_instance);
+		if (found_instance != found_service->second.end()) {
+			found_service->second.erase(_instance);
+		}
 	}
-	return true;
 }
 
 unsigned short udp_server_endpoint_impl::get_port() const {
 	return socket_.local_endpoint().port();
-}
-
-bool udp_server_endpoint_impl::is_udp() const {
-	return false;
 }
 
 // TODO: find a better way to structure the receive functions

@@ -21,6 +21,8 @@ global:
 		vsomeip::runtime::get*;
 		*vsomeip::application_impl;
 		vsomeip::application_impl*;
+		*vsomeip::eventgroupinfo;
+		vsomeip::eventgroupinfo::*;
 		*vsomeip::servicegroup;
 		vsomeip::servicegroup::*;
 		*vsomeip::serviceinfo;

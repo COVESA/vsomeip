@@ -30,9 +30,6 @@ public:
 
 	void send_queued(message_buffer_ptr_t _data);
 
-	void join(const std::string &);
-	void leave(const std::string &);
-
 private:
 	void send_magic_cookie();
 

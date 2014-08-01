@@ -82,6 +82,14 @@ void tcp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 	);
 }
 
+unsigned short tcp_client_endpoint_impl::get_port() const {
+  return socket_.local_endpoint().port();
+}
+
+bool tcp_client_endpoint_impl::is_reliable() const {
+  return true;
+}
+
 bool tcp_client_endpoint_impl::is_magic_cookie() const {
 	return (0 == std::memcmp(SERVICE_COOKIE, &message_[0], sizeof(SERVICE_COOKIE)));
 }
@@ -97,12 +105,6 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
 	} else {
 		VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
 	}
-}
-
-void tcp_client_endpoint_impl::join(const std::string &) {
-}
-
-void tcp_client_endpoint_impl::leave(const std::string &) {
 }
 
 void tcp_client_endpoint_impl::receive_cbk(

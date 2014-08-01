@@ -15,8 +15,8 @@
 
 #include <vsomeip/serializable.hpp>
 
-#include "../include/byteorder.hpp"
 #include "../include/serializer.hpp"
+#include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
 

@@ -1,12 +1,12 @@
 {
-	"unicast" : "192.168.56.102",
+	"unicast" : "192.168.56.101",
 	"logging" :
 	{ 
-		"level" : "debug",
+		"level" : "trace",
 		"console" : "true",
 		"file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
-		"dlt" : "false",
-	}
+		"dlt" : "false"
+	},
 	"applications" : 
 	[
 		{
@@ -18,9 +18,14 @@
 	[
 		{ 
 			"name" : "default",
+			"unicast" : "local",
 			"delays" :
 			{
-				"initial" : { "minimum" : "10", "maximum" : 100 },
+				"initial" : 
+				{ 
+					"minimum" : "10", 
+					"maximum" : 100 
+				},
 				"repetition-base" : "200",
 				"repetition-max" : "3",
 				"cyclic-offer" : "2000",
@@ -30,12 +35,50 @@
 			[
 				{
 					"service" : "0x1234",
-					"instance" : "0x5678"
+					"instance" : "0x5678",
 					"unreliable" : "30509",
+					"multicast" : 
+					{ 
+						"address" : "224.225.226.233", 
+						"port" : "32344"
+					},
+					"events" : 
+					[
+						{
+							"event" : "0x0777",
+							"is_field" : "true",
+							"update-cycle" : 2000
+						},
+						{
+							"event" : "0x0778",
+							"is_field" : "false",
+							"update-cycle" : 0
+						},
+						{
+							"event" : "0x0779",
+							"is_field" : "true"
+						}
+					],
+					"eventgroups" :
+					[
+						{
+							"eventgroup" : "0x4455",
+							"events" : [ "0x777", "0x778" ] 
+						},
+						{
+							"eventgroup" : "0x4465",
+							"events" : [ "0x778", "0x779" ], 
+							"is_multicast" : "true"
+						},
+						{
+							"eventgroup" : "0x4555",
+							"events" : [ "0x777", "0x779" ] 
+						}
+					]
 				}
 			]
 		}
-	]
+	],
 	"routing" : "service-sample",
 	"service-discovery" :
 	{

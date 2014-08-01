@@ -3,7 +3,7 @@
 	"netmask" : "255.255.255.0",
 	"logging" : 
 	{
-		"level" : "debug",
+		"level" : "info",
 		"console" : "true",
 		"file" : { "enable" : "true", "path" : "/var/log/vsomeip.log" },
 		"dlt" : "true"
@@ -42,32 +42,29 @@
 					[
 						{
 							"event" : "0x0777",
-							"is_field" : true
+							"is_field" : "true"
 						},
 						{
 							"event" : "0x0778",
-							"is_field" : false
+							"is_field" : "false"
 						},
 						{
 							"event" : "0x0779",
-							"is_field" : true
+							"is_field" : "true"
 						}
 					],
 					"eventgroups" :
 					[
 						{
 							"eventgroup" : "0x4455",
-							"multicast" : "224.225.226.223",
 							"events" : [ "0x777", "0x778" ] 
 						},
 						{
 							"eventgroup" : "0x4465",
-							"multicast" : "224.225.226.228",
 							"events" : [ "0x778", "0x779" ] 
 						},
 						{
 							"eventgroup" : "0x4555",
-							"multicast" : "224.225.226.233",
 							"events" : [ "0x777", "0x779" ] 
 						}
 					]

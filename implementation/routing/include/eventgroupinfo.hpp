@@ -10,37 +10,40 @@
 #include <memory>
 #include <set>
 
+#include <boost/asio/ip/address.hpp>
+
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
-class endpoint;
+class event;
 
 class eventgroupinfo {
 public:
-	eventgroupinfo(major_version_t _major, ttl_t _ttl);
+	eventgroupinfo();
 	~eventgroupinfo();
 
-	servicegroup * get_group() const;
-	void set_group(servicegroup *_group);
-
 	major_version_t get_major() const;
+	void set_major(major_version_t _major);
 
 	ttl_t get_ttl() const;
 	void set_ttl(ttl_t _ttl);
 
-	std::shared_ptr<endpoint> & get_multicast();
-	void set_multicast(std::shared_ptr<endpoint> &_multicast);
+	bool get_multicast(boost::asio::ip::address &_address, uint16_t &_port);
+	void set_multicast(const boost::asio::ip::address &_address, uint16_t _port);
 
-	void add_client(client_t _client);
-	void remove_client(client_t _client);
+	const std::set<std::shared_ptr<event> > get_events() const;
+	void add_event(std::shared_ptr<event> _event);
 
 private:
 	major_version_t major_;
 	ttl_t ttl_;
 
-	std::shared_ptr<endpoint> multicast_;
-	std::set< client_t > subscribed_;
+	bool is_multicast_;
+	boost::asio::ip::address address_;
+	uint16_t port_;
+
+	std::set<std::shared_ptr<event> > events_;
 };
 
 } // namespace vsomeip

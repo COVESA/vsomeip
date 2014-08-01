@@ -11,16 +11,16 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/logger.hpp>
 
+#include "../include/event.hpp"
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_proxy.hpp"
 #include "../../configuration/include/internal.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/local_server_endpoint_impl.hpp"
-#include "../../message/include/byteorder.hpp"
 #include "../../message/include/deserializer.hpp"
-#include "../../message/include/event_impl.hpp"
 #include "../../message/include/serializer.hpp"
 #include "../../service_discovery/include/runtime.hpp"
+#include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip {

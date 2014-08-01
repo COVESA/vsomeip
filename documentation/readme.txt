@@ -1,0 +1,3 @@
+To use IP multicast, the route must be added. In Linux this can be done
+by "route add -net 224.0.0.0/4 dev eth0".
+

@@ -38,17 +38,20 @@ public:
 	void restart();
 	void receive();
 
+  bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+               const byte_t *_data, uint32_t _size, bool _flush);
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
+
 	endpoint_type get_remote() const;
-	endpoint_type get_cast() const;
+	bool get_multicast(service_t _service, event_t _event, endpoint_type &_target) const;
 
-	void join(const std::string &_multicast_address);
-	void leave(const std::string &_multicast_address);
+	void join(const std::string &_address);
+	void leave(const std::string &_address);
+	void add_multicast(service_t _service, instance_t _instance,
+			const std::string &_address, uint16_t _port);
+	void remove_multicast(service_t _service, instance_t _instance);
 
-	bool get_address(ipv4_address_t &_address) const;
-	bool get_address(ipv6_address_t &_address) const;
 	unsigned short get_port() const;
-	bool is_udp() const;
 
 public:
 	void receive_cbk(packet_buffer_ptr_t _buffer,
@@ -60,8 +63,7 @@ private:
 private:
 	socket_type socket_;
 	endpoint_type remote_;
-	endpoint_type cast_;
-
+	std::map<service_t,	std::map<instance_t, endpoint_type> > multicasts_;
 	message_buffer_t message_;
 };
 

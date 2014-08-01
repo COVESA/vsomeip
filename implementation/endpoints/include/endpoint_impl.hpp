@@ -33,12 +33,17 @@ public:
 	void open_filter(service_t _service);
 	void close_filter(service_t _service);
 
+	// Dummy implementations as we only need these for UDP (servers)
+	// TODO: redesign
+	void join(const std::string &);
+	void leave(const std::string &);
+	void add_multicast(service_t, event_t, const std::string &, uint16_t);
+	void remove_multicast(service_t, event_t);
+
 	// Dummy implementations as we only need these for server endpoints
-	// TODO: redesign to avoid dummy implementations
-	bool get_address(ipv4_address_t &_address) const;
-	bool get_address(ipv6_address_t &_address) const;
+	// TODO: redesign
 	unsigned short get_port() const;
-	bool is_udp() const;
+	bool is_reliable() const;
 
 public: // required
 	virtual bool is_client() const = 0;

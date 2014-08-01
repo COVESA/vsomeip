@@ -40,10 +40,13 @@ public:
 	void start();
 	void send_queued(message_buffer_ptr_t _buffer);
 
-	void join(const std::string &_multicast_address);
-	void leave(const std::string &_multicast_address);
+	unsigned short get_port() const;
 
-	void receive_cbk(packet_buffer_ptr_t _buffer, boost::system::error_code const &_error, std::size_t _bytes);
+	void join(const std::string &_address);
+	void leave(const std::string &_address);
+
+	void receive_cbk(packet_buffer_ptr_t _buffer,
+			boost::system::error_code const &_error, std::size_t _bytes);
 
 private:
 	void connect();

@@ -18,7 +18,6 @@ struct event;
 
 struct eventgroup {
 	eventgroup_t id_;
-	std::string multicast_;
 	std::set<std::shared_ptr<event> > events_;
 };
 

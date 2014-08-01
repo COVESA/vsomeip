@@ -18,14 +18,14 @@ class serviceinfo;
 
 typedef std::map<service_t,
 		    std::map<instance_t,
-		    	std::shared_ptr<serviceinfo> > > service_map_t;
+		    	std::shared_ptr<serviceinfo> > > services_t;
 
 class eventgroupinfo;
 
 typedef std::map<service_t,
 			std::map<instance_t,
 				std::map<eventgroup_t,
-					std::shared_ptr<eventgroupinfo> > > > eventgroup_map_t;
+					std::shared_ptr<eventgroupinfo> > > > eventgroups_t;
 
 }
 // namespace vsomeip

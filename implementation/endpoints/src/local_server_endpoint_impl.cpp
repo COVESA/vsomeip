@@ -46,6 +46,11 @@ void local_server_endpoint_impl::stop() {
 
 }
 
+bool local_server_endpoint_impl::send_to(const boost::asio::ip::address &_address, uint16_t _port,
+                                         const byte_t *_data, uint32_t _size, bool _flush) {
+  return false;
+}
+
 void local_server_endpoint_impl::send_queued(endpoint_type _target, message_buffer_ptr_t _buffer) {
 	auto connection_iterator = connections_.find(_target);
 	if (connection_iterator != connections_.end())
@@ -64,8 +69,9 @@ local_server_endpoint_impl::endpoint_type local_server_endpoint_impl::get_remote
 	return current_->get_socket().remote_endpoint();
 }
 
-local_server_endpoint_impl::endpoint_type local_server_endpoint_impl::get_cast() const {
-	return get_remote(); // TODO: change inheritance to separate local from ip endpoints
+bool local_server_endpoint_impl::get_multicast(
+		service_t, event_t, local_server_endpoint_impl::endpoint_type &) const {
+	return false;
 }
 
 void local_server_endpoint_impl::remove_connection(local_server_endpoint_impl::connection *_connection) {
@@ -78,12 +84,6 @@ void local_server_endpoint_impl::remove_connection(local_server_endpoint_impl::c
 	if (i != connections_.end()) {
 		connections_.erase(i);
 	}
-}
-
-void local_server_endpoint_impl::join(const std::string &) {
-}
-
-void local_server_endpoint_impl::leave(const std::string &) {
 }
 
 void local_server_endpoint_impl::accept_cbk(

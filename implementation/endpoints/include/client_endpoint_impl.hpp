@@ -38,6 +38,8 @@ public:
 	virtual ~client_endpoint_impl();
 
 	bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+	bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+	             const byte_t *_data, uint32_t _size, bool _flush = true);
 	bool flush();
 
 	void stop();

@@ -194,9 +194,10 @@ void application_impl::send(std::shared_ptr<message> _message, bool _flush,
 	}
 }
 
-void application_impl::set(service_t _service, instance_t _instance, event_t,
+void application_impl::set(service_t _service, instance_t _instance, event_t _event,
 		const std::shared_ptr<payload> &_payload) {
-
+  if (routing_)
+    routing_->set(client_, _service, _instance, _event, _payload);
 }
 
 void application_impl::register_event_handler(event_handler_t _handler) {

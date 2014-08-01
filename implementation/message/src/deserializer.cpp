@@ -13,9 +13,9 @@
 #include <vsomeip/logger.hpp>
 #endif
 
-#include "../include/byteorder.hpp"
 #include "../include/message_impl.hpp"
 #include "../include/deserializer.hpp"
+#include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
 

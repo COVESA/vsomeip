@@ -55,6 +55,9 @@ public:
 						  this,
 						  std::placeholders::_1));
 
+		app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID,
+				vsomeip::ANY_MAJOR, vsomeip::ANY_TTL);
+
 		request_->set_service(SAMPLE_SERVICE_ID);
 		request_->set_instance(SAMPLE_INSTANCE_ID);
 		request_->set_method(SAMPLE_METHOD_ID);

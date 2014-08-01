@@ -8,8 +8,8 @@
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
 
-#include "../include/byteorder.hpp"
 #include "../include/message_impl.hpp"
+#include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
 

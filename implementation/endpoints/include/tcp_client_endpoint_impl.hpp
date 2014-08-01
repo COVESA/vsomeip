@@ -28,8 +28,8 @@ public:
 	void start();
 	void send_queued(message_buffer_ptr_t _buffer);
 
-	void join(const std::string &);
-	void leave(const std::string &);
+	unsigned short get_port() const;
+	bool is_reliable() const;
 
 private:
 	bool is_magic_cookie() const;

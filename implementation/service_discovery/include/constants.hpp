@@ -28,8 +28,8 @@ const uint8_t reserved_byte = 0x0;
 const uint16_t reserved_word = 0x0;
 const uint32_t reserved_long = 0x0;
 
-const uint8_t udp = 0x06;
-const uint8_t tcp = 0x11;
+const uint8_t tcp = 0x06;
+const uint8_t udp = 0x11;
 
 } // namespace protocol
 } // namespace sd

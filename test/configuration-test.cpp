@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 	check<uint16_t>(its_reliable, DESIRED_RELIABLE_2277_0022, "RELIABLE_TEST_2277_0022");
 	check<uint16_t>(its_unreliable, DESIRED_UNRELIABLE_2277_0022, "UNRELIABLE_TEST_2277_0022");
 
-	std::string its_address_s = its_configuration->get_address(0x1234, 0x0022);
+	std::string its_address_s = its_configuration->get_unicast(0x1234, 0x0022);
 	std::string its_group_name = its_configuration->get_group(0x1234, 0x0022);
 	uint32_t its_min_initial_delay = its_configuration->get_min_initial_delay(its_group_name);
 	uint32_t its_max_initial_delay = its_configuration->get_max_initial_delay(its_group_name);
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 	check<uint32_t>(its_cyclic_offer_delay, DESIRED_CYCLIC_OFFER_DELAY_2277_0022, "CYCLIC_OFFER_DELAY_TEST_2266_0022");
 	check<uint32_t>(its_cyclic_request_delay, DESIRED_CYCLIC_REQUEST_DELAY_2277_0022, "CYCLIC_REQUEST_DELAY_TEST_2266_0022");
 
-	its_address_s = its_configuration->get_address(0x4466, 0x0321);
+	its_address_s = its_configuration->get_unicast(0x4466, 0x0321);
 	check<std::string>(its_address_s, DESIRED_ADDRESS_4466_0321, "ADDRESS_TEST_4466_0321");
 
 	// 5. Service discovery
