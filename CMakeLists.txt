@@ -39,16 +39,20 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(DL_LIBRARY "dl")
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=../exportmap.gcc")
     set(NO_DEPRECATED "")
+    set(OPTIMIZE "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS "FREEBSD")
     set(DL_LIBRARY "")
     set(EXPORTSYMBOLS "")
-    set(NO_DEPRECATED "-Wno-deprecated-register")
+    set(NO_DEPRECATED "-Wno-deprecated")
+    set(OPTIMIZE "-Os")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g -std=c++0x -O0 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+# Compiler settings
+set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++0x ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+
 include_directories(
 	"interface" 
 )
