@@ -17,6 +17,7 @@ namespace sd {
 ipv4_option_impl::ipv4_option_impl(bool _is_multicast) {
 	length_ = (1 + 4 + 1 + 1 + 2);
 	type_ = (_is_multicast ? option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
+	is_udp_ = _is_multicast;
 }
 
 ipv4_option_impl::~ipv4_option_impl() {

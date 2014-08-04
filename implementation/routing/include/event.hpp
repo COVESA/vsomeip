@@ -10,10 +10,13 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/system_timer.hpp>
+
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
@@ -49,6 +52,11 @@ class event : public std::enable_shared_from_this<event> {
 
   // SIP_RPC_359 (epsilon change) is not supported!
 
+
+  const std::set<eventgroup_t> & get_eventgroups() const;
+  void add_eventgroup(eventgroup_t _eventgroup);
+  void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
+
  private:
   void update_cbk(boost::system::error_code const &_error);
   void notify();
@@ -64,6 +72,8 @@ class event : public std::enable_shared_from_this<event> {
   std::chrono::milliseconds cycle_;
 
   bool is_updating_on_change_;
+
+  std::set<eventgroup_t> eventgroups_;
 };
 
 }  // namespace vsomeip

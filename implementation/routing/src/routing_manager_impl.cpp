@@ -21,6 +21,7 @@
 #include "../include/servicegroup.hpp"
 #include "../include/serviceinfo.hpp"
 #include "../../configuration/include/internal.hpp"
+#include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
@@ -48,7 +49,7 @@ routing_manager_impl::~routing_manager_impl() {
 }
 
 boost::asio::io_service & routing_manager_impl::get_io() {
-  return io_;
+  return (io_);
 }
 
 void routing_manager_impl::init() {
@@ -65,9 +66,9 @@ void routing_manager_impl::init() {
   stub_->init();
 
   if (configuration_->is_service_discovery_enabled()) {
-    VSOMEIP_INFO << "Service Discovery enabled.";
+    VSOMEIP_INFO<< "Service Discovery enabled.";
     sd::runtime **its_runtime =
-        static_cast<sd::runtime **>(utility::load_library(
+    static_cast<sd::runtime **>(utility::load_library(
             VSOMEIP_SD_LIBRARY,
             VSOMEIP_SD_RUNTIME_SYMBOL_STRING));
 
@@ -114,8 +115,6 @@ void routing_manager_impl::offer_service(client_t _client, service_t _service,
       host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
     }
   } else {
-    VSOMEIP_INFO << "CREATING SERVICE [" << std::hex << _service << "."
-        << _instance << "]";
     (void) create_service(_service, _instance, _major, _minor, _ttl);
   }
 
@@ -138,21 +137,6 @@ void routing_manager_impl::stop_offer_service(client_t its_client,
     del_routing_info(_service, _instance, false);
     del_routing_info(_service, _instance, true);
   }
-}
-
-void routing_manager_impl::publish_eventgroup(client_t its_client,
-                                              service_t _service,
-                                              instance_t _instance,
-                                              eventgroup_t _eventgroup,
-                                              major_version_t _major,
-                                              ttl_t _ttl) {
-}
-
-void routing_manager_impl::stop_publish_eventgroup(client_t its_client,
-                                                   service_t _service,
-                                                   instance_t _instance,
-                                                   eventgroup_t _eventgroup) {
-
 }
 
 void routing_manager_impl::request_service(client_t _client, service_t _service,
@@ -191,10 +175,12 @@ void routing_manager_impl::subscribe(client_t _client, service_t _service,
                                      eventgroup_t _eventgroup,
                                      major_version_t _major, ttl_t _ttl) {
   if (discovery_) {
-    eventgroup_clients_[_eventgroup].insert(_client);
-    discovery_->subscribe(_service, _instance, _eventgroup, _major, _ttl);
+    eventgroup_clients_[_service][_instance][_eventgroup].insert(_client);
+    if (0 == find_local_client(_service, _instance)) {
+      discovery_->subscribe(_service, _instance, _eventgroup, _major, _ttl);
+    }
   } else {
-    VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
+    VSOMEIP_ERROR<< "SOME/IP eventgroups require SD to be enabled!";
   }
 }
 
@@ -202,24 +188,31 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
                                        instance_t _instance,
                                        eventgroup_t _eventgroup) {
   if (discovery_) {
-    auto found_eventgroup = eventgroup_clients_.find(_eventgroup);
-    if (found_eventgroup != eventgroup_clients_.end()) {
-      found_eventgroup->second.erase(_client);
-      if (0 == found_eventgroup->second.size()) {
-        eventgroup_clients_.erase(_eventgroup);
+    auto found_service = eventgroup_clients_.find(_service);
+    if (found_service != eventgroup_clients_.end()) {
+      auto found_instance = found_service->second.find(_instance);
+      if (found_instance != found_service->second.end()) {
+        auto found_eventgroup = found_instance->second.find(_eventgroup);
+        if (found_eventgroup != found_instance->second.end()) {
+          found_eventgroup->second.erase(_client);
+          if (0 == found_eventgroup->second.size()) {
+            eventgroup_clients_.erase(_eventgroup);
+          }
+        }
       }
     }
     discovery_->unsubscribe(_service, _instance, _eventgroup);
   } else {
-    VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
+    VSOMEIP_ERROR<< "SOME/IP eventgroups require SD to be enabled!";
   }
 }
 
 bool routing_manager_impl::send(client_t its_client,
                                 std::shared_ptr<message> _message,
-                                bool _reliable, bool _flush) {
+                                bool _reliable,
+                                bool _flush) {
   bool is_sent(false);
-  std::unique_lock < std::mutex > its_lock(serialize_mutex_);
+  std::unique_lock<std::mutex> its_lock(serialize_mutex_);
 
   if (utility::is_request(_message->get_message_type())) {
     _message->set_client(its_client);
@@ -230,12 +223,13 @@ bool routing_manager_impl::send(client_t its_client,
                    _message->get_instance(), _reliable, _flush);
     serializer_->reset();
   }
-  return is_sent;
+  return (is_sent);
 }
 
 bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                 length_t _size, instance_t _instance,
-                                bool _flush, bool _reliable) {
+                                bool _flush,
+                                bool _reliable) {
   bool is_sent(false);
 
   std::shared_ptr<endpoint> its_target;
@@ -288,8 +282,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
           if (its_target) {
             is_sent = its_target->send(_data, _size, _flush);
           } else {
-            VSOMEIP_ERROR
-                << "Routing error. Client from remote service could not be found!";
+            VSOMEIP_ERROR<< "Routing error. Client from remote service could not be found!";
           }
         } else {
           std::shared_ptr<serviceinfo> its_info(
@@ -297,10 +290,36 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
           if (its_info) {
             its_target = its_info->get_endpoint(_reliable);
             if (its_target) {
-              is_sent = its_target->send(_data, _size, _flush);
+              if (is_notification) {
+                method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
+                    _data[VSOMEIP_METHOD_POS_MAX]);
+                std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
+                if (its_event) {
+                  for (auto its_group : its_event->get_eventgroups()) {
+                    // local
+                    auto its_local_clients = find_local_clients(its_service, _instance, its_group);
+                    for (auto its_local_client : its_local_clients) {
+                      std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
+                      if (its_target) {
+                        its_local_target->send(_data, _size);
+                      }
+                    }
+
+                    // remote
+                    auto its_eventgroup = find_eventgroup(its_service, _instance, its_group);
+                    if (its_eventgroup) {
+                      for (auto its_remote : its_eventgroup->get_targets()) {
+                        its_target->send_to(its_remote, _data, _size);
+                      }
+                    }
+                  }
+                }
+              } else  {
+                is_sent = its_target->send(_data, _size, _flush);
+              }
             } else {
               VSOMEIP_ERROR
-                  << "Routing error. Service endpoint could not be found!";
+              << "Routing error. Service endpoint could not be found!";
             }
           } else {
             VSOMEIP_ERROR << "Routing error. Service could not be found!";
@@ -310,7 +329,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
     }
   }
 
-  return is_sent;
+  return (is_sent);
 }
 
 void routing_manager_impl::set(client_t its_client, service_t _service,
@@ -320,22 +339,24 @@ void routing_manager_impl::set(client_t its_client, service_t _service,
   if (its_event) {
     its_event->set_payload(_payload);
   } else {
-    VSOMEIP_ERROR << "Event [" << std::hex << std::setw(4) << std::setfill('0')
-        << _service << "." << std::setw(4) << std::setfill('0') << _instance
-        << "." << std::setw(4) << std::setfill('0') << _event
-        << "] is unknown!";
+    VSOMEIP_ERROR<< "Event [" << std::hex << std::setw(4) << std::setfill('0')
+    << _service << "." << std::setw(4) << std::setfill('0') << _instance
+    << "." << std::setw(4) << std::setfill('0') << _event
+    << "] is unknown!";
   }
 }
 
-bool routing_manager_impl::send_subscribe(
-    const boost::asio::ip::address &_address, uint16_t _port, bool _reliable,
-    const byte_t *_data, uint32_t _size) {
+bool routing_manager_impl::send_to(const boost::asio::ip::address &_address,
+                                   uint16_t _port, bool _reliable,
+                                   const byte_t *_data, uint32_t _size) {
   std::shared_ptr<endpoint> its_endpoint = find_server_endpoint(_port,
                                                                 _reliable);
   if (its_endpoint)
-    return its_endpoint->send_to(_address, _port, _data, _size);
+    return (its_endpoint->send_to(
+              std::make_shared<endpoint_definition>(
+                _address, _port, _reliable), _data, _size));
 
-  return false;
+  return (false);
 }
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
@@ -364,16 +385,16 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                                              _data[VSOMEIP_CLIENT_POS_MAX]);
         }
 
-        if (its_client == host_->get_client()) {
+        if (its_client == host_->get_client() || utility::is_notification(_data)) {
           deliver_message(_data, _size, its_instance);
         } else if (its_client != VSOMEIP_ROUTING_CLIENT) {
           send(its_client, _data, _size, its_instance, true, false);
         } else {
-          VSOMEIP_ERROR << "Could not determine target application!";
+          VSOMEIP_ERROR << "Cannot determine target application!";
         }
       } else {
-        VSOMEIP_ERROR << "Could not determine service instance for ["
-            << its_service << "]";
+        VSOMEIP_ERROR
+          << "Cannot determine service instance for [" << its_service << "]";
       }
     }
   } else {
@@ -426,7 +447,7 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
     // TODO: send error "Malformed Message"
     //send_error();
   }
-  return is_sent;
+  return (is_sent);
 }
 
 bool routing_manager_impl::is_available(service_t _service,
@@ -435,7 +456,7 @@ bool routing_manager_impl::is_available(service_t _service,
   if (find_local_service != local_services_.end()) {
     auto find_local_instance = find_local_service->second.find(_instance);
     if (find_local_instance != find_local_service->second.end()) {
-      return true;
+      return (true);
     }
   }
 
@@ -443,16 +464,16 @@ bool routing_manager_impl::is_available(service_t _service,
   if (find_remote_service != remote_services_.end()) {
     auto find_remote_instance = find_remote_service->second.find(_instance);
     if (find_remote_instance != find_remote_service->second.end()) {
-      return true;
+      return (true);
     }
   }
 
-  return false;
+  return (false);
 }
 
 const std::map<std::string, std::shared_ptr<servicegroup> > &
 routing_manager_impl::get_servicegroups() const {
-  return servicegroups_;
+  return (servicegroups_);
 }
 
 std::shared_ptr<eventgroupinfo> routing_manager_impl::find_eventgroup(
@@ -482,11 +503,11 @@ std::shared_ptr<eventgroupinfo> routing_manager_impl::find_eventgroup(
       }
     }
   }
-  return its_info;
+  return (its_info);
 }
 
 std::shared_ptr<configuration> routing_manager_impl::get_configuration() const {
-  return host_->get_configuration();
+  return (host_->get_configuration());
 }
 
 void routing_manager_impl::create_service_discovery_endpoint(
@@ -515,10 +536,10 @@ services_t routing_manager_impl::get_offered_services(
   services_t its_offers;
   auto find_servicegroup = servicegroups_.find(_name);
   if (find_servicegroup != servicegroups_.end()) {
-    return find_servicegroup->second->get_services();
+    return (find_servicegroup->second->get_services());
   }
 
-  return its_offers;
+  return (its_offers);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -534,7 +555,7 @@ std::shared_ptr<serviceinfo> routing_manager_impl::find_service(
       its_info = found_instance->second;
     }
   }
-  return its_info;
+  return (its_info);
 }
 
 std::shared_ptr<serviceinfo> routing_manager_impl::create_service(
@@ -556,16 +577,12 @@ std::shared_ptr<serviceinfo> routing_manager_impl::create_service(
     its_info->set_multicast_group(
         configuration_->get_multicast_group(_service, _instance));
 
-    VSOMEIP_DEBUG << "MULTICAST ["
-        << std::hex << _service << "." << _instance << "] --> "
-        << its_info->get_multicast_group();
-
     std::shared_ptr<endpoint> its_reliable_endpoint;
     std::shared_ptr<endpoint> its_unreliable_endpoint;
 
     if (ILLEGAL_PORT != its_reliable_port) {
       its_reliable_endpoint = find_or_create_server_endpoint(its_reliable_port,
-                                                             true);
+      true);
       its_info->set_endpoint(its_reliable_endpoint, true);
 
       // TODO: put this in a method and check whether an assignment already exists!
@@ -586,12 +603,11 @@ std::shared_ptr<serviceinfo> routing_manager_impl::create_service(
                                                                _instance);
       auto found_servicegroup = servicegroups_.find(its_servicegroup);
       if (found_servicegroup == servicegroups_.end()) {
-        servicegroups_[its_servicegroup] = std::make_shared < servicegroup
-            > (its_servicegroup);
+        servicegroups_[its_servicegroup]
+          = std::make_shared<servicegroup>(its_servicegroup);
       }
-
-      servicegroups_[its_servicegroup]->add_service(_service, _instance,
-                                                    its_info);
+      servicegroups_[its_servicegroup]->add_service(
+          _service, _instance, its_info);
       services_[_service][_instance] = its_info;
     } else {
       host_->on_error(error_code_e::PORT_CONFIGURATION_MISSING);
@@ -600,7 +616,7 @@ std::shared_ptr<serviceinfo> routing_manager_impl::create_service(
     host_->on_error(error_code_e::CONFIGURATION_MISSING);
   }
 
-  return its_info;
+  return (its_info);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
@@ -628,7 +644,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
     host_->on_error(error_code_e::CLIENT_ENDPOINT_CREATION_FAILED);
   }
 
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_client_endpoint(
@@ -644,7 +660,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_client_endpoint(
       }
     }
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_client_endpoint(
@@ -655,7 +671,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_client_endpoint(
   if (0 == its_endpoint) {
     its_endpoint = create_client_endpoint(_address, _port, _reliable);
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
@@ -689,7 +705,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
     host_->on_error(error_code_e::SERVER_ENDPOINT_CREATION_FAILED);
   }
 
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_server_endpoint(
@@ -702,7 +718,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_server_endpoint(
       its_endpoint = found_endpoint->second;
     }
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
@@ -713,7 +729,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
   if (0 == its_endpoint) {
     its_endpoint = create_server_endpoint(_port, _reliable);
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_local(client_t _client) {
@@ -723,7 +739,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_local(client_t _client) {
   if (found_endpoint != local_clients_.end()) {
     its_endpoint = found_endpoint->second;
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::create_local(client_t _client) {
@@ -738,7 +754,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_local(client_t _client) {
           its_path.str()), io_);
   local_clients_[_client] = its_endpoint;
   its_endpoint->start();
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_local(
@@ -747,7 +763,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_local(
   if (!its_endpoint) {
     its_endpoint = create_local(_client);
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 void routing_manager_impl::remove_local(client_t _client) {
@@ -759,7 +775,7 @@ void routing_manager_impl::remove_local(client_t _client) {
 
 std::shared_ptr<endpoint> routing_manager_impl::find_local(
     service_t _service, instance_t _instance) {
-  return find_local(find_local_client(_service, _instance));
+  return (find_local(find_local_client(_service, _instance)));
 }
 
 client_t routing_manager_impl::find_local_client(service_t _service,
@@ -772,7 +788,23 @@ client_t routing_manager_impl::find_local_client(service_t _service,
       its_client = found_instance->second;
     }
   }
-  return its_client;
+  return (its_client);
+}
+
+std::set<client_t> routing_manager_impl::find_local_clients(
+    service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+  std::set<client_t> its_clients;
+  auto found_service = eventgroup_clients_.find(_service);
+  if (found_service != eventgroup_clients_.end()) {
+    auto found_instance = found_service->second.find(_instance);
+    if (found_instance != found_service->second.end()) {
+      auto found_eventgroup = found_instance->second.find(_eventgroup);
+      if (found_eventgroup != found_instance->second.end()) {
+        its_clients = found_eventgroup->second;
+      }
+    }
+  }
+  return (its_clients);
 }
 
 instance_t routing_manager_impl::find_instance(service_t _service,
@@ -785,7 +817,7 @@ instance_t routing_manager_impl::find_instance(service_t _service,
       its_instance = found_endpoint->second;
     }
   }
-  return its_instance;
+  return (its_instance);
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_remote_client(
@@ -801,7 +833,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_remote_client(
       }
     }
   }
-  return its_endpoint;
+  return (its_endpoint);
 }
 
 std::shared_ptr<event> routing_manager_impl::find_event(service_t _service,
@@ -818,23 +850,23 @@ std::shared_ptr<event> routing_manager_impl::find_event(service_t _service,
       }
     }
   }
-  return its_event;
+  return (its_event);
 }
 
 std::set<std::shared_ptr<event> > routing_manager_impl::find_events(
     service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-  std::set < std::shared_ptr<event> > its_events;
+  std::set<std::shared_ptr<event> > its_events;
   auto found_service = eventgroups_.find(_service);
   if (found_service != eventgroups_.end()) {
     auto found_instance = found_service->second.find(_instance);
     if (found_instance != found_service->second.end()) {
       auto found_eventgroup = found_instance->second.find(_eventgroup);
       if (found_eventgroup != found_instance->second.end()) {
-        return found_eventgroup->second->get_events();
+        return (found_eventgroup->second->get_events());
       }
     }
   }
-  return its_events;
+  return (its_events);
 }
 
 void routing_manager_impl::add_routing_info(
@@ -870,6 +902,17 @@ void routing_manager_impl::del_routing_info(service_t _service,
     host_->on_availability(_service, _instance, false);
     stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance);
 
+    // Implicit unsubscribe
+    auto found_service = eventgroups_.find(_service);
+    if (found_service != eventgroups_.end()) {
+      auto found_instance = found_service->second.find(_instance);
+      if (found_instance != found_service->second.end()) {
+        for (auto &its_eventgroup : found_instance->second) {
+          its_eventgroup.second->clear_targets();
+        }
+      }
+    }
+
     std::shared_ptr<endpoint> its_endpoint = its_info->get_endpoint(_reliable);
     if (its_endpoint) {
       if (1 >= service_instances_[_service].size()) {
@@ -903,27 +946,26 @@ void routing_manager_impl::del_routing_info(service_t _service,
 }
 
 void routing_manager_impl::init_routing_info() {
-  VSOMEIP_INFO
-      << "Service Discovery disabled. Using static routing information.";
+  VSOMEIP_INFO<< "Service Discovery disabled. Using static routing information.";
   for (auto i : configuration_->get_remote_services()) {
     std::string its_address = configuration_->get_unicast(i.first, i.second);
     uint16_t its_reliable = configuration_->get_reliable_port(i.first,
-                                                              i.second);
+        i.second);
     uint16_t its_unreliable = configuration_->get_unreliable_port(i.first,
-                                                                  i.second);
+        i.second);
 
     if (VSOMEIP_INVALID_PORT != its_reliable) {
       add_routing_info(i.first, i.second, DEFAULT_MAJOR, DEFAULT_MINOR,
-                       DEFAULT_TTL,
-                       boost::asio::ip::address::from_string(its_address),
-                       its_reliable, true);
+          DEFAULT_TTL,
+          boost::asio::ip::address::from_string(its_address),
+          its_reliable, true);
     }
 
     if (VSOMEIP_INVALID_PORT != its_unreliable) {
       add_routing_info(i.first, i.second, DEFAULT_MAJOR, DEFAULT_MINOR,
-                       DEFAULT_TTL,
-                       boost::asio::ip::address::from_string(its_address),
-                       its_unreliable, false);
+          DEFAULT_TTL,
+          boost::asio::ip::address::from_string(its_address),
+          its_unreliable, false);
     }
   }
 }
@@ -959,6 +1001,7 @@ void routing_manager_impl::init_event_routing_info() {
           std::shared_ptr<event> its_event = find_event(i.first, j.first, l);
           if (its_event) {
             eventgroups_[i.first][j.first][k.first]->add_event(its_event);
+            its_event->add_eventgroup(k.first);
           }
         }
       }
@@ -969,12 +1012,12 @@ void routing_manager_impl::init_event_routing_info() {
   for (auto i : eventgroups_) {
     for (auto j : i.second) {
       for (auto k : j.second) {
-        VSOMEIP_DEBUG << "Eventgroup [" << std::hex << std::setw(4)
-            << std::setfill('0') << i.first << "." << j.first << "." << k.first
-            << "] (MC: ";
+        VSOMEIP_DEBUG<< "Eventgroup [" << std::hex << std::setw(4)
+        << std::setfill('0') << i.first << "." << j.first << "." << k.first
+        << "] (MC: ";
         for (auto l : k.second->get_events()) {
           VSOMEIP_DEBUG << "  Event " << std::hex << std::setw(4)
-              << std::setfill('0') << l->get_event();
+          << std::setfill('0') << l->get_event();
         }
       }
     }
@@ -982,23 +1025,44 @@ void routing_manager_impl::init_event_routing_info() {
 #endif
 }
 
-void routing_manager_impl::add_subscription(
+void routing_manager_impl::on_subscribe(
     service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-    const boost::asio::ip::address &_address, uint16_t _reliable_port,
-    uint16_t _unreliable_port) {
-
-  VSOMEIP_INFO << "ADDING A SUBSCRIPTION FOR EVENT [" << std::hex
-      << std::setw(4) << std::setfill('0') << _service << "." << _instance
-      << "." << _eventgroup << "] for " << _address.to_string() << ":"
-      << std::dec << _unreliable_port;
-
+    std::shared_ptr<endpoint_definition> _target) {
+  std::shared_ptr<eventgroupinfo> its_eventgroup
+    = find_eventgroup(_service, _instance, _eventgroup);
+  if (its_eventgroup) {
+    its_eventgroup->add_target(_target);
+  } else {
+    VSOMEIP_ERROR<< "subscribe: attempt to subscribe to unknown eventgroup!";
+  }
 }
 
-void routing_manager_impl::del_subscription(
+void routing_manager_impl::on_unsubscribe(
     service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-    const boost::asio::ip::address &_address, uint16_t _reliable_port,
-    uint16_t _unreliable_port) {
-
+    std::shared_ptr<endpoint_definition> _target) {
+  std::shared_ptr<eventgroupinfo> its_eventgroup
+    = find_eventgroup(_service, _instance, _eventgroup);
+  if (its_eventgroup) {
+    its_eventgroup->del_target(_target);
+  } else {
+    VSOMEIP_ERROR<<"unsubscribe: attempt to subscribe to unknown eventgroup!";
+  }
 }
 
-}  // namespace vsomeip
+void routing_manager_impl::on_subscribe_ack(
+    service_t _service, instance_t _instance,
+    const boost::asio::ip::address &_address, uint16_t _port) {
+  // TODO: find a way of getting rid of the following endpoint in
+  // case it used for multicast exclusively and the subscription
+  // is withdrawn or the service got lost
+  std::shared_ptr<endpoint> its_endpoint
+    = find_or_create_server_endpoint(_port, false);
+  if (its_endpoint) {
+    service_instances_[_service][its_endpoint.get()] = _instance;
+    its_endpoint->join(_address.to_string());
+  } else {
+    VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
+  }
+}
+
+} // namespace vsomeip

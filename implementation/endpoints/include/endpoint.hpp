@@ -13,6 +13,8 @@
 
 namespace vsomeip {
 
+class endpoint_definition;
+
 class endpoint
 {
 public:
@@ -24,7 +26,7 @@ public:
 	virtual bool is_connected() const = 0;
 
 	virtual bool send(const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
-	virtual bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+	virtual bool send_to(std::shared_ptr<endpoint_definition> _target,
 	                     const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
 	virtual void enable_magic_cookies() = 0;
 	virtual void receive() = 0;

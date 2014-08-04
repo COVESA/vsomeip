@@ -19,6 +19,7 @@ namespace vsomeip {
 
 class configuration;
 class endpoint;
+class endpoint_definition;
 
 namespace sd {
 
@@ -41,9 +42,8 @@ class service_discovery_host {
   virtual bool send(client_t _client, std::shared_ptr<message> _message,
                     bool _flush, bool _reliable) = 0;
 
-  virtual bool send_subscribe(const boost::asio::ip::address &_address,
-                              uint16_t _port, bool _reliable,
-                              const byte_t *_data, uint32_t _size) = 0;
+  virtual bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+		  	  	  	   bool _reliable, const byte_t *_data, uint32_t _size) = 0;
 
   virtual void add_routing_info(service_t _service, instance_t _instance,
                                 major_version_t _major, minor_version_t _minor,
@@ -54,17 +54,14 @@ class service_discovery_host {
   virtual void del_routing_info(service_t _service, instance_t _instance,
                                 bool _reliable) = 0;
 
-  virtual void add_subscription(service_t _service, instance_t _instance,
-                                eventgroup_t _eventgroup,
-                                const boost::asio::ip::address &_address,
-                                uint16_t _reliable_port,
-                                uint16_t _unreliable_port) = 0;
+  virtual void on_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                            std::shared_ptr<endpoint_definition> _target) = 0;
 
-  virtual void del_subscription(service_t _service, instance_t _instance,
-                                eventgroup_t _eventgroup,
-                                const boost::asio::ip::address &_address,
-                                uint16_t _reliable_port,
-                                uint16_t _unreliable_port) = 0;
+  virtual void on_unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                              std::shared_ptr<endpoint_definition> _target) = 0;
+
+  virtual void on_subscribe_ack(service_t _service, instance_t _instance,
+                                const boost::asio::ip::address &_address, uint16_t _port) = 0;
 
   virtual std::shared_ptr<endpoint> find_remote_client(service_t _service,
                                                        instance_t _instance,

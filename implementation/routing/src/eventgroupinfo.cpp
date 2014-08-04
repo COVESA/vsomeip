@@ -16,6 +16,12 @@ eventgroupinfo::eventgroupinfo()
       is_multicast_(false) {
 }
 
+eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl)
+	: major_(_major),
+	  ttl_(_ttl),
+	  is_multicast_(false) {
+}
+
 eventgroupinfo::~eventgroupinfo() {
 }
 
@@ -35,7 +41,11 @@ void eventgroupinfo::set_ttl(ttl_t _ttl) {
   ttl_ = _ttl;
 }
 
-bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address, uint16_t &_port) {
+bool eventgroupinfo::is_multicast() const {
+  return is_multicast_;
+}
+
+bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address, uint16_t &_port) const {
   if (is_multicast_) {
     _address = address_;
     _port = port_;
@@ -55,6 +65,22 @@ const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
 
 void eventgroupinfo::add_event(std::shared_ptr<event> _event) {
   events_.insert(_event);
+}
+
+const std::set<std::shared_ptr<endpoint_definition> > eventgroupinfo::get_targets() const {
+  return targets_;
+}
+
+void eventgroupinfo::add_target(std::shared_ptr<endpoint_definition> _target) {
+  targets_.insert(_target);
+}
+
+void eventgroupinfo::del_target(std::shared_ptr<endpoint_definition> _target) {
+  targets_.erase(_target);
+}
+
+void eventgroupinfo::clear_targets() {
+  targets_.clear();
 }
 
 }  // namespace vsomeip

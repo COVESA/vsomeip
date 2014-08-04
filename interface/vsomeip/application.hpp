@@ -40,12 +40,6 @@ public:
 	virtual void stop_offer_service(service_t _service,
 			instance_t _instance) = 0;
 
-	virtual void publish_eventgroup(service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) = 0;
-
-	virtual void stop_publish_eventgroup(service_t _service,
-			instance_t _instance, eventgroup_t _eventgroup) = 0;
-
 	// Consume services
 	virtual void request_service(service_t _service, instance_t _instance,
 			major_version_t _major = ANY_MAJOR, minor_version_t _minor =

@@ -39,12 +39,6 @@ public:
 
 	void stop_offer_service(service_t _service, instance_t _instance);
 
-	void publish_eventgroup(service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
-
-	void stop_publish_eventgroup(service_t _service, instance_t _instance,
-			eventgroup_t _eventgroup);
-
 	// Consume services
 	void request_service(service_t _service, instance_t _instance,
 			major_version_t _major, minor_version_t _minor, ttl_t _ttl);

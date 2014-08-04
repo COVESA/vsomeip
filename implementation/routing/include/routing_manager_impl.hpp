@@ -15,6 +15,8 @@
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
 
+#include <vsomeip/primitive_types.hpp>
+
 #include "routing_manager.hpp"
 #include "../../endpoints/include/endpoint_host.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
@@ -58,13 +60,6 @@ class routing_manager_impl : public routing_manager, public endpoint_host,
 
   void stop_offer_service(client_t _client, service_t _service,
                           instance_t _instance);
-
-  void publish_eventgroup(client_t _client, service_t _service,
-                          instance_t _instance, eventgroup_t _eventgroup,
-                          major_version_t _major, ttl_t _ttl);
-
-  void stop_publish_eventgroup(client_t _client, service_t _service,
-                               instance_t _instance, eventgroup_t _eventgroup);
 
   void request_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
@@ -114,8 +109,8 @@ class routing_manager_impl : public routing_manager, public endpoint_host,
   services_t get_offered_services(const std::string &_name) const;
   void create_service_discovery_endpoint(const std::string &_address,
                                          uint16_t _port, bool _reliable);
-  bool send_subscribe(const boost::asio::ip::address &_address, uint16_t _port,
-                      bool _reliable, const byte_t *_data, uint32_t _size);
+  bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+               bool _reliable, const byte_t *_data, uint32_t _size);
   void init_routing_info();
   void add_routing_info(service_t _service, instance_t _instance,
                         major_version_t _major, minor_version_t _minor,
@@ -125,20 +120,19 @@ class routing_manager_impl : public routing_manager, public endpoint_host,
                         bool _reliable);
 
   void init_event_routing_info();
-  void add_subscription(service_t _service, instance_t _instance,
-                        eventgroup_t _eventgroup,
-                        const boost::asio::ip::address &_address,
-                        uint16_t _reliable_port, uint16_t _unreliable_port);
-  void del_subscription(service_t _service, instance_t _instance,
-                        eventgroup_t _eventgroup,
-                        const boost::asio::ip::address &_address,
-                        uint16_t _reliable_port, uint16_t _unreliable_port);
+  void on_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                    std::shared_ptr<endpoint_definition> _target);
+  void on_unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                      std::shared_ptr<endpoint_definition> _target);
+  void on_subscribe_ack(service_t _service, instance_t _instance,
+                        const boost::asio::ip::address &_address, uint16_t _port);
 
  private:
   bool deliver_message(const byte_t *_data, length_t _length,
                        instance_t _instance);
 
   client_t find_local_client(service_t _service, instance_t _instance);
+  std::set<client_t> find_local_clients(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
   instance_t find_instance(service_t _service, endpoint *_endpoint);
 
   std::shared_ptr<serviceinfo> find_service(service_t _service,
@@ -203,12 +197,13 @@ class routing_manager_impl : public routing_manager, public endpoint_host,
 
   // Eventgroups
   std::map<service_t,
-      std::map<instance_t,
-          std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
+    std::map<instance_t,
+      std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
   std::map<service_t,
-      std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
-
-  std::map<eventgroup_t, std::set<client_t> > eventgroup_clients_;
+    std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
+  std::map<service_t,
+    std::map<instance_t,
+      std::map<eventgroup_t, std::set<client_t> > > > eventgroup_clients_;
 
   // Mutexes
   std::recursive_mutex endpoint_mutex_;

@@ -45,7 +45,7 @@ void udp_client_endpoint_impl::start() {
 void udp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 #if 0
 	std::stringstream msg;
-	msg << "ucei<" << this << ">::sq: ";
+	msg << "ucei<" << remote_.address() << ":" << std::dec << remote_.port()  << ">::sq: ";
 	for (std::size_t i = 0; i < _buffer->size(); i++)
 		msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
 	VSOMEIP_DEBUG << msg.str();

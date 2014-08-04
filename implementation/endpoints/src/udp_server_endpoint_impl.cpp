@@ -7,11 +7,11 @@
 #include <iomanip>
 #include <sstream>
 
-#include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/multicast.hpp>
 
 #include <vsomeip/logger.hpp>
 
+#include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../../utility/include/byteorder.hpp"
@@ -63,9 +63,9 @@ void udp_server_endpoint_impl::restart() {
 }
 
 bool udp_server_endpoint_impl::send_to(
-    const boost::asio::ip::address &_address, uint16_t _port,
+    const std::shared_ptr<endpoint_definition> _target,
     const byte_t *_data, uint32_t _size, bool _flush) {
-  endpoint_type its_target(_address, _port);
+  endpoint_type its_target(_target->get_address(), _target->get_port());
   return send_intern(its_target, _data, _size, _flush);
 }
 

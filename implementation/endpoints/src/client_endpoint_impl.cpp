@@ -65,7 +65,7 @@ void client_endpoint_impl<Protocol, MaxBufferSize>::restart() {
 
 template<typename Protocol, int MaxBufferSize>
 bool client_endpoint_impl<Protocol, MaxBufferSize>::send_to(
-    const boost::asio::ip::address &_address, uint16_t _port,
+    const std::shared_ptr<endpoint_definition> _target,
     const byte_t *_data, uint32_t _size, bool _flush) {
   VSOMEIP_ERROR
       << "Clients endpoints must not be used to send to explicitely specified targets";
@@ -79,7 +79,7 @@ bool client_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
   std::unique_lock < std::mutex > its_lock(mutex_);
 #if 0
   std::stringstream msg;
-  msg << "cei<" << this << ">::send: ";
+  msg << "cei::send: ";
   for (uint32_t i = 0; i < _size; i++)
   msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
   VSOMEIP_DEBUG << msg.str();
@@ -103,7 +103,7 @@ bool client_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
                   this->shared_from_this(), std::placeholders::_1));
   }
 
-  return true;
+  return (true);
 }
 
 template<typename Protocol, int MaxBufferSize>

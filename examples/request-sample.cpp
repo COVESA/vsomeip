@@ -55,9 +55,6 @@ public:
 						  this,
 						  std::placeholders::_1));
 
-		app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID,
-				vsomeip::ANY_MAJOR, vsomeip::ANY_TTL);
-
 		request_->set_service(SAMPLE_SERVICE_ID);
 		request_->set_instance(SAMPLE_INSTANCE_ID);
 		request_->set_method(SAMPLE_METHOD_ID);
@@ -75,7 +72,6 @@ public:
 
 	void on_event(vsomeip::event_type_e _event) {
 		if (_event == vsomeip::event_type_e::REGISTERED) {
-			//app_->offer_service(OTHER_SAMPLE_SERVICE_ID, OTHER_SAMPLE_INSTANCE_ID);
 			app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
 		}
 	}

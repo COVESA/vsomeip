@@ -33,6 +33,8 @@ class service_discovery_fsm;
 class service_discovery_host;
 class subscription;
 
+typedef std::map<service_t, std::map<instance_t, std::shared_ptr<request> > > requests_t;
+
 class service_discovery_impl : public service_discovery,
     public std::enable_shared_from_this<service_discovery_impl> {
  public:
@@ -61,12 +63,17 @@ class service_discovery_impl : public service_discovery,
   void on_message(const byte_t *_data, length_t _length);
 
  private:
+  session_t get_session(const boost::asio::ip::address &_address);
+  void increment_session(const boost::asio::ip::address &_address);
+
   void insert_option(std::shared_ptr<message_impl> &_message,
                      std::shared_ptr<entry_impl> _entry,
                      const boost::asio::ip::address &_address, uint16_t _port,
                      bool _is_reliable);
-  void insert_service_entries(std::shared_ptr<message_impl> &_message,
-                              services_t &_services, bool _is_offer);
+  void insert_find_entries(std::shared_ptr<message_impl> &_message,
+		  	  	  	  	   requests_t &_requests);
+  void insert_offer_entries(std::shared_ptr<message_impl> &_message,
+                            services_t &_services);
   void insert_subscription(std::shared_ptr<message_impl> &_message,
                            service_t _service, instance_t _instance,
                            eventgroup_t _eventgroup,
@@ -114,7 +121,7 @@ class service_discovery_impl : public service_discovery,
   std::shared_ptr<service_discovery_fsm> default_;
   std::map<std::string, std::shared_ptr<service_discovery_fsm> > additional_;
 
-  std::map<service_t, std::map<instance_t, std::shared_ptr<request> > > requested_;
+  requests_t requested_;
   std::map<service_t,
       std::map<instance_t,
           std::map<eventgroup_t, std::shared_ptr<subscription> > > > subscribed_;

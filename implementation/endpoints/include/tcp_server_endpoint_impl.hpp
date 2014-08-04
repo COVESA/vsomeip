@@ -32,7 +32,7 @@ public:
 	void start();
 	void stop();
 
-	bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
+	bool send_to(const std::shared_ptr<endpoint_definition> _target,
 	             const byte_t *_data, uint32_t _size, bool _flush);
 	void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
 

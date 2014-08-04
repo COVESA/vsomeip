@@ -16,11 +16,13 @@
 
 namespace vsomeip {
 
+class endpoint_definition;
 class event;
 
 class eventgroupinfo {
 public:
 	eventgroupinfo();
+	eventgroupinfo(major_version_t _major, ttl_t _ttl);
 	~eventgroupinfo();
 
 	major_version_t get_major() const;
@@ -29,11 +31,17 @@ public:
 	ttl_t get_ttl() const;
 	void set_ttl(ttl_t _ttl);
 
-	bool get_multicast(boost::asio::ip::address &_address, uint16_t &_port);
+	bool is_multicast() const;
+	bool get_multicast(boost::asio::ip::address &_address, uint16_t &_port) const;
 	void set_multicast(const boost::asio::ip::address &_address, uint16_t _port);
 
 	const std::set<std::shared_ptr<event> > get_events() const;
 	void add_event(std::shared_ptr<event> _event);
+
+	const std::set<std::shared_ptr<endpoint_definition> > get_targets() const;
+	void add_target(std::shared_ptr<endpoint_definition> _target);
+	void del_target(std::shared_ptr<endpoint_definition> _target);
+	void clear_targets();
 
 private:
 	major_version_t major_;
@@ -44,6 +52,7 @@ private:
 	uint16_t port_;
 
 	std::set<std::shared_ptr<event> > events_;
+	std::set<std::shared_ptr<endpoint_definition> > targets_;
 };
 
 } // namespace vsomeip

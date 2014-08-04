@@ -47,7 +47,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(DL_LIBRARY "")
     set(EXPORTSYMBOLS "")
     set(NO_DEPRECATED "-Wno-deprecated")
-    set(OPTIMIZE "-Os")
+    set(OPTIMIZE "")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
 # Compiler settings
@@ -83,11 +83,17 @@ add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} rt ${DL_LIBRARY})
 
 # Examples
-add_executable(client-sample examples/client-sample.cpp)
-target_link_libraries(client-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+add_executable(request-sample examples/request-sample.cpp)
+target_link_libraries(request-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(service-sample examples/service-sample.cpp)
-target_link_libraries(service-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+add_executable(response-sample examples/response-sample.cpp)
+target_link_libraries(response-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
+add_executable(subscribe-sample examples/subscribe-sample.cpp)
+target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
+add_executable(notify-sample examples/notify-sample.cpp)
+target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 # Test
 add_executable(configuration-test test/configuration-test.cpp)

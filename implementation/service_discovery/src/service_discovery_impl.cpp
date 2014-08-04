@@ -24,6 +24,7 @@
 #include "../include/subscription.hpp"
 #include "../../configuration/include/internal.hpp"
 #include "../../endpoints/include/endpoint.hpp"
+#include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_server_endpoint_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -171,6 +172,28 @@ void service_discovery_impl::unsubscribe(service_t _service,
   }
 }
 
+session_t service_discovery_impl::get_session(const boost::asio::ip::address &_address) {
+  session_t its_session;
+  auto found_session = sessions_.find(_address);
+  if (found_session == sessions_.end()) {
+	its_session = sessions_[_address] = 1;
+  } else {
+	its_session = found_session->second;
+  }
+  return its_session;
+}
+
+void service_discovery_impl::increment_session(const boost::asio::ip::address &_address) {
+  auto found_session = sessions_.find(_address);
+  if (found_session != sessions_.end()) {
+	  found_session->second ++;
+	  if (0 == found_session->second) {
+		found_session->second++;
+		// TODO: what about the reboot flag?
+	  }
+  }
+}
+
 void service_discovery_impl::insert_option(
     std::shared_ptr<message_impl> &_message, std::shared_ptr<entry_impl> _entry,
     const boost::asio::ip::address &_address, uint16_t _port, bool _is_reliable) {
@@ -219,18 +242,36 @@ void service_discovery_impl::insert_option(
   }
 }
 
-void service_discovery_impl::insert_service_entries(
-    std::shared_ptr<message_impl> &_message, services_t &_services,
-    bool _is_offer) {
+void service_discovery_impl::insert_find_entries(
+	std::shared_ptr<message_impl> &_message, requests_t &_requests) {
+  for (auto its_service : _requests) {
+	for (auto its_instance : its_service.second) {
+	  auto its_request = its_instance.second;
+	  std::shared_ptr<serviceentry_impl> its_entry
+	    = _message->create_service_entry();
+	  if (its_entry) {
+		its_entry->set_type(entry_type_e::FIND_SERVICE);
+        its_entry->set_service(its_service.first);
+        its_entry->set_instance(its_instance.first);
+        its_entry->set_major_version(its_request->get_major());
+        its_entry->set_minor_version(its_request->get_minor());
+        its_entry->set_ttl(its_request->get_ttl());
+	  } else {
+		VSOMEIP_ERROR << "Failed to create service entry!";
+	  }
+	}
+  }
+}
+
+void service_discovery_impl::insert_offer_entries(
+    std::shared_ptr<message_impl> &_message, services_t &_services) {
   for (auto its_service : _services) {
     for (auto its_instance : its_service.second) {
       auto its_info = its_instance.second;
       std::shared_ptr<serviceentry_impl> its_entry = _message
           ->create_service_entry();
       if (its_entry) {
-        its_entry->set_type(
-            (_is_offer ?
-                entry_type_e::OFFER_SERVICE : entry_type_e::FIND_SERVICE));
+        its_entry->set_type(entry_type_e::OFFER_SERVICE);
         its_entry->set_service(its_service.first);
         its_entry->set_instance(its_instance.first);
         its_entry->set_major_version(its_info->get_major());
@@ -311,16 +352,20 @@ void service_discovery_impl::send(const std::string &_name,
 
   // If we are the default group and not in main phase, include "FindOffer"-entries
   if (_name == "default" && !_is_announcing) {
-    //insert_service_entries(its_message, requested_, false);
+    insert_find_entries(its_message, requested_);
   }
 
   // Always include the "OfferService"-entries for the service group
   services_t its_offers = host_->get_offered_services(_name);
-  insert_service_entries(its_message, its_offers, true);
+  insert_offer_entries(its_message, its_offers);
 
   // Serialize and send
-  if (its_message->get_entries().size() > 0)
-    host_->send(VSOMEIP_SD_CLIENT, its_message, true, false);
+  if (its_message->get_entries().size() > 0) {
+	its_message->set_session(get_session(unicast_));
+    if (host_->send(VSOMEIP_SD_CLIENT, its_message, true, false)) {
+    	increment_session(unicast_);
+    }
+  }
 }
 
 // Interface endpoint_host
@@ -554,11 +599,16 @@ void service_discovery_impl::handle_service_availability(
                                   its_eventgroup.first, its_subscription, true);
             }
           }
-          serializer_->serialize(its_message.get());
-          host_->send_subscribe(_address, port_, reliable_,
-                                serializer_->get_data(),
-                                serializer_->get_size());
-          serializer_->reset();
+
+          if (0 < its_message->get_entries().size()) {
+            its_message->set_session(get_session(_address));
+            serializer_->serialize(its_message.get());
+            if (host_->send_to(_address, port_, reliable_,
+                               serializer_->get_data(), serializer_->get_size())) {
+              increment_session(_address);
+            }
+            serializer_->reset();
+          }
         }
       }
     }
@@ -589,17 +639,35 @@ void service_discovery_impl::handle_eventgroup_subscription(
     // Could not find eventgroup --> send Nack
     if (!its_info || _major > its_info->get_major()
         || _ttl > its_info->get_ttl()) {
+    	its_info = std::make_shared<eventgroupinfo>(_major, 0);
     } else {
-      host_->add_subscription(_service, _instance, _eventgroup, _address,
-                              _reliable_port, _unreliable_port);
+      boost::asio::ip::address its_address;
+      uint16_t its_port;
+      bool its_reliable;
+      if (VSOMEIP_INVALID_PORT != _unreliable_port) {
+        if (!its_info->get_multicast(its_address, its_port)) {
+        	its_address = _address;
+        	its_port = _unreliable_port;
+        }
+        its_reliable = false;
+      } else {
+        its_address = _address;
+        its_port = _reliable_port;
+        its_reliable = true;
+      }
+      host_->on_subscribe(_service, _instance, _eventgroup,
+    		  	  	  	  std::make_shared<endpoint_definition>(its_address, its_port, its_reliable));
     }
 
     insert_subscription_ack(its_message, _service, _instance, _eventgroup,
                             its_info, false);
 
+    its_message->set_session(get_session(_address));
     serializer_->serialize(its_message.get());
-    host_->send_subscribe(_address, port_, reliable_, serializer_->get_data(),
-                          serializer_->get_size());
+    if (host_->send_to(_address, port_, reliable_,
+    				   serializer_->get_data(), serializer_->get_size())) {
+    	increment_session(_address);
+    }
     serializer_->reset();
   }
 }
@@ -615,6 +683,9 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
       auto found_eventgroup = found_instance->second.find(_eventgroup);
       if (found_eventgroup != found_instance->second.end()) {
         found_eventgroup->second->set_acknowledged(true);
+        if (_address.is_multicast()) {
+          host_->on_subscribe_ack(_service, _instance, _address, _port);
+        }
       }
     }
   }

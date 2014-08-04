@@ -17,6 +17,7 @@ namespace sd {
 ipv6_option_impl::ipv6_option_impl(bool _is_multicast) {
 	length_ = (1 + 16 + 1 + 1 + 2);
 	type_ = (_is_multicast ? option_type_e::IP6_MULTICAST : option_type_e::IP6_ENDPOINT) ;
+	is_udp_ = _is_multicast;
 }
 
 ipv6_option_impl::~ipv6_option_impl() {

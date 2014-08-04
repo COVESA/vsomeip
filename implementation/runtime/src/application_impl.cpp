@@ -128,21 +128,6 @@ void application_impl::stop_offer_service(service_t _service,
 		routing_->stop_offer_service(client_, _service, _instance);
 }
 
-void application_impl::publish_eventgroup(service_t _service,
-		instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
-		ttl_t _ttl) {
-	if (routing_)
-		routing_->publish_eventgroup(client_, _service, _instance, _eventgroup,
-				_major, _ttl);
-}
-
-void application_impl::stop_publish_eventgroup(service_t _service,
-		instance_t _instance, eventgroup_t _eventgroup) {
-	if (routing_)
-		routing_->stop_publish_eventgroup(client_, _service, _instance,
-				_eventgroup);
-}
-
 void application_impl::request_service(service_t _service, instance_t _instance,
 		major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
 	if (routing_)

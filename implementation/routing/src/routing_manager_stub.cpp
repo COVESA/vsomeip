@@ -150,13 +150,13 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 				on_stop_offer_service(its_client, its_service, its_instance);
 				break;
 
-			case VSOMEIP_PUBLISH_EVENTGROUP:
-				routing_->publish_eventgroup(its_client, its_service,
+			case VSOMEIP_SUBSCRIBE:
+				routing_->subscribe(its_client, its_service,
 						its_instance, its_eventgroup, its_major, its_ttl);
 				break;
 
-			case VSOMEIP_STOP_PUBLISH_EVENTGROUP:
-				routing_->stop_publish_eventgroup(its_client, its_service,
+			case VSOMEIP_UNSUBSCRIBE:
+				routing_->unsubscribe(its_client, its_service,
 						its_instance, its_eventgroup);
 				break;
 

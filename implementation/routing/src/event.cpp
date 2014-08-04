@@ -87,6 +87,18 @@ void event::set_update_cycle(std::chrono::milliseconds &_cycle) {
   }
 }
 
+const std::set<eventgroup_t> & event::get_eventgroups() const {
+	return eventgroups_;
+}
+
+void event::add_eventgroup(eventgroup_t _eventgroup) {
+  eventgroups_.insert(_eventgroup);
+}
+
+void event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
+	eventgroups_ = _eventgroups;
+}
+
 void event::update_cbk(boost::system::error_code const &_error) {
   if (!_error) {
     cycle_timer_.expires_from_now(cycle_);
@@ -99,7 +111,7 @@ void event::update_cbk(boost::system::error_code const &_error) {
 }
 
 void event::notify() {
-  routing_->send(VSOMEIP_ROUTING_CLIENT, message_, true, true);
+  routing_->send(VSOMEIP_ROUTING_CLIENT, message_, true, false);
 }
 
 }  // namespace vsomeip

@@ -46,7 +46,7 @@ void local_server_endpoint_impl::stop() {
 
 }
 
-bool local_server_endpoint_impl::send_to(const boost::asio::ip::address &_address, uint16_t _port,
+bool local_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition> _target,
                                          const byte_t *_data, uint32_t _size, bool _flush) {
   return false;
 }
