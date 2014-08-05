@@ -53,6 +53,8 @@ public:
 	bool is_available(service_t _service, instance_t _instance);
 
 	void send(std::shared_ptr<message> _message, bool _flush, bool _reliable);
+
+	void get(service_t _service, instance_t, event_t _event);
 	void set(service_t _service, instance_t _instance, event_t _event,
 			const std::shared_ptr<payload> &_payload);
 
@@ -77,7 +79,7 @@ public:
 
 	void on_event(event_type_e _event);
 	void on_availability(service_t _service, instance_t _instance,
-			bool _is_available) const;
+	bool _is_available) const;
 	void on_message(std::shared_ptr<message> _message);
 	void on_error(error_code_e _error);
 
@@ -86,6 +88,12 @@ public:
 
 private:
 	void service(boost::asio::io_service &_io);
+	inline void update_session() {
+		session_++;
+		if (0 == session_) {
+			session_++;
+		}
+	}
 
 private:
 	client_t client_; // unique application identifier

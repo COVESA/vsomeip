@@ -54,13 +54,23 @@ public:
 			eventgroup_t _eventgroup);
 
 	bool send(client_t _client, std::shared_ptr<message> _message, bool _flush,
-			bool _reliable);
+	bool _reliable);
 
 	bool send(client_t _client, const byte_t *_data, uint32_t _size,
 			instance_t _instance, bool _flush = true, bool _reliable = false);
 
-	void set(client_t _client, service_t _service, instance_t _instance,
-			event_t _event, const std::shared_ptr<payload> &_value);
+	bool send_to(const std::shared_ptr<endpoint_definition> &_target,
+			std::shared_ptr<message> _message);
+
+	bool send_to(const std::shared_ptr<endpoint_definition> &_target,
+			const byte_t *_data, uint32_t _size);
+
+	bool get(client_t _client, session_t _session,
+			service_t _service,	instance_t _instance, event_t _event);
+
+	bool set(client_t _client, session_t _session,
+			service_t _service,	instance_t _instance, event_t _event,
+			const std::shared_ptr<payload> &_value);
 
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);

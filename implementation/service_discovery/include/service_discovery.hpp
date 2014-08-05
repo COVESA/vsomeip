@@ -40,6 +40,8 @@ public:
 	virtual void send(const std::string &_name, bool _is_announcing) = 0;
 
 	virtual void on_message(const byte_t *_data, length_t _length) = 0;
+
+	virtual void on_offer_change(const std::string &_name) = 0;
 };
 
 } // namespace sd

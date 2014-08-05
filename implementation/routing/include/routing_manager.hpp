@@ -18,6 +18,7 @@
 namespace vsomeip {
 
 class endpoint;
+class endpoint_definition;
 class event;
 class payload;
 class service_info;
@@ -61,8 +62,18 @@ public:
 	virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
 			instance_t _instance, bool _flush, bool _reliable) = 0;
 
-	virtual void set(client_t _client, service_t _service, instance_t _instance,
-			event_t _event, const std::shared_ptr<payload> &_value) = 0;
+	virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
+			std::shared_ptr<message>) = 0;
+
+	virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
+			const byte_t *_data, uint32_t _size) = 0;
+
+	virtual bool get(client_t _client, session_t _session,
+			service_t _service,	instance_t _instance, event_t _event) = 0;
+
+	virtual bool set(client_t _client, session_t _session,
+			service_t _service,	instance_t _instance, event_t _event,
+			const std::shared_ptr<payload> &_value) = 0;
 
 	virtual bool is_available(service_t _service,
 			instance_t _instance) const = 0;
@@ -75,6 +86,6 @@ public:
 	virtual void remove_local(client_t _client) = 0;
 };
 
-} // namespace vsomeip
+}  // namespace vsomeip
 
 #endif

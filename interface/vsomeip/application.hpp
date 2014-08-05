@@ -61,6 +61,8 @@ public:
 			bool _reliable = false) = 0;
 
 	// Set events/fields
+	virtual void get(service_t _service, instance_t _instance,
+			event_t _event) = 0;
 	virtual void set(service_t _service, instance_t _instance, event_t _event,
 			const std::shared_ptr<payload> &_value) = 0;
 

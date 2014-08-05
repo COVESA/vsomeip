@@ -82,6 +82,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 	if (VSOMEIP_COMMAND_SIZE_POS_MAX < _size) {
 		byte_t its_command;
 		client_t its_client;
+		session_t its_session;
 		std::string its_client_endpoint;
 		service_t its_service;
 		instance_t its_instance;
@@ -99,6 +100,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 		its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
 		std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
 				sizeof(its_client));
+		// TODO: read session
 		std::memcpy(&its_size, &_data[VSOMEIP_COMMAND_SIZE_POS_MIN],
 				sizeof(its_size));
 
@@ -173,7 +175,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 			case VSOMEIP_SET:
 				its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
 				its_payload = runtime::get()->create_payload(its_data, its_size);
-				routing_->set(its_client, its_service, its_instance, its_event,
+				routing_->set(its_client, its_session, its_service, its_instance, its_event,
 						its_payload);
 				break;
 			}

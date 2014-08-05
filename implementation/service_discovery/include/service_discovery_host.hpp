@@ -42,8 +42,8 @@ class service_discovery_host {
   virtual bool send(client_t _client, std::shared_ptr<message> _message,
                     bool _flush, bool _reliable) = 0;
 
-  virtual bool send_to(const boost::asio::ip::address &_address, uint16_t _port,
-		  	  	  	   bool _reliable, const byte_t *_data, uint32_t _size) = 0;
+  virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
+		  	  	  	       const byte_t *_data, uint32_t _size) = 0;
 
   virtual void add_routing_info(service_t _service, instance_t _instance,
                                 major_version_t _major, minor_version_t _minor,
@@ -55,6 +55,7 @@ class service_discovery_host {
                                 bool _reliable) = 0;
 
   virtual void on_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                            std::shared_ptr<endpoint_definition> _subscriber,
                             std::shared_ptr<endpoint_definition> _target) = 0;
 
   virtual void on_unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,

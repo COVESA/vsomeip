@@ -21,6 +21,7 @@
 namespace vsomeip {
 
 class endpoint;
+class endpoint_definition;
 class message;
 class payload;
 class routing_manager;
@@ -38,7 +39,7 @@ class event : public std::enable_shared_from_this<event> {
   event_t get_event() const;
   void set_event(event_t _event);
 
-  std::shared_ptr<payload> get_payload() const;
+  const std::shared_ptr<payload> get_payload() const;
   void set_payload(std::shared_ptr<payload> _payload);
 
   bool is_field() const;
@@ -56,6 +57,8 @@ class event : public std::enable_shared_from_this<event> {
   const std::set<eventgroup_t> & get_eventgroups() const;
   void add_eventgroup(eventgroup_t _eventgroup);
   void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
+
+  void notify_one(const std::shared_ptr<endpoint_definition> &_target);
 
  private:
   void update_cbk(boost::system::error_code const &_error);

@@ -51,7 +51,7 @@
 						},
 						{
 							"event" : "0x0778",
-							"is_field" : "false",
+							"is_field" : "true",
 							"update-cycle" : 0
 						},
 						{

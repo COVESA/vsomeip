@@ -62,6 +62,8 @@ class service_discovery_impl : public service_discovery,
 
   void on_message(const byte_t *_data, length_t _length);
 
+  void on_offer_change(const std::string &_name);
+
  private:
   session_t get_session(const boost::asio::ip::address &_address);
   void increment_session(const boost::asio::ip::address &_address);
@@ -77,13 +79,11 @@ class service_discovery_impl : public service_discovery,
   void insert_subscription(std::shared_ptr<message_impl> &_message,
                            service_t _service, instance_t _instance,
                            eventgroup_t _eventgroup,
-                           std::shared_ptr<subscription> &_subscription,
-                           bool _is_subscription);
+                           std::shared_ptr<subscription> &_subscription);
   void insert_subscription_ack(std::shared_ptr<message_impl> &_message,
                                service_t _service, instance_t _instance,
                                eventgroup_t _eventgroup,
-                               std::shared_ptr<eventgroupinfo> &_info,
-                               bool _is_subscription);
+                               std::shared_ptr<eventgroupinfo> &_info);
 
   void process_serviceentry(
       std::shared_ptr<serviceentry_impl> &_entry,

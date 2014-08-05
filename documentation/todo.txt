@@ -1,0 +1,7 @@
+TODO:
+
+- handle endpoints for multicasts correctly. Especially, delete them if they are no longer needed.
+  This should probably be done as part of the redesign of the endpoints.
+  
+  
+ 

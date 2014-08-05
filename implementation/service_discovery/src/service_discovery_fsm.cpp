@@ -131,6 +131,10 @@ sc::result announce::react(const ev_find_service &_event) {
 	return discard_event();
 }
 
+sc::result announce::react(const ev_offer_change &_event) {
+  return transit< announce >();
+}
+
 } // namespace _sd
 
 ///////////////////////////////////////////////////////////////////////////////

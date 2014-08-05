@@ -170,19 +170,27 @@ void application_impl::send(std::shared_ptr<message> _message, bool _flush,
 		// in case of successful sending, increment the session-id
 		if (routing_->send(client_, _message, _flush, _reliable)) {
 			if (is_request) {
-				session_++;
-				if (0 == session_) {
-					session_++;
-				}
+				update_session();
 			}
 		}
 	}
 }
 
+void application_impl::get(service_t _service, instance_t _instance, event_t _event) {
+  if (routing_) {
+    if (routing_->get(client_, session_, _service, _instance, _event)) {
+      update_session();
+    }
+  }
+}
+
 void application_impl::set(service_t _service, instance_t _instance, event_t _event,
 		const std::shared_ptr<payload> &_payload) {
-  if (routing_)
-    routing_->set(client_, _service, _instance, _event, _payload);
+  if (routing_) {
+    if (routing_->set(client_, session_, _service, _instance, _event, _payload)) {
+      update_session();
+    }
+  }
 }
 
 void application_impl::register_event_handler(event_handler_t _handler) {

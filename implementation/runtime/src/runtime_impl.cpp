@@ -15,7 +15,7 @@ namespace vsomeip {
 
 runtime * runtime_impl::get() {
 	static runtime_impl the_runtime;
-	return &the_runtime;
+	return (&the_runtime);
 }
 
 runtime_impl::~runtime_impl() {
@@ -23,7 +23,15 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application> runtime_impl::create_application(
 		const std::string &_name) const {
-	return std::make_shared < application_impl > (_name);
+	return (std::make_shared < application_impl > (_name));
+}
+
+std::shared_ptr<message> runtime_impl::create_message() const {
+  std::shared_ptr<message_impl> its_message =
+      std::make_shared<message_impl>();
+  its_message->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
+  its_message->set_return_code(return_code_e::E_OK);
+  return (its_message);
 }
 
 std::shared_ptr<message> runtime_impl::create_request() const {
@@ -32,7 +40,7 @@ std::shared_ptr<message> runtime_impl::create_request() const {
 	its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
 	its_request->set_message_type(message_type_e::REQUEST);
 	its_request->set_return_code(return_code_e::E_OK);
-	return its_request;
+	return (its_request);
 }
 
 std::shared_ptr<message> runtime_impl::create_response(
@@ -47,30 +55,30 @@ std::shared_ptr<message> runtime_impl::create_response(
 	its_response->set_interface_version(_request->get_interface_version());
 	its_response->set_message_type(message_type_e::RESPONSE);
 	its_response->set_return_code(return_code_e::E_OK);
-	return its_response;
+	return (its_response);
 }
 
 std::shared_ptr<message> runtime_impl::create_notification() const {
-	std::shared_ptr<message_impl> its_request =
+	std::shared_ptr<message_impl> its_notification =
 			std::make_shared<message_impl>();
-	its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
-	its_request->set_message_type(message_type_e::NOTIFICATION);
-	its_request->set_return_code(return_code_e::E_OK);
-	return its_request;
+	its_notification->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
+	its_notification->set_message_type(message_type_e::NOTIFICATION);
+	its_notification->set_return_code(return_code_e::E_OK);
+	return (its_notification);
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload() const {
-	return std::make_shared<payload_impl>();
+	return (std::make_shared<payload_impl>());
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(
 		const byte_t *_data, uint32_t _size) const {
-	return std::make_shared<payload_impl>(_data, _size);
+	return (std::make_shared<payload_impl>(_data, _size));
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(
 		const std::vector<byte_t> &_data) const {
-	return std::make_shared<payload_impl>(_data);
+	return (std::make_shared<payload_impl>(_data));
 }
 
 } // namespace vsomeip

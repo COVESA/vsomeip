@@ -7,6 +7,8 @@ global:
 		vsomeip::serializer::*;
 		*vsomeip::deserializer;
 		vsomeip::deserializer::*;
+		*vsomeip::endpoint_definition;
+		vsomeip::endpoint_definition*;
 		*vsomeip::tcp*;
 		vsomeip::tcp*;
 		*vsomeip::udp*;

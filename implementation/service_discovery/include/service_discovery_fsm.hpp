@@ -110,6 +110,7 @@ struct announce: sc::state< announce, active > {
 
 	sc::result react(const ev_timeout &_event);
 	sc::result react(const ev_find_service &_event);
+	sc::result react(const ev_offer_change &_event);
 };
 
 } // namespace _offer
