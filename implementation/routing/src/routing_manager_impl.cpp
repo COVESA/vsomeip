@@ -342,13 +342,13 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 }
 
 bool routing_manager_impl::get(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event) {
+		service_t _service, instance_t _instance, event_t _event, bool _reliable) {
 	bool is_sent(false);
 	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
 	if (its_event) { // local
 		// TODO: bring back the result to the application
 	} else { // remote
-		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, false);
+		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, _reliable);
 		if (its_target) {
 			std::shared_ptr<message> its_request = runtime::get()->create_request();
 			if (its_request) {
@@ -375,7 +375,7 @@ bool routing_manager_impl::get(client_t _client, session_t _session,
 
 bool routing_manager_impl::set(client_t _client, session_t _session,
 		service_t _service, instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_payload) {
+		const std::shared_ptr<payload> &_payload, bool _reliable) {
 	bool is_set(false);
 	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
 	if (its_event) {
@@ -383,7 +383,7 @@ bool routing_manager_impl::set(client_t _client, session_t _session,
 		// TODO: somehow bring back the result to the application as set according to SOME/IP is set+get
 		is_set = true;
 	} else {
-		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, false);
+		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, _reliable);
 		if (its_target) {
 			std::shared_ptr<message> its_request = runtime::get()->create_request();
 			if (its_request) {
@@ -644,18 +644,27 @@ std::shared_ptr<eventgroupinfo> routing_manager_impl::find_eventgroup(
 			auto found_eventgroup = found_instance->second.find(_eventgroup);
 			if (found_eventgroup != found_instance->second.end()) {
 				its_info = found_eventgroup->second;
-				std::shared_ptr<serviceinfo> its_service_info = find_service(
-						_service, _instance);
+				std::shared_ptr<serviceinfo> its_service_info
+					= find_service(_service, _instance);
 				if (its_service_info) {
 					if (_eventgroup
 							== its_service_info->get_multicast_group()) {
-						boost::asio::ip::address its_multicast_address =
-								boost::asio::ip::address::from_string(
-										its_service_info->get_multicast_address());
-						uint16_t its_multicast_port =
-								its_service_info->get_multicast_port();
-						its_info->set_multicast(its_multicast_address,
-								its_multicast_port);
+						try {
+							boost::asio::ip::address its_multicast_address =
+									boost::asio::ip::address::from_string(
+											its_service_info->get_multicast_address());
+							uint16_t its_multicast_port =
+									its_service_info->get_multicast_port();
+							its_info->set_multicast(its_multicast_address,
+									its_multicast_port);
+						}
+						catch (...) {
+							VSOMEIP_ERROR << "Eventgroup ["
+									<< std::hex << std::setw(4) << std::setfill('0')
+									<< _service << "." << _instance << "." << _eventgroup
+									<< "] is configured as multicast, but no valid "
+									   "multicast address is configured!";
+						}
 					}
 					its_info->set_major(its_service_info->get_major());
 					its_info->set_ttl(its_service_info->get_ttl());
@@ -1149,7 +1158,7 @@ void routing_manager_impl::init_event_routing_info() {
 				its_event->set_service(i.first);
 				its_event->set_instance(j.first);
 				its_event->set_event(k);
-				configuration_->set_event(its_event);
+				configuration_->set_event(its_event); // sets is_field/is_reliable
 				events_[i.first][j.first][k] = its_event;
 			}
 		}

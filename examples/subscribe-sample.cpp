@@ -25,17 +25,16 @@ public:
 	void init() {
 		app_->init();
 
-		VSOMEIP_INFO<< "Client settings [protocol="
-		<< (use_tcp_ ? "TCP" : "UDP")
-		<< "]";
+		VSOMEIP_INFO << "Client settings [protocol="
+				<< (use_tcp_ ? "TCP" : "UDP")
+				<< "]";
 
 		app_->register_message_handler(vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID,
 				vsomeip::ANY_METHOD,
 				std::bind(&client_sample::on_message, this,
 						std::placeholders::_1));
 
-		app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
-		SAMPLE_EVENTGROUP_ID);
+		app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
 	}
 
 	void start() {
@@ -62,7 +61,7 @@ public:
 
 		if (_response->get_client() == 0) {
 			if ((its_payload->get_length() % 5) == 0)
-				app_->get(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID);
+				app_->get(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, use_tcp_);
 
 			if ((its_payload->get_length() % 8) == 0) {
 				const vsomeip::byte_t its_data[]
@@ -71,7 +70,7 @@ public:
 				std::shared_ptr<vsomeip::payload> its_new_payload
 					= vsomeip::runtime::get()->create_payload();
 				its_new_payload->set_data(its_data, sizeof(its_data));
-				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_new_payload);
+				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_new_payload, use_tcp_);
 			}
 		}
 	}

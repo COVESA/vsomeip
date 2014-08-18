@@ -18,9 +18,14 @@
 	[
 		{ 
 			"name" : "default",
+			"unicast" : "local",
 			"delays" :
 			{
-				"initial" : { "minimum" : "10", "maximum" : 100 },
+				"initial" : 
+				{ 
+					"minimum" : "10", 
+					"maximum" : 100 
+				},
 				"repetition-base" : "200",
 				"repetition-max" : "3",
 				"cyclic-offer" : "2000",
@@ -31,28 +36,30 @@
 				{
 					"service" : "0x1234",
 					"instance" : "0x5678",
-					"reliable" : { "port" : "30509", "magic-cookies" : "false" },
+					"unreliable" : "30509",
+					"multicast" : 
+					{ 
+						"address" : "224.225.226.233", 
+						"port" : "32344"
+					},
 					"events" : 
 					[
 						{
 							"event" : "0x0777",
-							"is_field" : "false",
-							"is_reliable" : "true",
+							"is_field" : "true",
 							"update-cycle" : 2000
 						},
 						{
 							"event" : "0x0778",
 							"is_field" : "true",
-							"is_reliable" : "true",
 							"update-cycle" : 0
 						},
 						{
 							"event" : "0x0779",
-							"is_field" : "false",
-							"is_reliable" : "true"
+							"is_field" : "true"
 						}
 					],
-					"eventgroups" :
+					"eventgroups" :ex
 					[
 						{
 							"eventgroup" : "0x4455",
@@ -60,7 +67,8 @@
 						},
 						{
 							"eventgroup" : "0x4465",
-							"events" : [ "0x778", "0x779" ]
+							"events" : [ "0x778", "0x779" ],
+							"is_multicast" : "true"										
 						},
 						{
 							"eventgroup" : "0x4555",
@@ -75,7 +83,7 @@
 	"service-discovery" :
 	{
 		"enable" : "true",
-		"multicast" : "224.0.0.1",
+		"multicast" : "224.244.224.245",
 		"port" : "30490",
 		"protocol" : "udp"
 	}

@@ -328,6 +328,7 @@ bool configuration_impl::get_event_configuration(
   for (auto i = _tree.begin(); i != _tree.end(); ++i) {
     event_t its_event_id(0);
     bool its_is_field(false);
+    bool its_is_reliable(false);
 
     for (auto j = i->second.begin(); j != i->second.end(); ++j) {
       std::string its_key(j->first);
@@ -342,6 +343,8 @@ bool configuration_impl::get_event_configuration(
         its_converter >> its_event_id;
       } else if (its_key == "is_field") {
         its_is_field = (its_value == "true");
+      } else if (its_key == "is_reliable") {
+    	its_is_reliable = (its_value == "true");
       }
     }
 
@@ -351,7 +354,7 @@ bool configuration_impl::get_event_configuration(
         found_event->second->is_field_ = its_is_field;
       } else {
         std::shared_ptr<event> its_event = std::make_shared < event
-            > (its_event_id, its_is_field);
+            > (its_event_id, its_is_field, its_is_reliable);
         _service->events_[its_event_id] = its_event;
       }
     }
@@ -397,7 +400,7 @@ bool configuration_impl::get_eventgroup_configuration(
             if (find_event != _service->events_.end()) {
               its_event = find_event->second;
             } else {
-              its_event = std::make_shared<event>(its_event_id, false);
+              its_event = std::make_shared<event>(its_event_id, false, false);
             }
             if (its_event) {
               its_event->groups_.push_back(its_eventgroup);
@@ -782,6 +785,7 @@ void configuration_impl::set_event(
           _event->get_event());
       if (found_event != found_instance->second->events_.end()) {
         _event->set_field(found_event->second->is_field_);
+        _event->set_reliable(found_event->second->is_reliable_);
       }
     }
   }

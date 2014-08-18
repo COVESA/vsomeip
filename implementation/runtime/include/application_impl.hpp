@@ -54,9 +54,9 @@ public:
 
 	void send(std::shared_ptr<message> _message, bool _flush, bool _reliable);
 
-	void get(service_t _service, instance_t, event_t _event);
+	void get(service_t _service, instance_t, event_t _event, bool _reliable);
 	void set(service_t _service, instance_t _instance, event_t _event,
-			const std::shared_ptr<payload> &_payload);
+			const std::shared_ptr<payload> &_payload, bool _reliable);
 
 	void register_event_handler(event_handler_t _handler);
 	void unregister_event_handler();

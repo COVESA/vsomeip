@@ -176,18 +176,19 @@ void application_impl::send(std::shared_ptr<message> _message, bool _flush,
 	}
 }
 
-void application_impl::get(service_t _service, instance_t _instance, event_t _event) {
+void application_impl::get(service_t _service, instance_t _instance, event_t _event,
+		bool _reliable) {
   if (routing_) {
-    if (routing_->get(client_, session_, _service, _instance, _event)) {
+    if (routing_->get(client_, session_, _service, _instance, _event, _reliable)) {
       update_session();
     }
   }
 }
 
 void application_impl::set(service_t _service, instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_payload) {
+		const std::shared_ptr<payload> &_payload, bool _reliable) {
   if (routing_) {
-    if (routing_->set(client_, session_, _service, _instance, _event, _payload)) {
+    if (routing_->set(client_, session_, _service, _instance, _event, _payload, _reliable)) {
       update_session();
     }
   }

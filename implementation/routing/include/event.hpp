@@ -45,6 +45,9 @@ class event : public std::enable_shared_from_this<event> {
   bool is_field() const;
   void set_field(bool _is_field);
 
+  bool is_reliable() const;
+  void set_reliable(bool _is_reliable);
+
   // SIP_RPC_357
   void set_update_cycle(std::chrono::milliseconds &_cycle);
 
@@ -70,6 +73,7 @@ class event : public std::enable_shared_from_this<event> {
   std::shared_ptr<message> message_;
 
   bool is_field_;
+  bool is_reliable_;
 
   boost::asio::system_timer cycle_timer_;
   std::chrono::milliseconds cycle_;

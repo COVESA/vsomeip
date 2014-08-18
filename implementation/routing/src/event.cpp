@@ -55,6 +55,14 @@ void event::set_field(bool _is_field) {
 	is_field_ = _is_field;
 }
 
+bool event::is_reliable() const {
+	return is_reliable_;
+}
+
+void event::set_reliable(bool _is_reliable) {
+	is_reliable_ = _is_reliable;
+}
+
 const std::shared_ptr<payload> event::get_payload() const {
 	return (message_->get_payload());
 }
@@ -124,8 +132,7 @@ void event::update_cbk(boost::system::error_code const &_error) {
 }
 
 void event::notify() {
-	// TODO: find out how to provide the proper reliability
-	routing_->send(VSOMEIP_ROUTING_CLIENT, message_, true, false);
+	routing_->send(VSOMEIP_ROUTING_CLIENT, message_, true, is_reliable_);
 }
 
 void event::notify_one(const std::shared_ptr<endpoint_definition> &_target) {

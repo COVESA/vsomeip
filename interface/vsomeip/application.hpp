@@ -62,9 +62,9 @@ public:
 
 	// Set events/fields
 	virtual void get(service_t _service, instance_t _instance,
-			event_t _event) = 0;
+			event_t _event, bool _reliable) = 0;
 	virtual void set(service_t _service, instance_t _instance, event_t _event,
-			const std::shared_ptr<payload> &_value) = 0;
+			const std::shared_ptr<payload> &_value, bool _reliable) = 0;
 
 	// Receive events (Non-SOME/IP)
 	virtual void register_event_handler(event_handler_t _handler) = 0;

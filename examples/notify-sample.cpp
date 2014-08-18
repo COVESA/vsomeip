@@ -54,7 +54,7 @@ public:
 	}
 
 	void on_event(vsomeip::event_type_e _event) {
-		VSOMEIP_INFO<< "Application " << app_->get_name() << " is "
+		VSOMEIP_INFO << "Application " << app_->get_name() << " is "
 		<< (_event == vsomeip::event_type_e::REGISTERED ?
 				"registered." : "deregistered.");
 
@@ -75,9 +75,10 @@ public:
 		bool is_offer(true);
 		while (true) {
 			if (is_offer)
-			offer();
+				offer();
 			else
-			stop_offer();
+				stop_offer();
+
 			std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 			is_offer = !is_offer;
 		}
@@ -91,23 +92,20 @@ public:
 		uint32_t its_size = 1;
 
 		while (true) {
-			VSOMEIP_INFO << "notify: started...";
 			std::unique_lock < std::mutex > its_lock(notify_mutex_);
 			while (!is_offered_)
 			notify_condition_.wait(its_lock);
-
-			VSOMEIP_INFO << "notify: unblocked ...";
 			while (is_offered_) {
 				if (its_size == sizeof(its_data))
-				its_size = 1;
+					its_size = 1;
 
 				for (uint32_t i = 0; i < its_size; ++i)
-				its_data[i] = static_cast<uint8_t>(i);
+					its_data[i] = static_cast<uint8_t>(i);
 
 				its_payload->set_data(its_data, its_size);
 
 				VSOMEIP_INFO << "Setting event (Length=" << std::dec << its_size << ").";
-				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_payload);
+				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_payload, use_tcp_);
 
 				its_size++;
 

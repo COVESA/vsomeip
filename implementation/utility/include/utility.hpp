@@ -25,7 +25,7 @@ class utility {
   }
 
   static inline bool is_request(byte_t _type) {
-    return is_request(static_cast<message_type_e>(_type));
+    return (is_request(static_cast<message_type_e>(_type)));
   }
 
   static inline bool is_request(message_type_e _type) {
@@ -55,7 +55,7 @@ class utility {
 
   static uint32_t get_message_size(const byte_t *_data, uint32_t _size);
   static inline uint32_t get_message_size(std::vector<byte_t> &_data) {
-	  return get_message_size(&_data[0], _data.size());
+	  return (get_message_size(&_data[0], _data.size()));
   }
 
   static uint32_t get_payload_size(const byte_t *_data, uint32_t _size);

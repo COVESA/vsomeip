@@ -271,14 +271,15 @@ bool routing_manager_proxy::send_to(
 }
 
 bool routing_manager_proxy::get(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event) {
+		service_t _service, instance_t _instance, event_t _event,
+		bool _reliable) {
 	bool is_gotten(false);
 	return (is_gotten);
 }
 
 bool routing_manager_proxy::set(client_t _client, session_t _session,
 		service_t _service,	instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_value) {
+		const std::shared_ptr<payload> &_value, bool _reliable) {
 	bool is_set(false);
 	return (is_set);
 }

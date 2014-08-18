@@ -94,8 +94,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 		std::shared_ptr<payload> its_payload;
 		const byte_t *its_data;
 		uint32_t its_size;
-		bool its_reliable;
-		bool its_flush;
+		bool its_reliable(false);
+		bool its_flush(true);
 
 		its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
 		std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
@@ -175,8 +175,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 			case VSOMEIP_SET:
 				its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
 				its_payload = runtime::get()->create_payload(its_data, its_size);
+				its_reliable = static_cast<bool>(_data[_size - 1]);
 				routing_->set(its_client, its_session, its_service, its_instance, its_event,
-						its_payload);
+						its_payload, its_reliable);
 				break;
 			}
 		}

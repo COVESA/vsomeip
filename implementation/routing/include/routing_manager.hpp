@@ -69,11 +69,13 @@ public:
 			const byte_t *_data, uint32_t _size) = 0;
 
 	virtual bool get(client_t _client, session_t _session,
-			service_t _service,	instance_t _instance, event_t _event) = 0;
+			service_t _service,	instance_t _instance, event_t _event,
+			bool _reliable) = 0;
 
 	virtual bool set(client_t _client, session_t _session,
 			service_t _service,	instance_t _instance, event_t _event,
-			const std::shared_ptr<payload> &_value) = 0;
+			const std::shared_ptr<payload> &_value,
+			bool _reliable) = 0;
 
 	virtual bool is_available(service_t _service,
 			instance_t _instance) const = 0;
