@@ -59,9 +59,9 @@ void local_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
 #if 0
 	std::stringstream msg;
 	msg << "lce<" << this << ">::sq: ";
-	for (std::size_t i = 0; i < _data->size(); i++)
+	for (std::size_t i = 0; i < _buffer->size(); i++)
 		msg << std::setw(2) << std::setfill('0') << std::hex << (int)(*_buffer)[i] << " ";
-	msg << std::endl;
+	VSOMEIP_DEBUG << msg.str();
 #endif
 
 	static byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
