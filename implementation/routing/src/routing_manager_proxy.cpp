@@ -29,7 +29,8 @@ namespace vsomeip {
 routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host) :
 		io_(_host->get_io()), host_(_host), client_(_host->get_client()), sender_(
 				0), receiver_(0), serializer_(std::make_shared<serializer>()), deserializer_(
-				std::make_shared<deserializer>()), is_connected_(false), is_started_(false) {
+				std::make_shared<deserializer>()), is_connected_(false), is_started_(false),
+				state_(event_type_e::DEREGISTERED) {
 }
 
 routing_manager_proxy::~routing_manager_proxy() {
@@ -75,7 +76,6 @@ void routing_manager_proxy::start() {
 
 	if (is_connected_) {
 		register_application();
-		host_->on_event(event_type_e::REGISTERED);
 	}
 
 	is_started_ = true;
@@ -83,7 +83,6 @@ void routing_manager_proxy::start() {
 
 void routing_manager_proxy::stop() {
 	deregister_application();
-	host_->on_event(event_type_e::DEREGISTERED);
 
 	if (receiver_)
 		receiver_->stop();
@@ -331,7 +330,6 @@ void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
 	is_connected_ = (_endpoint == sender_);
 	if (is_connected_ && is_started_) {
 		register_application();
-		host_->on_event(event_type_e::REGISTERED);
 	}
 }
 
@@ -452,8 +450,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
 		}
 	}
 
-	// inform host about its own registration state
-	host_->on_event(its_state);
+	// inform host about its own registration state changes
+	if (state_ != its_state) {
+		host_->on_event(its_state);
+		state_ = its_state;
+	}
 
 	// Check for services that are no longer available
 	for (auto i : old_local_services) {

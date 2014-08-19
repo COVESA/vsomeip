@@ -107,6 +107,7 @@ private:
 	boost::asio::io_service &io_;
 	bool is_connected_;
 	bool is_started_;
+	event_type_e state_;
 	routing_manager_host *host_;
 	client_t client_; // store locally as it is needed in each message
 
