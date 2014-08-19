@@ -108,13 +108,15 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 				routing_info_[its_client].first = 0;
 				broadcast_routing_info();
 				VSOMEIP_DEBUG << "Application/Client " << its_client
+						<< std::hex << std::setw(4) << std::setfill('0')
 						<< " got registered!";
 				break;
 
 			case VSOMEIP_DEREGISTER_APPLICATION:
 				on_deregister_application(its_client);
-				VSOMEIP_DEBUG << "Application/Client " << its_client
-						<< " got deregistered!";
+				VSOMEIP_DEBUG << "Application/Client "
+						<< std::hex << std::setw(4) << std::setfill('0')
+						<< its_client << " got deregistered!";
 				break;
 
 			case VSOMEIP_PONG:

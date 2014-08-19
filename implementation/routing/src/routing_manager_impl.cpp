@@ -549,12 +549,11 @@ void routing_manager_impl::on_message(service_t _service, instance_t _instance, 
 	}
 
 	if (its_client == host_->get_client()
+			|| its_client == VSOMEIP_ROUTING_CLIENT
 			|| utility::is_notification(_data)) {
 		deliver_message(_data, _size, _instance);
-	} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
-		send(its_client, _data, _size, _instance, true, false);
 	} else {
-		VSOMEIP_ERROR<< "Cannot determine target application!";
+		send(its_client, _data, _size, _instance, true, false);
 	}
 }
 
@@ -1194,7 +1193,7 @@ void routing_manager_impl::init_event_routing_info() {
 			for (auto k : j.second) {
 				VSOMEIP_DEBUG<< "Eventgroup [" << std::hex << std::setw(4)
 				<< std::setfill('0') << i.first << "." << j.first << "." << k.first
-				<< "] (MC: ";
+				<< "]";
 				for (auto l : k.second->get_events()) {
 					VSOMEIP_DEBUG << "  Event " << std::hex << std::setw(4)
 					<< std::setfill('0') << l->get_event();
