@@ -107,9 +107,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 				(void)host_->find_or_create_local(its_client);
 				routing_info_[its_client].first = 0;
 				broadcast_routing_info();
-				VSOMEIP_DEBUG << "Application/Client " << its_client
+				VSOMEIP_DEBUG << "Application/Client "
 						<< std::hex << std::setw(4) << std::setfill('0')
-						<< " got registered!";
+						<< its_client << " got registered!";
 				break;
 
 			case VSOMEIP_DEREGISTER_APPLICATION:
