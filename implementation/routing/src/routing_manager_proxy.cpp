@@ -29,7 +29,7 @@ namespace vsomeip {
 routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host) :
 		io_(_host->get_io()), host_(_host), client_(_host->get_client()), sender_(
 				0), receiver_(0), serializer_(std::make_shared<serializer>()), deserializer_(
-				std::make_shared<deserializer>()) {
+				std::make_shared<deserializer>()), is_connected_(false), is_started_(false) {
 }
 
 routing_manager_proxy::~routing_manager_proxy() {
@@ -73,15 +73,17 @@ void routing_manager_proxy::start() {
 	if (receiver_)
 		receiver_->start();
 
-	register_application();
+	if (is_connected_) {
+		register_application();
+		host_->on_event(event_type_e::REGISTERED);
+	}
 
-	host_->on_event(event_type_e::REGISTERED);
+	is_started_ = true;
 }
 
 void routing_manager_proxy::stop() {
-	host_->on_event(event_type_e::DEREGISTERED);
-
 	deregister_application();
+	host_->on_event(event_type_e::DEREGISTERED);
 
 	if (receiver_)
 		receiver_->stop();
@@ -89,6 +91,8 @@ void routing_manager_proxy::stop() {
 	std::stringstream its_client;
 	its_client << base_path << std::hex << client_;
 	::unlink(its_client.str().c_str());
+
+	is_started_ = false;
 }
 
 void routing_manager_proxy::offer_service(client_t _client, service_t _service,
@@ -324,9 +328,18 @@ bool routing_manager_proxy::set(client_t _client, session_t _session,
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
+	is_connected_ = (_endpoint == sender_);
+	if (is_connected_ && is_started_) {
+		register_application();
+		host_->on_event(event_type_e::REGISTERED);
+	}
 }
 
 void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
+	is_connected_ = !(_endpoint == sender_);
+	if (!is_connected_) {
+		host_->on_event(event_type_e::DEREGISTERED);
+	}
 }
 
 void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
@@ -381,10 +394,6 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 			break;
 		}
 	}
-}
-
-void routing_manager_proxy::on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size) {
-	// TODO: Remove dummy implementation after creating an interface between stub and implementation.
 }
 
 void routing_manager_proxy::on_routing_info(const byte_t *_data,
@@ -498,15 +507,15 @@ bool routing_manager_proxy::is_available(service_t _service,
 
 void routing_manager_proxy::register_application() {
 	byte_t its_command[] = {
-	VSOMEIP_REGISTER_APPLICATION, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			VSOMEIP_REGISTER_APPLICATION, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client_,
 			sizeof(client_));
 	std::memset(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], 0,
 			sizeof(uint32_t));
 
-	if (sender_)
-		sender_->send(its_command, sizeof(its_command));
+	if (is_connected_)
+		(void)sender_->send(its_command, sizeof(its_command));
 }
 
 void routing_manager_proxy::deregister_application() {
@@ -518,8 +527,8 @@ void routing_manager_proxy::deregister_application() {
 			sizeof(client_));
 	std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
 			sizeof(its_size));
-	if (sender_)
-		sender_->send(&its_command[0], its_command.size());
+	if (is_connected_)
+		(void)sender_->send(&its_command[0], its_command.size());
 }
 
 std::shared_ptr<endpoint> routing_manager_proxy::find_local(client_t _client) {
@@ -601,7 +610,7 @@ void routing_manager_proxy::send_pong() const {
 	std::memcpy(&its_pong[VSOMEIP_COMMAND_CLIENT_POS], &client_,
 			sizeof(client_t));
 
-	if (sender_)
+	if (is_connected_)
 		sender_->send(its_pong, sizeof(its_pong));
 }
 

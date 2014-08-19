@@ -82,7 +82,6 @@ public:
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
-	void on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size);
 
 	void on_routing_info(const byte_t *_data, uint32_t _size);
 
@@ -106,6 +105,8 @@ private:
 
 private:
 	boost::asio::io_service &io_;
+	bool is_connected_;
+	bool is_started_;
 	routing_manager_host *host_;
 	client_t client_; // store locally as it is needed in each message
 
