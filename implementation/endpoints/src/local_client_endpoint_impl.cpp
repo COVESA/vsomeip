@@ -118,7 +118,7 @@ void local_client_endpoint_impl::send_tag_cbk(
 void local_client_endpoint_impl::receive_cbk(
 		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-	VSOMEIP_ERROR << "Local client endpoints must not receive messages!";
+	VSOMEIP_ERROR << "Local endpoint received message (" << _error.message() << ")";
 }
 
 } // namespace vsomeip
