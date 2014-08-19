@@ -34,9 +34,6 @@ class service_sample {
 
     app_->register_event_handler(
         std::bind(&service_sample::on_event, this, std::placeholders::_1));
-
-    blocked_ = true;
-    condition_.notify_one();
   }
 
   void start() {
@@ -61,6 +58,8 @@ class service_sample {
     if (_event == vsomeip::event_type_e::REGISTERED) {
       if (!is_registered_) {
         is_registered_ = true;
+        blocked_ = true;
+        condition_.notify_one();
       }
     } else {
       is_registered_ = false;
