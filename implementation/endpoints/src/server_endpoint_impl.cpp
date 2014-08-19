@@ -54,7 +54,7 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(
   bool is_valid_target(false);
 
   if (VSOMEIP_SESSION_POS_MAX < _size) {
-    std::unique_lock < std::mutex > its_lock(mutex_);
+    std::lock_guard<std::mutex> its_lock(mutex_);
 
     service_t its_service;
     std::memcpy(&its_service, &_data[VSOMEIP_SERVICE_POS_MIN],
@@ -128,7 +128,7 @@ template<typename Protocol, int MaxBufferSize>
 bool server_endpoint_impl<Protocol, MaxBufferSize>::flush(
     endpoint_type _target) {
   bool is_flushed = false;
-  std::unique_lock < std::mutex > its_lock(mutex_);
+  std::lock_guard<std::mutex> its_lock(mutex_);
   auto i = packetizer_.find(_target);
   if (i != packetizer_.end() && !i->second->empty()) {
     send_queued(_target, i->second);

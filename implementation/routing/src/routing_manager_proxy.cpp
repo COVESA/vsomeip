@@ -204,7 +204,7 @@ bool routing_manager_proxy::send(client_t its_client,
 		bool _flush,
 		bool _reliable) {
 	bool is_sent(false);
-	std::unique_lock<std::mutex> its_lock(serialize_mutex_);
+	std::lock_guard<std::mutex> its_lock(serialize_mutex_);
 	if (serializer_->serialize(_message.get())) {
 		is_sent = send(its_client, serializer_->get_data(),
 				serializer_->get_size(), _message->get_instance(), _flush,
@@ -225,13 +225,13 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
 			service_t its_service = VSOMEIP_BYTES_TO_WORD(
 					_data[VSOMEIP_SERVICE_POS_MIN],
 					_data[VSOMEIP_SERVICE_POS_MAX]);
-			std::unique_lock<std::mutex> its_lock(send_mutex_);
+			std::lock_guard<std::mutex> its_lock(send_mutex_);
 			its_target = find_local(its_service, _instance);
 		} else {
 			client_t its_client = VSOMEIP_BYTES_TO_WORD(
 					_data[VSOMEIP_CLIENT_POS_MIN],
 					_data[VSOMEIP_CLIENT_POS_MAX]);
-			std::unique_lock<std::mutex> its_lock(send_mutex_);
+			std::lock_guard<std::mutex> its_lock(send_mutex_);
 			its_target = find_local(its_client);
 		}
 

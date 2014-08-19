@@ -76,7 +76,7 @@ template<typename Protocol, int MaxBufferSize>
 bool client_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
                                                          uint32_t _size,
                                                          bool _flush) {
-  std::unique_lock < std::mutex > its_lock(mutex_);
+  std::lock_guard<std::mutex> its_lock(mutex_);
 #if 0
   std::stringstream msg;
   msg << "cei::send: ";

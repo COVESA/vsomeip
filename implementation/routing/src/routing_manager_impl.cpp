@@ -227,11 +227,12 @@ bool routing_manager_impl::send(client_t its_client,
 		bool _reliable,
 		bool _flush) {
 	bool is_sent(false);
-	std::unique_lock<std::mutex> its_lock(serialize_mutex_); // TODO: lock serialization only
 
 	if (utility::is_request(_message->get_message_type())) {
 		_message->set_client(its_client);
 	}
+
+	std::lock_guard<std::mutex> its_lock(serialize_mutex_);
 	if (serializer_->serialize(_message.get())) {
 		is_sent = send(its_client, serializer_->get_data(),
 				serializer_->get_size(), _message->get_instance(), _reliable,
@@ -413,7 +414,7 @@ bool routing_manager_impl::set(client_t _client, session_t _session,
 				its_request->set_session(_session);
 				its_request->set_payload(_payload);
 
-				std::unique_lock<std::mutex> its_lock(serialize_mutex_);
+				std::lock_guard<std::mutex> its_lock(serialize_mutex_);
 				if (serializer_->serialize(its_request.get())) {
 					is_set = its_target->send(serializer_->get_data(), serializer_->get_size());
 				} else {
@@ -432,7 +433,7 @@ bool routing_manager_impl::send_to(
 		const std::shared_ptr<endpoint_definition> &_target,
 		std::shared_ptr<message> _message) {
 	bool is_sent(false);
-	std::unique_lock<std::mutex> its_lock(serialize_mutex_);
+	std::lock_guard<std::mutex> its_lock(serialize_mutex_);
 	if (serializer_->serialize(_message.get())) {
 		is_sent = send_to(_target,
 				serializer_->get_data(), serializer_->get_size());
@@ -525,7 +526,7 @@ void routing_manager_impl::on_message(service_t _service, instance_t _instance, 
 						its_response->set_message_type(message_type_e::ERROR);
 					}
 
-					std::unique_lock<std::mutex> its_lock(serialize_mutex_);
+					std::lock_guard<std::mutex> its_lock(serialize_mutex_);
 					if (serializer_->serialize(its_response.get())) {
 						send(its_client,
 							serializer_->get_data(), serializer_->get_size(),
@@ -842,7 +843,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_client_endpoint(
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_client_endpoint(
 		const boost::asio::ip::address &_address, uint16_t _port,
 		bool _reliable) {
-	std::unique_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 	std::shared_ptr<endpoint> its_endpoint = find_client_endpoint(_address,
 			_port, _reliable);
 	if (0 == its_endpoint) {
@@ -900,7 +901,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_server_endpoint(
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
 		uint16_t _port, bool _reliable) {
-	std::unique_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 	std::shared_ptr<endpoint> its_endpoint = find_server_endpoint(_port,
 			_reliable);
 	if (0 == its_endpoint) {
@@ -910,7 +911,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_local(client_t _client) {
-	std::unique_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 	std::shared_ptr<endpoint> its_endpoint;
 	auto found_endpoint = local_clients_.find(_client);
 	if (found_endpoint != local_clients_.end()) {
@@ -920,7 +921,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_local(client_t _client) {
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::create_local(client_t _client) {
-	std::unique_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 
 	std::stringstream its_path;
 	its_path << base_path << std::hex << _client;
@@ -943,7 +944,7 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_local(
 }
 
 void routing_manager_impl::remove_local(client_t _client) {
-	std::unique_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 	std::shared_ptr<endpoint> its_endpoint = find_local(_client);
 	its_endpoint->stop();
 	local_clients_.erase(_client);

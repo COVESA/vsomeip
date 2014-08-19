@@ -34,7 +34,7 @@ configuration * configuration_impl::get(const std::string &_path) {
 
   bool is_freshly_loaded(false);
   {
-    std::unique_lock < std::mutex > its_lock(mutex_);
+    std::lock_guard<std::mutex> its_lock(mutex_);
 
     auto found_configuration = the_configurations.find(_path);
     if (found_configuration != the_configurations.end()) {

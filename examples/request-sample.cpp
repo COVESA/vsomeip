@@ -124,7 +124,7 @@ public:
 	void run() {
 		while (running_) {
 			{
-				std::unique_lock< std::mutex > its_lock(mutex_);
+				std::unique_lock<std::mutex> its_lock(mutex_);
 				while (!blocked_) condition_.wait(its_lock);
 				std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
 				app_->send(request_, true, use_tcp_);

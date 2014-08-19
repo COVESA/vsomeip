@@ -68,7 +68,7 @@ public:
 	}
 
 	void run() {
-		std::unique_lock < std::mutex > its_lock(mutex_);
+		std::unique_lock<std::mutex> its_lock(mutex_);
 		while (!blocked_)
 		condition_.wait(its_lock);
 
@@ -92,9 +92,9 @@ public:
 		uint32_t its_size = 1;
 
 		while (true) {
-			std::unique_lock < std::mutex > its_lock(notify_mutex_);
+			std::unique_lock<std::mutex> its_lock(notify_mutex_);
 			while (!is_offered_)
-			notify_condition_.wait(its_lock);
+				notify_condition_.wait(its_lock);
 			while (is_offered_) {
 				if (its_size == sizeof(its_data))
 					its_size = 1;
