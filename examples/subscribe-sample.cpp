@@ -29,16 +29,30 @@ public:
 				<< (use_tcp_ ? "TCP" : "UDP")
 				<< "]";
 
+		app_->register_availability_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
+				std::bind(&client_sample::on_availability,
+						  this,
+						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+
 		app_->register_message_handler(vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID,
 				vsomeip::ANY_METHOD,
 				std::bind(&client_sample::on_message, this,
 						std::placeholders::_1));
-
-		app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
 	}
 
 	void start() {
 		app_->start();
+	}
+
+	void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+		VSOMEIP_INFO << "Service ["
+				<< std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
+				<< "] is "
+				<< (_is_available ? "available." : "NOT available.");
+
+		if (_is_available && SAMPLE_SERVICE_ID == _service && SAMPLE_INSTANCE_ID == _instance) {
+			app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
+		}
 	}
 
 	void on_message(std::shared_ptr<vsomeip::message> &_response) {

@@ -19,18 +19,20 @@
 
 namespace vsomeip {
 
+class routing_manager_stub_host;
+
 class routing_manager_stub:
 		public endpoint_host,
 		public std::enable_shared_from_this< routing_manager_stub > {
 public:
-	routing_manager_stub(routing_manager *_its_routing);
+	routing_manager_stub(routing_manager_stub_host *_host);
 	~routing_manager_stub();
 
 	void init();
 	void start();
 	void stop();
 
-	routing_manager * get_manager();
+	//routing_manager * get_manager();
 
 	void on_connect(std::shared_ptr< endpoint > _endpoint);
 	void on_disconnect(std::shared_ptr< endpoint > _endpoint);
@@ -58,7 +60,7 @@ private:
 	boost::asio::io_service &io_;
 	boost::asio::system_timer watchdog_timer_;
 
-	routing_manager *routing_;
+	routing_manager_stub_host *host_;
 	std::shared_ptr< endpoint > endpoint_;
 	std::map< client_t,
 			  std::pair< uint8_t,

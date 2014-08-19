@@ -18,7 +18,11 @@
 namespace vsomeip {
 
 class configuration;
+class event;
 class routing_manager_host;
+
+// TODO: encapsulate common parts of classes "routing_manager_impl"
+// and "routing_manager_proxy" into a base class.
 
 class routing_manager_proxy: public routing_manager,
 		public endpoint_host,
@@ -28,6 +32,7 @@ public:
 	virtual ~routing_manager_proxy();
 
 	boost::asio::io_service & get_io();
+	client_t get_client() const;
 
 	void init();
 	void start();
@@ -77,6 +82,7 @@ public:
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
+	void on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size);
 
 	void on_routing_info(const byte_t *_data, uint32_t _size);
 
@@ -93,8 +99,8 @@ private:
 	void deregister_application();
 
 	std::shared_ptr<endpoint> create_local(client_t _client);
-
-	bool is_request(byte_t _message_type) const;
+	std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
+			event_t _event) const;
 
 	void send_pong() const;
 
@@ -111,6 +117,9 @@ private:
 
 	std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
 	std::map<service_t, std::map<instance_t, client_t> > local_services_;
+
+	std::map<service_t,
+			std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
 
 	std::mutex send_mutex_;
 	std::mutex serialize_mutex_;

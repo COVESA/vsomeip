@@ -53,6 +53,10 @@ boost::asio::io_service & routing_manager_impl::get_io() {
 	return (io_);
 }
 
+client_t routing_manager_impl::get_client() const {
+	return host_->get_client();
+}
+
 void routing_manager_impl::init() {
 	uint32_t its_max_message_size = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
 	if (VSOMEIP_MAX_TCP_MESSAGE_SIZE > its_max_message_size)
@@ -122,11 +126,16 @@ void routing_manager_impl::offer_service(client_t _client, service_t _service,
 		(void) create_service(_service, _instance, _major, _minor, _ttl);
 	}
 
+	stub_->on_offer_service(_client, _service, _instance);
 	host_->on_availability(_service, _instance, true);
 }
 
-void routing_manager_impl::stop_offer_service(client_t its_client,
+void routing_manager_impl::stop_offer_service(client_t _client,
 		service_t _service, instance_t _instance) {
+
+	host_->on_availability(_service, _instance, false);
+	stub_->on_stop_offer_service(_client, _service, _instance);
+
 	if (discovery_) {
 		auto found_service = services_.find(_service);
 		if (found_service != services_.end()) {
@@ -256,27 +265,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 		}
 
 		if (its_target) {
-			std::vector<byte_t> its_command(
-					VSOMEIP_COMMAND_HEADER_SIZE + _size + sizeof(instance_t)
-							+ sizeof(bool) + sizeof(bool));
-			its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SEND;
-			std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
-					sizeof(client_t));
-			std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &_size,
-					sizeof(_size));
-			std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], _data,
-					_size);
-			std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size],
-					&_instance, sizeof(instance_t));
-			std::memcpy(
-					&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-							+ sizeof(instance_t)], &_reliable, sizeof(bool));
-			std::memcpy(
-					&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-							+ sizeof(instance_t) + sizeof(bool)], &_flush,
-					sizeof(bool));
-			is_sent = its_target->send(&its_command[0], its_command.size(),
-					_flush);
+			is_sent = send_local(its_target, _client, _data, _size, _instance, _flush, _reliable);
 		} else {
 			// Check whether hosting application should get the message
 			// If not, check routes to external
@@ -305,13 +294,15 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 										_data[VSOMEIP_METHOD_POS_MAX]);
 								std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
 								if (its_event) {
+									std::vector< byte_t > its_data();
+
 									for (auto its_group : its_event->get_eventgroups()) {
 										// local
 										auto its_local_clients = find_local_clients(its_service, _instance, its_group);
 										for (auto its_local_client : its_local_clients) {
 											std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
 											if (its_target) {
-												its_local_target->send(_data, _size);
+												send_local(its_local_target, _client, _data, _size, _instance, _flush, _reliable);
 											}
 										}
 
@@ -341,6 +332,34 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 	return (is_sent);
 }
 
+bool routing_manager_impl::send_local(
+		std::shared_ptr<endpoint> &_target, client_t _client,
+		const byte_t *_data, uint32_t _size,
+		instance_t _instance,
+		bool _flush, bool _reliable) const {
+	std::vector<byte_t> its_command(
+			VSOMEIP_COMMAND_HEADER_SIZE + _size + sizeof(instance_t)
+					+ sizeof(bool) + sizeof(bool));
+	its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SEND;
+	std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
+			sizeof(client_t));
+	std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &_size,
+			sizeof(_size));
+	std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], _data,
+			_size);
+	std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size],
+			&_instance, sizeof(instance_t));
+	std::memcpy(
+			&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
+					+ sizeof(instance_t)], &_reliable, sizeof(bool));
+	std::memcpy(
+			&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
+					+ sizeof(instance_t) + sizeof(bool)], &_flush,
+			sizeof(bool));
+
+	return _target->send(&its_command[0], its_command.size(),_flush);
+}
+
 bool routing_manager_impl::get(client_t _client, session_t _session,
 		service_t _service, instance_t _instance, event_t _event, bool _reliable) {
 	bool is_sent(false);
@@ -362,7 +381,7 @@ bool routing_manager_impl::get(client_t _client, session_t _session,
 				if (serializer_->serialize(its_request.get())) {
 					is_sent = its_target->send(serializer_->get_data(), serializer_->get_size());
 				} else {
-					VSOMEIP_ERROR << "routing_manager_impl: serialization error.";
+					VSOMEIP_ERROR << "routing_manager_impl::get: serialization error.";
 				}
 				serializer_->reset();
 			}
@@ -397,6 +416,8 @@ bool routing_manager_impl::set(client_t _client, session_t _session,
 				std::unique_lock<std::mutex> its_lock(serialize_mutex_);
 				if (serializer_->serialize(its_request.get())) {
 					is_set = its_target->send(serializer_->get_data(), serializer_->get_size());
+				} else {
+					VSOMEIP_ERROR << "routing_manager_impl::set: serialization error.";
 				}
 				serializer_->reset();
 			}
@@ -433,7 +454,7 @@ bool routing_manager_impl::send_to(
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 		endpoint *_receiver) {
-#if 0
+#if 1
 	std::stringstream msg;
 	msg << "rmi::on_message: ";
 	for (uint32_t i = 0; i < _size; ++i)
@@ -442,9 +463,6 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 #endif
 	service_t its_service;
 	instance_t its_instance;
-	method_t its_method;
-	client_t its_client;
-	session_t its_session;
 
 	if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
 		its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
@@ -454,104 +472,89 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 				discovery_->on_message(_data, _size);
 		} else {
 			its_instance = find_instance(its_service, _receiver);
-			if (its_instance != ANY_INSTANCE) {
-				if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-					its_method = VSOMEIP_BYTES_TO_WORD(
-							_data[VSOMEIP_METHOD_POS_MIN],
-							_data[VSOMEIP_METHOD_POS_MAX]);
-					if (utility::is_event(its_method)) {
-						std::shared_ptr<event> its_event = find_event(
-								its_service, its_instance, its_method);
-						if (its_event) {
-							if (its_event->is_field()) {
-								uint32_t its_length = utility::get_payload_size(_data, _size);
-								if (its_length > 0) { // set
-									std::shared_ptr<payload> its_payload =
-											runtime::get()->create_payload(
-													&_data[VSOMEIP_PAYLOAD_POS],
-													its_length);
-									its_event->set_payload(its_payload);
-								}
+			on_message(its_service, its_instance, _data, _size);
+		}
+	}
+}
 
-								if (!utility::is_request_no_return(
-										_data[VSOMEIP_RETURN_CODE_POS])) {
-									std::shared_ptr<message> its_response =
-											runtime::get()->create_message();
-									its_client = VSOMEIP_BYTES_TO_WORD(
-											_data[VSOMEIP_CLIENT_POS_MIN],
-											_data[VSOMEIP_CLIENT_POS_MAX]);
-									its_session = VSOMEIP_BYTES_TO_WORD(
-											_data[VSOMEIP_SESSION_POS_MIN],
-											_data[VSOMEIP_SESSION_POS_MAX]);
+void routing_manager_impl::on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size) {
+	method_t its_method;
+	client_t its_client;
+	session_t its_session;
 
-									its_response->set_service(its_service);
-									its_response->set_method(its_method);
-									its_response->set_client(its_client);
-									its_response->set_session(its_session);
-									its_response->set_message_type(
-											message_type_e::RESPONSE);
-									its_response->set_payload(its_event->get_payload());
-
-									std::unique_lock<std::mutex> its_lock(serialize_mutex_);
-									if (serializer_->serialize(its_response.get())) {
-										_receiver->send(serializer_->get_data(), serializer_->get_size(), true);
-									} else {
-										VSOMEIP_ERROR << "routing_manager_impl::on_message: serialization error.";
-									}
-									serializer_->reset();
-								}
-							} else {
-								std::shared_ptr<message> its_response =
-										runtime::get()->create_message();
-								its_client = VSOMEIP_BYTES_TO_WORD(
-										_data[VSOMEIP_CLIENT_POS_MIN],
-										_data[VSOMEIP_CLIENT_POS_MAX]);
-								its_session = VSOMEIP_BYTES_TO_WORD(
-										_data[VSOMEIP_SESSION_POS_MIN],
-										_data[VSOMEIP_SESSION_POS_MAX]);
-
-								its_response->set_service(its_service);
-								its_response->set_method(its_method);
-								its_response->set_client(its_client);
-								its_response->set_session(its_session);
-								its_response->set_message_type(message_type_e::ERROR);
-
-								std::unique_lock<std::mutex> its_lock(serialize_mutex_);
-								if (serializer_->serialize(its_response.get())) {
-									_receiver->send(serializer_->get_data(), serializer_->get_size(), true);
-								} else {
-									VSOMEIP_ERROR << "routing_manager_impl::on_message: serialization error.";
-								}
-								serializer_->reset();
-							}
-						} else {
-							its_client = VSOMEIP_ROUTING_CLIENT;
-						}
-					} else {
-						its_client = find_local_client(its_service,
-								its_instance);
+	if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+		if (utility::is_event(_data[VSOMEIP_METHOD_POS_MIN])) {
+			its_method = VSOMEIP_BYTES_TO_WORD(
+					_data[VSOMEIP_METHOD_POS_MIN],
+					_data[VSOMEIP_METHOD_POS_MAX]);
+			std::shared_ptr<event> its_event
+				= find_event(_service, _instance, its_method);
+			if (its_event) {
+				if (its_event->is_field()) {
+					uint32_t its_length = utility::get_payload_size(_data, _size);
+					if (its_length > 0) { // set
+						std::shared_ptr<payload> its_payload =
+								runtime::get()->create_payload(
+										&_data[VSOMEIP_PAYLOAD_POS],
+										its_length);
+						its_event->set_payload(its_payload);
 					}
-				} else {
+				}
+
+				if (!utility::is_request_no_return(
+						_data[VSOMEIP_RETURN_CODE_POS])) {
+					std::shared_ptr<message> its_response =
+							runtime::get()->create_message();
 					its_client = VSOMEIP_BYTES_TO_WORD(
 							_data[VSOMEIP_CLIENT_POS_MIN],
 							_data[VSOMEIP_CLIENT_POS_MAX]);
-				}
+					its_session = VSOMEIP_BYTES_TO_WORD(
+							_data[VSOMEIP_SESSION_POS_MIN],
+							_data[VSOMEIP_SESSION_POS_MAX]);
 
-				if (its_client == host_->get_client()
-						|| utility::is_notification(_data)) {
-					deliver_message(_data, _size, its_instance);
-				} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
-					send(its_client, _data, _size, its_instance, true, false);
-				} else {
-					VSOMEIP_ERROR<< "Cannot determine target application!";
+					its_response->set_service(_service);
+					its_response->set_method(its_method);
+					its_response->set_client(its_client);
+					its_response->set_session(its_session);
+
+					if (its_event->is_field()) {
+						its_response->set_message_type(
+								message_type_e::RESPONSE);
+						its_response->set_payload(its_event->get_payload());
+					} else {
+						its_response->set_message_type(message_type_e::ERROR);
+					}
+
+					std::unique_lock<std::mutex> its_lock(serialize_mutex_);
+					if (serializer_->serialize(its_response.get())) {
+						send(its_client,
+							serializer_->get_data(), serializer_->get_size(),
+							_instance,
+							true, its_event->is_reliable());
+					} else {
+						VSOMEIP_ERROR << "routing_manager_impl::on_message: serialization error.";
+					}
+					serializer_->reset();
 				}
 			} else {
-				VSOMEIP_ERROR
-				<< "Cannot determine service instance for [" << its_service << "]";
+				its_client = VSOMEIP_ROUTING_CLIENT;
 			}
+		} else {
+			its_client = find_local_client(_service, _instance);
 		}
 	} else {
-		//send_error(); // TODO: send error "malformed message"
+		its_client = VSOMEIP_BYTES_TO_WORD(
+				_data[VSOMEIP_CLIENT_POS_MIN],
+				_data[VSOMEIP_CLIENT_POS_MAX]);
+	}
+
+	if (its_client == host_->get_client()
+			|| utility::is_notification(_data)) {
+		deliver_message(_data, _size, _instance);
+	} else if (its_client != VSOMEIP_ROUTING_CLIENT) {
+		send(its_client, _data, _size, _instance, true, false);
+	} else {
+		VSOMEIP_ERROR<< "Cannot determine target application!";
 	}
 }
 

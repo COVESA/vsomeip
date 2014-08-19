@@ -31,7 +31,7 @@ bool application_impl::init() {
 
 	// Application name
 	if (name_ == "") {
-		const char *its_name = getenv(VSOMEIP_APPLICATION_NAME);
+		const char *its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
 		if (nullptr != its_name) {
 			name_ = its_name;
 		} else {

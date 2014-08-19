@@ -24,7 +24,8 @@ public:
 		  be_quiet_(_be_quiet),
 		  cycle_(_cycle),
 		  sender_(std::bind(&client_sample::run, this)),
-		  running_(true) {
+		  running_(true),
+		  is_available_(false) {
 	}
 
 	void init() {
@@ -83,10 +84,10 @@ public:
 				<< (_is_available ? "available." : "NOT available.");
 
 		if (SAMPLE_SERVICE_ID == _service && SAMPLE_INSTANCE_ID == _instance) {
-			static bool is_available = false;
-			if (is_available  && !_is_available) is_available = false;
-			else if (_is_available && !is_available) {
-				is_available = true;
+			if (is_available_  && !_is_available) {
+				is_available_ = false;
+			} else if (_is_available && !is_available_) {
+				is_available_ = true;
 				send();
 			}
 		}
@@ -102,7 +103,8 @@ public:
 				<< "/"
 				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
 				<< "]";
-		send();
+		if (is_available_)
+			send();
 	}
 
 	void send() {
@@ -147,6 +149,7 @@ private:
 	std::thread sender_;
 	bool running_;
 	bool blocked_;
+	bool is_available_;
 };
 
 

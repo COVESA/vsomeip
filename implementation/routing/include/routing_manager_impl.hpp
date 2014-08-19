@@ -18,6 +18,7 @@
 #include <vsomeip/primitive_types.hpp>
 
 #include "routing_manager.hpp"
+#include "routing_manager_stub_host.hpp"
 #include "../../endpoints/include/endpoint_host.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
 
@@ -40,8 +41,13 @@ class service_discovery;
 
 }  // namespace sd
 
-class routing_manager_impl: public routing_manager,
+// TODO: encapsulate common parts of classes "routing_manager_impl"
+// and "routing_manager_proxy" into a base class.
+
+class routing_manager_impl:
+		public routing_manager,
 		public endpoint_host,
+		public routing_manager_stub_host,
 		public sd::service_discovery_host,
 		public std::enable_shared_from_this<routing_manager_impl> {
 public:
@@ -49,6 +55,7 @@ public:
 	~routing_manager_impl();
 
 	boost::asio::io_service & get_io();
+	client_t get_client() const;
 	std::shared_ptr<configuration> get_configuration() const;
 
 	void init();
@@ -113,6 +120,7 @@ public:
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);
 	void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
+	void on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size);
 
 	// interface "service_discovery_host"
 	typedef std::map<std::string, std::shared_ptr<servicegroup> > servicegroups_t;
@@ -144,6 +152,10 @@ public:
 private:
 	bool deliver_message(const byte_t *_data, length_t _length,
 			instance_t _instance);
+	bool send_local(std::shared_ptr<endpoint> &_target, client_t _client,
+			const byte_t *_data, uint32_t _size,
+			instance_t _instance,
+			bool _flush, bool _reliable) const;
 
 	client_t find_local_client(service_t _service, instance_t _instance);
 	std::set<client_t> find_local_clients(service_t _service,

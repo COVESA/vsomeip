@@ -10,6 +10,7 @@
 #include <vsomeip/configuration.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/logger.hpp>
+#include <vsomeip/runtime.hpp>
 
 #include "../include/event.hpp"
 #include "../include/routing_manager_host.hpp"
@@ -36,6 +37,10 @@ routing_manager_proxy::~routing_manager_proxy() {
 
 boost::asio::io_service & routing_manager_proxy::get_io() {
 	return (io_);
+}
+
+client_t routing_manager_proxy::get_client() const {
+	return client_;
 }
 
 void routing_manager_proxy::init() {
@@ -68,12 +73,14 @@ void routing_manager_proxy::start() {
 	if (receiver_)
 		receiver_->start();
 
-	// Tell the stub where to find us
 	register_application();
+
+	host_->on_event(event_type_e::REGISTERED);
 }
 
 void routing_manager_proxy::stop() {
-	// Tell the stub we are no longer active
+	host_->on_event(event_type_e::DEREGISTERED);
+
 	deregister_application();
 
 	if (receiver_)
@@ -210,9 +217,8 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
 		bool _reliable) {
 	bool is_sent(false);
 	std::shared_ptr<endpoint> its_target;
-
 	if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
-		if (is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+		if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
 			service_t its_service = VSOMEIP_BYTES_TO_WORD(
 					_data[VSOMEIP_SERVICE_POS_MIN],
 					_data[VSOMEIP_SERVICE_POS_MAX]);
@@ -247,10 +253,11 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
 				+ sizeof(bool)] = _reliable;
 
 #if 0
-		std::cout << "rmp:send: ";
+		std::stringstream msg;
+		msg << "rmp:send: ";
 		for (int i = 0; i < its_command.size(); i++)
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
-		std::cout << std::endl;
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
 #endif
 
 		is_sent = its_target->send(&its_command[0], its_command.size());
@@ -271,16 +278,48 @@ bool routing_manager_proxy::send_to(
 }
 
 bool routing_manager_proxy::get(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event,
-		bool _reliable) {
-	bool is_gotten(false);
-	return (is_gotten);
+		service_t _service, instance_t _instance, event_t _event, bool _reliable) {
+	bool is_sent(false);
+	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+	if (its_event) { // local
+		// TODO: bring back the result to the application
+	} else { // remote
+		std::shared_ptr<message> its_request = runtime::get()->create_request();
+		if (its_request) {
+			its_request->set_service(_service);
+			its_request->set_instance(_instance);
+			its_request->set_method(_event);
+			its_request->set_client(_client);
+			its_request->set_session(_session);
+
+			is_sent = send(_client, its_request, true, _reliable);
+		}
+	}
+	return (is_sent);
 }
 
 bool routing_manager_proxy::set(client_t _client, session_t _session,
-		service_t _service,	instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_value, bool _reliable) {
+		service_t _service, instance_t _instance, event_t _event,
+		const std::shared_ptr<payload> &_payload, bool _reliable) {
 	bool is_set(false);
+	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+	if (its_event) {
+		its_event->set_payload(_payload);
+		// TODO: somehow bring back the result to the application as set according to SOME/IP is set+get
+		is_set = true;
+	} else {
+		std::shared_ptr<message> its_request = runtime::get()->create_request();
+		if (its_request) {
+			its_request->set_service(_service);
+			its_request->set_instance(_instance);
+			its_request->set_method(_event);
+			its_request->set_client(_client);
+			its_request->set_session(_session);
+			its_request->set_payload(_payload);
+
+			is_set = send(_client, its_request, true, _reliable);
+		}
+	}
 	return (is_set);
 }
 
@@ -293,10 +332,11 @@ void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 		endpoint *_receiver) {
 #if 0
-	std::cout << "rmp::on_message: ";
+	std::stringstream msg;
+	msg << "rmp::on_message: ";
 	for (int i = 0; i < _size; ++i)
-	std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-	std::cout << std::endl;
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
 #endif
 	byte_t its_command;
 	client_t its_client;
@@ -341,6 +381,10 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 			break;
 		}
 	}
+}
+
+void routing_manager_proxy::on_message(service_t _service, instance_t _instance, const byte_t *_data, length_t _size) {
+	// TODO: Remove dummy implementation after creating an interface between stub and implementation.
 }
 
 void routing_manager_proxy::on_routing_info(const byte_t *_data,
@@ -492,8 +536,8 @@ std::shared_ptr<endpoint> routing_manager_proxy::create_local(
 	std::stringstream its_path;
 	its_path << base_path << std::hex << _client;
 
-	VSOMEIP_DEBUG<< "Connecting to [" << std::hex << _client
-	<< "] at " << its_path.str();
+	VSOMEIP_DEBUG<< "Connecting to ["
+			<< std::hex << _client << "] at " << its_path.str();
 
 	std::shared_ptr<endpoint> its_endpoint = std::make_shared<
 			local_client_endpoint_impl>(shared_from_this(),
@@ -534,11 +578,20 @@ std::shared_ptr<endpoint> routing_manager_proxy::find_local(service_t _service,
 	return (find_local(its_client));
 }
 
-bool routing_manager_proxy::is_request(byte_t _message_type) const {
-	message_type_e its_type = static_cast<message_type_e>(_message_type);
-	return (its_type < message_type_e::NOTIFICATION
-			|| its_type == message_type_e::REQUEST_ACK
-			|| its_type == message_type_e::REQUEST_NO_RETURN_ACK);
+std::shared_ptr<event> routing_manager_proxy::find_event(service_t _service,
+		instance_t _instance, event_t _event) const {
+	std::shared_ptr<event> its_event;
+	auto find_service = events_.find(_service);
+	if (find_service != events_.end()) {
+		auto find_instance = find_service->second.find(_instance);
+		if (find_instance != find_service->second.end()) {
+			auto find_event = find_instance->second.find(_event);
+			if (find_event != find_instance->second.end()) {
+				its_event = find_event->second;
+			}
+		}
+	}
+	return (its_event);
 }
 
 void routing_manager_proxy::send_pong() const {

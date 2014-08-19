@@ -25,11 +25,10 @@ class service_info;
 
 class routing_manager {
 public:
-	virtual ~routing_manager() {
-	}
-	;
+	virtual ~routing_manager() {};
 
 	virtual boost::asio::io_service & get_io() = 0;
+	virtual client_t get_client() const = 0;
 
 	virtual void init() = 0;
 	virtual void start() = 0;
@@ -79,13 +78,6 @@ public:
 
 	virtual bool is_available(service_t _service,
 			instance_t _instance) const = 0;
-
-	virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
-	virtual std::shared_ptr<endpoint> find_local(service_t _service,
-			instance_t _instance) = 0;
-	virtual std::shared_ptr<endpoint> find_or_create_local(
-			client_t _client) = 0;
-	virtual void remove_local(client_t _client) = 0;
 };
 
 }  // namespace vsomeip
