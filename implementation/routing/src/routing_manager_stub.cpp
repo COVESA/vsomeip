@@ -146,8 +146,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 				std::memcpy(&its_instance,
 						&_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
 						sizeof(its_instance));
-				host_->stop_offer_service(its_client, its_service,
-						its_instance);
+				host_->stop_offer_service(its_client, its_service, its_instance);
 				on_stop_offer_service(its_client, its_service, its_instance);
 				break;
 
@@ -299,7 +298,8 @@ void routing_manager_stub::send_routing_info(client_t _client) {
 
 void routing_manager_stub::broadcast_routing_info() {
 	for (auto& info : routing_info_) {
-		send_routing_info(info.first);
+		if (info.first != host_->get_client())
+			send_routing_info(info.first);
 	}
 }
 
