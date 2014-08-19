@@ -384,7 +384,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length) {
 	std::stringstream msg;
 	msg << "sdi::on_message: ";
 	for (length_t i = 0; i < _length; ++i)
-	msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	 msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
 	VSOMEIP_DEBUG << msg.str();
 #endif
 	deserializer_->set_data(_data, _length);

@@ -47,7 +47,7 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(
   std::stringstream msg;
   msg << "sei::send ";
   for (uint32_t i = 0; i < _size; i++)
-  msg << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	  msg << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
   VSOMEIP_DEBUG << msg.str();
 #endif
   endpoint_type its_target;
@@ -152,7 +152,7 @@ void server_endpoint_impl<Protocol, MaxBufferSize>::send_cbk(
 std::stringstream msg;
 msg << "sei::scb (" << _error.message() << "): ";
 for (std::size_t i = 0; i < _buffer->size(); ++i)
-msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
+	msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer)[i] << " ";
 VSOMEIP_DEBUG << msg.str();
 #endif
 }

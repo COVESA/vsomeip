@@ -158,7 +158,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
 #if 0
   std::stringstream msg;
   for (std::size_t i = 0; i < _bytes; ++i)
-  msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer))[i] << " ";
+	  msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*_buffer))[i] << " ";
   VSOMEIP_DEBUG << msg.str();
 #endif
   if (!_error && 0 < _bytes) {
