@@ -50,6 +50,11 @@ public:
 						  this,
 						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
+		app_->register_availability_handler(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID,
+				std::bind(&client_sample::on_availability,
+						  this,
+						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+
 		app_->register_message_handler(
 				vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,
 				std::bind(&client_sample::on_message,

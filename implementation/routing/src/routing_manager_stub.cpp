@@ -285,10 +285,11 @@ void routing_manager_stub::send_routing_info(client_t _client) {
 				sizeof(its_size));
 		its_size += VSOMEIP_COMMAND_PAYLOAD_POS;
 #if 0
-		std::cout << "rms::send_routing_info ";
+		std::stringstream msg;
+		msg << "rms::send_routing_info ";
 		for (int i = 0; i < its_size; ++i)
-		std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
-		std::cout << std::endl;
+			msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
+		VSOMEIP_DEBUG << msg.str();
 #endif
 		its_endpoint->send(&its_command[0], its_size, true);
 	}

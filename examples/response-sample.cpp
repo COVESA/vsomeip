@@ -45,10 +45,12 @@ class service_sample {
 
   void offer() {
     app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+    app_->offer_service(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID);
   }
 
   void stop_offer() {
     app_->stop_offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+    app_->stop_offer_service(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID);
   }
 
   void on_event(vsomeip::event_type_e _event) {

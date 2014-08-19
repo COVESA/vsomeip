@@ -399,15 +399,16 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 void routing_manager_proxy::on_routing_info(const byte_t *_data,
 		uint32_t _size) {
 #if 0
-	std::cout << "rmp::on_routing_info: ";
+	std::stringstream msg;
+	msg << "rmp::on_routing_info: ";
 	for (int i = 0; i < _size; ++i)
-	std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-	std::cout << std::endl;
+		msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+	VSOMEIP_DEBUG << msg.str();
 #endif
 	event_type_e its_state(event_type_e::DEREGISTERED);
 
-	std::map<service_t, std::map<instance_t, client_t> > old_local_services =
-			local_services_;
+	std::map<service_t,
+		std::map<instance_t, client_t> > old_local_services = local_services_;
 	local_services_.clear();
 
 	uint32_t i = 0;
@@ -427,29 +428,27 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
 				its_state = event_type_e::REGISTERED;
 			}
 
-			if (i + sizeof(uint32_t) <= _size) {
+			uint32_t j = 0;
+			while (j + sizeof(uint32_t) <= its_client_size) {
 				uint32_t its_services_size;
-				std::memcpy(&its_services_size, &_data[i], sizeof(uint32_t));
-				i += sizeof(uint32_t);
+				std::memcpy(&its_services_size, &_data[i + j], sizeof(uint32_t));
+				j += sizeof(uint32_t);
 
-				uint32_t j = 0;
-				while (j + sizeof(service_t) + sizeof(instance_t)
-						<= its_services_size) {
+				if (its_services_size <= sizeof(service_t) + sizeof(instance_t)) {
 					service_t its_service;
 					std::memcpy(&its_service, &_data[i + j], sizeof(service_t));
 					j += sizeof(service_t);
 
 					instance_t its_instance;
-					std::memcpy(&its_instance, &_data[i + j],
-							sizeof(instance_t));
+					std::memcpy(&its_instance, &_data[i + j], sizeof(instance_t));
 					j += sizeof(instance_t);
 
 					if (its_client != client_)
 						local_services_[its_service][its_instance] = its_client;
 				}
-
-				i += its_services_size;
 			}
+
+			i += j;
 		}
 	}
 
