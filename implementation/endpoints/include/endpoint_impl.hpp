@@ -30,9 +30,6 @@ public:
 
 	void enable_magic_cookies();
 
-	void open_filter(service_t _service);
-	void close_filter(service_t _service);
-
 	// Dummy implementations as we only need these for UDP (servers)
 	// TODO: redesign
 	void join(const std::string &);

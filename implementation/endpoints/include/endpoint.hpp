@@ -31,9 +31,6 @@ public:
 	virtual void enable_magic_cookies() = 0;
 	virtual void receive() = 0;
 
-	virtual void open_filter(service_t _service_id) = 0;
-	virtual void close_filter(service_t _service_id) = 0;
-
 	virtual void join(const std::string &_address) = 0;
 	virtual void leave(const std::string &_address) = 0;
 

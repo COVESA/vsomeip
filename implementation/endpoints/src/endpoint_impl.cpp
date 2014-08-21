@@ -27,26 +27,6 @@ endpoint_impl< MaxBufferSize >::~endpoint_impl() {
 }
 
 template < int MaxBufferSize >
-void endpoint_impl< MaxBufferSize >::open_filter(service_t _service) {
-	auto find_service = opened_.find(_service);
-	if (find_service != opened_.end()) {
-		find_service->second++;
-	} else {
-		opened_[_service] = 1;
-	}
-}
-
-template < int MaxBufferSize >
-void endpoint_impl< MaxBufferSize >::close_filter(service_t _service) {
-	auto find_service = opened_.find(_service);
-	if (find_service != opened_.end()) {
-		find_service->second--;
-		if (0 == find_service->second)
-			opened_.erase(_service);
-	}
-}
-
-template < int MaxBufferSize >
 void endpoint_impl< MaxBufferSize >::enable_magic_cookies() {
 	has_enabled_magic_cookies_ = is_supporting_magic_cookies_;
 }
