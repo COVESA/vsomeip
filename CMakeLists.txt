@@ -84,17 +84,28 @@ file(GLOB vsomeip-sd_SRC
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} rt ${DL_LIBRARY})
 
+# Configuration files
+
+set(EXAMPLE_CONFIG_FILES
+    "config/vsomeip.json"
+    "config/vsomeip-local.json"
+    "config/vsomeip-tcp-client.json"
+    "config/vsomeip-tcp-service.json"
+    "config/vsomeip-udp-client.json"
+    "config/vsomeip-udp-service.json"
+)
+
 # Examples
-add_executable(request-sample examples/request-sample.cpp)
+add_executable(request-sample examples/request-sample.cpp ${EXAMPLE_CONFIG_FILES})
 target_link_libraries(request-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(response-sample examples/response-sample.cpp)
+add_executable(response-sample examples/response-sample.cpp ${EXAMPLE_CONFIG_FILES})
 target_link_libraries(response-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(subscribe-sample examples/subscribe-sample.cpp)
+add_executable(subscribe-sample examples/subscribe-sample.cpp ${EXAMPLE_CONFIG_FILES})
 target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
-add_executable(notify-sample examples/notify-sample.cpp)
+add_executable(notify-sample examples/notify-sample.cpp ${EXAMPLE_CONFIG_FILES})
 target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 # Test
@@ -127,6 +138,10 @@ install (
 install (
     TARGETS request-sample response-sample subscribe-sample notify-sample
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+)
+
+install (
+  FILES ${EXAMPLE_CONFIG_FILES} DESTINATION etc/vsomeip COMPONENT config
 )
 
 # Add all targets to the build-tree export set
