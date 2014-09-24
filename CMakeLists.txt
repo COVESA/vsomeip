@@ -56,6 +56,8 @@ set (CMAKE_CXX_FLAGS "-D${OS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g $
 include_directories(
 	"interface" 
 )
+# Threads
+find_package(Threads REQUIRED)
 
 # Boost
 find_package( Boost 1.54 COMPONENTS system thread log REQUIRED )
@@ -100,7 +102,7 @@ add_executable(configuration-test test/configuration-test.cpp)
 target_link_libraries(configuration-test vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(magic-cookies-test-client test/magic-cookies-test-client.cpp)
-target_link_libraries(magic-cookies-test-client vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+target_link_libraries(magic-cookies-test-client vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
 ###################################################################################################
 
