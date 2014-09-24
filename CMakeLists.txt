@@ -120,6 +120,11 @@ install (
 )
 
 install (
+    TARGETS vsomeip-sd
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+)
+
+install (
     TARGETS request-sample response-sample subscribe-sample notify-sample
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
