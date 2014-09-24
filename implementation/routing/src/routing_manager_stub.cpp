@@ -7,6 +7,7 @@
 #include <chrono>
 #include <functional>
 #include <iomanip>
+#include <iostream>
 
 #include <boost/system/error_code.hpp>
 
