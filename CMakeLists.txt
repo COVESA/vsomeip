@@ -119,6 +119,11 @@ install (
     PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/vsomeip" COMPONENT dev
 )
 
+install (
+    TARGETS request-sample response-sample subscribe-sample notify-sample
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+)
+
 # Add all targets to the build-tree export set
 export (TARGETS vsomeip FILE "${PROJECT_BINARY_DIR}/vSomeIPTargets.cmake")
 
