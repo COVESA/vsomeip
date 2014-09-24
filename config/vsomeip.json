@@ -28,7 +28,7 @@
 			"name" : "default",
 			"delays" :
 			{
-				"inital" : { "minimum" : "10", "maximum" : "100" },
+				"initial" : { "minimum" : "10", "maximum" : "100" },
 				"repetition-base" : "200",
 				"repetition-max" : "3",
 				"cyclic-offer" : "2000",
