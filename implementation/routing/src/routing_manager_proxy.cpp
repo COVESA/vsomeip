@@ -280,50 +280,17 @@ bool routing_manager_proxy::send_to(
 	return (false);
 }
 
-bool routing_manager_proxy::get(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event, bool _reliable) {
-	bool is_sent(false);
-	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
-	if (its_event) { // local
-		// TODO: bring back the result to the application
-	} else { // remote
-		std::shared_ptr<message> its_request = runtime::get()->create_request();
-		if (its_request) {
-			its_request->set_service(_service);
-			its_request->set_instance(_instance);
-			its_request->set_method(_event);
-			its_request->set_client(_client);
-			its_request->set_session(_session);
-
-			is_sent = send(_client, its_request, true, _reliable);
-		}
-	}
-	return (is_sent);
-}
-
-bool routing_manager_proxy::set(client_t _client, session_t _session,
+void routing_manager_proxy::notify(
 		service_t _service, instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_payload, bool _reliable) {
-	bool is_set(false);
+		std::shared_ptr<payload> _payload) const {
 	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
 	if (its_event) {
 		its_event->set_payload(_payload);
-		// TODO: somehow bring back the result to the application as set according to SOME/IP is set+get
-		is_set = true;
 	} else {
-		std::shared_ptr<message> its_request = runtime::get()->create_request();
-		if (its_request) {
-			its_request->set_service(_service);
-			its_request->set_instance(_instance);
-			its_request->set_method(_event);
-			its_request->set_client(_client);
-			its_request->set_session(_session);
-			its_request->set_payload(_payload);
-
-			is_set = send(_client, its_request, true, _reliable);
-		}
+		VSOMEIP_ERROR << "routing_manager_proxy::notify: event ["
+			<< std::hex << _service << "." << _instance << "." << _event
+			<< "] is unknown.";
 	}
-	return (is_set);
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -342,7 +309,7 @@ void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 
 void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 		endpoint *_receiver) {
-#if 0
+#if 1
 	std::stringstream msg;
 	msg << "rmp::on_message: ";
 	for (int i = 0; i < _size; ++i)

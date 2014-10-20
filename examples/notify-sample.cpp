@@ -33,6 +33,22 @@ public:
 				std::bind(&service_sample::on_event, this,
 						std::placeholders::_1));
 
+		app_->register_message_handler(
+				SAMPLE_SERVICE_ID,
+				SAMPLE_INSTANCE_ID,
+				SAMPLE_GET_METHOD_ID,
+				std::bind(&service_sample::on_get, this,
+						  std::placeholders::_1));
+
+		app_->register_message_handler(
+				SAMPLE_SERVICE_ID,
+				SAMPLE_INSTANCE_ID,
+				SAMPLE_SET_METHOD_ID,
+				std::bind(&service_sample::on_set, this,
+						  std::placeholders::_1));
+
+		payload_ = vsomeip::runtime::get()->create_payload();
+
 		blocked_ = true;
 		condition_.notify_one();
 	}
@@ -67,6 +83,24 @@ public:
 		}
 	}
 
+	void on_get(std::shared_ptr<vsomeip::message> &_message) {
+		std::shared_ptr<vsomeip::message> its_response
+			= vsomeip::runtime::get()->create_response(_message);
+		its_response->set_payload(payload_);
+		app_->send(its_response, true, use_tcp_);
+	}
+
+	void on_set(std::shared_ptr<vsomeip::message> &_message) {
+		payload_ = _message->get_payload();
+
+		std::shared_ptr<vsomeip::message> its_response
+			= vsomeip::runtime::get()->create_response(_message);
+		its_response->set_payload(payload_);
+		app_->send(its_response, true, use_tcp_);
+		app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
+					 SAMPLE_EVENT_ID, payload_);
+	}
+
 	void run() {
 		std::unique_lock<std::mutex> its_lock(mutex_);
 		while (!blocked_)
@@ -85,8 +119,12 @@ public:
 	}
 
 	void notify() {
-		std::shared_ptr<vsomeip::payload> its_payload
-			= vsomeip::runtime::get()->create_payload();
+		std::shared_ptr<vsomeip::message> its_message
+			= vsomeip::runtime::get()->create_request();
+
+		its_message->set_service(SAMPLE_SERVICE_ID);
+		its_message->set_instance(SAMPLE_INSTANCE_ID);
+		its_message->set_method(SAMPLE_SET_METHOD_ID);
 
 		vsomeip::byte_t its_data[10];
 		uint32_t its_size = 1;
@@ -102,10 +140,10 @@ public:
 				for (uint32_t i = 0; i < its_size; ++i)
 					its_data[i] = static_cast<uint8_t>(i);
 
-				its_payload->set_data(its_data, its_size);
+				payload_->set_data(its_data, its_size);
 
 				VSOMEIP_INFO << "Setting event (Length=" << std::dec << its_size << ").";
-				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_payload, use_tcp_);
+				app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, payload_);
 
 				its_size++;
 
@@ -129,6 +167,8 @@ private:
 	std::mutex notify_mutex_;
 	std::condition_variable notify_condition_;
 	bool is_offered_;
+
+	std::shared_ptr<vsomeip::payload> payload_;
 };
 
 int main(int argc, char **argv) {

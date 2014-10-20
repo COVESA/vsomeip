@@ -94,14 +94,8 @@ public:
 	bool send_to(const std::shared_ptr<endpoint_definition> &_target,
 			const byte_t *_data, uint32_t _size);
 
-	bool get(client_t _client, session_t _session,
-			service_t _service,	instance_t _instance, event_t _event,
-			bool _reliable);
-
-	bool set(client_t _client, session_t _session,
-			service_t _service, instance_t _instance, event_t _event,
-			const std::shared_ptr<payload> &_payload,
-			bool _reliable);
+	void notify(service_t _service, instance_t _instance, event_t _event,
+				std::shared_ptr<payload> _payload) const;
 
 	bool is_available(service_t _service, instance_t _instance) const;
 

@@ -56,15 +56,13 @@ public:
 
 	virtual bool is_available(service_t _service, instance_t _instance) = 0;
 
-	// Send messages
+	// Send a message
 	virtual void send(std::shared_ptr<message> _message, bool _flush = true,
 			bool _reliable = false) = 0;
 
-	// Set events/fields
-	virtual void get(service_t _service, instance_t _instance,
-			event_t _event, bool _reliable) = 0;
-	virtual void set(service_t _service, instance_t _instance, event_t _event,
-			const std::shared_ptr<payload> &_value, bool _reliable) = 0;
+	// Notify subscribers in case an event payload changes
+	virtual void notify(service_t _service, instance_t _instance, event_t _event,
+						std::shared_ptr<payload> _payload) const = 0;
 
 	// Receive events (Non-SOME/IP)
 	virtual void register_event_handler(event_handler_t _handler) = 0;

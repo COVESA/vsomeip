@@ -74,17 +74,30 @@ public:
 		VSOMEIP_INFO << its_message.str();
 
 		if (_response->get_client() == 0) {
-			if ((its_payload->get_length() % 5) == 0)
-				app_->get(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, use_tcp_);
+			if ((its_payload->get_length() % 5) == 0) {
+				std::shared_ptr<vsomeip::message> its_get
+					= vsomeip::runtime::get()->create_request();
+				its_get->set_service(SAMPLE_SERVICE_ID);
+				its_get->set_instance(SAMPLE_INSTANCE_ID);
+				its_get->set_method(SAMPLE_GET_METHOD_ID);
+				app_->send(its_get, true, use_tcp_);
+			}
 
 			if ((its_payload->get_length() % 8) == 0) {
+				std::shared_ptr<vsomeip::message> its_set
+					= vsomeip::runtime::get()->create_request();
+				its_set->set_service(SAMPLE_SERVICE_ID);
+				its_set->set_instance(SAMPLE_INSTANCE_ID);
+				its_set->set_method(SAMPLE_SET_METHOD_ID);
+
 				const vsomeip::byte_t its_data[]
 				    = { 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
 				    	0x48, 0x49, 0x50, 0x51, 0x52 };
-				std::shared_ptr<vsomeip::payload> its_new_payload
+				std::shared_ptr<vsomeip::payload> its_set_payload
 					= vsomeip::runtime::get()->create_payload();
-				its_new_payload->set_data(its_data, sizeof(its_data));
-				app_->set(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_new_payload, use_tcp_);
+				its_set_payload->set_data(its_data, sizeof(its_data));
+				its_set->set_payload(its_set_payload);
+				app_->send(its_set, true, use_tcp_);
 			}
 		}
 	}

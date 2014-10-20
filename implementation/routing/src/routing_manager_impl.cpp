@@ -361,74 +361,6 @@ bool routing_manager_impl::send_local(
 	return _target->send(&its_command[0], its_command.size(),_flush);
 }
 
-bool routing_manager_impl::get(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event, bool _reliable) {
-	bool is_sent(false);
-	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
-	if (its_event) { // local
-		// TODO: bring back the result to the application
-	} else { // remote
-		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, _reliable);
-		if (its_target) {
-			std::shared_ptr<message> its_request = runtime::get()->create_request();
-			if (its_request) {
-				its_request->set_service(_service);
-				its_request->set_instance(_instance);
-				its_request->set_method(_event);
-				its_request->set_client(_client);
-				its_request->set_session(_session);
-
-				std::unique_lock<std::mutex> its_lock(serialize_mutex_);
-				if (serializer_->serialize(its_request.get())) {
-					is_sent = its_target->send(serializer_->get_data(), serializer_->get_size());
-				} else {
-					VSOMEIP_ERROR << "routing_manager_impl::get: serialization error.";
-				}
-				serializer_->reset();
-			}
-		} else {
-			VSOMEIP_ERROR << "routing_manager_impl::get: cannot find endpoint for event.";
-		}
-	}
-	return (is_sent);
-}
-
-bool routing_manager_impl::set(client_t _client, session_t _session,
-		service_t _service, instance_t _instance, event_t _event,
-		const std::shared_ptr<payload> &_payload, bool _reliable) {
-	bool is_set(false);
-	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
-	if (its_event) {
-		its_event->set_payload(_payload);
-		// TODO: somehow bring back the result to the application as set according to SOME/IP is set+get
-		is_set = true;
-	} else {
-		std::shared_ptr<endpoint> its_target = find_remote_client(_service, _instance, _reliable);
-		if (its_target) {
-			std::shared_ptr<message> its_request = runtime::get()->create_request();
-			if (its_request) {
-				its_request->set_service(_service);
-				its_request->set_instance(_instance);
-				its_request->set_method(_event);
-				its_request->set_client(_client);
-				its_request->set_session(_session);
-				its_request->set_payload(_payload);
-
-				std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-				if (serializer_->serialize(its_request.get())) {
-					is_set = its_target->send(serializer_->get_data(), serializer_->get_size());
-				} else {
-					VSOMEIP_ERROR << "routing_manager_impl::set: serialization error.";
-				}
-				serializer_->reset();
-			}
-		} else {
-			VSOMEIP_ERROR << "routing_manager_impl::set: cannot find endpoint for event.";
-		}
-	}
-	return (is_set);
-}
-
 bool routing_manager_impl::send_to(
 		const std::shared_ptr<endpoint_definition> &_target,
 		std::shared_ptr<message> _message) {
@@ -453,9 +385,22 @@ bool routing_manager_impl::send_to(
 	return (its_endpoint && its_endpoint->send_to(_target, _data, _size));
 }
 
+void routing_manager_impl::notify(
+		service_t _service, instance_t _instance, event_t _event,
+		std::shared_ptr<payload> _payload) const {
+	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+	if (its_event) {
+		its_event->set_payload(_payload);
+	} else {
+		VSOMEIP_ERROR << "routing_manager_impl::notify: event ["
+			<< std::hex << _service << "." << _instance << "." << _event
+			<< "] is unknown.";
+	}
+}
+
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 		endpoint *_receiver) {
-#if 1
+#if 0
 	std::stringstream msg;
 	msg << "rmi::on_message: ";
 	for (uint32_t i = 0; i < _size; ++i)
