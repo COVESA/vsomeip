@@ -11,4 +11,9 @@ TODO:
 - define an interface between the vsomeip runtime and the vsomeip configuration. The goal is to
   enable configuration to be done by a configuration file (default) or by an application specific
   (probably generated) code module.  
- 
+
+- update the EA model to match the current implementation
+
+- create unit tests for serialization/deserialization, configuration, message exchange...
+
+- measure runtimes for exchanging local messages / UDP messages / TCP message 
