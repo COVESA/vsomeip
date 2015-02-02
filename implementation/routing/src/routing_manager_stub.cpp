@@ -228,6 +228,9 @@ void routing_manager_stub::on_stop_offer_service(client_t _client,
 			auto found_instance = found_service->second.find(_instance);
 			if (found_instance != found_service->second.end()) {
 				found_service->second.erase(_instance);
+				if (0 == found_service->second.size()) {
+					found_client->second.second.erase(_service);
+				}
 				broadcast_routing_info();
 			}
 		}
