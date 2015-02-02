@@ -294,7 +294,7 @@ void routing_manager_proxy::notify(
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
-	is_connected_ = (_endpoint == sender_);
+	is_connected_ = is_connected_ || (_endpoint == sender_);
 	if (is_connected_ && is_started_) {
 		register_application();
 	}
@@ -309,7 +309,7 @@ void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 
 void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 		endpoint *_receiver) {
-#if 1
+#if 0
 	std::stringstream msg;
 	msg << "rmp::on_message: ";
 	for (int i = 0; i < _size; ++i)
