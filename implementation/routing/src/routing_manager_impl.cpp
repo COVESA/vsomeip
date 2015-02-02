@@ -334,10 +334,14 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 }
 
 bool routing_manager_impl::send_local(
-		std::shared_ptr<endpoint> &_target, client_t _client,
+		std::shared_ptr<endpoint>& _target, client_t _client,
 		const byte_t *_data, uint32_t _size,
 		instance_t _instance,
 		bool _flush, bool _reliable) const {
+
+	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+
+	if (_target) {
 	std::vector<byte_t> its_command(
 			VSOMEIP_COMMAND_HEADER_SIZE + _size + sizeof(instance_t)
 					+ sizeof(bool) + sizeof(bool));
@@ -358,7 +362,10 @@ bool routing_manager_impl::send_local(
 					+ sizeof(instance_t) + sizeof(bool)], &_flush,
 			sizeof(bool));
 
-	return _target->send(&its_command[0], its_command.size(),_flush);
+		return _target->send(&its_command[0], its_command.size(),_flush);
+	}
+
+	return false;
 }
 
 bool routing_manager_impl::send_to(

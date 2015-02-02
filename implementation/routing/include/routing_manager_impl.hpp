@@ -226,7 +226,7 @@ private:
 			std::map<instance_t, std::map<eventgroup_t, std::set<client_t> > > > eventgroup_clients_;
 
 	// Mutexes
-	std::recursive_mutex endpoint_mutex_;
+	mutable std::recursive_mutex endpoint_mutex_;
 	std::mutex serialize_mutex_;
 };
 
