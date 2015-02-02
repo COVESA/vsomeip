@@ -1,4 +1,4 @@
-// Copyright (C) 2014 BMW Group
+// Copyright (C) 2014-2015 BMW Group
 // Author: Lutz Bichler (lutz.bichler@bmw.de)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,6 +6,8 @@
 
 #ifndef VSOMEIP_ERROR_HPP
 #define VSOMEIP_ERROR_HPP
+
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
@@ -16,6 +18,8 @@ enum class error_code_e : uint8_t {
 	SERVER_ENDPOINT_CREATION_FAILED,
 	SERVICE_PROPERTY_MISMATCH
 };
+
+extern const char *ERROR_INFO[];
 
 } // namespace vsomeip
 

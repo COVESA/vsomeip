@@ -288,7 +288,8 @@ void application_impl::on_message(std::shared_ptr<message> _message) {
 }
 
 void application_impl::on_error(error_code_e _error) {
-	std::cerr << "ERROR " << (int) _error << std::endl;
+	VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(_error)]
+	              << " (" << static_cast<int>(_error) << ")";
 }
 
 // Interface "service_discovery_host"
