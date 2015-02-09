@@ -663,8 +663,7 @@ services_t routing_manager_impl::get_offered_services(
 		return (find_servicegroup->second->get_services());
 	}
 
-	return (its_offers);
-}
+	return (its_offers);}
 
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE
@@ -1063,11 +1062,13 @@ void routing_manager_impl::del_routing_info(service_t _service,
 		}
 
 		if (!its_info->get_endpoint(!_reliable)) {
-			its_info->get_group()->remove_service(_service, _instance);
-			if (1 >= services_[_service].size()) {
-				services_.erase(_service);
-			} else {
-				services_[_service].erase(_instance);
+			if (its_info->get_group()) {
+				its_info->get_group()->remove_service(_service, _instance);
+				if (1 >= services_[_service].size()) {
+					services_.erase(_service);
+				} else {
+					services_[_service].erase(_instance);
+				}
 			}
 		} else {
 			its_info->set_endpoint(its_empty_endpoint, _reliable);
