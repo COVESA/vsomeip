@@ -37,10 +37,10 @@ bool endpoint_impl< MaxBufferSize >::is_magic_cookie() const {
 }
 
 template < int MaxBufferSize >
-bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_buffer) {
-	bool is_resynced = false;
+uint32_t endpoint_impl< MaxBufferSize >::find_magic_cookie(message_buffer_t &_buffer) {
+	bool is_found(false);
+	uint32_t its_offset = 0xFFFFFFFF;
 	if (has_enabled_magic_cookies_) {
-		uint32_t its_offset = 0xFFFFFFFF;
 		uint8_t its_cookie_identifier, its_cookie_type;
 
 		if (is_client()) {
@@ -56,9 +56,9 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 		}
 
 		do {
-			 its_offset++;
+			 its_offset++; // --> first loop has "its_offset = 0"
 			 if (_buffer.size() > its_offset + 16) {
-				 is_resynced = (
+				 is_found = (
 						 _buffer[its_offset] == 0xFF &&
 						 _buffer[its_offset+1] == 0xFF &&
 						 _buffer[its_offset+2] == its_cookie_identifier &&
@@ -80,17 +80,10 @@ bool endpoint_impl< MaxBufferSize >::resync_on_magic_cookie(message_buffer_t &_b
 				 break;
 			 }
 
-		} while (!is_resynced);
-
-		if (is_resynced) {
-			_buffer.erase(_buffer.begin(),
-					   	  _buffer.begin() + its_offset +
-								VSOMEIP_SOMEIP_HEADER_SIZE +
-								VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE);
-		}
+		} while (!is_found);
 	}
 
-	return is_resynced;
+	return (is_found ? its_offset : 0xFFFFFFFF);
 }
 
 template < int MaxBufferSize >

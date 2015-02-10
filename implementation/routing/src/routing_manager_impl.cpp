@@ -159,9 +159,9 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
 
 	std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
 	if (its_info) {
-		if ((_major > its_info->get_major())
+		if ((_major < ANY_MAJOR && _major > its_info->get_major())
 				|| (_major == its_info->get_major()
-						&& _minor > its_info->get_minor())
+						&& _minor < ANY_MINOR && _minor > its_info->get_minor())
 				|| (_ttl > its_info->get_ttl())) {
 			host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
 		} else {
@@ -295,7 +295,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 										_data[VSOMEIP_METHOD_POS_MAX]);
 								std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
 								if (its_event) {
-									std::vector< byte_t > its_data();
+									std::vector< byte_t > its_data;
 
 									for (auto its_group : its_event->get_eventgroups()) {
 										// local
@@ -1086,6 +1086,8 @@ void routing_manager_impl::init_routing_info() {
 				i.second);
 
 		if (VSOMEIP_INVALID_PORT != its_reliable) {
+			VSOMEIP_DEBUG << "Initializing route to service ["
+					<< std::hex << i.first << "." << i.second << "]";
 			add_routing_info(i.first, i.second, DEFAULT_MAJOR, DEFAULT_MINOR,
 					DEFAULT_TTL,
 					boost::asio::ip::address::from_string(its_address),

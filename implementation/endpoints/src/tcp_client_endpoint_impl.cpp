@@ -110,7 +110,7 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
 void tcp_client_endpoint_impl::receive_cbk(
 		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-#if 0
+#if 1
 	std::stringstream msg;
 	msg << "cei::rcb (" << _error.message() << "): ";
 	for (std::size_t i = 0; i < _bytes; ++i)
@@ -122,23 +122,34 @@ void tcp_client_endpoint_impl::receive_cbk(
 
 		bool has_full_message;
 		do {
-			uint32_t current_message_size = utility::get_message_size(this->message_);
-			has_full_message = (current_message_size > 0 && current_message_size <= this->message_.size());
+			uint32_t current_message_size = utility::get_message_size(message_);
+			has_full_message = (current_message_size > 0 && current_message_size <= message_.size());
 			if (has_full_message) {
+				bool needs_forwarding(true);
 				if (is_magic_cookie()) {
 					has_enabled_magic_cookies_ = true;
 				} else {
-					host_->on_message(&this->message_[0], current_message_size, this);
+					if (has_enabled_magic_cookies_) {
+						uint32_t its_offset = find_magic_cookie(message_);
+						if (its_offset < current_message_size) {
+							VSOMEIP_ERROR << "Message includes Magic Cookie. Ignoring it.";
+							current_message_size = its_offset;
+							needs_forwarding = false;
+						}
+					}
 				}
-				this->message_.erase(this->message_.begin(), this->message_.begin() + current_message_size);
-			} else if (has_enabled_magic_cookies_ && this->message_.size() > 0){
-				// Note that the following will be done each time a message
-				// is not (yet) completely available. If no magic cookie can
-				// be found, the message data is not touched.
-				has_full_message = resync_on_magic_cookie(message_);
+				if (needs_forwarding)
+					host_->on_message(&message_[0], current_message_size, this);
+				message_.erase(message_.begin(), message_.begin() + current_message_size);
+			} else if (has_enabled_magic_cookies_ && message_.size() > 0){
+				uint32_t its_offset = find_magic_cookie(message_);
+				if (its_offset < message_.size()) {
+					message_.erase(message_.begin(), message_.begin() + its_offset);
+					has_full_message = true; // trigger next loop
+				}
 			} else if (message_.size() > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
 				VSOMEIP_ERROR << "Message exceeds maximum message size. Resetting receiver.";
-				this->message_.clear();
+				message_.clear();
 			}
 		} while (has_full_message);
 		restart();

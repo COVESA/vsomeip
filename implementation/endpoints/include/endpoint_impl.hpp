@@ -49,7 +49,7 @@ public: // required
 
 protected:
 	virtual bool is_magic_cookie() const;
-	bool resync_on_magic_cookie(message_buffer_t &_buffer);
+	uint32_t find_magic_cookie(message_buffer_t &_buffer);
 
 protected:
 	// Reference to service context

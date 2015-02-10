@@ -1,5 +1,5 @@
 {
-	"unicast" : "192.168.56.101",
+	"unicast" : "10.0.2.15",
 	"logging" :
 	{ 
 		"level" : "debug",
@@ -18,14 +18,9 @@
 	[
 		{ 
 			"name" : "default",
-			"unicast" : "local",
 			"delays" :
 			{
-				"initial" : 
-				{ 
-					"minimum" : "10", 
-					"maximum" : 100 
-				},
+				"initial" : { "minimum" : "10", "maximum" : 100 },
 				"repetition-base" : "200",
 				"repetition-max" : "3",
 				"cyclic-offer" : "2000",
@@ -36,7 +31,7 @@
 				{
 					"service" : "0x1234",
 					"instance" : "0x5678",
-					"reliable" : { "port" : "30509", "enable-magic-cookies" : "false" },
+					"reliable" : { "port" : "30509", "magic-cookies" : "false" },
 					"events" : 
 					[
 						{
@@ -72,17 +67,7 @@
 							"events" : [ "0x777", "0x779" ] 
 						}
 					]
-				},
-				{
-					"service" : "0x1235",
-					"instance" : "0x5678",
-					"unreliable" : "30509",
-					"multicast" : 
-					{ 
-						"address" : "224.225.226.234", 
-						"port" : "32344"
-					}
-				}				
+				}
 			]
 		}
 	],
@@ -90,7 +75,7 @@
 	"service-discovery" :
 	{
 		"enable" : "true",
-		"multicast" : "224.244.224.245",
+		"multicast" : "224.0.0.1",
 		"port" : "30490",
 		"protocol" : "udp"
 	}
