@@ -110,7 +110,7 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
 void tcp_client_endpoint_impl::receive_cbk(
 		packet_buffer_ptr_t _buffer,
 		boost::system::error_code const &_error, std::size_t _bytes) {
-#if 1
+#if 0
 	std::stringstream msg;
 	msg << "cei::rcb (" << _error.message() << "): ";
 	for (std::size_t i = 0; i < _bytes; ++i)
