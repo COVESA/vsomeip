@@ -300,7 +300,7 @@ routing_manager * application_impl::get_routing_manager() const {
 // Internal
 void application_impl::service(boost::asio::io_service &_io) {
 	_io.run();
-	VSOMEIP_ERROR << "Service stopped running..." << std::endl;
+	VSOMEIP_INFO << "Application stopped running...";
 }
 
 } // namespace vsomeip
