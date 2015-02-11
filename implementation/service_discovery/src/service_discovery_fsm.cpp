@@ -69,10 +69,10 @@ active::active(my_context _context): sc::state< active, fsm, initial >(_context)
 }
 
 active::~active() {
-	outermost_context().stop_timer();
 }
 
 sc::result active::react(const ev_status_change &_event) {
+	outermost_context().stop_timer();
 	outermost_context().is_up_ = _event.is_up_;
 	if (!outermost_context().is_up_)
 		return transit< inactive >();
