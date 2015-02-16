@@ -71,7 +71,7 @@ public:
 			const byte_t *_data, uint32_t _size);
 
 	void notify(service_t _service, instance_t _instance, event_t _event,
-				std::shared_ptr<payload> _payload) const;
+				std::shared_ptr<payload> _payload);
 
 	void on_connect(std::shared_ptr<endpoint> _endpoint);
 	void on_disconnect(std::shared_ptr<endpoint> _endpoint);
@@ -92,8 +92,6 @@ private:
 	void deregister_application();
 
 	std::shared_ptr<endpoint> create_local(client_t _client);
-	std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
-			event_t _event) const;
 
 	void send_pong() const;
 
@@ -113,9 +111,6 @@ private:
 
 	std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
 	std::map<service_t, std::map<instance_t, client_t> > local_services_;
-
-	std::map<service_t,
-			std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
 
 	std::mutex send_mutex_;
 	std::mutex serialize_mutex_;

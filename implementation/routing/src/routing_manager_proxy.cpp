@@ -282,15 +282,13 @@ bool routing_manager_proxy::send_to(
 
 void routing_manager_proxy::notify(
 		service_t _service, instance_t _instance, event_t _event,
-		std::shared_ptr<payload> _payload) const {
-	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
-	if (its_event) {
-		its_event->set_payload(_payload);
-	} else {
-		VSOMEIP_ERROR << "routing_manager_proxy::notify: event ["
-			<< std::hex << _service << "." << _instance << "." << _event
-			<< "] is unknown.";
-	}
+		std::shared_ptr<payload> _payload) {
+	std::shared_ptr<message> its_notification = runtime::get()->create_notification();
+	its_notification->set_service(_service);
+	its_notification->set_instance(_instance);
+	its_notification->set_method(_event);
+	its_notification->set_payload(_payload);
+	send(VSOMEIP_ROUTING_CLIENT, its_notification, true, true);
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -552,22 +550,6 @@ std::shared_ptr<endpoint> routing_manager_proxy::find_local(service_t _service,
 		}
 	}
 	return (find_local(its_client));
-}
-
-std::shared_ptr<event> routing_manager_proxy::find_event(service_t _service,
-		instance_t _instance, event_t _event) const {
-	std::shared_ptr<event> its_event;
-	auto find_service = events_.find(_service);
-	if (find_service != events_.end()) {
-		auto find_instance = find_service->second.find(_instance);
-		if (find_instance != find_service->second.end()) {
-			auto find_event = find_instance->second.find(_event);
-			if (find_event != find_instance->second.end()) {
-				its_event = find_event->second;
-			}
-		}
-	}
-	return (its_event);
 }
 
 void routing_manager_proxy::send_pong() const {

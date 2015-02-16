@@ -68,7 +68,7 @@ public:
 			const byte_t *_data, uint32_t _size) = 0;
 
 	virtual void notify(service_t _service, instance_t _instance, event_t _event,
-						std::shared_ptr<payload> _payload) const = 0;
+						std::shared_ptr<payload> _payload) = 0;
 
 	virtual bool is_available(service_t _service,
 			instance_t _instance) const = 0;

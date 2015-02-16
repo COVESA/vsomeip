@@ -95,7 +95,7 @@ public:
 			const byte_t *_data, uint32_t _size);
 
 	void notify(service_t _service, instance_t _instance, event_t _event,
-				std::shared_ptr<payload> _payload) const;
+				std::shared_ptr<payload> _payload);
 
 	bool is_available(service_t _service, instance_t _instance) const;
 

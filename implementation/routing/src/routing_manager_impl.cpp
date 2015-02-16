@@ -377,7 +377,7 @@ bool routing_manager_impl::send_to(
 
 void routing_manager_impl::notify(
 		service_t _service, instance_t _instance, event_t _event,
-		std::shared_ptr<payload> _payload) const {
+		std::shared_ptr<payload> _payload) {
 	std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
 	if (its_event) {
 		its_event->set_payload(_payload);
