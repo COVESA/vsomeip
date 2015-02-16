@@ -295,8 +295,9 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 // Internal
-void application_impl::service(boost::asio::io_service &_io) {
-	_io.run();
+void application_impl::service() {
+	io_.run();
+	std::cout << "Behind io.run()" << std::endl;
 }
 
 } // namespace vsomeip
