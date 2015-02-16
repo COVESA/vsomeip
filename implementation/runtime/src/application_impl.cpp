@@ -21,7 +21,7 @@
 namespace vsomeip {
 
 application_impl::application_impl(const std::string &_name) :
-		name_(_name), routing_(0), signals_(host_io_, SIGINT, SIGTERM) {
+		name_(_name), routing_(0), signals_(io_, SIGINT, SIGTERM) {
 }
 
 application_impl::~application_impl() {
@@ -103,17 +103,14 @@ void application_impl::start() {
 	if (routing_)
 		routing_->start();
 
-	// start the threads that process the io service queues
-	std::thread its_host_thread(
-			std::bind(&application_impl::service, this, std::ref(host_io_)));
-	its_host_thread.join();
+	io_.run();
 }
 
 void application_impl::stop() {
 	if (routing_)
 		routing_->stop();
 
-	host_io_.stop();
+	io_.stop();
 }
 
 void application_impl::offer_service(service_t _service, instance_t _instance,
@@ -240,7 +237,7 @@ std::shared_ptr<configuration> application_impl::get_configuration() const {
 }
 
 boost::asio::io_service & application_impl::get_io() {
-	return host_io_;
+	return io_;
 }
 
 void application_impl::on_event(event_type_e _event) {
@@ -300,7 +297,6 @@ routing_manager * application_impl::get_routing_manager() const {
 // Internal
 void application_impl::service(boost::asio::io_service &_io) {
 	_io.run();
-	VSOMEIP_INFO << "Application stopped running...";
 }
 
 } // namespace vsomeip

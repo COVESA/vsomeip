@@ -86,7 +86,7 @@ public:
 	routing_manager * get_routing_manager() const;
 
 private:
-	void service(boost::asio::io_service &_io);
+	void service();
 	inline void update_session() {
 		session_++;
 		if (0 == session_) {
@@ -101,7 +101,7 @@ private:
 	std::string name_;
 	std::shared_ptr<configuration> configuration_;
 
-	boost::asio::io_service host_io_;
+	boost::asio::io_service io_;
 
 	// Proxy to or the Routing Manager itself
 	std::shared_ptr<routing_manager> routing_;
