@@ -33,14 +33,15 @@ routing_manager_stub::~routing_manager_stub() {
 
 void routing_manager_stub::init() {
 	std::stringstream its_endpoint_path;
-	its_endpoint_path << base_path << VSOMEIP_ROUTING_CLIENT;
-	::unlink(its_endpoint_path.str().c_str());
+	its_endpoint_path << BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	endpoint_path_ = its_endpoint_path.str();
+	::unlink(endpoint_path_.c_str());
 
-	VSOMEIP_DEBUG << "Routing endpoint at " << its_endpoint_path.str();
+	VSOMEIP_DEBUG << "Routing endpoint at " << endpoint_path_;
 	endpoint_ =
 			std::make_shared < local_server_endpoint_impl
 					> (shared_from_this(), boost::asio::local::stream_protocol::endpoint(
-							its_endpoint_path.str()), io_);
+							endpoint_path_), io_);
 }
 
 void routing_manager_stub::start() {
@@ -54,9 +55,7 @@ void routing_manager_stub::stop() {
 	watchdog_timer_.cancel();
 	endpoint_->stop();
 
-	std::stringstream its_endpoint_path;
-	its_endpoint_path << base_path << VSOMEIP_ROUTING_CLIENT;
-	::unlink(its_endpoint_path.str().c_str());
+	::unlink(endpoint_path_.c_str());
 }
 
 void routing_manager_stub::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -105,9 +104,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 		if (its_size <= _size - VSOMEIP_COMMAND_HEADER_SIZE) {
 			switch (its_command) {
 			case VSOMEIP_REGISTER_APPLICATION:
-				(void)host_->find_or_create_local(its_client);
-				routing_info_[its_client].first = 0;
-				broadcast_routing_info();
+				on_register_application(its_client);
 				VSOMEIP_DEBUG << "Application/Client "
 						<< std::hex << std::setw(4) << std::setfill('0')
 						<< its_client << " got registered!";
@@ -194,16 +191,19 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 }
 
 void routing_manager_stub::on_register_application(client_t _client) {
-
+	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+	(void)host_->find_or_create_local(_client);
+	routing_info_[_client].first = 0;
+	broadcast_routing_info();
 }
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
+	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
 	auto its_info = routing_info_.find(_client);
 	if (its_info != routing_info_.end()) {
 		for (auto &its_service : its_info->second.second) {
 			for (auto &its_instance : its_service.second) {
-				host_->stop_offer_service(_client, its_service.first,
-						its_instance);
+				host_->on_stop_offer_service(its_service.first, its_instance);
 			}
 		}
 	}
@@ -215,12 +215,14 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 
 void routing_manager_stub::on_offer_service(client_t _client,
 		service_t _service, instance_t _instance) {
+	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
 	routing_info_[_client].second[_service].insert(_instance);
 	broadcast_routing_info();
 }
 
 void routing_manager_stub::on_stop_offer_service(client_t _client,
 		service_t _service, instance_t _instance) {
+	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
 	auto found_client = routing_info_.find(_client);
 	if (found_client != routing_info_.end()) {
 		auto found_service = found_client->second.second.find(_service);
@@ -308,6 +310,7 @@ void routing_manager_stub::broadcast_routing_info() {
 }
 
 void routing_manager_stub::broadcast(std::vector<byte_t> &_command) const {
+	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
 	for (auto a : routing_info_) {
 		if (a.first > 0) {
 			std::shared_ptr<endpoint> its_endpoint

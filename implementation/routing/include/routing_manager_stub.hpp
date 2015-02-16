@@ -1,4 +1,4 @@
-// Copyright (C) 2014 BMW Group
+// Copyright (C) 2014-2015 BMW Group
 // Author: Lutz Bichler (lutz.bichler@bmw.de)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,6 +10,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 
 #include <boost/asio/io_service.hpp>
@@ -26,13 +27,11 @@ class routing_manager_stub:
 		public std::enable_shared_from_this< routing_manager_stub > {
 public:
 	routing_manager_stub(routing_manager_stub_host *_host);
-	~routing_manager_stub();
+	virtual ~routing_manager_stub();
 
 	void init();
 	void start();
 	void stop();
-
-	//routing_manager * get_manager();
 
 	void on_connect(std::shared_ptr< endpoint > _endpoint);
 	void on_disconnect(std::shared_ptr< endpoint > _endpoint);
@@ -61,11 +60,15 @@ private:
 	boost::asio::system_timer watchdog_timer_;
 
 	routing_manager_stub_host *host_;
+
+	std::string endpoint_path_;
 	std::shared_ptr< endpoint > endpoint_;
+
 	std::map< client_t,
 			  std::pair< uint8_t,
 			     	     std::map< service_t,
 			     	     	 	   std::set< instance_t > > > > routing_info_;
+	mutable std::mutex routing_info_mutex_;
 };
 
 } // namespace vsomeip

@@ -57,7 +57,7 @@ void routing_manager_proxy::init() {
 	sender_ = create_local(VSOMEIP_ROUTING_CLIENT);
 
 	std::stringstream its_client;
-	its_client << base_path << std::hex << client_;
+	its_client << BASE_PATH << std::hex << client_;
 
 	::unlink(its_client.str().c_str());
 	receiver_ = std::make_shared<local_server_endpoint_impl>(shared_from_this(),
@@ -88,7 +88,7 @@ void routing_manager_proxy::stop() {
 		receiver_->stop();
 
 	std::stringstream its_client;
-	its_client << base_path << std::hex << client_;
+	its_client << BASE_PATH << std::hex << client_;
 	::unlink(its_client.str().c_str());
 
 	is_started_ = false;
@@ -510,7 +510,7 @@ std::shared_ptr<endpoint> routing_manager_proxy::find_local(client_t _client) {
 std::shared_ptr<endpoint> routing_manager_proxy::create_local(
 		client_t _client) {
 	std::stringstream its_path;
-	its_path << base_path << std::hex << _client;
+	its_path << BASE_PATH << std::hex << _client;
 
 	VSOMEIP_DEBUG<< "Connecting to ["
 			<< std::hex << _client << "] at " << its_path.str();

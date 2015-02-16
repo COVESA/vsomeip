@@ -106,6 +106,7 @@ public:
 	void remove_local(client_t _client);
 	std::shared_ptr<endpoint> find_local(service_t _service,
 			instance_t _instance);
+	void on_stop_offer_service(service_t _service, instance_t _instance);
 
 	// interface "endpoint_host"
 	std::shared_ptr<endpoint> find_remote_client(service_t _service,

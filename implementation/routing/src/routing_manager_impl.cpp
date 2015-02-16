@@ -132,25 +132,8 @@ void routing_manager_impl::offer_service(client_t _client, service_t _service,
 
 void routing_manager_impl::stop_offer_service(client_t _client,
 		service_t _service, instance_t _instance) {
-
-	host_->on_availability(_service, _instance, false);
+	on_stop_offer_service(_service, _instance);
 	stub_->on_stop_offer_service(_client, _service, _instance);
-
-	if (discovery_) {
-		auto found_service = services_.find(_service);
-		if (found_service != services_.end()) {
-			auto found_instance = found_service->second.find(_instance);
-			if (found_instance != found_service->second.end()) {
-				found_instance->second->set_ttl(0);
-				discovery_->on_offer_change(
-						found_instance->second->get_group()->get_name());
-			}
-		}
-	} else {
-		// TODO: allow to withdraw a service on one endpoint only
-		del_routing_info(_service, _instance, false);
-		del_routing_info(_service, _instance, true);
-	}
 }
 
 void routing_manager_impl::request_service(client_t _client, service_t _service,
@@ -546,6 +529,27 @@ void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 	}
 }
 
+void routing_manager_impl::on_stop_offer_service(service_t _service,
+		instance_t _instance) {
+	host_->on_availability(_service, _instance, false);
+
+	if (discovery_) {
+		auto found_service = services_.find(_service);
+		if (found_service != services_.end()) {
+			auto found_instance = found_service->second.find(_instance);
+			if (found_instance != found_service->second.end()) {
+				found_instance->second->set_ttl(0);
+				discovery_->on_offer_change(
+						found_instance->second->get_group()->get_name());
+			}
+		}
+	} else {
+		// TODO: allow to withdraw a service on one endpoint only
+		del_routing_info(_service, _instance, false);
+		del_routing_info(_service, _instance, true);
+	}
+}
+
 bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
 		instance_t _instance) {
 	bool is_sent(false);
@@ -875,7 +879,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_local(client_t _client) {
 	std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
 
 	std::stringstream its_path;
-	its_path << base_path << std::hex << _client;
+	its_path << BASE_PATH << std::hex << _client;
 
 	std::shared_ptr<endpoint> its_endpoint = std::make_shared<
 			local_client_endpoint_impl>(shared_from_this(),

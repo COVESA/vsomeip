@@ -39,6 +39,9 @@ public:
 	virtual void on_message(service_t _service, instance_t _instance,
 			const byte_t *_data, length_t _size) = 0;
 
+	virtual void on_stop_offer_service(service_t _service,
+			instance_t _instance) = 0;
+
 	virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
 	virtual std::shared_ptr<endpoint> find_local(service_t _service,
 			instance_t _instance) = 0;
