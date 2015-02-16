@@ -14,7 +14,7 @@
 
 namespace vsomeip {
 
-const std::string base_path = "/tmp/vsomeip-";
+const std::string BASE_PATH = "/tmp/vsomeip-";
 
 const major_version_t DEFAULT_MAJOR = 0x01;
 const minor_version_t DEFAULT_MINOR = 0x000000;
