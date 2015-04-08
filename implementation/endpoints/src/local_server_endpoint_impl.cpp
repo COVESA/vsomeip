@@ -199,7 +199,8 @@ void local_server_endpoint_impl::connection::receive_cbk(
 				message_.erase(message_.begin(), message_.begin() + its_end + 4);
 				its_start = -1;
 			}
-		} while (message_.size() > 0 && its_start == -1);
+
+		} while (message_.size() > 8 && its_start == -1); // start tag + end tag --> 8 Byte
 	}
 
 	if (_error == boost::asio::error::misc_errors::eof) {
