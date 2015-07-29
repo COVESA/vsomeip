@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,8 +8,8 @@
 
 namespace vsomeip {
 
-servicegroup::servicegroup(const std::string &_name)
-	: name_(_name) {
+servicegroup::servicegroup(const std::string &_name, bool _is_local)
+	: name_(_name), is_local_(_is_local) {
 }
 
 servicegroup::~servicegroup() {
@@ -18,6 +17,10 @@ servicegroup::~servicegroup() {
 
 std::string servicegroup::get_name() const {
 	return name_;
+}
+
+bool servicegroup::is_local() const {
+    return is_local_;
 }
 
 bool servicegroup::add_service(

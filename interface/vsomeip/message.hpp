@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,13 +14,13 @@ namespace vsomeip {
 
 class payload;
 
-class message
-		: virtual public message_base {
+class message: virtual public message_base {
 public:
-	virtual ~message() {};
+    virtual ~message() {
+    }
 
-	virtual std::shared_ptr< payload > get_payload() const = 0;
-	virtual void set_payload(std::shared_ptr< payload > _payload) = 0;
+    virtual std::shared_ptr<payload> get_payload() const = 0;
+    virtual void set_payload(std::shared_ptr<payload> _payload) = 0;
 };
 
 } // namespace vsomeip

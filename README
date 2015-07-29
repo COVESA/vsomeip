@@ -1,0 +1,657 @@
+vsomeip
+=======
+// This enables a nice TOC as a sidebar
+:toc2:
+// Show all headings in TOC
+:toclevels: 4
+// Show icons if e.g. TIP: or IMPORTANT is used
+:icons:
+// Set the directory where the default icons can be found
+:iconsdir: {asciidoc-confdir}/{iconsdir}
+// number all headings
+:numbered:
+// this embeds images (e.g. the icons for TIP: $TEXT) into the html file
+:data-uri:
+
+Copyright
++++++++++
+Copyright (C) 2015, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+
+License
++++++++
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Version
++++++++
+// set the version to the one we get from cmake
+// or pass it via -a version=$VSOMEIP_VERSION to asciidoc
+This documentation was generated for version {version} of vsomeip.
+
+vsomeip Overview
+----------------
+The vsomeip stack implements the http://some-ip.com/[Scalable service-Oriented
+MiddlewarE over IP (SOME/IP)] protocol. The stack consists out of:
+
+* a shared library for SOME/IP (`libvsomeip.so`)
+* a second shared library for SOME/IP's service discovery (`libvsomeip-sd.so`)
+  which is loaded during runtime if the service discovery is enabled.
+
+Build Instructions
+------------------
+Dependencies
+~~~~~~~~~~~~
+* A C++11 enabled compiler like gcc >= 4.8 is needed.
+* vsomeip uses cmake as buildsystem.
+* vsomeip uses Boost >= 1.54:
+** Ubuntu 14.04:
+*** `sudo apt-get install libboost-system1.54-dev libboost-thread1.54-dev
+    libboost-log1.54-dev`
+** Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
+*** URL: https://launchpad.net/~boost-latest/+archive/ubuntu/ppa
+*** `sudo add-apt-repository ppa:boost-latest/ppa`
+*** `sudo apt-get install libboost-system1.54-dev libboost-thread1.54-dev
+    libboost-log1.54-dev`
+* For the tests Google's test framework
+  https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed
+** URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip[direct link,
+   version 1.7.0]
+* To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
+** `sudo apt-get install asciidoc source-highlight doxygen graphviz`
+
+Compilation
+~~~~~~~~~~~
+anchor:Compilation[]
+For compilation call:
+[source, bash]
+----
+mkdir build
+cd build
+cmake ..
+make -j8
+----
+
+To specify a installation directory (like `--prefix=` if you're used to
+autotools) call cmake like:
+[source, bash]
+----
+cmake -DCMAKE_INSTALL_PREFIX:PATH=$YOUR_PATH ..
+make -j8
+make install
+----
+
+Compilation of tests
+^^^^^^^^^^^^^^^^^^^^
+To compile the tests, first unzip gtest to location of your desire. Then run:
+[source, bash]
+----
+mkdir build
+cd build
+export GTEST_ROOT=$PATH_TO_GTEST/gtest-1.7.0/
+cmake ..
+make check
+----
+
+Additional make targets for the tests:
+
+* Call `make build_tests` to only compile the tests
+* Call `ctest` in the build directory to execute the tests without a verbose
+  output
+* To run single tests call `ctest --verbose --tests-regex $TESTNAME` short
+  form: `ctest -V -R $TESTNAME`
+* To list all available tests run `ctest -N`.
+* For further information about the tests please have a look at the
+  `readme.txt` in the `test` subdirectory.
+
+Generating the documentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To generate the documentation call cmake as described in <<Compilation>> and
+then call `make doc`.
+This will generate:
+
+* The README file in html: `$BUILDDIR/documentation/README.html`
+* A doxygen documentation in `$BUILDDIR/documentation/html/index.html`
+
+Starting vsomeip Applications / Used environment variables
+----------------------------------------------------------
+On startup the following environment variables are read out:
+
+* `VSOMEIP_APPLICATION_NAME`: This environment variable is used to specify the
+  name of the application. This name is later used to map a client id to the
+  application in the configuration file. It is independent from the
+  application's binary name.
+* `VSOMEIP_CONFIGURATION_FILE`: This environment variable can be used to specify
+  a configuration file to be used by the application. If this variable is not
+  defined the default configuration file `/etc/vsomeip.json` will be used.
+
+In the following example the application `my_vsomeip_application` is started.
+The settings are read from the file `my_settings.json` in the current working
+directory. The client id for the application can be found under the name
+`my_vsomeip_client` in the configuration file.
+
+[source, bash]
+----
+#!/bin/bash
+export VSOMEIP_APPLICATION_NAME=my_vsomeip_client
+export VSOMEIP_CONFIGURATION_FILE=my_settings.json
+./my_vsomeip_application
+----
+
+Configuration File Structure
+----------------------------
+The configuration files for vsomeip are http://www.json.org/[JSON]-Files and are
+composed out of multiple key value pairs and arrays.
+
+[quote, , json.org]
+____
+* An object is an unordered set of name/value pairs. An object begins with `{
+(left brace)` and ends with `} (right brace)`. Each name is followed by `:
+(colon)` and the name/value pairs are separated by `, (comma)`.
+
+* An array is an ordered collection of values. An array begins with `[ (left
+bracket)` and ends with `] (right bracket)`. Values are separated by `,
+(comma)`.
+
+* A value can be a _string_ in double quotes, or a _number_, or `true` or `false`
+or `null`, or an _object_ or an _array_. These structures can be nested.
+____
+
+Configuration file element explanation:
+
+
+* 'unicast'
++
+The IP address of the host system.
++
+* 'netmask'
++
+The netmask to specify the subnet of the host system.
++
+//Logging
+* 'logging'
++
+** 'level'
++
+Specifies the log level (valid values: _trace_, _debug_, _info_, _warning_,
+_error_, _fatal_).
++
+** 'console'
++
+Specifies whether logging via console is enabled (valid values: _true, false_).
++
+** 'file'
++
+*** 'enable'
++
+Specifies whether a log file should be created (valid values: _true, false_).
++
+*** 'path'
++
+The absolute path of the log file.
++
+** 'dlt'
++
+Specifies whether Diagnostic Log and Trace (DLT) is enabled (valid values:
+_true, false_).
++
+//Applications
+* 'applications (array)'
++
+Contains the applications of the host system that use this config file.
++
+** 'name'
++
+The name of the application.
++
+** 'id'
++
+The id of the application.
++
+** 'num_dispatchers'
++
+The number of threads that shall be used to execute the callbacks to the application.
+If 'num_dispatchers' is set to '0', the callbacks will be executed within the 
+application thread. If an application wants/must do time consuming work directly
+within event, availability or message callbacks, 'num_dispatchers' should be set
+to '2' or higher.
++
+//Service groups
+* 'servicegroups (array)'
++
+Services can be grouped together into one service group. A service group
+contains the services of a specific service provider and its connection
+information.
++
+NOTE: It is also possible to define multiple service groups to address services
+from different service providers.
++
+** 'name'
++
+The name of the service group.
++
+** 'unicast'
++
+The IP address of the service provider (valid values: _local_ if the service
+provider is the local host otherwise the _valid IP address_ of the remote
+service provider).
++
+** 'delays'
++
+Contains delays related to the Service Discovery respectively to the service
+instances.
++
+NOTE: The multicast messages of the Service Discovery come with the risk of
+overflowing the net with too many messages. Therefore, the Service Discovery can
+be configured with a suitable message sending behavior.
+
+*** 'initial'
++
+NOTE: A Service instance goes through different phases. One phase is called
+Initial Wait Phase. This phase is entered when the service is fully available
+and waits for the messages of a client's Service Discovery.
+
+**** 'minimum'
++
+Specifies the minimum time during which the messages of a client's Service
+Discovery will be ignored (value in milliseconds).
+
+**** 'maximum'
++
+Specifies the maximum time during which the messages of a client's Service
+Discovery will be ignored (value in milliseconds).
+
+*** `repetition-base`
++
+NOTE: On condition that the initial delay is over, the Repetition Phase is
+entered. In this phase the services will be offered repeatedly via multicast by
+the Service Discovery of the service provider.
++
+The repetition base delay specifies the time after that the first offer will be
+started to send (value in milliseconds).
+
+*** `repetition-max`
++
+Specifies the amount of sent offers within the repetition phase.
+
+*** `cyclic-offer`
++
+NOTE: After the specific amount of repetitions, the Main Phase is entered. In
+the Main Phase the Service Discovery of the service provider starts with a
+cyclic offer of the services.
++
+The cyclic offer specifies the interval in which the services will be offered
+via multicast (value in milliseconds).
+
+*** `cyclic-request`
++
+Specifies the cyclic-request-delay. Currently unused.
+
+** `services` (array)
++
+Contains the services of the service provider.
+
+*** `service`
++
+The id of the service.
+
+*** `instance`
++
+The id of the service instance.
+
+*** `reliable`
++
+Specifies that the communication with the service is reliable respectively the
+TCP protocol is used for communication.
+
+**** `port`
++
+The port of the TCP endpoint.
+
+**** `enable-magic-cookies`
++
+Specifies whether magic cookies are enabled (valid values: _true_, _false_).
+
+*** `unreliable`
++
+Specifies that the communication with the service is unreliable respectively the
+UDP protocol is used for communication (valid values: the _port_ of the UDP
+endpoint).
+
+*** `multicast`
++
+A service can be offered to a specific group of clients via multicast.
+
+**** `address`
++
+The specific multicast address.
+
+**** `port`
++
+The specific port.
+
+*** `events` (array)
++
+Contains the events of the service.
+
+**** `event`
++
+The id of the event.
+
+***** `is_field`
++
+Specifies whether the event is of type field.
++
+NOTE: A field is a combination of getter, setter and notification event. It
+contains at least a getter, a setter, or a notifier. The notifier sends an event
+message that transports the current value of a field on change.
+
+***** `is_reliable`
++
+Specifies whether the communication is reliable respectively whether the event
+is sent with the TCP protocol (valid values: _true_,_false_).
++
+If the value is _false_ the UDP protocol will be used.
+
+*** `eventgroups` (array)
++
+Events can be grouped together into on event group. For a client it is thus
+possible to subscribe for an event group and to receive the appropriate events
+within the group.
+
+**** `eventgroup`
++
+The id of the event group.
+
+**** `events` (array)
++
+Contains the ids of the appropriate events.
+
+**** `is_multicast`
++
+Specifies whether the events should be sent via multicast (valid values:
+_true_,_false_).
+
+**** `multicast`
++
+The multicast address which the events are sent to.
+
+* `routing`
++
+The name of the application that is responsible for the routing.
+
+* `service-discovery`
++
+Contains settings related to the Service Discovery of the host application.
+
+** `enable`
++
+Specifies whether the Service Discovery is enabled ( valid values: _true_,
+_false_).
+
+** `multicast`
++
+The multicast address which the messages of the Service Discovery will be sent
+to.
+
+** `port`
++
+The port of the Service Discovery.
+
+** `protocol`
++
+The protocol that is used for sending the Service Discovery messages (valid
+values: _tcp_,_udp_)
+
+vsomeip Hello World
+-------------------
+In this paragraph a Hello World program consisting out of a client and a service
+is developed. The client sends a message containing a string to the service.
+The service appends the received string to the string `Hello` and sends it back
+to the client.
+Upon receiving a response from the service the client prints the payload of the
+response ("Hello World").
+This example is intended to be run on the same host.
+
+All files listed here are contained in the `examples\hello_world` subdirectory.
+
+Build instructions
+~~~~~~~~~~~~~~~~~~
+The example can build with its own CMakeFile, please compile the vsomeip stack
+before hand as described in <<Compilation>>. Then compile the example starting
+from the repository root directory as followed:
+[source, bash]
+----
+cd examples/hello_world
+mkdir build
+cd build
+cmake ..
+make
+----
+
+Starting and expected output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Starting and expected output of service
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[source, bash]
+----
+$ VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+  VSOMEIP_APPLICATION_NAME=hello_world_service \
+  ./hello_world_service
+2015-04-01 11:31:13.248437 [info] Using configuration file: ../helloworld-local.json
+2015-04-01 11:31:13.248766 [debug] Routing endpoint at /tmp/vsomeip-0
+2015-04-01 11:31:13.248913 [info] Service Discovery disabled. Using static routing information.
+2015-04-01 11:31:13.248979 [debug] Application(hello_world_service, 4444) is initialized.
+2015-04-01 11:31:22.705010 [debug] Application/Client 5555 got registered!
+----
+
+Starting and expected output of client
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[source, bash]
+----
+$ VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+  VSOMEIP_APPLICATION_NAME=hello_world_client \
+  ./hello_world_client
+2015-04-01 11:31:22.704166 [info] Using configuration file: ../helloworld-local.json
+2015-04-01 11:31:22.704417 [debug] Connecting to [0] at /tmp/vsomeip-0
+2015-04-01 11:31:22.704630 [debug] Listening at /tmp/vsomeip-5555
+2015-04-01 11:31:22.704680 [debug] Application(hello_world_client, 5555) is initialized.
+Sending: World
+Received: Hello World
+----
+
+CMakeFile
+~~~~~~~~~
+
+[source, bash]
+----
+include::examples/hello_world/CMakeLists.txt[]
+----
+
+Configuration File For Client and Service
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[source, bash]
+----
+include::examples/hello_world/helloworld-local.json[]
+----
+
+Service
+~~~~~~~
+
+[source, bash]
+----
+include::examples/hello_world/hello_world_service.cpp[]
+----
+
+The service example results in the following program execution:
+
+:numbered!:
+
+[float]
+
+Main
+^^^^^
+
+. __main()__ (line 101-107)
++
+First the application is initialized (line 104). After the initialization is
+finished the application is started (line 105).
+
+[float]
+Initialization
+^^^^^^^^^^^^^^
+
+[start=2]
+. __init()__ (line 26-42)
++
+The initialization contains the registration of a message
+handler and an event handler.
++
+The message handler declares a callback (__on_message_cbk__) for messages that
+are sent to the specific service (specifying the service id, the service
+instance id and the service method id).
++
+The event handler declares a callback (__on_event_cbk__) for events that occur.
+One event can be the successful registration of the application at the runtime.
+
+[float]
+Start
+^^^^^
+
+[start=3]
+. __start()__ (line 44-49)
++
+The application will be started. This function only returns when the application
+will be stopped.
+
+[float]
+Callbacks
+^^^^^^^^^
+
+[start=4]
+. __on_event_cbk()__ (line 64-71)
++
+This function is called by the application when an event occurred.
+If the event is related to the successful registration of the
+application at the runtime then the specific service is offered.
+
+. __on_message_cbk()__ (line 73-94)
++
+This function is called when a message/request
+from a client for the specified service was received.
++
+First a response based upon the request is created (line 76).
+Afterwards the string 'Hello' will be concatenated with the payload of the
+client's request (line 80-82).
+After that the payload of the response is created (line 85). The payload data
+is set with the previously concatenated string (line 87).
+Finally the response is sent back to the client (line 91) and the
+application is stopped (line 93).
+
+[float]
+Stop
+^^^^
+
+[start=6]
+. __stop()__ (line 51-62)
++
+This function stops offering the service (line 54),
+unregister the message and the event handler (line 56-59) and shuts down the
+application (line 61).
+
+:numbered:
+
+Client
+~~~~~~
+[source, bash]
+----
+include::examples/hello_world/hello_world_client.cpp[]
+----
+
+The client example results in the following program execution:
+
+:numbered!:
+
+[float]
+Main
+^^^^^
+
+. __main()__ (line 130-136)
++
+First the application is initialized (line 133). After the initialization is
+finished the application is started (line 134).
+
+[float]
+Initialization
+^^^^^^^^^^^^^^
+
+[start=2]
+. __init()__ (line 27-48)
++
+The initialization contains the registration of a message handler, an event
+handler and an availability handler.
++
+The event handler declares again a callback (__on_event_cbk__) for events that
+occur.
++
+The message handler declares a callback (__on_message_cbk__) for messages that
+are received from any service, any service instance and any method.
++
+The availability handler declares a callback (__on_availability_cbk__) which is
+called when the specific service is available (specifying the service id and the
+service instance id).
+
+[float]
+Start
+^^^^^
+
+[start=3]
+. __start()__ (line 50-55)
++
+The application will be started. This function only returns when the application
+will be stopped.
+
+[float]
+Callbacks
+^^^^^^^^^
+
+[start=4]
+. __on_event_cbk()__ (line 57-65)
++
+This function is called by the application when an event occurred.
+If the event is related to the successful registration of the
+application at the runtime then the specific service is requested.
+
+. __on_availability_cbk()__ (line 67-94)
++
+This function is called when the requested service is available or no longer
+available.
++
+First there is a check if the change of the availability is related to the
+'hello world service' and the availability changed to true.
+If the check is successful a service request is created and the appropriate
+service information are set (service id, service instance id,
+service method id) (line 76-80). After that the payload of the request is
+created (line 83). The data of the payload is 'World' and will be set afterwards
+(line 84-87). Finally the request is sent to the service.
+
+. __on_message_cbk()__ (line 73-94)
++
+This function is called when a message/response was received.
+If the response is from the requested service, of type
+'RESPONSE' and the return code is 'OK' (line 98-103) then the payload of the
+response is printed (line 105-109). Finally the application is stopped.
+
+[float]
+Stop
+^^^^
+
+[start=7]
+. __stop()__ (line 114-123)
++
+This function unregister the event and the message handler (line 117-120) and
+shuts down the application (line 122).
+
+:numbered:

@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +6,7 @@
 #ifndef VSOMEIP_PAYLOAD_IMPL_HPP
 #define VSOMEIP_PAYLOAD_IMPL_HPP
 
+#include <vsomeip/export.hpp>
 #include <vsomeip/payload.hpp>
 
 namespace vsomeip {
@@ -16,28 +16,28 @@ class deserializer;
 
 class payload_impl: public payload {
 public:
-	payload_impl();
-	payload_impl(const byte_t *_data, uint32_t _size);
-	payload_impl(const std::vector< byte_t > &_value);
-	payload_impl(const payload_impl& _payload);
-	virtual ~payload_impl();
+    VSOMEIP_EXPORT payload_impl();
+    VSOMEIP_EXPORT payload_impl(const byte_t *_data, uint32_t _size);
+    VSOMEIP_EXPORT payload_impl(const std::vector< byte_t > &_value);
+    VSOMEIP_EXPORT payload_impl(const payload_impl& _payload);
+    VSOMEIP_EXPORT virtual ~payload_impl();
 
-	bool operator == (const payload &_other);
+    VSOMEIP_EXPORT bool operator == (const payload &_other);
 
-	byte_t * get_data();
-	const byte_t * get_data() const;
-	length_t get_length() const;
+    VSOMEIP_EXPORT byte_t * get_data();
+    VSOMEIP_EXPORT const byte_t * get_data() const;
+    VSOMEIP_EXPORT length_t get_length() const;
 
-	void set_capacity(length_t _capacity);
+    VSOMEIP_EXPORT void set_capacity(length_t _capacity);
 
-	void set_data(const byte_t *_data, length_t _length);
-	void set_data(const std::vector< byte_t > &_data);
+    VSOMEIP_EXPORT void set_data(const byte_t *_data, length_t _length);
+    VSOMEIP_EXPORT void set_data(const std::vector< byte_t > &_data);
 
-	bool serialize(serializer *_to) const;
-	bool deserialize(deserializer *_from);
+    VSOMEIP_EXPORT bool serialize(serializer *_to) const;
+    VSOMEIP_EXPORT bool deserialize(deserializer *_from);
 
 private:
-	std::vector< byte_t > data_;
+    std::vector<byte_t> data_;
 };
 
 } // namespace vsomeip

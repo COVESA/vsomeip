@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,7 +54,7 @@ public:
 		}
 	}
 
-	void on_message(std::shared_ptr<vsomeip::message> &_response) {
+	void on_message(const std::shared_ptr<vsomeip::message> &_response) {
 		std::stringstream its_message;
 		its_message << "Received a notification for Event [" << std::setw(4)
 				<< std::setfill('0') << std::hex << _response->get_service()
@@ -80,7 +79,8 @@ public:
 				its_get->set_service(SAMPLE_SERVICE_ID);
 				its_get->set_instance(SAMPLE_INSTANCE_ID);
 				its_get->set_method(SAMPLE_GET_METHOD_ID);
-				app_->send(its_get, true, use_tcp_);
+				its_get->set_reliable(use_tcp_);
+				app_->send(its_get, true);
 			}
 
 			if ((its_payload->get_length() % 8) == 0) {
@@ -89,6 +89,7 @@ public:
 				its_set->set_service(SAMPLE_SERVICE_ID);
 				its_set->set_instance(SAMPLE_INSTANCE_ID);
 				its_set->set_method(SAMPLE_SET_METHOD_ID);
+				its_set->set_reliable(use_tcp_);
 
 				const vsomeip::byte_t its_data[]
 				    = { 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
@@ -97,7 +98,7 @@ public:
 					= vsomeip::runtime::get()->create_payload();
 				its_set_payload->set_data(its_data, sizeof(its_data));
 				its_set->set_payload(its_set_payload);
-				app_->send(its_set, true, use_tcp_);
+				app_->send(its_set, true);
 			}
 		}
 	}

@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,6 +10,7 @@
 #include <set>
 #include <string>
 
+#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
@@ -20,48 +20,50 @@ class servicegroup;
 
 class serviceinfo {
 public:
-  serviceinfo(major_version_t _major, minor_version_t _minor, ttl_t _ttl);
-  ~serviceinfo();
+    VSOMEIP_EXPORT serviceinfo(major_version_t _major, minor_version_t _minor,
+            ttl_t _ttl);
+    VSOMEIP_EXPORT ~serviceinfo();
 
-  servicegroup * get_group() const;
-  void set_group(servicegroup *_group);
+    VSOMEIP_EXPORT servicegroup * get_group() const;
+    VSOMEIP_EXPORT void set_group(servicegroup *_group);
 
-  major_version_t get_major() const;
-  minor_version_t get_minor() const;
+    VSOMEIP_EXPORT major_version_t get_major() const;
+    VSOMEIP_EXPORT minor_version_t get_minor() const;
 
-  ttl_t get_ttl() const;
-  void set_ttl(ttl_t _ttl);
+    VSOMEIP_EXPORT ttl_t get_ttl() const;
+    VSOMEIP_EXPORT void set_ttl(ttl_t _ttl);
 
-  std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-  void set_endpoint(std::shared_ptr<endpoint> _endpoint, bool _reliable);
+    VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
+    VSOMEIP_EXPORT void set_endpoint(std::shared_ptr<endpoint> _endpoint,
+            bool _reliable);
 
-  const std::string & get_multicast_address() const;
-  void set_multicast_address(const std::string &_multicast);
+    VSOMEIP_EXPORT const std::string & get_multicast_address() const;
+    VSOMEIP_EXPORT void set_multicast_address(const std::string &_multicast);
 
-  uint16_t get_multicast_port() const;
-  void set_multicast_port(uint16_t _port);
+    VSOMEIP_EXPORT uint16_t get_multicast_port() const;
+    VSOMEIP_EXPORT void set_multicast_port(uint16_t _port);
 
-  eventgroup_t get_multicast_group() const;
-  void set_multicast_group(eventgroup_t _multicast_group);
+    VSOMEIP_EXPORT eventgroup_t get_multicast_group() const;
+    VSOMEIP_EXPORT void set_multicast_group(eventgroup_t _multicast_group);
 
-  void add_client(client_t _client);
-  void remove_client(client_t _client);
+    VSOMEIP_EXPORT void add_client(client_t _client);
+    VSOMEIP_EXPORT void remove_client(client_t _client);
 
 private:
-  servicegroup *group_;
+    servicegroup *group_;
 
-  major_version_t major_;
-  minor_version_t minor_;
-  ttl_t ttl_;
+    major_version_t major_;
+    minor_version_t minor_;
+    ttl_t ttl_;
 
-  std::shared_ptr<endpoint> reliable_;
-  std::shared_ptr<endpoint> unreliable_;
+    std::shared_ptr<endpoint> reliable_;
+    std::shared_ptr<endpoint> unreliable_;
 
-  std::string multicast_address_;
-  uint16_t multicast_port_;
-  eventgroup_t multicast_group_;
+    std::string multicast_address_;
+    uint16_t multicast_port_;
+    eventgroup_t multicast_group_;
 
-  std::set<client_t> requesters_;
+    std::set<client_t> requesters_;
 };
 
 }  // namespace vsomeip

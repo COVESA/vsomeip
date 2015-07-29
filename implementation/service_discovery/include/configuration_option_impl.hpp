@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,22 +22,22 @@ namespace sd {
 class configuration_option_impl: public option_impl {
 
 public:
-	configuration_option_impl();
-	virtual ~configuration_option_impl();
-	bool operator==(const option_impl &_other) const;
+    configuration_option_impl();
+    virtual ~configuration_option_impl();
+    bool operator==(const option_impl &_other) const;
 
-	void add_item(const std::string &_key, const std::string &_value);
-	void remove_item(const std::string &_key);
+    void add_item(const std::string &_key, const std::string &_value);
+    void remove_item(const std::string &_key);
 
-	std::vector<std::string> get_keys() const;
-	std::vector<std::string> get_values() const;
-	std::string get_value(const std::string &_key) const;
+    std::vector<std::string> get_keys() const;
+    std::vector<std::string> get_values() const;
+    std::string get_value(const std::string &_key) const;
 
-	bool serialize(vsomeip::serializer *_to) const;
-	bool deserialize(vsomeip::deserializer *_from);
+    bool serialize(vsomeip::serializer *_to) const;
+    bool deserialize(vsomeip::deserializer *_from);
 
 private:
-	std::map< std::string, std::string > configuration_;
+    std::map<std::string, std::string> configuration_;
 };
 
 } // namespace sd

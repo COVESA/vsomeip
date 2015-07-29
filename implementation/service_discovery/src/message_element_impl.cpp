@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,15 +9,15 @@ namespace vsomeip {
 namespace sd {
 
 message_element_impl::message_element_impl() {
-	owner_ = 0;
+    owner_ = 0;
 }
 
 message_impl * message_element_impl::get_owning_message() const {
-	return owner_;
+    return owner_;
 }
 
 void message_element_impl::set_owning_message(message_impl *_owner) {
-	owner_ = _owner;
+    owner_ = _owner;
 }
 
 } // namespace sd

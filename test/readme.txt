@@ -84,3 +84,173 @@ The expected result is an output like this on service side:
 2015-02-10 08:42:07.361558 [info] Received a message with Client/Session [1343/000d]
 2015-02-10 08:42:07.361672 [error] Detected Magic Cookie within message data. Resyncing.
 2015-02-10 08:42:07.361761 [info] Received a message with Client/Session [1343/000f]
+
+Header Factory Tests
+--------------------
+
+The following things are tested:
+a) create request
+    --> check  "Protocol Version" / "Message Type" / "Return Type" fields
+b) create request, fill header, create response
+    --> compare header fields of request & response
+c) create notification
+    --> check  "Protocol Version" / "Message Type" / "Return Type" fields
+d) create message, fill header (service/instance/method/interface version/message type)
+    --> send message 10 times
+    --> receive message and check client id / session id
+
+a) to c) are combined in one binary. d) is composed out of a client and service.
+
+To start the header factory tests from the build directory do:
+
+Automatic start from build directory:
+ctest -V -R header_factory_test
+
+Manual start from build directory:
+cd test
+./header_factory_test
+# Start client and service separately
+./header_factory_test_service_start.sh &
+./header_factory_test_client_start.sh
+# Alternatively start client and service with one script
+./header_factory_test_send_receive_starter.sh
+
+All tests should be marked as "passed".
+
+Routing Tests
+-------------
+
+The following things are tested:
+a) create a service instance
+    - check that it is accessible from a local client but invisible for an external client
+b) create a service instance, configure it to be externally visible
+    - check that it is accessible from a local client and from a external client
+
+a) and b) are composed out of a service each and one common client binary which is used
+with different configuration files.
+
+Automatic start from build directory:
+
+ctest -V -R local_routing_test
+
+A message will be shown when the external client should be started.
+
+Manual start from build directory:
+cd test
+# First part with local client
+# Start client and service with one script
+./local_routing_test_starter.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+# Start the service
+./local_routing_test_service_start.sh &
+# Start the client
+./local_routing_test_client_start.sh
+
+# Second part with external client
+# Start client and service with one script
+./external_local_routing_test_starter.sh
+# Start the external client from an external host when the message is displayed to start it
+./external_local_routing_test_client_external_start.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+# Start the service
+./external_local_routing_test_service_start.sh &
+# Start the client
+./local_routing_test_client_start.sh
+# Start the external client from an external host after local client has finished
+./external_local_routing_test_client_external_start.sh
+
+
+All tests should be marked as "passed".
+
+Payload Tests
+-------------
+
+The following things are tested:
+a) create a local service
+    - send messages with payloads of different size from a local client to the service
+    - check that the messages are received correctly
+    - measure the throughput
+b) create a service instance, configure it to be externally visible
+    - send messages with payloads of different size from a local client to the service
+    - check that the messages are received correctly
+    - measure the throughput
+c) create a service instance, configure it to be externally visible
+    - send messages with payloads of different size from an external client to the service
+    - check that the messages are received correctly
+    - measure the throughput
+d) create a service instance, configure it to be externally visible
+    - send messages with payloads of different size from a local client to the service
+    - send messages with payloads of different size from an external client to the service
+    - check that the messages are received correctly
+    - measure the throughput
+
+The tests a) to d) are composed out of a service and a client binary which are called
+with different configuration files and parameters.
+
+Automatic start from build directory:
+
+ctest -V -R payload_test
+
+A message will be shown when the external clients should be started.
+
+Manual start from build directory:
+cd test
+
+# First part with local client
+# start client and service with one script
+./local_payload_test_starter.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+./local_payload_test_service_start.sh &
+./local_payload_test_client_start.sh
+
+# Second part with external visible service and local client
+# start client and service with one script
+./external_local_payload_test_client_local_starter.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+./external_local_payload_test_service_start.sh &
+./external_local_payload_test_client_local_start.sh
+
+# Third part with external visible service and external client
+# start client and service with one script
+./external_local_payload_test_client_external_starter.sh
+# Start the external client from an external host if asked to
+./external_local_payload_test_client_external_start.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+./external_local_payload_test_service_client_external_start.sh
+# Start the external client from an external host
+./external_local_payload_test_client_external_start.sh
+
+# Fourth part with external visible service and local and external client
+# start client and service with one script
+./external_local_payload_test_client_local_and_external_starter.sh
+# Start the external client from an external host if asked to
+./external_local_payload_test_client_external_start.sh
+
+# Alternatively start client and service separately
+# Warning some checks are done within the *_starter.sh script.
+# This should only be used for debugging
+./external_local_payload_test_service_client_external_start.sh &
+# Start the local client
+VSOMEIP_APPLICATION_NAME=external_local_payload_test_client_local \
+VSOMEIP_CONFIGURATION_FILE=external_local_payload_test_client_local.json \
+./payload_test_client --dont-shutdown-service
+# Start the external client after the local client is finished from an
+# external host
+./external_local_payload_test_client_external_start.sh
+
+All tests should be marked as "passed".

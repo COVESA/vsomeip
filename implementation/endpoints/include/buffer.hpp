@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,11 +14,11 @@
 
 namespace vsomeip {
 
-typedef std::array< byte_t, VSOMEIP_PACKET_SIZE > packet_buffer_t;
-typedef std::shared_ptr< packet_buffer_t > packet_buffer_ptr_t;
+typedef std::array<byte_t, VSOMEIP_PACKET_SIZE> packet_buffer_t;
+typedef std::shared_ptr<packet_buffer_t> packet_buffer_ptr_t;
 
-typedef std::vector< byte_t > message_buffer_t;
-typedef std::shared_ptr< message_buffer_t > message_buffer_ptr_t;
+typedef std::vector<byte_t> message_buffer_t;
+typedef std::shared_ptr<message_buffer_t> message_buffer_ptr_t;
 
 } // namespace vsomeip
 

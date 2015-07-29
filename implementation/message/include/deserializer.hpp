@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,6 +8,7 @@
 
 #include <vector>
 
+#include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
@@ -17,42 +17,44 @@ class message;
 
 class deserializer {
 public:
-	deserializer();
-	deserializer(byte_t *_data, std::size_t _length);
-	deserializer(const deserializer& _other);
-	virtual ~deserializer();
+    VSOMEIP_EXPORT deserializer();
+    VSOMEIP_EXPORT deserializer(byte_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT deserializer(const deserializer& _other);
+    VSOMEIP_EXPORT virtual ~deserializer();
 
-	void set_data(const byte_t *_data, std::size_t _length);
-	void append_data(const byte_t *_data, std::size_t _length);
-	void drop_data(std::size_t _length);
+    VSOMEIP_EXPORT void set_data(const byte_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT void append_data(const byte_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT void drop_data(std::size_t _length);
 
-	std::size_t get_available() const;
-	std::size_t get_remaining() const;
-	void set_remaining(std::size_t _length);
+    VSOMEIP_EXPORT std::size_t get_available() const;
+    VSOMEIP_EXPORT std::size_t get_remaining() const;
+    VSOMEIP_EXPORT void set_remaining(std::size_t _length);
 
-	// to be used by applications to deserialize a message
-	message * deserialize_message();
+    // to be used by applications to deserialize a message
+    VSOMEIP_EXPORT message * deserialize_message();
 
-	// to be used (internally) by objects to deserialize their members
-	// Note: this needs to be encapsulated!
-	bool deserialize(uint8_t& _value);
-	bool deserialize(uint16_t& _value);
-	bool deserialize(uint32_t& _value, bool _omit_last_byte = false);
-	bool deserialize(uint8_t *_data, std::size_t _length);
-	bool deserialize(std::vector< uint8_t >& _value);
+    // to be used (internally) by objects to deserialize their members
+    // Note: this needs to be encapsulated!
+    VSOMEIP_EXPORT bool deserialize(uint8_t& _value);
+    VSOMEIP_EXPORT bool deserialize(uint16_t& _value);
+    VSOMEIP_EXPORT bool deserialize(uint32_t& _value,
+            bool _omit_last_byte = false);
+    VSOMEIP_EXPORT bool deserialize(uint8_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT bool deserialize(std::vector<uint8_t>& _value);
 
-	bool look_ahead(std::size_t _index, uint8_t &_value) const;
-	bool look_ahead(std::size_t _index, uint16_t &_value) const;
-	bool look_ahead(std::size_t _index, uint32_t &_value) const;
+    VSOMEIP_EXPORT bool look_ahead(std::size_t _index, uint8_t &_value) const;
+    VSOMEIP_EXPORT bool look_ahead(std::size_t _index, uint16_t &_value) const;
+    VSOMEIP_EXPORT bool look_ahead(std::size_t _index, uint32_t &_value) const;
 
-	void reset();
+    VSOMEIP_EXPORT void reset();
+
 #ifdef VSOMEIP_DEBUGGING
-	void show() const;
+    VSOMEIP_EXPORT void show() const;
 #endif
 protected:
-	std::vector< byte_t > data_;
-	std::vector< byte_t >::iterator position_;
-	std::size_t remaining_;
+    std::vector<byte_t> data_;
+    std::vector<byte_t>::iterator position_;
+    std::size_t remaining_;
 };
 
 } // namespace vsomeip

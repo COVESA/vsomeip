@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -127,7 +126,8 @@ void serializer::show() {
 	std::stringstream its_data;
 	its_data << "SERIALIZED: ";
 	for (int i = 0; i < position_ - data_; ++i)
-		its_data << std::setw(2) << std::setfill('0') << std::hex << (int)data_[i];
+		its_data << std::setw(2) << std::setfill('0')
+				 << std::hex << (int)data_[i];
 	VSOMEIP_DEBUG << its_data.str();
 }
 #endif

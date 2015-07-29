@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,15 +13,14 @@ namespace sd {
 
 class message_impl;
 
-class deserializer
-	: public vsomeip::deserializer {
+class deserializer: public vsomeip::deserializer {
 public:
-	deserializer();
-	deserializer(uint8_t *_data, std::size_t _length);
-	deserializer(const deserializer &_other);
-	virtual ~deserializer();
+    deserializer();
+    deserializer(uint8_t *_data, std::size_t _length);
+    deserializer(const deserializer &_other);
+    virtual ~deserializer();
 
-	message_impl * deserialize_sd_message();
+    message_impl * deserialize_sd_message();
 };
 
 } // namespace sd

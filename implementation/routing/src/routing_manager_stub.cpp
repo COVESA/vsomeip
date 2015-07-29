@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -33,15 +32,26 @@ routing_manager_stub::~routing_manager_stub() {
 
 void routing_manager_stub::init() {
 	std::stringstream its_endpoint_path;
-	its_endpoint_path << BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+	its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
 	endpoint_path_ = its_endpoint_path.str();
+#if WIN32
+	::_unlink(endpoint_path_.c_str());
+	int port = 51234;
+	VSOMEIP_DEBUG << "Routing endpoint at " << port;
+#else
 	::unlink(endpoint_path_.c_str());
-
 	VSOMEIP_DEBUG << "Routing endpoint at " << endpoint_path_;
+#endif
+
 	endpoint_ =
 			std::make_shared < local_server_endpoint_impl
-					> (shared_from_this(), boost::asio::local::stream_protocol::endpoint(
-							endpoint_path_), io_);
+					> (shared_from_this(),
+					#ifdef WIN32
+						boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
+					#else
+						boost::asio::local::stream_protocol::endpoint(endpoint_path_),
+					#endif
+						io_);
 }
 
 void routing_manager_stub::start() {
@@ -54,8 +64,11 @@ void routing_manager_stub::start() {
 void routing_manager_stub::stop() {
 	watchdog_timer_.cancel();
 	endpoint_->stop();
-
+#ifdef WIN32
+	::_unlink(endpoint_path_.c_str());
+#else
 	::unlink(endpoint_path_.c_str());
+#endif
 }
 
 void routing_manager_stub::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -79,12 +92,12 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 	if (VSOMEIP_COMMAND_SIZE_POS_MAX < _size) {
 		byte_t its_command;
 		client_t its_client;
-		session_t its_session;
+		//session_t its_session;
 		std::string its_client_endpoint;
 		service_t its_service;
 		instance_t its_instance;
 		eventgroup_t its_eventgroup;
-		event_t its_event;
+		//event_t its_event;
 		major_version_t its_major;
 		minor_version_t its_minor;
 		ttl_t its_ttl;
@@ -180,11 +193,29 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 				its_service = VSOMEIP_BYTES_TO_WORD(
 								its_data[VSOMEIP_SERVICE_POS_MIN],
 								its_data[VSOMEIP_SERVICE_POS_MAX]);
-				its_flush = static_cast<bool>(_data[_size - 2]);
-				its_reliable = static_cast<bool>(_data[_size - 1]);
 				std::memcpy(&its_instance, &_data[_size - 4], sizeof(its_instance));
-				host_->on_message(its_service, its_instance, its_data, its_size);
+				std::memcpy(&its_reliable, &_data[_size - 1], sizeof(its_reliable));
+				host_->on_message(its_service, its_instance, its_data, its_size, its_reliable);
 				break;
+
+			case VSOMEIP_REQUEST_SERVICE:
+                bool its_selective;
+                std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+                        sizeof(its_service));
+                std::memcpy(&its_instance,
+                        &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
+                        sizeof(its_instance));
+                std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
+                        sizeof(its_major));
+                std::memcpy(&its_minor, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 5],
+                        sizeof(its_minor));
+                std::memcpy(&its_ttl, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
+                        sizeof(its_ttl));
+                std::memcpy(&its_selective, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 13],
+                                        sizeof(its_selective));
+			    host_->request_service(its_client, its_service, its_instance,
+			            its_major, its_minor, its_ttl, its_selective);
+			    break;
 			}
 		}
 	}
@@ -198,16 +229,20 @@ void routing_manager_stub::on_register_application(client_t _client) {
 }
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
-	std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+	routing_info_mutex_.lock();
 	auto its_info = routing_info_.find(_client);
 	if (its_info != routing_info_.end()) {
 		for (auto &its_service : its_info->second.second) {
 			for (auto &its_instance : its_service.second) {
+				routing_info_mutex_.unlock();
 				host_->on_stop_offer_service(its_service.first, its_instance);
+				routing_info_mutex_.lock();
 			}
 		}
 	}
+	routing_info_mutex_.unlock();
 
+	std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
 	host_->remove_local(_client);
 	routing_info_.erase(_client);
 	broadcast_routing_info();
@@ -337,8 +372,7 @@ void routing_manager_stub::on_pong(client_t _client) {
 	if (found_info != routing_info_.end()) {
 		found_info->second.first = 0;
 	} else {
-		std::cerr << "Received PONG from unregistered application!"
-				<< std::endl;
+		VSOMEIP_ERROR << "Received PONG from unregistered application!";
 	}
 }
 
@@ -367,20 +401,21 @@ void routing_manager_stub::check_watchdog() {
 	std::function<void(boost::system::error_code const &)> its_callback =
 			[this](boost::system::error_code const &_error) {
 				std::list< client_t > lost;
-
-				for (auto i : routing_info_) {
-					if (i.first > 0 && i.first != host_->get_client()) {
-						if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
-							VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
-							lost.push_back(i.first);
+				{
+					std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+					for (auto i : routing_info_) {
+						if (i.first > 0 && i.first != host_->get_client()) {
+							if (i.second.first > VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { // TODO: use config variable
+								VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
+								lost.push_back(i.first);
+							}
 						}
 					}
-				}
 
-				for (auto i : lost) {
-					routing_info_.erase(i);
+					for (auto i : lost) {
+						routing_info_.erase(i);
+					}
 				}
-
 				if (0 < lost.size())
 				send_application_lost(lost);
 

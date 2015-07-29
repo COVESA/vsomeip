@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,14 +12,16 @@
 
 namespace vsomeip {
 
-message_impl::message_impl(): payload_(runtime::get()->create_payload()) {
+message_impl::message_impl()
+    : payload_(runtime::get()->create_payload()) {
 }
 
 message_impl::~message_impl() {
 }
 
 length_t message_impl::get_length() const {
-	return VSOMEIP_SOMEIP_HEADER_SIZE + (payload_ ? payload_->get_length() : 0);
+	return (VSOMEIP_SOMEIP_HEADER_SIZE
+			+ (payload_ ? payload_->get_length() : 0));
 }
 
 std::shared_ptr< payload > message_impl::get_payload() const {
@@ -32,7 +33,8 @@ void message_impl::set_payload(std::shared_ptr< payload > _payload) {
 }
 
 bool message_impl::serialize(serializer *_to) const {
-	return (header_.serialize(_to) && (payload_ ? payload_->serialize(_to) : true));
+	return (header_.serialize(_to)
+			&& (payload_ ? payload_->serialize(_to) : true));
 }
 
 bool message_impl::deserialize(deserializer *_from) {

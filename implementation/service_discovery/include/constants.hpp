@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,11 +14,11 @@ namespace sd {
 
 const service_t service = 0xFFFF;
 const instance_t instance = 0x0000;
-const method_t  method  = 0x8100;
+const method_t method = 0x8100;
 const client_t client = 0x0000;
 const protocol_version_t protocol_version = 0x01;
 const interface_version_t interface_version = 0x01;
-const message_type_e message_type = message_type_e::NOTIFICATION;
+const message_type_e message_type = message_type_e::MT_NOTIFICATION;
 const return_code_e return_code = return_code_e::E_OK;
 
 namespace protocol {

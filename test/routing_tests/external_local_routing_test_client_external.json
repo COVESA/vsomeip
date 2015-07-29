@@ -1,0 +1,49 @@
+{
+   "unicast" : "172.16.100.131",
+   "netmask" : "255.255.255.0",
+   "logging" : 
+   {
+      "level" : "debug",
+      "console" : "true",
+      "file" : 
+      {
+         "enable" : "true",
+         "path" : "/var/log/vsomeip.log"
+      },
+
+      "dlt" : "true"
+   },
+
+   "applications" : 
+   [
+      {
+         "name" : "external_local_routing_test_client_external",
+         "id" : "0x1344"
+      }
+   ],
+
+   "servicegroups" : 
+   [
+      {
+         "name" : "remote",
+         "unicast" : "134.86.56.183",
+         "services" : 
+         [
+            {
+               "service" : "0x1234",
+               "instance" : "0x5678",
+               "unreliable" : "30509"
+            }
+         ]
+      }
+   ],
+
+   "routing" : "external_local_routing_test_client_external",
+   "service-discovery" : 
+   {
+      "enable" : "false",
+      "multicast" : "224.0.0.1",
+      "port" : "30491",
+      "protocol" : "udp"
+   }
+}

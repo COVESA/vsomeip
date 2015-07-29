@@ -1,2 +1,5 @@
 /build*/*
+/examples/hello_world/build
 /.settings
+/doc
+/implementation/configuration/include/internal.hpp

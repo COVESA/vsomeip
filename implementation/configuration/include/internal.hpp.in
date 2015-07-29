@@ -1,0 +1,61 @@
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef VSOMEIP_INTERNAL_HPP
+#define VSOMEIP_INTERNAL_HPP
+
+#include <cstdint>
+
+namespace vsomeip {
+
+#define VSOMEIP_SD_LIBRARY                                "libvsomeip-sd.so.@VSOMEIP_MAJOR_VERSION@"
+#define VSOMEIP_SD_RUNTIME_SYMBOL                         VSOMEIP_SD_RUNTIME
+#define VSOMEIP_SD_RUNTIME_SYMBOL_STRING                  "VSOMEIP_SD_RUNTIME"
+
+#define VSOMEIP_ROUTING_CLIENT                            0
+
+#define VSOMEIP_DEFAULT_CONNECT_TIMEOUT                   100
+#define VSOMEIP_DEFAULT_FLUSH_TIMEOUT                     1000
+
+#define VSOMEIP_DEFAULT_WATCHDOG_CYCLE                    1000
+#define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT                  1000
+#define VSOMEIP_DEFAULT_MAX_MISSING_PONGS                 3
+
+#define VSOMEIP_INVALID_PORT                              0xFFFF
+
+#define VSOMEIP_COMMAND_HEADER_SIZE                       7
+
+#define VSOMEIP_COMMAND_TYPE_POS                          0
+#define VSOMEIP_COMMAND_CLIENT_POS                        1
+#define VSOMEIP_COMMAND_SIZE_POS_MIN                      3
+#define VSOMEIP_COMMAND_SIZE_POS_MAX                      5
+#define VSOMEIP_COMMAND_PAYLOAD_POS                       7
+
+#define VSOMEIP_REGISTER_APPLICATION                      0x00
+#define VSOMEIP_DEREGISTER_APPLICATION                    0x01
+#define VSOMEIP_APPLICATION_LOST                          0x02
+#define VSOMEIP_ROUTING_INFO                              0x03
+
+#define VSOMEIP_PING                                      0x0E
+#define VSOMEIP_PONG                                      0x0F
+
+#define VSOMEIP_OFFER_SERVICE                             0x10
+#define VSOMEIP_STOP_OFFER_SERVICE                        0x11
+#define VSOMEIP_SUBSCRIBE                                 0x12
+#define VSOMEIP_UNSUBSCRIBE                               0x13
+#define VSOMEIP_REQUEST_SERVICE                           0x14
+
+#define VSOMEIP_SEND                                      0x17
+#define VSOMEIP_SET                                       0x18
+
+#define VSOMEIP_OFFER_SERVICE_COMMAND_SIZE                20
+#define VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE              21
+#define VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE           11
+#define VSOMEIP_SUBSCRIBE_COMMAND_SIZE                    18
+#define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE                  13
+
+} // namespace vsomeip
+
+#endif // VSOMEIP_INTERNAL_HPP

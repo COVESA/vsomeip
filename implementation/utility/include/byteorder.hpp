@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +11,8 @@
 #elif defined(FREEBSD)
 #include <sys/endian.h>
 #else
-#error "Undefined OS (only Linux/FreeBSD are currently supported)"
+// TEST IF THERE COULD BE AN ERROR!
+//#error "Undefined OS (only Linux/FreeBSD are currently supported)"
 #endif
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -54,6 +54,5 @@
 #error "__BYTE_ORDER is not defined!"
 
 #endif
-
 
 #endif // VSOMEIP_BYTEORDER_HPP

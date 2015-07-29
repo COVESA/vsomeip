@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,39 +18,39 @@
 
 namespace vsomeip {
 
-BOOST_LOG_ATTRIBUTE_KEYWORD(channel, "Channel",	std::string)
-BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", boost::log::trivial::severity_level)
+BOOST_LOG_ATTRIBUTE_KEYWORD(channel, "Channel", std::string)
+BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity",
+        boost::log::trivial::severity_level)
 
 typedef boost::log::sinks::synchronous_sink<
-			boost::log::sinks::text_ostream_backend > sink_t;
+        boost::log::sinks::text_ostream_backend> sink_t;
 
 class logger_impl: public logger {
 public:
-	static logger & get();
-	static void init(const std::string &_path);
+    static std::shared_ptr<logger_impl> & get();
+    static void init(const std::string &_path);
 
-	logger_impl();
+    logger_impl();
 
-	boost::log::sources::severity_logger<
-		boost::log::trivial::severity_level > & get_internal();
-private:
-	void enable_console();
-	void enable_file(const std::string &_path);
-	void enable_dlt();
+    boost::log::sources::severity_logger<
+            boost::log::trivial::severity_level> & get_internal();
 
 private:
-	static logger_impl the_logger__;
-
-	boost::log::sources::severity_logger<
-		boost::log::trivial::severity_level > logger_;
-	boost::log::trivial::severity_level loglevel_;
-
-	boost::shared_ptr< sink_t > console_sink_;
-	boost::shared_ptr< sink_t > file_sink_;
-	//boost::shared_ptr< dlt_sink > dlt_sink_;
+    void enable_console();
+    void enable_file(const std::string &_path);
+    void enable_dlt();
 
 private:
-	void use_null_logger();
+    boost::log::sources::severity_logger<
+            boost::log::trivial::severity_level> logger_;
+    boost::log::trivial::severity_level loglevel_;
+
+    boost::shared_ptr<sink_t> console_sink_;
+    boost::shared_ptr<sink_t> file_sink_;
+    //boost::shared_ptr< dlt_sink > dlt_sink_;
+
+private:
+    void use_null_logger();
 };
 
 } // namespace vsomeip

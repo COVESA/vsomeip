@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,7 +16,7 @@ message_header_impl::message_header_impl()
 	: service_(0x0), instance_(0x0), method_(0x0),
 	  client_(0x0), session_(0x0),
 	  protocol_version_(0x1), interface_version_(0x0),
-	  type_(message_type_e::UNKNOWN),
+	  type_(message_type_e::MT_UNKNOWN),
 	  code_(return_code_e::E_UNKNOWN) {
 };
 
@@ -77,5 +76,3 @@ void message_header_impl::set_owner(message_base *_owner) {
 }
 
 } // namespace vsomeip
-
-

@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,27 +8,40 @@
 
 #include <string>
 
+#ifdef WIN32
+#include <iostream>
+#endif
+
+#include <vsomeip/export.hpp>
+
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
 
 namespace vsomeip {
 
-class logger {
+class VSOMEIP_EXPORT logger {
 public:
-	static logger & get();
+    static std::shared_ptr<logger> get();
 
-	virtual ~logger() {};
+    virtual ~logger() {
+    }
 
-	virtual boost::log::sources::severity_logger<
-		boost::log::trivial::severity_level > & get_internal() = 0;
+    virtual boost::log::sources::severity_logger<
+            boost::log::trivial::severity_level> & get_internal() = 0;
 };
 
-#define VSOMEIP_FATAL BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::fatal)
-#define VSOMEIP_ERROR BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::error)
-#define VSOMEIP_WARNING BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::warning)
-#define VSOMEIP_INFO BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::info)
-#define VSOMEIP_DEBUG BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::debug)
-#define VSOMEIP_TRACE BOOST_LOG_SEV(vsomeip::logger::get().get_internal(), boost::log::trivial::severity_level::trace)
+#define VSOMEIP_FATAL BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::fatal)
+#define VSOMEIP_ERROR BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::error)
+#define VSOMEIP_WARNING BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::warning)
+#define VSOMEIP_INFO BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::info)
+#define VSOMEIP_DEBUG BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::debug)
+#define VSOMEIP_TRACE BOOST_LOG_SEV(vsomeip::logger::get()->get_internal(), \
+                boost::log::trivial::severity_level::trace)
 
 } // namespace vsomeip
 

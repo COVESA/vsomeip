@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,17 +13,17 @@ namespace sd {
 
 class serviceentry_impl: public entry_impl {
 public:
-	serviceentry_impl();
-	virtual ~serviceentry_impl();
+    serviceentry_impl();
+    virtual ~serviceentry_impl();
 
-	minor_version_t get_minor_version() const;
-	void set_minor_version(minor_version_t _version);
+    minor_version_t get_minor_version() const;
+    void set_minor_version(minor_version_t _version);
 
-	bool serialize(vsomeip::serializer *_to) const;
-	bool deserialize(vsomeip::deserializer *_from);
+    bool serialize(vsomeip::serializer *_to) const;
+    bool deserialize(vsomeip::deserializer *_from);
 
 private:
-	minor_version_t minor_version_;
+    minor_version_t minor_version_;
 };
 
 } // namespace sd

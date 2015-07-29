@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -58,9 +57,9 @@ public:
 	}
 
 	void on_event(vsomeip::event_type_e _event) {
-		if (_event == vsomeip::event_type_e::REGISTERED) {
+		if (_event == vsomeip::event_type_e::ET_REGISTERED) {
 			VSOMEIP_INFO << "Client registration done.";
-			app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
+			app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, false,
 								  vsomeip::ANY_MAJOR, vsomeip::ANY_MINOR,
 								  vsomeip::ANY_TTL);
 		}
@@ -84,7 +83,7 @@ public:
 		}
 	}
 
-	void on_message(std::shared_ptr< vsomeip::message > &_response) {
+	void on_message(const std::shared_ptr< vsomeip::message > &_response) {
 		VSOMEIP_INFO << "Received a response from Service ["
 				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
 				<< "."

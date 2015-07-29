@@ -1,0 +1,61 @@
+{
+   "unicast" : "134.86.56.183",
+   "logging" : 
+   {
+      "level" : "debug",
+      "console" : "true",
+      "file" : 
+      {
+         "enable" : "false",
+         "path" : "/tmp/vsomeip.log"
+      },
+
+      "dlt" : "false"
+   },
+
+   "applications" : 
+   [
+      {
+         "name" : "local_payload_test_service",
+         "id" : "0x1277"
+      }
+   ],
+
+   "servicegroups" : 
+   [
+      {
+         "name" : "default",
+         "unicast" : "local",
+         "delays" : 
+         {
+            "initial" : 
+            {
+               "minimum" : "10",
+               "maximum" : "100"
+            },
+
+            "repetition-base" : "200",
+            "repetition-max" : "3",
+            "cyclic-offer" : "2000",
+            "cyclic-request" : "2001"
+         },
+
+         "services" : 
+         [
+            {
+               "service" : "0x1234",
+               "instance" : "0x5678"
+            }
+         ]
+      }
+   ],
+
+   "routing" : "local_payload_test_service",
+   "service-discovery" : 
+   {
+      "enable" : "false",
+      "multicast" : "224.0.0.1",
+      "port" : "30490",
+      "protocol" : "udp"
+   }
+}

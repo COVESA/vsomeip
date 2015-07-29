@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,21 +17,21 @@ struct event;
 struct eventgroup;
 
 struct service {
-	service_t service_;
-	instance_t instance_;
+    service_t service_;
+    instance_t instance_;
 
-	uint16_t reliable_;
-	uint16_t unreliable_;
+    uint16_t reliable_;
+    uint16_t unreliable_;
 
-	std::string multicast_address_;
-	uint16_t multicast_port_;
-	eventgroup_t multicast_group_;
+    std::string multicast_address_;
+    uint16_t multicast_port_;
+    eventgroup_t multicast_group_;
 
-	bool use_magic_cookies_;
+    bool use_magic_cookies_;
 
-	std::shared_ptr<servicegroup> group_;
-	std::map<event_t, std::shared_ptr<event> > events_;
-	std::map<eventgroup_t, std::shared_ptr<eventgroup> > eventgroups_;
+    std::shared_ptr<servicegroup> group_;
+    std::map<event_t, std::shared_ptr<event> > events_;
+    std::map<eventgroup_t, std::shared_ptr<eventgroup> > eventgroups_;
 };
 
 } // namespace cfg

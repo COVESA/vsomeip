@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +8,8 @@
 
 namespace vsomeip {
 
-message_base_impl::message_base_impl() {
+message_base_impl::message_base_impl()
+    : is_reliable_(false) {
 	header_.set_owner(this);
 }
 
@@ -100,6 +100,14 @@ return_code_e message_base_impl::get_return_code() const {
 
 void message_base_impl::set_return_code(return_code_e _code) {
 	header_.code_ = _code;
+}
+
+bool message_base_impl::is_reliable() const {
+    return is_reliable_;
+}
+
+void message_base_impl::set_reliable(bool _is_reliable) {
+    is_reliable_ = _is_reliable;
 }
 
 } // namespace vsomeip

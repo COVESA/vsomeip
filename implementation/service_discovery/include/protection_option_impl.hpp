@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -15,22 +14,22 @@ namespace sd {
 
 class protection_option_impl: public option_impl {
 public:
-	protection_option_impl();
-	virtual ~protection_option_impl();
-	virtual bool operator ==(const option_impl &_other) const;
+    protection_option_impl();
+    virtual ~protection_option_impl();
+    virtual bool operator ==(const option_impl &_other) const;
 
-	alive_counter_t get_alive_counter() const;
-	void set_alive_counter(alive_counter_t _counter);
+    alive_counter_t get_alive_counter() const;
+    void set_alive_counter(alive_counter_t _counter);
 
-	crc_t get_crc() const;
-	void set_crc(crc_t _crc);
+    crc_t get_crc() const;
+    void set_crc(crc_t _crc);
 
-	bool serialize(vsomeip::serializer *_to) const;
-	bool deserialize(vsomeip::deserializer *_from);
+    bool serialize(vsomeip::serializer *_to) const;
+    bool deserialize(vsomeip::deserializer *_from);
 
 private:
-	alive_counter_t counter_;
-	crc_t crc_;
+    alive_counter_t counter_;
+    crc_t crc_;
 };
 
 } // namespace sd
