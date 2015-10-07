@@ -574,13 +574,11 @@ void routing_manager_impl::on_message(
             = find_event(_service, _instance, its_method);
         if (its_event) {
             uint32_t its_length = utility::get_payload_size(_data, _size);
-            if (its_length > 0) { // set
-                std::shared_ptr<payload> its_payload =
-                        runtime::get()->create_payload(
-                                &_data[VSOMEIP_PAYLOAD_POS],
-                                its_length);
-                its_event->set_payload(its_payload);
-            }
+			std::shared_ptr<payload> its_payload =
+					runtime::get()->create_payload(
+							&_data[VSOMEIP_PAYLOAD_POS],
+							its_length);
+			its_event->set_payload(its_payload);
 
             if (!utility::is_request_no_return(
                     _data[VSOMEIP_MESSAGE_TYPE_POS])) {

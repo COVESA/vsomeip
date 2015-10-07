@@ -171,14 +171,17 @@ void event::notify_one(client_t _client) {
 
 bool event::set_payload_helper(std::shared_ptr<payload> _payload) {
     std::shared_ptr<payload> its_payload = message_->get_payload();
-    bool is_change = (its_payload->get_length() != _payload->get_length());
-    if (!is_change) {
-        std::size_t its_pos = 0;
-        const byte_t *its_old_data = its_payload->get_data();
-        const byte_t *its_new_data = _payload->get_data();
-        while (!is_change && its_pos < its_payload->get_length()) {
-            is_change = (*its_old_data++ != *its_new_data++);
-            its_pos++;
+    bool is_change(!is_field_);
+    if(is_field_) {
+        is_change = (its_payload->get_length() != _payload->get_length());
+        if (!is_change) {
+            std::size_t its_pos = 0;
+            const byte_t *its_old_data = its_payload->get_data();
+            const byte_t *its_new_data = _payload->get_data();
+            while (!is_change && its_pos < its_payload->get_length()) {
+                is_change = (*its_old_data++ != *its_new_data++);
+                its_pos++;
+            }
         }
     }
     is_set_ = true;
