@@ -127,6 +127,9 @@ target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 add_executable(notify-sample examples/notify-sample.cpp ${EXAMPLE_CONFIG_FILES})
 target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
+add_executable(vsomeipd examples/vsomeipd.cpp ${EXAMPLE_CONFIG_FILES})
+target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+
 ###################################################################################################
 
 file (GLOB_RECURSE vsomeip_INCLUDE "interface/*.hpp")
@@ -149,7 +152,7 @@ install (
 )
 
 install (
-    TARGETS request-sample response-sample subscribe-sample notify-sample
+    TARGETS request-sample response-sample subscribe-sample notify-sample vsomeipd
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
 
