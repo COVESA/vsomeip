@@ -9,14 +9,41 @@
 
 namespace vsomeip {
 
-endpoint_definition::endpoint_definition()
-        : port_(ILLEGAL_PORT) {
+std::map<boost::asio::ip::address,
+    std::map<uint16_t,
+        std::map<bool, std::shared_ptr<endpoint_definition> > > >
+endpoint_definition::definitions_;
+
+std::shared_ptr<endpoint_definition>
+endpoint_definition::get(const boost::asio::ip::address &_address,
+                         uint16_t _port, bool _is_reliable) {
+
+    std::shared_ptr<endpoint_definition> its_result;
+
+    auto find_address = definitions_.find(_address);
+    if (find_address != definitions_.end()) {
+        auto find_port = find_address->second.find(_port);
+        if (find_port != find_address->second.end()) {
+            auto found_reliable = find_port->second.find(_is_reliable);
+            if (found_reliable != find_port->second.end()) {
+                its_result = found_reliable->second;
+            }
+        }
+    }
+
+    if (!its_result) {
+        its_result = std::make_shared<endpoint_definition>(
+                         _address, _port, _is_reliable);
+        definitions_[_address][_port][_is_reliable] = its_result;
+    }
+    return its_result;
 }
 
 endpoint_definition::endpoint_definition(
         const boost::asio::ip::address &_address, uint16_t _port,
         bool _is_reliable)
-        : address_(_address), port_(_port), is_reliable_(_is_reliable), remote_port_(_port) {
+        : address_(_address), port_(_port), remote_port_(_port),
+          is_reliable_(_is_reliable) {
 }
 
 const boost::asio::ip::address & endpoint_definition::get_address() const {

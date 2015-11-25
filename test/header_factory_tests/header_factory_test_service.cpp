@@ -10,9 +10,9 @@
 header_factory_test_service::header_factory_test_service(bool _use_static_routing) :
                 app_(vsomeip::runtime::get()->create_application()),
                 is_registered_(false),
-                blocked_(false),
                 use_static_routing_(_use_static_routing),
                 offer_thread_(std::bind(&header_factory_test_service::run, this)),
+                blocked_(false),
                 number_of_received_messages_(0)
 {
 }
@@ -27,8 +27,8 @@ void header_factory_test_service::init()
             std::bind(&header_factory_test_service::on_message, this,
                     std::placeholders::_1));
 
-    app_->register_event_handler(
-            std::bind(&header_factory_test_service::on_event, this,
+    app_->register_state_handler(
+            std::bind(&header_factory_test_service::on_state, this,
                     std::placeholders::_1));
 
     VSOMEIP_INFO << "Static routing " << (use_static_routing_ ? "ON" : "OFF");
@@ -45,8 +45,10 @@ void header_factory_test_service::stop()
     VSOMEIP_INFO << "Stopping...";
     app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID);
-    app_->unregister_event_handler();
+    app_->unregister_state_handler();
     app_->stop();
+    std::thread t([](){ usleep(1000000 * 5);});
+    t.join();
 }
 
 void header_factory_test_service::join_offer_thread()
@@ -66,13 +68,13 @@ void header_factory_test_service::stop_offer()
             vsomeip_test::TEST_SERVICE_INSTANCE_ID);
 }
 
-void header_factory_test_service::on_event(vsomeip::event_type_e _event)
+void header_factory_test_service::on_state(vsomeip::state_type_e _state)
 {
     VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-            << (_event == vsomeip::event_type_e::ET_REGISTERED ? "registered." :
+            << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." :
                     "deregistered.");
 
-    if(_event == vsomeip::event_type_e::ET_REGISTERED)
+    if(_state == vsomeip::state_type_e::ST_REGISTERED)
     {
         if(!is_registered_)
         {
@@ -122,7 +124,9 @@ void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::mess
 
     if(number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND)
     {
-        app_->stop();
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        blocked_ =true;
+        condition_.notify_one();
     }
     ASSERT_LT(number_of_received_messages_,
             vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND + 1);
@@ -134,10 +138,17 @@ void header_factory_test_service::run()
     while (!blocked_)
         condition_.wait(its_lock);
 
+    blocked_ = false;
     if(use_static_routing_)
     {
         offer();
     }
+    while (!blocked_)
+        condition_.wait(its_lock);
+
+    std::thread t([](){ usleep(1000000 * 5);});
+    t.join();
+    app_->stop();
 }
 
 TEST(someip_header_factory_test, reveice_message_ten_times_test)

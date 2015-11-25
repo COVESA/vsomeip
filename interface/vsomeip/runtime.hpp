@@ -11,7 +11,6 @@
 #include <vector>
 
 #include <vsomeip/export.hpp>
-
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
@@ -28,7 +27,7 @@ public:
     }
 
     virtual std::shared_ptr<application> create_application(
-            const std::string &_name = "") const = 0;
+            const std::string &_name = "") = 0;
 
     virtual std::shared_ptr<message> create_message(
             bool _reliable = false) const = 0;
@@ -44,6 +43,9 @@ public:
             const byte_t *_data, uint32_t _size) const = 0;
     virtual std::shared_ptr<payload> create_payload(
             const std::vector<byte_t> &_data) const = 0;
+
+    virtual std::shared_ptr<application> get_application(
+            const std::string &_name) const = 0;
 };
 
 } // namespace vsomeip

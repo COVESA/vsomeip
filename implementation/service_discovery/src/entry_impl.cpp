@@ -20,6 +20,8 @@ entry_impl::entry_impl() {
     service_ = 0x0;
     instance_ = 0x0;
     ttl_ = 0x0;
+    num_options_[0] = 0;
+    num_options_[1] = 0;
 }
 
 entry_impl::entry_impl(const entry_impl &_entry) {
@@ -28,6 +30,8 @@ entry_impl::entry_impl(const entry_impl &_entry) {
     service_ = _entry.service_;
     instance_ = _entry.instance_;
     ttl_ = _entry.ttl_;
+    num_options_[0] = _entry.num_options_[0];
+    num_options_[1] = _entry.num_options_[1];
 }
 
 entry_impl::~entry_impl() {
@@ -86,7 +90,7 @@ void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option,
     if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN) {
         _run--; // Index = Run-1
 
-        uint8_t option_index = get_owning_message()->get_option_index(_option);
+        uint8_t option_index = uint8_t(get_owning_message()->get_option_index(_option));
         if (0x10 > option_index) { // as we have only a nibble for the option counter
             options_[_run].push_back(option_index);
             std::sort(options_[_run].begin(), options_[_run].end());
@@ -112,7 +116,7 @@ bool entry_impl::serialize(vsomeip::serializer *_to) const {
         index_second_option_run = options_[1][0];
     is_successful = is_successful && _to->serialize(index_second_option_run);
 
-    uint8_t number_of_options = ((((uint8_t) options_[0].size()) << 4)
+    uint8_t number_of_options = uint8_t((((uint8_t) options_[0].size()) << 4)
             | (((uint8_t) options_[1].size()) & 0x0F));
     is_successful = is_successful && _to->serialize(number_of_options);
 
@@ -128,7 +132,7 @@ bool entry_impl::serialize(vsomeip::serializer *_to) const {
 bool entry_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = (0 != _from);
 
-    uint8_t its_type;
+    uint8_t its_type(0);
     is_successful = is_successful && _from->deserialize(its_type);
     type_ = static_cast<entry_type_e>(its_type);
 
@@ -141,13 +145,13 @@ bool entry_impl::deserialize(vsomeip::deserializer *_from) {
     uint8_t its_numbers;
     is_successful = is_successful && _from->deserialize(its_numbers);
 
-    uint8_t its_numbers1 = (its_numbers >> 4);
-    uint8_t its_numbers2 = (its_numbers & 0xF);
+    num_options_[0] = uint8_t(its_numbers >> 4);
+    num_options_[1] = uint8_t(its_numbers & 0xF);
 
-    for (uint8_t i = its_index1; i < its_index1 + its_numbers1; ++i)
+    for (uint8_t i = its_index1; i < its_index1 + num_options_[0]; ++i)
         options_[0].push_back(i);
 
-    for (uint8_t i = its_index2; i < its_index2 + its_numbers2; ++i)
+    for (uint8_t i = its_index2; i < its_index2 + num_options_[1]; ++i)
         options_[1].push_back(i);
 
     uint16_t its_id;
@@ -167,6 +171,13 @@ bool entry_impl::is_service_entry() const {
 bool entry_impl::is_eventgroup_entry() const {
     return (type_ >= entry_type_e::FIND_EVENT_GROUP
             && type_ <= entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
+}
+
+uint8_t entry_impl::get_num_options(uint8_t _run) const {
+    if (_run < 1 || _run > VSOMEIP_MAX_OPTION_RUN) {
+        return 0x0;
+    }
+    return num_options_[_run-1];
 }
 
 } // namespace sd

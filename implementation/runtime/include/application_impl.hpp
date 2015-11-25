@@ -37,30 +37,47 @@ public:
     VSOMEIP_EXPORT application_impl(const std::string &_name);
     VSOMEIP_EXPORT  ~application_impl();
 
+    VSOMEIP_EXPORT void set_configuration(const std::shared_ptr<configuration> _configuration);
+
     VSOMEIP_EXPORT bool init();
     VSOMEIP_EXPORT void start();
     VSOMEIP_EXPORT void stop();
 
+    // Provide services / events
     VSOMEIP_EXPORT void offer_service(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor, ttl_t _ttl);
+            major_version_t _major, minor_version_t _minor);
 
     VSOMEIP_EXPORT void stop_offer_service(service_t _service,
             instance_t _instance);
 
-    // Consume services
+    VSOMEIP_EXPORT void offer_event(service_t _service,
+            instance_t _instance, event_t _event,
+            std::set<eventgroup_t> _eventgroups,
+            bool _is_field);
+    VSOMEIP_EXPORT void stop_offer_event(service_t _service,
+            instance_t _instance, event_t _event);
+
+    // Consume services / events
     VSOMEIP_EXPORT void request_service(service_t _service,
-            instance_t _instance, bool _has_selective, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl);
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor, bool _use_exclusive_proxy);
     VSOMEIP_EXPORT void release_service(service_t _service,
             instance_t _instance);
 
+    VSOMEIP_EXPORT void request_event(service_t _service,
+            instance_t _instance, event_t _event,
+            std::set<eventgroup_t> _eventgroups,
+            bool _is_field);
+    VSOMEIP_EXPORT void release_event(service_t _service,
+            instance_t _instance, event_t _event);
+
     VSOMEIP_EXPORT void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
+            eventgroup_t _eventgroup, major_version_t _major);
 
     VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
 
-    VSOMEIP_EXPORT bool is_available(service_t _service, instance_t _instance);
+    VSOMEIP_EXPORT bool is_available(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT void send(std::shared_ptr<message> _message, bool _flush);
 
@@ -70,8 +87,8 @@ public:
     VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload, client_t _client) const;
 
-    VSOMEIP_EXPORT void register_event_handler(event_handler_t _handler);
-    VSOMEIP_EXPORT void unregister_event_handler();
+    VSOMEIP_EXPORT void register_state_handler(state_handler_t _handler);
+    VSOMEIP_EXPORT void unregister_state_handler();
 
     VSOMEIP_EXPORT void register_message_handler(service_t _service,
             instance_t _instance, method_t _method, message_handler_t _handler);
@@ -94,10 +111,9 @@ public:
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_service & get_io();
 
-    VSOMEIP_EXPORT void on_event(event_type_e _event);
-    VSOMEIP_EXPORT void on_availability(service_t _service,
-            instance_t _instance,
-    bool _is_available) const;
+    VSOMEIP_EXPORT void on_state(state_type_e _state);
+    VSOMEIP_EXPORT void on_availability(service_t _service, instance_t _instance,
+            bool _is_available) const;
     VSOMEIP_EXPORT void on_message(std::shared_ptr<message> _message);
     VSOMEIP_EXPORT void on_error(error_code_e _error);
     VSOMEIP_EXPORT bool on_subscription(service_t _service, instance_t _instance,
@@ -116,24 +132,28 @@ private:
     }
 
     void dispatch();
+    void wait_for_stop();
 
 private:
     client_t client_; // unique application identifier
     session_t session_;
+    std::mutex session_mutex_;
 
     std::mutex initialize_mutex_;
     bool is_initialized_;
 
     std::string name_;
     std::shared_ptr<configuration> configuration_;
+    std::string file_; // configuration file
+    std::string folder_; // configuration folder
 
     boost::asio::io_service io_;
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;
 
-    // (Non-SOME/IP) Event handler
-    event_handler_t handler_;
+    // vsomeip state handler
+    state_handler_t handler_;
 
     // Method/Event (=Member) handlers
     std::map<service_t,
@@ -169,6 +189,11 @@ private:
 
     // Workaround for destruction problem
     std::shared_ptr<logger> logger_;
+
+    std::condition_variable stop_cv_;
+    std::mutex start_stop_mutex_;
+    bool stopped_;
+    std::thread stop_thread_;
 };
 
 } // namespace vsomeip

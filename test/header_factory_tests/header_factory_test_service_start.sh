@@ -5,5 +5,5 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 export VSOMEIP_APPLICATION_NAME=header_factory_test_service
-export VSOMEIP_CONFIGURATION_FILE=header_factory_test_service.json
+export VSOMEIP_CONFIGURATION=header_factory_test_service.json
 ./header_factory_test_service

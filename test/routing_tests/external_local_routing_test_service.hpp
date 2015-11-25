@@ -27,7 +27,7 @@ public:
     void offer();
     void stop_offer();
     void join_offer_thread();
-    void on_event(vsomeip::event_type_e _event);
+    void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message> &_request);
     void run();
 
@@ -36,12 +36,12 @@ private:
     bool is_registered_;
     bool use_static_routing_;
 
-    std::thread offer_thread_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
     std::uint32_t number_received_messages_local_;
     std::uint32_t number_received_messages_external_;
+    std::thread offer_thread_;
 };
 
 #endif /* EXTERNALLOCALROUTINGTESTSERVICE_HPP_ */

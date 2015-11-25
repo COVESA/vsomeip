@@ -13,9 +13,9 @@
 
 namespace vsomeip {
 
-const major_version_t DEFAULT_MAJOR = 0x01;
+const major_version_t DEFAULT_MAJOR = 0x00;
 const minor_version_t DEFAULT_MINOR = 0x000000;
-const ttl_t DEFAULT_TTL = 0xFFFFFF; // basically means "forever"
+const ttl_t DEFAULT_TTL = 0xFFFFFF; // "until next reboot"
 
 const std::string DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t DEFAULT_PORT = 30500;
@@ -26,7 +26,8 @@ const instance_t ANY_INSTANCE = 0xFFFF;
 const method_t ANY_METHOD = 0xFFFF;
 const major_version_t ANY_MAJOR = 0xFF;
 const minor_version_t ANY_MINOR = 0xFFFFFF;
-const ttl_t ANY_TTL = 1;
+
+const eventgroup_t DEFAULT_EVENTGROUP = 0x0001;
 
 const byte_t MAGIC_COOKIE_CLIENT_MESSAGE = 0x00;
 const byte_t MAGIC_COOKIE_SERVICE_MESSAGE = 0x80;

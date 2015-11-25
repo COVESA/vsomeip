@@ -20,11 +20,11 @@ class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
     tcp_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
-                             boost::asio::io_service &_io);
+                             boost::asio::io_service &_io,
+                             std::uint32_t _max_message_size);
     virtual ~tcp_client_endpoint_impl();
 
     void start();
-    void send_queued(message_buffer_ptr_t _buffer);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     unsigned short get_local_port() const;
@@ -33,15 +33,18 @@ public:
     bool is_local() const;
 
 private:
-    bool is_magic_cookie() const;
+    void send_queued();
+    bool is_magic_cookie(size_t _offset) const;
     void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
-    void receive_cbk(packet_buffer_ptr_t _buffer,
-                     boost::system::error_code const &_error,
+    void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
 
     void connect();
     void receive();
+
+    receive_buffer_t recv_buffer_;
+    size_t recv_buffer_size_;
 };
 
 } // namespace vsomeip

@@ -22,16 +22,8 @@
       }
    ],
 
-   "servicegroups" : 
+   "services" : 
    [
-      {
-         "name" : "remote",
-         "unicast" : "127.0.0.1",
-         "services" : 
-         [
-            
-         ]
-      }
    ],
 
    "routing" : "local_routing_test_service",

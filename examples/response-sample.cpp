@@ -20,6 +20,7 @@ public:
             app_(vsomeip::runtime::get()->create_application()),
             is_registered_(false),
             use_static_routing_(_use_static_routing),
+            blocked_(false),
             offer_thread_(std::bind(&service_sample::run, this)) {
     }
 
@@ -27,16 +28,16 @@ public:
         std::lock_guard<std::mutex> its_lock(mutex_);
 
         app_->init();
+        app_->register_state_handler(
+                std::bind(&service_sample::on_state, this,
+                        std::placeholders::_1));
         app_->register_message_handler(
-        SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
+                SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
                 std::bind(&service_sample::on_message, this,
                         std::placeholders::_1));
 
-        app_->register_event_handler(
-                std::bind(&service_sample::on_event, this,
-                        std::placeholders::_1));
-
-        VSOMEIP_INFO<< "Static routing " << (use_static_routing_ ? "ON" : "OFF");
+        std::cout << "Static routing " << (use_static_routing_ ? "ON" : "OFF")
+                  << std::endl;
     }
 
     void start() {
@@ -53,12 +54,13 @@ public:
         app_->stop_offer_service(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID);
     }
 
-    void on_event(vsomeip::event_type_e _event) {
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_event == vsomeip::event_type_e::ET_REGISTERED ?
-                "registered." : "deregistered.");
+    void on_state(vsomeip::state_type_e _state) {
+        std::cout << "Application " << app_->get_name() << " is "
+                << (_state == vsomeip::state_type_e::ST_REGISTERED ?
+                        "registered." : "deregistered.")
+                << std::endl;
 
-        if (_event == vsomeip::event_type_e::ET_REGISTERED) {
+        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
                 is_registered_ = true;
                 blocked_ = true;
@@ -70,16 +72,17 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_request) {
-        VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-        << std::setfill('0') << std::hex << _request->get_client() << "/"
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _request->get_session() << "]";
+        std::cout << "Received a message with Client/Session [" << std::setw(4)
+            << std::setfill('0') << std::hex << _request->get_client() << "/"
+            << std::setw(4) << std::setfill('0') << std::hex
+            << _request->get_session() << "]"
+            << std::endl;
 
-        std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()
-        ->create_response(_request);
+        std::shared_ptr<vsomeip::message> its_response
+            = vsomeip::runtime::get()->create_response(_request);
 
-        std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()
-        ->create_payload();
+        std::shared_ptr<vsomeip::payload> its_payload
+            = vsomeip::runtime::get()->create_payload();
         std::vector<vsomeip::byte_t> its_payload_data;
         for (std::size_t i = 0; i < 120; ++i)
         its_payload_data.push_back(i % 256);
@@ -116,10 +119,12 @@ private:
     bool is_registered_;
     bool use_static_routing_;
 
-    std::thread offer_thread_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
+
+    // blocked_ must be initialized before the thread is started.
+    std::thread offer_thread_;
 };
 
 int main(int argc, char **argv) {

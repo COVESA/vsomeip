@@ -8,10 +8,10 @@
 local_routing_test_service::local_routing_test_service(bool _use_static_routing) :
                 app_(vsomeip::runtime::get()->create_application()),
                 is_registered_(false),
-                blocked_(false),
                 use_static_routing_(_use_static_routing),
-                offer_thread_(std::bind(&local_routing_test_service::run, this)),
-                number_of_received_messages_(0)
+                blocked_(false),
+                number_of_received_messages_(0),
+                offer_thread_(std::bind(&local_routing_test_service::run, this))
 {
 }
 
@@ -25,8 +25,8 @@ void local_routing_test_service::init()
             std::bind(&local_routing_test_service::on_message, this,
                     std::placeholders::_1));
 
-    app_->register_event_handler(
-            std::bind(&local_routing_test_service::on_event, this,
+    app_->register_state_handler(
+            std::bind(&local_routing_test_service::on_state, this,
                     std::placeholders::_1));
 
     VSOMEIP_INFO << "Static routing " << (use_static_routing_ ? "ON" : "OFF");
@@ -43,7 +43,7 @@ void local_routing_test_service::stop()
     VSOMEIP_INFO << "Stopping...";
     app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID);
-    app_->unregister_event_handler();
+    app_->unregister_state_handler();
     app_->stop();
 }
 
@@ -62,17 +62,18 @@ void local_routing_test_service::stop_offer()
     app_->stop_offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
 }
 
-void local_routing_test_service::on_event(vsomeip::event_type_e _event)
+void local_routing_test_service::on_state(vsomeip::state_type_e _state)
 {
     VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-            << (_event == vsomeip::event_type_e::ET_REGISTERED ? "registered." :
+            << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." :
                     "deregistered.");
 
-    if(_event == vsomeip::event_type_e::ET_REGISTERED)
+    if(_state == vsomeip::state_type_e::ST_REGISTERED)
     {
         if(!is_registered_)
         {
             is_registered_ = true;
+            std::lock_guard<std::mutex> its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
@@ -118,7 +119,9 @@ void local_routing_test_service::on_message(const std::shared_ptr<vsomeip::messa
 
     if(number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND)
     {
-        app_->stop();
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        blocked_ =true;
+        condition_.notify_one();
     }
     ASSERT_LT(number_of_received_messages_,
             vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND + 1);
@@ -130,10 +133,17 @@ void local_routing_test_service::run()
     while (!blocked_)
         condition_.wait(its_lock);
 
+    blocked_ = false;
     if(use_static_routing_)
     {
         offer();
     }
+    while (!blocked_)
+        condition_.wait(its_lock);
+
+    std::thread t2([](){ usleep(1000000 * 5);});
+    t2.join();
+    app_->stop();
 }
 
 TEST(someip_local_routing_test, receive_ten_messages_over_local_uds_socket)

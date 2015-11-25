@@ -69,7 +69,7 @@ For compilation call:
 mkdir build
 cd build
 cmake ..
-make -j8
+make
 ----
 
 To specify a installation directory (like `--prefix=` if you're used to
@@ -77,19 +77,43 @@ autotools) call cmake like:
 [source, bash]
 ----
 cmake -DCMAKE_INSTALL_PREFIX:PATH=$YOUR_PATH ..
-make -j8
+make
 make install
+----
+
+Compilation of examples
+^^^^^^^^^^^^^^^^^^^^^^^
+For compilation of the examples call:
+[source, bash]
+----
+mkdir build
+cd build
+cmake ..
+make examples
 ----
 
 Compilation of tests
 ^^^^^^^^^^^^^^^^^^^^
-To compile the tests, first unzip gtest to location of your desire. Then run:
+To compile the tests, first unzip gtest to location of your desire.
+Some of the tests require a second node on the same network. There are two cmake
+variables which are used to automatically adapt the json files to the used
+network setup:
+
+* `TEST_IP_MASTER`: The IP address of the interface which will act as test
+  master.
+* `TEST_IP_SLAVE`: The IP address of the interface of the second node which will
+  act as test slave.
+
+If one of this variables isn't specified, only the tests using local
+communication exclusively will be runnable.
+
+Example, compilation of tests:
 [source, bash]
 ----
 mkdir build
 cd build
 export GTEST_ROOT=$PATH_TO_GTEST/gtest-1.7.0/
-cmake ..
+cmake -DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125 ..
 make check
 ----
 
@@ -103,6 +127,33 @@ Additional make targets for the tests:
 * To list all available tests run `ctest -N`.
 * For further information about the tests please have a look at the
   `readme.txt` in the `test` subdirectory.
+
+For development purposes two cmake variables exist which control if the
+json files and test scripts are copied (default) or symlinked into the build
+directory. These settings are ignored on Windows.
+
+* `TEST_SYMLINK_CONFIG_FILES`: Controls if the json and scripts needed
+  to run the tests are copied or symlinked into the build directory. (Default:
+  OFF, ignored on Windows)
+* `TEST_SYMLINK_CONFIG_FILES_RELATIVE`: Controls if the json and scripts needed
+  to run the tests are symlinked relatively into the build directory.
+  (Default: OFF, ignored on Windows)
+
+Example cmake call:
+[source, bash]
+----
+cmake  -DTEST_SYMLINK_CONFIG_FILES=ON -DTEST_SYMLINK_CONFIG_FILES_RELATIVE=ON ..
+----
+
+For compilation of only a subset of tests (for a quick
+functionality check) the cmake variable `TESTS_BAT` has
+to be set:
+
+Example cmake call:
+[source, bash]
+----
+cmake  -DTESTS_BAT=ON ..
+----
 
 Generating the documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,9 +172,17 @@ On startup the following environment variables are read out:
   name of the application. This name is later used to map a client id to the
   application in the configuration file. It is independent from the
   application's binary name.
-* `VSOMEIP_CONFIGURATION_FILE`: This environment variable can be used to specify
-  a configuration file to be used by the application. If this variable is not
-  defined the default configuration file `/etc/vsomeip.json` will be used.
+* `VSOMEIP_CONFIGURATION`: vsomeip uses the default configuration file `/etc/vsomeip.json`
+   and/or the default configuration folder `/etc/vsomeip`. This can be overridden by a
+   local configuration file `./vsomeip.json` and/or a local configuration folder `./vsomeip`.
+   If `VSOMEIP_CONFIGURATION` is set to a valid file or directory path, this is used instead
+   of the standard configuration (thus neither default nor local file/folder will be parsed).
+
+NOTE: If the file/folder that is configured by `VSOMEIP_CONFIGURATION` does _not_ exist,
+the default configuration locations will be used.
+
+NOTE: vsomeip will parse and use the configuration from all files in a configuration folder
+but will _not_ consider directories within the configuration folder.
 
 In the following example the application `my_vsomeip_application` is started.
 The settings are read from the file `my_settings.json` in the current working
@@ -134,7 +193,7 @@ directory. The client id for the application can be found under the name
 ----
 #!/bin/bash
 export VSOMEIP_APPLICATION_NAME=my_vsomeip_client
-export VSOMEIP_CONFIGURATION_FILE=my_settings.json
+export VSOMEIP_CONFIGURATION=my_settings.json
 ./my_vsomeip_application
 ----
 
@@ -216,77 +275,6 @@ application thread. If an application wants/must do time consuming work directly
 within event, availability or message callbacks, 'num_dispatchers' should be set
 to '2' or higher.
 +
-//Service groups
-* 'servicegroups (array)'
-+
-Services can be grouped together into one service group. A service group
-contains the services of a specific service provider and its connection
-information.
-+
-NOTE: It is also possible to define multiple service groups to address services
-from different service providers.
-+
-** 'name'
-+
-The name of the service group.
-+
-** 'unicast'
-+
-The IP address of the service provider (valid values: _local_ if the service
-provider is the local host otherwise the _valid IP address_ of the remote
-service provider).
-+
-** 'delays'
-+
-Contains delays related to the Service Discovery respectively to the service
-instances.
-+
-NOTE: The multicast messages of the Service Discovery come with the risk of
-overflowing the net with too many messages. Therefore, the Service Discovery can
-be configured with a suitable message sending behavior.
-
-*** 'initial'
-+
-NOTE: A Service instance goes through different phases. One phase is called
-Initial Wait Phase. This phase is entered when the service is fully available
-and waits for the messages of a client's Service Discovery.
-
-**** 'minimum'
-+
-Specifies the minimum time during which the messages of a client's Service
-Discovery will be ignored (value in milliseconds).
-
-**** 'maximum'
-+
-Specifies the maximum time during which the messages of a client's Service
-Discovery will be ignored (value in milliseconds).
-
-*** `repetition-base`
-+
-NOTE: On condition that the initial delay is over, the Repetition Phase is
-entered. In this phase the services will be offered repeatedly via multicast by
-the Service Discovery of the service provider.
-+
-The repetition base delay specifies the time after that the first offer will be
-started to send (value in milliseconds).
-
-*** `repetition-max`
-+
-Specifies the amount of sent offers within the repetition phase.
-
-*** `cyclic-offer`
-+
-NOTE: After the specific amount of repetitions, the Main Phase is entered. In
-the Main Phase the Service Discovery of the service provider starts with a
-cyclic offer of the services.
-+
-The cyclic offer specifies the interval in which the services will be offered
-via multicast (value in milliseconds).
-
-*** `cyclic-request`
-+
-Specifies the cyclic-request-delay. Currently unused.
-
 ** `services` (array)
 +
 Contains the services of the service provider.
@@ -298,6 +286,22 @@ The id of the service.
 *** `instance`
 +
 The id of the service instance.
+
+*** `protocol` (optional)
++
+The protocol that is used to implement the service instance. The default setting
+is _someip_. If a different setting is provided, vsomeip does not open the specified
+port (server side) or does not connect to the specified port (client side). Thus,
+this option can be used to let the service discovery announce a service that is
+externally implemented. 
+
+*** `unicast` (optional)
++
+The unicast that hosts the service instance.
++
+NOTE: The unicast address is needed if external service instances shall be used,
+but service discovery is disabled. In this case, the provided unicast address
+is used to access the service instance. 
 
 *** `reliable`
 +
@@ -376,6 +380,43 @@ _true_,_false_).
 +
 The multicast address which the events are sent to.
 
+* `payload-sizes` (array)
++
+Array to specify the maximum allowed payload sizes per IP and port. If not
+specified, or a smaller value than the default values is specified, the default
+values are used. The settings in this array only affect communication over TCP
+and local communication over UNIX domain sockets.
+
+** `unicast`
++
+On client side: the IP of the remote service to which the oversized messages
+should be sent.
+On service side: the IP of the offered service which should receive the
+oversized messages and is allowed to respond with oversized messages.
+If client and service only communicate locally, any IP can be entered here as
+for local communication only the maximum specified payload size is relevant.
+
+** `ports` (array)
++
+Array which holds pairs of port and payload-size statements.
+
+*** `port`
++
+On client side: the port of the remote service to which the oversized messages
+should be sent.
+On service side: the port of the offered service which should receive the
+oversized messages and is allowed to respond with oversized messages.
+If client and service only communicate locally, any port number can be entered.
+
+*** `max-payload-size`
++
+On client side: the maximum payload size in bytes of a message sent to the
+remote service hosted on beforehand specified IP and port.
+On service side: the maximum payload size in bytes of messages received by the
+service offered on previously specified IP and port. If multiple services are
+hosted on the same port all of them are allowed to receive oversized messages
+and send oversized responses.
+
 * `routing`
 +
 The name of the application that is responsible for the routing.
@@ -386,22 +427,88 @@ Contains settings related to the Service Discovery of the host application.
 
 ** `enable`
 +
-Specifies whether the Service Discovery is enabled ( valid values: _true_,
-_false_).
+Specifies whether the Service Discovery is enabled (valid values: _true_,
+_false_). The default value is _true_.
 
 ** `multicast`
 +
 The multicast address which the messages of the Service Discovery will be sent
-to.
+to. The default value is "224.0.0.1".
 
 ** `port`
 +
-The port of the Service Discovery.
+The port of the Service Discovery. The default setting is 30490.
 
 ** `protocol`
 +
 The protocol that is used for sending the Service Discovery messages (valid
-values: _tcp_,_udp_)
+values: _tcp_, _udp_). The default setting is _udp_.
+
+** `initial_delay_min`
++
+Minimum delay before first offer message.
+
+** `initial_delay_max`
++
+Maximum delay before first offer message.
+
+** `repetitions_base_delay`
++
+Base delay sending offer messages within the repetition phase.
+ 
+** `repetitions_max`
++
+Maximum number of repetitions for provided services within the 
+repetition phase.
+ 
+** `ttl`
++
+Lifetime of entries for provided services as well as consumed services and eventgroups.
+
+** `cyclic_offer_delay`
++
+Cycle of the OfferService messages in the main phase.
+
+** `request_response_delay`
++
+Minimum delay of a unicast message to a multicast message for
+provided services and eventgroups.
+
+Autoconfiguration
+-----------------
+vsomeip supports the automatic configuration of client identifiers and the routing.
+The first application that starts using vsomeip will automatically become the
+routing manager if it is _not_ explicitly configured. The client identifiers
+are generated from the diagnosis address that can be specified by defining
+DIAGNOSIS_ADDRESS when compiling vsomeip. vsomeip will use the diagnosis address
+as the high byte and enumerate the connecting applications within the low byte
+of the client identifier.
+
+vsomeipd
+--------
+The vsomeipd is a minimal vsomeip application intended to offer routing manager
+functionality on a node where one system wide configuration file is present.
+
+The vsomeipd uses the application name `vsomeipd` by default. This name can be
+overridden by specifying `-DROUTING=$DESIRED_NAME` during the cmake call.
+
+Example: Starting the daemon on a system where the system wide configuration is
+stored under `/etc/vsomeip.json`:
+[source, bash]
+----
+VSOMEIP_CONFIGURATION=/etc/vsomeip.json ./vsomeipd
+----
+
+When using the daemon it should be ensured that:
+
+* In the system wide configuration file the vsomeipd is defined as
+  routing manager, meaning it contains the line `"routing" : "vsomeipd"`.
+  If the default name is overridden the entry has to be adapted accordingly.
+  The system wide configuration file should contain the information about all
+  other offered services on the system as well.
+* There's no other vsomeip configuration file used on the system which contains
+  a `"routing"` entry. As there can only be one routing manager per system.
+
 
 vsomeip Hello World
 -------------------
@@ -436,7 +543,7 @@ Starting and expected output of service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 [source, bash]
 ----
-$ VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+$ VSOMEIP_CONFIGURATION=../helloworld-local.json \
   VSOMEIP_APPLICATION_NAME=hello_world_service \
   ./hello_world_service
 2015-04-01 11:31:13.248437 [info] Using configuration file: ../helloworld-local.json
@@ -450,7 +557,7 @@ Starting and expected output of client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 [source, bash]
 ----
-$ VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+$ VSOMEIP_CONFIGURATION=../helloworld-local.json \
   VSOMEIP_APPLICATION_NAME=hello_world_client \
   ./hello_world_client
 2015-04-01 11:31:22.704166 [info] Using configuration file: ../helloworld-local.json

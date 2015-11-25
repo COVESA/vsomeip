@@ -42,6 +42,10 @@ public:
     virtual unsigned short get_remote_port() const = 0;
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
+
+    virtual void increment_use_count() = 0;
+    virtual void decrement_use_count() = 0;
+    virtual uint32_t get_use_count() = 0;
 };
 
 } // namespace vsomeip

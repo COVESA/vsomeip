@@ -6,10 +6,13 @@
 #ifndef VSOMEIP_VSOMEIP_HPP
 #define VSOMEIP_VSOMEIP_HPP
 
+/**
+ * \brief The central vsomeip header. Include this to use vsomeip.
+ */
+
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/application.hpp>
-#include <vsomeip/logger.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>

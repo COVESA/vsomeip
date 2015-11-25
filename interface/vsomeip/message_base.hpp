@@ -9,8 +9,9 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
-#include <vsomeip/deserializable.hpp>
-#include <vsomeip/serializable.hpp>
+
+#include <vsomeip/internal/deserializable.hpp>
+#include <vsomeip/internal/serializable.hpp>
 
 namespace vsomeip {
 

@@ -20,31 +20,31 @@ message_impl::~message_impl() {
 }
 
 length_t message_impl::get_length() const {
-	return (VSOMEIP_SOMEIP_HEADER_SIZE
-			+ (payload_ ? payload_->get_length() : 0));
+    return (VSOMEIP_SOMEIP_HEADER_SIZE
+            + (payload_ ? payload_->get_length() : 0));
 }
 
 std::shared_ptr< payload > message_impl::get_payload() const {
-	return payload_;
+    return payload_;
 }
 
 void message_impl::set_payload(std::shared_ptr< payload > _payload) {
-	payload_ = _payload;
+    payload_ = _payload;
 }
 
 bool message_impl::serialize(serializer *_to) const {
-	return (header_.serialize(_to)
-			&& (payload_ ? payload_->serialize(_to) : true));
+    return (header_.serialize(_to)
+            && (payload_ ? payload_->serialize(_to) : true));
 }
 
 bool message_impl::deserialize(deserializer *_from) {
-	payload_ = runtime::get()->create_payload();
-	bool is_successful = header_.deserialize(_from);
-	if (is_successful) {
-		payload_->set_capacity(header_.length_);
-		is_successful = payload_->deserialize(_from);
-	}
-	return is_successful;
+    payload_ = runtime::get()->create_payload();
+    bool is_successful = header_.deserialize(_from);
+    if (is_successful) {
+        payload_->set_capacity(header_.length_);
+        is_successful = payload_->deserialize(_from);
+    }
+    return is_successful;
 }
 
 } // namespace vsomeip

@@ -10,12 +10,12 @@
 #include <vector>
 
 #include <vsomeip/primitive_types.hpp>
-#include <vsomeip/serializable.hpp>
+#include <vsomeip/internal/serializable.hpp>
 
 #include "enumeration_types.hpp"
 #include "message_element_impl.hpp"
 
-#define VSOMEIP_MAX_OPTION_RUN	2
+#define VSOMEIP_MAX_OPTION_RUN    2
 
 namespace vsomeip {
 
@@ -57,6 +57,8 @@ public:
     virtual bool serialize(vsomeip::serializer *_to) const;
     virtual bool deserialize(vsomeip::deserializer *_from);
 
+    uint8_t get_num_options(uint8_t _run) const;
+
 protected:
     entry_type_e type_;
     service_t service_;
@@ -65,6 +67,8 @@ protected:
     ttl_t ttl_;
 
     std::vector<uint8_t> options_[VSOMEIP_MAX_OPTION_RUN];
+
+    uint8_t num_options_[VSOMEIP_MAX_OPTION_RUN];
 
     entry_impl();
     entry_impl(const entry_impl &entry_);

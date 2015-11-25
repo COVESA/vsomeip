@@ -21,12 +21,12 @@ the devices addresses.
 To start the hello world client and service from their build-directory do:
 
 HOST1:
-VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+VSOMEIP_CONFIGURATION=../helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_service \
 ./hello_world_service
 
 HOST1:
-VSOMEIP_CONFIGURATION_FILE=../helloworld-local.json \
+VSOMEIP_CONFIGURATION=../helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_client \
 ./hello_world_client
 

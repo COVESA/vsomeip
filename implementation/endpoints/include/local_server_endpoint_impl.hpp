@@ -36,7 +36,8 @@ class local_server_endpoint_impl: public local_server_endpoint_base_impl {
 public:
     local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
-                               boost::asio::io_service &_io);
+                               boost::asio::io_service &_io,
+                               std::uint32_t _max_message_size);
     virtual ~local_server_endpoint_impl();
 
     void start();
@@ -47,7 +48,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition>,
                  const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(endpoint_type _target, message_buffer_ptr_t _data);
+    void send_queued(queue_iterator_type _queue_iterator);
 
     endpoint_type get_remote() const;
     bool get_multicast(service_t, event_t, endpoint_type &) const;
@@ -60,27 +61,29 @@ private:
     public:
         typedef boost::shared_ptr<connection> ptr;
 
-        static ptr create(local_server_endpoint_impl *_server);
+        static ptr create(local_server_endpoint_impl *_server,
+                std::uint32_t _max_message_size);
         socket_type & get_socket();
 
         void start();
 
-        void send_queued(message_buffer_ptr_t _data);
+        void send_queued(queue_iterator_type _queue_iterator);
 
     private:
-        connection(local_server_endpoint_impl *_owner);
+        connection(local_server_endpoint_impl *_owner, std::uint32_t _max_message_size);
 
         void send_magic_cookie();
 
         local_server_endpoint_impl::socket_type socket_;
         local_server_endpoint_impl *server_;
 
-        // the current message
-        message_buffer_t message_;
+        uint32_t max_message_size_;
+
+        receive_buffer_t recv_buffer_;
+        size_t recv_buffer_size_;
 
     private:
-        void receive_cbk(packet_buffer_ptr_t _buffer,
-                         boost::system::error_code const &_error,
+        void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
     };
 

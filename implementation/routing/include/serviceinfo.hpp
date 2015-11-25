@@ -21,7 +21,7 @@ class servicegroup;
 class serviceinfo {
 public:
     VSOMEIP_EXPORT serviceinfo(major_version_t _major, minor_version_t _minor,
-            ttl_t _ttl);
+            ttl_t _ttl, bool _is_local);
     VSOMEIP_EXPORT ~serviceinfo();
 
     VSOMEIP_EXPORT servicegroup * get_group() const;
@@ -49,6 +49,8 @@ public:
     VSOMEIP_EXPORT void add_client(client_t _client);
     VSOMEIP_EXPORT void remove_client(client_t _client);
 
+    VSOMEIP_EXPORT bool is_local() const;
+
 private:
     servicegroup *group_;
 
@@ -64,6 +66,8 @@ private:
     eventgroup_t multicast_group_;
 
     std::set<client_t> requesters_;
+
+    bool is_local_;
 };
 
 }  // namespace vsomeip

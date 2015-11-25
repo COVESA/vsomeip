@@ -39,11 +39,12 @@ public:
 
     VSOMEIP_EXPORT const std::set<std::shared_ptr<event> > get_events() const;
     VSOMEIP_EXPORT void add_event(std::shared_ptr<event> _event);
+    VSOMEIP_EXPORT void remove_event(std::shared_ptr<event> _event);
 
     VSOMEIP_EXPORT const std::set<
         std::shared_ptr<endpoint_definition> > get_targets() const;
-    VSOMEIP_EXPORT void add_target(std::shared_ptr<endpoint_definition> _target);
-    VSOMEIP_EXPORT void del_target(std::shared_ptr<endpoint_definition> _target);
+    VSOMEIP_EXPORT bool add_target(std::shared_ptr<endpoint_definition> _target);
+    VSOMEIP_EXPORT bool remove_target(std::shared_ptr<endpoint_definition> _target);
     VSOMEIP_EXPORT void clear_targets();
 
 private:

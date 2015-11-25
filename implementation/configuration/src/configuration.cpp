@@ -7,8 +7,13 @@
 
 namespace vsomeip {
 
-configuration * configuration::get(const std::string &_path) {
-    return cfg::configuration_impl::get(_path);
+std::shared_ptr<configuration> configuration::get(
+        const std::set<std::string> &_input) {
+    return cfg::configuration_impl::get(_input);
+}
+
+void configuration::reset() {
+    cfg::configuration_impl::reset();
 }
 
 } // namespace vsomeip

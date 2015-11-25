@@ -10,9 +10,9 @@
 
 namespace vsomeip {
 
-enum class event_type_e : uint8_t {
-    ET_REGISTERED = 0x0,
-    ET_DEREGISTERED = 0x1
+enum class state_type_e : uint8_t {
+    ST_REGISTERED = 0x0,
+    ST_DEREGISTERED = 0x1
 };
 
 // SIP_RPC_684

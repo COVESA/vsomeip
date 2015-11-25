@@ -20,8 +20,7 @@ class subscription {
 public:
     subscription(major_version_t _major, ttl_t _ttl,
             std::shared_ptr<endpoint> _reliable,
-            std::shared_ptr<endpoint> _unreliable,
-            client_t _target);
+            std::shared_ptr<endpoint> _unreliable);
     ~subscription();
 
     major_version_t get_major() const;
@@ -30,7 +29,7 @@ public:
     std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
     void set_endpoint(std::shared_ptr<endpoint> _endpoint, bool _reliable);
 
-    bool is_acknowleged() const;
+    bool is_acknowledged() const;
     void set_acknowledged(bool _is_acknowledged);
 
 private:

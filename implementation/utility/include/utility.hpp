@@ -61,7 +61,7 @@ public:
     static uint32_t get_message_size(const byte_t *_data, uint32_t _size);
     static inline uint32_t get_message_size(std::vector<byte_t> &_data) {
         if (_data.size() > 0) {
-            return (get_message_size(&_data[0], _data.size()));
+            return (get_message_size(&_data[0], uint32_t(_data.size())));
         }
         return 0;
     }
@@ -69,6 +69,17 @@ public:
     static uint32_t get_payload_size(const byte_t *_data, uint32_t _size);
 
     static bool exists(const std::string &_path);
+    static bool is_file(const std::string &_path);
+    static bool is_folder(const std::string &_path);
+
+    static struct configuration_data_t *the_configuration_data__;
+    static bool auto_configuration_init();
+    static void auto_configuration_exit();
+
+    static bool is_routing_manager_host__;
+    static bool is_routing_manager_host();
+
+    static client_t get_client_id();
 };
 
 }  // namespace vsomeip

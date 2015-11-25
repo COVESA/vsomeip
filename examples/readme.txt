@@ -8,10 +8,10 @@ the configuration files need to be adapted to match the devices addresses.
 
 To start the request/response-example from the build-directory do:
 
-HOST1: env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=client-sample ./request-sample
-HOST2: env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=service-sample ./response-sample
+HOST1: env VSOMEIP_CONFIGURATION=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=client-sample ./request-sample
+HOST2: env VSOMEIP_CONFIGURATION=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=service-sample ./response-sample
 
 To start the subscribe/notify-example from the build-directory do:
 
-HOST1: env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=client-sample ./subscribe-sample
-HOST2: env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=service-sample ./notify-sample
+HOST1: env VSOMEIP_CONFIGURATION=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=client-sample ./subscribe-sample
+HOST2: env VSOMEIP_CONFIGURATION=../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=service-sample ./notify-sample

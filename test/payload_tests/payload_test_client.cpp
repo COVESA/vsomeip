@@ -8,7 +8,7 @@
 enum class payloadsize
     : std::uint8_t
     {
-        UDS, TCP, UDP
+        UDS, TCP, UDP, USER_SPECIFIED
 };
 
 // this variables are changed via cmdline parameters
@@ -17,7 +17,8 @@ static bool call_service_sync = true;
 static std::uint32_t sliding_window_size = vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS;
 static payloadsize max_payload_size = payloadsize::UDS;
 static bool shutdown_service_at_end = true;
-
+static std::uint32_t user_defined_max_payload;
+static std::uint32_t number_of_messages_to_send = 0;
 
 payload_test_client::payload_test_client(
         bool _use_tcp,
@@ -30,7 +31,7 @@ payload_test_client::payload_test_client(
                 sender_(std::bind(&payload_test_client::run, this)),
                 blocked_(false),
                 is_available_(false),
-                number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS),
+                number_of_messages_to_send_(number_of_messages_to_send ? number_of_messages_to_send : vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS),
                 number_of_sent_messages_(0),
                 number_of_sent_messages_total_(0),
                 number_of_acknowledged_messages_(0),
@@ -43,8 +44,13 @@ void payload_test_client::init()
 {
     app_->init();
 
-    app_->register_event_handler(
-            std::bind(&payload_test_client::on_event, this,
+    app_->register_state_handler(
+            std::bind(&payload_test_client::on_state, this,
+                    std::placeholders::_1));
+
+    app_->register_message_handler(vsomeip::ANY_SERVICE,
+            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
+            std::bind(&payload_test_client::on_message, this,
                     std::placeholders::_1));
 
     app_->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
@@ -52,15 +58,6 @@ void payload_test_client::init()
             std::bind(&payload_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
-
-    app_->register_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
-            std::bind(&payload_test_client::on_message, this,
-                    std::placeholders::_1));
-
-    request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
-    request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 }
 
 void payload_test_client::start()
@@ -79,11 +76,9 @@ void payload_test_client::stop()
     }
     app_->unregister_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app_->unregister_event_handler();
+    app_->unregister_state_handler();
     app_->unregister_message_handler(vsomeip::ANY_SERVICE,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
-
-    app_->stop();
 }
 
 void payload_test_client::shutdown_service()
@@ -99,9 +94,9 @@ void payload_test_client::join_sender_thread()
     sender_.join();
 }
 
-void payload_test_client::on_event(vsomeip::event_type_e _event)
+void payload_test_client::on_state(vsomeip::state_type_e _state)
 {
-    if(_event == vsomeip::event_type_e::ET_REGISTERED)
+    if(_state == vsomeip::state_type_e::ST_REGISTERED)
     {
         app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                 vsomeip_test::TEST_SERVICE_INSTANCE_ID, false);
@@ -150,16 +145,16 @@ void payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _r
     else
     {
         // We notify the sender thread only if all sent messages have been acknowledged
-        if(number_of_acknowledged_messages_ % sliding_window_size == 0)
-        {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
-            all_msg_acknowledged_ = true;
-            all_msg_acknowledged_cv_.notify_one();
-        }
         if(number_of_acknowledged_messages_ == number_of_messages_to_send_)
         {
             std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
             number_of_acknowledged_messages_ = 0;
+            all_msg_acknowledged_ = true;
+            all_msg_acknowledged_cv_.notify_one();
+        }
+        else if(number_of_acknowledged_messages_ % sliding_window_size == 0)
+        {
+            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
             all_msg_acknowledged_ = true;
             all_msg_acknowledged_cv_.notify_one();
         }
@@ -180,6 +175,10 @@ void payload_test_client::run()
     {
         condition_.wait(its_lock);
     }
+
+    request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
+    request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+    request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 
     // lock the mutex
     std::unique_lock<std::mutex> lk(all_msg_acknowledged_mutex_);
@@ -218,6 +217,11 @@ void payload_test_client::run()
     blocked_ = false;
 
     stop();
+    std::thread t1([](){ usleep(1000000 * 5);});
+    t1.join();
+    app_->stop();
+    std::thread t([](){ usleep(1000000 * 5);});
+    t.join();
 }
 
 
@@ -234,6 +238,9 @@ std::uint32_t payload_test_client::get_max_allowed_payload()
             break;
         case payloadsize::UDP:
             payload = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+            break;
+        case payloadsize::USER_SPECIFIED:
+            payload = user_defined_max_payload;
             break;
         default:
             payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
@@ -317,6 +324,7 @@ int main(int argc, char** argv)
     std::string sliding_window_size_param("--sliding-window-size");
     std::string max_payload_size_param("--max-payload-size");
     std::string shutdown_service_disable_param("--dont-shutdown-service");
+    std::string numbers_of_messages("--number-of-messages");
     std::string help("--help");
 
     int i = 1;
@@ -359,6 +367,16 @@ int main(int argc, char** argv)
             {
                 max_payload_size = payloadsize::UDP;
             }
+            else {
+                max_payload_size = payloadsize::USER_SPECIFIED;
+                std::stringstream converter(argv[i]);
+                converter >> user_defined_max_payload;
+            }
+        }
+        else if (numbers_of_messages == argv[i]) {
+            i++;
+            std::stringstream converter(argv[i]);
+            converter >> number_of_messages_to_send;
         }
         else if(shutdown_service_disable_param == argv[i])
         {
@@ -380,6 +398,7 @@ int main(int argc, char** argv)
                 "TCP (=" << VSOMEIP_MAX_TCP_MESSAGE_SIZE << "byte)}, default: UDS\n"
             << "--dont-shutdown-service: Don't shutdown the service upon "
                 "finishing of the payload test\n"
+            << "--number-of-messages: Number of messages to send per payload size iteration\n"
             << "--help: print this help";
         }
         i++;

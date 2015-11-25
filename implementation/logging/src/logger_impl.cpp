@@ -29,8 +29,8 @@
 #include <boost/core/null_deleter.hpp>
 #endif
 
-#include <vsomeip/configuration.hpp>
 #include "../include/logger_impl.hpp"
+#include "../../configuration/include/configuration.hpp"
 
 namespace logging = boost::log;
 namespace sources = boost::log::sources;
@@ -59,19 +59,19 @@ logger_impl::get_internal() {
     return logger_;
 }
 
-void logger_impl::init(const std::string &_path) {
-    configuration *its_configuration = configuration::get(_path);
-    get()->loglevel_ = its_configuration->get_loglevel();
+void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
+    get()->loglevel_ = _configuration->get_loglevel();
+
     logging::core::get()->set_filter(
             logging::trivial::severity >= get()->loglevel_);
 
-    if (its_configuration->has_console_log())
+    if (_configuration->has_console_log())
         get()->enable_console();
 
-    if (its_configuration->has_file_log())
-        get()->enable_file(its_configuration->get_logfile());
+    if (_configuration->has_file_log())
+        get()->enable_file(_configuration->get_logfile());
 
-    if (its_configuration->has_dlt_log())
+    if (_configuration->has_dlt_log())
         get()->enable_dlt();
 }
 

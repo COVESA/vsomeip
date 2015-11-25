@@ -3,70 +3,175 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <future>
 #include <thread>
-#include <iostream>
+#include <iomanip>
 
-#include <vsomeip/configuration.hpp>
+#ifndef WIN32
+#include <dlfcn.h>
+#endif
+#include <iostream>
 #include <vsomeip/defines.hpp>
-#include <vsomeip/logger.hpp>
 
 #include "../include/application_impl.hpp"
+#include "../../configuration/include/configuration.hpp"
 #include "../../configuration/include/internal.hpp"
+#include "../../logging/include/logger.hpp"
 #include "../../message/include/serializer.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_proxy.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../configuration/include/configuration_impl.hpp"
 
 namespace vsomeip {
 
 application_impl::application_impl(const std::string &_name)
-        : name_(_name), is_initialized_(false), routing_(0), signals_(io_,
-                SIGINT, SIGTERM), num_dispatchers_(0), logger_(logger::get()) {
+        : is_initialized_(false), name_(_name),
+          file_(VSOMEIP_DEFAULT_CONFIGURATION_FILE),
+          folder_(VSOMEIP_DEFAULT_CONFIGURATION_FOLDER),
+          routing_(0),
+          signals_(io_, SIGINT, SIGTERM),
+          num_dispatchers_(0), logger_(logger::get()),
+          stopped_(false) {
 }
 
 application_impl::~application_impl() {
 #ifdef WIN32
-    // killemall
-    exit(0);
+    exit(0); // TODO: clean solution...
 #endif
+    stop_thread_.join();
+}
+
+void application_impl::set_configuration(
+        const std::shared_ptr<configuration> _configuration) {
+    if(_configuration)
+        configuration_ = std::make_shared<cfg::configuration_impl>(*(std::static_pointer_cast<cfg::configuration_impl, configuration>(_configuration)));
 }
 
 bool application_impl::init() {
-    bool is_initialized(false);
-
     // Application name
     if (name_ == "") {
         const char *its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
         if (nullptr != its_name) {
             name_ = its_name;
-        } else {
-            VSOMEIP_ERROR<< "Missing application name. "
-            "Please set environment variable VSOMEIP_APPLICATION_NAME.";
-            return false;
         }
     }
 
-    // Set default path
-    std::string its_path(VSOMEIP_DEFAULT_CONFIGURATION_FILE_PATH);
+    // load configuration from module
+    std::string config_module = "";
+    const char *its_config_module = getenv(VSOMEIP_ENV_CONFIGURATION_MODULE);
+    if(nullptr != its_config_module) {
+        config_module = its_config_module;
+        if (config_module.rfind(".so") != config_module.length() - 3) {
+                config_module += ".so";
+        }
+        VSOMEIP_INFO << "Loading configuration from module \"" << config_module << "\".";
+#ifdef WIN32
+        HMODULE config = LoadLibrary(config_module.c_str());
+        if (config != 0) {
+            VSOMEIP_INFO << "\"" << config_module << "\" was loaded";
+            if (!configuration_) {
+                VSOMEIP_ERROR << "Configuration not set.";
+                return false;
+            }
+        } else {
+            VSOMEIP_ERROR << "\"" << config_module << "\" could not be loaded (" << GetLastError() << ")";
+            return false;
+        }
+        FreeModule(config);
+#else
+        void *config = dlopen(config_module.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+        if(config != 0) {
+            VSOMEIP_INFO << "\"" << config_module << "\" was loaded";
+            if(!configuration_) {
+                VSOMEIP_ERROR << "Configuration not set.";
+                return false;
+            }
+        } else {
+            VSOMEIP_ERROR << "\"" << config_module << "\" could not be loaded (" << dlerror() << ")";
+            return false;
+        }
+        dlclose(config);
+#endif
+    } else {
+        // Override with local file /folder
+        std::string its_local_file(VSOMEIP_LOCAL_CONFIGURATION_FILE);
+        if (utility::is_file(its_local_file)) {
+            file_ = its_local_file;
+        }
 
-    // Override with path from environment
-    const char *its_env_path = getenv(VSOMEIP_ENV_CONFIGURATION_FILE_PATH);
-    if (nullptr != its_env_path && utility::exists(its_env_path))
-        its_path = its_env_path;
+        std::string its_local_folder(VSOMEIP_LOCAL_CONFIGURATION_FOLDER);
+        if (utility::is_folder(its_local_folder)) {
+            folder_ = its_local_folder;
+        }
 
-    // Override with local path
-    std::string its_local_path(VSOMEIP_LOCAL_CONFIGURATION_FILE_PATH);
-    if (utility::exists(its_local_path))
-        its_path = its_local_path;
+        // Finally, override with path from environment
+        const char *its_env = getenv(VSOMEIP_ENV_CONFIGURATION);
+        if (nullptr != its_env) {
+            if (utility::is_file(its_env)) {
+                file_ = its_env;
+                folder_ = "";
+            } else if (utility::is_folder(its_env)) {
+                folder_ = its_env;
+                file_ = "";
+            }
+        }
+    }
 
-    configuration_.reset(configuration::get(its_path));
-    VSOMEIP_INFO<< "Using configuration file: " << its_path;
+    std::shared_ptr<configuration> its_configuration = get_configuration();
+    if (its_configuration) {
+        VSOMEIP_INFO << "Initializing vsomeip application \"" << name_ << "\"";
 
-    if (configuration_) {
-        client_ = configuration_->get_id(name_);
+        if (utility::is_file(file_))
+            VSOMEIP_INFO << "Using configuration file: \"" << file_ << "\"";
+
+        if (utility::is_folder(folder_))
+            VSOMEIP_INFO << "Using configuration folder: \"" << folder_ << "\"";
+
+        bool is_routing_manager_host(false);
+        client_ = its_configuration->get_id(name_);
+        std::string its_routing_host = its_configuration->get_routing_host();
+
+        if (client_ == 0 || its_routing_host == "") {
+#ifndef WIN32
+            if (!utility::auto_configuration_init()) {
+                VSOMEIP_ERROR << "Configuration incomplete and "
+                                 "Auto-configuration failed!";
+                return false;
+            }
+#else
+            return false;
+#endif
+        }
+        // Client ID
+        if (client_ == 0) {
+#ifndef WIN32
+            client_ = utility::get_client_id();
+            VSOMEIP_INFO << "No SOME/IP client identifier configured. "
+                    << "Using auto-configured "
+                    << std::hex << std::setfill('0') << std::setw(4)
+                    << client_;
+#else
+            return false;
+#endif
+        }
 
         // Routing
-        if (name_ == configuration_->get_routing_host()) {
+        if (its_routing_host == "") {
+#ifndef WIN32
+            is_routing_manager_host = utility::is_routing_manager_host();
+            VSOMEIP_INFO << "No routing manager configured. "
+                    << "Using auto-configuration ("
+                    << (is_routing_manager_host ?
+                            "Host" : "Proxy") << ")";
+#else
+            return false;
+#endif
+        } else {
+            is_routing_manager_host = (its_routing_host == name_);
+        }
+
+        if (is_routing_manager_host) {
             routing_ = std::make_shared<routing_manager_impl>(this);
         } else {
             routing_ = std::make_shared<routing_manager_proxy>(this);
@@ -74,19 +179,22 @@ bool application_impl::init() {
 
         routing_->init();
 
-        num_dispatchers_ = configuration_->get_num_dispatchers(name_);
+        num_dispatchers_ = its_configuration->get_num_dispatchers(name_);
 
         // Smallest allowed session identifier
         session_ = 0x0001;
 
-        VSOMEIP_DEBUG<< "Application(" << name_ << ", "
-                << std::hex << client_ << ") is initialized (uses "
+        VSOMEIP_DEBUG<< "Application(" << (name_ != "" ? name_ : "unnamed")
+                << ", " << std::hex << client_ << ") is initialized (uses "
                 << std::dec << num_dispatchers_ << " dispatcher threads).";
 
         is_initialized_ = true;
     }
 
     if (is_initialized_) {
+        signals_.add(SIGINT);
+        signals_.add(SIGTERM);
+
         // Register signal handler
         std::function<void(boost::system::error_code const &, int)> its_signal_handler =
                 [this] (boost::system::error_code const &_error, int _signal) {
@@ -109,35 +217,60 @@ bool application_impl::init() {
 }
 
 void application_impl::start() {
-    is_dispatching_ = true;
+    {
+        std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
+        if(io_.stopped()) {
+            io_.reset();
+        } else if(stop_thread_.joinable()) {
+            VSOMEIP_ERROR << "Trying to start an already started application.";
+            return;
+        }
 
-    for (size_t i = 0; i < num_dispatchers_; i++)
-        dispatchers_.push_back(
-                std::thread(std::bind(&application_impl::dispatch, this)));
+        is_dispatching_ = true;
 
-    if (routing_)
-        routing_->start();
+        for (size_t i = 0; i < num_dispatchers_; i++)
+            dispatchers_.push_back(
+                    std::thread(std::bind(&application_impl::dispatch, this)));
 
+        if(stop_thread_.joinable()) {
+            stop_thread_.join();
+        }
+        stop_thread_= std::thread(&application_impl::wait_for_stop, this);
+
+        if (routing_)
+            routing_->start();
+    }
+    VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\"";
     io_.run();
 }
 
 void application_impl::stop() {
+    VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\"";
+    std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
     is_dispatching_ = false;
     dispatch_condition_.notify_all();
-    for (auto &t : dispatchers_)
-        t.join();
+    for (auto &t : dispatchers_) {
+        if(t.get_id() == std::this_thread::get_id()) {
+            continue;
+        }
+        if(t.joinable()) {
+            t.join();
+        }
+    }
 
     if (routing_)
         routing_->stop();
-
-    io_.stop();
+#ifndef WIN32
+    utility::auto_configuration_exit();
+#endif
+    stopped_ = true;
+    stop_cv_.notify_one();
 }
 
 void application_impl::offer_service(service_t _service, instance_t _instance,
-        major_version_t _major, minor_version_t _minor, ttl_t _ttl) {
+        major_version_t _major, minor_version_t _minor) {
     if (routing_)
-        routing_->offer_service(client_, _service, _instance, _major, _minor,
-                _ttl);
+        routing_->offer_service(client_, _service, _instance, _major, _minor);
 }
 
 void application_impl::stop_offer_service(service_t _service,
@@ -147,11 +280,10 @@ void application_impl::stop_offer_service(service_t _service,
 }
 
 void application_impl::request_service(service_t _service, instance_t _instance,
-        bool _has_selective, major_version_t _major, minor_version_t _minor,
-        ttl_t _ttl) {
+        major_version_t _major, minor_version_t _minor, bool _use_exclusive_proxy) {
     if (routing_)
         routing_->request_service(client_, _service, _instance, _major, _minor,
-                _ttl, _has_selective);
+                _use_exclusive_proxy);
 }
 
 void application_impl::release_service(service_t _service,
@@ -161,10 +293,9 @@ void application_impl::release_service(service_t _service,
 }
 
 void application_impl::subscribe(service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl) {
+        eventgroup_t _eventgroup, major_version_t _major) {
     if (routing_)
-        routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
-                _ttl);
+        routing_->subscribe(client_, _service, _instance, _eventgroup, _major);
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance,
@@ -173,7 +304,8 @@ void application_impl::unsubscribe(service_t _service, instance_t _instance,
         routing_->unsubscribe(client_, _service, _instance, _eventgroup);
 }
 
-bool application_impl::is_available(service_t _service, instance_t _instance) {
+bool application_impl::is_available(
+        service_t _service, instance_t _instance) const {
     auto found_available = available_.find(_service);
     if (found_available == available_.end())
         return false;
@@ -183,6 +315,7 @@ bool application_impl::is_available(service_t _service, instance_t _instance) {
 }
 
 void application_impl::send(std::shared_ptr<message> _message, bool _flush) {
+    std::lock_guard<std::mutex> its_lock(session_mutex_);
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
         bool is_request = utility::is_request(_message);
@@ -214,18 +347,23 @@ void application_impl::notify_one(service_t _service, instance_t _instance,
     }
 }
 
-void application_impl::register_event_handler(event_handler_t _handler) {
+void application_impl::register_state_handler(state_handler_t _handler) {
     handler_ = _handler;
 }
 
-void application_impl::unregister_event_handler() {
+void application_impl::unregister_state_handler() {
     handler_ = nullptr;
 }
 
 void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, availability_handler_t _handler) {
-    std::unique_lock<std::mutex> its_lock(availability_mutex_);
-    availability_[_service][_instance] = _handler;
+    {
+        std::unique_lock<std::mutex> its_lock(availability_mutex_);
+        availability_[_service][_instance] = _handler;
+    }
+    std::async(std::launch::async, [this, _service, _instance, _handler]() {
+        _handler(_service, _instance, is_available(_service, _instance));
+    });
 }
 
 void application_impl::unregister_availability_handler(service_t _service,
@@ -302,6 +440,32 @@ void application_impl::unregister_message_handler(service_t _service,
     }
 }
 
+void application_impl::offer_event(service_t _service, instance_t _instance,
+           event_t _event, std::set<eventgroup_t> _eventgroups, bool _is_field) {
+       if (routing_)
+           routing_->register_event(client_, _service, _instance, _event,
+                   _eventgroups, _is_field, true);
+}
+
+void application_impl::stop_offer_event(service_t _service, instance_t _instance,
+       event_t _event) {
+   if (routing_)
+       routing_->unregister_event(client_, _service, _instance, _event, true);
+}
+
+void application_impl::request_event(service_t _service, instance_t _instance,
+           event_t _event, std::set<eventgroup_t> _eventgroups, bool _is_field) {
+       if (routing_)
+           routing_->register_event(client_, _service, _instance, _event,
+                   _eventgroups, _is_field, false);
+  }
+
+void application_impl::release_event(service_t _service, instance_t _instance,
+       event_t _event) {
+   if (routing_)
+       routing_->unregister_event(client_, _service, _instance, _event, false);
+}
+
 // Interface "routing_manager_host"
 const std::string & application_impl::get_name() const {
     return name_;
@@ -312,23 +476,36 @@ client_t application_impl::get_client() const {
 }
 
 std::shared_ptr<configuration> application_impl::get_configuration() const {
-    return configuration_;
+    if(configuration_) {
+        return configuration_;
+    } else {
+        std::set<std::string> its_input;
+        std::shared_ptr<configuration> its_configuration;
+        if (file_ != "") {
+            its_input.insert(file_);
+        }
+        if (folder_ != "") {
+            its_input.insert(folder_);
+        }
+        its_configuration = configuration::get(its_input);
+        return its_configuration;
+    }
 }
 
 boost::asio::io_service & application_impl::get_io() {
     return io_;
 }
 
-void application_impl::on_event(event_type_e _event) {
+void application_impl::on_state(state_type_e _state) {
     if (handler_) {
         if (num_dispatchers_ > 0) {
             std::unique_lock<std::mutex> its_lock(dispatch_mutex_);
-            handlers_.push_back([this, _event]() {
-                handler_(_event);
+            handlers_.push_back([this, _state]() {
+                handler_(_state);
             });
             dispatch_condition_.notify_one();
         } else {
-            handler_(_event);
+            handler_(_state);
         }
     }
 }
@@ -345,6 +522,9 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
 
     {
         std::unique_lock<std::mutex> its_lock(availability_mutex_);
+
+        if (_is_available == is_available(_service, _instance))
+            return;
 
         if (_is_available) {
             available_[_service].insert(_instance);
@@ -472,6 +652,21 @@ void application_impl::dispatch() {
         }
         handler();
     }
+}
+
+void application_impl::wait_for_stop() {
+    std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
+    while(!stopped_) {
+        stop_cv_.wait(its_lock);
+    }
+    stopped_ = false;
+
+    for (auto &t : dispatchers_) {
+        if(t.joinable()) {
+            t.join();
+        }
+    }
+    io_.stop();
 }
 
 } // namespace vsomeip

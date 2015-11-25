@@ -43,8 +43,8 @@ struct fsm: sc::state_machine<fsm, inactive>, public fsm_base {
     void timer_expired(const boost::system::error_code &_error);
 
     uint32_t initial_delay_;
-    uint32_t repetition_base_delay_;
-    uint8_t repetition_max_;
+    uint32_t repetitions_base_delay_;
+    uint8_t repetitions_max_;
     uint32_t cyclic_offer_delay_;
 
     bool is_up_;
@@ -116,10 +116,7 @@ struct announce: sc::state<announce, active> {
 class service_discovery_fsm: public std::enable_shared_from_this<
         service_discovery_fsm> {
 public:
-    service_discovery_fsm(const std::string &_name,
-            std::shared_ptr<service_discovery> _discovery);
-
-    const std::string & get_name() const;
+    service_discovery_fsm(std::shared_ptr<service_discovery> _discovery);
 
     void start();
     void stop();
@@ -132,8 +129,6 @@ public:
     }
 
 private:
-    std::string name_;
-
     std::weak_ptr<service_discovery> discovery_;
     std::shared_ptr<_sd::fsm> fsm_;
 

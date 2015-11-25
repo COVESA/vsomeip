@@ -31,26 +31,32 @@ class local_client_endpoint_impl: public local_client_endpoint_base_impl {
 public:
     local_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
-                               boost::asio::io_service &_io);
+                               boost::asio::io_service &_io,
+                               std::uint32_t _max_message_size);
 
     virtual ~local_client_endpoint_impl();
 
     void start();
 
-    void send_queued(message_buffer_ptr_t _data);
-
     bool is_local() const;
 
 private:
+    void send_queued();
+
+    void send_start_tag();
+    void send_queued_data();
+    void send_end_tag();
+
     void send_magic_cookie();
 
     void connect();
     void receive();
 
-    void send_tag_cbk(boost::system::error_code const &_error,
-                      std::size_t _bytes);
-    void receive_cbk(packet_buffer_ptr_t _buffer,
-                     boost::system::error_code const &_error,
+    void send_start_tag_cbk(boost::system::error_code const &_error,
+                            std::size_t _bytes);
+    void send_queued_data_cbk(boost::system::error_code const &_error,
+                              std::size_t _bytes);
+    void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
 };
 

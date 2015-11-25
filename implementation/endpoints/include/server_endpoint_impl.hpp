@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_SERVER_IMPL_HPP
 #define VSOMEIP_SERVER_IMPL_HPP
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -28,9 +29,12 @@ public:
     typedef typename Protocol::socket socket_type;
     typedef typename Protocol::endpoint endpoint_type;
     typedef boost::array<uint8_t, MaxBufferSize> buffer_type;
+    typedef typename std::map<endpoint_type, std::deque<message_buffer_ptr_t> > queue_type;
+    typedef typename queue_type::iterator queue_iterator_type;
 
     server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-                         endpoint_type _local, boost::asio::io_service &_io);
+                         endpoint_type _local, boost::asio::io_service &_io,
+                         std::uint32_t _max_message_size);
 
     bool is_client() const;
     bool is_connected() const;
@@ -40,7 +44,7 @@ public:
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(message_buffer_ptr_t _buffer,
+    void send_cbk(queue_iterator_type _queue_iterator,
                   boost::system::error_code const &_error, std::size_t _bytes);
     void flush_cbk(endpoint_type _target,
                    const boost::system::error_code &_error);
@@ -48,8 +52,7 @@ public:
 public:
     virtual bool send_intern(endpoint_type _target, const byte_t *_data,
                              uint32_t _port, bool _flush);
-    virtual void send_queued(endpoint_type _target,
-                             message_buffer_ptr_t _buffer) = 0;
+    virtual void send_queued(queue_iterator_type _queue_iterator) = 0;
 
     virtual endpoint_type get_remote() const = 0;
     virtual bool get_multicast(service_t _service, event_t _event,
@@ -57,6 +60,8 @@ public:
 
 protected:
     std::map<endpoint_type, message_buffer_ptr_t> packetizer_;
+    queue_type queues_;
+
     std::map<client_t, std::map<session_t, endpoint_type> > clients_;
 
     boost::asio::system_timer flush_timer_;

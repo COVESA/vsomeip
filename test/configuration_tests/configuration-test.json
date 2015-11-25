@@ -1,0 +1,103 @@
+{
+    "unicast" : "10.0.2.15",
+    "logging" :
+    {
+        "level" : "debug",
+        "console" : "true",
+        "file" : { "enable" : "true", "path" : "/home/someip/another-file.log" },
+        "dlt" : "false"
+    },
+    "applications" :
+    [
+        {
+            "name" : "my_application",
+            "id" : "0x7788"
+        },
+        {
+            "name" : "other_application",
+            "id" : "0x9933"
+        }
+    ],
+    "services" :
+    [
+        {
+            "service" : "0x1234",
+            "instance" : "0x0022",
+            "unicast" : "local",
+            "reliable" : { "port" : "30506", "magic_cookies" : "false" },
+            "unreliable" : "31000",
+            "events" :
+            [
+                {
+                    "event" : "0x0778",
+                    "is_field" : "false"
+                },
+                {
+                    "event" : "0x779",
+                    "is_field" : "true"
+                },
+                {
+                    "event" : "0x77A",
+                    "is_field" : "false"
+                }
+            ],
+            "eventgroups" :
+            [
+                {
+                    "eventgroup" : "0x4567",
+                    "multicast" : "225.226.227.228",
+                    "events" : [ "0x778", "0x779" ]
+                },
+                {
+                    "eventgroup" : "0x4569",
+                    "multicast" : "225.227.227.228",
+                    "events" : [ "0x779", "0x77A" ]
+                },
+                {
+                    "eventgroup" : "0x4569",
+                    "multicast" : "225.222.227.228",
+                    "events" : [ "0x778", "0x77A" ]
+                }
+            ]
+        },
+        {
+            "service" : "0x1234",
+            "instance" : "0x0023",
+            "reliable" : "30503"
+        },
+        {
+            "service" : "0x2277",
+            "instance" : "0x0022",
+            "reliable" : { "port" : "30505" },
+            "unreliable" : "31001"
+        },
+        {
+            "service" : "0x2266",
+            "instance" : "0x0022",
+            "reliable" : "30505",
+            "unreliable" : "30507"
+        },
+        {
+            "service" : "0x4466",
+            "instance" : "0x0321",
+            "unicast" : "10.0.2.23",
+            "reliable" : "30506",
+            "unreliable" : "30444"
+        }
+    ],
+    "routing" : "my_application",
+    "service-discovery" :
+    {
+        "enable" : "true",
+        "protocol" : "udp",
+        "multicast" : "224.212.244.223",
+        "port" : "30666",
+        "initial_delay_min" : "1234",
+        "initial_delay_max" : "2345",
+        "repetitions_base_delay" : "4242",
+        "repetitions_max" : "4",
+        "ttl" : "13",
+        "cyclic_offer_delay" : "2132",
+        "request_response_delay" : "1111"
+    }
+}

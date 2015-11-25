@@ -10,10 +10,10 @@ namespace sd {
 
 subscription::subscription(major_version_t _major, ttl_t _ttl,
         std::shared_ptr<endpoint> _reliable,
-        std::shared_ptr<endpoint> _unreliable,
-        client_t _target)
-        : major_(_major), ttl_(_ttl), reliable_(_reliable), unreliable_(
-                _unreliable), is_acknowledged_(false) {
+        std::shared_ptr<endpoint> _unreliable)
+        : major_(_major), ttl_(_ttl),
+          reliable_(_reliable), unreliable_(_unreliable),
+          is_acknowledged_(true) {
 }
 
 subscription::~subscription() {
@@ -43,7 +43,7 @@ void subscription::set_endpoint(std::shared_ptr<endpoint> _endpoint,
         unreliable_ = _endpoint;
 }
 
-bool subscription::is_acknowleged() const {
+bool subscription::is_acknowledged() const {
     return is_acknowledged_;
 }
 

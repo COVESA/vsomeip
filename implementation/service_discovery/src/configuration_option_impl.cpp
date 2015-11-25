@@ -33,13 +33,13 @@ bool configuration_option_impl::operator ==(const option_impl &_other) const {
 void configuration_option_impl::add_item(const std::string &_key,
         const std::string &_value) {
     configuration_[_key] = _value;
-    length_ += (_key.length() + _value.length() + 2); // +2 for the '=' and length
+    length_ = uint16_t(length_ + _key.length() + _value.length() + 2u); // +2 for the '=' and length
 }
 
 void configuration_option_impl::remove_item(const std::string &_key) {
     auto it = configuration_.find(_key);
     if (it != configuration_.end()) {
-        length_ -= (it->first.length() + it->second.length() + 2);
+        length_ = uint16_t(length_ - (it->first.length() + it->second.length() + 2u));
         configuration_.erase(it);
     }
 }
@@ -72,7 +72,7 @@ bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
     std::string configuration_string;
 
     for (auto i = configuration_.begin(); i != configuration_.end(); ++i) {
-        char l_length = 1 + i->first.length() + i->second.length();
+        char l_length = char(1 + i->first.length() + i->second.length());
         configuration_string.push_back(l_length);
         configuration_string.append(i->first);
         configuration_string.push_back('=');
@@ -84,7 +84,7 @@ bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
     if (is_successful) {
         is_successful = _to->serialize(
                 reinterpret_cast<const uint8_t*>(configuration_string.c_str()),
-                configuration_string.length());
+                uint32_t(configuration_string.length()));
     }
 
     return is_successful;

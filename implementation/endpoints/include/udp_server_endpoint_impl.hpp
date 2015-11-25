@@ -33,7 +33,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
             const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
+    void send_queued(queue_iterator_type _queue_iterator);
 
     endpoint_type get_remote() const;
     bool get_multicast(service_t _service, event_t _event,
@@ -51,8 +51,7 @@ public:
     client_t get_client(std::shared_ptr<endpoint_definition> _endpoint);
 
 public:
-    void receive_cbk(packet_buffer_ptr_t _buffer,
-                     boost::system::error_code const &_error,
+    void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _size);
 
 private:
@@ -62,7 +61,10 @@ private:
     socket_type socket_;
     endpoint_type remote_;
     std::map<service_t, std::map<instance_t, endpoint_type> > multicasts_;
-    message_buffer_t message_;
+
+    receive_buffer_t recv_buffer_;
+    size_t recv_buffer_size_;
+    std::mutex stop_mutex_;
 };
 
 } // namespace vsomeip

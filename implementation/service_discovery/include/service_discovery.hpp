@@ -35,13 +35,14 @@ public:
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client) = 0;
     virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup) = 0;
+            eventgroup_t _eventgroup, client_t _client) = 0;
+    virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
 
-    virtual void send(const std::string &_name, bool _is_announcing) = 0;
+    virtual void send(bool _is_announcing) = 0;
 
     virtual void on_message(const byte_t *_data, length_t _length) = 0;
 
-    virtual void on_offer_change(const std::string &_name) = 0;
+    virtual void on_offer_change() = 0;
 };
 
 } // namespace sd

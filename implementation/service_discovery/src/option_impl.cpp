@@ -20,6 +20,7 @@ option_impl::~option_impl() {
 }
 
 bool option_impl::operator ==(const option_impl &_other) const {
+    (void)_other;
     return false;
 }
 
@@ -43,7 +44,25 @@ bool option_impl::deserialize(vsomeip::deserializer *_from) {
             && _from->deserialize(its_type) && _from->deserialize(reserved));
 
     if (l_result) {
-        type_ = static_cast<option_type_e>(its_type);
+        switch(static_cast<option_type_e>(its_type)) {
+            case option_type_e::CONFIGURATION:
+            case option_type_e::LOAD_BALANCING:
+            case option_type_e::PROTECTION:
+            case option_type_e::IP4_ENDPOINT:
+            case option_type_e::IP6_ENDPOINT:
+            case option_type_e::IP4_MULTICAST:
+            case option_type_e::IP6_MULTICAST:
+                type_ = static_cast<option_type_e>(its_type);
+                break;
+            default:
+                type_ = option_type_e::UNKNOWN;
+                // reduce remaining bytes of the deserializer by the length of
+                // the unknown option to make it look like it was deserialized.
+                // - 1  because the reserved byte which is included in the length
+                // was already deserialized (s. above)
+                std::size_t remaining = _from->get_remaining();
+                _from->set_remaining(remaining - (length_ - 1));
+        }
     }
 
     return l_result;

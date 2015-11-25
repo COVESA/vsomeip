@@ -8,11 +8,11 @@
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/constants.hpp>
-#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
+#include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace ip = boost::asio::ip;
@@ -21,10 +21,10 @@ namespace vsomeip {
 
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(
         std::shared_ptr<endpoint_host> _host, endpoint_type _local,
-        boost::asio::io_service &_io)
-    : tcp_server_endpoint_base_impl(_host, _local, _io),
-      acceptor_(_io, _local),
-      current_(0) {
+        boost::asio::io_service &_io, std::uint32_t _max_message_size)
+    : tcp_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
+        acceptor_(_io, _local),
+        current_(0) {
     is_supporting_magic_cookies_ = true;
 }
 
@@ -36,7 +36,7 @@ bool tcp_server_endpoint_impl::is_local() const {
 }
 
 void tcp_server_endpoint_impl::start() {
-    connection::ptr new_connection = connection::create(this);
+    connection::ptr new_connection = connection::create(this, max_message_size_);
 
     acceptor_.async_accept(new_connection->get_socket(),
             std::bind(&tcp_server_endpoint_impl::accept_cbk,
@@ -59,11 +59,10 @@ bool tcp_server_endpoint_impl::send_to(
     return send_intern(its_target, _data, _size, _flush);
 }
 
-void tcp_server_endpoint_impl::send_queued(endpoint_type _target,
-        message_buffer_ptr_t _buffer) {
-    auto connection_iterator = connections_.find(_target);
+void tcp_server_endpoint_impl::send_queued(queue_iterator_type _queue_iterator) {
+    auto connection_iterator = connections_.find(_queue_iterator->first);
     if (connection_iterator != connections_.end())
-        connection_iterator->second->send_queued(_buffer);
+        connection_iterator->second->send_queued(_queue_iterator);
 }
 
 tcp_server_endpoint_impl::endpoint_type
@@ -85,9 +84,9 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
 
         connections_[remote] = _connection;
         _connection->start();
-    }
 
-    start();
+        start();
+    }
 }
 
 unsigned short tcp_server_endpoint_impl::get_local_port() const {
@@ -102,14 +101,17 @@ bool tcp_server_endpoint_impl::is_reliable() const {
 // class tcp_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
 tcp_server_endpoint_impl::connection::connection(
-        tcp_server_endpoint_impl *_server) :
-        socket_(_server->service_), server_(_server) {
+        tcp_server_endpoint_impl *_server, std::uint32_t _max_message_size) :
+        socket_(_server->service_), server_(_server),
+        max_message_size_(_max_message_size),
+        recv_buffer_(_max_message_size, 0),
+        recv_buffer_size_(0) {
 }
 
 tcp_server_endpoint_impl::connection::ptr
 tcp_server_endpoint_impl::connection::create(
-        tcp_server_endpoint_impl *_server) {
-    return ptr(new connection(_server));
+        tcp_server_endpoint_impl *_server, std::uint32_t _max_message_size) {
+    return ptr(new connection(_server, _max_message_size));
 }
 
 tcp_server_endpoint_impl::socket_type &
@@ -118,26 +120,45 @@ tcp_server_endpoint_impl::connection::get_socket() {
 }
 
 void tcp_server_endpoint_impl::connection::start() {
-    packet_buffer_ptr_t its_buffer = std::make_shared<packet_buffer_t>();
-    socket_.async_receive(boost::asio::buffer(*its_buffer),
-            std::bind(&tcp_server_endpoint_impl::connection::receive_cbk,
-                    shared_from_this(), its_buffer, std::placeholders::_1,
-                    std::placeholders::_2));
+    receive();
+    // Nagle algorithm off
+    socket_.set_option(ip::tcp::no_delay(true));
+}
+
+void tcp_server_endpoint_impl::connection::receive() {
+    if (recv_buffer_size_ == max_message_size_) {
+        // Overrun -> Reset buffer
+        recv_buffer_size_ = 0;
+    }
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+    if(socket_.is_open()) {
+        size_t buffer_size = max_message_size_ - recv_buffer_size_;
+        socket_.async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
+                std::bind(&tcp_server_endpoint_impl::connection::receive_cbk,
+                        shared_from_this(), std::placeholders::_1,
+                        std::placeholders::_2));
+    }
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
-    socket_.close();
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+    if(socket_.is_open()) {
+        socket_.shutdown(socket_.shutdown_both);
+        socket_.close();
+    }
 }
 
 void tcp_server_endpoint_impl::connection::send_queued(
-        message_buffer_ptr_t _buffer) {
-    if (server_->has_enabled_magic_cookies_)
-        send_magic_cookie(_buffer);
+        queue_iterator_type _queue_iterator) {
+    message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
 
-    boost::asio::async_write(socket_, boost::asio::buffer(*_buffer),
+    if (server_->has_enabled_magic_cookies_)
+        send_magic_cookie(its_buffer);
+
+    boost::asio::async_write(socket_, boost::asio::buffer(*its_buffer),
             std::bind(&tcp_server_endpoint_base_impl::send_cbk,
                       server_->shared_from_this(),
-                      _buffer, std::placeholders::_1,
+                      _queue_iterator, std::placeholders::_1,
                       std::placeholders::_2));
 }
 
@@ -150,80 +171,118 @@ void tcp_server_endpoint_impl::connection::send_magic_cookie(
     }
 }
 
-bool tcp_server_endpoint_impl::connection::is_magic_cookie() const {
-    return (0 == std::memcmp(CLIENT_COOKIE, &message_[0],
+bool tcp_server_endpoint_impl::connection::is_magic_cookie(size_t _offset) const {
+    return (0 == std::memcmp(CLIENT_COOKIE, &recv_buffer_[_offset],
                              sizeof(CLIENT_COOKIE)));
 }
 
 void tcp_server_endpoint_impl::connection::receive_cbk(
-        packet_buffer_ptr_t _buffer, boost::system::error_code const &_error,
+        boost::system::error_code const &_error,
         std::size_t _bytes) {
 #if 0
     std::stringstream msg;
-    for (std::size_t i = 0; i < _bytes; ++i)
+    for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int) (*_buffer)[i] << " ";
+                << (int) recv_buffer_[i] << " ";
     VSOMEIP_DEBUG<< msg.str();
 #endif
     std::shared_ptr<endpoint_host> its_host = server_->host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
-            message_.insert(message_.end(), _buffer->begin(),
-                    _buffer->begin() + _bytes);
+            recv_buffer_size_ += _bytes;
 
-            static int i = 1;
-
+            size_t its_iteration_gap = 0;
             bool has_full_message;
             do {
                 uint32_t current_message_size
-                    = utility::get_message_size(message_);
-                has_full_message = (current_message_size > 0
-                                   && current_message_size <= message_.size());
+                    = utility::get_message_size(&recv_buffer_[its_iteration_gap],
+                            (uint32_t) recv_buffer_size_);
+                has_full_message = (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE
+                                   && current_message_size <= recv_buffer_size_);
                 if (has_full_message) {
                     bool needs_forwarding(true);
-                    if (is_magic_cookie()) {
+                    if (is_magic_cookie(its_iteration_gap)) {
                         server_->has_enabled_magic_cookies_ = true;
                     } else {
                         if (server_->has_enabled_magic_cookies_) {
                             uint32_t its_offset
-                                = server_->find_magic_cookie(message_);
+                                = server_->find_magic_cookie(&recv_buffer_[its_iteration_gap],
+                                        recv_buffer_size_);
                             if (its_offset < current_message_size) {
                                 VSOMEIP_ERROR << "Detected Magic Cookie within message data. Resyncing.";
+                                if (!is_magic_cookie(its_iteration_gap)) {
+                                    its_host->on_error(&recv_buffer_[its_iteration_gap],
+                                            static_cast<length_t>(recv_buffer_size_), server_);
+                                }
                                 current_message_size = its_offset;
                                 needs_forwarding = false;
                             }
                         }
                     }
                     if (needs_forwarding) {
-                        if (utility::is_request(message_[VSOMEIP_MESSAGE_TYPE_POS])) {
+                        if (utility::is_request(recv_buffer_[VSOMEIP_MESSAGE_TYPE_POS])) {
                             client_t its_client;
                             std::memcpy(&its_client,
-                                &message_[VSOMEIP_CLIENT_POS_MIN],
+                                &recv_buffer_[VSOMEIP_CLIENT_POS_MIN],
                                 sizeof(client_t));
                             session_t its_session;
                             std::memcpy(&its_session,
-                                &message_[VSOMEIP_SESSION_POS_MIN],
+                                &recv_buffer_[VSOMEIP_SESSION_POS_MIN],
                                 sizeof(session_t));
-                            server_->clients_[its_client][its_session] =
-                                    socket_.remote_endpoint();
+                            {
+                                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                                if (socket_.is_open()) {
+                                    server_->clients_[its_client][its_session] =
+                                            socket_.remote_endpoint();
+                                    server_->current_ = this;
+                                }
+                            }
                         }
-                        its_host->on_message(&message_[0], current_message_size, server_);
+                        if (!server_->has_enabled_magic_cookies_) {
+                            its_host->on_message(&recv_buffer_[its_iteration_gap],
+                                    current_message_size, server_);
+                        } else {
+                            // Only call on_message without a magic cookie in front of the buffer!
+                            if (!is_magic_cookie(its_iteration_gap)) {
+                                its_host->on_message(&recv_buffer_[its_iteration_gap],
+                                        current_message_size, server_);
+                            }
+                        }
                     }
-                    message_.erase(message_.begin(), message_.begin() + current_message_size);
-                } else if (server_->has_enabled_magic_cookies_ && message_.size() > 0){
-                    uint32_t its_offset = server_->find_magic_cookie(message_);
-                    if (its_offset < message_.size()) {
+                    recv_buffer_size_ -= current_message_size;
+                    its_iteration_gap += current_message_size;
+                } else if (server_->has_enabled_magic_cookies_ && recv_buffer_size_ > 0){
+                    uint32_t its_offset =
+                            server_->find_magic_cookie(&recv_buffer_[its_iteration_gap],
+                                    recv_buffer_size_);
+                    if (its_offset < recv_buffer_size_) {
                         VSOMEIP_ERROR << "Detected Magic Cookie within message data. Resyncing.";
-                        message_.erase(message_.begin(), message_.begin() + its_offset);
+                        if (!is_magic_cookie(its_iteration_gap)) {
+                            its_host->on_error(&recv_buffer_[its_iteration_gap],
+                                    static_cast<length_t>(recv_buffer_size_), server_);
+                        }
+                        recv_buffer_size_ -= its_offset;
+                        its_iteration_gap += its_offset;
                         has_full_message = true; // trigger next loop
+                        if (!is_magic_cookie(its_iteration_gap)) {
+                            its_host->on_error(&recv_buffer_[its_iteration_gap],
+                                    static_cast<length_t>(recv_buffer_size_), server_);
+                        }
                     }
-                } else if (message_.size() > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
-                    VSOMEIP_ERROR << "Message exceeds maximum message size. Resetting receiver.";
-                    message_.clear();
+                } else if (current_message_size > max_message_size_) {
+                    VSOMEIP_ERROR << "Message exceeds maximum message size ("
+                                  << std::dec << current_message_size
+                                  << "). Resetting receiver.";
+                    recv_buffer_size_ = 0;
                 }
-            } while (has_full_message);
-
-            start();
+            } while (has_full_message && recv_buffer_size_);
+            if (its_iteration_gap) {
+                // Copy incomplete message to front for next receive_cbk iteration
+                for (size_t i = 0; i < recv_buffer_size_; ++i) {
+                    recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
+                }
+            }
+            receive();
         }
     }
 }
@@ -243,7 +302,7 @@ client_t tcp_server_endpoint_impl::connection::get_client(endpoint_type _endpoin
             auto endpoint = its_session.second;
             if (endpoint == _endpoint_type) {
                 // TODO: Check system byte order before convert!
-                client_t client = its_client.first << 8 | its_client.first >> 8;
+                client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
                 return client;
             }
         }

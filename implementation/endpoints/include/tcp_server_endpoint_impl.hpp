@@ -24,7 +24,8 @@ class tcp_server_endpoint_impl: public tcp_server_endpoint_base_impl {
 public:
     tcp_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
-                             boost::asio::io_service &_io);
+                             boost::asio::io_service &_io,
+                             std::uint32_t _max_message_size);
     virtual ~tcp_server_endpoint_impl();
 
     void start();
@@ -32,7 +33,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
                  const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(endpoint_type _target, message_buffer_ptr_t _buffer);
+    void send_queued(queue_iterator_type _queue_iterator);
 
     endpoint_type get_remote() const;
     bool get_multicast(service_t, event_t, endpoint_type &) const;
@@ -54,30 +55,35 @@ private:
     public:
         typedef boost::shared_ptr<connection> ptr;
 
-        static ptr create(tcp_server_endpoint_impl *_server);
+        static ptr create(tcp_server_endpoint_impl *_server,
+                          std::uint32_t _max_message_size);
         socket_type & get_socket();
 
         void start();
         void stop();
+        void receive();
 
         client_t get_client(endpoint_type _endpoint_type);
 
-        void send_queued(message_buffer_ptr_t _buffer);
+        void send_queued(queue_iterator_type _queue_iterator);
 
     private:
-        connection(tcp_server_endpoint_impl *_owner);
+        connection(tcp_server_endpoint_impl *_owner, std::uint32_t _max_message_size);
         void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
         tcp_server_endpoint_impl::socket_type socket_;
         tcp_server_endpoint_impl *server_;
 
-        message_buffer_t message_;
+        uint32_t max_message_size_;
+
+        receive_buffer_t recv_buffer_;
+        size_t recv_buffer_size_;
 
     private:
-        bool is_magic_cookie() const;
-        void receive_cbk(packet_buffer_ptr_t _buffer,
-                         boost::system::error_code const &_error,
+        bool is_magic_cookie(size_t _offset) const;
+        void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
+        std::mutex stop_mutex_;
     };
 
     boost::asio::ip::tcp::acceptor acceptor_;

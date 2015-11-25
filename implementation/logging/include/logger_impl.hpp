@@ -14,9 +14,11 @@
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
 
-#include <vsomeip/logger.hpp>
+#include "logger.hpp"
 
 namespace vsomeip {
+
+class configuration;
 
 BOOST_LOG_ATTRIBUTE_KEYWORD(channel, "Channel", std::string)
 BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity",
@@ -28,7 +30,7 @@ typedef boost::log::sinks::synchronous_sink<
 class logger_impl: public logger {
 public:
     static std::shared_ptr<logger_impl> & get();
-    static void init(const std::string &_path);
+    static void init(const std::shared_ptr<configuration> &_configuration);
 
     logger_impl();
 

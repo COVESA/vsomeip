@@ -8,13 +8,13 @@
 local_routing_test_client::local_routing_test_client(bool _use_tcp) :
                 app_(vsomeip::runtime::get()->create_application()),
                 request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-                sender_(std::bind(&local_routing_test_client::run, this)),
                 running_(true),
                 blocked_(false),
                 is_available_(false),
                 number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
                 number_of_sent_messages_(0),
-                number_of_acknowledged_messages_(0)
+                number_of_acknowledged_messages_(0),
+                sender_(std::bind(&local_routing_test_client::run, this))
 {
 }
 
@@ -22,8 +22,13 @@ void local_routing_test_client::init()
 {
     app_->init();
 
-    app_->register_event_handler(
-            std::bind(&local_routing_test_client::on_event, this,
+    app_->register_state_handler(
+            std::bind(&local_routing_test_client::on_state, this,
+                    std::placeholders::_1));
+
+    app_->register_message_handler(vsomeip::ANY_SERVICE,
+            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
+            std::bind(&local_routing_test_client::on_message, this,
                     std::placeholders::_1));
 
     app_->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
@@ -31,15 +36,6 @@ void local_routing_test_client::init()
             std::bind(&local_routing_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
-
-    app_->register_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
-            std::bind(&local_routing_test_client::on_message, this,
-                    std::placeholders::_1));
-
-    request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
-    request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 }
 
 void local_routing_test_client::start()
@@ -53,7 +49,7 @@ void local_routing_test_client::stop()
     VSOMEIP_INFO << "Stopping...";
     app_->unregister_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app_->unregister_event_handler();
+    app_->unregister_state_handler();
     app_->unregister_message_handler(vsomeip::ANY_SERVICE,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
 
@@ -66,9 +62,9 @@ void local_routing_test_client::join_sender_thread(){
     ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
 }
 
-void local_routing_test_client::on_event(vsomeip::event_type_e _event)
+void local_routing_test_client::on_state(vsomeip::state_type_e _state)
 {
-    if(_event == vsomeip::event_type_e::ET_REGISTERED)
+    if(_state == vsomeip::state_type_e::ST_REGISTERED)
     {
         app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                 vsomeip_test::TEST_SERVICE_INSTANCE_ID, false);
@@ -107,6 +103,11 @@ void local_routing_test_client::on_message(const std::shared_ptr<vsomeip::messag
             << _response->get_client() << "/" << std::setw(4)
             << std::setfill('0') << std::hex << _response->get_session() << "]";
     number_of_acknowledged_messages_++;
+    if(number_of_acknowledged_messages_ == number_of_messages_to_send_) {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        blocked_ = true;
+        condition_.notify_one();
+    }
 }
 
 void local_routing_test_client::send()
@@ -123,8 +124,12 @@ void local_routing_test_client::run()
     {
         condition_.wait(its_lock);
     }
+    blocked_ = false;
+    request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
+    request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+    request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 
-    for (int i = 0; i < number_of_messages_to_send_; i++)
+    for (uint32_t i = 0; i < number_of_messages_to_send_; i++)
     {
         app_->send(request_, true);
         VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
@@ -137,18 +142,15 @@ void local_routing_test_client::run()
         number_of_sent_messages_++;
     }
     blocked_ = false;
-    // wait until all send messages have been acknowledged, but a maximum of 5 sec.
-    int cnt = 0;
-    while (number_of_acknowledged_messages_ != number_of_messages_to_send_
-            && cnt < 5)
+    // wait until all messages have been acknowledged
+    while (!blocked_)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        cnt++;
+        condition_.wait(its_lock);
     }
     stop();
 }
 
-TEST(someip_header_factory_test, send_ten_messages_over_local_uds_socket)
+TEST(someip_local_routing_test, send_ten_messages_to_service_and_receive_reply)
 {
     bool use_tcp = false;
     local_routing_test_client test_client_(use_tcp);

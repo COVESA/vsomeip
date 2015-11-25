@@ -49,7 +49,7 @@ check_tcp_udp_sockets_are_closed ()
 
 # Start the service
 export VSOMEIP_APPLICATION_NAME=external_local_routing_test_service
-export VSOMEIP_CONFIGURATION_FILE=external_local_routing_test_service.json
+export VSOMEIP_CONFIGURATION=external_local_routing_test_service.json
 ./external_local_routing_test_service &
 SERIVCE_PID=$!
 sleep 1;
@@ -59,7 +59,7 @@ check_tcp_udp_sockets_are_open $SERIVCE_PID
 # Start the client (we reuse the one from the local_routing_test to check
 # the local routing functionality).
 export VSOMEIP_APPLICATION_NAME=local_routing_test_client
-export VSOMEIP_CONFIGURATION_FILE=local_routing_test_client.json
+export VSOMEIP_CONFIGURATION=local_routing_test_client.json
 ./local_routing_test_client &
 CLIENT_PID=$!
 

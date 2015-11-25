@@ -17,27 +17,39 @@ public:
 
     virtual void offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl) = 0;
+            minor_version_t _minor) = 0;
 
     virtual void stop_offer_service(client_t _client, service_t _service,
             instance_t _instance) = 0;
 
     virtual void request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl, bool _has_selective) = 0;
+            minor_version_t _minor, bool _use_exclusive_proxy) = 0;
 
     virtual void release_service(client_t _client, service_t _service,
             instance_t _instance) = 0;
 
+    virtual void register_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            std::set<eventgroup_t> _eventgroups,
+            bool _is_field, bool _is_provided) = 0;
+
+    virtual void unregister_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event, bool _is_provided) = 0;
+
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, ttl_t _ttl) = 0;
+            major_version_t _major) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     virtual void on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable) = 0;
+
+    virtual void on_notification(client_t _client,
+            service_t _service, instance_t _instance,
+            const byte_t *_data, length_t _size) = 0;
 
     virtual void on_stop_offer_service(service_t _service,
             instance_t _instance) = 0;

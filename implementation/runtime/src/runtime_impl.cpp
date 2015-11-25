@@ -12,18 +12,20 @@
 
 namespace vsomeip {
 
+std::shared_ptr<runtime> runtime_impl::the_runtime_ = std::make_shared<runtime_impl>();
+
 std::shared_ptr<runtime> runtime_impl::get() {
-    static std::shared_ptr<runtime> the_runtime =
-            std::make_shared<runtime_impl>();
-    return the_runtime;
+    return the_runtime_;
 }
 
 runtime_impl::~runtime_impl() {
 }
 
 std::shared_ptr<application> runtime_impl::create_application(
-        const std::string &_name) const {
-    return (std::make_shared<application_impl>(_name));
+        const std::string &_name) {
+    std::shared_ptr<application> application = std::make_shared<application_impl>(_name);
+    applications_[_name] = application;
+    return application;
 }
 
 std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
@@ -84,6 +86,14 @@ std::shared_ptr<payload> runtime_impl::create_payload(const byte_t *_data,
 std::shared_ptr<payload> runtime_impl::create_payload(
         const std::vector<byte_t> &_data) const {
     return (std::make_shared<payload_impl>(_data));
+}
+
+std::shared_ptr<application> runtime_impl::get_application(
+        const std::string &_name) const {
+    auto found_application = applications_.find(_name);
+    if(found_application != applications_.end())
+        return found_application->second;
+    return nullptr;
 }
 
 } // namespace vsomeip

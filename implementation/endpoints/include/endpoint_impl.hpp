@@ -23,7 +23,8 @@ template<int MaxBufferSize>
 class endpoint_impl: public endpoint {
 public:
     endpoint_impl(std::shared_ptr<endpoint_host> _adapter,
-                  boost::asio::io_service &_io);
+                  boost::asio::io_service &_io,
+                  std::uint32_t _max_message_size);
     virtual ~endpoint_impl();
 
     void enable_magic_cookies();
@@ -45,6 +46,10 @@ public:
     unsigned short get_remote_port() const;
     bool is_reliable() const;
 
+    void increment_use_count();
+    void decrement_use_count();
+    uint32_t get_use_count();
+
 public:
     // required
     virtual bool is_client() const = 0;
@@ -53,7 +58,7 @@ public:
 
 protected:
     virtual bool is_magic_cookie() const;
-    uint32_t find_magic_cookie(message_buffer_t &_buffer);
+    uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
 
 protected:
     // Reference to service context
@@ -62,10 +67,15 @@ protected:
     // Reference to host
     std::weak_ptr<endpoint_host> host_;
 
-    bool is_supporting_magic_cookies_;bool has_enabled_magic_cookies_;
+    bool is_supporting_magic_cookies_;
+    bool has_enabled_magic_cookies_;
 
     // Filter configuration
     std::map<service_t, uint8_t> opened_;
+
+    std::uint32_t max_message_size_;
+
+    uint32_t use_count_;
 };
 
 } // namespace vsomeip

@@ -30,10 +30,10 @@ public:
     virtual boost::asio::io_service & get_io() = 0;
     virtual std::shared_ptr<configuration> get_configuration() const = 0;
 
-    virtual void create_service_discovery_endpoint(const std::string &_address,
-            uint16_t _port, bool _reliable) = 0;
+    virtual std::shared_ptr<endpoint> create_service_discovery_endpoint(
+            const std::string &_address, uint16_t _port, bool _reliable) = 0;
 
-    virtual services_t get_offered_services(const std::string &_name) const = 0;
+    virtual services_t get_offered_services() const = 0;
     virtual std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const = 0;
 
@@ -45,11 +45,15 @@ public:
 
     virtual void add_routing_info(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl,
-            const boost::asio::ip::address &_address, uint16_t _port,
-            bool _reliable) = 0;
+            const boost::asio::ip::address &_reliable_address,
+            uint16_t _reliable_port,
+            const boost::asio::ip::address &_unreliable_address,
+            uint16_t _unreliable_port) = 0;
 
     virtual void del_routing_info(service_t _service, instance_t _instance,
-            bool _reliable) = 0;
+            bool _has_reliable, bool _has_unreliable) = 0;
+
+    virtual ttl_t update_routing_info(ttl_t _elapsed) = 0;
 
     virtual void on_subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,

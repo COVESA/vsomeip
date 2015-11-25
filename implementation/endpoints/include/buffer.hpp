@@ -14,8 +14,7 @@
 
 namespace vsomeip {
 
-typedef std::array<byte_t, VSOMEIP_PACKET_SIZE> packet_buffer_t;
-typedef std::shared_ptr<packet_buffer_t> packet_buffer_ptr_t;
+typedef std::vector<byte_t> receive_buffer_t;
 
 typedef std::vector<byte_t> message_buffer_t;
 typedef std::shared_ptr<message_buffer_t> message_buffer_ptr_t;

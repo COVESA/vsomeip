@@ -39,20 +39,20 @@ public:
 
     void offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl);
+            minor_version_t _minor);
 
     void stop_offer_service(client_t _client, service_t _service,
             instance_t _instance);
 
     void request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl, bool _has_selective);
+            minor_version_t _minor, bool _use_exclusive_proxy);
 
     void release_service(client_t _client, service_t _service,
             instance_t _instance);
 
     void subscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl);
+            eventgroup_t _eventgroup, major_version_t _major);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
@@ -68,15 +68,26 @@ public:
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size);
 
+    void register_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            std::set<eventgroup_t> _eventgroups,
+            bool _is_field, bool _is_provided);
+
+    void unregister_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            bool _is_provided);
+
     void notify(service_t _service, instance_t _instance, event_t _event,
             std::shared_ptr<payload> _payload);
 
     void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload, client_t _client);
+                event_t _event, std::shared_ptr<payload> _payload,
+                client_t _client);
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver);
+    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
 
     void on_routing_info(const byte_t *_data, uint32_t _size);
 
@@ -95,36 +106,47 @@ private:
     void send_pong() const;
     void send_offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl);
-    void send_subscribe(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, ttl_t _ttl);
-
+            minor_version_t _minor);
     void send_request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl, bool _is_selective);
+            minor_version_t _minor, bool _use_exclusive_proxy);
+    void send_register_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            std::set<eventgroup_t> _eventgroup,
+            bool _is_field, bool _is_provided);
+    void send_subscribe(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            major_version_t _major);
+
+    bool is_field(service_t _service, instance_t _instance,
+            event_t _event) const;
 
 private:
-    boost::asio::io_service &io_;bool is_connected_;bool is_started_;
-    event_type_e state_;
+    boost::asio::io_service &io_;
+    bool is_connected_;
+    bool is_started_;
+    state_type_e state_;
     routing_manager_host *host_;
     client_t client_; // store locally as it is needed in each message
+
+    std::shared_ptr<configuration> configuration_;
 
     std::shared_ptr<serializer> serializer_;
     std::shared_ptr<deserializer> deserializer_;
 
-    std::shared_ptr<endpoint> sender_;	// --> stub
+    std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
 
     std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
     std::map<service_t, std::map<instance_t, client_t> > local_services_;
+    std::mutex local_services_mutex_;
 
     struct service_data_t {
         service_t service_;
         instance_t instance_;
         major_version_t major_;
         minor_version_t minor_;
-        ttl_t ttl_;
+        bool use_exclusive_proxy_; // only used for requests!
 
         bool operator<(const service_data_t &_other) const {
             return (service_ < _other.service_
@@ -135,12 +157,30 @@ private:
     std::set<service_data_t> pending_offers_;
     std::set<service_data_t> pending_requests_;
 
+    struct event_data_t {
+        service_t service_;
+        instance_t instance_;
+        event_t event_;
+        bool is_field_;
+        bool is_provided_;
+        std::set<eventgroup_t> eventgroups_;
+
+        bool operator<(const event_data_t &_other) const {
+            return (service_ < _other.service_
+                    || (service_ == _other.service_
+                            && instance_ < _other.instance_)
+                            || (service_ == _other.service_
+                                    && instance_ == _other.instance_
+                                    && event_ < _other.event_));
+    }
+    };
+    std::set<event_data_t> pending_event_registrations_;
+
     struct eventgroup_data_t {
         service_t service_;
         instance_t instance_;
         eventgroup_t eventgroup_;
         major_version_t major_;
-        ttl_t ttl_;
 
         bool operator<(const eventgroup_data_t &_other) const {
             return (service_ < _other.service_
@@ -163,7 +203,7 @@ private:
     std::mutex deserialize_mutex_;
     std::mutex pending_mutex_;
 
-    bool is_selective_;
+    std::map<service_t, std::map<instance_t, std::set<event_t> > > fields_;
 };
 
 } // namespace vsomeip

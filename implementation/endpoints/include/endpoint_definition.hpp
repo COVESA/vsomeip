@@ -6,6 +6,9 @@
 #ifndef VSOMEIP_ENDPOINT_DEFINITION_HPP
 #define VSOMEIP_ENDPOINT_DEFINITION_HPP
 
+#include <map>
+#include <memory>
+
 #include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/export.hpp>
@@ -14,8 +17,7 @@ namespace vsomeip {
 
 class endpoint_definition {
 public:
-    VSOMEIP_EXPORT endpoint_definition();
-    VSOMEIP_EXPORT endpoint_definition(
+    VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(
             const boost::asio::ip::address &_address,
             uint16_t _port, bool _is_reliable);
 
@@ -31,11 +33,19 @@ public:
     VSOMEIP_EXPORT bool is_reliable() const;
     VSOMEIP_EXPORT void set_reliable(bool _is_reliable);
 
+    VSOMEIP_EXPORT endpoint_definition(
+            const boost::asio::ip::address &_address,
+            uint16_t _port, bool _is_reliable);
 private:
     boost::asio::ip::address address_;
     uint16_t port_;
     uint16_t remote_port_;
     bool is_reliable_;
+
+    static std::map<boost::asio::ip::address,
+        std::map<uint16_t,
+            std::map<bool,
+                     std::shared_ptr<endpoint_definition> > > > definitions_;
 };
 
 } // namespace vsomeip

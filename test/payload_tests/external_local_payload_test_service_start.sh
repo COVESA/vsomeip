@@ -5,5 +5,5 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 export VSOMEIP_APPLICATION_NAME=external_local_payload_test_service
-export VSOMEIP_CONFIGURATION_FILE=external_local_payload_test_service.json
+export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 ./payload_test_service

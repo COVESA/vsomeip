@@ -55,6 +55,7 @@ public:
     const std::vector<std::shared_ptr<option_impl> > & get_options() const;
 
     int16_t get_option_index(const std::shared_ptr<option_impl> &_option) const;
+    uint32_t get_options_length();
 
     std::shared_ptr<payload> get_payload() const;
     void set_payload(std::shared_ptr<payload> _payload);
@@ -68,6 +69,7 @@ private:
 
 private:
     flags_t flags_;
+    uint32_t options_length_;
 
     std::vector<std::shared_ptr<entry_impl> > entries_;
     std::vector<std::shared_ptr<option_impl> > options_;

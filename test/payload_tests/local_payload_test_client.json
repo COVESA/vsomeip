@@ -21,17 +21,8 @@
          "id" : "0x1343"
       }
    ],
-
-   "servicegroups" : 
-   [
-      {
-         "name" : "remote",
-         "unicast" : "127.0.0.1",
-         "services" : 
-         [
-            
-         ]
-      }
+   "services" : 
+   [ 
    ],
 
    "routing" : "local_payload_test_service",

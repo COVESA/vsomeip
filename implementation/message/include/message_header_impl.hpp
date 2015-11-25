@@ -9,7 +9,7 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
-#include <vsomeip/serializable.hpp>
+#include <vsomeip/internal/serializable.hpp>
 
 namespace vsomeip {
 
@@ -20,8 +20,8 @@ public:
     VSOMEIP_EXPORT message_header_impl();
     VSOMEIP_EXPORT message_header_impl(const message_header_impl& header);
 
-    VSOMEIP_EXPORT virtual bool serialize(serializer *_to) const;
-    VSOMEIP_EXPORT virtual bool deserialize(deserializer *_from);
+    VSOMEIP_EXPORT bool serialize(serializer *_to) const;
+    VSOMEIP_EXPORT bool deserialize(deserializer *_from);
 
     // internal
     VSOMEIP_EXPORT message_base * get_owner() const;

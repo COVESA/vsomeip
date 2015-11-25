@@ -3,11 +3,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
-set (VSOMEIP_MAJOR_VERSION 1)
-set (VSOMEIP_MINOR_VERSION 3)
+set (VSOMEIP_MAJOR_VERSION 2)
+set (VSOMEIP_MINOR_VERSION 0)
 set (VSOMEIP_PATCH_VERSION 0)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
@@ -47,7 +47,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread")
+    set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
@@ -60,7 +60,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
 include_directories(
-	"interface" 
+    "interface" 
 )
 # Threads
 find_package(Threads REQUIRED)
@@ -93,10 +93,15 @@ endif()
 
 add_library(vsomeip SHARED ${vsomeip_SRC})
 set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-target_link_libraries(vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY})
+# PRIVATE means the listed libraries won't be included in the "link interface",
+# meaning the exported vsomeipTargets.cmake targets won't try to link against
+# them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
+# build host paths as of writing, which also makes this important as it breaks
+# the build.
+target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY})
 
 file(GLOB vsomeip-sd_SRC
-	"implementation/service_discovery/src/*.cpp"
+    "implementation/service_discovery/src/*.cpp"
 )
 
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
@@ -114,27 +119,34 @@ set(EXAMPLE_CONFIG_FILES
     "config/vsomeip-udp-service.json"
 )
 
-# Examples
-add_executable(request-sample examples/request-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(request-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+###################################################################################################
+set (VSOMEIP_DIAGNOSIS_ADDRESS "0x11")
+if (DIAGNOSIS_ADDRESS)
+set (VSOMEIP_DIAGNOSIS_ADDRESS ${DIAGNOSIS_ADDRESS})
+endif ()
+set (VSOMEIP_UNICAST_ADDRESS "127.0.0.1")
+if (UNICAST_ADDRESS)
+set (VSOMEIP_UNICAST_ADDRESS ${UNICAST_ADDRESS})
+endif ()
+set (VSOMEIP_ROUTING "vsomeipd")
+if (ROUTING)
+set (VSOMEIP_ROUTING ${ROUTING})
+endif ()
+message("Predefined unicast address: ${VSOMEIP_UNICAST_ADDRESS}")
+message("Predefined diagnosis address: ${VSOMEIP_DIAGNOSIS_ADDRESS}")
+message("Predefined routing application: ${VSOMEIP_ROUTING}")
 
-add_executable(response-sample examples/response-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(response-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
-
-add_executable(subscribe-sample examples/subscribe-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
-
-add_executable(notify-sample examples/notify-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
-
-add_executable(vsomeipd examples/vsomeipd.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 ###################################################################################################
 
-file (GLOB_RECURSE vsomeip_INCLUDE "interface/*.hpp")
+set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
-set_target_properties (vsomeip PROPERTIES PUBLIC_HEADER "${vsomeip_INCLUDE}")
+file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.hpp"  )
+
+foreach ( file ${vsomeip_INCLUDE} )
+    get_filename_component( dir ${file} DIRECTORY )
+    install( FILES "${INCLUDE_PATH}/${file}" DESTINATION "${INSTALL_INCLUDE_DIR}/vsomeip/${dir}" COMPONENT dev)
+endforeach()
 
 install (
     TARGETS vsomeip 
@@ -142,17 +154,12 @@ install (
     EXPORT vsomeipTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
-    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/vsomeip" COMPONENT dev
+    COMPONENT dev
 )
 
 install (
     TARGETS vsomeip-sd
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-)
-
-install (
-    TARGETS request-sample response-sample subscribe-sample notify-sample vsomeipd
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
 
@@ -265,6 +272,25 @@ else()
 endif()
 
 ##############################################################################
+# create pkg-config file
+if(NOT WIN32)
+        configure_file(vsomeip.pc.in ${PROJECT_BINARY_DIR}/vsomeip.pc @ONLY)
+        install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkconfig)
+endif()
+
+##############################################################################
+# build daemon (Non-Windows only)
+if (NOT MSVC)
+add_custom_target( daemon )
+add_subdirectory( daemon )
+endif()
+
+# build examples
+add_custom_target( examples )
+add_subdirectory( examples EXCLUDE_FROM_ALL )
+
+
+##############################################################################
 # Test section
 ##############################################################################
 
@@ -293,12 +319,36 @@ if ("${BUILD_SHARED_LIBS_AUTOMATIC_OFF}" STREQUAL "1")
     set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
 endif()
 
+
+
 ##############################################################################
 # build tests
 
 enable_testing()
+SET(TESTS_BAT "OFF" CACHE BOOL
+    "Controls whether only BAT tests should be build or not")
+SET(TEST_SYMLINK_CONFIG_FILES "OFF" CACHE BOOL
+    "Controls if the json and scripts needed needed to run the tests are copied or symlinked into the build directroy (ignored on Windows)")
+SET(TEST_SYMLINK_CONFIG_FILES_RELATIVE "OFF" CACHE BOOL
+    "Controls if the json and scripts needed needed to run the tests are symlinked relatively into the build directroy (ignored on Windows)")
+
+SET(TEST_IP_DEFAULT_VALUE "XXX.XXX.XXX.XXX")
+SET(TEST_IP_MASTER "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
+    "The IP address of the interface which will act as test master")
+SET(TEST_IP_SLAVE "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
+    "The IP address of the interface which will act as test slave")
+
+if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
+   (${TEST_IP_SLAVE}  STREQUAL ${TEST_IP_DEFAULT_VALUE}))
+    message(WARNING "TEST_IP_MASTER and/or TEST_IP_SLAVE isn't set. "
+                    "Only local tests will be runnable "
+                    "Please specify them via for example "
+                    "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125")
+endif()
 
 add_custom_target(build_tests)
+add_dependencies(build_tests vsomeip)
+add_dependencies(build_tests vsomeip-sd)
 
 set(CMAKE_CTEST_COMMAND ctest -V)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})

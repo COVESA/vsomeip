@@ -5,20 +5,22 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
-#include <vsomeip/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/endpoint_impl.hpp"
+#include "../../logging/include/logger.hpp"
 
 namespace vsomeip {
 
 template<int MaxBufferSize>
 endpoint_impl<MaxBufferSize>::endpoint_impl(
-        std::shared_ptr<endpoint_host> _host, boost::asio::io_service &_io)
-    : host_(_host),
-      service_(_io),
+        std::shared_ptr<endpoint_host> _host, boost::asio::io_service &_io,
+        std::uint32_t _max_message_size)
+    : service_(_io),
+      host_(_host),
       is_supporting_magic_cookies_(false),
-      has_enabled_magic_cookies_(false) {
+      has_enabled_magic_cookies_(false),
+      max_message_size_(_max_message_size) {
 }
 
 template<int MaxBufferSize>
@@ -37,7 +39,7 @@ bool endpoint_impl<MaxBufferSize>::is_magic_cookie() const {
 
 template<int MaxBufferSize>
 uint32_t endpoint_impl<MaxBufferSize>::find_magic_cookie(
-        message_buffer_t &_buffer) {
+        byte_t *_buffer, size_t _size) {
     bool is_found(false);
     uint32_t its_offset = 0xFFFFFFFF;
     if (has_enabled_magic_cookies_) {
@@ -57,7 +59,7 @@ uint32_t endpoint_impl<MaxBufferSize>::find_magic_cookie(
 
         do {
             its_offset++; // --> first loop has "its_offset = 0"
-            if (_buffer.size() > its_offset + 16) {
+            if (_size > its_offset + 16) {
                 is_found = (_buffer[its_offset] == 0xFF
                          && _buffer[its_offset + 1] == 0xFF
                          && _buffer[its_offset + 2] == its_cookie_identifier
@@ -104,6 +106,7 @@ void endpoint_impl<MaxBufferSize>::remove_multicast(service_t, event_t) {
 template<int MaxBufferSize>
 bool endpoint_impl<MaxBufferSize>::get_remote_address(
         boost::asio::ip::address &_address) const {
+    (void)_address;
     return false;
 }
 
@@ -120,6 +123,22 @@ unsigned short endpoint_impl<MaxBufferSize>::get_remote_port() const {
 template<int MaxBufferSize>
 bool endpoint_impl<MaxBufferSize>::is_reliable() const {
     return false;
+}
+
+template<int MaxBufferSize>
+void endpoint_impl<MaxBufferSize>::increment_use_count() {
+    use_count_++;
+}
+
+template<int MaxBufferSize>
+void endpoint_impl<MaxBufferSize>::decrement_use_count() {
+    if (use_count_ > 0)
+        use_count_--;
+}
+
+template<int MaxBufferSize>
+uint32_t endpoint_impl<MaxBufferSize>::get_use_count() {
+    return use_count_;
 }
 
 // Instantiate template

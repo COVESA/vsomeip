@@ -7,6 +7,7 @@
 
 // this variables are changed via cmdline parameters
 static bool use_tcp = false;
+static bool check_payload = true;
 
 payload_test_service::payload_test_service(bool _use_tcp) :
                 app_(vsomeip::runtime::get()->create_application()),
@@ -34,8 +35,8 @@ void payload_test_service::init()
             std::bind(&payload_test_service::on_message_shutdown, this,
                     std::placeholders::_1));
 
-    app_->register_event_handler(
-            std::bind(&payload_test_service::on_event, this,
+    app_->register_state_handler(
+            std::bind(&payload_test_service::on_state, this,
                     std::placeholders::_1));
 }
 
@@ -52,7 +53,7 @@ void payload_test_service::stop()
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID);
     app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->unregister_event_handler();
+    app_->unregister_state_handler();
     app_->stop();
 }
 
@@ -71,13 +72,13 @@ void payload_test_service::stop_offer()
     app_->stop_offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
 }
 
-void payload_test_service::on_event(vsomeip::event_type_e _event)
+void payload_test_service::on_state(vsomeip::state_type_e _state)
 {
     VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-            << (_event == vsomeip::event_type_e::ET_REGISTERED ? "registered." :
+            << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." :
                     "deregistered.");
 
-    if(_event == vsomeip::event_type_e::ET_REGISTERED)
+    if(_state == vsomeip::state_type_e::ST_REGISTERED)
     {
         if(!is_registered_)
         {
@@ -117,11 +118,13 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
     // make sure the message was sent from the service
     ASSERT_EQ(_request->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
 
-    std::shared_ptr<vsomeip::payload> pl = _request->get_payload();
-    vsomeip::byte_t* pl_ptr = pl->get_data();
-    for (int i = 0; i < pl->get_length(); i++)
-    {
-        ASSERT_EQ(*(pl_ptr+i), vsomeip_test::PAYLOAD_TEST_DATA);
+    if (check_payload) {
+        std::shared_ptr<vsomeip::payload> pl = _request->get_payload();
+        vsomeip::byte_t* pl_ptr = pl->get_data();
+        for (vsomeip::length_t i = 0; i < pl->get_length(); i++)
+        {
+            ASSERT_EQ(*(pl_ptr+i), vsomeip_test::PAYLOAD_TEST_DATA);
+        }
     }
 
     // send response
@@ -134,6 +137,7 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
 void payload_test_service::on_message_shutdown(
         const std::shared_ptr<vsomeip::message>& _request)
 {
+    (void)_request;
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
     stop();
 }
@@ -159,6 +163,7 @@ TEST(someip_payload_test, send_response_for_every_request)
 int main(int argc, char** argv)
 {
     std::string help("--help");
+    std::string check("--do-not-check-payload");
 
     int i = 1;
     while (i < argc)
@@ -166,7 +171,11 @@ int main(int argc, char** argv)
         if(help == argv[i])
         {
             VSOMEIP_INFO << "Parameters:\n"
-                    << "--help: print this help";
+                    << "--help: print this help\n"
+                    << "--do-not-check-payload: Don't verify payload data "
+                    << "-> Use this flag for performance measurements!";
+        } else if (check == argv[i]) {
+            check_payload = false;
         }
         i++;
     }

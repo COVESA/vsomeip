@@ -20,6 +20,8 @@ struct service {
     service_t service_;
     instance_t instance_;
 
+    std::string unicast_address_;
+
     uint16_t reliable_;
     uint16_t unreliable_;
 
@@ -27,7 +29,7 @@ struct service {
     uint16_t multicast_port_;
     eventgroup_t multicast_group_;
 
-    bool use_magic_cookies_;
+    std::string protocol_;
 
     std::shared_ptr<servicegroup> group_;
     std::map<event_t, std::shared_ptr<event> > events_;

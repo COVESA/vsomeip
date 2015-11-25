@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_CLIENT_ENDPOINT_IMPL_HPP
 #define VSOMEIP_CLIENT_ENDPOINT_IMPL_HPP
 
+#include <condition_variable>
 #include <deque>
 #include <mutex>
 #include <vector>
@@ -32,7 +33,8 @@ public:
     typedef typename Protocol::endpoint endpoint_type;
 
     client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-            endpoint_type _remote, boost::asio::io_service &_io);
+            endpoint_type _remote, boost::asio::io_service &_io,
+            std::uint32_t _max_message_size);
     virtual ~client_endpoint_impl();
 
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);bool send_to(
@@ -49,8 +51,7 @@ public:
 public:
     void connect_cbk(boost::system::error_code const &_error);
     void wait_connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(message_buffer_ptr_t _buffer,
-            boost::system::error_code const &_error, std::size_t _bytes);
+    void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
     void flush_cbk(boost::system::error_code const &_error);
 
 public:
@@ -58,24 +59,21 @@ public:
     virtual void receive() = 0;
 
 protected:
-    virtual void send_queued(message_buffer_ptr_t) = 0;
+    virtual void send_queued() = 0;
 
     socket_type socket_;
     endpoint_type remote_;
 
     boost::asio::system_timer flush_timer_;
     boost::asio::system_timer connect_timer_;
-    uint32_t connect_timeout_;bool is_connected_;
+    uint32_t connect_timeout_;
+    bool is_connected_;
 
     // send data
     message_buffer_ptr_t packetizer_;
-
-    // receive data
-    message_buffer_t message_;
+    std::deque<message_buffer_ptr_t> queue_;
 
     std::mutex mutex_;
-
-    uint32_t queued_;
 };
 
 } // namespace vsomeip

@@ -26,7 +26,7 @@ public:
     void offer();
     void stop_offer();
     void join_offer_thread();
-    void on_event(vsomeip::event_type_e _event);
+    void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message> &_request);
     void run();
 

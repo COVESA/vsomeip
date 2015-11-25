@@ -14,23 +14,25 @@
 
 
 stop_watch::usec_t stop_watch::get_total_elapsed_microseconds() const {
-	usec_t elapsed = total_elapsed_;
+    usec_t elapsed = total_elapsed_;
 
-	if (started_)
-		elapsed += get_elapsed();
+    if (started_)
+        elapsed += get_elapsed();
 
-	return elapsed;
+    return elapsed;
 }
 
 stop_watch::usec_t stop_watch::get_total_elapsed_seconds() const {
-	return get_total_elapsed_microseconds() / USEC_PER_SEC;
+    return get_total_elapsed_microseconds() / USEC_PER_SEC;
 }
 
 stop_watch::usec_t stop_watch::now() {
-	struct timespec ts;
+    struct timespec ts;
 
-	assert(!clock_gettime(CLOCK_MONOTONIC_RAW, &ts));
+    const int ret = clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    assert(!ret);
+    static_cast<void>(ret); // prevent warning in release build
 
-	return (usec_t) ts.tv_sec * USEC_PER_SEC + (usec_t) ts.tv_nsec / NSEC_PER_USEC;
+    return (usec_t) ts.tv_sec * USEC_PER_SEC + (usec_t) ts.tv_nsec / NSEC_PER_USEC;
 }
 

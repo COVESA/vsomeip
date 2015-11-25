@@ -22,6 +22,8 @@ public:
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_message(const byte_t *_data, length_t _length,
         endpoint *_receiver) = 0;
+    virtual void on_error(const byte_t *_data, length_t _length,
+            endpoint *_receiver) = 0;
 };
 
 } // namespace vsomeip

@@ -34,7 +34,7 @@ void eventgroupentry_impl::set_eventgroup(eventgroup_t _eventgroup) {
 bool eventgroupentry_impl::serialize(vsomeip::serializer *_to) const {
     bool is_successful = entry_impl::serialize(_to);
 
-    is_successful = is_successful && _to->serialize(protocol::reserved_byte);
+    is_successful = is_successful && _to->serialize(major_version_);
 
     is_successful = is_successful
             && _to->serialize(static_cast<uint32_t>(ttl_), true);
@@ -50,8 +50,9 @@ bool eventgroupentry_impl::serialize(vsomeip::serializer *_to) const {
 bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = entry_impl::deserialize(_from);
 
-    uint8_t its_reserved0;
-    is_successful = is_successful && _from->deserialize(its_reserved0);
+    uint8_t tmp_major_version;
+    is_successful = is_successful && _from->deserialize(tmp_major_version);
+    major_version_ = static_cast<major_version_t>(tmp_major_version);
 
     uint32_t its_ttl;
     is_successful = is_successful && _from->deserialize(its_ttl, true);

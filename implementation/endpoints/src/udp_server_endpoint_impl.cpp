@@ -8,13 +8,13 @@
 
 #include <boost/asio/ip/multicast.hpp>
 
-#include <vsomeip/logger.hpp>
-
 #include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
+#include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../service_discovery/include/defines.hpp"
 
 namespace ip = boost::asio::ip;
 
@@ -26,8 +26,10 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
         boost::asio::io_service &_io)
     : server_endpoint_impl<
           ip::udp, VSOMEIP_MAX_UDP_MESSAGE_SIZE
-      >(_host, _local, _io),
-      socket_(_io, _local.protocol()) {
+      >(_host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+      socket_(_io, _local.protocol()),
+      recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
+      recv_buffer_size_(0) {
     boost::system::error_code ec;
 
     boost::asio::socket_base::reuse_address optionReuseAddress(true);
@@ -52,25 +54,32 @@ void udp_server_endpoint_impl::start() {
 }
 
 void udp_server_endpoint_impl::stop() {
-    if (socket_.is_open())
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+    if (socket_.is_open()) {
         socket_.close();
+    }
 }
 
 void udp_server_endpoint_impl::receive() {
-    packet_buffer_ptr_t its_buffer
-        = std::make_shared< packet_buffer_t >();
-    socket_.async_receive_from(
-        boost::asio::buffer(*its_buffer),
-        remote_,
-        std::bind(
-            &udp_server_endpoint_impl::receive_cbk,
-            std::dynamic_pointer_cast<
-                udp_server_endpoint_impl >(shared_from_this()),
-            its_buffer,
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+    if (recv_buffer_size_ == max_message_size_) {
+        // Overrun -> Reset buffer
+        recv_buffer_size_ = 0;
+    }
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+    if(socket_.is_open()) {
+        size_t buffer_size = max_message_size_ - recv_buffer_size_;
+        socket_.async_receive_from(
+                boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
+            remote_,
+            std::bind(
+                &udp_server_endpoint_impl::receive_cbk,
+                std::dynamic_pointer_cast<
+                    udp_server_endpoint_impl >(shared_from_this()),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 }
 
 void udp_server_endpoint_impl::restart() {
@@ -85,23 +94,24 @@ bool udp_server_endpoint_impl::send_to(
 }
 
 void udp_server_endpoint_impl::send_queued(
-        endpoint_type _target, message_buffer_ptr_t _buffer) {
+        queue_iterator_type _queue_iterator) {
+    message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
 #if 0
         std::stringstream msg;
-        msg << "usei::sq(" << _target.address().to_string() << ":"
-            << _target.port() << "): ";
-        for (std::size_t i = 0; i < _buffer->size(); ++i)
+        msg << "usei::sq(" << _queue_iterator->first.address().to_string() << ":"
+            << _queue_iterator->first.port() << "): ";
+        for (std::size_t i = 0; i < its_buffer->size(); ++i)
             msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int)(*_buffer)[i] << " ";
+                << (int)(*its_buffer)[i] << " ";
         VSOMEIP_DEBUG << msg.str();
 #endif
      socket_.async_send_to(
-        boost::asio::buffer(*_buffer),
-        _target,
+        boost::asio::buffer(*its_buffer),
+        _queue_iterator->first,
         std::bind(
             &udp_server_endpoint_base_impl::send_cbk,
             shared_from_this(),
-            _buffer,
+            _queue_iterator,
             std::placeholders::_1,
             std::placeholders::_2
         )
@@ -128,34 +138,40 @@ bool udp_server_endpoint_impl::get_multicast(service_t _service, event_t _event,
 }
 
 void udp_server_endpoint_impl::join(const std::string &_address) {
-    if (local_.address().is_v4()) {
-        try {
+    try {
+        if (local_.address().is_v4()) {
             socket_.set_option(
                 boost::asio::ip::udp::socket::reuse_address(true));
             socket_.set_option(
                 boost::asio::ip::multicast::enable_loopback(false));
             socket_.set_option(boost::asio::ip::multicast::join_group(
                 boost::asio::ip::address::from_string(_address).to_v4()));
+        } else if (local_.address().is_v6()) {
+            socket_.set_option(
+                boost::asio::ip::udp::socket::reuse_address(true));
+            socket_.set_option(
+                boost::asio::ip::multicast::enable_loopback(false));
+            socket_.set_option(boost::asio::ip::multicast::join_group(
+                boost::asio::ip::address::from_string(_address).to_v6()));
         }
-        catch (const std::exception &e) {
-            VSOMEIP_ERROR << e.what();
-        }
-    } else {
-        // TODO: support multicast for IPv6
+    }
+    catch (const std::exception &e) {
+        VSOMEIP_ERROR << e.what();
     }
 }
 
 void udp_server_endpoint_impl::leave(const std::string &_address) {
-    if (local_.address().is_v4()) {
-        try {
+    try {
+        if (local_.address().is_v4()) {
+            socket_.set_option(boost::asio::ip::multicast::leave_group(
+                boost::asio::ip::address::from_string(_address)));
+        } else if (local_.address().is_v6()) {
             socket_.set_option(boost::asio::ip::multicast::leave_group(
                 boost::asio::ip::address::from_string(_address)));
         }
-        catch (...) {
-
-        }
-    } else {
-        // TODO: support multicast for IPv6
+    }
+    catch (const std::exception &e) {
+        VSOMEIP_ERROR << e.what();
     }
 }
 
@@ -184,49 +200,46 @@ unsigned short udp_server_endpoint_impl::get_local_port() const {
 
 // TODO: find a better way to structure the receive functions
 void udp_server_endpoint_impl::receive_cbk(
-        packet_buffer_ptr_t _buffer,
         boost::system::error_code const &_error, std::size_t _bytes) {
 #if 0
     std::stringstream msg;
     msg << "usei::rcb(" << _error.message() << "): ";
-    for (std::size_t i = 0; i < _bytes; ++i)
+    for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_buffer)[i] << " ";
+            << (int) recv_buffer_[i] << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
     std::shared_ptr<endpoint_host> its_host = this->host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
-            message_.insert(message_.end(), _buffer->begin(),
-                            _buffer->begin() + _bytes);
-
-            bool has_full_message;
-            do {
-                uint32_t current_message_size
-                    = utility::get_message_size(message_);
-                has_full_message = (current_message_size > 0
-                    && current_message_size <= message_.size());
-                if (has_full_message) {
-                    if (utility::is_request(
-                            message_[VSOMEIP_MESSAGE_TYPE_POS])) {
-                        client_t its_client;
-                        std::memcpy(&its_client,
-                            &message_[VSOMEIP_CLIENT_POS_MIN],
-                            sizeof(client_t));
-                        session_t its_session;
-                        std::memcpy(&its_session,
-                            &message_[VSOMEIP_SESSION_POS_MIN],
-                            sizeof(session_t));
-                        clients_[its_client][its_session] = remote_;
-                    }
-
-                    its_host->on_message(&message_[0],
-                        current_message_size, this);
-                    message_.erase(message_.begin(),
-                        message_.begin() + current_message_size);
+            recv_buffer_size_ += _bytes;
+            uint32_t current_message_size
+                = utility::get_message_size(&this->recv_buffer_[0],
+                        (uint32_t) recv_buffer_size_);
+            if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
+                    current_message_size <= _bytes) {
+                if (utility::is_request(
+                        recv_buffer_[VSOMEIP_MESSAGE_TYPE_POS])) {
+                    client_t its_client;
+                    std::memcpy(&its_client,
+                        &recv_buffer_[VSOMEIP_CLIENT_POS_MIN],
+                        sizeof(client_t));
+                    session_t its_session;
+                    std::memcpy(&its_session,
+                        &recv_buffer_[VSOMEIP_SESSION_POS_MIN],
+                        sizeof(session_t));
+                    clients_[its_client][its_session] = remote_;
                 }
-            } while (has_full_message);
-
+                its_host->on_message(&recv_buffer_[0], current_message_size, this);
+            } else {
+                VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad length field";
+                service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[VSOMEIP_SERVICE_POS_MIN],
+                        recv_buffer_[VSOMEIP_SERVICE_POS_MAX]);
+                if (its_service != VSOMEIP_SD_SERVICE) {
+                    its_host->on_error(&recv_buffer_[0], (uint32_t)_bytes, this);
+                }
+            }
+            recv_buffer_size_ = 0;
             restart();
         } else {
             receive();
@@ -240,7 +253,7 @@ client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definitio
         for (auto its_session : clients_[its_client.first]) {
             if (endpoint == its_session.second) {
                 // TODO: Check system byte order before convert!
-                client_t client = its_client.first << 8 | its_client.first >> 8;
+                client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
                 return client;
             }
         }

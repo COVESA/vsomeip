@@ -8,35 +8,24 @@
 
 #include <vsomeip/primitive_types.hpp>
 
-#include "option_impl.hpp"
+#include "ip_option_impl.hpp"
 
 namespace vsomeip {
 namespace sd {
 
-class ipv4_option_impl: public option_impl {
+class ipv4_option_impl: public ip_option_impl {
 public:
     ipv4_option_impl(bool _is_multicast);
     virtual ~ipv4_option_impl();
-    bool operator ==(const option_impl &_option) const;
 
     const ipv4_address_t & get_address() const;
     void set_address(const ipv4_address_t &_address);
 
-    unsigned short get_port() const;
-    void set_port(unsigned short _port);
-
-    bool is_udp() const;
-    void set_udp(bool _is_udp);
-
-    bool is_multicast() const;
-
     bool serialize(vsomeip::serializer *_to) const;
     bool deserialize(vsomeip::deserializer *_from);
 
-protected:
+private:
     ipv4_address_t address_;
-    unsigned short port_;
-    bool is_udp_;
 };
 
 } // namespace sd

@@ -8,15 +8,21 @@
 #include <iostream>
 #else
 #include <dlfcn.h>
+#include <sys/mman.h>
 #endif
 
 #include <sys/stat.h>
 
+#ifndef WIN32
+#include <fcntl.h>
+#endif
+
 #include <vsomeip/defines.hpp>
-#include <vsomeip/logger.hpp>
 
 #include "../include/byteorder.hpp"
 #include "../include/utility.hpp"
+#include "../../configuration/include/internal.hpp"
+#include "../../logging/include/logger.hpp"
 
 namespace vsomeip {
 
@@ -81,6 +87,86 @@ void * utility::load_library(const std::string &_path,
 bool utility::exists(const std::string &_path) {
     struct stat its_stat;
     return (stat(_path.c_str(), &its_stat) == 0);
+}
+
+bool utility::is_file(const std::string &_path) {
+    struct stat its_stat;
+    if (stat(_path.c_str(), &its_stat) == 0) {
+        if (its_stat.st_mode & S_IFREG)
+            return true;
+    }
+    return false;
+}
+
+bool utility::is_folder(const std::string &_path) {
+    struct stat its_stat;
+    if (stat(_path.c_str(), &its_stat) == 0) {
+        if (its_stat.st_mode & S_IFDIR)
+            return true;
+    }
+    return false;
+}
+
+configuration_data_t *utility::the_configuration_data__(nullptr);
+bool utility::is_routing_manager_host__(false);
+
+bool utility::auto_configuration_init() {
+#ifndef WIN32
+    int its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR|O_CREAT|O_EXCL, 0660);
+    if (its_descriptor > -1) {
+        if (0 == ftruncate(its_descriptor, sizeof(configuration_data_t))) {
+            void *its_segment = mmap(0, sizeof(configuration_data_t),
+                                     PROT_READ | PROT_WRITE, MAP_SHARED,
+                                     its_descriptor, 0);
+            the_configuration_data__
+                = reinterpret_cast<configuration_data_t *>(its_segment);
+            if (the_configuration_data__ != nullptr) {
+                std::lock_guard<std::mutex> its_lock(the_configuration_data__->mutex_);
+                the_configuration_data__->ref_ = 0;
+                the_configuration_data__->next_client_id_ = (VSOMEIP_DIAGNOSIS_ADDRESS << 8);
+                is_routing_manager_host__ = true;
+            }
+        } else {
+            // TODO: an error message
+        }
+    } else {
+        its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR, 0660);
+        if (its_descriptor > -1) {
+            void *its_segment = mmap(0, sizeof(configuration_data_t),
+                                     PROT_READ | PROT_WRITE, MAP_SHARED,
+                                     its_descriptor, 0);
+            the_configuration_data__
+                = reinterpret_cast<configuration_data_t *>(its_segment);
+        } else {
+            // TODO: an error message
+        }
+    }
+#endif
+    return (the_configuration_data__ != nullptr);
+}
+
+void utility::auto_configuration_exit() {
+#ifndef WIN32
+    if (the_configuration_data__) {
+        munmap(the_configuration_data__, sizeof(configuration_data_t));
+        if (is_routing_manager_host__) {
+            shm_unlink(VSOMEIP_SHM_NAME);
+        }
+    }
+#endif
+}
+
+client_t utility::get_client_id() {
+    if (the_configuration_data__ != nullptr) {
+        std::lock_guard<std::mutex> its_lock(the_configuration_data__->mutex_);
+        the_configuration_data__->next_client_id_++;
+        return the_configuration_data__->next_client_id_;
+    }
+    return VSOMEIP_DIAGNOSIS_ADDRESS;
+}
+
+bool utility::is_routing_manager_host() {
+    return is_routing_manager_host__;
 }
 
 } // namespace vsomeip

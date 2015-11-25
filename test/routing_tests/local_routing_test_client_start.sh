@@ -5,5 +5,5 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 export VSOMEIP_APPLICATION_NAME=local_routing_test_client
-export VSOMEIP_CONFIGURATION_FILE=local_routing_test_client.json
+export VSOMEIP_CONFIGURATION=local_routing_test_client.json
 ./local_routing_test_client

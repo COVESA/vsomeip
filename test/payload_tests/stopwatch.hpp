@@ -16,8 +16,8 @@ public:
 
     stop_watch() :
                     started_(false),
-                    total_elapsed_(0),
-                    start_time_point_(0)
+                    start_time_point_(0),
+                    total_elapsed_(0)
     {
     }
 

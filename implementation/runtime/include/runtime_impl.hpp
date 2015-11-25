@@ -7,6 +7,7 @@
 #define VSOMEIP_RUNTIME_IMPL_HPP
 
 #include <vsomeip/runtime.hpp>
+#include <map>
 
 namespace vsomeip {
 
@@ -17,7 +18,7 @@ public:
     virtual ~runtime_impl();
 
     std::shared_ptr<application> create_application(
-            const std::string &_name) const;
+            const std::string &_name);
 
     std::shared_ptr<message> create_message(bool _reliable) const;
     std::shared_ptr<message> create_request(bool _reliable) const;
@@ -30,6 +31,14 @@ public:
             uint32_t _size) const;
     std::shared_ptr<payload> create_payload(
             const std::vector<byte_t> &_data) const;
+
+    std::shared_ptr<application> get_application(
+            const std::string &_name) const;
+
+private:
+    static std::shared_ptr<runtime> the_runtime_;
+
+    std::map<std::string, std::shared_ptr<application>> applications_;
 };
 
 } // namespace vsomeip

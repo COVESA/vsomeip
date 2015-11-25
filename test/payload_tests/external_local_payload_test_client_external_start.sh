@@ -5,7 +5,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 export VSOMEIP_APPLICATION_NAME=external_local_payload_test_client_external
-export VSOMEIP_CONFIGURATION_FILE=external_local_payload_test_client_external.json
+export VSOMEIP_CONFIGURATION=external_local_payload_test_client_external.json
 ./payload_test_client --udp --max-payload-size UDP
 # We sleep to let the service restart with --tcp option so we can test
 # communication via TCP.

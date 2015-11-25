@@ -8,6 +8,8 @@
 
 #include <vsomeip/vsomeip.hpp>
 
+#include "../implementation/logging/include/logger.hpp"
+
 namespace vsomeip_test
 {
 

@@ -6,39 +6,26 @@
 #ifndef VSOMEIP_SD_IPV6_OPTION_IMPL_HPP
 #define VSOMEIP_SD_IPV6_OPTION_IMPL_HPP
 
-#include <vector>
-
 #include <vsomeip/primitive_types.hpp>
 
-#include "option_impl.hpp"
+#include "ip_option_impl.hpp"
 
 namespace vsomeip {
 namespace sd {
 
-class ipv6_option_impl: public option_impl {
+class ipv6_option_impl: public ip_option_impl {
 public:
     ipv6_option_impl(bool _is_multicast);
     virtual ~ipv6_option_impl();
-    bool operator ==(const option_impl &_option) const;
 
     const ipv6_address_t & get_address() const;
     void set_address(const ipv6_address_t &_address);
 
-    unsigned short get_port() const;
-    void set_port(unsigned short _port);
-
-    bool is_udp() const;
-    void set_udp(bool _is_udp);
-
-    bool is_multicast() const;
-
     bool serialize(vsomeip::serializer *_to) const;
     bool deserialize(vsomeip::deserializer *_from);
 
-protected:
+private:
     ipv6_address_t address_;
-    unsigned short port_;
-    bool is_udp_;
 };
 
 } // namespace sd

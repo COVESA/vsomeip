@@ -17,19 +17,22 @@
 class service_sample {
 public:
     service_sample(bool _use_tcp, uint32_t _cycle) :
-            app_(vsomeip::runtime::get()->create_application()), is_registered_(
-                    false), use_tcp_(_use_tcp), cycle_(_cycle), offer_thread_(
-                    std::bind(&service_sample::run, this)), notify_thread_(
-                    std::bind(&service_sample::notify, this)), is_offered_(
-                    false) {
+            app_(vsomeip::runtime::get()->create_application()),
+            is_registered_(false),
+            use_tcp_(_use_tcp),
+            cycle_(_cycle),
+            blocked_(false),
+            is_offered_(false),
+            offer_thread_(std::bind(&service_sample::run, this)),
+            notify_thread_(std::bind(&service_sample::notify, this)) {
     }
 
     void init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
         app_->init();
-        app_->register_event_handler(
-                std::bind(&service_sample::on_event, this,
+        app_->register_state_handler(
+                std::bind(&service_sample::on_state, this,
                         std::placeholders::_1));
 
         app_->register_message_handler(
@@ -46,6 +49,14 @@ public:
                 std::bind(&service_sample::on_set, this,
                           std::placeholders::_1));
 
+        std::set<vsomeip::eventgroup_t> its_groups;
+        its_groups.insert(SAMPLE_EVENTGROUP_ID);
+        app_->offer_event(
+                SAMPLE_SERVICE_ID,
+                SAMPLE_INSTANCE_ID,
+                SAMPLE_EVENT_ID,
+                its_groups,
+                true);
         payload_ = vsomeip::runtime::get()->create_payload();
 
         blocked_ = true;
@@ -68,12 +79,12 @@ public:
         is_offered_ = false;
     }
 
-    void on_event(vsomeip::event_type_e _event) {
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_event == vsomeip::event_type_e::ET_REGISTERED ?
-                "registered." : "deregistered.");
+    void on_state(vsomeip::state_type_e _state) {
+        std::cout << "Application " << app_->get_name() << " is "
+        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
+                "registered." : "deregistered.") << std::endl;
 
-        if (_event == vsomeip::event_type_e::ET_REGISTERED) {
+        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
                 is_registered_ = true;
             }
@@ -141,7 +152,7 @@ public:
 
                 payload_->set_data(its_data, its_size);
 
-                VSOMEIP_INFO << "Setting event (Length=" << std::dec << its_size << ").";
+                std::cout << "Setting event (Length=" << std::dec << its_size << ")." << std::endl;
                 app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, payload_);
 
                 its_size++;
@@ -157,17 +168,19 @@ private:
     bool use_tcp_;
     uint32_t cycle_;
 
-    std::thread offer_thread_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
 
-    std::thread notify_thread_;
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
     bool is_offered_;
 
     std::shared_ptr<vsomeip::payload> payload_;
+
+    // blocked_ / is_offered_ must be initialized before starting the threads!
+    std::thread offer_thread_;
+    std::thread notify_thread_;
 };
 
 int main(int argc, char **argv) {

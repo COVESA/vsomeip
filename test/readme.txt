@@ -52,6 +52,20 @@ The expected output is:
 2015-02-10 08:47:31.517106 [info] Test "SERVICE DISCOVERY PORT" succeeded.
 
 
+Application test
+----------------
+
+This test tests starting and stopping a vsomeip application in various ways.
+
+Automatic start from build directory:
+
+ctest -V -R application_test
+
+Manual start from sub folder test of build directory:
+
+./application_test_starter.sh
+
+
 Magic Cookies Test
 ------------------
 To run the magic cookies test you need two devices on the same network. The network addresses within
@@ -59,13 +73,18 @@ the configuration files need to be adapted to match the devices addresses.
 
 To start the magic-cookies-test from the build-directory do:
 
-HOST1: 
-env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-magic-cookies-client.json \
-VSOMEIP_APPLICATION_NAME=client-sample ./magic-cookies-test-client
+Automatic start from build directory:
 
-HOST2: 
-env VSOMEIP_CONFIGURATION_FILE=../config/vsomeip-magic-cookies-service.json \
-VSOMEIP_APPLICATION_NAME=service-sample ./response-sample --tcp --static-routing
+ctest -V -R magic_cookies_test
+
+Manual start from sub folder test of build directory:
+
+# On external host run
+./magic_cookies_test_service_start.sh
+
+# On local host run
+./magic_cookies_test_client_start.sh
+
 
 The expected result is an output like this on service side:
 
@@ -247,10 +266,76 @@ cd test
 ./external_local_payload_test_service_client_external_start.sh &
 # Start the local client
 VSOMEIP_APPLICATION_NAME=external_local_payload_test_client_local \
-VSOMEIP_CONFIGURATION_FILE=external_local_payload_test_client_local.json \
+VSOMEIP_CONFIGURATION=external_local_payload_test_client_local.json \
 ./payload_test_client --dont-shutdown-service
 # Start the external client after the local client is finished from an
 # external host
 ./external_local_payload_test_client_external_start.sh
 
 All tests should be marked as "passed".
+
+
+Big payload tests
+-----------------
+
+This test tests the possibility to increase the maximum allowed payload size for
+local and TCP messages via configuration file.
+
+The test will send a messages with 600k payload from a client to a service.
+The service will reply with a response containing 600k payload as well.
+This is repeated 10 times.
+There is a version for local and for TCP communication available.
+
+Automatic start from the build directory:
+
+ctest -V -R big_payload_test_local
+
+Manual start from sub folder test of build directory:
+
+./big_payload_test_service_local_start.sh &
+./big_payload_test_client_local_start.sh
+
+
+Automatic start of the TCP version from the build directory:
+
+ctest -V -R big_payload_test_external
+
+Manual start from sub folder test of build directory:
+
+./big_payload_test_client_start.sh
+
+# On external host run
+./big_payload_test_service_external_start.sh
+
+
+Client ID tests
+---------------
+
+This tests tests communication over two nodes with multiple services on both
+nodes.
+
+The test setup is as followed:
+* There are five services with one method each.
+* Two of the services run on node 1.
+* Three of the services run on node 2.
+* Each of the services sends ten requests to the other services and waits
+  until it received a response for every request.
+* If all responses have been received, the service shutdown.
+
+Automatic start from the build directory:
+
+ctest -V -R client_id_test_diff_client_ids_diff_ports
+
+Manual start from sub folder test of build directory:
+
+./client_id_test_master_starter.sh client_id_test_diff_client_ids_diff_ports_master.json
+
+Second version where all services on one node use the same port:
+
+Automatic start from the build directory:
+
+ctest -V -R client_id_test_diff_client_ids_same_ports
+
+Manual start from sub folder test of build directory:
+
+./client_id_test_master_starter.sh client_id_test_diff_client_ids_same_ports_master.json

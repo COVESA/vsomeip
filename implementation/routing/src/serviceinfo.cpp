@@ -8,14 +8,15 @@
 namespace vsomeip {
 
 serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
-                         ttl_t _ttl)
+                         ttl_t _ttl, bool _is_local)
     : group_(0),
       major_(_major),
       minor_(_minor),
       ttl_(_ttl),
       reliable_(nullptr),
       unreliable_(nullptr),
-      multicast_group_(0xFFFF) {
+      multicast_group_(0xFFFF),
+      is_local_(_is_local) {
 }
 
 serviceinfo::~serviceinfo() {
@@ -88,6 +89,10 @@ void serviceinfo::add_client(client_t _client) {
 
 void serviceinfo::remove_client(client_t _client) {
   requesters_.erase(_client);
+}
+
+bool serviceinfo::is_local() const {
+    return is_local_;
 }
 
 }  // namespace vsomeip

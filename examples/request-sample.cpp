@@ -16,176 +16,185 @@
 
 class client_sample {
 public:
-	client_sample(bool _use_tcp, bool _be_quiet, uint32_t _cycle)
-		: app_(vsomeip::runtime::get()->create_application()),
-		  request_(vsomeip::runtime::get()->create_request()),
-		  use_tcp_(_use_tcp),
-		  be_quiet_(_be_quiet),
-		  cycle_(_cycle),
-		  sender_(std::bind(&client_sample::run, this)),
-		  running_(true),
-		  is_available_(false) {
-	}
+    client_sample(bool _use_tcp, bool _be_quiet, uint32_t _cycle)
+        : app_(vsomeip::runtime::get()->create_application()),
+          request_(vsomeip::runtime::get()->create_request(_use_tcp)),
+          use_tcp_(_use_tcp),
+          be_quiet_(_be_quiet),
+          cycle_(_cycle),
+          running_(true),
+          blocked_(false),
+          is_available_(false),
+          sender_(std::bind(&client_sample::run, this)) {
+    }
 
-	void init() {
-		app_->init();
+    void init() {
+        app_->init();
 
-		VSOMEIP_INFO << "Client settings [protocol="
-				<< (use_tcp_ ? "TCP" : "UDP")
-				<< ":quiet="
-				<< (be_quiet_ ? "true" : "false")
-				<< ":cycle="
-				<< cycle_
-				<< "]";
+        std::cout << "Client settings [protocol="
+                  << (use_tcp_ ? "TCP" : "UDP")
+                  << ":quiet="
+                  << (be_quiet_ ? "true" : "false")
+                  << ":cycle="
+                  << cycle_
+                  << "]"
+                  << std::endl;
 
-		app_->register_event_handler(
-				std::bind(
-					&client_sample::on_event,
-					this,
-					std::placeholders::_1));
+        app_->register_state_handler(
+                std::bind(
+                    &client_sample::on_state,
+                    this,
+                    std::placeholders::_1));
 
-		app_->register_availability_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
-				std::bind(&client_sample::on_availability,
-						  this,
-						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        app_->register_message_handler(
+                vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,
+                std::bind(&client_sample::on_message,
+                          this,
+                          std::placeholders::_1));
 
-		app_->register_availability_handler(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID,
-				std::bind(&client_sample::on_availability,
-						  this,
-						  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        request_->set_service(SAMPLE_SERVICE_ID);
+        request_->set_instance(SAMPLE_INSTANCE_ID);
+        request_->set_method(SAMPLE_METHOD_ID);
 
-		app_->register_message_handler(
-				vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,
-				std::bind(&client_sample::on_message,
-						  this,
-						  std::placeholders::_1));
+        std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
+        std::vector< vsomeip::byte_t > its_payload_data;
+        for (std::size_t i = 0; i < 10; ++i) its_payload_data.push_back(i % 256);
+        its_payload->set_data(its_payload_data);
+        request_->set_payload(its_payload);
 
-		request_->set_service(SAMPLE_SERVICE_ID);
-		request_->set_instance(SAMPLE_INSTANCE_ID);
-		request_->set_method(SAMPLE_METHOD_ID);
+        app_->register_availability_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
+                std::bind(&client_sample::on_availability,
+                          this,
+                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-		std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
-		std::vector< vsomeip::byte_t > its_payload_data;
-		for (std::size_t i = 0; i < 10; ++i) its_payload_data.push_back(i % 256);
-		its_payload->set_data(its_payload_data);
-		request_->set_payload(its_payload);
-	}
+        app_->register_availability_handler(SAMPLE_SERVICE_ID + 1, SAMPLE_INSTANCE_ID,
+                std::bind(&client_sample::on_availability,
+                          this,
+                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    }
 
-	void start() {
-		app_->start();
-	}
+    void start() {
+        app_->start();
+    }
 
-	void on_event(vsomeip::event_type_e _event) {
-		if (_event == vsomeip::event_type_e::ET_REGISTERED) {
-			app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
-		}
-	}
+    void on_state(vsomeip::state_type_e _state) {
+        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+            app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+        }
+    }
 
-	void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
-		VSOMEIP_INFO << "Service ["
-				<< std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-				<< "] is "
-				<< (_is_available ? "available." : "NOT available.");
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+        std::cout << "Service ["
+                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
+                << "] is "
+                << (_is_available ? "available." : "NOT available.")
+                << std::endl;
 
-		if (SAMPLE_SERVICE_ID == _service && SAMPLE_INSTANCE_ID == _instance) {
-			if (is_available_  && !_is_available) {
-				is_available_ = false;
-			} else if (_is_available && !is_available_) {
-				is_available_ = true;
-				send();
-			}
-		}
-	}
+        if (SAMPLE_SERVICE_ID == _service && SAMPLE_INSTANCE_ID == _instance) {
+            if (is_available_  && !_is_available) {
+                is_available_ = false;
+            } else if (_is_available && !is_available_) {
+                is_available_ = true;
+                send();
+            }
+        }
+    }
 
-	void on_message(const std::shared_ptr< vsomeip::message > &_response) {
-		VSOMEIP_INFO << "Received a response from Service ["
-				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-				<< "."
-				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
-				<< "] to Client/Session ["
-				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-				<< "/"
-				<< std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
-				<< "]";
-		if (is_available_)
-			send();
-	}
+    void on_message(const std::shared_ptr< vsomeip::message > &_response) {
+        std::cout << "Received a response from Service ["
+                << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
+                << "."
+                << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                << "] to Client/Session ["
+                << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
+                << "/"
+                << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
+                << "]"
+                << std::endl;
+        if (is_available_)
+            send();
+    }
 
-	void send() {
-		if (!be_quiet_)
-		{
-			std::lock_guard< std::mutex > its_lock(mutex_);
-			blocked_ = true;
-			condition_.notify_one();
-		}
-	}
+    void send() {
+        if (!be_quiet_)
+        {
+            std::lock_guard< std::mutex > its_lock(mutex_);
+            blocked_ = true;
+            condition_.notify_one();
+        }
+    }
 
-	void run() {
-		while (running_) {
-			{
-				std::unique_lock<std::mutex> its_lock(mutex_);
-				while (!blocked_) condition_.wait(its_lock);
-				std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
-				app_->send(request_, true);
-				VSOMEIP_INFO << "Client/Session ["
-						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
-						<< "/"
-						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
-						<< "] sent a request to Service ["
-						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
-						<< "."
-						<< std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
-						<< "]";
-				blocked_ = false;
-			}
-		}
-	}
+    void run() {
+        while (running_) {
+            {
+                std::unique_lock<std::mutex> its_lock(mutex_);
+                while (!blocked_) condition_.wait(its_lock);
+                std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
+                if (is_available_) {
+                    app_->send(request_, true);
+                    std::cout << "Client/Session ["
+                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
+                            << "/"
+                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
+                            << "] sent a request to Service ["
+                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
+                            << "."
+                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
+                            << "]"
+                            << std::endl;
+                    blocked_ = false;
+                }
+
+            }
+        }
+    }
 
 private:
-	std::shared_ptr< vsomeip::application > app_;
-	std::shared_ptr< vsomeip::message > request_;
-	bool use_tcp_;
-	bool be_quiet_;
-	uint32_t cycle_;
-	vsomeip::session_t session_;
-	std::mutex mutex_;
-	std::condition_variable condition_;
-	std::thread sender_;
-	bool running_;
-	bool blocked_;
-	bool is_available_;
+    std::shared_ptr< vsomeip::application > app_;
+    std::shared_ptr< vsomeip::message > request_;
+    bool use_tcp_;
+    bool be_quiet_;
+    uint32_t cycle_;
+    vsomeip::session_t session_;
+    std::mutex mutex_;
+    std::condition_variable condition_;
+    bool running_;
+    bool blocked_;
+    bool is_available_;
+
+    std::thread sender_;
 };
 
 
 int main(int argc, char **argv) {
-	bool use_tcp = false;
-	bool be_quiet = false;
-	uint32_t cycle = 1000; // Default: 1s
+    bool use_tcp = false;
+    bool be_quiet = false;
+    uint32_t cycle = 1000; // Default: 1s
 
-	std::string tcp_enable("--tcp");
-	std::string udp_enable("--udp");
-	std::string quiet_enable("--quiet");
-	std::string cycle_arg("--cycle");
+    std::string tcp_enable("--tcp");
+    std::string udp_enable("--udp");
+    std::string quiet_enable("--quiet");
+    std::string cycle_arg("--cycle");
 
-	int i = 1;
-	while (i < argc) {
-		if (tcp_enable == argv[i]) {
-			use_tcp = true;
-		} else if (udp_enable == argv[i]) {
-			use_tcp = false;
-		} else if (quiet_enable == argv[i]) {
-			be_quiet = true;
-		} else if (cycle_arg == argv[i] && i+1 < argc) {
-			i++;
-			std::stringstream converter;
-			converter << argv[i];
-			converter >> cycle;
-		}
-		i++;
-	}
+    int i = 1;
+    while (i < argc) {
+        if (tcp_enable == argv[i]) {
+            use_tcp = true;
+        } else if (udp_enable == argv[i]) {
+            use_tcp = false;
+        } else if (quiet_enable == argv[i]) {
+            be_quiet = true;
+        } else if (cycle_arg == argv[i] && i+1 < argc) {
+            i++;
+            std::stringstream converter;
+            converter << argv[i];
+            converter >> cycle;
+        }
+        i++;
+    }
 
-	client_sample its_sample(use_tcp, be_quiet, cycle);
-	its_sample.init();
-	its_sample.start();
-	return 0;
+    client_sample its_sample(use_tcp, be_quiet, cycle);
+    its_sample.init();
+    its_sample.start();
+    return 0;
 }

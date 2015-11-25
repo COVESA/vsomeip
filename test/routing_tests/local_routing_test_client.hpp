@@ -25,7 +25,7 @@ public:
     void start();
     void stop();
     void join_sender_thread();
-    void on_event(vsomeip::event_type_e _event);
+    void on_state(vsomeip::state_type_e _state);
     void on_availability(vsomeip::service_t _service,
             vsomeip::instance_t _instance, bool _is_available);
     void on_message(const std::shared_ptr<vsomeip::message> &_response);
@@ -37,13 +37,13 @@ private:
     std::shared_ptr<vsomeip::message> request_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::thread sender_;
     bool running_;
     bool blocked_;
     bool is_available_;
     std::uint32_t number_of_messages_to_send_;
     std::uint32_t number_of_sent_messages_;
     std::uint32_t number_of_acknowledged_messages_;
+    std::thread sender_;
 };
 
 #endif /* LOCALROUTINGTESTCLIENT_HPP_ */

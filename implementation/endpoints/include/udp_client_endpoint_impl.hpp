@@ -31,13 +31,8 @@ public:
     virtual ~udp_client_endpoint_impl();
 
     void start();
-    void send_queued(message_buffer_ptr_t _buffer);
 
-    void join(const std::string &_address);
-    void leave(const std::string &_address);
-
-    void receive_cbk(packet_buffer_ptr_t _buffer,
-                     boost::system::error_code const &_error,
+    void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
                      
     bool get_remote_address(boost::asio::ip::address &_address) const;
@@ -46,8 +41,12 @@ public:
     bool is_local() const;
 
 private:
+    void send_queued();
     void connect();
     void receive();
+
+    receive_buffer_t recv_buffer_;
+    size_t recv_buffer_size_;
 };
 
 } // namespace vsomeip

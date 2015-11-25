@@ -12,13 +12,13 @@
 
 # Start the service
 export VSOMEIP_APPLICATION_NAME=header_factory_test_service
-export VSOMEIP_CONFIGURATION_FILE=header_factory_test_service.json
+export VSOMEIP_CONFIGURATION=header_factory_test_service.json
 ./header_factory_test_service &
 sleep 1;
 
 # Start the client
 export VSOMEIP_APPLICATION_NAME=header_factory_test_client
-export VSOMEIP_CONFIGURATION_FILE=header_factory_test_client.json
+export VSOMEIP_CONFIGURATION=header_factory_test_client.json
 ./header_factory_test_client &
 
 # Wait until client and service are finished

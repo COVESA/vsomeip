@@ -10,76 +10,83 @@
 namespace vsomeip {
 
 eventgroupinfo::eventgroupinfo()
-    : major_(DEFAULT_MAJOR),
-      ttl_(DEFAULT_TTL),
-      is_multicast_(false) {
+        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL), is_multicast_(false) {
 }
 
 eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl)
-	: major_(_major),
-	  ttl_(_ttl),
-	  is_multicast_(false) {
+        : major_(_major), ttl_(_ttl), is_multicast_(false) {
 }
 
 eventgroupinfo::~eventgroupinfo() {
 }
 
 major_version_t eventgroupinfo::get_major() const {
-  return major_;
+    return major_;
 }
 
 void eventgroupinfo::set_major(major_version_t _major) {
-  major_ = _major;
+    major_ = _major;
 }
 
 ttl_t eventgroupinfo::get_ttl() const {
-  return ttl_;
+    return ttl_;
 }
 
 void eventgroupinfo::set_ttl(ttl_t _ttl) {
-  ttl_ = _ttl;
+    ttl_ = _ttl;
 }
 
 bool eventgroupinfo::is_multicast() const {
-  return is_multicast_;
+    return is_multicast_;
 }
 
-bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address, uint16_t &_port) const {
-  if (is_multicast_) {
-    _address = address_;
-    _port = port_;
-  }
-  return is_multicast_;
+bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address,
+        uint16_t &_port) const {
+    if (is_multicast_) {
+        _address = address_;
+        _port = port_;
+    }
+    return is_multicast_;
 }
 
-void eventgroupinfo::set_multicast(const boost::asio::ip::address &_address, uint16_t _port) {
-  address_ = _address;
-  port_ = _port;
-  is_multicast_ = true;
+void eventgroupinfo::set_multicast(const boost::asio::ip::address &_address,
+        uint16_t _port) {
+    address_ = _address;
+    port_ = _port;
+    is_multicast_ = true;
 }
 
 const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
-  return events_;
+    return events_;
 }
 
 void eventgroupinfo::add_event(std::shared_ptr<event> _event) {
-  events_.insert(_event);
+    events_.insert(_event);
+}
+
+void eventgroupinfo::remove_event(std::shared_ptr<event> _event) {
+    events_.erase(_event);
 }
 
 const std::set<std::shared_ptr<endpoint_definition> > eventgroupinfo::get_targets() const {
-  return targets_;
+    return targets_;
 }
 
-void eventgroupinfo::add_target(std::shared_ptr<endpoint_definition> _target) {
-  targets_.insert(_target);
+bool eventgroupinfo::add_target(std::shared_ptr<endpoint_definition> _target) {
+    std::size_t its_size = targets_.size();
+    targets_.insert(_target);
+    return (its_size != targets_.size());
 }
 
-void eventgroupinfo::del_target(std::shared_ptr<endpoint_definition> _target) {
-  targets_.erase(_target);
+bool eventgroupinfo::remove_target(
+        std::shared_ptr<endpoint_definition> _target) {
+    std::size_t its_size = targets_.size();
+    targets_.erase(_target);
+    return (its_size != targets_.size());
 }
 
 void eventgroupinfo::clear_targets() {
-  targets_.clear();
+    targets_.clear();
 }
 
 }  // namespace vsomeip

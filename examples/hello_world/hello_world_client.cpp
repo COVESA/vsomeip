@@ -26,10 +26,16 @@ public:
         // init the application
         app_->init();
 
-        // register an event handler to get called back after registration at the
+        // register a state handler to get called back after registration at the
         // runtime was successful
-        app_->register_event_handler(
-                std::bind(&hello_world_client::on_event_cbk, this,
+        app_->register_state_handler(
+                std::bind(&hello_world_client::on_state_cbk, this,
+                        std::placeholders::_1));
+
+        // register a callback for responses from the service
+        app_->register_message_handler(vsomeip::ANY_SERVICE,
+                service_instance_id, vsomeip::ANY_METHOD,
+                std::bind(&hello_world_client::on_message_cbk, this,
                         std::placeholders::_1));
 
         // register a callback which is called as soon as the service is available
@@ -37,12 +43,6 @@ public:
                 std::bind(&hello_world_client::on_availability_cbk, this,
                         std::placeholders::_1, std::placeholders::_2,
                         std::placeholders::_3));
-
-        // register a callback for responses from the service
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                service_instance_id, vsomeip::ANY_METHOD,
-                std::bind(&hello_world_client::on_message_cbk, this,
-                        std::placeholders::_1));
     }
 
     void start()
@@ -52,9 +52,9 @@ public:
         app_->start();
     }
 
-    void on_event_cbk(vsomeip::event_type_e _event)
+    void on_state_cbk(vsomeip::state_type_e _state)
     {
-        if(_event == vsomeip::event_type_e::ET_REGISTERED)
+        if(_state == vsomeip::state_type_e::ST_REGISTERED)
         {
             // we are registered at the runtime now we can request the service
             // and wait for the on_availability callback to be called
@@ -111,8 +111,8 @@ public:
 
     void stop()
     {
-        // unregister the event handler
-        app_->unregister_event_handler();
+        // unregister the state handler
+        app_->unregister_state_handler();
         // unregister the message handler
         app_->unregister_message_handler(vsomeip::ANY_SERVICE,
                 service_instance_id, vsomeip::ANY_METHOD);

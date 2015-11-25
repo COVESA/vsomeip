@@ -7,7 +7,6 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
-#include <vsomeip/logger.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
@@ -19,6 +18,7 @@
 #include "../include/load_balancing_option_impl.hpp"
 #include "../include/protection_option_impl.hpp"
 #include "../include/message_impl.hpp"
+#include "../../logging/include/logger.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/payload_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -31,15 +31,16 @@ message_impl::message_impl() {
     header_.method_ = 0x8100;
     header_.protocol_version_ = 0x01;
     flags_ = 0x00;
+    options_length_ = 0x0000;
 }
 
 message_impl::~message_impl() {
 }
 
 length_t message_impl::get_length() const {
-    length_t current_length = VSOMEIP_SOMEIP_HEADER_SIZE
-            + VSOMEIP_SOMEIP_SD_DATA_SIZE;
-    current_length += (entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
+    length_t current_length = (VSOMEIP_SOMEIP_HEADER_SIZE
+            + VSOMEIP_SOMEIP_SD_DATA_SIZE);
+    current_length += uint32_t(entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
     for (size_t i = 0; i < options_.size(); ++i) {
         current_length += (options_[i]->get_length()
                 + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE);
@@ -55,9 +56,9 @@ bool message_impl::get_reboot_flag() const {
 
 void message_impl::set_reboot_flag(bool _is_set) {
     if (_is_set)
-        flags_ |= VSOMEIP_REBOOT_FLAG;
+        flags_ |= flags_t(VSOMEIP_REBOOT_FLAG);
     else
-        flags_ &= ~VSOMEIP_REBOOT_FLAG;
+        flags_ &= flags_t(~VSOMEIP_REBOOT_FLAG);
 }
 
 #define VSOMEIP_UNICAST_FLAG 0x40
@@ -68,12 +69,13 @@ bool message_impl::get_unicast_flag() const {
 
 void message_impl::set_unicast_flag(bool _is_set) {
     if (_is_set)
-        flags_ |= VSOMEIP_UNICAST_FLAG;
+        flags_ |= flags_t(VSOMEIP_UNICAST_FLAG);
     else
-        flags_ &= ~VSOMEIP_UNICAST_FLAG;
+        flags_ &= flags_t(~VSOMEIP_UNICAST_FLAG);
 }
 
 void message_impl::set_length(length_t _length) {
+    (void)_length;
 }
 
 std::shared_ptr<eventgroupentry_impl> message_impl::create_eventgroup_entry() {
@@ -154,7 +156,7 @@ int16_t message_impl::get_option_index(
         const std::shared_ptr<option_impl> &_option) const {
     int16_t i = 0;
 
-    while (i < options_.size()) {
+    while (i < int16_t(options_.size())) {
         if (options_[i] == _option)
             return i;
         i++;
@@ -163,11 +165,16 @@ int16_t message_impl::get_option_index(
     return -1;
 }
 
+uint32_t message_impl::get_options_length() {
+    return options_length_;
+}
+
 std::shared_ptr<payload> message_impl::get_payload() const {
     return std::make_shared<payload_impl>();
 }
 
 void message_impl::set_payload(std::shared_ptr<payload> _payload) {
+    (void)_payload;
 }
 
 bool message_impl::serialize(vsomeip::serializer *_to) const {
@@ -177,7 +184,7 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
     is_successful = is_successful
             && _to->serialize(protocol::reserved_long, true);
 
-    uint32_t entries_length = (entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
+    uint32_t entries_length = uint32_t(entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
     is_successful = is_successful && _to->serialize(entries_length);
 
     for (auto it = entries_.begin(); it != entries_.end(); ++it)
@@ -213,7 +220,7 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
     is_successful = is_successful && _from->deserialize(entries_length);
 
     // backup the current remaining length
-    uint32_t save_remaining = _from->get_remaining();
+    uint32_t save_remaining = uint32_t(_from->get_remaining());
 
     // set remaining bytes to length of entries array
     _from->set_remaining(entries_length);
@@ -231,9 +238,18 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
     // set length to remaining bytes after entries array
     _from->set_remaining(save_remaining - entries_length);
 
+    // Don't try to deserialize options if there aren't any
+    if(_from->get_remaining() == 0) {
+        return is_successful;
+    }
+
     // deserialize the options
-    uint32_t options_length = 0;
-    is_successful = is_successful && _from->deserialize(options_length);
+    is_successful = is_successful && _from->deserialize(options_length_);
+
+    // check if there is unreferenced data behind the last option and discard it
+    if(_from->get_remaining() > options_length_) {
+        _from->set_remaining(options_length_);
+    }
 
     while (is_successful && _from->get_remaining()) {
         std::shared_ptr < option_impl > its_option(deserialize_option(_from));
@@ -279,6 +295,7 @@ entry_impl * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
 
         // deserialize object
         if (0 != deserialized_entry) {
+            deserialized_entry->set_owning_message(this);
             if (!deserialized_entry->deserialize(_from)) {
                 delete deserialized_entry;
                 deserialized_entry = 0;
@@ -323,6 +340,7 @@ option_impl * message_impl::deserialize_option(vsomeip::deserializer *_from) {
             break;
 
         default:
+            deserialized_option = new option_impl();
             break;
         };
 

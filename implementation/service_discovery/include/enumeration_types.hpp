@@ -39,6 +39,13 @@ enum class entry_type_e
     UNKNOWN = 0xFF
 };
 
+enum class layer_four_protocol_e
+    : uint8_t {
+        TCP = 0x06,
+        UDP = 0x11,
+        UNKNOWN = 0xFF
+};
+
 } // namespace sd
 } // namespace vsomeip
 

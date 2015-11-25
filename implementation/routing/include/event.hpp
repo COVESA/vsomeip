@@ -54,6 +54,9 @@ public:
     bool is_reliable() const;
     void set_reliable(bool _is_reliable);
 
+    bool is_provided() const;
+    void set_provided(bool _is_provided);
+
     // SIP_RPC_357
     void set_update_cycle(std::chrono::milliseconds &_cycle);
 
@@ -68,6 +71,9 @@ public:
 
     void notify_one(const std::shared_ptr<endpoint_definition> &_target);
     void notify_one(client_t _client);
+
+    void add_ref();
+    uint32_t remove_ref();
 
 private:
     void update_cbk(boost::system::error_code const &_error);
@@ -91,6 +97,9 @@ private:
     std::set<eventgroup_t> eventgroups_;
 
     bool is_set_;
+    bool is_provided_;
+
+    uint32_t ref_;
 };
 
 }  // namespace vsomeip
