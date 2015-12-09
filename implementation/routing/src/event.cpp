@@ -41,6 +41,14 @@ void event::set_instance(instance_t _instance) {
     message_->set_instance(_instance);
 }
 
+major_version_t event::get_version() const {
+    return message_->get_interface_version();
+}
+
+void event::set_version(major_version_t _major) {
+    message_->set_interface_version(_major);
+}
+
 event_t event::get_event() const {
     return (message_->get_method());
 }
@@ -63,14 +71,6 @@ bool event::is_provided() const {
 
 void event::set_provided(bool _is_provided) {
     is_provided_ = _is_provided;
-}
-
-bool event::is_reliable() const {
-    return message_->is_reliable();
-}
-
-void event::set_reliable(bool _is_reliable) {
-    message_->set_reliable(_is_reliable);
 }
 
 const std::shared_ptr<payload> event::get_payload() const {

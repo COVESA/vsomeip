@@ -46,6 +46,14 @@ enum class return_code_e : uint8_t {
     E_UNKNOWN = 0xFF
 };
 
+enum class subscription_type_e : uint8_t {
+    SU_RELIABLE_AND_UNRELIABLE = 0x00,
+    SU_PREFER_UNRELIABLE = 0x01,
+    SU_PREFER_RELIABLE = 0x02,
+    SU_UNRELIABLE = 0x03,
+    SU_RELIABLE = 0x04,
+};
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_ENUMERATION_TYPES_HPP

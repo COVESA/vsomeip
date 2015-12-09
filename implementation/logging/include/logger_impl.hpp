@@ -15,6 +15,7 @@
 #include <boost/log/trivial.hpp>
 
 #include "logger.hpp"
+#include "dlt_sink_backend.hpp"
 
 namespace vsomeip {
 
@@ -26,6 +27,8 @@ BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity",
 
 typedef boost::log::sinks::synchronous_sink<
         boost::log::sinks::text_ostream_backend> sink_t;
+typedef boost::log::sinks::synchronous_sink<
+        dlt_sink_backend> dlt_sink_t;
 
 class logger_impl: public logger {
 public:
@@ -49,7 +52,7 @@ private:
 
     boost::shared_ptr<sink_t> console_sink_;
     boost::shared_ptr<sink_t> file_sink_;
-    //boost::shared_ptr< dlt_sink > dlt_sink_;
+    boost::shared_ptr<dlt_sink_t> dlt_sink_;
 
 private:
     void use_null_logger();

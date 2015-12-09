@@ -124,6 +124,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         uint32_t its_size;
         bool its_reliable(false);
         bool use_exclusive_proxy(false);
+        subscription_type_e its_subscription_type;
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
         std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
@@ -186,9 +187,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         sizeof(its_eventgroup));
                 std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
                         sizeof(its_major));
-
+                std::memcpy(&its_subscription_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 7],
+                            sizeof(its_subscription_type));
                 host_->subscribe(its_client, its_service,
-                        its_instance, its_eventgroup, its_major);
+                        its_instance, its_eventgroup, its_major, its_subscription_type);
                 break;
 
             case VSOMEIP_UNSUBSCRIBE:

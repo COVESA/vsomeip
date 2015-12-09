@@ -9,6 +9,7 @@
 #include <memory>
 
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/enumeration_types.hpp>
 
 namespace vsomeip {
 
@@ -20,7 +21,8 @@ class subscription {
 public:
     subscription(major_version_t _major, ttl_t _ttl,
             std::shared_ptr<endpoint> _reliable,
-            std::shared_ptr<endpoint> _unreliable);
+            std::shared_ptr<endpoint> _unreliable,
+            subscription_type_e _subscription_type);
     ~subscription();
 
     major_version_t get_major() const;
@@ -32,6 +34,8 @@ public:
     bool is_acknowledged() const;
     void set_acknowledged(bool _is_acknowledged);
 
+    subscription_type_e get_subscription_type() const;
+
 private:
     major_version_t major_;
     ttl_t ttl_;
@@ -40,6 +44,8 @@ private:
     std::shared_ptr<endpoint> unreliable_;
 
     bool is_acknowledged_;
+
+    subscription_type_e subscription_type_;
 };
 
 } // namespace sd

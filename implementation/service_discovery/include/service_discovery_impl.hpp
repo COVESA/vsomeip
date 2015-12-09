@@ -12,7 +12,6 @@
 #include <set>
 
 #include <boost/asio/system_timer.hpp>
-#include <boost/asio/ip/address.hpp>
 
 #include "service_discovery.hpp"
 #include "../../routing/include/types.hpp"
@@ -54,20 +53,25 @@ public:
     void release_service(service_t _service, instance_t _instance);
 
     void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client);
+            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client,
+            subscription_type_e _subscription_type);
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
 
     void send(bool _is_announcing);
 
-    void on_message(const byte_t *_data, length_t _length);
+    void on_message(const byte_t *_data, length_t _length,
+            const boost::asio::ip::address &_sender);
 
     void on_offer_change();
 
 private:
-    session_t get_session(const boost::asio::ip::address &_address);
+    std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
+
+    bool is_reboot(const boost::asio::ip::address &_address,
+            bool _reboot_flag, session_t _session);
 
     void insert_option(std::shared_ptr<message_impl> &_message,
             std::shared_ptr<entry_impl> _entry,
@@ -134,6 +138,13 @@ private:
                                            major_version_t _major);
     bool check_layer_four_protocol(
             const std::shared_ptr<const ip_option_impl> _ip_option) const;
+    void get_subscription_endpoints(subscription_type_e _subscription_type,
+                                    std::shared_ptr<endpoint>& _unreliable,
+                                    std::shared_ptr<endpoint>& _reliable,
+                                    boost::asio::ip::address* _address,
+                                    bool* _has_address,
+                                    service_t _service, instance_t _instance,
+                                    client_t _client) const;
 
 private:
     boost::asio::io_service &io_;
@@ -160,7 +171,11 @@ private:
     std::mutex serialize_mutex_;
 
     // Sessions
-    std::map<boost::asio::ip::address, session_t> sessions_;
+    std::map<boost::asio::ip::address, std::pair<session_t, bool> > sessions_;
+    std::map<boost::asio::ip::address, session_t > sessions_receiving_;
+
+    // Reboots
+    std::set<boost::asio::ip::address> reboots_;
 
     // Runtime
     std::weak_ptr<runtime> runtime_;

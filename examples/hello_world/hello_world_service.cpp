@@ -4,6 +4,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/vsomeip.hpp>
+#include <chrono>
+#include <thread>
+#include <condition_variable>
+#include <mutex>
 
 static vsomeip::service_t service_id = 0x1111;
 static vsomeip::instance_t service_instance_id = 0x2222;
@@ -17,8 +21,15 @@ public:
     // environment variable is used
     hello_world_service() :
                     rtm_(vsomeip::runtime::get()),
-                    app_(rtm_->create_application())
+                    app_(rtm_->create_application()),
+                    stop_(false),
+                    stop_thread_(std::bind(&hello_world_service::stop, this))
     {
+    }
+
+    ~hello_world_service()
+    {
+        stop_thread_.join();
     }
 
     void init()
@@ -48,6 +59,11 @@ public:
 
     void stop()
     {
+        std::unique_lock<std::mutex> its_lock(mutex_);
+        while(!stop_) {
+            condition_.wait(its_lock);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(5));
         // Stop offering the service
         app_->stop_offer_service(service_id, service_instance_id);
         // unregister the state handler
@@ -88,12 +104,18 @@ public:
         // Send the response back
         app_->send(resp, true);
         // we're finished stop now
-        stop();
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        stop_ = true;
+        condition_.notify_one();
     }
 
 private:
     std::shared_ptr<vsomeip::runtime> rtm_;
     std::shared_ptr<vsomeip::application> app_;
+    bool stop_;
+    std::mutex mutex_;
+    std::condition_variable condition_;
+    std::thread stop_thread_;
 };
 
 int main(int argc, char **argv)

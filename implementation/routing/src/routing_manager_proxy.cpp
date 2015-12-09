@@ -113,6 +113,7 @@ void routing_manager_proxy::stop() {
 void routing_manager_proxy::offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
 
+    service_versions_[_service][_instance] = _major;
     if (is_connected_) {
         send_offer_service(_client, _service, _instance, _major, _minor);
     } else {
@@ -150,6 +151,14 @@ void routing_manager_proxy::send_offer_service(client_t _client,
 void routing_manager_proxy::stop_offer_service(client_t _client,
         service_t _service, instance_t _instance) {
     (void)_client;
+
+    auto its_service = service_versions_.find(_service);
+    if (its_service != service_versions_.end()) {
+        auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            its_service->second.clear();
+        }
+    }
 
     if (is_connected_) {
         byte_t its_command[VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE];
@@ -198,7 +207,7 @@ void routing_manager_proxy::release_service(client_t _client,
 
 void routing_manager_proxy::register_event(client_t _client,
         service_t _service, instance_t _instance,
-        event_t _event, std::set<eventgroup_t> _eventgroups,
+        event_t _event, const std::set<eventgroup_t> &_eventgroups,
         bool _is_field, bool _is_provided) {
     (void)_client;
 
@@ -273,18 +282,22 @@ bool routing_manager_proxy::is_field(service_t _service, instance_t _instance,
 }
 
 void routing_manager_proxy::subscribe(client_t _client, service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup, major_version_t _major) {
+        instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+        subscription_type_e _subscription_type) {
     if (is_connected_) {
-        send_subscribe(_client, _service, _instance, _eventgroup, _major);
+        send_subscribe(_client, _service, _instance, _eventgroup, _major,
+                _subscription_type);
     } else {
-        eventgroup_data_t subscription = { _service, _instance, _eventgroup, _major };
+        eventgroup_data_t subscription = { _service, _instance, _eventgroup, _major,
+                _subscription_type};
         std::lock_guard<std::mutex> its_lock(pending_mutex_);
         pending_subscriptions_.insert(subscription);
     }
 }
 
 void routing_manager_proxy::send_subscribe(client_t _client, service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup, major_version_t _major) {
+        instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+        subscription_type_e _subscription_type) {
     (void)_client;
 
     byte_t its_command[VSOMEIP_SUBSCRIBE_COMMAND_SIZE];
@@ -303,6 +316,8 @@ void routing_manager_proxy::send_subscribe(client_t _client, service_t _service,
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_eventgroup,
             sizeof(_eventgroup));
     its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6] = _major;
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 7], &_subscription_type,
+                sizeof(_subscription_type));
 
     sender_->send(its_command, sizeof(its_command));
 }
@@ -436,6 +451,13 @@ void routing_manager_proxy::notify(
     its_notification->set_instance(_instance);
     its_notification->set_method(_event);
     its_notification->set_payload(_payload);
+    auto its_service = service_versions_.find(_service);
+    if (its_service != service_versions_.end()) {
+        auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            its_notification->set_interface_version(its_instance->second);
+        }
+    }
     if (is_connected_) {
         send(VSOMEIP_ROUTING_CLIENT, its_notification, true);
     } else if (is_field(_service, _instance, _event)) {
@@ -454,6 +476,13 @@ void routing_manager_proxy::notify_one(service_t _service, instance_t _instance,
     its_notification->set_method(_event);
     its_notification->set_payload(_payload);
     its_notification->set_client(_client);
+    auto its_service = service_versions_.find(_service);
+    if (its_service != service_versions_.end()) {
+        auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            its_notification->set_interface_version(its_instance->second);
+        }
+    }
     send(VSOMEIP_ROUTING_CLIENT, its_notification, true);
 }
 
@@ -713,7 +742,7 @@ void routing_manager_proxy::register_application() {
         std::lock_guard<std::mutex> its_lock(pending_mutex_);
         for (auto &ps : pending_subscriptions_)
             send_subscribe(client_, ps.service_, ps.instance_,
-                    ps.eventgroup_, ps.major_);
+                    ps.eventgroup_, ps.major_, ps.subscription_type_);
 
         pending_offers_.clear();
         pending_requests_.clear();
@@ -850,7 +879,7 @@ void routing_manager_proxy::send_request_service(client_t _client, service_t _se
 
 void routing_manager_proxy::send_register_event(client_t _client,
         service_t _service, instance_t _instance,
-        event_t _event, std::set<eventgroup_t> _eventgroups,
+        event_t _event, const std::set<eventgroup_t> &_eventgroups,
         bool _is_field, bool _is_provided) {
     if (is_connected_) {
         uint32_t its_eventgroups_size = uint32_t(_eventgroups.size() * sizeof(eventgroup_t));

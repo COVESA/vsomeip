@@ -35,6 +35,9 @@ public:
     instance_t get_instance() const;
     void set_instance(instance_t _instance);
 
+    major_version_t get_version() const;
+    void set_version(major_version_t _major);
+
     event_t get_event() const;
     void set_event(event_t _event);
 
@@ -50,9 +53,6 @@ public:
 
     bool is_field() const;
     void set_field(bool _is_field);
-
-    bool is_reliable() const;
-    void set_reliable(bool _is_reliable);
 
     bool is_provided() const;
     void set_provided(bool _is_provided);

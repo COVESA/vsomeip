@@ -1,5 +1,5 @@
 {
-    "unicast":"@TEST_IP_SLAVE@",
+    "unicast":"@TEST_IP_MASTER@",
     "logging":
     {
         "level":"debug",

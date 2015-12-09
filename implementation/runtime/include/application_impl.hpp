@@ -52,7 +52,7 @@ public:
 
     VSOMEIP_EXPORT void offer_event(service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field);
     VSOMEIP_EXPORT void stop_offer_event(service_t _service,
             instance_t _instance, event_t _event);
@@ -66,13 +66,14 @@ public:
 
     VSOMEIP_EXPORT void request_event(service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field);
     VSOMEIP_EXPORT void release_event(service_t _service,
             instance_t _instance, event_t _event);
 
     VSOMEIP_EXPORT void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major);
+            eventgroup_t _eventgroup, major_version_t _major,
+            subscription_type_e _subscription_type);
 
     VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);

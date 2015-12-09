@@ -1,5 +1,5 @@
 {
-    "unicast":"@TEST_IP_MASTER@",
+    "unicast":"@TEST_IP_SLAVE@",
     "netmask":"255.255.255.0",
     "logging":
     {
@@ -24,7 +24,7 @@
         {
             "service":"0x1234",
             "instance":"0x5678",
-            "unicast":"@TEST_IP_SLAVE@",
+            "unicast":"@TEST_IP_MASTER@",
             "reliable":
             {
                 "port":"30509",

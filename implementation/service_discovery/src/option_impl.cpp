@@ -56,12 +56,8 @@ bool option_impl::deserialize(vsomeip::deserializer *_from) {
                 break;
             default:
                 type_ = option_type_e::UNKNOWN;
-                // reduce remaining bytes of the deserializer by the length of
-                // the unknown option to make it look like it was deserialized.
-                // - 1  because the reserved byte which is included in the length
-                // was already deserialized (s. above)
-                std::size_t remaining = _from->get_remaining();
-                _from->set_remaining(remaining - (length_ - 1));
+                // No valid option type --> ignore the remaining parts of the message!
+                _from->set_remaining(0);
         }
     }
 

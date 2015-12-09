@@ -13,6 +13,7 @@
 
 #include "routing_manager.hpp"
 #include "../../endpoints/include/endpoint_host.hpp"
+#include <vsomeip/enumeration_types.hpp>
 
 namespace vsomeip {
 
@@ -52,7 +53,8 @@ public:
             instance_t _instance);
 
     void subscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major);
+            eventgroup_t _eventgroup, major_version_t _major,
+            subscription_type_e _subscription_type);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
@@ -70,7 +72,7 @@ public:
 
     void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field, bool _is_provided);
 
     void unregister_event(client_t _client, service_t _service,
@@ -112,11 +114,11 @@ private:
             minor_version_t _minor, bool _use_exclusive_proxy);
     void send_register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroup,
+            const std::set<eventgroup_t> &_eventgroup,
             bool _is_field, bool _is_provided);
     void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major);
+            major_version_t _major, subscription_type_e _subscription_type);
 
     bool is_field(service_t _service, instance_t _instance,
             event_t _event) const;
@@ -139,6 +141,7 @@ private:
 
     std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
     std::map<service_t, std::map<instance_t, client_t> > local_services_;
+    std::map<service_t, std::map<instance_t, major_version_t> > service_versions_;
     std::mutex local_services_mutex_;
 
     struct service_data_t {
@@ -181,6 +184,7 @@ private:
         instance_t instance_;
         eventgroup_t eventgroup_;
         major_version_t major_;
+        subscription_type_e subscription_type_;
 
         bool operator<(const eventgroup_data_t &_other) const {
             return (service_ < _other.service_

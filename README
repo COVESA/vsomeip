@@ -601,17 +601,17 @@ The service example results in the following program execution:
 Main
 ^^^^^
 
-. __main()__ (line 101-107)
+. __main()__
 +
-First the application is initialized (line 104). After the initialization is
-finished the application is started (line 105).
+First the application is initialized. After the initialization is
+finished the application is started.
 
 [float]
 Initialization
 ^^^^^^^^^^^^^^
 
 [start=2]
-. __init()__ (line 26-42)
+. __init()__
 +
 The initialization contains the registration of a message
 handler and an event handler.
@@ -628,7 +628,7 @@ Start
 ^^^^^
 
 [start=3]
-. __start()__ (line 44-49)
+. __start()__
 +
 The application will be started. This function only returns when the application
 will be stopped.
@@ -638,35 +638,33 @@ Callbacks
 ^^^^^^^^^
 
 [start=4]
-. __on_event_cbk()__ (line 64-71)
+. __on_state_cbk()__
 +
-This function is called by the application when an event occurred.
-If the event is related to the successful registration of the
-application at the runtime then the specific service is offered.
+This function is called by the application when an state change occurred. If
+the application was successfully registered at the runtime then the specific
+service is offered.
 
-. __on_message_cbk()__ (line 73-94)
+. __on_message_cbk()__
 +
-This function is called when a message/request
-from a client for the specified service was received.
+This function is called when a message/request from a client for the specified
+service was received.
 +
-First a response based upon the request is created (line 76).
+First a response based upon the request is created.
 Afterwards the string 'Hello' will be concatenated with the payload of the
-client's request (line 80-82).
-After that the payload of the response is created (line 85). The payload data
-is set with the previously concatenated string (line 87).
-Finally the response is sent back to the client (line 91) and the
-application is stopped (line 93).
+client's request.
+After that the payload of the response is created. The payload data is set with
+the previously concatenated string.
+Finally the response is sent back to the client and the application is stopped.
 
 [float]
 Stop
 ^^^^
 
 [start=6]
-. __stop()__ (line 51-62)
+. __stop()__
 +
-This function stops offering the service (line 54),
-unregister the message and the event handler (line 56-59) and shuts down the
-application (line 61).
+This function stops offering the service, unregister the message and the event
+handler and shuts down the application.
 
 :numbered:
 
@@ -685,23 +683,23 @@ The client example results in the following program execution:
 Main
 ^^^^^
 
-. __main()__ (line 130-136)
+. __main()__
 +
-First the application is initialized (line 133). After the initialization is
-finished the application is started (line 134).
+First the application is initialized. After the initialization is finished the
+application is started.
 
 [float]
 Initialization
 ^^^^^^^^^^^^^^
 
 [start=2]
-. __init()__ (line 27-48)
+. __init()__
 +
 The initialization contains the registration of a message handler, an event
 handler and an availability handler.
 +
-The event handler declares again a callback (__on_event_cbk__) for events that
-occur.
+The event handler declares again a callback (__on_state_cbk__) for state changes
+that occur.
 +
 The message handler declares a callback (__on_message_cbk__) for messages that
 are received from any service, any service instance and any method.
@@ -715,7 +713,7 @@ Start
 ^^^^^
 
 [start=3]
-. __start()__ (line 50-55)
+. __start()__
 +
 The application will be started. This function only returns when the application
 will be stopped.
@@ -725,13 +723,14 @@ Callbacks
 ^^^^^^^^^
 
 [start=4]
-. __on_event_cbk()__ (line 57-65)
+. __on_state_cbk()__
 +
-This function is called by the application when an event occurred.
-If the event is related to the successful registration of the
-application at the runtime then the specific service is requested.
 
-. __on_availability_cbk()__ (line 67-94)
+This function is called by the application when an state change occurred. If the
+application was successfully registered at the runtime then the specific service
+is requested.
+
+. __on_availability_cbk()__
 +
 This function is called when the requested service is available or no longer
 available.
@@ -739,26 +738,27 @@ available.
 First there is a check if the change of the availability is related to the
 'hello world service' and the availability changed to true.
 If the check is successful a service request is created and the appropriate
-service information are set (service id, service instance id,
-service method id) (line 76-80). After that the payload of the request is
-created (line 83). The data of the payload is 'World' and will be set afterwards
-(line 84-87). Finally the request is sent to the service.
+service information are set (service id, service instance id, service method
+id).
+After that the payload of the request is created. The data of the payload is
+'World' and will be set afterwards.
+Finally the request is sent to the service.
 
-. __on_message_cbk()__ (line 73-94)
+. __on_message_cbk()__
 +
 This function is called when a message/response was received.
-If the response is from the requested service, of type
-'RESPONSE' and the return code is 'OK' (line 98-103) then the payload of the
-response is printed (line 105-109). Finally the application is stopped.
+If the response is from the requested service, of type 'RESPONSE' and the return
+code is 'OK' then the payload of the response is printed. Finally the
+application is stopped.
 
 [float]
 Stop
 ^^^^
 
 [start=7]
-. __stop()__ (line 114-123)
+. __stop()__
 +
-This function unregister the event and the message handler (line 117-120) and
-shuts down the application (line 122).
+This function unregister the event and the message handler and shuts down the
+application.
 
 :numbered:

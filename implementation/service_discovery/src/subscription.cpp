@@ -10,10 +10,12 @@ namespace sd {
 
 subscription::subscription(major_version_t _major, ttl_t _ttl,
         std::shared_ptr<endpoint> _reliable,
-        std::shared_ptr<endpoint> _unreliable)
+        std::shared_ptr<endpoint> _unreliable,
+        subscription_type_e _subscription_type)
         : major_(_major), ttl_(_ttl),
           reliable_(_reliable), unreliable_(_unreliable),
-          is_acknowledged_(true) {
+          is_acknowledged_(true),
+          subscription_type_(_subscription_type) {
 }
 
 subscription::~subscription() {
@@ -49,6 +51,10 @@ bool subscription::is_acknowledged() const {
 
 void subscription::set_acknowledged(bool _is_acknowledged) {
     is_acknowledged_ = _is_acknowledged;
+}
+
+subscription_type_e subscription::get_subscription_type() const {
+    return subscription_type_;
 }
 
 } // namespace sd

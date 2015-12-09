@@ -45,7 +45,7 @@ public:
 
     virtual void offer_event(service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field) = 0;
     virtual void stop_offer_event(service_t _service,
             instance_t _instance, event_t _event) = 0;
@@ -58,13 +58,14 @@ public:
     virtual void release_service(service_t _service, instance_t _instance) = 0;
 
     virtual void request_event(service_t _service, instance_t _instance,
-            event_t _event, std::set<eventgroup_t> _eventgroups,
+            event_t _event, const std::set<eventgroup_t> &_eventgroups,
             bool _is_field) = 0;
     virtual void release_event(service_t _service, instance_t _instance,
             event_t _event) = 0;
 
     virtual void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR) = 0;
+            eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
+            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE) = 0;
 
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup) = 0;

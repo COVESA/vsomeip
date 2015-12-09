@@ -70,6 +70,26 @@ tcp_server_endpoint_impl::get_remote() const {
     return current_->get_socket().remote_endpoint();
 }
 
+bool tcp_server_endpoint_impl::get_remote_address(
+        boost::asio::ip::address &_address) const {
+
+    if (current_) {
+        boost::system::error_code its_error;
+        tcp_server_endpoint_impl::endpoint_type its_endpoint =
+                current_->get_socket().remote_endpoint(its_error);
+        if (its_error) {
+            return false;
+        } else {
+            boost::asio::ip::address its_address = its_endpoint.address();
+            if (!its_address.is_unspecified()) {
+                _address = its_address;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool tcp_server_endpoint_impl::get_multicast(service_t, event_t,
         tcp_server_endpoint_impl::endpoint_type &) const {
     return false;

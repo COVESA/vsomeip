@@ -92,29 +92,38 @@ bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
 
 bool configuration_option_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from);
-    uint8_t l_length = 0;
+    uint16_t l_length = 0;
+    uint8_t l_itemLength;
     std::string l_item(256, 0), l_key, l_value;
 
-    do {
-        is_successful = is_successful && _from->deserialize(l_length);
-        if (l_length > 0) {
+    is_successful = is_successful && _from->deserialize(l_length);
+    if (l_length > _from->get_remaining()) {
+        _from->set_remaining(0);
+        return false;
+    }
+
+    if (l_length > 0) {
+        do {
+            is_successful = is_successful && _from->deserialize(l_itemLength);
+            if (l_itemLength == 0)
+                break;
+
+            l_length = uint16_t(l_length - l_itemLength);
+
             is_successful = is_successful
-                    && _from->deserialize((uint8_t*) &l_item[0], l_length);
-            if (is_successful) {
-                size_t l_eqPos = l_item.find('=');
-                l_key = l_item.substr(0, l_eqPos);
-                l_value = l_item.substr(l_eqPos + 1);
+                    && _from->deserialize((uint8_t*) &l_item[0], l_itemLength);
 
-                if (configuration_.end() == configuration_.find(l_key)) {
-                    configuration_[l_key] = l_value;
-                } else {
-                    // TODO: log reason for failing deserialization
-                    is_successful = false;
-                }
+            size_t l_eqPos = l_item.find('=');
+            l_key = l_item.substr(0, l_eqPos);
+            l_value = l_item.substr(l_eqPos + 1);
+
+            if (configuration_.end() == configuration_.find(l_key)) {
+                configuration_[l_key] = l_value;
+            } else {
+                is_successful = false;
             }
-        }
-
-    } while (is_successful && l_length > 0);
+        } while (l_length > 0);
+    }
 
     return is_successful;
 }

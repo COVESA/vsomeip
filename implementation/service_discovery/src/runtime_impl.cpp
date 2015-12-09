@@ -41,6 +41,8 @@ std::shared_ptr<message_impl> runtime_impl::create_message() const {
     its_message->set_interface_version(interface_version);
     its_message->set_message_type(message_type);
     its_message->set_return_code(return_code);
+    // reboot flag must be set dynamically
+    its_message->set_unicast_flag(true);
     return its_message;
 }
 

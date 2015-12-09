@@ -245,7 +245,9 @@ void application_impl::start() {
 }
 
 void application_impl::stop() {
+#ifndef WIN32 // Gives serious problems under Windows.
     VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\"";
+#endif
     std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
     is_dispatching_ = false;
     dispatch_condition_.notify_all();
@@ -293,9 +295,11 @@ void application_impl::release_service(service_t _service,
 }
 
 void application_impl::subscribe(service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, major_version_t _major) {
+                                 eventgroup_t _eventgroup, major_version_t _major,
+                                 subscription_type_e _subscription_type) {
     if (routing_)
-        routing_->subscribe(client_, _service, _instance, _eventgroup, _major);
+        routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
+                _subscription_type);
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance,
@@ -441,7 +445,7 @@ void application_impl::unregister_message_handler(service_t _service,
 }
 
 void application_impl::offer_event(service_t _service, instance_t _instance,
-           event_t _event, std::set<eventgroup_t> _eventgroups, bool _is_field) {
+           event_t _event, const std::set<eventgroup_t> &_eventgroups, bool _is_field) {
        if (routing_)
            routing_->register_event(client_, _service, _instance, _event,
                    _eventgroups, _is_field, true);
@@ -454,7 +458,7 @@ void application_impl::stop_offer_event(service_t _service, instance_t _instance
 }
 
 void application_impl::request_event(service_t _service, instance_t _instance,
-           event_t _event, std::set<eventgroup_t> _eventgroups, bool _is_field) {
+           event_t _event, const std::set<eventgroup_t> &_eventgroups, bool _is_field) {
        if (routing_)
            routing_->register_event(client_, _service, _instance, _event,
                    _eventgroups, _is_field, false);

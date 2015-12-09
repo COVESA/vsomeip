@@ -21,69 +21,69 @@ namespace cfg {
 struct service;
 struct servicegroup;
 
-class VSOMEIP_EXPORT configuration_impl: public configuration {
+class configuration_impl: public configuration {
 public:
-    static std::shared_ptr<configuration> get(
+    VSOMEIP_EXPORT static std::shared_ptr<configuration> get(
             const std::set<std::string> &_input);
-    static void reset();
+    VSOMEIP_EXPORT static void reset();
 
-    configuration_impl();
-    configuration_impl(const configuration_impl &_cfg);
-    virtual ~configuration_impl();
+    VSOMEIP_EXPORT configuration_impl();
+    VSOMEIP_EXPORT configuration_impl(const configuration_impl &_cfg);
+    VSOMEIP_EXPORT virtual ~configuration_impl();
 
-    void load(const boost::property_tree::ptree &_tree);
-    void load_log(const std::vector<boost::property_tree::ptree> &_trees);
+    VSOMEIP_EXPORT void load(const boost::property_tree::ptree &_tree);
+    VSOMEIP_EXPORT void load_log(const std::vector<boost::property_tree::ptree> &_trees);
 
-    const boost::asio::ip::address & get_unicast_address() const;
-    bool is_v4() const;
-    bool is_v6() const;
+    VSOMEIP_EXPORT const boost::asio::ip::address & get_unicast_address() const;
+    VSOMEIP_EXPORT bool is_v4() const;
+    VSOMEIP_EXPORT bool is_v6() const;
 
-    bool has_console_log() const;
-    bool has_file_log() const;
-    bool has_dlt_log() const;
-    const std::string & get_logfile() const;
-    boost::log::trivial::severity_level get_loglevel() const;
+    VSOMEIP_EXPORT bool has_console_log() const;
+    VSOMEIP_EXPORT bool has_file_log() const;
+    VSOMEIP_EXPORT bool has_dlt_log() const;
+    VSOMEIP_EXPORT const std::string & get_logfile() const;
+    VSOMEIP_EXPORT boost::log::trivial::severity_level get_loglevel() const;
 
-    std::string get_unicast_address(service_t _service, instance_t _instance) const;
-    std::string get_multicast_address(service_t _service,
+    VSOMEIP_EXPORT std::string get_unicast_address(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT std::string get_multicast_address(service_t _service,
             instance_t _instance) const;
-    uint16_t get_multicast_port(service_t _service,
+    VSOMEIP_EXPORT uint16_t get_multicast_port(service_t _service,
             instance_t _instance) const;
-    uint16_t get_multicast_group(service_t _service,
-            instance_t _instance) const;
-
-    uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
-    bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
-    uint16_t get_unreliable_port(service_t _service,
+    VSOMEIP_EXPORT uint16_t get_multicast_group(service_t _service,
             instance_t _instance) const;
 
-    bool is_someip(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
+    VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service,
+            instance_t _instance) const;
 
-    const std::string & get_routing_host() const;
+    VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 
-    client_t get_id(const std::string &_name) const;
-    std::size_t get_num_dispatchers(const std::string &_name) const;
+    VSOMEIP_EXPORT const std::string & get_routing_host() const;
 
-    std::set<std::pair<service_t, instance_t> > get_remote_services() const;
+    VSOMEIP_EXPORT client_t get_id(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_num_dispatchers(const std::string &_name) const;
 
-    std::uint32_t get_max_message_size_local() const;
-    std::uint32_t get_message_size_reliable(const std::string& _address,
+    VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
+
+    VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
+    VSOMEIP_EXPORT std::uint32_t get_message_size_reliable(const std::string& _address,
                                            std::uint16_t _port) const;
 
     // Service Discovery configuration
-    bool is_sd_enabled() const;
+    VSOMEIP_EXPORT bool is_sd_enabled() const;
 
-    const std::string & get_sd_multicast() const;
-    uint16_t get_sd_port() const;
-    const std::string & get_sd_protocol() const;
+    VSOMEIP_EXPORT const std::string & get_sd_multicast() const;
+    VSOMEIP_EXPORT uint16_t get_sd_port() const;
+    VSOMEIP_EXPORT const std::string & get_sd_protocol() const;
 
-    int32_t get_sd_initial_delay_min() const;
-    int32_t get_sd_initial_delay_max() const;
-    int32_t get_sd_repetitions_base_delay() const;
-    uint8_t get_sd_repetitions_max() const;
-    ttl_t get_sd_ttl() const;
-    int32_t get_sd_cyclic_offer_delay() const;
-    int32_t get_sd_request_response_delay() const;
+    VSOMEIP_EXPORT int32_t get_sd_initial_delay_min() const;
+    VSOMEIP_EXPORT int32_t get_sd_initial_delay_max() const;
+    VSOMEIP_EXPORT int32_t get_sd_repetitions_base_delay() const;
+    VSOMEIP_EXPORT uint8_t get_sd_repetitions_max() const;
+    VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
+    VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
+    VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
 
 private:
     void get_logging_configuration(const boost::property_tree::ptree &_tree);

@@ -47,7 +47,7 @@ public:
     }
 
     static inline bool is_event(byte_t _data) {
-        return (0x80 & _data);
+        return (0x80 & _data) > 0;
     }
 
     static inline bool is_notification(byte_t _type) {

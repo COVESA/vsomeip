@@ -76,7 +76,8 @@ public:
             instance_t _instance);
 
     void subscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major);
+            eventgroup_t _eventgroup, major_version_t _major,
+            subscription_type_e _subscription_type);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
@@ -94,7 +95,7 @@ public:
 
     void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field, bool _is_provided);
 
     void unregister_event(client_t _client, service_t _service,
@@ -157,6 +158,9 @@ public:
             std::shared_ptr<endpoint_definition> _target);
     void on_subscribe_ack(service_t _service, instance_t _instance,
             const boost::asio::ip::address &_address, uint16_t _port);
+
+    void expire_subscriptions(const boost::asio::ip::address &_address);
+    void expire_services(const boost::asio::ip::address &_address);
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,

@@ -123,6 +123,17 @@ udp_server_endpoint_impl::get_remote() const {
     return remote_;
 }
 
+bool udp_server_endpoint_impl::get_remote_address(
+        boost::asio::ip::address &_address) const {
+    boost::asio::ip::address its_address = remote_.address();
+    if (its_address.is_unspecified()) {
+        return false;
+    } else {
+        _address = its_address;
+    }
+    return true;
+}
+
 bool udp_server_endpoint_impl::get_multicast(service_t _service, event_t _event,
         udp_server_endpoint_impl::endpoint_type &_target) const {
     bool is_valid(false);

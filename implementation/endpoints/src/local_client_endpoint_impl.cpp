@@ -38,14 +38,9 @@ void local_client_endpoint_impl::start() {
 void local_client_endpoint_impl::connect() {
     socket_.open(remote_.protocol());
 
-    socket_.async_connect(
-        remote_,
-        std::bind(
-            &local_client_endpoint_base_impl::connect_cbk,
-            shared_from_this(),
-            std::placeholders::_1
-        )
-    );
+    boost::system::error_code error;
+    error = socket_.connect(remote_, error);
+    connect_cbk(error);
 }
 
 void local_client_endpoint_impl::receive() {

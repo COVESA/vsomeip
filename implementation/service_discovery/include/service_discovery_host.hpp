@@ -69,6 +69,9 @@ public:
 
     virtual std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service,
             instance_t _instance, bool _reliable, client_t _client) = 0;
+
+    virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
+    virtual void expire_services(const boost::asio::ip::address &_address) = 0;
 };
 
 }  // namespace sd

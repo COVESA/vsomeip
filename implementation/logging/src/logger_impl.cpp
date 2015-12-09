@@ -124,7 +124,14 @@ void logger_impl::enable_file(const std::string &_path) {
 }
 
 void logger_impl::enable_dlt() {
-    // TODO: implement
+#ifdef USE_DLT
+    if (dlt_sink_)
+        return;
+
+    boost::shared_ptr<dlt_sink_backend> backend = boost::make_shared<dlt_sink_backend>();
+    dlt_sink_ = boost::make_shared<dlt_sink_t>(backend);
+    logging::core::get()->add_sink(dlt_sink_);
+#endif
 }
 
 void logger_impl::use_null_logger() {

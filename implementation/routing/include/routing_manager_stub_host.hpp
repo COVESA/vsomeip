@@ -31,7 +31,7 @@ public:
 
     virtual void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            std::set<eventgroup_t> _eventgroups,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field, bool _is_provided) = 0;
 
     virtual void unregister_event(client_t _client, service_t _service,
@@ -39,7 +39,7 @@ public:
 
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major) = 0;
+            major_version_t _major, subscription_type_e _subscription_type) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) = 0;

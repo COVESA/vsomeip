@@ -36,6 +36,7 @@ public:
     void send_queued(queue_iterator_type _queue_iterator);
 
     endpoint_type get_remote() const;
+    bool get_remote_address(boost::asio::ip::address &_address) const;
     bool get_multicast(service_t, event_t, endpoint_type &) const;
 
     unsigned short get_local_port() const;

@@ -34,6 +34,7 @@ std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
     its_message->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_message->set_return_code(return_code_e::E_OK);
     its_message->set_reliable(_reliable);
+    its_message->set_interface_version(DEFAULT_MAJOR);
     return (its_message);
 }
 
@@ -44,6 +45,7 @@ std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
     its_request->set_message_type(message_type_e::MT_REQUEST);
     its_request->set_return_code(return_code_e::E_OK);
     its_request->set_reliable(_reliable);
+    its_request->set_interface_version(DEFAULT_MAJOR);
     return (its_request);
 }
 
@@ -71,6 +73,7 @@ std::shared_ptr<message> runtime_impl::create_notification(
     its_notification->set_message_type(message_type_e::MT_NOTIFICATION);
     its_notification->set_return_code(return_code_e::E_OK);
     its_notification->set_reliable(_reliable);
+    its_notification->set_interface_version(DEFAULT_MAJOR);
     return (its_notification);
 }
 

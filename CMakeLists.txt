@@ -8,7 +8,7 @@ project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
 set (VSOMEIP_MINOR_VERSION 0)
-set (VSOMEIP_PATCH_VERSION 0)
+set (VSOMEIP_PATCH_VERSION 1)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -69,6 +69,22 @@ find_package(Threads REQUIRED)
 find_package( Boost 1.54 COMPONENTS system thread log REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
+# DLT
+find_package(PkgConfig)
+pkg_check_modules(DLT "automotive-dlt >= 2.11")
+IF(DLT_FOUND) 
+ 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
+ENDIF(DLT_FOUND)
+
+include_directories(
+    include
+    ${DLT_INCLUDE_DIRS}
+)
+
+link_directories(
+    ${DLT_LIBDIR}
+)
+
 # Base library
 file(GLOB vsomeip_SRC
     "implementation/configuration/src/*.cpp"
@@ -98,7 +114,7 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY})
+target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES})
 
 file(GLOB vsomeip-sd_SRC
     "implementation/service_discovery/src/*.cpp"
@@ -275,7 +291,7 @@ endif()
 # create pkg-config file
 if(NOT WIN32)
         configure_file(vsomeip.pc.in ${PROJECT_BINARY_DIR}/vsomeip.pc @ONLY)
-        install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkconfig)
+        install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkgconfig)
 endif()
 
 ##############################################################################
