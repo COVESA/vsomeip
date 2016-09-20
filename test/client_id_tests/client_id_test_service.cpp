@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -239,7 +239,7 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
     if(argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
-        std::cerr << "Valid service numbers are in the range of [0,4]" << std::endl;
+        std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
         return 1;
     }
     service_number = std::stoi(std::string(argv[1]), nullptr);

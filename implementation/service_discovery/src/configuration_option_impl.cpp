@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -92,38 +92,36 @@ bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
 
 bool configuration_option_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from);
-    uint16_t l_length = 0;
-    uint8_t l_itemLength;
+    uint8_t l_itemLength = 0;
     std::string l_item(256, 0), l_key, l_value;
 
-    is_successful = is_successful && _from->deserialize(l_length);
-    if (l_length > _from->get_remaining()) {
-        _from->set_remaining(0);
-        return false;
-    }
+    do {
+        l_itemLength = 0;
+        l_key.clear();
+        l_value.clear();
+        l_item.assign(256, '\0');
 
-    if (l_length > 0) {
-        do {
-            is_successful = is_successful && _from->deserialize(l_itemLength);
-            if (l_itemLength == 0)
-                break;
-
-            l_length = uint16_t(l_length - l_itemLength);
-
+        is_successful = is_successful && _from->deserialize(l_itemLength);
+        if (l_itemLength > 0) {
             is_successful = is_successful
                     && _from->deserialize((uint8_t*) &l_item[0], l_itemLength);
 
-            size_t l_eqPos = l_item.find('=');
-            l_key = l_item.substr(0, l_eqPos);
-            l_value = l_item.substr(l_eqPos + 1);
+            if (is_successful) {
+                size_t l_eqPos = l_item.find('='); //SWS_SD_00292
+                l_key = l_item.substr(0, l_eqPos);
 
-            if (configuration_.end() == configuration_.find(l_key)) {
-                configuration_[l_key] = l_value;
-            } else {
-                is_successful = false;
+                //if no "=" is found, no value is present for key (SWS_SD_00466)
+                if( l_eqPos != std::string::npos )
+                    l_value = l_item.substr(l_eqPos + 1);
+                if (configuration_.end() == configuration_.find(l_key)) {
+                    configuration_[l_key] = l_value;
+                } else {
+                    // TODO: log reason for failing deserialization
+                    is_successful = false;
+                }
             }
-        } while (l_length > 0);
-    }
+        }
+    } while (is_successful && _from->get_remaining() > 0);
 
     return is_successful;
 }

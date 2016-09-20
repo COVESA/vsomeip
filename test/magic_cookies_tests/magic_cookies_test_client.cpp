@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -137,35 +137,35 @@ public:
 
         // Test sequence
         its_good_payload_data[11] = 0x01;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x02;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x03;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x04;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x05;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x06;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x07;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x08;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x09;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x0A;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x0B;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x0C;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x0D;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_bad_payload_data[11] = 0x0E;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
         its_good_payload_data[11] = 0x0F;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true, false);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         stop();

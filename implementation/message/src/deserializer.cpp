@@ -8,12 +8,11 @@
 #ifdef VSOMEIP_DEBUGGING
 #include <iomanip>
 #include <sstream>
-
-#include "../../logging/include/logger.hpp"
 #endif
 
 #include "../include/message_impl.hpp"
 #include "../include/deserializer.hpp"
+#include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
@@ -148,8 +147,9 @@ message * deserializer::deserialize_message() {
     message_impl* deserialized_message = new message_impl;
     if (0 != deserialized_message) {
         if (false == deserialized_message->deserialize(this)) {
+            VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
             delete deserialized_message;
-            deserialized_message = 0;
+            deserialized_message = nullptr;
         }
     }
 

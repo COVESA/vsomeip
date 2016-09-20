@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,15 +20,22 @@ namespace ip = boost::asio::ip;
 namespace vsomeip {
 
 tcp_client_endpoint_impl::tcp_client_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host, endpoint_type _remote,
-        boost::asio::io_service &_io, std::uint32_t _max_message_size)
-    : tcp_client_endpoint_base_impl(_host, _remote, _io, _max_message_size),
+        std::shared_ptr< endpoint_host > _host,
+        endpoint_type _local,
+        endpoint_type _remote,
+        boost::asio::io_service &_io,
+        std::uint32_t _max_message_size)
+    : tcp_client_endpoint_base_impl(_host, _local, _remote, _io, _max_message_size),
       recv_buffer_(_max_message_size, 0),
       recv_buffer_size_(0) {
     is_supporting_magic_cookies_ = true;
 }
 
 tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {
+	std::shared_ptr<endpoint_host> its_host = host_.lock();
+	if (its_host) {
+		its_host->release_port(local_.port(), true);
+	}
 }
 
 bool tcp_client_endpoint_impl::is_local() const {
@@ -40,19 +47,41 @@ void tcp_client_endpoint_impl::start() {
 }
 
 void tcp_client_endpoint_impl::connect() {
-    socket_.open(remote_.protocol());
+    boost::system::error_code its_error;
+    socket_.open(remote_.protocol(), its_error);
 
-    // Nagle algorithm off
-    socket_.set_option(ip::tcp::no_delay(true));
+    if (!its_error || its_error == boost::asio::error::already_open) {
+        // Nagle algorithm off
+        socket_.set_option(ip::tcp::no_delay(true));
 
-    socket_.async_connect(
-        remote_,
-        std::bind(
-            &tcp_client_endpoint_base_impl::connect_cbk,
-            shared_from_this(),
-            std::placeholders::_1
-        )
-    );
+        // Enable SO_REUSEADDR to avoid bind problems with services going offline
+        // and coming online again and the user has specified only a small number
+        // of ports in the clients section for one service instance
+        socket_.set_option(boost::asio::socket_base::reuse_address(true));
+
+        // In case a client endpoint port was configured,
+        // bind to it before connecting
+        if (local_.port() != ILLEGAL_PORT) {
+            boost::system::error_code its_bind_error;
+            socket_.bind(local_, its_bind_error);
+            if(its_bind_error) {
+                VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
+                        "Error binding socket: " << its_bind_error.message();
+            }
+        }
+
+        socket_.async_connect(
+            remote_,
+            std::bind(
+                &tcp_client_endpoint_base_impl::connect_cbk,
+                shared_from_this(),
+                std::placeholders::_1
+            )
+        );
+    } else {
+        VSOMEIP_WARNING << "tcp_client_endpoint::connect: Error opening socket: "
+                << its_error.message();
+    }
 }
 
 void tcp_client_endpoint_impl::receive() {
@@ -73,7 +102,12 @@ void tcp_client_endpoint_impl::receive() {
 }
 
 void tcp_client_endpoint_impl::send_queued() {
-    message_buffer_ptr_t its_buffer = queue_.front();
+    message_buffer_ptr_t its_buffer;
+    if(queue_.size()) {
+        its_buffer = queue_.front();
+    } else {
+        return;
+    }
 
     if (has_enabled_magic_cookies_)
         send_magic_cookie(its_buffer);
@@ -107,11 +141,13 @@ bool tcp_client_endpoint_impl::get_remote_address(
 }
 
 unsigned short tcp_client_endpoint_impl::get_local_port() const {
-  return socket_.local_endpoint().port();
+    boost::system::error_code its_error;
+    return socket_.local_endpoint(its_error).port();
 }
 
 unsigned short tcp_client_endpoint_impl::get_remote_port() const {
-  return socket_.remote_endpoint().port();
+    boost::system::error_code its_error;
+    return socket_.remote_endpoint(its_error).port();
 }
 
 bool tcp_client_endpoint_impl::is_reliable() const {
@@ -195,9 +231,22 @@ void tcp_client_endpoint_impl::receive_cbk(
                         has_full_message = true; // trigger next loop
                     }
                 } else if (current_message_size > max_message_size_) {
-                    VSOMEIP_ERROR << "Message exceeds maximum message size. "
-                                  << "Resetting receiver.";
-                    recv_buffer_size_ = 0;
+                    if (has_enabled_magic_cookies_) {
+                        VSOMEIP_ERROR << "Received a TCP message which exceeds "
+                                      << "maximum message size ("
+                                      << std::dec << current_message_size
+                                      << "). Magic Cookies are enabled: "
+                                      << "Resetting receiver.";
+                        recv_buffer_size_ = 0;
+                    } else {
+                        VSOMEIP_ERROR << "Received a TCP message which exceeds "
+                                      << "maximum message size ("
+                                      << std::dec << current_message_size
+                                      << ") Magic cookies are disabled: "
+                                      << "Client will be disabled!";
+                        recv_buffer_size_ = 0;
+                        return;
+                    }
                 }
             } while (has_full_message && recv_buffer_size_);
             if (its_iteration_gap) {
@@ -206,7 +255,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                     recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
                 }
             }
-            restart();
+            receive();
         } else {
             if (socket_.is_open()) {
                 receive();

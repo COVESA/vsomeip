@@ -15,7 +15,7 @@ vsomeip
 
 Copyright
 +++++++++
-Copyright (C) 2015, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2016, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 License
 +++++++
@@ -44,15 +44,15 @@ Dependencies
 ~~~~~~~~~~~~
 * A C++11 enabled compiler like gcc >= 4.8 is needed.
 * vsomeip uses cmake as buildsystem.
-* vsomeip uses Boost >= 1.54:
+* vsomeip uses Boost >= 1.55:
 ** Ubuntu 14.04:
-*** `sudo apt-get install libboost-system1.54-dev libboost-thread1.54-dev
-    libboost-log1.54-dev`
+*** `sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
+    libboost-log1.55-dev`
 ** Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
 *** URL: https://launchpad.net/~boost-latest/+archive/ubuntu/ppa
 *** `sudo add-apt-repository ppa:boost-latest/ppa`
-*** `sudo apt-get install libboost-system1.54-dev libboost-thread1.54-dev
-    libboost-log1.54-dev`
+*** `sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
+    libboost-log1.55-dev`
 * For the tests Google's test framework
   https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed
 ** URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip[direct link,
@@ -80,6 +80,21 @@ cmake -DCMAKE_INSTALL_PREFIX:PATH=$YOUR_PATH ..
 make
 make install
 ----
+
+Compilation with predefined unicast and/or diagnosis address
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To predefine the unicast address, call cmake like:
+[source,bash]
+----
+cmake -DUNICAST_ADDRESS=<YOUR IP ADDRESS> ..
+----
+
+To predefine the diagnosis address, call cmake like:
+[source,bash]
+----
+cmake -DDIAGNOSIS_ADDRESS=<YOUR DIAGNOSIS ADDRESS> ..
+----
+The diagnosis address is a single byte value.
 
 Compilation of examples
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,6 +170,17 @@ Example cmake call:
 cmake  -DTESTS_BAT=ON ..
 ----
 
+Compilation of vsomeip_ctrl
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For compilation of the <<vsomeip_ctrl>> utility call:
+[source, bash]
+----
+mkdir build
+cd build
+cmake ..
+make vsomeip_ctrl
+----
+
 Generating the documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To generate the documentation call cmake as described in <<Compilation>> and
@@ -227,6 +253,10 @@ The IP address of the host system.
 +
 The netmask to specify the subnet of the host system.
 +
+* 'diagnosis'
++
+The diagnosis address (byte) that will be used to build client identifiers.
++
 //Logging
 * 'logging'
 +
@@ -254,6 +284,59 @@ The absolute path of the log file.
 Specifies whether Diagnostic Log and Trace (DLT) is enabled (valid values:
 _true, false_).
 +
+//Tracing
+* anchor:config-tracing[]'tracing' (optional)
++
+** 'enable'
++
+Specifies whether the tracing of the internal messages is enabled 
+(valid values: _true, false_). If tracing is enabled, the messages will be
+forwarded to DLT by the <<traceconnector, Trace Connector>> 
++
+** 'channels (array)' (optional)
++
+Contains the channels to DLT.
++
+NOTE: You can set up multiple channels to DLT over that you can forward the
+messages.
++
+*** 'name'
++
+The name of the channel.
++
+*** 'id'
++
+The id of the channel. 
++
+** 'filters (array)' (optional)
++
+Contains the filters that are applied on the messages.
++
+NOTE: You can apply filters respectively filter rules on the messages with 
+specific criterias and expressions. So only the filtered messages are forwarded 
+to DLT.
++
+*** 'channel' (optional)
++
+The id of the channel over that the filtered messages are forwarded to DLT. If
+no channel is specified the default channel is used.
++
+IMPORTANT: If multiple filters are used, the channel MUST always be 
+specified and accordingly defined! Each filter needs its own channel!
++
+*** 'services (array)' (optional)
++
+Contains the service ids. The messages that relates to the specified services will be filtered.
++
+*** 'methods (array)' (optional)
++
+Contains the method ids. The messages that relates to the specified methods will be filtered.
++
+*** 'clients (array)' (optional)
++
+Contains the client ids. The messages that relates to the specified clients will
+be filtered.
++
 //Applications
 * 'applications (array)'
 +
@@ -267,27 +350,29 @@ The name of the application.
 +
 The id of the application.
 +
-** 'num_dispatchers'
+** 'max_dispatchers'
 +
-The number of threads that shall be used to execute the callbacks to the application.
-If 'num_dispatchers' is set to '0', the callbacks will be executed within the 
-application thread. If an application wants/must do time consuming work directly
-within event, availability or message callbacks, 'num_dispatchers' should be set
-to '2' or higher.
+The maximum number of threads that shall be used to execute the application callbacks.
 +
-** `services` (array)
+** 'max_dispatch_time'
++
+The maximum time that an application callback may consume before the callback is
+considered to be blocked (and an additional thread is used to execute pending
+callbacks if max_dispatchers is configured greater than 0).
++
+* `services` (array)
 +
 Contains the services of the service provider.
 
-*** `service`
+** `service`
 +
 The id of the service.
 
-*** `instance`
+** `instance`
 +
 The id of the service instance.
 
-*** `protocol` (optional)
+** `protocol` (optional)
 +
 The protocol that is used to implement the service instance. The default setting
 is _someip_. If a different setting is provided, vsomeip does not open the specified
@@ -295,7 +380,7 @@ port (server side) or does not connect to the specified port (client side). Thus
 this option can be used to let the service discovery announce a service that is
 externally implemented. 
 
-*** `unicast` (optional)
+** `unicast` (optional)
 +
 The unicast that hosts the service instance.
 +
@@ -303,46 +388,34 @@ NOTE: The unicast address is needed if external service instances shall be used,
 but service discovery is disabled. In this case, the provided unicast address
 is used to access the service instance. 
 
-*** `reliable`
+** `reliable`
 +
 Specifies that the communication with the service is reliable respectively the
 TCP protocol is used for communication.
 
-**** `port`
+*** `port`
 +
 The port of the TCP endpoint.
 
-**** `enable-magic-cookies`
+*** `enable-magic-cookies`
 +
 Specifies whether magic cookies are enabled (valid values: _true_, _false_).
 
-*** `unreliable`
+** `unreliable`
 +
 Specifies that the communication with the service is unreliable respectively the
 UDP protocol is used for communication (valid values: the _port_ of the UDP
 endpoint).
 
-*** `multicast`
-+
-A service can be offered to a specific group of clients via multicast.
-
-**** `address`
-+
-The specific multicast address.
-
-**** `port`
-+
-The specific port.
-
-*** `events` (array)
+** `events` (array)
 +
 Contains the events of the service.
 
-**** `event`
+*** `event`
 +
 The id of the event.
 
-***** `is_field`
+**** `is_field`
 +
 Specifies whether the event is of type field.
 +
@@ -350,35 +423,64 @@ NOTE: A field is a combination of getter, setter and notification event. It
 contains at least a getter, a setter, or a notifier. The notifier sends an event
 message that transports the current value of a field on change.
 
-***** `is_reliable`
+**** `is_reliable`
 +
 Specifies whether the communication is reliable respectively whether the event
 is sent with the TCP protocol (valid values: _true_,_false_).
 +
 If the value is _false_ the UDP protocol will be used.
 
-*** `eventgroups` (array)
+** `eventgroups` (array)
 +
 Events can be grouped together into on event group. For a client it is thus
 possible to subscribe for an event group and to receive the appropriate events
 within the group.
 
-**** `eventgroup`
+*** `eventgroup`
 +
 The id of the event group.
 
-**** `events` (array)
+*** `events` (array)
 +
 Contains the ids of the appropriate events.
 
-**** `is_multicast`
+*** `multicast`
 +
-Specifies whether the events should be sent via multicast (valid values:
-_true_,_false_).
+Specifies the multicast that is used to publish the eventgroup.
 
-**** `multicast`
+**** `address`
 +
-The multicast address which the events are sent to.
+The multicast address.
+
+**** `port`
++
+The multicast port.
+
+* `clients` (array)
++
+The client-side ports that shall be used to connect to a specific service.
+For each service, an array of ports to be used for reliable / unreliable
+communication can be specified. vsomeip will take the first free port of
+the list. If no free port can be found, the connection will fail. If 
+vsomeip is asked to connect to a service instance without specified port(s),
+the port will be selected by the system. This implies that the user has
+to ensure that the ports configured here do not overlap with the ports
+automatically selected by the IP stack.
+
+** `service`
+** `instance`
++
+Together they specify the service instance the port configuration shall be applied to.
+
+** `reliable` (array)
++
+The list of client ports to be used for reliable (TCP) communication to the given
+service instance. 
+
+** `unreliable` (array)
++
+The list of client ports to be used for unreliable (UDP) communication to the given
+service instance. 
 
 * `payload-sizes` (array)
 +
@@ -473,6 +575,42 @@ Cycle of the OfferService messages in the main phase.
 +
 Minimum delay of a unicast message to a multicast message for
 provided services and eventgroups.
++
+//Watchdog
+* anchor:config-watchdog[]'watchdog' (optional)
++
+The Watchdog sends periodically pings to all known local clients.
+If a client isn't responding within a configurred time/amount of pongs
+the watchdog deregisters this application/client.
+If not configured the watchdog isn't activated.
++
+** 'enable'
++
+Specifies whether the watchdog is enabled or disabled.
+(valid values: _true, false_), (default is _false_).
++
+** 'timeout'
++
+Specifies the timeout in ms the watchdog gets activated if a ping
+isn't answered with a pong by a local client within that time.
+(valid values: _2 - 2^32_), (default is _5000_ ms).
++
+** 'allowed_missing_pongs'
++
+Specifies the amount of allowed missing pongs.
+(valid values: _1 - 2^32_), (default is _3_ pongs).
++
+//CAPI-Selective Broadcasts support
+* anchor:config-supports_selective_broadcasts[]'supports_selective_broadcasts' (optional)
++
+This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported.
+If not specified the feature can't be used and the subscription behavior of the stack is same as with
+normal events.
++
+** 'address'
++
+Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported.
+Multiple addresses can be configuered.
 
 Autoconfiguration
 -----------------
@@ -762,3 +900,167 @@ This function unregister the event and the message handler and shuts down the
 application.
 
 :numbered:
+
+Trace Connector
+---------------
+anchor:traceconnector[]
+
+Overview/Prerequisites
+~~~~~~~~~~~~~~~~~~~~~~
+
+The Trace Connector is used to forward the internal messages that are sent over
+the Unix Domain Sockets to DLT. +
+So a prerequisite is that DLT is installed and the module can be found in 
+context of CMake.
+
+Configuration
+~~~~~~~~~~~~~
+
+Static Configuration
+^^^^^^^^^^^^^^^^^^^^
+
+The Trace Connector can be configured statically over the 
+<<config-tracing,JSON configuration file>>. +
+
+[float]
+Example 1 (Minimal Configuration)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[source, bash]
+----
+{
+    ...
+
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+
+    ...
+----
+
+This is the minimal configuration of the Trace Connector. This just enables the
+tracing and all of the sent internal messages will be traced/forwarded to DLT.
+
+[float]
+Example 2 (Using Filters)
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[source, bash]
+----
+{
+    ...
+
+    "tracing" :
+    {
+        "enable" : "true",
+        "channels" : 
+        [
+            {
+                "name" : "My channel",
+                "id" : "MC"
+            }
+        ],
+        "filters" : [
+            {
+                "channel" : "MC",
+                "services" : [ "0x1234" ],
+                "methods" : [ "0x80e8" ],
+                "clients" : [ "0x1343" ],
+            }
+        ]
+    },
+
+    ...
+----
+
+You can apply filters to the messages. In this example only the messages that
+
+* are addressed to the service with the id _0x1234_
++
+* relates to the method with the id _0x80e8_ 
++
+* relates to the client with the id _0x1234_
+
+
+will be traced/forwarded to DLT. The messages will be forwarded over the channel
+with the id _MC_. If just one filter is used, then the definition of a channel is
+optional. But if multiple filters are used, each filter needs an own channel! +
+In this example each criteria has only one expression/value but it's also possible
+to define multiple values to get a more fine-grained filter. +
+The ids of the filter criterias can be found in the appropriate _.fdepl_ files
+and in the rest of the configuration file. +
+
+Dynamic Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+The Trace Connector can also be configured dynamically over its interfaces.
+
+[float]
+Example:
+^^^^^^^^
+
+[source, bash]
+----
+    // get trace connector
+    std::shared_ptr<tc::trace_connector> its_trace_connector = tc::trace_connector::get();
+
+    // add channel
+    its_trace_connector->add_channel("MC", "My channel");
+
+    //add filter rule
+    tc::trace_connector::filter_rule_t its_filter_rule;
+
+    its_filter_rule[tc::filter_criteria_e::SERVICES] = { 4660 };
+
+    its_filter_rule[tc::filter_criteria_e::METHODS] = { 33000 };
+    its_filter_rule[tc::filter_criteria_e::CLIENTS] = { 4931 };
+
+    its_trace_connector->add_filter_rule("MC", its_filter_rule);
+
+    // init trace connector    
+    its_trace_connector->init();
+
+    // enable trace connector
+    its_trace_connector->set_enabled(true);
+
+    //forward a message to DLT
+    its_trace_connector->forward_to_dlt(MESSAGE_TO_FORWARD);
+----
+
+Tools
+-----
+
+vsomeip_ctrl
+~~~~~~~~~~~~
+anchor:vsomeip_ctrl[]
+`vsomeip_ctrl` is a small utility which can be used to send SOME/IP messages
+from the commandline. If a response arrives within 5 seconds the response will
+be printed.
+
+* It can be build via `vsomeip_ctrl` make target (`make vsomeip_ctrl`).
+* The instance id of the target service has to be passed in hexadecimal
+  notation.
+* The complete message has to be passed in hexadecimal notation.
+* See the `--help` parameter for available options.
+* If `vsomeip_ctrl` is used to send messages to a remote service and no
+ `vsomeipd` is running on the local machine, make sure to pass a json
+ configuration file where `vsomeip_ctrl` is set as routing manager via
+ environment variable.
+* If `vsomeip_ctrl` is used to send messages to a local service and no
+ `vsomeipd` is running on the local machine, make sure to use the same json
+ configuration file as the local service.
+
+Example: Calling method with method id 0x80e8 on service with service id 0x1234,
+instance id 0x5678:
+[source, bash]
+----
+./vsomeip_ctrl --instance 5678 --message 123480e800000015134300030100000000000009efbbbf576f726c6400
+----
+
+Example: Sending a message to service with service id 0x1234, instance id
+0x5678 and method id 0x0bb8 via TCP
+[source, bash]
+----
+./vsomeip_ctrl --tcp --instance 5678 --message 12340bb8000000081344000101010000
+----

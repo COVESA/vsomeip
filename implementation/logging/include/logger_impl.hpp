@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -43,7 +43,8 @@ public:
 private:
     void enable_console();
     void enable_file(const std::string &_path);
-    void enable_dlt();
+    void enable_dlt(const std::string &_app_id,
+                    const std::string &_context_id);
 
 private:
     boost::log::sources::severity_logger<

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -29,6 +29,10 @@ public:
                 << "]"
                 << std::endl;
 
+        app_->register_state_handler(
+                std::bind(&client_sample::on_state, this,
+                        std::placeholders::_1));
+
         app_->register_message_handler(
                 vsomeip::ANY_SERVICE, SAMPLE_INSTANCE_ID, vsomeip::ANY_METHOD,
                 std::bind(&client_sample::on_message, this,
@@ -51,6 +55,12 @@ public:
 
     void start() {
         app_->start();
+    }
+
+    void on_state(vsomeip::state_type_e _state) {
+        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+            app_->request_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
+        }
     }
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -26,19 +26,24 @@
 
 #define VSOMEIP_ROUTING                         "@VSOMEIP_ROUTING@"
 #define VSOMEIP_ROUTING_CLIENT                  0
+#define VSOMEIP_ROUTING_INFO_SIZE_INIT			256
 
 #ifdef WIN32
 #define VSOMEIP_INTERNAL_BASE_PORT              51234
+#define __func__ __FUNCTION__
 #endif
 
 #define VSOMEIP_UNICAST_ADDRESS                 "@VSOMEIP_UNICAST_ADDRESS@"
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
+#define VSOMEIP_MAX_CONNECT_TIMEOUT             1000
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
 
-#define VSOMEIP_DEFAULT_WATCHDOG_CYCLE          5000
 #define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT        5000
 #define VSOMEIP_DEFAULT_MAX_MISSING_PONGS       3
+
+#define VSOMEIP_MAX_DISPATCHERS                 10
+#define VSOMEIP_MAX_DISPATCH_TIME               100
 
 #define VSOMEIP_COMMAND_HEADER_SIZE             7
 
@@ -62,33 +67,53 @@
 #define VSOMEIP_UNSUBSCRIBE                     0x13
 #define VSOMEIP_REQUEST_SERVICE                 0x14
 #define VSOMEIP_RELEASE_SERVICE                 0x15
+#define VSOMEIP_SUBSCRIBE_NACK                  0x16
+#define VSOMEIP_SUBSCRIBE_ACK                   0x17
 
-#define VSOMEIP_SEND                            0x17
-#define VSOMEIP_NOTIFY                          0x18
+#define VSOMEIP_SEND                            0x18
+#define VSOMEIP_NOTIFY                          0x19
+#define VSOMEIP_NOTIFY_ONE                      0x1A
 
-#define VSOMEIP_REGISTER_EVENT                  0x19
-#define VSOMEIP_UNREGISTER_EVENT                0x1A
+#define VSOMEIP_REGISTER_EVENT                  0x1B
+#define VSOMEIP_UNREGISTER_EVENT                0x1C
+#define VSOMEIP_ID_RESPONSE                     0x1D
 
-#define VSOMEIP_OFFER_SERVICE_COMMAND_SIZE      20
-#define VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE    21
-#define VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE 11
-#define VSOMEIP_SUBSCRIBE_COMMAND_SIZE          19
+#define VSOMEIP_OFFER_SERVICE_COMMAND_SIZE      16
+#define VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE    17
+#define VSOMEIP_RELEASE_SERVICE_COMMAND_SIZE    11
+#define VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE 16
+#define VSOMEIP_SUBSCRIBE_COMMAND_SIZE          16
+#define VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE      13
+#define VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE     13
 #define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        13
 #define VSOMEIP_REGISTER_EVENT_COMMAND_SIZE     15
-#define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   13
+#define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   14
 
-#include <mutex>
+#ifndef WIN32
+#include <pthread.h>
+#endif
 
 #define VSOMEIP_DATA_ID                         0x677D
 #define VSOMEIP_SHM_NAME                        "/vsomeip"
 #define VSOMEIP_DIAGNOSIS_ADDRESS               @VSOMEIP_DIAGNOSIS_ADDRESS@
 
+#define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
+#define VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS   0000
+
+#define VSOMEIP_MAX_CLIENTS                     255 
+
 namespace vsomeip {
 
 struct configuration_data_t {
-    std::mutex mutex_;
-    unsigned short next_client_id_;
-    unsigned short ref_;
+#ifdef WIN32
+    void* mutex_;
+#else
+    pthread_mutex_t mutex_;
+#endif
+    unsigned short client_base_;
+
+    unsigned short used_client_ids_[VSOMEIP_MAX_CLIENTS];
+    int max_used_client_ids_index_;
 };
 
 } // namespace vsomeip

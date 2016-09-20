@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,20 +14,24 @@
 namespace vsomeip {
 
 const major_version_t DEFAULT_MAJOR = 0x00;
-const minor_version_t DEFAULT_MINOR = 0x000000;
+const minor_version_t DEFAULT_MINOR = 0x00000000;
 const ttl_t DEFAULT_TTL = 0xFFFFFF; // "until next reboot"
 
 const std::string DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t DEFAULT_PORT = 30500;
 const uint16_t ILLEGAL_PORT = 0xFFFF;
 
+const uint16_t NO_TRACE_FILTER_EXPRESSION = 0x0000;
+
 const service_t ANY_SERVICE = 0xFFFF;
 const instance_t ANY_INSTANCE = 0xFFFF;
 const method_t ANY_METHOD = 0xFFFF;
 const major_version_t ANY_MAJOR = 0xFF;
-const minor_version_t ANY_MINOR = 0xFFFFFF;
+const minor_version_t ANY_MINOR = 0xFFFFFFFF;
 
 const eventgroup_t DEFAULT_EVENTGROUP = 0x0001;
+
+const client_t ILLEGAL_CLIENT = 0x0000;
 
 const byte_t MAGIC_COOKIE_CLIENT_MESSAGE = 0x00;
 const byte_t MAGIC_COOKIE_SERVICE_MESSAGE = 0x80;
@@ -46,6 +50,8 @@ const byte_t CLIENT_COOKIE[] = { 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,
 
 const byte_t SERVICE_COOKIE[] = { 0xFF, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x00,
         0x08, 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x01, 0x02, 0x00 };
+
+const event_t ANY_EVENT = 0xFFFF;
 
 } // namespace vsomeip
 

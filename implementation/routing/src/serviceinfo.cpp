@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,11 +12,13 @@ serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
     : group_(0),
       major_(_major),
       minor_(_minor),
-      ttl_(_ttl),
+      ttl_(0),
       reliable_(nullptr),
       unreliable_(nullptr),
-      multicast_group_(0xFFFF),
       is_local_(_is_local) {
+
+    std::chrono::seconds ttl = static_cast<std::chrono::seconds> (_ttl);
+    ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(ttl);
 }
 
 serviceinfo::~serviceinfo() {
@@ -39,11 +41,21 @@ minor_version_t serviceinfo::get_minor() const {
 }
 
 ttl_t serviceinfo::get_ttl() const {
-  return ttl_;
+  ttl_t ttl = static_cast<ttl_t>(std::chrono::duration_cast<std::chrono::seconds>(ttl_).count());
+  return ttl;
 }
 
 void serviceinfo::set_ttl(ttl_t _ttl) {
-  ttl_ = _ttl;
+  std::chrono::seconds ttl = static_cast<std::chrono::seconds>(_ttl);
+  ttl_ = std::chrono::duration_cast<std::chrono::milliseconds> (ttl);
+}
+
+std::chrono::milliseconds serviceinfo::get_precise_ttl() const {
+  return ttl_;
+}
+
+void serviceinfo::set_precise_ttl(std::chrono::milliseconds _precise_ttl) {
+  ttl_ = _precise_ttl;
 }
 
 std::shared_ptr<endpoint> serviceinfo::get_endpoint(bool _reliable) const {
@@ -59,36 +71,16 @@ void serviceinfo::set_endpoint(std::shared_ptr<endpoint> _endpoint,
   }
 }
 
-const std::string & serviceinfo::get_multicast_address() const {
-  return multicast_address_;
-}
-
-void serviceinfo::set_multicast_address(const std::string &_multicast_address) {
-  multicast_address_ = _multicast_address;
-}
-
-uint16_t serviceinfo::get_multicast_port() const {
-  return multicast_port_;
-}
-
-void serviceinfo::set_multicast_port(uint16_t _multicast_port) {
-  multicast_port_ = _multicast_port;
-}
-
-eventgroup_t serviceinfo::get_multicast_group() const {
-  return multicast_group_;
-}
-
-void serviceinfo::set_multicast_group(eventgroup_t _multicast_group) {
-  multicast_group_ = _multicast_group;
-}
-
 void serviceinfo::add_client(client_t _client) {
   requesters_.insert(_client);
 }
 
 void serviceinfo::remove_client(client_t _client) {
   requesters_.erase(_client);
+}
+
+uint32_t serviceinfo::get_requesters_size() {
+    return static_cast<std::uint32_t>(requesters_.size());
 }
 
 bool serviceinfo::is_local() const {

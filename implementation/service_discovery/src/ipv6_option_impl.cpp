@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "../include/constants.hpp"
+#include "../include/defines.hpp"
 #include "../include/ipv6_option_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
@@ -42,7 +43,8 @@ bool ipv6_option_impl::serialize(vsomeip::serializer *_to) const {
 }
 
 bool ipv6_option_impl::deserialize(vsomeip::deserializer *_from) {
-    bool is_successful = option_impl::deserialize(_from);
+    bool is_successful = option_impl::deserialize(_from)
+                            && length_ == VSOMEIP_SD_IPV6_OPTION_LENGTH;;
     uint8_t its_reserved;
     _from->deserialize(address_.data(), 16);
     _from->deserialize(its_reserved);

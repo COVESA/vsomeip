@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -27,12 +27,14 @@ class dlt_sink_backend :
         >::type
     > {
 public:
-    dlt_sink_backend();
+    dlt_sink_backend(const std::string &_app_id,
+                     const std::string &_context_id);
     virtual ~dlt_sink_backend();
 
     void consume(const logging::record_view &rec);
 
 private:
+
 #ifdef USE_DLT
     DltLogLevelType level_as_dlt(logging::trivial::severity_level _level);
     DLT_DECLARE_CONTEXT(dlt_);

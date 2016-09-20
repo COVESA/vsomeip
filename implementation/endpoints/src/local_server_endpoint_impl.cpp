@@ -1,11 +1,10 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <deque>
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 
 #include <boost/asio/write.hpp>
@@ -22,7 +21,7 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
-      acceptor_(_io, _local) {
+      acceptor_(_io, _local), current_(nullptr) {
     is_supporting_magic_cookies_ = false;
 }
 
@@ -34,22 +33,27 @@ bool local_server_endpoint_impl::is_local() const {
 }
 
 void local_server_endpoint_impl::start() {
-    connection::ptr new_connection = connection::create(this, max_message_size_);
+    current_ = connection::create(this, max_message_size_);
 
     acceptor_.async_accept(
-        new_connection->get_socket(),
+        current_->get_socket(),
         std::bind(
             &local_server_endpoint_impl::accept_cbk,
             std::dynamic_pointer_cast<
                 local_server_endpoint_impl
             >(shared_from_this()),
-            new_connection,
+            current_,
             std::placeholders::_1
         )
     );
 }
 
 void local_server_endpoint_impl::stop() {
+    if (acceptor_.is_open()) {
+        boost::system::error_code its_error;
+        acceptor_.close(its_error);
+    }
+    server_endpoint_impl::stop();
 }
 
 bool local_server_endpoint_impl::send_to(
@@ -77,13 +81,21 @@ void local_server_endpoint_impl::restart() {
     current_->start();
 }
 
-local_server_endpoint_impl::endpoint_type
-local_server_endpoint_impl::get_remote() const {
-    return current_->get_socket().remote_endpoint();
+bool local_server_endpoint_impl::queue_message(const byte_t *_data, uint32_t _size) {
+    if (current_) {
+        return current_->queue_message(_data, _size);
+    }
+    return false;
 }
 
-bool local_server_endpoint_impl::get_multicast(
-        service_t, event_t,
+local_server_endpoint_impl::endpoint_type
+local_server_endpoint_impl::get_remote() const {
+    boost::system::error_code its_error;
+    return current_->get_socket().remote_endpoint(its_error);
+}
+
+bool local_server_endpoint_impl::get_default_target(
+        service_t,
         local_server_endpoint_impl::endpoint_type &) const {
     return false;
 }
@@ -107,10 +119,12 @@ void local_server_endpoint_impl::accept_cbk(
 
     if (!_error) {
         socket_type &new_connection_socket = _connection->get_socket();
-        endpoint_type remote = new_connection_socket.remote_endpoint();
-
-        connections_[remote] = _connection;
-        _connection->start();
+        boost::system::error_code its_error;
+        endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
+        if(!its_error) {
+            connections_[remote] = _connection;
+            _connection->start();
+        }
     }
 
     start();
@@ -119,6 +133,8 @@ void local_server_endpoint_impl::accept_cbk(
 ///////////////////////////////////////////////////////////////////////////////
 // class local_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
+
+std::vector<byte_t> local_server_endpoint_impl::connection::queued_data_;
 
 local_server_endpoint_impl::connection::connection(
         local_server_endpoint_impl *_server, std::uint32_t _max_message_size)
@@ -185,6 +201,20 @@ void local_server_endpoint_impl::connection::send_queued(
     );
 }
 
+bool local_server_endpoint_impl::connection::queue_message(const byte_t *_data, uint32_t _size) {
+#if 0
+        std::stringstream msg;
+        msg << "lse::qm: ";
+        for (std::size_t i = 0; i < _size; i++)
+            msg << std::setw(2) << std::setfill('0') << std::hex
+                << (int)(_data)[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+    queued_data_.resize(_size);
+    memcpy(&queued_data_[0], _data, _size);
+    return true;
+}
+
 void local_server_endpoint_impl::connection::send_magic_cookie() {
 }
 
@@ -240,6 +270,12 @@ void local_server_endpoint_impl::connection::receive_cbk(
                     its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
                     its_host->on_message(&recv_buffer_[its_start],
                                          uint32_t(its_end - its_start), server_);
+
+                    // If there was a queued message --> consume it now!
+                    if (queued_data_.size() > 0) {
+                        its_host->on_message(&queued_data_[0], static_cast<length_t>(queued_data_.size()), server_);
+                        queued_data_.clear();
+                    }
 
                     #if 0
                             std::stringstream local_msg;

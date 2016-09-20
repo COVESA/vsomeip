@@ -1,0 +1,126 @@
+Changes
+=======
+
+v1.1.0
+- Local communication in multiprocessor environments was fixed
+- Runtime access was changed from raw to shared pointer
+- vsomeip logger is used whereever possible (replacing std::cerr calls)
+- Ensure the logger is not deleted before issueing tha last log message when shutting down
+- Fixed shutdown crash by checking the existence of endpoint host before accessing it
+- Routing info processing in case of multiple instances of the same service was fixed
+- Support for local communication on Windows was added
+
+v1.2.0
+- Added (optional) thread pool for distribution of messages to the application
+- Made configuration of service groups optional (as it is unneeded in pure client applications)
+- Support specification of transportation mode (reliable (TCP) / unreliable (UDP)) when creating messages
+- Fixed internal distribution of notication events
+- Block messages that are received on the wrong port
+- Fixed deregistration of local clients
+- Fixed startup of applications that were started earlier than the routing manager
+- Resetting all events of a service if it becomes unavailable (to ensure initial events are sent when it becomes available again)
+- Ensure consistency of version information
+- Fixed Service Discovery state machine
+
+v1.3.0
+- Fixed SD library loading on Windows
+- Changed cmake directory name (CMake --> cmake)
+- Corrected check for multicast address in Service Discovery
+- Added default setting for Service Discovery timings
+- Ensure only local services are reported by the Service Discovery
+- Fixed a crash in case of a wrong unicast address definition
+- Protected forwarding of availability information
+- Improved handling of notification events
+- Added initial support for selective broadcasts (CommonAPI)
+- Avoid deadlock when offering services
+- Correct handling of events
+- Added initial support for managed interfaces (CommonAPI)
+
+v2.0.0
+- Buffer sizes were adapted to the transport protocols
+- Added support for IPv6 multicast
+- Improved handling of endpoints
+- Report service state changes instead of service state to the application
+- Set and process TTL field in Service Discovery to support detection of "lost" services
+- Support automatic configuration of local communication
+- Added compile time variable DIAGNOSIS_ADDRESS (which maps to the high byte of the SOME/IP client identifier)
+- Configuration of events was moved from configuration file to API.
+- Fixed routing of notication events.
+- Increased robustness of configuration loader
+- Changed default watchdog cycle from 1s to 5s
+- Removed TTL arguments from public interface
+- Allow Service Discovery to report non-SOME/IP services by setting the configuration variable "protocol"
+- Fixed serialization of major version in Eventgroup entries
+- Magic Cookies are no longer forwarded to the routing manager but handled in the receiving endpoint
+- vsomeip daemon was added
+
+v2.0.1
+- Ensure Unicast flag is set in all Service Discovery messages
+- Allow "local" as alias for unicast address in Magic Cookie configuration
+- Correctly set layer 4 protocol in multicast options
+- Increased robustness of deserialization of configuration options
+- Fixed handling of unknown Service Discovery options
+
+v2.0.2
+- Fixed endpoint flushing
+- Improved handling of Selective Broadcasts (CommonAPI)
+- Trace connector was added
+- Added reboot detection
+- Reworked handling of TCP connections
+- Support multiple multicast eventgroups per service
+- Improved handling of multicasts
+- Extended Service Discovery to send FindMessage messages for unknown services
+- Support multiple SOME/IP messages in a single UDP datagram
+
+v2.0.3
+- Fixed shutdown and application re-registering
+
+v2.0.4
+- Service Discovery now used configured Client ID prefixes (=DIAGNOSIS_ADDRESS)
+- Reworked reboot detection (now based on the destination address)
+- Aligned default TTL setting (was 5 in vsomeip and 0xFFFFFF in vsomeip-sd, now its constently 0xFFFFFF)
+
+v2.0.5
+- Fixed reboot detection behavior
+
+v2.0.6
+- Diagnosis address can be configured at runtime
+
+v2.1.0
+- Avoid duplicate notifications if a selective event is in more than one eventgroup
+- Ensure SD messages are sent from the SD port
+- Ignore SD messages with wrong message identifier
+- Accept unreliable subscription for eventgroups without configured multicast address
+- Reject subscriptions that contain invalid IP address or port
+- Reject subscriptions for TCP if the connection is not established
+- Exclude vsomeip_ctrl from default installation
+- Only accept SD messages from SD port
+- Acknowledge multiple subscriptions sent within the same message with a single message
+- Allow to specify an application specific DLT application
+- Ensure correct ordering of availability notifications
+- Automatically expire subscription based on the given TTL
+- Do not include internal services in SD offer messages
+- Consider all fields of SD subscribe messages
+- Made the watchdog configurable
+- Support destination address resolution on Windows (for reboot detection)
+- Support auto-configuration (client identifiers, routing manager) on Windows
+
+v2.1.1
+- Ensure SD FindService-messages are sent after client re-registration
+- Corrected configuration of MagicCookies
+- Make client ports configurable
+- Implemented FindService message optimization
+- Extended configuration consistency checks
+
+v2.1.2
+- Ensure correct message order
+
+v2.2.0
+- Implemented Peer-to-Peer data exchange for notifications
+- Fixed handling of minor version during service discovery
+- Made initialization of application objects reentrant
+- Routing manager proxies now reconnect to the routing manager if the connection got lost
+- Auto-configuration supports multiple (different) configuration files
+- The opening of TCP connections is no longer done without an explicit request
+- Request No Respose messages are no longer answered in case of errors
+- Notifications over IP were fixed

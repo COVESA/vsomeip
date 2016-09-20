@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -85,20 +85,27 @@ const std::vector<uint8_t> & entry_impl::get_options(uint8_t _run) const {
     return invalid_options;
 }
 
-void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option,
-        uint8_t _run) {
-    if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN) {
-        _run--; // Index = Run-1
-
-        uint8_t option_index = uint8_t(get_owning_message()->get_option_index(_option));
-        if (0x10 > option_index) { // as we have only a nibble for the option counter
-            options_[_run].push_back(option_index);
-            std::sort(options_[_run].begin(), options_[_run].end());
+void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option) {
+    uint8_t option_index = uint8_t(get_owning_message()->get_option_index(_option));
+    if (0x10 > option_index) { // as we have only a nibble for the option counter
+        if (options_[0].empty() ||
+            options_[0][0] == option_index + 1 ||
+            options_[0][options_[0].size() - 1] + 1 == option_index) {
+            options_[0].push_back(option_index);
+            std::sort(options_[0].begin(), options_[0].end());
+            num_options_[0]++;
+        } else
+        if (options_[1].empty() ||
+            options_[1][0] == option_index + 1 ||
+            options_[1][options_[1].size() - 1] + 1 == option_index) {
+            options_[1].push_back(option_index);
+            std::sort(options_[1].begin(), options_[1].end());
+            num_options_[1]++;
         } else {
-            // TODO: decide what to do if option does not belong to the message.
+            // TODO: copy data
         }
     } else {
-        // TODO: decide what to do if an illegal index for the option run is provided
+        // TODO: decide what to do if option does not belong to the message.
     }
 }
 

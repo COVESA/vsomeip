@@ -23,6 +23,7 @@ global:
         *vsomeip::message_header_impl::*;
         *vsomeip::runtime;
         vsomeip::runtime::get*;
+        vsomeip::runtime::set_property*;
         *vsomeip::application_impl;
         vsomeip::application_impl*;
         *vsomeip::eventgroupinfo;

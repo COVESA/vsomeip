@@ -6,9 +6,9 @@
 
 # Purpose: This script is needed to start the services with
 # one command. This is necessary as ctest - which is used to run the
-# tests - isn't able to start two binaries for one testcase. Therefore
+# tests - isn't able to start multiple binaries for one testcase. Therefore
 # the testcase simply executes this script. This script then runs the services
-# and checks that both exit successfully.
+# and checks that all exit successfully.
 
 if [ $# -lt 1 ]
 then
@@ -31,7 +31,11 @@ export VSOMEIP_APPLICATION_NAME=client_id_test_service_two
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 2 &
 
+export VSOMEIP_APPLICATION_NAME=client_id_test_service_three
+export VSOMEIP_CONFIGURATION=$1
+./client_id_test_service 3 &
 
+sleep 1
 
 cat <<End-of-message
 *******************************************************************************

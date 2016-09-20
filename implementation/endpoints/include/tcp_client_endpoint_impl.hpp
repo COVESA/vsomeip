@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,13 +13,15 @@
 
 namespace vsomeip {
 
-typedef client_endpoint_impl<boost::asio::ip::tcp,
-        VSOMEIP_MAX_TCP_MESSAGE_SIZE> tcp_client_endpoint_base_impl;
+typedef client_endpoint_impl<
+            boost::asio::ip::tcp
+        > tcp_client_endpoint_base_impl;
 
 class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
     tcp_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
+							 endpoint_type _remote,
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size);
     virtual ~tcp_client_endpoint_impl();

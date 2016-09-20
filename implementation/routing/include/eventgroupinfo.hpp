@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,6 +6,8 @@
 #ifndef VSOMEIP_EVENTGROUPINFO_HPP
 #define VSOMEIP_EVENTGROUPINFO_HPP
 
+#include <chrono>
+#include <list>
 #include <memory>
 #include <set>
 
@@ -21,6 +23,15 @@ class event;
 
 class eventgroupinfo {
 public:
+    struct target_t {
+        std::shared_ptr<endpoint_definition> endpoint_;
+        std::chrono::high_resolution_clock::time_point expiration_;
+
+        bool operator==(const target_t &_other) const {
+            return (endpoint_ == _other.endpoint_);
+        }
+    };
+
     VSOMEIP_EXPORT eventgroupinfo();
     VSOMEIP_EXPORT eventgroupinfo(major_version_t _major, ttl_t _ttl);
     VSOMEIP_EXPORT ~eventgroupinfo();
@@ -41,22 +52,32 @@ public:
     VSOMEIP_EXPORT void add_event(std::shared_ptr<event> _event);
     VSOMEIP_EXPORT void remove_event(std::shared_ptr<event> _event);
 
-    VSOMEIP_EXPORT const std::set<
-        std::shared_ptr<endpoint_definition> > get_targets() const;
-    VSOMEIP_EXPORT bool add_target(std::shared_ptr<endpoint_definition> _target);
-    VSOMEIP_EXPORT bool remove_target(std::shared_ptr<endpoint_definition> _target);
+    VSOMEIP_EXPORT const std::list<target_t> get_targets() const;
+    VSOMEIP_EXPORT uint32_t get_unreliable_target_count();
+
+    VSOMEIP_EXPORT bool add_target(const target_t &_target);
+    VSOMEIP_EXPORT bool add_target(const target_t &_target, const target_t &_subscriber);
+    VSOMEIP_EXPORT bool update_target(
+            const std::shared_ptr<endpoint_definition> &_target,
+            const std::chrono::high_resolution_clock::time_point &_expiration);
+    VSOMEIP_EXPORT bool remove_target(
+            const std::shared_ptr<endpoint_definition> &_target);
     VSOMEIP_EXPORT void clear_targets();
+
+    VSOMEIP_EXPORT void add_multicast_target(const target_t &_multicast_target);
+    VSOMEIP_EXPORT void clear_multicast_targets();
+    VSOMEIP_EXPORT const std::list<target_t> get_multicast_targets() const;
 
 private:
     major_version_t major_;
     ttl_t ttl_;
 
-    bool is_multicast_;
     boost::asio::ip::address address_;
     uint16_t port_;
 
     std::set<std::shared_ptr<event> > events_;
-    std::set<std::shared_ptr<endpoint_definition> > targets_;
+    std::list<target_t> targets_;
+    std::list<target_t> multicast_targets_;
 };
 
 } // namespace vsomeip

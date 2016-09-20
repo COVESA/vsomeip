@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -40,8 +40,9 @@ public:
             major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
                     DEFAULT_MINOR) = 0;
 
-    virtual void stop_offer_service(service_t _service,
-            instance_t _instance) = 0;
+    virtual void stop_offer_service(service_t _service, instance_t _instance,
+            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
+                    DEFAULT_MINOR) = 0;
 
     virtual void offer_event(service_t _service,
             instance_t _instance, event_t _event,
@@ -65,12 +66,14 @@ public:
 
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE) = 0;
+            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
+            event_t _event = ANY_EVENT) = 0;
 
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup) = 0;
 
-    virtual bool is_available(service_t _service, instance_t _instance) const = 0;
+    virtual bool is_available(service_t _service, instance_t _instance,
+            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) const = 0;
 
     // Send a message
     virtual void send(std::shared_ptr<message> _message, bool _flush = true) = 0;
@@ -96,9 +99,11 @@ public:
 
     // [Un]Register handler for availability reporting
     virtual void register_availability_handler(service_t _service,
-            instance_t _instance, availability_handler_t _handler) = 0;
+            instance_t _instance, availability_handler_t _handler,
+            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
     virtual void unregister_availability_handler(service_t _service,
-            instance_t _instance) = 0;
+            instance_t _instance,
+            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     // [Un]Register handler for subscriptions
     virtual void register_subscription_handler(service_t _service,
@@ -106,6 +111,18 @@ public:
             subscription_handler_t _handler) = 0;
     virtual void unregister_subscription_handler(service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup) = 0;
+
+    // [Un]Register handler for subscription errors
+    virtual void register_subscription_error_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            error_handler_t _handler) = 0;
+    virtual void unregister_subscription_error_handler(service_t _service,
+                instance_t _instance, eventgroup_t _eventgroup) = 0;
+
+    virtual void clear_all_handler() = 0;
+
+    // Routing/SD hosted by this application!?
+    virtual bool is_routing() const = 0;
 };
 
 } // namespace vsomeip

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -46,8 +46,7 @@ public:
     void set_ttl(ttl_t _ttl);
 
     const std::vector<uint8_t> & get_options(uint8_t _run) const;
-    void assign_option(const std::shared_ptr<option_impl> &_option,
-            uint8_t _run);
+    void assign_option(const std::shared_ptr<option_impl> &_option);
 
     bool is_service_entry() const;
     bool is_eventgroup_entry() const;

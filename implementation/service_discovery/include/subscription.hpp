@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_SD_SUBSCRIPTION_HPP
 #define VSOMEIP_SD_SUBSCRIPTION_HPP
 
+#include <chrono>
 #include <memory>
 
 #include <vsomeip/primitive_types.hpp>
@@ -22,7 +23,9 @@ public:
     subscription(major_version_t _major, ttl_t _ttl,
             std::shared_ptr<endpoint> _reliable,
             std::shared_ptr<endpoint> _unreliable,
-            subscription_type_e _subscription_type);
+            subscription_type_e _subscription_type,
+            uint8_t _counter,
+            std::chrono::high_resolution_clock::time_point _expiration);
     ~subscription();
 
     major_version_t get_major() const;
@@ -34,7 +37,15 @@ public:
     bool is_acknowledged() const;
     void set_acknowledged(bool _is_acknowledged);
 
+    bool is_tcp_connection_established() const;
+    void set_tcp_connection_established(bool _is_established);
+
     subscription_type_e get_subscription_type() const;
+
+    uint8_t get_counter() const;
+
+    std::chrono::high_resolution_clock::time_point get_expiration() const;
+    void set_expiration(std::chrono::high_resolution_clock::time_point _expiration);
 
 private:
     major_version_t major_;
@@ -44,8 +55,13 @@ private:
     std::shared_ptr<endpoint> unreliable_;
 
     bool is_acknowledged_;
+    bool tcp_connection_established_;
 
     subscription_type_e subscription_type_;
+
+    uint8_t counter_;
+
+    std::chrono::high_resolution_clock::time_point expiration_;
 };
 
 } // namespace sd

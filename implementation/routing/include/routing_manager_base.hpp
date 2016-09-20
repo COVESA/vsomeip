@@ -1,0 +1,193 @@
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#ifndef VSOMEIP_ROUTING_MANAGER_BASE
+#define VSOMEIP_ROUTING_MANAGER_BASE
+
+#include <mutex>
+#include <unordered_set>
+
+#include <vsomeip/constants.hpp>
+#include "routing_manager.hpp"
+#include "routing_manager_host.hpp"
+#include "types.hpp"
+#include "serviceinfo.hpp"
+#include "event.hpp"
+#include "eventgroupinfo.hpp"
+#include "../../message/include/serializer.hpp"
+#include "../../message/include/deserializer.hpp"
+#include "../../configuration/include/configuration.hpp"
+#include "../../endpoints/include/endpoint_host.hpp"
+
+#ifdef USE_DLT
+#include "../../tracing/include/trace_connector.hpp"
+#endif
+
+#ifdef USE_DLT
+namespace tc {
+class trace_connector;
+} // namespace tc
+#endif
+
+namespace vsomeip {
+
+class serializer;
+
+class routing_manager_base : public routing_manager,
+    public endpoint_host,
+    public std::enable_shared_from_this<routing_manager_base>{
+
+public:
+    routing_manager_base(routing_manager_host *_host);
+    virtual ~routing_manager_base();
+
+    virtual boost::asio::io_service & get_io();
+    virtual client_t get_client() const;
+
+    virtual void init();
+
+    virtual void offer_service(client_t _client, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
+
+    virtual void stop_offer_service(client_t _client, service_t _service,
+            instance_t _instance, major_version_t _major, minor_version_t _minor);
+
+    virtual void request_service(client_t _client, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor, bool _use_exclusive_proxy);
+
+    virtual void release_service(client_t _client, service_t _service,
+            instance_t _instance);
+
+    virtual void register_event(client_t _client, service_t _service, instance_t _instance,
+            event_t _event, const std::set<eventgroup_t> &_eventgroups,
+            bool _is_field, bool _is_provided, bool _is_shadow = false,
+            bool _is_cache_placeholder = false);
+
+    virtual void unregister_event(client_t _client, service_t _service, instance_t _instance,
+            event_t _event, bool _is_provided);
+
+    virtual std::shared_ptr<event> get_event(service_t _service,
+            instance_t _instance, event_t _event) const;
+
+    virtual std::set<std::shared_ptr<event>> find_events(service_t _service,
+                instance_t _instance, eventgroup_t _eventgroup) const;
+
+    virtual void subscribe(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            major_version_t _major,
+            subscription_type_e _subscription_type);
+
+    virtual void unsubscribe(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup);
+
+	virtual void notify(service_t _service, instance_t _instance,
+			event_t _event, std::shared_ptr<payload> _payload);
+
+	virtual void notify_one(service_t _service, instance_t _instance,
+			event_t _event, std::shared_ptr<payload> _payload, client_t _client);
+
+    virtual bool send(client_t _client, std::shared_ptr<message> _message,
+            bool _flush);
+
+    virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
+            instance_t _instance, bool _flush, bool _reliable, bool _initial) = 0;
+
+    virtual bool queue_message(const byte_t *_data, uint32_t _size) const = 0;
+
+    // Endpoint host ~> will be implemented by routing_manager_impl/_proxy/
+    virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
+    virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
+    virtual void on_message(const byte_t *_data, length_t _length,
+        endpoint *_receiver, const boost::asio::ip::address &_destination
+            = boost::asio::ip::address()) = 0;
+    virtual void on_error(const byte_t *_data, length_t _length,
+            endpoint *_receiver) = 0;
+
+protected:
+    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
+    std::shared_ptr<serviceinfo> create_service_info(service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
+
+    void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
+    services_t get_services() const;
+    bool is_available(service_t _service, instance_t _instance, major_version_t _major);
+    client_t find_local_client(service_t _service, instance_t _instance);
+
+    std::shared_ptr<endpoint> create_local(client_t _client);
+    std::shared_ptr<endpoint> find_or_create_local(client_t _client);
+    void remove_local(client_t _client);
+    std::shared_ptr<endpoint> find_local(client_t _client);
+    std::shared_ptr<endpoint> find_local(service_t _service,
+            instance_t _instance);
+
+    std::unordered_set<client_t> get_connected_clients();
+
+    std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
+            event_t _event) const;
+    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup) const;
+
+    std::set<client_t> find_local_clients(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup);
+
+    void remove_eventgroup_info(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup);
+
+    void send_local_notification(client_t _client,
+            const byte_t *_data, uint32_t _size, instance_t _instance,
+            bool _flush = true, bool _reliable = false, bool _inital = false);
+
+    bool send_local(
+            std::shared_ptr<endpoint> &_target, client_t _client,
+            const byte_t *_data, uint32_t _size, instance_t _instance,
+            bool _flush, bool _reliable, uint8_t _command, bool _queue_message = false,
+            bool _initial = false) const;
+
+    bool insert_subscription(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, client_t _client);
+
+    routing_manager_host *host_;
+    boost::asio::io_service &io_;
+    client_t client_;
+
+    std::shared_ptr<configuration> configuration_;
+    std::shared_ptr<serializer> serializer_;
+    std::shared_ptr<deserializer> deserializer_;
+
+    std::mutex serialize_mutex_;
+
+    std::mutex local_services_mutex_;
+    std::map<service_t, std::map<instance_t, std::tuple< major_version_t, minor_version_t, client_t> > > local_services_;
+
+    // Eventgroups
+    mutable std::mutex eventgroups_mutex_;
+    std::map<service_t,
+            std::map<instance_t,
+                    std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
+    mutable std::mutex events_mutex_;
+    std::map<service_t,
+            std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
+    std::mutex eventgroup_clients_mutex_;
+    std::map<service_t,
+            std::map<instance_t, std::map<eventgroup_t, std::set<client_t> > > > eventgroup_clients_;
+
+#ifdef USE_DLT
+    std::shared_ptr<tc::trace_connector> tc_;
+#endif
+
+private:
+    services_t services_;
+    mutable std::mutex services_mutex_;
+
+    std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
+    mutable std::mutex local_endpoint_mutex_;
+};
+
+} // namespace vsomeip
+
+#endif //VSOMEIP_ROUTING_MANAGER_BASE

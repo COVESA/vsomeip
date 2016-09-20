@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,12 +12,14 @@
 #include <boost/enable_shared_from_this.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
 
 namespace vsomeip {
 
-typedef server_endpoint_impl<boost::asio::ip::tcp,
-        VSOMEIP_MAX_TCP_MESSAGE_SIZE> tcp_server_endpoint_base_impl;
+typedef server_endpoint_impl<
+            boost::asio::ip::tcp
+        > tcp_server_endpoint_base_impl;
 
 class tcp_server_endpoint_impl: public tcp_server_endpoint_base_impl {
 
@@ -35,9 +37,12 @@ public:
                  const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);
 
+    VSOMEIP_EXPORT bool is_established(std::shared_ptr<endpoint_definition> _endpoint);
+
     endpoint_type get_remote() const;
     bool get_remote_address(boost::asio::ip::address &_address) const;
-    bool get_multicast(service_t, event_t, endpoint_type &) const;
+    unsigned short get_remote_port() const;
+    bool get_default_target(service_t, endpoint_type &) const;
 
     unsigned short get_local_port() const;
     bool is_reliable() const;

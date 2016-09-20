@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,23 +10,28 @@
 #endif
 
 #include <boost/log/expressions.hpp>
+#include "../include/defines.hpp"
 
 namespace expressions = boost::log::expressions;
 
 namespace vsomeip
 {
 
-dlt_sink_backend::dlt_sink_backend() {
+dlt_sink_backend::dlt_sink_backend(const std::string &_app_id,
+                                   const std::string &_context_id) {
+    (void)_app_id;
 #ifdef USE_DLT
-    DLT_REGISTER_APP("vSIP", "vSomeIP application");
-    DLT_REGISTER_CONTEXT(dlt_, "vSIP", "vSomeIP context");
+    DLT_REGISTER_CONTEXT_LL_TS(dlt_, _context_id.c_str(),
+            VSOMEIP_LOG_DEFAULT_CONTEXT_NAME, DLT_LOG_DEBUG,
+            DLT_TRACE_STATUS_ON);
+#else
+    (void)_context_id;
 #endif
 }
 
 dlt_sink_backend::~dlt_sink_backend() {
 #ifdef USE_DLT
     DLT_UNREGISTER_CONTEXT(dlt_);
-    DLT_UNREGISTER_APP();
 #endif
 }
 

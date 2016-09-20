@@ -1,4 +1,4 @@
-# Copyright (C) 2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,8 +7,8 @@ cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 0)
-set (VSOMEIP_PATCH_VERSION 1)
+set (VSOMEIP_MINOR_VERSION 2)
+set (VSOMEIP_PATCH_VERSION 4)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -66,18 +66,32 @@ include_directories(
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.54 COMPONENTS system thread log REQUIRED )
+find_package( Boost 1.55 COMPONENTS system thread log REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
+
+if(Boost_FOUND)
+  if(Boost_LIBRARY_DIR)
+    MESSAGE( STATUS "Boost_LIBRARY_DIR not empty using it: ${Boost_LIBRARY_DIR}" )
+  else()
+    if(BOOST_LIBRARYDIR)
+      MESSAGE( STATUS "Boost_LIBRARY_DIR empty but BOOST_LIBRARYDIR is set setting Boost_LIBRARY_DIR to: ${BOOST_LIBRARYDIR}" )
+      set(Boost_LIBRARY_DIR ${BOOST_LIBRARYDIR})
+    endif()
+  endif()
+else()
+  MESSAGE( STATUS "Boost was not found!")
+endif()
 
 # DLT
 find_package(PkgConfig)
 pkg_check_modules(DLT "automotive-dlt >= 2.11")
 IF(DLT_FOUND) 
- 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
 ENDIF(DLT_FOUND)
 
 include_directories(
     include
+    implementation/helper
     ${DLT_INCLUDE_DIRS}
 )
 
@@ -90,6 +104,7 @@ file(GLOB vsomeip_SRC
     "implementation/configuration/src/*.cpp"
     "implementation/endpoints/src/*.cpp"
     "implementation/logging/src/*.cpp"
+    "implementation/tracing/src/*.cpp"
     "implementation/message/src/*.cpp"
     "implementation/routing/src/*.cpp"
     "implementation/runtime/src/*.cpp"
@@ -97,8 +112,9 @@ file(GLOB vsomeip_SRC
 )
 
 if (MSVC) 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=0x0501 -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK /EHsc")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=0x0501 -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK /EHsc")
+SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
 set(USE_RT "")
 set(Boost_LIBRARIES "")
 link_directories(${Boost_LIBRARY_DIR})
@@ -136,7 +152,7 @@ set(EXAMPLE_CONFIG_FILES
 )
 
 ###################################################################################################
-set (VSOMEIP_DIAGNOSIS_ADDRESS "0x11")
+set (VSOMEIP_DIAGNOSIS_ADDRESS "0x00")
 if (DIAGNOSIS_ADDRESS)
 set (VSOMEIP_DIAGNOSIS_ADDRESS ${DIAGNOSIS_ADDRESS})
 endif ()
@@ -300,6 +316,10 @@ if (NOT MSVC)
 add_custom_target( daemon )
 add_subdirectory( daemon )
 endif()
+
+# build tools
+add_custom_target( tools )
+add_subdirectory( tools )
 
 # build examples
 add_custom_target( examples )

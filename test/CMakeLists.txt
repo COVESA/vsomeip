@@ -1,4 +1,4 @@
-# Copyright (C) 2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -111,9 +111,21 @@ if(NOT ${TESTS_BAT})
         ${TEST_APPLICATION}
     )
 
+    set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+        ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+        ${TEST_APPLICATION}
+    )
+
     set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+        ${TEST_APPLICATION}
+    )
+
+    set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+        ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         ${TEST_APPLICATION}
     )
 
@@ -774,6 +786,30 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_SERVICE}
     )
 
+    set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
+        ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_CLIENT_ID_SERVICE}
+    )
+
+    set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_CLIENT_ID_SERVICE}
+    )
+
     set(TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
@@ -836,6 +872,296 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# subscribe notify tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_SUBSCRIBE_NOTIFY_NAME subscribe_notify_test)
+    set(TEST_SUBSCRIBE_NOTIFY_SERVICE ${TEST_SUBSCRIBE_NOTIFY_NAME}_service)
+    add_executable(${TEST_SUBSCRIBE_NOTIFY_SERVICE} subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_NAME}_service.cpp)
+    target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config files for test into $BUILDDIR/test
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+    set(TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_slave_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+endif()
+
+##############################################################################
+# subscribe notify one tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_NAME subscribe_notify_one_test)
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_service)
+    add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE} subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_service.cpp)
+    target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+    
+    # Copy config files for test into $BUILDDIR/test
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_SLAVE_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_slave_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_SLAVE_STARTER}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+endif()
+
+##############################################################################
+# cpu-load-test
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_CPU_LOAD_NAME cpu_load_test)
+
+    set(TEST_CPU_LOAD_SERVICE cpu_load_test_service)
+    add_executable(${TEST_CPU_LOAD_SERVICE}
+        cpu_load_tests/${TEST_CPU_LOAD_SERVICE}.cpp
+        cpu_load_tests/cpu_load_measurer.cpp
+    )
+    target_link_libraries(${TEST_CPU_LOAD_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config files for test into $BUILDDIR/test
+    set(TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
+        ${TEST_CPU_LOAD_SERVICE}
+    )
+    set(TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
+        ${TEST_CPU_LOAD_SERVICE}
+    )
+
+    ##############################################################################
+    set(TEST_CPU_LOAD_CLIENT cpu_load_test_client)
+    add_executable(${TEST_CPU_LOAD_CLIENT}
+        cpu_load_tests/${TEST_CPU_LOAD_CLIENT}.cpp
+        cpu_load_tests/cpu_load_measurer.cpp
+    )
+    target_link_libraries(${TEST_CPU_LOAD_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
+        ${TEST_CPU_LOAD_CLIENT}
+    )
+    set(TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
+        ${TEST_CPU_LOAD_CLIENT}
+    )
+
+    ##############################################################################
+    # copy starter scripts into builddir
+    set(TEST_CPU_LOAD_MASTER_STARTER ${TEST_CPU_LOAD_NAME}_master_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_MASTER_STARTER}
+        ${TEST_CPU_LOAD_SERVICE}
+    )
+    set(TEST_CPU_LOAD_SLAVE_STARTER ${TEST_CPU_LOAD_NAME}_slave_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_SLAVE_STARTER}
+        ${TEST_CPU_LOAD_SERVICE}
+    )
+endif()
+
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -855,6 +1181,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_BIG_PAYLOAD_SERVICE} gtest)
     add_dependencies(${TEST_BIG_PAYLOAD_CLIENT} gtest)
     add_dependencies(${TEST_CLIENT_ID_SERVICE} gtest)
+    add_dependencies(${TEST_SUBSCRIBE_NOTIFY_SERVICE} gtest)
+    add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE} gtest)
+    add_dependencies(${TEST_CPU_LOAD_SERVICE} gtest)
+    add_dependencies(${TEST_CPU_LOAD_CLIENT} gtest)
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -880,6 +1210,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_BIG_PAYLOAD_SERVICE})
     add_dependencies(build_tests ${TEST_BIG_PAYLOAD_CLIENT})
     add_dependencies(build_tests ${TEST_CLIENT_ID_SERVICE})
+    add_dependencies(build_tests ${TEST_SUBSCRIBE_NOTIFY_SERVICE})
+    add_dependencies(build_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE})
+    add_dependencies(build_tests ${TEST_CPU_LOAD_SERVICE})
+    add_dependencies(build_tests ${TEST_CPU_LOAD_CLIENT})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -903,7 +1237,7 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_APPLICATION}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_STARTER}
     )
-    set_tests_properties(${TEST_APPLICATION} PROPERTIES TIMEOUT 20)
+    set_tests_properties(${TEST_APPLICATION} PROPERTIES TIMEOUT 40)
 
     # magic cookies test
     add_test(NAME ${TEST_MAGIC_COOKIES_NAME}
@@ -957,9 +1291,86 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports PROPERTIES TIMEOUT 60)
+
     add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports PROPERTIES TIMEOUT 60)
+
+    # subscribe notify id tests
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+    
+        # subscribe notify one id tests
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 60)
+
+    # cpu load tests
+    add_test(NAME ${TEST_CPU_LOAD_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CPU_LOAD_MASTER_STARTER}
+    )
+    set_tests_properties(${TEST_CPU_LOAD_NAME} PROPERTIES TIMEOUT 1500)
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

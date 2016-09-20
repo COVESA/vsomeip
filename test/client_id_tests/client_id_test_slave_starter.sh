@@ -10,8 +10,6 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-FAIL=0
-
 if [ $# -lt 1 ]
 then
     echo "Please pass a json file to this script."
@@ -19,11 +17,9 @@ then
     exit 1
 fi
 
-# Start the services
-export VSOMEIP_APPLICATION_NAME=client_id_test_service_three 
-export VSOMEIP_CONFIGURATION=$1
-./client_id_test_service 3 &
+FAIL=0
 
+# Start the services
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_four 
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 4 &
@@ -31,6 +27,10 @@ export VSOMEIP_CONFIGURATION=$1
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_five 
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 5 &
+
+export VSOMEIP_APPLICATION_NAME=client_id_test_service_six
+export VSOMEIP_CONFIGURATION=$1
+./client_id_test_service 6 &
 
 
 # Wait until all applications are finished

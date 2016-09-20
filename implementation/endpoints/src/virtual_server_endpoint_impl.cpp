@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -60,19 +60,17 @@ void virtual_server_endpoint_impl::leave(const std::string &_address) {
     (void)_address;
 }
 
-void virtual_server_endpoint_impl::add_multicast(
-        service_t _service, event_t _event,
+void virtual_server_endpoint_impl::add_default_target(
+        service_t _service,
         const std::string &_address, uint16_t _port) {
     (void)_service;
-    (void)_event;
     (void)_address;
     (void)_port;
 }
 
-void virtual_server_endpoint_impl::remove_multicast(
-        service_t _service, event_t _event) {
+void virtual_server_endpoint_impl::remove_default_target(
+        service_t _service) {
     (void)_service;
-    (void)_event;
 }
 
 bool virtual_server_endpoint_impl::get_remote_address(

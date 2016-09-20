@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +7,7 @@
 #define VSOMEIP_ROUTING_MANAGER_STUB_HOST
 
 #include <boost/asio/io_service.hpp>
+#include <vsomeip/handler.hpp>
 
 namespace vsomeip {
 
@@ -20,7 +21,7 @@ public:
             minor_version_t _minor) = 0;
 
     virtual void stop_offer_service(client_t _client, service_t _service,
-            instance_t _instance) = 0;
+            instance_t _instance, major_version_t _major, minor_version_t _minor) = 0;
 
     virtual void request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
@@ -29,17 +30,24 @@ public:
     virtual void release_service(client_t _client, service_t _service,
             instance_t _instance) = 0;
 
-    virtual void register_event(client_t _client, service_t _service,
+    virtual void register_shadow_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
             const std::set<eventgroup_t> &_eventgroups,
             bool _is_field, bool _is_provided) = 0;
 
-    virtual void unregister_event(client_t _client, service_t _service,
+    virtual void unregister_shadow_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event, bool _is_provided) = 0;
 
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, subscription_type_e _subscription_type) = 0;
+            major_version_t _major,
+            subscription_type_e _subscription_type) = 0;
+
+    virtual void on_subscribe_nack(client_t _client, service_t _service,
+                instance_t _instance, eventgroup_t _eventgroup) = 0;
+
+    virtual void on_subscribe_ack(client_t _client, service_t _service,
+                instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) = 0;
@@ -49,20 +57,23 @@ public:
 
     virtual void on_notification(client_t _client,
             service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size) = 0;
+            const byte_t *_data, length_t _size, bool _notify_one = false) = 0;
 
     virtual void on_stop_offer_service(service_t _service,
-            instance_t _instance) = 0;
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor) = 0;
 
     virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
-    virtual std::shared_ptr<endpoint> find_local(service_t _service,
-            instance_t _instance) = 0;
+
     virtual std::shared_ptr<endpoint> find_or_create_local(
             client_t _client) = 0;
     virtual void remove_local(client_t _client) = 0;
 
     virtual boost::asio::io_service & get_io() = 0;
     virtual client_t get_client() const = 0;
+
+    virtual void on_identify_response(client_t _client, service_t _service, instance_t _instance,
+            bool _reliable) = 0;
 };
 
 } // namespace vsomeip

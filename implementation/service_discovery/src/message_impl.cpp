@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -204,6 +204,7 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 
 bool message_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful;
+    bool option_is_successful(true);
 
     // header
     is_successful = header_.deserialize(_from);
@@ -251,12 +252,12 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
         _from->set_remaining(options_length_);
     }
 
-    while (is_successful && _from->get_remaining()) {
+    while (option_is_successful && _from->get_remaining()) {
         std::shared_ptr < option_impl > its_option(deserialize_option(_from));
         if (its_option) {
             options_.push_back(its_option);
-        } else {
-            is_successful = false;
+        }  else {
+            option_is_successful = false;
         }
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,6 +10,16 @@
 
 #include <vsomeip/export.hpp>
 #include "message_base_impl.hpp"
+
+#  if _MSC_VER >= 1300
+/*
+* Diamond inheritance is used for the vsomeip::message_base base class.
+* The Microsoft compiler put warning (C4250) using a desired c++ feature: "Delegating to a sister class"
+* A powerful technique that arises from using virtual inheritance is to delegate a method from a class in another class
+* by using a common abstract base class. This is also called cross delegation.
+*/
+#    pragma warning( disable : 4250 )
+#  endif
 
 namespace vsomeip {
 

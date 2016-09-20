@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,14 +16,20 @@
 namespace vsomeip {
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host, endpoint_type _remote,
+        std::shared_ptr< endpoint_host > _host,
+		endpoint_type _local,
+		endpoint_type _remote,
         boost::asio::io_service &_io)
-    : udp_client_endpoint_base_impl(_host, _remote, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE),
-      recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
-      recv_buffer_size_(0) {
+    : udp_client_endpoint_base_impl(_host, _local, _remote, _io,
+    		VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+      recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0) {
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
+	std::shared_ptr<endpoint_host> its_host = host_.lock();
+	if (its_host) {
+		its_host->release_port(local_.port(), false);
+	}
 }
 
 bool udp_client_endpoint_impl::is_local() const {
@@ -31,7 +37,13 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
-    socket_.async_connect(
+	// In case a client endpoint port was configured,
+	// bind to it before connecting
+	if (local_.port() != ILLEGAL_PORT) {
+		socket_.bind(local_);
+	}
+
+	socket_.async_connect(
         remote_,
         std::bind(
             &udp_client_endpoint_base_impl::connect_cbk,
@@ -42,12 +54,23 @@ void udp_client_endpoint_impl::connect() {
 }
 
 void udp_client_endpoint_impl::start() {
-    socket_.open(remote_.protocol());
-    connect();
+    boost::system::error_code its_error;
+    socket_.open(remote_.protocol(), its_error);
+    if (!its_error || its_error == boost::asio::error::already_open) {
+        connect();
+    } else {
+        VSOMEIP_WARNING << "udp_client_endpoint::connect: Error opening socket: "
+                << its_error.message();
+    }
 }
 
 void udp_client_endpoint_impl::send_queued() {
-    message_buffer_ptr_t its_buffer = queue_.front();
+    message_buffer_ptr_t its_buffer;
+    if(queue_.size()) {
+        its_buffer = queue_.front();
+    } else {
+        return;
+    }
 #if 0
     std::stringstream msg;
     msg << "ucei<" << remote_.address() << ":"
@@ -69,13 +92,8 @@ void udp_client_endpoint_impl::send_queued() {
 }
 
 void udp_client_endpoint_impl::receive() {
-    if (recv_buffer_size_ == max_message_size_) {
-        // Overrun -> Reset buffer
-        recv_buffer_size_ = 0;
-    }
-    size_t buffer_size = max_message_size_ - recv_buffer_size_;
     socket_.async_receive_from(
-        boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
+        boost::asio::buffer(&recv_buffer_[0], max_message_size_),
         remote_,
         std::bind(
             &udp_client_endpoint_impl::receive_cbk,
@@ -95,11 +113,13 @@ bool udp_client_endpoint_impl::get_remote_address(
 }
 
 unsigned short udp_client_endpoint_impl::get_local_port() const {
-  return socket_.local_endpoint().port();
+    boost::system::error_code its_error;
+    return socket_.local_endpoint(its_error).port();
 }
 
 unsigned short udp_client_endpoint_impl::get_remote_port() const {
-  return socket_.remote_endpoint().port();
+    boost::system::error_code its_error;
+    return socket_.remote_endpoint(its_error).port();
 }
 
 void udp_client_endpoint_impl::receive_cbk(
@@ -114,17 +134,15 @@ void udp_client_endpoint_impl::receive_cbk(
                 << (int) recv_buffer_[i] << " ";
         VSOMEIP_DEBUG << msg.str();
 #endif
-        recv_buffer_size_ += _bytes;
         uint32_t current_message_size
             = utility::get_message_size(&this->recv_buffer_[0],
-                    (uint32_t) recv_buffer_size_);
+                    (uint32_t) _bytes);
         if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
                 current_message_size <= _bytes) {
             its_host->on_message(&recv_buffer_[0], current_message_size, this);
         } else {
             VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad length field";
         }
-        recv_buffer_size_ = 0;
     }
     if (!_error) {
         receive();

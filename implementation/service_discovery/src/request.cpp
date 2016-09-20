@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,8 +9,7 @@ namespace vsomeip {
 namespace sd {
 
 request::request(major_version_t _major, minor_version_t _minor, ttl_t _ttl)
-        : major_(_major), minor_(_minor), ttl_(_ttl) {
-
+        : major_(_major), minor_(_minor), ttl_(_ttl), sent_counter_(0) {
 }
 
 major_version_t request::get_major() const {
@@ -35,6 +34,14 @@ ttl_t request::get_ttl() const {
 
 void request::set_ttl(ttl_t _ttl) {
     ttl_ = _ttl;
+}
+
+uint8_t request::get_sent_counter() const {
+    return sent_counter_;
+}
+
+void request::set_sent_counter(uint8_t _sent_counter) {
+    sent_counter_ = _sent_counter;
 }
 
 }  // namespace sd

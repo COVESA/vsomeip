@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -27,7 +27,7 @@ class routing_manager;
 
 class event: public std::enable_shared_from_this<event> {
 public:
-    event(routing_manager *_routing);
+    event(routing_manager *_routing, bool _is_shadow = false);
 
     service_t get_service() const;
     void set_service(service_t _service);
@@ -48,14 +48,18 @@ public:
     void set_payload(std::shared_ptr<payload> _payload,
             const std::shared_ptr<endpoint_definition> _target);
 
+    void set_payload_dont_notify(std::shared_ptr<payload> _payload);
+
     void set_payload(std::shared_ptr<payload> _payload);
-    void unset_payload();
+    void unset_payload(bool _force = false);
 
     bool is_field() const;
     void set_field(bool _is_field);
 
     bool is_provided() const;
     void set_provided(bool _is_provided);
+
+    bool is_set() const;
 
     // SIP_RPC_357
     void set_update_cycle(std::chrono::milliseconds &_cycle);
@@ -70,10 +74,17 @@ public:
     void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
 
     void notify_one(const std::shared_ptr<endpoint_definition> &_target);
-    void notify_one(client_t _client);
+    void notify_one(client_t _client, bool _is_initial = false);
 
-    void add_ref();
-    uint32_t remove_ref();
+    void add_ref(client_t _client, bool _is_provided);
+    void remove_ref(client_t _client, bool _is_provided);
+    bool has_ref();
+
+    bool is_shadow() const;
+    void set_shadow(bool _shadow);
+
+    bool is_cache_placeholder() const;
+    void set_cache_placeholder(bool _is_cache_place_holder);
 
 private:
     void update_cbk(boost::system::error_code const &_error);
@@ -99,7 +110,11 @@ private:
     bool is_set_;
     bool is_provided_;
 
-    uint32_t ref_;
+    std::map<client_t, std::map<bool, uint32_t>> refs_;
+
+    bool is_shadow_;
+
+    bool is_cache_placeholder_;
 };
 
 }  // namespace vsomeip

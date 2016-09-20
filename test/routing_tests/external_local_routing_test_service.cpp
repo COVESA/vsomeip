@@ -1,5 +1,4 @@
-// Copyright (C) 2014 BMW Group
-// Author: Lutz Bichler (lutz.bichler@bmw.de)
+// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -134,7 +133,9 @@ void external_local_routing_test_service::on_message(
     if(number_received_messages_local_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND
             && number_received_messages_external_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND)
     {
-        app_->stop();
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        blocked_ = true;
+        condition_.notify_one();
     }
     ASSERT_LT(number_received_messages_local_,
             vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND + 1);
@@ -148,10 +149,19 @@ void external_local_routing_test_service::run()
     while (!blocked_)
         condition_.wait(its_lock);
 
+    blocked_ = false;
     if(use_static_routing_)
     {
         offer();
     }
+
+    while (!blocked_) {
+        condition_.wait(its_lock);
+    }
+
+    std::thread t2([](){ usleep(1000000 * 2);});
+    t2.join();
+    app_->stop();
 }
 
 TEST(someip_external_local_routing_test, receive_ten_messages_over_local_and_external_socket)

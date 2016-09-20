@@ -9,7 +9,8 @@
 namespace vsomeip {
 
 message_base_impl::message_base_impl()
-    : is_reliable_(false) {
+    : is_reliable_(false),
+      is_initial_(false) {
     header_.set_owner(this);
 }
 
@@ -108,6 +109,13 @@ bool message_base_impl::is_reliable() const {
 
 void message_base_impl::set_reliable(bool _is_reliable) {
     is_reliable_ = _is_reliable;
+}
+
+bool message_base_impl::is_initial() const {
+    return is_initial_;
+}
+void message_base_impl::set_initial(bool _is_initial) {
+    is_initial_ = _is_initial;
 }
 
 } // namespace vsomeip

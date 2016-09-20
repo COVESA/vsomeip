@@ -315,8 +315,8 @@ This tests tests communication over two nodes with multiple services on both
 nodes.
 
 The test setup is as followed:
-* There are five services with one method each.
-* Two of the services run on node 1.
+* There are six services with one method each.
+* Three of the services run on node 1.
 * Three of the services run on node 2.
 * Each of the services sends ten requests to the other services and waits
   until it received a response for every request.
@@ -339,3 +339,54 @@ ctest -V -R client_id_test_diff_client_ids_same_ports
 Manual start from sub folder test of build directory:
 
 ./client_id_test_master_starter.sh client_id_test_diff_client_ids_same_ports_master.json
+
+
+Subscribe notify tests
+----------------------
+This tests tests subscribe notify mechanism over two nodes with multiple services
+on both nodes.
+
+The test setup is as followed:
+* There are six services offering one event each.
+* Three of the services run on node 1.
+* Three of the services run on node 2.
+* Each of the services waits until all other services are available.
+* Each of the services subscribes to the offered event of all the other services.
+* Each of the services then waits until the other services have subscribed to
+  its event.
+* Each of the services then starts to sent out ten notifications for its event.
+* Each service waits until it received the correct amount of notifications from
+  all other services.
+* If all notifications have been received, the service shuts down.
+
+Automatic start from the build directory (example):
+
+ctest -V -R subscribe_notify_test_diff_client_ids_diff_ports_udp
+
+Manual start from sub folder test of build directory:
+
+./subscribe_notify_test_master_starter.sh UDP subscribe_notify_test_diff_client_ids_diff_ports_master.json
+
+There are multiple versions of this test which differ in the used subscription
+method and port setup (use ctest -N to see all). For manual start the desired
+description method has to be passed to the starter script as first parameter.
+
+
+CPU load test
+-------------
+This test does a increasing number of synchronous function calls to the same
+method of the service and measures CPU load for each batch of function calls.
+All method calls transport a payload of 40 Bytes. The responses don't transport
+any payload.
+
+The CPU load is measured thorugh the proc fs.
+If the test prints a message like:
+
+    Synchronously sent 0890 messages. CPU load [%]: 12.68
+
+This means that the test process consumed 12% of the jiffies consumed by
+complete system while doing 890 methodcalls.
+
+Automatic start from the build directory (example):
+
+ctest -V -R cpu_load_test

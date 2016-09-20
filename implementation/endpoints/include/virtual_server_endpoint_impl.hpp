@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -35,9 +35,9 @@ public:
     void join(const std::string &_address);
     void leave(const std::string &_address);
 
-    void add_multicast(service_t _service, event_t _event,
+    void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port);
-    void remove_multicast(service_t _service, event_t _event);
+    void remove_default_target(service_t _service);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     unsigned short get_local_port() const;

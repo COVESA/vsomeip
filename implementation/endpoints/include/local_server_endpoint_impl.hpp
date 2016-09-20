@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,11 +24,13 @@
 namespace vsomeip {
 
 #ifdef WIN32
-typedef server_endpoint_impl<boost::asio::ip::tcp,
-        VSOMEIP_MAX_TCP_MESSAGE_SIZE > local_server_endpoint_base_impl;
+typedef server_endpoint_impl<
+            boost::asio::ip::tcp
+        > local_server_endpoint_base_impl;
 #else
-typedef server_endpoint_impl<boost::asio::local::stream_protocol,
-        VSOMEIP_MAX_LOCAL_MESSAGE_SIZE> local_server_endpoint_base_impl;
+typedef server_endpoint_impl<
+            boost::asio::local::stream_protocol
+        > local_server_endpoint_base_impl;
 #endif
 
 class local_server_endpoint_impl: public local_server_endpoint_base_impl {
@@ -51,9 +53,11 @@ public:
     void send_queued(queue_iterator_type _queue_iterator);
 
     endpoint_type get_remote() const;
-    bool get_multicast(service_t, event_t, endpoint_type &) const;
+    bool get_default_target(service_t, endpoint_type &) const;
 
     bool is_local() const;
+
+    bool queue_message(const byte_t *_data, uint32_t _size);
 
 private:
     class connection: public boost::enable_shared_from_this<connection> {
@@ -69,6 +73,8 @@ private:
 
         void send_queued(queue_iterator_type _queue_iterator);
 
+        bool queue_message(const byte_t *_data, uint32_t _size);
+
     private:
         connection(local_server_endpoint_impl *_owner, std::uint32_t _max_message_size);
 
@@ -82,6 +88,8 @@ private:
         receive_buffer_t recv_buffer_;
         size_t recv_buffer_size_;
 
+        static std::vector<byte_t> queued_data_;
+
     private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
@@ -94,7 +102,7 @@ private:
 #endif
 
     std::map<endpoint_type, connection::ptr> connections_;
-    connection *current_;
+    connection::ptr current_;
 
 private:
     void remove_connection(connection *_connection);

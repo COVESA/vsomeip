@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <chrono>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -33,21 +34,16 @@ public:
     VSOMEIP_EXPORT ttl_t get_ttl() const;
     VSOMEIP_EXPORT void set_ttl(ttl_t _ttl);
 
+    VSOMEIP_EXPORT std::chrono::milliseconds get_precise_ttl() const;
+    VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _ttl);
+
     VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
     VSOMEIP_EXPORT void set_endpoint(std::shared_ptr<endpoint> _endpoint,
             bool _reliable);
 
-    VSOMEIP_EXPORT const std::string & get_multicast_address() const;
-    VSOMEIP_EXPORT void set_multicast_address(const std::string &_multicast);
-
-    VSOMEIP_EXPORT uint16_t get_multicast_port() const;
-    VSOMEIP_EXPORT void set_multicast_port(uint16_t _port);
-
-    VSOMEIP_EXPORT eventgroup_t get_multicast_group() const;
-    VSOMEIP_EXPORT void set_multicast_group(eventgroup_t _multicast_group);
-
     VSOMEIP_EXPORT void add_client(client_t _client);
     VSOMEIP_EXPORT void remove_client(client_t _client);
+    VSOMEIP_EXPORT uint32_t get_requesters_size();
 
     VSOMEIP_EXPORT bool is_local() const;
 
@@ -56,14 +52,10 @@ private:
 
     major_version_t major_;
     minor_version_t minor_;
-    ttl_t ttl_;
+    std::chrono::milliseconds ttl_;
 
     std::shared_ptr<endpoint> reliable_;
     std::shared_ptr<endpoint> unreliable_;
-
-    std::string multicast_address_;
-    uint16_t multicast_port_;
-    eventgroup_t multicast_group_;
 
     std::set<client_t> requesters_;
 

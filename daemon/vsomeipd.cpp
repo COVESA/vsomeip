@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,11 +11,20 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include "../implementation/configuration/include/internal.hpp"
+#include "../implementation/logging/include/logger.hpp"
+
+#ifdef USE_DLT
+#include <dlt/dlt.h>
+#include "../implementation/logging/include/defines.hpp"
+#endif
 
 /*
  * Create a vsomeip application object and start it.
  */
 int process(void) {
+#ifdef USE_DLT
+    DLT_REGISTER_APP(VSOMEIP_LOG_DEFAULT_APPLICATION_ID, VSOMEIP_LOG_DEFAULT_APPLICATION_NAME);
+#endif
     std::shared_ptr<vsomeip::runtime> its_runtime
         = vsomeip::runtime::get();
 
@@ -27,11 +36,13 @@ int process(void) {
         = its_runtime->create_application(VSOMEIP_ROUTING);
 
     if (its_application->init()) {
-        its_application->start();
-        return 0;
-    } else {
-        return -1;
+        if (its_application->is_routing()) {
+            its_application->start();
+            return 0;
+        }
+        VSOMEIP_ERROR << "vsomeipd has not been configured as routing - abort";
     }
+    return -1;
 }
 
 /*

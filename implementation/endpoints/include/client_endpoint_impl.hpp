@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,6 +16,8 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/utility.hpp>
 
+#include <vsomeip/constants.hpp>
+
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
 
@@ -24,22 +26,23 @@ namespace vsomeip {
 class endpoint;
 class endpoint_host;
 
-template<typename Protocol, int MaxBufferSize>
-class client_endpoint_impl: public endpoint_impl<MaxBufferSize>,
-        public std::enable_shared_from_this<
-                client_endpoint_impl<Protocol, MaxBufferSize> > {
+template<typename Protocol>
+class client_endpoint_impl: public endpoint_impl<Protocol>,
+        public std::enable_shared_from_this<client_endpoint_impl<Protocol> > {
 public:
+	typedef typename Protocol::endpoint endpoint_type;
     typedef typename Protocol::socket socket_type;
-    typedef typename Protocol::endpoint endpoint_type;
 
     client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-            endpoint_type _remote, boost::asio::io_service &_io,
+    		endpoint_type _local, endpoint_type _remote,
+			boost::asio::io_service &_io,
             std::uint32_t _max_message_size);
     virtual ~client_endpoint_impl();
 
-    bool send(const uint8_t *_data, uint32_t _size, bool _flush);bool send_to(
-            const std::shared_ptr<endpoint_definition> _target,
-            const byte_t *_data, uint32_t _size, bool _flush = true);bool flush();
+    bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+    bool send_to(const std::shared_ptr<endpoint_definition> _target,
+                 const byte_t *_data, uint32_t _size, bool _flush = true);
+    bool flush();
 
     void stop();
     void restart();
@@ -64,6 +67,8 @@ protected:
     socket_type socket_;
     endpoint_type remote_;
 
+    uint16_t local_port_;
+
     boost::asio::system_timer flush_timer_;
     boost::asio::system_timer connect_timer_;
     uint32_t connect_timeout_;
@@ -74,6 +79,8 @@ protected:
     std::deque<message_buffer_ptr_t> queue_;
 
     std::mutex mutex_;
+
+    bool was_not_connected_;
 };
 
 } // namespace vsomeip

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,11 +11,16 @@ namespace sd {
 subscription::subscription(major_version_t _major, ttl_t _ttl,
         std::shared_ptr<endpoint> _reliable,
         std::shared_ptr<endpoint> _unreliable,
-        subscription_type_e _subscription_type)
+        subscription_type_e _subscription_type,
+        uint8_t _counter,
+        std::chrono::high_resolution_clock::time_point _expiration)
         : major_(_major), ttl_(_ttl),
           reliable_(_reliable), unreliable_(_unreliable),
           is_acknowledged_(true),
-          subscription_type_(_subscription_type) {
+          tcp_connection_established_(false),
+          subscription_type_(_subscription_type),
+          counter_(_counter),
+          expiration_(_expiration) {
 }
 
 subscription::~subscription() {
@@ -53,8 +58,27 @@ void subscription::set_acknowledged(bool _is_acknowledged) {
     is_acknowledged_ = _is_acknowledged;
 }
 
+bool subscription::is_tcp_connection_established() const {
+    return tcp_connection_established_;
+}
+void subscription::set_tcp_connection_established(bool _is_established) {
+    tcp_connection_established_ = _is_established;
+}
+
 subscription_type_e subscription::get_subscription_type() const {
     return subscription_type_;
+}
+
+uint8_t subscription::get_counter() const {
+    return counter_;
+}
+
+std::chrono::high_resolution_clock::time_point subscription::get_expiration() const {
+    return expiration_;
+}
+
+void subscription::set_expiration(std::chrono::high_resolution_clock::time_point _expiration) {
+    expiration_ = _expiration;
 }
 
 } // namespace sd

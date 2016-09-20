@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -41,7 +41,7 @@ public:
             bool _flush) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size) = 0;
+            const byte_t *_data, uint32_t _size, uint16_t _sd_port) = 0;
 
     virtual void add_routing_info(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl,
@@ -53,12 +53,14 @@ public:
     virtual void del_routing_info(service_t _service, instance_t _instance,
             bool _has_reliable, bool _has_unreliable) = 0;
 
-    virtual ttl_t update_routing_info(ttl_t _elapsed) = 0;
+    virtual std::chrono::milliseconds update_routing_info(
+            std::chrono::milliseconds _elapsed) = 0;
 
     virtual void on_subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
             std::shared_ptr<endpoint_definition> _subscriber,
-            std::shared_ptr<endpoint_definition> _target) = 0;
+            std::shared_ptr<endpoint_definition> _target,
+            const std::chrono::high_resolution_clock::time_point &_expiration) = 0;
 
     virtual void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
@@ -67,11 +69,27 @@ public:
     virtual void on_subscribe_ack(service_t _service, instance_t _instance,
             const boost::asio::ip::address &_address, uint16_t _port) = 0;
 
-    virtual std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service,
-            instance_t _instance, bool _reliable, client_t _client) = 0;
+    virtual void on_subscribe_ack(client_t _client,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
+
+    virtual std::shared_ptr<endpoint> find_or_create_remote_client(
+            service_t _service, instance_t _instance,
+            bool _reliable, client_t _client) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
+
+    virtual bool on_subscribe_accepted(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, std::shared_ptr<endpoint_definition> _target,
+            const std::chrono::high_resolution_clock::time_point &_expiration) = 0;
+
+    virtual void on_subscribe_nack(client_t _client,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
+
+    virtual bool has_identified(client_t _client, service_t _service,
+            instance_t _instance, bool _reliable) = 0;
+
+    virtual std::chrono::high_resolution_clock::time_point expire_subscriptions() = 0;
 };
 
 }  // namespace sd

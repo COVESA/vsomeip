@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,6 +11,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
+#include "../../routing/include/serviceinfo.hpp"
+#include "../../endpoints/include/endpoint.hpp"
 
 namespace vsomeip {
 
@@ -41,12 +43,28 @@ public:
             eventgroup_t _eventgroup, client_t _client) = 0;
     virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
 
-    virtual void send(bool _is_announcing) = 0;
+    virtual bool send(bool _is_announcing, bool _is_find = false) = 0;
 
     virtual void on_message(const byte_t *_data, length_t _length,
-            const boost::asio::ip::address &_sender) = 0;
+            const boost::asio::ip::address &_sender,
+            const boost::asio::ip::address &_destination) = 0;
 
     virtual void on_offer_change() = 0;
+
+    virtual void send_subscriptions(service_t _service, instance_t _instance,
+            client_t _client, bool _reliable) = 0;
+
+    virtual void send_unicast_offer_service(const std::shared_ptr<const serviceinfo> &_info,
+            service_t _service, instance_t _instance,
+            major_version_t _major,
+            minor_version_t _minor) = 0;
+    virtual void send_multicast_offer_service(const std::shared_ptr<const serviceinfo>& _info,
+            service_t _service, instance_t _instance,
+            major_version_t _major,
+            minor_version_t _minor) = 0;
+    virtual void on_reliable_endpoint_connected(
+            service_t _service, instance_t _instance,
+            const std::shared_ptr<const vsomeip::endpoint> &_endpoint) = 0;
 };
 
 } // namespace sd

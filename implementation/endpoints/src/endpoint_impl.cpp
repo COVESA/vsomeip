@@ -1,7 +1,12 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
+#include <boost/asio/ip/udp_ext.hpp>
+#include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
@@ -12,33 +17,38 @@
 
 namespace vsomeip {
 
-template<int MaxBufferSize>
-endpoint_impl<MaxBufferSize>::endpoint_impl(
-        std::shared_ptr<endpoint_host> _host, boost::asio::io_service &_io,
-        std::uint32_t _max_message_size)
+template<typename Protocol>
+endpoint_impl<Protocol>::endpoint_impl(
+        std::shared_ptr<endpoint_host> _host,
+		endpoint_type _local,
+		boost::asio::io_service &_io,
+		std::uint32_t _max_message_size)
     : service_(_io),
       host_(_host),
       is_supporting_magic_cookies_(false),
       has_enabled_magic_cookies_(false),
-      max_message_size_(_max_message_size) {
+      max_message_size_(_max_message_size),
+      use_count_(0),
+      sending_blocked_(false),
+	  local_(_local) {
 }
 
-template<int MaxBufferSize>
-endpoint_impl<MaxBufferSize>::~endpoint_impl() {
+template<typename Protocol>
+endpoint_impl<Protocol>::~endpoint_impl() {
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::enable_magic_cookies() {
+template<typename Protocol>
+void endpoint_impl<Protocol>::enable_magic_cookies() {
     has_enabled_magic_cookies_ = is_supporting_magic_cookies_;
 }
 
-template<int MaxBufferSize>
-bool endpoint_impl<MaxBufferSize>::is_magic_cookie() const {
+template<typename Protocol>
+bool endpoint_impl<Protocol>::is_magic_cookie() const {
     return false;
 }
 
-template<int MaxBufferSize>
-uint32_t endpoint_impl<MaxBufferSize>::find_magic_cookie(
+template<typename Protocol>
+uint32_t endpoint_impl<Protocol>::find_magic_cookie(
         byte_t *_buffer, size_t _size) {
     bool is_found(false);
     uint32_t its_offset = 0xFFFFFFFF;
@@ -86,64 +96,67 @@ uint32_t endpoint_impl<MaxBufferSize>::find_magic_cookie(
     return (is_found ? its_offset : 0xFFFFFFFF);
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::join(const std::string &) {
+template<typename Protocol>
+void endpoint_impl<Protocol>::join(const std::string &) {
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::leave(const std::string &) {
+template<typename Protocol>
+void endpoint_impl<Protocol>::leave(const std::string &) {
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::add_multicast(
-        service_t, event_t, const std::string &, uint16_t) {
+template<typename Protocol>
+void endpoint_impl<Protocol>::add_default_target(
+        service_t, const std::string &, uint16_t) {
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::remove_multicast(service_t, event_t) {
+template<typename Protocol>
+void endpoint_impl<Protocol>::remove_default_target(service_t) {
 }
 
-template<int MaxBufferSize>
-bool endpoint_impl<MaxBufferSize>::get_remote_address(
+template<typename Protocol>
+bool endpoint_impl<Protocol>::get_remote_address(
         boost::asio::ip::address &_address) const {
     (void)_address;
     return false;
 }
 
-template<int MaxBufferSize>
-unsigned short endpoint_impl<MaxBufferSize>::get_local_port() const {
+template<typename Protocol>
+unsigned short endpoint_impl<Protocol>::get_local_port() const {
     return 0;
 }
 
-template<int MaxBufferSize>
-unsigned short endpoint_impl<MaxBufferSize>::get_remote_port() const {
+template<typename Protocol>
+unsigned short endpoint_impl<Protocol>::get_remote_port() const {
     return 0;
 }
 
-template<int MaxBufferSize>
-bool endpoint_impl<MaxBufferSize>::is_reliable() const {
+template<typename Protocol>
+bool endpoint_impl<Protocol>::is_reliable() const {
     return false;
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::increment_use_count() {
+template<typename Protocol>
+void endpoint_impl<Protocol>::increment_use_count() {
     use_count_++;
 }
 
-template<int MaxBufferSize>
-void endpoint_impl<MaxBufferSize>::decrement_use_count() {
+template<typename Protocol>
+void endpoint_impl<Protocol>::decrement_use_count() {
     if (use_count_ > 0)
         use_count_--;
 }
 
-template<int MaxBufferSize>
-uint32_t endpoint_impl<MaxBufferSize>::get_use_count() {
+template<typename Protocol>
+uint32_t endpoint_impl<Protocol>::get_use_count() {
     return use_count_;
 }
 
 // Instantiate template
-template class endpoint_impl< VSOMEIP_MAX_LOCAL_MESSAGE_SIZE> ;
-template class endpoint_impl< VSOMEIP_MAX_TCP_MESSAGE_SIZE> ;
-template class endpoint_impl< VSOMEIP_MAX_UDP_MESSAGE_SIZE> ;
+#ifndef WIN32
+template class endpoint_impl<boost::asio::local::stream_protocol>;
+#endif
+template class endpoint_impl<boost::asio::ip::tcp>;
+template class endpoint_impl<boost::asio::ip::udp>;
+template class endpoint_impl<boost::asio::ip::udp_ext>;
 
 } // namespace vsomeip

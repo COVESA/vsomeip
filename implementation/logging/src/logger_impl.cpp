@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -29,8 +29,11 @@
 #include <boost/core/null_deleter.hpp>
 #endif
 
+#include <vsomeip/runtime.hpp>
+
 #include "../include/logger_impl.hpp"
 #include "../../configuration/include/configuration.hpp"
+#include "../include/defines.hpp"
 
 namespace logging = boost::log;
 namespace sources = boost::log::sources;
@@ -71,8 +74,13 @@ void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     if (_configuration->has_file_log())
         get()->enable_file(_configuration->get_logfile());
 
-    if (_configuration->has_dlt_log())
-        get()->enable_dlt();
+    if (_configuration->has_dlt_log()) {
+        std::string app_id = runtime::get_property("LogApplication");
+        if (app_id == "") app_id = VSOMEIP_LOG_DEFAULT_APPLICATION_ID;
+        std::string context_id = runtime::get_property("LogContext");
+        if (context_id == "") context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
+        get()->enable_dlt(app_id, context_id);
+    }
 }
 
 void logger_impl::enable_console() {
@@ -123,14 +131,19 @@ void logger_impl::enable_file(const std::string &_path) {
     logging::core::get()->add_sink(file_sink_);
 }
 
-void logger_impl::enable_dlt() {
+void logger_impl::enable_dlt(const std::string &_app_id,
+                             const std::string &_context_id) {
 #ifdef USE_DLT
     if (dlt_sink_)
         return;
 
-    boost::shared_ptr<dlt_sink_backend> backend = boost::make_shared<dlt_sink_backend>();
+    boost::shared_ptr<dlt_sink_backend> backend = boost::make_shared<dlt_sink_backend>(_app_id,
+                                                                                       _context_id);
     dlt_sink_ = boost::make_shared<dlt_sink_t>(backend);
     logging::core::get()->add_sink(dlt_sink_);
+#else
+    (void)_app_id;
+    (void)_context_id;
 #endif
 }
 

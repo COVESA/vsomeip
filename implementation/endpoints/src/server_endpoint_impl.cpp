@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
+#include <boost/asio/ip/udp_ext.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/defines.hpp>
@@ -21,26 +21,34 @@
 
 namespace vsomeip {
 
-template<typename Protocol, int MaxBufferSize>
-server_endpoint_impl<Protocol, MaxBufferSize>::server_endpoint_impl(
+template<typename Protocol>
+server_endpoint_impl<Protocol>::server_endpoint_impl(
         std::shared_ptr<endpoint_host> _host, endpoint_type _local,
         boost::asio::io_service &_io, std::uint32_t _max_message_size)
-    : endpoint_impl<MaxBufferSize>(_host, _io, _max_message_size),
-      flush_timer_(_io), local_(_local) {
+    : endpoint_impl<Protocol>(_host, _local, _io, _max_message_size),
+      flush_timer_(_io) {
 }
 
-template<typename Protocol, int MaxBufferSize>
-bool server_endpoint_impl<Protocol, MaxBufferSize>::is_client() const {
+template<typename Protocol>
+server_endpoint_impl<Protocol>::~server_endpoint_impl() {
+}
+
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::stop() {
+}
+
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::is_client() const {
     return false;
 }
 
-template<typename Protocol, int MaxBufferSize>
-bool server_endpoint_impl<Protocol, MaxBufferSize>::is_connected() const {
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::is_connected() const {
     return true;
 }
 
-template<typename Protocol, int MaxBufferSize>
-bool server_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
         uint32_t _size, bool _flush) {
 #if 0
     std::stringstream msg;
@@ -51,6 +59,10 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
 #endif
     endpoint_type its_target;
     bool is_valid_target(false);
+
+    if(endpoint_impl<Protocol>::sending_blocked_) {
+        return false;
+    }
 
     if (VSOMEIP_SESSION_POS_MAX < _size) {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -66,6 +78,7 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
         std::memcpy(&its_session, &_data[VSOMEIP_SESSION_POS_MIN],
                 sizeof(session_t));
 
+        clients_mutex_.lock();
         auto found_client = clients_.find(its_client);
         if (found_client != clients_.end()) {
             auto found_session = found_client->second.find(its_session);
@@ -74,12 +87,9 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
                 is_valid_target = true;
             }
         } else {
-            event_t its_event = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
-            is_valid_target
-                = get_multicast(its_service, its_event, its_target);
+            is_valid_target = get_default_target(its_service, its_target);
         }
+        clients_mutex_.unlock();
 
         if (is_valid_target) {
             is_valid_target = send_intern(its_target, _data, _size, _flush);
@@ -88,14 +98,17 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send(const uint8_t *_data,
     return is_valid_target;
 }
 
-template<typename Protocol, int MaxBufferSize>
-bool server_endpoint_impl<Protocol, MaxBufferSize>::send_intern(
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::send_intern(
         endpoint_type _target, const byte_t *_data, uint32_t _size,
         bool _flush) {
 
-    bool is_flushing(false);
     message_buffer_ptr_t target_packetizer;
     queue_iterator_type target_queue_iterator;
+
+    if(endpoint_impl<Protocol>::sending_blocked_) {
+        return false;
+    }
 
     auto found_packetizer = packetizer_.find(_target);
     if (found_packetizer != packetizer_.end()) {
@@ -115,10 +128,13 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send_intern(
     }
 
     // TODO compare against value from configuration here
-    if (target_packetizer->size() + _size > endpoint_impl<MaxBufferSize>::max_message_size_) {
+    const bool queue_size_zero_on_entry(target_queue_iterator->second.empty());
+    if (target_packetizer->size() + _size
+            > endpoint_impl<Protocol>::max_message_size_
+            && !target_packetizer->empty()) {
         target_queue_iterator->second.push_back(target_packetizer);
-        is_flushing = true;
-        packetizer_[_target] = std::make_shared<message_buffer_t>();
+        target_packetizer = std::make_shared<message_buffer_t>();
+        packetizer_[_target] = target_packetizer;
     }
 
     target_packetizer->insert(target_packetizer->end(), _data, _data + _size);
@@ -126,29 +142,26 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::send_intern(
     if (_flush) {
         flush_timer_.cancel();
         target_queue_iterator->second.push_back(target_packetizer);
-        is_flushing = true;
         packetizer_[_target] = std::make_shared<message_buffer_t>();
     } else {
         std::chrono::milliseconds flush_timeout(VSOMEIP_DEFAULT_FLUSH_TIMEOUT);
         flush_timer_.expires_from_now(flush_timeout); // TODO: use configured value
         flush_timer_.async_wait(
-                std::bind(&server_endpoint_impl<
-                              Protocol, MaxBufferSize
-                          >::flush_cbk,
+                std::bind(&server_endpoint_impl<Protocol>::flush_cbk,
                           this->shared_from_this(),
                           _target,
                           std::placeholders::_1));
     }
 
-    if (is_flushing && target_queue_iterator->second.size() == 1) { // no writing in progress
+    if (queue_size_zero_on_entry && !target_queue_iterator->second.empty()) { // no writing in progress
         send_queued(target_queue_iterator);
     }
 
     return true;
 }
 
-template<typename Protocol, int MaxBufferSize>
-bool server_endpoint_impl<Protocol, MaxBufferSize>::flush(
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::flush(
         endpoint_type _target) {
     bool is_flushed = false;
     std::lock_guard<std::mutex> its_lock(mutex_);
@@ -161,14 +174,14 @@ bool server_endpoint_impl<Protocol, MaxBufferSize>::flush(
     return is_flushed;
 }
 
-template<typename Protocol, int MaxBufferSize>
-void server_endpoint_impl<Protocol, MaxBufferSize>::connect_cbk(
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::connect_cbk(
         boost::system::error_code const &_error) {
     (void)_error;
 }
 
-template<typename Protocol, int MaxBufferSize>
-void server_endpoint_impl<Protocol, MaxBufferSize>::send_cbk(
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::send_cbk(
         queue_iterator_type _queue_iterator, boost::system::error_code const &_error,
         std::size_t _bytes) {
     (void)_bytes;
@@ -182,8 +195,8 @@ void server_endpoint_impl<Protocol, MaxBufferSize>::send_cbk(
     }
 }
 
-template<typename Protocol, int MaxBufferSize>
-void server_endpoint_impl<Protocol, MaxBufferSize>::flush_cbk(
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::flush_cbk(
         endpoint_type _target, const boost::system::error_code &_error_code) {
     if (!_error_code) {
         (void) flush(_target);
@@ -192,15 +205,9 @@ void server_endpoint_impl<Protocol, MaxBufferSize>::flush_cbk(
 
 // Instantiate template
 #ifndef WIN32
-template class server_endpoint_impl<
-    boost::asio::local::stream_protocol,
-    VSOMEIP_MAX_LOCAL_MESSAGE_SIZE> ;
+template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
-template class server_endpoint_impl<
-    boost::asio::ip::tcp,
-    VSOMEIP_MAX_TCP_MESSAGE_SIZE> ;
-template class server_endpoint_impl<
-    boost::asio::ip::udp,
-    VSOMEIP_MAX_UDP_MESSAGE_SIZE> ;
+template class server_endpoint_impl<boost::asio::ip::tcp>;
+template class server_endpoint_impl<boost::asio::ip::udp_ext>;
 
 }  // namespace vsomeip

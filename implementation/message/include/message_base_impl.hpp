@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -56,12 +56,16 @@ public:
     VSOMEIP_EXPORT bool is_reliable() const;
     VSOMEIP_EXPORT void set_reliable(bool _is_reliable);
 
+    VSOMEIP_EXPORT virtual bool is_initial() const;
+    VSOMEIP_EXPORT virtual void set_initial(bool _is_initial);
+
     VSOMEIP_EXPORT message * get_owner() const;
     VSOMEIP_EXPORT void set_owner(message *_owner);
 
 protected: // members
     message_header_impl header_;
     bool is_reliable_;
+    bool is_initial_;
 };
 
 } // namespace vsomeip

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -28,12 +28,14 @@ public:
     virtual boost::asio::io_service & get_io() = 0;
 
     virtual void on_availability(service_t _service, instance_t _instance,
-    bool _is_available) const = 0;
+    bool _is_available, major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(std::shared_ptr<message> _message) = 0;
     virtual void on_error(error_code_e _error) = 0;
     virtual bool on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _subscribed) = 0;
+    virtual void on_subscription_error(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, uint16_t _error) = 0;
 };
 
 } // namespace vsomeip

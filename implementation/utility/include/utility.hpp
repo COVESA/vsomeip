@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -73,13 +73,17 @@ public:
     static bool is_folder(const std::string &_path);
 
     static struct configuration_data_t *the_configuration_data__;
-    static bool auto_configuration_init();
+    static bool auto_configuration_init(const std::string &_name);
     static void auto_configuration_exit();
 
     static bool is_routing_manager_host__;
     static bool is_routing_manager_host();
 
-    static client_t get_client_id();
+    static bool is_used_client_id(client_t _client);
+    static client_t request_client_id(client_t _client);
+    static void release_client_id(client_t _client);
+
+    static uint16_t its_configuration_refs__;
 };
 
 }  // namespace vsomeip

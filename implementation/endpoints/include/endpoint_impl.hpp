@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,10 +19,13 @@ namespace vsomeip {
 
 class endpoint_host;
 
-template<int MaxBufferSize>
+template<typename Protocol>
 class endpoint_impl: public endpoint {
 public:
+    typedef typename Protocol::endpoint endpoint_type;
+
     endpoint_impl(std::shared_ptr<endpoint_host> _adapter,
+                  endpoint_type _local,
                   boost::asio::io_service &_io,
                   std::uint32_t _max_message_size);
     virtual ~endpoint_impl();
@@ -33,11 +36,10 @@ public:
     // TODO: redesign
     void join(const std::string &);
     void leave(const std::string &);
-    void add_multicast(service_t, event_t, const std::string &, uint16_t);
-    void remove_multicast(service_t, event_t);
 
-    // Dummy implementation as we only need this for IP client endpoints
-    // TODO: redesign
+    void add_default_target(service_t, const std::string &, uint16_t);
+    void remove_default_target(service_t);
+
     bool get_remote_address(boost::asio::ip::address &_address) const;
 
     // Dummy implementations as we only need these for server endpoints
@@ -76,6 +78,10 @@ protected:
     std::uint32_t max_message_size_;
 
     uint32_t use_count_;
+
+    bool sending_blocked_;
+
+    endpoint_type local_;
 };
 
 } // namespace vsomeip

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,16 +14,17 @@ struct service_info {
     vsomeip::method_t method_id;
 };
 
-static constexpr std::array<service_info, 6> service_infos = {{
+static constexpr std::array<service_info, 7> service_infos = {{
         // placeholder to be consistent w/ client ids, service ids, app names
         { 0xFFFF, 0xFFFF, 0xFFFF },
         // node 1
         { 0x1000, 0x1, 0x1111 },
         { 0x2000, 0x1, 0x2222 },
-        // node 2
         { 0x3000, 0x1, 0x3333 },
+        // node 2
         { 0x4000, 0x1, 0x4444 },
-        { 0x5000, 0x1, 0x5555 }
+        { 0x5000, 0x1, 0x5555 },
+        { 0x6000, 0x1, 0x6666 }
 }};
 
 static constexpr int messages_to_send = 10;

@@ -27,6 +27,14 @@
             "id" : "0x1346"
         }
     ],
+    "clients" :
+    [
+    	{
+    		"service" : "0x1234",
+    		"instance" : "0x5678",
+    		"unreliable" : [ 40000, 40002 ]
+    	}
+    ],
     "routing" : "client-sample",
     "service-discovery" :
     {

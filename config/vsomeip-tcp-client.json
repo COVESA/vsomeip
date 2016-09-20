@@ -1,5 +1,5 @@
 {
-    "unicast" : "127.0.0.1",
+    "unicast" : "192.168.56.101",
     "netmask" : "255.255.255.0",
     "logging" : 
     {
@@ -27,48 +27,18 @@
             "id" : "0x1346"
         }
     ],
-    "services" : 
+    "clients" :
     [
-        {
-            "service" : "0x1234",
-            "instance" : "0x5678",
-            "reliable" : { "port" : "30509", "enable-magic-cookies" : false },
-            "events" : 
-            [
-                {
-                    "event" : "0x0777",
-                    "is_field" : "true"
-                },
-                {
-                    "event" : "0x0778",
-                    "is_field" : "false"
-                },
-                {
-                    "event" : "0x0779",
-                    "is_field" : "true"
-                }
-            ],
-            "eventgroups" :
-            [
-                {
-                    "eventgroup" : "0x4455",
-                    "events" : [ "0x777", "0x778" ] 
-                },
-                {
-                    "eventgroup" : "0x4465",
-                    "events" : [ "0x778", "0x779" ] 
-                },
-                {
-                    "eventgroup" : "0x4555",
-                    "events" : [ "0x777", "0x779" ] 
-                }
-            ]
-        }
+    	{
+    		"service" : "0x1234",
+    		"instance" : "0x5678",
+    		"reliable" : [ "41234" ]
+    	}
     ],
     "routing" : "client-sample",
     "service-discovery" :
     {
-        "enable" : "false",
+        "enable" : "true",
         "multicast" : "224.244.224.245",
         "port" : "30490",
         "protocol" : "udp",

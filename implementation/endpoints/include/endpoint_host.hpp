@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +7,8 @@
 #define VSOMEIP_ENDPOINT_HOST_HPP
 
 #include <memory>
+
+#include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/primitive_types.hpp>
 
@@ -21,9 +23,11 @@ public:
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_message(const byte_t *_data, length_t _length,
-        endpoint *_receiver) = 0;
+        endpoint *_receiver, const boost::asio::ip::address &_destination
+            = boost::asio::ip::address()) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
             endpoint *_receiver) = 0;
+    virtual void release_port(uint16_t _port, bool _reliable) = 0;
 };
 
 } // namespace vsomeip
