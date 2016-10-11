@@ -5,6 +5,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -18,13 +19,29 @@
 #include "../implementation/logging/include/defines.hpp"
 #endif
 
+static std::shared_ptr<vsomeip::application> its_application;
+
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+/*
+ * Handle signal to stop the daemon
+ */
+void vsomeipd_stop(int _signal) {
+    if (_signal == SIGINT || _signal == SIGTERM)
+        its_application->stop();
+}
+#endif
+
 /*
  * Create a vsomeip application object and start it.
  */
-int process(void) {
+int vsomeipd_process(bool _is_quiet) {
 #ifdef USE_DLT
-    DLT_REGISTER_APP(VSOMEIP_LOG_DEFAULT_APPLICATION_ID, VSOMEIP_LOG_DEFAULT_APPLICATION_NAME);
+    if (!_is_quiet)
+        DLT_REGISTER_APP(VSOMEIP_LOG_DEFAULT_APPLICATION_ID, VSOMEIP_LOG_DEFAULT_APPLICATION_NAME);
+#else
+    (void)_is_quiet;
 #endif
+
     std::shared_ptr<vsomeip::runtime> its_runtime
         = vsomeip::runtime::get();
 
@@ -32,9 +49,13 @@ int process(void) {
         return -1;
     }
 
-    std::shared_ptr<vsomeip::application> its_application
-        = its_runtime->create_application(VSOMEIP_ROUTING);
-
+    // Create the application object
+    its_application = its_runtime->create_application(VSOMEIP_ROUTING);
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    // Handle signals
+    signal(SIGINT, vsomeipd_stop);
+    signal(SIGTERM, vsomeipd_stop);
+#endif
     if (its_application->init()) {
         if (its_application->is_routing()) {
             its_application->start();
@@ -49,19 +70,23 @@ int process(void) {
  * Parse command line options
  * -h | --help          print usage information
  * -d | --daemonize     start background processing by forking the process
+ * -q | --quiet         do _not_ use dlt logging
  *
  * and start processing.
  */
 int main(int argc, char **argv) {
     bool must_daemonize(false);
+    bool is_quiet(false);
     if (argc > 1) {
         for (int i = 0; i < argc; i++) {
             std::string its_argument(argv[i]);
             if (its_argument == "-d" || its_argument == "--daemonize") {
                 must_daemonize = true;
+            } else if (its_argument == "-q" || its_argument == "--quiet") {
+                is_quiet = true;
             } else if (its_argument == "-h" || its_argument == "--help") {
                 std::cout << "usage: "
-                        << argv[0] << " [-h|--help][-d|--daemonize]"
+                        << argv[0] << " [-h|--help][-d|--daemonize][-q|--quiet]"
                         << std::endl;
                 return 0;
             }
@@ -90,5 +115,5 @@ int main(int argc, char **argv) {
         }
     }
 
-    return process();
+    return vsomeipd_process(is_quiet);
 }

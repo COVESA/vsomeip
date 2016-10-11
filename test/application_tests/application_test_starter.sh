@@ -39,6 +39,7 @@ then
 fi
 
 kill $DAEMON_PID
+wait $DAEMON_PID
 
 export VSOMEIP_CONFIGURATION=application_test_daemon.json
 ../daemon/./vsomeipd &

@@ -25,7 +25,7 @@ namespace vsomeip {
 
 class event;
 
-class VSOMEIP_EXPORT configuration {
+class VSOMEIP_IMPORT_EXPORT configuration {
 public:
     static std::shared_ptr<configuration> get(
             const std::set<std::string> &_input = std::set<std::string>());
@@ -65,6 +65,9 @@ public:
     virtual bool get_multicast(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const = 0;
 
+    virtual uint8_t get_threshold(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup) const = 0;
+
     virtual client_t get_id(const std::string &_name) const = 0;
     virtual bool is_configured_client_id(client_t _id) const = 0;
 
@@ -76,6 +79,10 @@ public:
                                                     std::uint16_t _port) const = 0;
 
     virtual bool supports_selective_broadcasts(boost::asio::ip::address _address) const = 0;
+
+    virtual bool is_offered_remote(service_t _service, instance_t _instance) const = 0;
+
+    virtual bool is_local_service(service_t _service, instance_t _instance) const = 0;
 
     // Service Discovery configuration
     virtual bool is_sd_enabled() const = 0;
@@ -103,6 +110,9 @@ public:
     // File permissions
     virtual std::uint32_t get_umask() const = 0;
     virtual std::uint32_t get_permissions_shm() const = 0;
+
+    virtual bool log_version() const = 0;
+    virtual uint32_t get_log_version_interval() const = 0;
 };
 
 } // namespace vsomeip

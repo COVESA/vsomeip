@@ -48,12 +48,11 @@ bool message_header_impl::deserialize(deserializer *_from) {
     bool is_successful;
 
     uint8_t tmp_message_type, tmp_return_code;
-    uint32_t tmp_length;
 
     is_successful = (0 != _from
             && _from->deserialize(service_)
             && _from->deserialize(method_)
-            && _from->deserialize(tmp_length)
+            && _from->deserialize(length_)
             && _from->deserialize(client_)
             && _from->deserialize(session_)
             && _from->deserialize(protocol_version_)
@@ -64,7 +63,6 @@ bool message_header_impl::deserialize(deserializer *_from) {
     if (is_successful) {
         type_ = static_cast< message_type_e >(tmp_message_type);
         code_ = static_cast< return_code_e >(tmp_return_code);
-        length_ = static_cast< length_t >(tmp_length - VSOMEIP_SOMEIP_HEADER_SIZE);
     }
 
     return is_successful;

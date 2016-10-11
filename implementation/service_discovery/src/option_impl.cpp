@@ -11,9 +11,9 @@
 namespace vsomeip {
 namespace sd {
 
-option_impl::option_impl() {
-    length_ = 0;
-    type_ = option_type_e::UNKNOWN;
+option_impl::option_impl() :
+    length_(0),
+    type_(option_type_e::UNKNOWN) {
 }
 
 option_impl::~option_impl() {

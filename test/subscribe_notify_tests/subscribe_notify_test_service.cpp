@@ -23,8 +23,10 @@
 class subscribe_notify_test_service {
 public:
     subscribe_notify_test_service(struct subscribe_notify_test::service_info _service_info,
-                                  vsomeip::subscription_type_e _subscription_type) :
+                                  vsomeip::subscription_type_e _subscription_type,
+                                  std::array<subscribe_notify_test::service_info, 7> _service_infos) :
             service_info_(_service_info),
+            service_infos_(_service_infos),
             subscription_type_(_subscription_type),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
@@ -33,7 +35,6 @@ public:
             offer_thread_(std::bind(&subscribe_notify_test_service::run, this)),
             wait_for_stop_(true),
             stop_thread_(std::bind(&subscribe_notify_test_service::wait_for_stop, this)),
-            number_of_subscribers_(0),
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_test_service::notify, this)) {
         app_->init();
@@ -45,7 +46,7 @@ public:
                 std::bind(&subscribe_notify_test_service::on_request, this,
                         std::placeholders::_1));
         app_->register_message_handler(vsomeip::ANY_SERVICE,
-                service_info_.instance_id, vsomeip::ANY_METHOD,
+                vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
                 std::bind(&subscribe_notify_test_service::on_message, this,
                         std::placeholders::_1));
 
@@ -57,12 +58,13 @@ public:
 
 
         // register availability for all other services and request their event.
-        for(const auto& i : subscribe_notify_test::service_infos) {
+        for(const auto& i : service_infos_) {
             if ((i.service_id == service_info_.service_id
                     && i.instance_id == service_info_.instance_id)
                     || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
+            app_->request_service(i.service_id, i.instance_id);
             app_->register_availability_handler(i.service_id, i.instance_id,
                     std::bind(&subscribe_notify_test_service::on_availability, this,
                             std::placeholders::_1, std::placeholders::_2,
@@ -89,7 +91,6 @@ public:
     ~subscribe_notify_test_service() {
         offer_thread_.join();
         stop_thread_.join();
-        notify_thread_.join();
     }
 
     void offer() {
@@ -140,22 +141,30 @@ public:
     }
 
     bool on_subscription(vsomeip::client_t _client, bool _subscribed) {
-        (void)(_client);
-        _subscribed ? number_of_subscribers_++ : number_of_subscribers_--;
+        static bool notified(false);
+        if (_subscribed) {
+            subscribers_.insert(_client);
+        } else {
+            subscribers_.erase(_client);
+        }
+
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] " << "Client: " << _client
-                << " subscribed, now have " << std::dec << number_of_subscribers_
+                << service_info_.service_id << "] " << "Client: "
+                << std::setw(4) << std::setfill('0') << std::hex << _client
+                << (_subscribed ? " subscribed" : " unsubscribed")
+                << ", now have " << std::dec << subscribers_.size()
                 << " subscribers" ;
         // check if all other services have subscribed:
         // -1 for placeholder in array
         // divide by two because we only receive once subscription per remote node
         // no matter how many clients subscribed to this eventgroup on the remote node
-        if(number_of_subscribers_ == (subscribe_notify_test::service_infos.size() - 1) / 2 )
+        if(!notified && subscribers_.size() == (service_infos_.size() - 1) / 2 )
         {
             // notify the notify thread to start sending out notifications
             std::lock_guard<std::mutex> its_lock(notify_mutex_);
             wait_for_notify_ = false;
             notify_condition_.notify_one();
+            notified = true;
         }
         return true;
     }
@@ -238,8 +247,8 @@ public:
             }
         }
 
-        if(   received_twice == (subscribe_notify_test::service_infos.size() - 1) / 2
-           && received_normal == (subscribe_notify_test::service_infos.size() - 1) / 2 - 1) {
+        if(   received_twice == (service_infos_.size() - 1) / 2
+           && received_normal == (service_infos_.size() - 1) / 2 - 1) {
             // routing manager stub receives the notification
             // - twice from external nodes
             // - and normal from all internal nodes
@@ -273,7 +282,7 @@ public:
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Subscribing";
         // subscribe to events of other services
-        for(const subscribe_notify_test::service_info& i: subscribe_notify_test::service_infos) {
+        for(const subscribe_notify_test::service_info& i: service_infos_) {
             if ((i.service_id == service_info_.service_id
                             && i.instance_id == service_info_.instance_id)
                     || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
@@ -304,7 +313,7 @@ public:
         // successfully subscribed as we only receive once subscription per
         // remote node no matter how many clients subscribed to this eventgroup
         // on the remote node
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
         VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Starting to notify";
@@ -322,7 +331,7 @@ public:
                 << service_info_.service_id << "] Notifying: " << i+1;
             app_->notify(service_info_.service_id, service_info_.instance_id,
                     service_info_.event_id, its_payload);
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 
@@ -331,6 +340,10 @@ public:
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
+
+        // wait until all notifications have been sent out
+        notify_thread_.join();
+
         VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id
                 << "] Received notifications from all other services, going down";
@@ -342,12 +355,13 @@ public:
             condition_.notify_one();
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(6));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         app_->stop();
     }
 
 private:
     subscribe_notify_test::service_info service_info_;
+    std::array<subscribe_notify_test::service_info, 7> service_infos_;
     vsomeip::subscription_type_e subscription_type_;
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
@@ -365,7 +379,7 @@ private:
     std::condition_variable stop_condition_;
     std::thread stop_thread_;
 
-    std::uint32_t number_of_subscribers_;
+    std::set<vsomeip::client_t> subscribers_;
     bool wait_for_notify_;
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
@@ -374,11 +388,20 @@ private:
 
 static int service_number;
 static vsomeip::subscription_type_e subscription_type;
+static bool use_same_service_id;
 
 TEST(someip_subscribe_notify_test, send_ten_notifications_to_service)
 {
-    subscribe_notify_test_service its_sample(
-            subscribe_notify_test::service_infos[service_number], subscription_type);
+    if(use_same_service_id) {
+        subscribe_notify_test_service its_sample(
+                subscribe_notify_test::service_infos_same_service_id[service_number],
+                subscription_type,
+                subscribe_notify_test::service_infos_same_service_id);
+    } else {
+        subscribe_notify_test_service its_sample(
+                subscribe_notify_test::service_infos[service_number], subscription_type,
+                subscribe_notify_test::service_infos);
+    }
 }
 
 #ifndef WIN32
@@ -386,10 +409,11 @@ int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     if(argc < 3) {
-        std::cerr << "Please specify a service number and subscription type, like: " << argv[0] << " 2 UDP" << std::endl;
+        std::cerr << "Please specify a service number and subscription type, like: " << argv[0] << " 2 UDP SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
         std::cerr << "Valid subscription types include:" << std::endl;
         std::cerr << "[TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]" << std::endl;
+        std::cerr << "If SAME_SERVICE_ID is specified as third parameter the test is run w/ multiple instances of the same service" << std::endl;
         return 1;
     }
 
@@ -410,6 +434,12 @@ int main(int argc, char** argv)
         std::cerr << "Valid subscription types include:" << std::endl;
         std::cerr << "[TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]" << std::endl;
         return 1;
+    }
+
+    if (argc >= 4 && std::string("SAME_SERVICE_ID") == std::string(argv[3])) {
+        use_same_service_id = true;
+    } else {
+        use_same_service_id = false;
     }
     return RUN_ALL_TESTS();
 }

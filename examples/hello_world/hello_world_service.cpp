@@ -2,7 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#include <csignal>
+#endif
 #include <vsomeip/vsomeip.hpp>
 #include <chrono>
 #include <thread>
@@ -75,6 +77,12 @@ public:
         app_->stop();
     }
 
+    void terminate() {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        stop_ = true;
+        condition_.notify_one();
+    }
+
     void on_state_cbk(vsomeip::state_type_e _state)
     {
         if(_state == vsomeip::state_type_e::ST_REGISTERED)
@@ -104,9 +112,7 @@ public:
         // Send the response back
         app_->send(resp, true);
         // we're finished stop now
-        std::lock_guard<std::mutex> its_lock(mutex_);
-        stop_ = true;
-        condition_.notify_one();
+        terminate();
     }
 
 private:
@@ -118,9 +124,23 @@ private:
     std::thread stop_thread_;
 };
 
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+hello_world_service *hw_srv_ptr(nullptr);
+    void handle_signal(int _signal) {
+        if (hw_srv_ptr != nullptr &&
+                (_signal == SIGINT || _signal == SIGTERM))
+            hw_srv_ptr->terminate();
+    }
+#endif
+
 int main(int argc, char **argv)
 {
     hello_world_service hw_srv;
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    hw_srv_ptr = &hw_srv;
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+#endif
     hw_srv.init();
     hw_srv.start();
     return 0;

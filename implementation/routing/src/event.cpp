@@ -21,11 +21,15 @@ event::event(routing_manager *_routing, bool _is_shadow) :
         message_(runtime::get()->create_notification()),
         is_field_(false),
         cycle_timer_(_routing->get_io()),
+        cycle_(std::chrono::milliseconds::zero()),
+        change_resets_cycle_(false),
         is_updating_on_change_(true),
         is_set_(false),
         is_provided_(false),
         is_shadow_(_is_shadow),
-        is_cache_placeholder_(false) {
+        is_cache_placeholder_(false),
+        epsilon_change_func_(std::bind(&event::compare, this,
+                std::placeholders::_1, std::placeholders::_2)) {
 }
 
 service_t event::get_service() const {
@@ -84,33 +88,29 @@ const std::shared_ptr<payload> event::get_payload() const {
     return (message_->get_payload());
 }
 
-void event::set_payload_dont_notify(std::shared_ptr<payload> _payload) {
+void event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
     if(is_cache_placeholder_) {
-        std::shared_ptr<payload> its_new_payload
-            = runtime::get()->create_payload(
-                _payload->get_data(), _payload->get_length());
-        message_->set_payload(its_new_payload);
+        reset_payload(_payload);
         is_set_ = true;
     } else {
-        if (set_payload_helper(_payload)) {
-            std::shared_ptr<payload> its_new_payload
-                = runtime::get()->create_payload(
-                    _payload->get_data(), _payload->get_length());
-            message_->set_payload(its_new_payload);
+        if (set_payload_helper(_payload, false)) {
+            reset_payload(_payload);
         }
     }
 }
 
-void event::set_payload(std::shared_ptr<payload> _payload) {
+void event::set_payload(const std::shared_ptr<payload> &_payload, bool _force) {
     if (is_provided_) {
-        if (set_payload_helper(_payload)) {
-            std::shared_ptr<payload> its_new_payload
-                = runtime::get()->create_payload(
-                    _payload->get_data(), _payload->get_length());
-
-            message_->set_payload(its_new_payload);
+        if (set_payload_helper(_payload, _force)) {
+            reset_payload(_payload);
             if (is_updating_on_change_) {
+                if (change_resets_cycle_)
+                    stop_cycle();
+
                 notify();
+
+                if (change_resets_cycle_)
+                    start_cycle();
             }
         }
     } else {
@@ -119,16 +119,14 @@ void event::set_payload(std::shared_ptr<payload> _payload) {
     }
 }
 
-void event::set_payload(std::shared_ptr<payload> _payload, client_t _client) {
+void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
+            bool _force) {
     if (is_provided_) {
-        set_payload_helper(_payload);
-        std::shared_ptr<payload> its_new_payload
-            = runtime::get()->create_payload(
-                _payload->get_data(), _payload->get_length());
-
-        message_->set_payload(its_new_payload);
-        if (is_updating_on_change_) {
-            notify_one(_client);
+        if (set_payload_helper(_payload, _force)) {
+            reset_payload(_payload);
+            if (is_updating_on_change_) {
+                notify_one(_client);
+            }
         }
     } else {
         VSOMEIP_DEBUG << "Can't set payload for event " << std::hex
@@ -136,15 +134,12 @@ void event::set_payload(std::shared_ptr<payload> _payload, client_t _client) {
     }
 }
 
-void event::set_payload(std::shared_ptr<payload> _payload,
-            const std::shared_ptr<endpoint_definition> _target) {
+void event::set_payload(const std::shared_ptr<payload> &_payload,
+            const std::shared_ptr<endpoint_definition> _target,
+            bool _force) {
     if (is_provided_) {
-        if (set_payload_helper(_payload)) {
-            std::shared_ptr<payload> its_new_payload
-                = runtime::get()->create_payload(
-                    _payload->get_data(), _payload->get_length());
-
-            message_->set_payload(its_new_payload);
+        if (set_payload_helper(_payload, _force)) {
+            reset_payload(_payload);
             if (is_updating_on_change_) {
                 notify_one(_target);
             }
@@ -156,15 +151,29 @@ void event::set_payload(std::shared_ptr<payload> _payload,
 }
 
 void event::unset_payload(bool _force) {
-    if(_force) {
+    if (_force) {
         is_set_ = false;
+        stop_cycle();
         message_->set_payload(std::make_shared<payload_impl>());
     } else {
         if (is_provided_) {
             is_set_ = false;
+            stop_cycle();
             message_->set_payload(std::make_shared<payload_impl>());
         }
     }
+}
+
+void event::set_update_cycle(std::chrono::milliseconds &_cycle) {
+    if (is_provided_) {
+        stop_cycle();
+        cycle_ = _cycle;
+        start_cycle();
+    }
+}
+
+void event::set_change_resets_cycle(bool _change_resets_cycle) {
+    change_resets_cycle_ = _change_resets_cycle;
 }
 
 void event::set_update_on_change(bool _is_active) {
@@ -173,20 +182,9 @@ void event::set_update_on_change(bool _is_active) {
     }
 }
 
-void event::set_update_cycle(std::chrono::milliseconds &_cycle) {
-    if (is_provided_) {
-        cycle_ = _cycle;
-
-        cycle_timer_.cancel();
-
-        if (std::chrono::milliseconds::zero() != _cycle) {
-            cycle_timer_.expires_from_now(cycle_);
-            std::function<void(boost::system::error_code const &)> its_handler =
-                    std::bind(&event::update_cbk, shared_from_this(),
-                            std::placeholders::_1);
-            cycle_timer_.async_wait(its_handler);
-        }
-    }
+void event::set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func) {
+    if (_epsilon_change_func)
+        epsilon_change_func_ = _epsilon_change_func;
 }
 
 const std::set<eventgroup_t> & event::get_eventgroups() const {
@@ -230,40 +228,34 @@ void event::notify_one(const std::shared_ptr<endpoint_definition> &_target) {
     }
 }
 
-void event::notify_one(client_t _client, bool _is_initial) {
+void event::notify_one(client_t _client) {
     if (is_set_) {
-        const bool old_initial_value(message_->is_initial());
-        if(_is_initial) {
-            message_->set_initial(true);
-        }
         routing_->send(_client, message_, true);
-        if(_is_initial) {
-            message_->set_initial(old_initial_value);
-        }
     } else {
         VSOMEIP_DEBUG << "Notify one event " << std::hex << message_->get_method()
                 << " to client " << _client << " failed. Event payload not set!";
     }
 }
 
-bool event::set_payload_helper(std::shared_ptr<payload> _payload) {
+bool event::set_payload_helper(const std::shared_ptr<payload> &_payload, bool _force) {
     std::shared_ptr<payload> its_payload = message_->get_payload();
     bool is_change(!is_field_);
     if (is_field_) {
-        is_change = (its_payload->get_length() != _payload->get_length());
-        if (!is_change) {
-            std::size_t its_pos = 0;
-            const byte_t *its_old_data = its_payload->get_data();
-            const byte_t *its_new_data = _payload->get_data();
-            while (!is_change && its_pos < its_payload->get_length()) {
-                is_change = (*its_old_data++ != *its_new_data++);
-                its_pos++;
-            }
-        }
+        is_change = _force || epsilon_change_func_(its_payload, _payload);
     }
-    is_set_ = true;
-
     return is_change;
+}
+
+void event::reset_payload(const std::shared_ptr<payload> &_payload) {
+    std::shared_ptr<payload> its_new_payload
+        = runtime::get()->create_payload(
+              _payload->get_data(), _payload->get_length());
+    message_->set_payload(its_new_payload);
+
+    if (!is_set_)
+        start_cycle();
+
+    is_set_ = true;
 }
 
 void event::add_ref(client_t _client, bool _is_provided) {
@@ -316,4 +308,36 @@ void event::set_cache_placeholder(bool _is_cache_place_holder) {
     is_cache_placeholder_ = _is_cache_place_holder;
 }
 
-}  // namespace vsomeip
+void event::start_cycle() {
+    if (std::chrono::milliseconds::zero() != cycle_) {
+        cycle_timer_.expires_from_now(cycle_);
+        std::function<void(boost::system::error_code const &)> its_handler =
+                std::bind(&event::update_cbk, shared_from_this(),
+                        std::placeholders::_1);
+        cycle_timer_.async_wait(its_handler);
+    }
+}
+
+void event::stop_cycle() {
+    if (std::chrono::milliseconds::zero() != cycle_) {
+        boost::system::error_code ec;
+        cycle_timer_.cancel(ec);
+    }
+}
+
+bool event::compare(const std::shared_ptr<payload> &_lhs,
+        const std::shared_ptr<payload> &_rhs) const {
+    bool is_change = (_lhs->get_length() != _rhs->get_length());
+    if (!is_change) {
+        std::size_t its_pos = 0;
+        const byte_t *its_old_data = _lhs->get_data();
+        const byte_t *its_new_data = _rhs->get_data();
+        while (!is_change && its_pos < _lhs->get_length()) {
+            is_change = (*its_old_data++ != *its_new_data++);
+            its_pos++;
+        }
+    }
+    return is_change;
+}
+
+} // namespace vsomeip

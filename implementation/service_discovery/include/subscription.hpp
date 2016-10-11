@@ -25,7 +25,7 @@ public:
             std::shared_ptr<endpoint> _unreliable,
             subscription_type_e _subscription_type,
             uint8_t _counter,
-            std::chrono::high_resolution_clock::time_point _expiration);
+            std::chrono::steady_clock::time_point _expiration);
     ~subscription();
 
     major_version_t get_major() const;
@@ -44,8 +44,8 @@ public:
 
     uint8_t get_counter() const;
 
-    std::chrono::high_resolution_clock::time_point get_expiration() const;
-    void set_expiration(std::chrono::high_resolution_clock::time_point _expiration);
+    std::chrono::steady_clock::time_point get_expiration() const;
+    void set_expiration(std::chrono::steady_clock::time_point _expiration);
 
 private:
     major_version_t major_;
@@ -61,7 +61,7 @@ private:
 
     uint8_t counter_;
 
-    std::chrono::high_resolution_clock::time_point expiration_;
+    std::chrono::steady_clock::time_point expiration_;
 };
 
 } // namespace sd

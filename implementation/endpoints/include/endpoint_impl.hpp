@@ -10,7 +10,7 @@
 #include <memory>
 
 #include <boost/asio/io_service.hpp>
-#include <boost/asio/system_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include "buffer.hpp"
 #include "endpoint.hpp"

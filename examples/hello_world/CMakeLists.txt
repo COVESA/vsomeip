@@ -14,12 +14,14 @@ if (NOT vsomeip_FOUND)
     message("vsomeip was not found. Please specify vsomeip_DIR")
 endif()
 
+find_package(Threads REQUIRED)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 include_directories(${VSOMEIP_INCLUDE_DIRS})
 
 add_executable (hello_world_service hello_world_service.cpp)
-target_link_libraries(hello_world_service ${VSOMEIP_LIBRARIES})
+target_link_libraries(hello_world_service ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable (hello_world_client hello_world_client.cpp)
-target_link_libraries(hello_world_client ${VSOMEIP_LIBRARIES})
+target_link_libraries(hello_world_client ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

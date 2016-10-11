@@ -43,7 +43,7 @@ public:
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port) = 0;
 
-    virtual void add_routing_info(service_t _service, instance_t _instance,
+    virtual std::chrono::milliseconds add_routing_info(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl,
             const boost::asio::ip::address &_reliable_address,
             uint16_t _reliable_port,
@@ -60,7 +60,7 @@ public:
             eventgroup_t _eventgroup,
             std::shared_ptr<endpoint_definition> _subscriber,
             std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::high_resolution_clock::time_point &_expiration) = 0;
+            const std::chrono::steady_clock::time_point &_expiration) = 0;
 
     virtual void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
@@ -81,7 +81,7 @@ public:
 
     virtual bool on_subscribe_accepted(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::high_resolution_clock::time_point &_expiration) = 0;
+            const std::chrono::steady_clock::time_point &_expiration) = 0;
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
@@ -89,7 +89,7 @@ public:
     virtual bool has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;
 
-    virtual std::chrono::high_resolution_clock::time_point expire_subscriptions() = 0;
+    virtual std::chrono::steady_clock::time_point expire_subscriptions() = 0;
 };
 
 }  // namespace sd

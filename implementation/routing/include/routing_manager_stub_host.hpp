@@ -16,7 +16,7 @@ public:
     virtual ~routing_manager_stub_host() {
     }
 
-    virtual void offer_service(client_t _client, service_t _service,
+    virtual bool offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor) = 0;
 
@@ -59,7 +59,7 @@ public:
             service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _notify_one = false) = 0;
 
-    virtual void on_stop_offer_service(service_t _service,
+    virtual void on_stop_offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor) = 0;
 
@@ -74,6 +74,10 @@ public:
 
     virtual void on_identify_response(client_t _client, service_t _service, instance_t _instance,
             bool _reliable) = 0;
+
+    virtual void on_pong(client_t _client) = 0;
+    virtual void on_clientendpoint_error(client_t _client) = 0;
+    virtual void confirm_pending_offers(client_t _client) = 0;
 };
 
 } // namespace vsomeip

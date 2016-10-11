@@ -11,13 +11,15 @@
 namespace vsomeip {
 namespace sd {
 
-eventgroupentry_impl::eventgroupentry_impl() {
+eventgroupentry_impl::eventgroupentry_impl() :
+    reserved_(0) {
     eventgroup_ = 0xFFFF;
     counter_ = 0;
 }
 
 eventgroupentry_impl::eventgroupentry_impl(const eventgroupentry_impl &_entry)
-        : entry_impl(_entry) {
+        : entry_impl(_entry),
+          reserved_(0) {
     eventgroup_ = _entry.eventgroup_;
     counter_ = _entry.counter_;
 }
@@ -84,15 +86,15 @@ bool eventgroupentry_impl::serialize(vsomeip::serializer *_to) const {
 bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = entry_impl::deserialize(_from);
 
-    uint8_t tmp_major_version;
+    uint8_t tmp_major_version(0);
     is_successful = is_successful && _from->deserialize(tmp_major_version);
     major_version_ = static_cast<major_version_t>(tmp_major_version);
 
-    uint32_t its_ttl;
+    uint32_t its_ttl(0);
     is_successful = is_successful && _from->deserialize(its_ttl, true);
     ttl_ = static_cast<ttl_t>(its_ttl);
 
-    uint8_t reserved1, reserved2;
+    uint8_t reserved1(0), reserved2(0);
     is_successful = is_successful && _from->deserialize(reserved1); // deserialize reserved part 1
     is_successful = is_successful && _from->deserialize(reserved2); // deserialize reserved part 2 and counter
 

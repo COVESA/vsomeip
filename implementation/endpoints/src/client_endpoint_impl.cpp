@@ -74,13 +74,18 @@ void client_endpoint_impl<Protocol>::stop() {
             }
         }
 
-        boost::system::error_code its_error;
-        socket_.close(its_error);
+        if (socket_.is_open()) {
+            socket_.cancel();
+        }
     }
 }
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::restart() {
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        queue_.clear();
+    }
     is_connected_ = false;
     connect_timer_.expires_from_now(
             std::chrono::milliseconds(connect_timeout_));
@@ -152,9 +157,8 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::flush() {
     bool is_successful(true);
-
+    std::lock_guard<std::mutex> its_lock(mutex_);
     if (!packetizer_->empty()) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
         queue_.push_back(packetizer_);
         packetizer_ = std::make_shared<message_buffer_t>();
         if (queue_.size() == 1) { // no writing in progress
@@ -170,12 +174,16 @@ bool client_endpoint_impl<Protocol>::flush() {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::connect_cbk(
         boost::system::error_code const &_error) {
+    if (_error == boost::asio::error::operation_aborted) {
+        // endpoint was stopped
+        shutdown_and_close_socket();
+        return;
+    }
     std::shared_ptr<endpoint_host> its_host = this->host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
             if(socket_.is_open()) {
-                boost::system::error_code its_error;
-                socket_.close(its_error);
+                shutdown_and_close_socket();
             }
 
             connect_timer_.expires_from_now(
@@ -232,12 +240,19 @@ void client_endpoint_impl<Protocol>::send_cbk(
         }
     } else if (_error == boost::asio::error::broken_pipe) {
         is_connected_ = false;
-        if (endpoint_impl<Protocol>::sending_blocked_) {
-        	std::lock_guard<std::mutex> its_lock(mutex_);
-        	queue_.clear();
+        if (endpoint_impl<Protocol>::sending_blocked_ || error_handler_) {
+            {
+                std::lock_guard<std::mutex> its_lock(mutex_);
+                queue_.clear();
+            }
+            if (error_handler_) {
+                std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+                error_handler_();
+            }
         }
         if (socket_.is_open()) {
             boost::system::error_code its_error;
+            socket_.shutdown(Protocol::socket::shutdown_both, its_error);
             socket_.close(its_error);
         }
         connect();
@@ -245,6 +260,9 @@ void client_endpoint_impl<Protocol>::send_cbk(
             || _error == boost::asio::error::bad_descriptor) {
         was_not_connected_ = true;
         connect();
+    } else if (_error == boost::asio::error::operation_aborted) {
+        // endpoint was stopped
+        shutdown_and_close_socket();
     }
 }
 
@@ -253,6 +271,22 @@ void client_endpoint_impl<Protocol>::flush_cbk(
         boost::system::error_code const &_error) {
     if (!_error) {
         (void) flush();
+    }
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::register_error_callback(
+        endpoint_error_handler_t _callback) {
+    std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+    error_handler_ = _callback;
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
+    if (socket_.is_open()) {
+        boost::system::error_code its_error;
+        socket_.shutdown(Protocol::socket::shutdown_both, its_error);
+        socket_.close(its_error);
     }
 }
 

@@ -173,6 +173,11 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
 
 void tcp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
+    if (_error == boost::asio::error::operation_aborted) {
+        // endpoint was stopped
+        shutdown_and_close_socket();
+        return;
+    }
 #if 0
     std::stringstream msg;
     msg << "cei::rcb (" << _error.message() << "): ";
@@ -257,7 +262,11 @@ void tcp_client_endpoint_impl::receive_cbk(
             }
             receive();
         } else {
-            if (socket_.is_open()) {
+            if (_error == boost::asio::error::connection_reset ||
+                    _error ==  boost::asio::error::eof) {
+                VSOMEIP_TRACE << "tcp_client_endpoint: connection_reseted/EOF ~> close socket!";
+                shutdown_and_close_socket();
+            } else if (socket_.is_open()) {
                 receive();
             }
         }

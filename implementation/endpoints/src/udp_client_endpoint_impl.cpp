@@ -124,6 +124,11 @@ unsigned short udp_client_endpoint_impl::get_remote_port() const {
 
 void udp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
+    if (_error == boost::asio::error::operation_aborted) {
+        // endpoint was stopped
+        shutdown_and_close_socket();
+        return;
+    }
     std::shared_ptr<endpoint_host> its_host = host_.lock();
     if (!_error && 0 < _bytes && its_host) {
 #if 0
@@ -147,7 +152,9 @@ void udp_client_endpoint_impl::receive_cbk(
     if (!_error) {
         receive();
     } else {
-        if (socket_.is_open()) {
+        if (_error == boost::asio::error::connection_refused) {
+            shutdown_and_close_socket();
+        } else if (socket_.is_open()) {
             receive();
         }
     }

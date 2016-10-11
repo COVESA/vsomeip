@@ -11,6 +11,7 @@
 #include "../../logging/include/logger.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/local_server_endpoint_impl.hpp"
+#include "../include/routing_manager_impl.hpp"
 
 namespace vsomeip {
 
@@ -42,7 +43,7 @@ void routing_manager_base::init() {
     serializer_->create_data(configuration_->get_max_message_size_local());
 }
 
-void routing_manager_base::offer_service(client_t _client, service_t _service,
+bool routing_manager_base::offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor) {
     (void)_client;
@@ -50,16 +51,20 @@ void routing_manager_base::offer_service(client_t _client, service_t _service,
     // Remote route (incoming only)
     auto its_info = find_service(_service, _instance);
     if (its_info) {
-        if (its_info->get_major() == _major
+        if (!its_info->is_local()) {
+            return false;
+        } else if (its_info->get_major() == _major
                 && its_info->get_minor() == _minor) {
             its_info->set_ttl(DEFAULT_TTL);
         } else {
             host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
+            return false;
         }
     } else {
         its_info = create_service_info(_service, _instance, _major, _minor,
                 DEFAULT_TTL, true);
     }
+    return true;
 }
 
 void routing_manager_base::stop_offer_service(client_t _client, service_t _service,
@@ -118,9 +123,10 @@ void routing_manager_base::release_service(client_t _client, service_t _service,
 }
 
 void routing_manager_base::register_event(client_t _client, service_t _service, instance_t _instance,
-            event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field, bool _is_provided, bool _is_shadow,
-            bool _is_cache_placeholder) {
+            event_t _event, const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            epsilon_change_func_t _epsilon_change_func,
+            bool _is_provided, bool _is_shadow, bool _is_cache_placeholder) {
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
         if(!its_event->is_cache_placeholder()) {
@@ -163,6 +169,9 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                 its_event->set_eventgroups(_eventgroups);
             }
 
+            its_event->set_epsilon_change_function(_epsilon_change_func);
+            its_event->set_change_resets_cycle(_change_resets_cycle);
+            its_event->set_update_cycle(_cycle);
         }
     } else {
         its_event = std::make_shared<event>(this, _is_shadow);
@@ -184,6 +193,10 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
         } else {
             its_event->set_eventgroups(_eventgroups);
         }
+
+        its_event->set_epsilon_change_function(_epsilon_change_func);
+        its_event->set_change_resets_cycle(_change_resets_cycle);
+        its_event->set_update_cycle(_cycle);
     }
 
     if(!_is_cache_placeholder) {
@@ -312,10 +325,10 @@ void routing_manager_base::unsubscribe(client_t _client, service_t _service,
 }
 
 void routing_manager_base::notify(service_t _service, instance_t _instance,
-			event_t _event, std::shared_ptr<payload> _payload) {
+            event_t _event, std::shared_ptr<payload> _payload, bool _force) {
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
-        its_event->set_payload(_payload);
+        its_event->set_payload(_payload, _force);
     } else {
         VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
             << std::hex << _service << "." << _instance << "." << _event
@@ -324,7 +337,8 @@ void routing_manager_base::notify(service_t _service, instance_t _instance,
 }
 
 void routing_manager_base::notify_one(service_t _service, instance_t _instance,
-			event_t _event, std::shared_ptr<payload> _payload, client_t _client) {
+            event_t _event, std::shared_ptr<payload> _payload,
+            client_t _client, bool _force) {
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
         // Event is valid for service/instance
@@ -340,7 +354,7 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance,
             }
         }
         if (found_eventgroup) {
-            its_event->set_payload(_payload, _client);
+            its_event->set_payload(_payload, _client, _force);
         }
     } else {
         VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
@@ -360,7 +374,7 @@ bool routing_manager_base::send(client_t its_client,
     if (serializer_->serialize(_message.get())) {
         is_sent = send(its_client, serializer_->get_data(),
                 serializer_->get_size(), _message->get_instance(),
-                _flush, _message->is_reliable(), _message->is_initial());
+                _flush, _message->is_reliable());
         serializer_->reset();
     } else {
         VSOMEIP_ERROR << "Failed to serialize message. Check message size!";
@@ -399,6 +413,9 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
     if (!its_info) {
         return;
     }
+
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+
     // Clear service_info and service_group
     std::shared_ptr<endpoint> its_empty_endpoint;
     if (!its_info->get_endpoint(!_reliable)) {
@@ -467,7 +484,7 @@ std::shared_ptr<endpoint> routing_manager_base::create_local(client_t _client) {
     VSOMEIP_DEBUG << "Client [" << std::hex << get_client() << "] is connecting to ["
             << std::hex << _client << "] at " << its_path.str();
 #endif
-    std::shared_ptr<endpoint> its_endpoint = std::make_shared<
+    std::shared_ptr<local_client_endpoint_impl> its_endpoint = std::make_shared<
         local_client_endpoint_impl>(shared_from_this(),
 #ifdef WIN32
         boost::asio::ip::tcp::endpoint(address, port)
@@ -482,7 +499,16 @@ std::shared_ptr<endpoint> routing_manager_base::create_local(client_t _client) {
         // with VSOMEIP_ROUTING_CLIENT as parameter
         // as it indicates remote communication!
 
-        local_endpoints_[_client] = its_endpoint;
+        local_endpoints_[_client] = std::static_pointer_cast<endpoint>(its_endpoint);
+        if (routing_manager_impl *rm_impl = dynamic_cast<routing_manager_impl*>(this)) {
+            its_endpoint->register_error_callback(
+                    std::bind(&routing_manager_impl::on_clientendpoint_error,
+                            rm_impl, _client));
+        } else {
+            its_endpoint->register_error_callback(
+                    std::bind(&routing_manager_base::on_clientendpoint_error, this,
+                            _client));
+        }
     }
 
     return (its_endpoint);
@@ -637,6 +663,8 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                     }
                     its_info->set_major(its_service_info->get_major());
                     its_info->set_ttl(its_service_info->get_ttl());
+                    its_info->set_threshold(configuration_->get_threshold(
+                            _service, _instance, _eventgroup));
                 }
             }
         }
@@ -673,9 +701,13 @@ std::set<client_t> routing_manager_base::find_local_clients(service_t _service,
     return (its_clients);
 }
 
-void routing_manager_base::send_local_notification(client_t _client,
+bool routing_manager_base::send_local_notification(client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
-        bool _flush, bool _reliable, bool _initial) {
+        bool _flush, bool _reliable) {
+#ifdef USE_DLT
+    bool has_local(false);
+#endif
+    bool has_remote(false);
     method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
             _data[VSOMEIP_METHOD_POS_MAX]);
     service_t its_service = VSOMEIP_BYTES_TO_WORD(
@@ -688,52 +720,46 @@ void routing_manager_base::send_local_notification(client_t _client,
             // local
             auto its_local_clients = find_local_clients(its_service, _instance, its_group);
             for (auto its_local_client : its_local_clients) {
-                // If we also want to receive the message, send it to the routing manager
-                // We cannot call deliver_message in this case as this would end in receiving
-                // an answer before the call to send has finished.
-                if (its_local_client == host_->get_client()) {
-                    uint8_t *local_data = const_cast<uint8_t *>(_data);
-                    local_data[VSOMEIP_CLIENT_POS_MIN] = VSOMEIP_WORD_BYTE1(its_local_client);
-                    local_data[VSOMEIP_CLIENT_POS_MAX] = VSOMEIP_WORD_BYTE0(its_local_client);
-                    std::shared_ptr<endpoint> its_local_target = find_local(get_client());
-                    if (its_local_target) {
-                        send_local(its_local_target, _client, _data, _size,
-                                _instance, _flush, _reliable, VSOMEIP_SEND, true, _initial);
-                    }
-                    std::memset(&local_data[VSOMEIP_CLIENT_POS_MIN], 0, 2);
-                } else {
-                    std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
-                    if (its_local_target) {
-                        send_local(its_local_target, _client, _data, _size,
-                                _instance, _flush, _reliable, VSOMEIP_SEND, false, _initial);
-                    }
+                if (its_local_client == VSOMEIP_ROUTING_CLIENT) {
+                    has_remote = true;
+                    continue;
+                }
+#ifdef USE_DLT
+                else {
+                    has_local = true;
+                }
+#endif
+                std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
+                if (its_local_target) {
+                    send_local(its_local_target, _client, _data, _size,
+                            _instance, _flush, _reliable, VSOMEIP_SEND);
                 }
             }
         }
     }
+#ifdef USE_DLT
+    // Trace the message if a local client but will _not_ be forwarded to the routing manager
+    if (has_local && !has_remote) {
+        uint16_t its_data_size
+            = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
+
+        tc::trace_header its_header;
+        if (its_header.prepare(nullptr, true))
+            tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
+                    _data, its_data_size);
+    }
+#endif
+    return has_remote;
 }
 
 bool routing_manager_base::send_local(
         std::shared_ptr<endpoint>& _target, client_t _client,
-        const byte_t *_data, uint32_t _size,
-        instance_t _instance,
-        bool _flush, bool _reliable, uint8_t _command, bool _queue_message, bool _initial) const {
-
-    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
-
-#ifdef USE_DLT
-    uint16_t its_data_size
-        = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
-
-    tc::trace_header its_header;
-    if (its_header.prepare(_target, true))
-        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                _data, its_data_size);
-#endif
+        const byte_t *_data, uint32_t _size, instance_t _instance,
+        bool _flush, bool _reliable, uint8_t _command) const {
 
     std::vector<byte_t> its_command(
             VSOMEIP_COMMAND_HEADER_SIZE + _size + sizeof(instance_t)
-                    + sizeof(bool) + sizeof(bool) + sizeof(bool));
+                    + sizeof(bool) + sizeof(bool));
     its_command[VSOMEIP_COMMAND_TYPE_POS] = _command;
     std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
             sizeof(client_t));
@@ -747,15 +773,8 @@ bool routing_manager_base::send_local(
             + sizeof(instance_t)], &_flush, sizeof(bool));
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
             + sizeof(instance_t) + sizeof(bool)], &_reliable, sizeof(bool));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-                    + sizeof(instance_t) + sizeof(bool) + sizeof(bool)],
-            &_initial, sizeof(bool));
 
-    if (_queue_message) {
-        return queue_message(&its_command[0], uint32_t(its_command.size()));
-    } else {
-        return _target->send(&its_command[0], uint32_t(its_command.size()));
-    }
+    return _target->send(&its_command[0], uint32_t(its_command.size()));
 }
 
 bool routing_manager_base::insert_subscription(
@@ -777,6 +796,12 @@ bool routing_manager_base::insert_subscription(
 
     eventgroup_clients_[_service][_instance][_eventgroup].insert(_client);
     return true;
+}
+
+void routing_manager_base::on_clientendpoint_error(client_t _client) {
+    VSOMEIP_ERROR << "Client endpoint error for application: " << std::hex
+            << std::setfill('0') << std::setw(4) << _client;
+    remove_local(_client);
 }
 
 } // namespace vsomeip

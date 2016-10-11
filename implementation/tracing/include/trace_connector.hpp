@@ -48,7 +48,12 @@ public:
     VSOMEIP_EXPORT void reset();
 
     VSOMEIP_EXPORT void set_enabled(const bool _enabled);
-    VSOMEIP_EXPORT bool is_enabled();
+    VSOMEIP_EXPORT bool is_enabled() const;
+
+    VSOMEIP_EXPORT void set_sd_enabled(const bool _enabled);
+    VSOMEIP_EXPORT bool is_sd_enabled() const;
+
+    VSOMEIP_EXPORT bool is_sd_message(const byte_t *_data, uint16_t _data_size) const;
 
     VSOMEIP_EXPORT bool add_channel(const trace_channel_t &_id,const std::string &_name);
     VSOMEIP_EXPORT bool remove_channel(const trace_channel_t &_id);
@@ -80,6 +85,7 @@ private:
             const byte_t *_data, const uint16_t _data_size);
 
     bool is_enabled_;
+    bool is_sd_enabled_;
     bool is_initialized_;
 
     channels_t channels_;

@@ -49,6 +49,8 @@ private:
 
     void connect();
     void receive();
+    void receive_cbk(boost::system::error_code const &_error,
+                     std::size_t _bytes);
 };
 
 } // namespace vsomeip

@@ -25,7 +25,7 @@ public:
     layer_four_protocol_e get_layer_four_protocol() const;
     void set_layer_four_protocol(layer_four_protocol_e _protocol);
 
-    bool is_multicast() const;
+    virtual bool is_multicast() const = 0;
 
     virtual bool serialize(vsomeip::serializer *_to) const = 0;
     virtual bool deserialize(vsomeip::deserializer *_from) = 0;

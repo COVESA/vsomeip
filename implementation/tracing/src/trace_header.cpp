@@ -17,11 +17,8 @@ bool trace_header::prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_
 }
 
 bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending) {
-    if (!_endpoint)
-        return false;
-
     boost::asio::ip::address its_address;
-    if (_endpoint->get_remote_address(its_address)) {
+    if (_endpoint && _endpoint->get_remote_address(its_address)) {
         if (its_address.is_v6())
             return false;
 

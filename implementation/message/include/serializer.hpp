@@ -15,7 +15,7 @@ namespace vsomeip {
 
 class serializable;
 
-class VSOMEIP_EXPORT serializer {
+class  VSOMEIP_IMPORT_EXPORT serializer {
 public:
     serializer();
     virtual ~serializer();

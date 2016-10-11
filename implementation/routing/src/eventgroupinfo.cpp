@@ -44,6 +44,12 @@ bool eventgroupinfo::is_multicast() const {
     return address_.is_multicast();
 }
 
+bool eventgroupinfo::is_sending_multicast() const {
+    return (is_multicast() &&
+            threshold_ != 0 &&
+            get_unreliable_target_count() >= threshold_);
+}
+
 bool eventgroupinfo::get_multicast(boost::asio::ip::address &_address,
         uint16_t &_port) const {
 
@@ -77,7 +83,7 @@ const std::list<eventgroupinfo::target_t> eventgroupinfo::get_targets() const {
     return targets_;
 }
 
-uint32_t eventgroupinfo::get_unreliable_target_count(){
+uint32_t eventgroupinfo::get_unreliable_target_count() const {
     uint32_t _count(0);
     for (auto i = targets_.begin(); i != targets_.end(); i++) {
        if (!i->endpoint_->is_reliable()) {
@@ -114,8 +120,6 @@ bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target, const e
     std::size_t its_size = targets_.size();
     if (std::find(targets_.begin(), targets_.end(), _subscriber) == targets_.end()) {
         targets_.push_back(_subscriber);
-    }
-    if (its_size != targets_.size()) {
         add_multicast_target(_target);
     }
     return (its_size != targets_.size());
@@ -123,12 +127,13 @@ bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target, const e
 
 bool eventgroupinfo::update_target(
         const std::shared_ptr<endpoint_definition> &_target,
-        const std::chrono::high_resolution_clock::time_point &_expiration) {
+        const std::chrono::steady_clock::time_point &_expiration) {
      for (auto i = targets_.begin(); i != targets_.end(); i++) {
-            if (i->endpoint_ == _target) {
-                i->expiration_ = _expiration;
-                return true;
-            }
+         if (i->endpoint_->get_address() == _target->get_address() &&
+                 i->endpoint_->get_port() == _target->get_port()) {
+             i->expiration_ = _expiration;
+             return true;
+         }
      }
      return false;
 }
@@ -149,6 +154,14 @@ bool eventgroupinfo::remove_target(
 
 void eventgroupinfo::clear_targets() {
     targets_.clear();
+}
+
+uint8_t eventgroupinfo::get_threshold() const {
+    return threshold_;
+}
+
+void eventgroupinfo::set_threshold(uint8_t _threshold) {
+    threshold_ = _threshold;
 }
 
 }  // namespace vsomeip

@@ -38,12 +38,18 @@ message_impl::~message_impl() {
 }
 
 length_t message_impl::get_length() const {
-    length_t current_length = (VSOMEIP_SOMEIP_HEADER_SIZE
-            + VSOMEIP_SOMEIP_SD_DATA_SIZE);
-    current_length += uint32_t(entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
-    for (size_t i = 0; i < options_.size(); ++i) {
-        current_length += (options_[i]->get_length()
-                + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE);
+    length_t current_length = VSOMEIP_SOMEIP_SD_DATA_SIZE;
+    if( entries_.size()) {
+        current_length += VSOMEIP_SOMEIP_SD_ENTRY_LENGTH_SIZE;
+        current_length += uint32_t(entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
+    }
+
+    current_length += VSOMEIP_SOMEIP_SD_OPTION_LENGTH_SIZE;
+    if(options_.size()) {
+        for (size_t i = 0; i < options_.size(); ++i) {
+            current_length += (options_[i]->get_length()
+                    + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE);
+        }
     }
     return current_length;
 }
@@ -354,6 +360,10 @@ option_impl * message_impl::deserialize_option(vsomeip::deserializer *_from) {
     }
 
     return deserialized_option;
+}
+
+length_t message_impl::get_someip_length() const {
+    return header_.length_;
 }
 
 } // namespace sd

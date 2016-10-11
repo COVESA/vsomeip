@@ -17,7 +17,7 @@
 #include <vector>
 
 #include <boost/asio/signal_set.hpp>
-#include <boost/asio/system_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/application.hpp>
@@ -55,6 +55,12 @@ public:
             instance_t _instance, event_t _event,
             const std::set<eventgroup_t> &_eventgroups,
             bool _is_field);
+    VSOMEIP_EXPORT void offer_event(service_t _service,
+            instance_t _instance, event_t _event,
+            const std::set<eventgroup_t> &_eventgroups,
+            bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle_,
+            const epsilon_change_func_t &_epsilon_change_func);
     VSOMEIP_EXPORT void stop_offer_event(service_t _service,
             instance_t _instance, event_t _event);
 
@@ -86,9 +92,15 @@ public:
 
     VSOMEIP_EXPORT void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload) const;
+    VSOMEIP_EXPORT void notify(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force) const;
 
     VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload, client_t _client) const;
+    VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+            bool _force) const;
 
     VSOMEIP_EXPORT void register_state_handler(state_handler_t _handler);
     VSOMEIP_EXPORT void unregister_state_handler();
@@ -137,6 +149,10 @@ public:
     // service_discovery_host
     VSOMEIP_EXPORT routing_manager * get_routing_manager() const;
 
+    VSOMEIP_EXPORT bool are_available(available_t &_available,
+                       service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+                       major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const;
+
 private:
     //
     // Types
@@ -149,6 +165,17 @@ private:
 
         std::function<void()> handler_;
         bool is_dispatching_;
+    };
+
+    struct message_handler {
+        message_handler(message_handler_t _handler) :
+            handler_(_handler) {}
+
+        bool operator<(const message_handler& _other) const {
+            return handler_.target<void (*)(const std::shared_ptr<message> &)>()
+                    < _other.handler_.target<void (*)(const std::shared_ptr<message> &)>();
+        }
+        message_handler_t handler_;
     };
 
     //
@@ -165,10 +192,6 @@ private:
     bool is_available_unlocked(service_t _service, instance_t _instance,
                                major_version_t _major, minor_version_t _minor) const;
 
-    typedef std::map<service_t, std::map<instance_t,  std::map<major_version_t, minor_version_t >>> available_t;
-    bool are_available(available_t &_available,
-                       service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
-                       major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const;
     bool are_available_unlocked(available_t &_available,
                                 service_t _service, instance_t _instance,
                                 major_version_t _major, minor_version_t _minor) const;
@@ -184,7 +207,7 @@ private:
     void remove_elapsed_dispatchers();
 
     void clear_all_handler();
-    void wait_for_stop();
+    void shutdown();
 
     void send_back_cached_event(service_t _service, instance_t _instance, event_t _event);
     void send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
@@ -205,6 +228,7 @@ private:
     std::string folder_; // configuration folder
 
     boost::asio::io_service io_;
+    std::shared_ptr<boost::asio::io_service::work> work_;
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;
@@ -236,8 +260,11 @@ private:
         std::map<client_t, error_handler_t > > > > eventgroup_error_handlers_;
     mutable std::mutex subscription_error_mutex_;
 
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Signals
     boost::asio::signal_set signals_;
+    bool catched_signal_;
+#endif
 
     // Handlers
     mutable std::deque<std::shared_ptr<sync_handler>> handlers_;
@@ -255,7 +282,7 @@ private:
     std::mutex dispatcher_mutex_;
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;
-    boost::asio::system_timer dispatcher_timer_;
+    boost::asio::steady_timer dispatcher_timer_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
 
@@ -267,15 +294,24 @@ private:
     bool stopped_;
     std::thread stop_thread_;
 
-    bool catched_signal_;
+    std::condition_variable block_stop_cv_;
+    std::mutex block_stop_mutex_;
+    bool block_stopping_;
 
     static uint32_t app_counter__;
+    static std::mutex app_counter_mutex__;
 
     bool is_routing_manager_host_;
 
     // Event subscriptions
     std::mutex event_subscriptions_mutex_;
     std::map<service_t, std::map<instance_t, std::map<event_t, bool>>> event_subscriptions_;
+
+    std::thread::id stop_caller_id_;
+
+    bool stopped_called_;
+
+    std::thread::id io_thread_id_;
 };
 
 } // namespace vsomeip

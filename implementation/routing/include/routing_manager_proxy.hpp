@@ -10,6 +10,7 @@
 #include <mutex>
 
 #include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include "routing_manager_base.hpp"
 #include <vsomeip/enumeration_types.hpp>
@@ -30,7 +31,7 @@ public:
     void start();
     void stop();
 
-    void offer_service(client_t _client, service_t _service,
+    bool offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
 
@@ -52,8 +53,7 @@ public:
             eventgroup_t _eventgroup);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush = true, bool _reliable = false,
-            bool _initial = false);
+            instance_t _instance, bool _flush = true, bool _reliable = false);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message);
@@ -63,15 +63,17 @@ public:
 
     void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field, bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
+            const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            epsilon_change_func_t _epsilon_change_func,
+            bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
 
     void unregister_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
             bool _is_provided);
 
     void notify(service_t _service, instance_t _instance, event_t _event,
-            std::shared_ptr<payload> _payload);
+            std::shared_ptr<payload> _payload, bool _force);
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
@@ -84,8 +86,6 @@ public:
 
     void on_identify_response(client_t _client, service_t _service, instance_t _instance,
             bool _reliable);
-
-    bool queue_message(const byte_t *_data, uint32_t _size) const;
 
 private:
     void register_application();
@@ -131,10 +131,27 @@ private:
     void on_stop_offer_service(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
+    void send_pending_commands();
+
+    void init_receiver();
+
+    void notify_remote_initally(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup);
+
+    uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, bool _increment);
+
+    void register_application_timeout_cbk(boost::system::error_code const &_error);
 private:
+    enum class inner_state_type_e : std::uint8_t {
+        ST_REGISTERED = 0x0,
+        ST_DEREGISTERED = 0x1,
+        ST_REGISTERING = 0x2
+    };
+
     bool is_connected_;
     bool is_started_;
-    state_type_e state_;
+    inner_state_type_e state_;
 
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
@@ -202,7 +219,16 @@ private:
 
     std::mutex send_mutex_;
     std::mutex deserialize_mutex_;
-    std::mutex pending_mutex_;
+
+    std::mutex state_mutex_;
+    std::condition_variable state_condition_;
+
+    std::map<service_t,
+                std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
+
+    mutable std::recursive_mutex sender_mutex_;
+
+    boost::asio::steady_timer register_application_timer_;
 };
 
 } // namespace vsomeip

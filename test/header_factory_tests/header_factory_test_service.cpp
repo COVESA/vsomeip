@@ -47,7 +47,7 @@ void header_factory_test_service::stop()
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID);
     app_->unregister_state_handler();
     app_->stop();
-    std::thread t([](){ usleep(1000000 * 5);});
+    std::thread t([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5));});
     t.join();
 }
 
@@ -109,9 +109,6 @@ void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::mess
     // TR_SOMEIP_00055
     ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
 
-    // make sure the message was sent from the service
-    ASSERT_EQ(_request->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
-
     // check the session id.
     ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_of_received_messages_));
 
@@ -146,7 +143,7 @@ void header_factory_test_service::run()
     while (!blocked_)
         condition_.wait(its_lock);
 
-    std::thread t([](){ usleep(1000000 * 5);});
+    std::thread t([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5));});
     t.join();
     app_->stop();
 }

@@ -64,6 +64,10 @@ void payload_impl::set_data(const std::vector< byte_t > &_data) {
     data_ = _data;
 }
 
+void payload_impl::set_data(std::vector< byte_t > &&_data) {
+    data_ = std::move(_data);
+}
+
 bool payload_impl::serialize(serializer *_to) const {
     return (0 != _to && _to->serialize(data_.data(), uint32_t(data_.size())));
 }

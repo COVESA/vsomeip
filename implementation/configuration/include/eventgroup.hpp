@@ -20,6 +20,7 @@ struct eventgroup {
     std::set<std::shared_ptr<event> > events_;
     std::string multicast_address_;
     uint16_t multicast_port_;
+    uint8_t threshold_;
 };
 
 } // namespace cfg

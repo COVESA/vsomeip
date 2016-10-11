@@ -390,3 +390,124 @@ complete system while doing 890 methodcalls.
 Automatic start from the build directory (example):
 
 ctest -V -R cpu_load_test
+
+
+Initial event tests
+----------------------
+This tests tests initial event mechanism over two nodes with multiple services
+on both nodes.
+
+The test setup is as followed:
+* There are six services offering one event each.
+* Three of the services run on node 1.
+* Three of the services run on node 2.
+* All of the services initially set their event to their service id and notify
+  once
+* On each node there are 20 client applications which subscribe to all of the
+  services events which are started at different times
+* Each client waits until it received one notification (the initial one) from
+  all services and then exits.
+* If all clients exited, the services are killed as well
+
+Automatic start from the build directory (example):
+
+ctest -V -R initial_event_test_diff_client_ids_diff_ports_udp
+
+Manual start from sub folder test of build directory:
+./initial_event_test_master_starter.sh UDP initial_event_test_diff_client_ids_diff_ports_master.json
+
+There are multiple versions of this test which differ in the used subscription
+method and port setup (use ctest -N to see all). For manual start the desired
+description method has to be passed to the starter script as first parameter.
+
+Offer tests
+-----------
+This tests test various cases of offering a service and error recovery
+after an application became unresponsive
+
+* Rejecting offer of service instance whose hosting application is
+  still alive.
+* Rejecting offer of service instance whose hosting application is
+  still alive with daemon
+* Accepting offer of service instance whose hosting application
+  crashed with (send SIGKILL)
+* Accepting offer of service instance whose hosting application became
+  unresponsive (SIGSTOP)
+* Rejecting offers for which there is already a pending offer
+* Rejecting remote offer for which there is already a local offer
+* Rejecting a local offer for which there is already a remote offer
+
+Automatic start from the build directory (example):
+
+ctest -V -R offer_tests
+
+Manual start from sub folder test of build directory:
+./offer_test_local_starter
+./offer_test_external_master_starter.sh
+
+Tests in detail:
+Rejecting offer of service instance whose hosting application is still
+alive:
+* start application which offers service
+* start client which continuously exchanges messages with the service
+* start application which offers the same service again -> should be
+  rejected and an error message should be printed.
+* Message exchange with client application should not be interrupted.
+
+Rejecting offer of service instance whose hosting application is still
+alive with daemon
+* start daemon (needed as he has to ping the offering client)
+* start application which offers service
+* start client which continuously exchanges messages with the service
+* start application which offers the same service again -> should be
+  rejected and an error message should be printed.
+* Message exchange with client application should not be interrupted.
+
+Accepting offer of service instance whose hosting application crashed
+with (send SIGKILL)
+* start daemon
+* start application which offers service
+* start client which exchanges messages with the service
+* kill application with SIGKILL
+* start application which offers the same service again -> should be
+  accepted.
+* start another client which exchanges messages with the service
+* Client should now communicate with new offerer.
+
+Accepting offer of service instance whose hosting application became
+unresponsive (SIGSTOP)
+* start daemon
+* start application which offers service
+* Send a SIGSTOP to the service to make it unresponsive
+* start application which offers the same service again -> should be
+  marked as PENDING_OFFER and a ping should be sent to the paused
+  application.
+* After the timeout passed the new offer should be accepted.
+* start client which exchanges messages with the service
+* Client should now communicate with new offerer.
+
+Rejecting offers for which there is already a pending offer
+* start daemon
+* start application which offers service
+* Send a SIGSTOP to the service to make it unresponsive
+* start application which offers the same service again -> should be
+  marked as PENDING_OFFER and a ping should be sent to the paused
+  application.
+* start application which offers the same service again -> should be
+  rejected as there is already a PENDING_OFFER pending.
+* After the timeout passed the new offer should be accepted.
+* start client which exchanges messages with the service
+* Client should now communicate with new offerer.
+
+Rejecting a local offer for which there is already a remote offer:
+* start daemon
+* start application which offers service
+* start daemon remotely
+* start same application which offers the same service again remotely
+  -> should be rejected as there is already a service instance
+  running in the network
+
+Rejecting remote offer for which there is already a local offer
+* start application which offers service
+* send SD message trying to offer the same service instance as already
+  offered locally from a remote host -> should be rejected

@@ -85,7 +85,7 @@
 #define VSOMEIP_SUBSCRIBE_COMMAND_SIZE          16
 #define VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE      13
 #define VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE     13
-#define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        13
+#define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        14
 #define VSOMEIP_REGISTER_EVENT_COMMAND_SIZE     15
 #define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   14
 
@@ -100,20 +100,22 @@
 #define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
 #define VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS   0000
 
-#define VSOMEIP_MAX_CLIENTS                     255 
+#define VSOMEIP_MAX_CLIENTS                     255
 
 namespace vsomeip {
 
 struct configuration_data_t {
-#ifdef WIN32
-    void* mutex_;
-#else
+#ifndef WIN32
+    volatile char initialized_;
     pthread_mutex_t mutex_;
 #endif
     unsigned short client_base_;
 
     unsigned short used_client_ids_[VSOMEIP_MAX_CLIENTS];
     int max_used_client_ids_index_;
+    unsigned char max_assigned_client_id_low_byte_;
+
+    unsigned short routing_manager_host_;
 };
 
 } // namespace vsomeip

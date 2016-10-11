@@ -46,6 +46,9 @@ using namespace boost::log::trivial;
 
 namespace vsomeip {
 
+boost::log::sources::severity_logger_mt<
+            boost::log::trivial::severity_level> logger_impl::logger_;
+
 std::shared_ptr<logger_impl> & logger_impl::get() {
     static std::shared_ptr<logger_impl> the_logger__ = std::make_shared<
             logger_impl>();
@@ -53,11 +56,12 @@ std::shared_ptr<logger_impl> & logger_impl::get() {
 }
 
 logger_impl::logger_impl()
-        : loglevel_(debug) {
+        : loglevel_(debug),
+          log_core_(logging::core::get()) {
     logging::add_common_attributes();
 }
 
-boost::log::sources::severity_logger<boost::log::trivial::severity_level> &
+boost::log::sources::severity_logger_mt<boost::log::trivial::severity_level> &
 logger_impl::get_internal() {
     return logger_;
 }

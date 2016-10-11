@@ -122,6 +122,12 @@ initial::initial(my_context _context)
 
 sc::result initial::react(const ev_timeout &_event) {
     (void)_event;
+    VSOMEIP_TRACE << "sd::active.initial.react";
+    std::shared_ptr < service_discovery_fsm > fsm =
+            outermost_context().fsm_.lock();
+    if (fsm) {
+        (void)fsm->send(false, false);
+    }
     return transit<repeat>();
 }
 
@@ -151,11 +157,11 @@ sc::result repeat::react(const ev_timeout &_event) {
 }
 
 sc::result repeat::react(const ev_find_service &_event) {
-    VSOMEIP_TRACE << "sd::active.repeat.react.find";
     std::shared_ptr < service_discovery_fsm > fsm =
             outermost_context().fsm_.lock();
     // Answer Find Service messages with unicast offer in repetition phase
     if (fsm) {
+        VSOMEIP_TRACE << "sd::active.repeat.react.find";
         fsm->send_unicast_offer_service(_event.info_, _event.service_, _event.instance_,
             _event.major_, _event.minor_);
     }
@@ -195,7 +201,7 @@ sc::result offer::react(const ev_find_service &_event) {
     std::shared_ptr < service_discovery_fsm > fsm =
             outermost_context().fsm_.lock();
     if (fsm) {
-        if(_event.unicast_flag_) {
+        if(_event.unicast_flag_) { //SIP_SD_826
             if( !fsm->check_is_multicast_offer()) { // SIP_SD_89
                 fsm->send_unicast_offer_service(_event.info_, _event.service_, _event.instance_,
                         _event.major_, _event.minor_);
@@ -203,8 +209,8 @@ sc::result offer::react(const ev_find_service &_event) {
                 fsm->send_multicast_offer_service(_event.info_, _event.service_, _event.instance_,
                         _event.major_, _event.minor_);
             }
-        } else { // SIP_SD_91
-            fsm->send_multicast_offer_service(_event.info_, _event.service_, _event.instance_,
+        } else { // SIP_SD_824
+            fsm->send_unicast_offer_service(_event.info_, _event.service_, _event.instance_,
                     _event.major_, _event.minor_);
         }
     }
@@ -247,15 +253,16 @@ send::send(my_context _context)
             outermost_context().fsm_.lock();
     if (fsm) {
         VSOMEIP_TRACE << "sd::active.main.find.send";
-        // Increment to the maximum run value (which is repetition_max-1)
-        // As new request might be added in the meantime, this will be
-        // used to calculate the maximum cycle time.
-        if (context<find>().run_ < fsm->get_repetition_max()) {
-            context<find>().run_++;
+        if( context<find>().run_ == 0)
+        {
+            outermost_context().start_timer(outermost_context().initial_delay_, true);
+        } else if ( context<find>().run_ < fsm->get_repetition_max() + 1 ) {
+            // Increment to the maximum run value (which is repetition_max-1)
+            // As new request might be added in the meantime, this will be
+            // used to calculate the maximum cycle time.
             uint32_t its_timeout = (outermost_context().repetitions_base_delay_
                     << context<find>().run_);
-            if (fsm->send(true, true))
-                outermost_context().start_timer(its_timeout, true);
+            outermost_context().start_timer(its_timeout, true);
         }
         else {
             post_event(ev_none());
@@ -267,6 +274,13 @@ send::send(my_context _context)
 
 sc::result send::react(const ev_alt_timeout &_event) {
     (void)_event;
+    std::shared_ptr < service_discovery_fsm > fsm =
+            outermost_context().fsm_.lock();
+    if (fsm) {
+        VSOMEIP_TRACE << "sd::active.main.find.initial";
+        context<find>().run_++;
+        (void)fsm->send(true, true);
+    }
     return transit<send>();
 }
 

@@ -131,7 +131,6 @@ void payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _r
 
     ASSERT_EQ(_response->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
     ASSERT_EQ(_response->get_instance(), vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    ASSERT_EQ(_response->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
 
     if(call_service_sync_)
     {
@@ -217,10 +216,10 @@ void payload_test_client::run()
     blocked_ = false;
 
     stop();
-    std::thread t1([](){ usleep(1000000 * 5);});
+    std::thread t1([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5));});
     t1.join();
     app_->stop();
-    std::thread t([](){ usleep(1000000 * 5);});
+    std::thread t([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5));});
     t.join();
 }
 

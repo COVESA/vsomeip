@@ -6,11 +6,14 @@
 #ifndef VSOMEIP_APPLICATION_HPP
 #define VSOMEIP_APPLICATION_HPP
 
+#include <chrono>
 #include <memory>
 #include <set>
+#include <map>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/function_types.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/handler.hpp>
 
@@ -78,9 +81,9 @@ public:
     // Send a message
     virtual void send(std::shared_ptr<message> _message, bool _flush = true) = 0;
 
-    // Set a field or fire an event
+    // Set a field or fire an event (without/with the ability to force notification for field)
     virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload) const = 0;
+                event_t _event, std::shared_ptr<payload> _payload) const = 0;
 
     virtual void notify_one(service_t _service, instance_t _instance,
                 event_t _event, std::shared_ptr<payload> _payload,
@@ -123,6 +126,27 @@ public:
 
     // Routing/SD hosted by this application!?
     virtual bool is_routing() const = 0;
+
+    virtual void offer_event(service_t _service,
+            instance_t _instance, event_t _event,
+            const std::set<eventgroup_t> &_eventgroups,
+            bool _is_field,
+            std::chrono::milliseconds _cycle,
+            bool _change_resets_cycle,
+            const epsilon_change_func_t &_epsilon_change_func) = 0;
+
+    virtual void notify(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force) const = 0;
+
+    virtual void notify_one(service_t _service, instance_t _instance,
+                event_t _event, std::shared_ptr<payload> _payload,
+                client_t _client, bool _force) const = 0;
+
+    typedef std::map<service_t, std::map<instance_t,  std::map<major_version_t, minor_version_t >>> available_t;
+    virtual bool are_available(available_t &_available,
+                       service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+                       major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 };
 
 } // namespace vsomeip

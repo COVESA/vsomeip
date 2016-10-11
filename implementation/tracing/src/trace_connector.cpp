@@ -20,6 +20,7 @@ std::shared_ptr<trace_connector> trace_connector::get() {
 
 trace_connector::trace_connector() :
     is_enabled_(false),
+    is_sd_enabled_(false),
     is_initialized_(false),
     channels_(),
     filter_rules_()
@@ -33,12 +34,14 @@ trace_connector::~trace_connector() {
 
 void trace_connector::init() {
 #ifdef USE_DLT
-    // register channels/contexts
-    std::lock_guard<std::mutex> lock(dlt_contexts_mutex);
-    for(auto it = channels_.begin(); it != channels_.end(); ++it) {
-        DltContext *dlt_context = new DltContext();
-        dlt_contexts_.insert(std::make_pair(it->first, dlt_context));
-        DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, it->first.c_str(), it->second.c_str(), DLT_LOG_DEBUG, DLT_TRACE_STATUS_ON);
+    if(!is_initialized_) {
+        // register channels/contexts
+        std::lock_guard<std::mutex> lock(dlt_contexts_mutex);
+        for(auto it = channels_.begin(); it != channels_.end(); ++it) {
+            DltContext *dlt_context = new DltContext();
+            dlt_contexts_.insert(std::make_pair(it->first, dlt_context));
+            DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, it->first.c_str(), it->second.c_str(), DLT_LOG_DEBUG, DLT_TRACE_STATUS_ON);
+        }
     }
 #endif
     is_initialized_ = true;
@@ -53,7 +56,9 @@ void trace_connector::reset() {
     // unregister channels/contexts
     for(auto it = dlt_contexts_.begin(); it != dlt_contexts_.end(); ++it) {
         DLT_UNREGISTER_CONTEXT(*it->second);
+        delete it->second;
     }
+    dlt_contexts_.clear();
 #endif
 
     // reset to default
@@ -62,14 +67,32 @@ void trace_connector::reset() {
     channels_.insert(std::make_pair(VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME));
 
     filter_rules_.clear();
+
+    is_initialized_ = false;
 }
 
 void trace_connector::set_enabled(const bool _enabled) {
     is_enabled_ = _enabled;
 }
 
-bool trace_connector::is_enabled() {
+bool trace_connector::is_enabled() const {
     return is_enabled_;
+}
+
+void trace_connector::set_sd_enabled(const bool _sd_enabled) {
+    is_sd_enabled_ = _sd_enabled;
+}
+
+bool trace_connector::is_sd_enabled() const {
+    return is_sd_enabled_;
+}
+
+bool trace_connector::is_sd_message(const byte_t *_data, uint16_t _data_size) const {
+    if (VSOMEIP_METHOD_POS_MAX < _data_size) {
+        return (_data[VSOMEIP_SERVICE_POS_MIN] == 0xFF && _data[VSOMEIP_SERVICE_POS_MAX] == 0xFF &&
+                _data[VSOMEIP_METHOD_POS_MIN] == 0x81 && _data[VSOMEIP_METHOD_POS_MAX] == 0x00);
+    }
+    return false;
 }
 
 bool trace_connector::add_channel(const trace_channel_t &_id, const std::string &_name) {
@@ -206,6 +229,9 @@ void trace_connector::trace(const byte_t *_header, uint16_t _header_size,
 
     if (_data_size == 0)
         return; // no data
+
+    if (is_sd_message(_data, _data_size) && !is_sd_enabled_)
+        return; // tracing of service discovery messages is disabled!
 
     // check if filter rules match
     std::vector<trace_channel_t> its_channels;

@@ -9,7 +9,7 @@
 #include <memory>
 
 #include <boost/asio/io_service.hpp>
-#include <boost/asio/system_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 namespace vsomeip {
 namespace sd {
@@ -28,8 +28,8 @@ public:
             bool _use_alt_timer) = 0;
 
 private:
-    boost::asio::system_timer timer_;
-    boost::asio::system_timer alt_timer_;
+    boost::asio::steady_timer timer_;
+    boost::asio::steady_timer alt_timer_;
 };
 
 } // namespace sd

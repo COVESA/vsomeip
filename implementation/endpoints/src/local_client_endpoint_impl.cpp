@@ -40,6 +40,7 @@ void local_client_endpoint_impl::start() {
         sending_blocked_ = false;
         boost::system::error_code its_error;
         socket_.cancel(its_error);
+        socket_.shutdown(socket_type::shutdown_both, its_error);
         socket_.close(its_error);
         restart();
     } else {
@@ -63,6 +64,20 @@ void local_client_endpoint_impl::connect() {
 }
 
 void local_client_endpoint_impl::receive() {
+#ifndef WIN32
+    receive_buffer_t its_buffer(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE , 0);
+    socket_.async_receive(
+        boost::asio::buffer(its_buffer),
+        std::bind(
+            &local_client_endpoint_impl::receive_cbk,
+            std::dynamic_pointer_cast<
+                local_client_endpoint_impl
+            >(shared_from_this()),
+            std::placeholders::_1,
+            std::placeholders::_2
+        )
+    );
+#endif
 }
 
 void local_client_endpoint_impl::send_queued() {
@@ -105,6 +120,21 @@ VSOMEIP_DEBUG << msg.str();
 }
 
 void local_client_endpoint_impl::send_magic_cookie() {
+}
+
+void local_client_endpoint_impl::receive_cbk(
+        boost::system::error_code const &_error, std::size_t _bytes) {
+    (void)_bytes;
+    if (_error == boost::asio::error::operation_aborted) {
+        // endpoint was stopped
+        shutdown_and_close_socket();
+    } else if (_error == boost::asio::error::connection_reset
+            || _error == boost::asio::error::eof) {
+        VSOMEIP_TRACE << "local_client_endpoint: connection_reseted/EOF";
+    } else {
+        VSOMEIP_ERROR << "Local endpoint received message ("
+                      << _error.message() << ")";
+    }
 }
 
 } // namespace vsomeip

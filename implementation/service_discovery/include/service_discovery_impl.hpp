@@ -11,7 +11,7 @@
 #include <mutex>
 #include <set>
 
-#include <boost/asio/system_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include "service_discovery.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
@@ -41,7 +41,7 @@ typedef std::map<service_t, std::map<instance_t, std::shared_ptr<request> > > re
 struct accepted_subscriber_t {
     std::shared_ptr < endpoint_definition > subscriber;
     std::shared_ptr < endpoint_definition > target;
-    std::chrono::high_resolution_clock::time_point its_expiration;
+    std::chrono::steady_clock::time_point its_expiration;
     vsomeip::service_t service_id;
     vsomeip::instance_t instance_id;
     vsomeip::eventgroup_t eventgroup_;
@@ -189,12 +189,6 @@ private:
 
     bool check_static_header_fields(
             const std::shared_ptr<const message> &_message) const;
-    void send_eventgroup_subscription_nack(service_t _service,
-                                           instance_t _instance,
-                                           eventgroup_t _eventgroup,
-                                           major_version_t _major,
-                                           uint8_t _counter,
-                                           uint16_t _reserved);
     bool check_layer_four_protocol(
             const std::shared_ptr<const ip_option_impl> _ip_option) const;
     void get_subscription_endpoints(subscription_type_e _subscription_type,
@@ -262,13 +256,13 @@ private:
     std::weak_ptr<runtime> runtime_;
 
     // TTL handling for services offered by other hosts
-    boost::asio::system_timer ttl_timer_;
+    boost::asio::steady_timer ttl_timer_;
     std::chrono::milliseconds smallest_ttl_;
     ttl_t ttl_;
 
     // TTL handling for subscriptions done by other hosts
-    boost::asio::system_timer subscription_expiration_timer_;
-    std::chrono::high_resolution_clock::time_point next_subscription_expiration_;
+    boost::asio::steady_timer subscription_expiration_timer_;
+    std::chrono::steady_clock::time_point next_subscription_expiration_;
 
     uint32_t max_message_size_;
 };

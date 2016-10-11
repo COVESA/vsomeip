@@ -42,6 +42,8 @@ std::shared_ptr<configuration> configuration_impl::get(
     static bool has_reading_failed(false);
 
     if (!the_configuration) {
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
         the_configuration = std::make_shared<configuration_impl>();
         std::vector<element> its_configuration_elements;
 
@@ -95,7 +97,13 @@ std::shared_ptr<configuration> configuration_impl::get(
                       its_configuration_elements.end());
             for (auto e : its_configuration_elements)
                 the_configuration->load(e);
+            // set global unicast address for all services with magic cookies enabled
+            the_configuration->set_magic_cookies_unicast_address();
         }
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        VSOMEIP_DEBUG << "Parsed vSomeIP configuration in "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+                << "ms";
     }
 
     // There is only one attempt to read the configuration file(s).
@@ -131,6 +139,8 @@ configuration_impl::configuration_impl() :
         max_configured_message_size_(0),
         trace_(std::make_shared<trace>()),
         watchdog_(std::make_shared<watchdog>()),
+        log_version_(true),
+        log_version_interval_(10),
         permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
         umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
@@ -197,6 +207,7 @@ void configuration_impl::load(const element &_element) {
         get_trace_configuration(_element);
         get_supports_selective_broadcasts(_element.tree_);
         get_watchdog_configuration(_element);
+        get_internal_services(_element.tree_);
     } catch (std::exception &e) {
 #ifdef WIN32
       e; // silence MSVC warning C4101
@@ -281,6 +292,18 @@ void configuration_impl::get_logging_configuration(
                           boost::log::trivial::severity_level::info))))));
                     is_configured_[ET_LOGGING_LEVEL] = true;
                 }
+            } else if (its_key == "version") {
+                std::stringstream its_converter;
+                for (auto j : i->second) {
+                    std::string its_sub_key(j.first);
+                    std::string its_sub_value(j.second.data());
+                    if (its_sub_key == "enable") {
+                        log_version_ = (its_sub_value == "true");
+                    } else if (its_sub_key == "interval") {
+                        its_converter << std::dec << its_sub_value;
+                        its_converter >> log_version_interval_;
+                    }
+                }
             }
         }
     } catch (...) {
@@ -325,7 +348,7 @@ void configuration_impl::get_services_configuration(
     try {
         auto its_services = _tree.get_child("services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
-            get_service_configuration(i->second, "");
+            get_service_configuration(i->second, "local");
     } catch (...) {
         try {
             auto its_servicegroups = _tree.get_child("servicegroups");
@@ -336,6 +359,19 @@ void configuration_impl::get_services_configuration(
         }
     }
 }
+
+void configuration_impl::set_magic_cookies_unicast_address() {
+    // get services with static routing that have magic cookies enabled
+    std::map<std::string, std::set<uint16_t> > its_magic_cookies_ = magic_cookies_;
+    its_magic_cookies_.erase("local");
+
+    //set unicast address of host for all services without static routing
+    its_magic_cookies_[get_unicast_address().to_string()].insert(magic_cookies_["local"].begin(),
+            magic_cookies_["local"].end());
+    magic_cookies_.clear();
+    magic_cookies_ = its_magic_cookies_;
+}
+
 
 void configuration_impl::get_clients_configuration(
         const boost::property_tree::ptree &_tree) {
@@ -553,8 +589,7 @@ void configuration_impl::get_service_configuration(
             services_[its_service->service_][its_service->instance_] =
                     its_service;
             if (use_magic_cookies) {
-                magic_cookies_[get_unicast_address(its_service->service_,
-                        its_service->instance_)].insert(its_service->reliable_);
+                magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
             }
         }
     } catch (...) {
@@ -682,9 +717,8 @@ void configuration_impl::get_eventgroup_configuration(
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
             std::stringstream its_converter;
             std::string its_key(j->first);
+            std::string its_value(j->second.data());
             if (its_key == "eventgroup") {
-
-                std::string its_value(j->second.data());
                 if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
                     its_converter << std::hex << its_value;
                 } else {
@@ -706,6 +740,12 @@ void configuration_impl::get_eventgroup_configuration(
                     its_converter >> its_eventgroup->multicast_port_;
                 } catch (...) {
                 }
+            } else if (its_key == "threshold") {
+                int its_threshold(0);
+                std::stringstream its_converter;
+                its_converter << std::dec << its_value;
+                its_converter >> std::dec >> its_threshold;
+                its_eventgroup->threshold_ = static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
                     std::stringstream its_converter;
@@ -984,6 +1024,14 @@ void configuration_impl::get_trace_configuration(const element &_element) {
                     trace_->is_enabled_ = (its_value == "true");
                     is_configured_[ET_TRACING_ENABLE] = true;
                 }
+            } else if (its_key == "sd_enable") {
+                if (is_configured_[ET_TRACING_SD_ENABLE]) {
+                    VSOMEIP_WARNING << "Multiple definitions of tracing.sd_enable."
+                            << " Ignoring definition from " << _element.name_;
+                } else {
+                    trace_->is_sd_enabled_ = (its_value == "true");
+                    is_configured_[ET_TRACING_SD_ENABLE] = true;
+                }
             } else if(its_key == "channels") {
                 get_trace_channels_configuration(i->second);
             } else if(its_key == "filters") {
@@ -1142,6 +1190,92 @@ void configuration_impl::get_watchdog_configuration(const element &_element) {
         }
     } catch (...) {
     }
+}
+
+void configuration_impl::get_internal_services(
+        const boost::property_tree::ptree &_tree) {
+    try {
+        auto optional = _tree.get_child_optional("internal_services");
+        if (!optional) {
+            return;
+        }
+        auto its_internal_services = _tree.get_child("internal_services");
+        for (auto found_range = its_internal_services.begin();
+                found_range != its_internal_services.end(); ++found_range) {
+            service_instance_range range;
+            range.first_service_ = 0x0;
+            range.last_service_ = 0x0;
+            range.first_instance_ = 0x0;
+            range.last_instance_ = 0xffff;
+            for (auto i = found_range->second.begin();
+                    i != found_range->second.end(); ++i) {
+                if (i->first == "first") {
+                    if (i->second.size() == 0) {
+                        std::stringstream its_converter;
+                        std::string value = i->second.data();
+                        its_converter << std::hex << value;
+                        its_converter >> range.first_service_;
+                    }
+                    for (auto n = i->second.begin();
+                            n != i->second.end(); ++n) {
+                        if (n->first == "service") {
+                            std::stringstream its_converter;
+                            std::string value = n->second.data();
+                            its_converter << std::hex << value;
+                            its_converter >> range.first_service_;
+                        } else if (n->first == "instance") {
+                            std::stringstream its_converter;
+                            std::string value = n->second.data();
+                            its_converter << std::hex << value;
+                            its_converter >> range.first_instance_;
+                        }
+                    }
+                } else if (i->first == "last") {
+                    if (i->second.size() == 0) {
+                        std::stringstream its_converter;
+                        std::string value = i->second.data();
+                        its_converter << std::hex << value;
+                        its_converter >> range.last_service_;
+                    }
+                    for (auto n = i->second.begin();
+                            n != i->second.end(); ++n) {
+                        if (n->first == "service") {
+                            std::stringstream its_converter;
+                            std::string value = n->second.data();
+                            its_converter << std::hex << value;
+                            its_converter >> range.last_service_;
+                        } else if (n->first == "instance") {
+                            std::stringstream its_converter;
+                            std::string value = n->second.data();
+                            its_converter << std::hex << value;
+                            its_converter >> range.last_instance_;
+                        }
+                    }
+                }
+            }
+            if (range.last_service_ >= range.first_service_) {
+                if (range.last_instance_ >= range.first_instance_) {
+                    internal_service_ranges_.push_back(range);
+                }
+            }
+        }
+    } catch (...) {
+        VSOMEIP_ERROR << "Error parsing internal service range configuration!";
+    }
+}
+
+bool configuration_impl::is_internal_service(service_t _service,
+        instance_t _instance) const {
+
+    for (auto its_range : internal_service_ranges_) {
+        if (_service >= its_range.first_service_ &&
+                _service <= its_range.last_service_ &&
+                _instance >= its_range.first_instance_ &&
+                _instance <= its_range.last_instance_) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Public interface
@@ -1311,14 +1445,19 @@ configuration_impl::get_remote_services() const {
     std::set<std::pair<service_t, instance_t> > its_remote_services;
     for (auto i : services_) {
         for (auto j : i.second) {
-            if (j.second->unicast_address_ != "local" &&
-                j.second->unicast_address_ != "" &&
-                j.second->unicast_address_ != unicast_.to_string() &&
-                j.second->unicast_address_ != VSOMEIP_UNICAST_ADDRESS)
+            if (is_remote(j.second)) {
                 its_remote_services.insert(std::make_pair(i.first, j.first));
+            }
         }
     }
     return its_remote_services;
+}
+
+bool configuration_impl::is_remote(std::shared_ptr<service> _service) const {
+    return  (_service->unicast_address_ != "local" &&
+            _service->unicast_address_ != "" &&
+            _service->unicast_address_ != unicast_.to_string() &&
+            _service->unicast_address_ != VSOMEIP_UNICAST_ADDRESS);
 }
 
 bool configuration_impl::get_multicast(service_t _service,
@@ -1336,6 +1475,13 @@ bool configuration_impl::get_multicast(service_t _service,
     _address = its_eventgroup->multicast_address_;
     _port = its_eventgroup->multicast_port_;
     return true;
+}
+
+uint8_t configuration_impl::get_threshold(service_t _service,
+        instance_t _instance, eventgroup_t _eventgroup) const {
+    std::shared_ptr<eventgroup> its_eventgroup
+        = find_eventgroup(_service, _instance, _eventgroup);
+    return (its_eventgroup ? its_eventgroup->threshold_ : 0);
 }
 
 std::shared_ptr<client> configuration_impl::find_client(service_t _service,
@@ -1394,7 +1540,7 @@ std::uint32_t configuration_impl::get_max_message_size_local() const {
     // to the routing_manager stub
     return std::uint32_t(its_max_message_size
             + VSOMEIP_COMMAND_HEADER_SIZE + sizeof(instance_t)
-            + sizeof(bool) + sizeof(bool) + sizeof(bool));
+            + sizeof(bool) + sizeof(bool));
 }
 
 std::uint32_t configuration_impl::get_message_size_reliable(
@@ -1411,6 +1557,32 @@ std::uint32_t configuration_impl::get_message_size_reliable(
 
 bool configuration_impl::supports_selective_broadcasts(boost::asio::ip::address _address) const {
     return supported_selective_addresses.find(_address.to_string()) != supported_selective_addresses.end();
+}
+
+bool configuration_impl::log_version() const {
+    return log_version_;
+}
+
+uint32_t configuration_impl::get_log_version_interval() const {
+    return log_version_interval_;
+}
+
+bool configuration_impl::is_offered_remote(service_t _service, instance_t _instance) const {
+    uint16_t reliable_port = get_reliable_port(_service, _instance);
+    uint16_t unreliable_port = get_unreliable_port(_service, _instance);
+    return (reliable_port != ILLEGAL_PORT || unreliable_port != ILLEGAL_PORT);
+}
+
+bool configuration_impl::is_local_service(service_t _service, instance_t _instance) const {
+    std::shared_ptr<service> s = find_service(_service, _instance);
+    if (s && !is_remote(s)) {
+        return true;
+    }
+    if (is_internal_service(_service, _instance)) {
+        return true;
+    }
+
+    return false;
 }
 
 // Service Discovery configuration

@@ -17,8 +17,8 @@ namespace cfg {
 struct eventgroup;
 
 struct event {
-    event(event_t _id, bool _is_field, bool _is_reliable) :
-            id_(_id), is_field_(_is_field), is_reliable_(_is_reliable) {
+    event(event_t _id, bool _is_field, bool _is_reliable)
+        : id_(_id), is_field_(_is_field), is_reliable_(_is_reliable) {
     }
 
     event_t id_;

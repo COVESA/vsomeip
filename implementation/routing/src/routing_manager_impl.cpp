@@ -7,6 +7,11 @@
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <forward_list>
+
+#ifndef WITHOUT_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/message.hpp>
@@ -41,7 +46,12 @@
 namespace vsomeip {
 
 routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
-        routing_manager_base(_host) {
+        routing_manager_base(_host),
+        version_log_timer_(_host->get_io())
+#ifndef WITHOUT_SYSTEMD
+        , watchdog_timer_(_host->get_io())
+#endif
+{
 }
 
 routing_manager_impl::~routing_manager_impl() {
@@ -88,9 +98,29 @@ void routing_manager_impl::start() {
         discovery_->start();
 
     host_->on_state(state_type_e::ST_REGISTERED);
+
+    if (configuration_->log_version()) {
+        version_log_timer_.expires_from_now(
+                std::chrono::seconds(0));
+        version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
+                this, std::placeholders::_1));
+    }
+
+#ifndef WITHOUT_SYSTEMD
+    watchdog_timer_.expires_from_now(std::chrono::seconds(0));
+    watchdog_timer_.async_wait(std::bind(&routing_manager_impl::watchdog_cbk,
+            this, std::placeholders::_1));
+#endif
 }
 
 void routing_manager_impl::stop() {
+    version_log_timer_.cancel();
+
+#ifndef WITHOUT_SYSTEMD
+    watchdog_timer_.cancel();
+    sd_notify(0, "STOPPING=1");
+#endif
+
     host_->on_state(state_type_e::ST_DEREGISTERED);
 
     if (discovery_)
@@ -104,16 +134,20 @@ void routing_manager_impl::stop() {
     }
 }
 
-void routing_manager_impl::offer_service(client_t _client, service_t _service,
+bool routing_manager_impl::offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
     std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
 
-    {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
-        local_services_[_service][_instance] = std::make_tuple(_major, _minor, _client);
+    VSOMEIP_DEBUG << "OFFER("
+        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance
+        << ":" << std::dec << int(_major) << "." << std::dec << _minor << "]";
+
+    if(!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
+        return false;
     }
 
-    routing_manager_base::offer_service(_client, _service, _instance, _major, _minor);
     init_service_info(_service, _instance, true);
 
     {
@@ -136,19 +170,34 @@ void routing_manager_impl::offer_service(client_t _client, service_t _service,
 
     stub_->on_offer_service(_client, _service, _instance, _major, _minor);
     host_->on_availability(_service, _instance, true, _major, _minor);
+    return true;
 }
 
 void routing_manager_impl::stop_offer_service(client_t _client,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
+
+    VSOMEIP_DEBUG << "STOP OFFER("
+        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance
+        << ":" << std::dec << int(_major) << "." << _minor << "]";
+
     routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);
-    on_stop_offer_service(_service, _instance, _major, _minor);
+    on_stop_offer_service(_client, _service, _instance, _major, _minor);
     stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+    host_->on_availability(_service, _instance, false, _major, _minor);
 }
 
 void routing_manager_impl::request_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor,
         bool _use_exclusive_proxy) {
+
+    VSOMEIP_DEBUG << "REQUEST("
+        << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance << ":"
+        << std::dec << int(_major) << "." << std::dec << _minor << "]";
 
     routing_manager_base::request_service(_client, _service, _instance, _major,
             _minor, _use_exclusive_proxy);
@@ -159,10 +208,18 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
             std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
             requested_services_[_client][_service][_instance].insert({ _major, _minor });
         }
-        // Unknown service instance ~> tell SD to find it!
         if (discovery_) {
-            discovery_->request_service(_service, _instance, _major, _minor,
-                    DEFAULT_TTL);
+            if (!configuration_->is_local_service(_service, _instance)) {
+                // Non local service instance ~> tell SD to find it!
+                discovery_->request_service(_service, _instance, _major, _minor,
+                        DEFAULT_TTL);
+            } else {
+                VSOMEIP_DEBUG << std::hex
+                        << "Avoid trigger SD find-service message"
+                        << " for local service/instance/major/minor: "
+                        << _service << "/" << _instance << std::dec
+                        << "/" << (uint32_t)_major << "/" << _minor;
+            }
         }
     } else {
         if ((_major == its_info->get_major()
@@ -171,6 +228,11 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
                         || DEFAULT_MINOR == its_info->get_minor()
                         || _minor == ANY_MINOR)) {
             if(!its_info->is_local()) {
+                {
+                    std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
+                    requested_services_[_client][_service][_instance].insert({ _major, _minor });
+                    its_info->add_client(_client);
+                }
                 find_or_create_remote_client(_service, _instance, true, VSOMEIP_ROUTING_CLIENT);
                 if (_use_exclusive_proxy) {
                     std::shared_ptr<endpoint> its_endpoint = its_info->get_endpoint(true);
@@ -186,17 +248,53 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
         std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
         specific_endpoint_clients_[_service][_instance].insert(_client);
     }
+
+    if (_client == get_client()) {
+        stub_->create_local_receiver();
+    }
 }
 
 void routing_manager_impl::release_service(client_t _client, service_t _service,
         instance_t _instance) {
+
+    VSOMEIP_DEBUG << "RELEASE("
+        << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+
     routing_manager_base::release_service(_client, _service, _instance);
+
+    {
+        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        auto its_client = requested_services_.find(_client);
+        if (its_client != requested_services_.end()) {
+            auto its_service = its_client->second.find(_service);
+            if (its_service != its_client->second.end()) {
+                auto its_instance = its_service->second.find(_instance);
+                if (its_instance != its_service->second.end()) {
+                    its_service->second.erase(_instance);
+                }
+            }
+        }
+    }
+
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
-    if(its_info) {
+    if(its_info && !its_info->is_local()) {
         if(!its_info->get_requesters_size()) {
             if(discovery_) {
                 discovery_->release_service(_service, _instance);
             }
+            clear_client_endpoints(_service, _instance, true);
+            clear_client_endpoints(_service, _instance, false);
+            clear_service_info(_service, _instance, true);
+            clear_service_info(_service, _instance, false);
+            clear_identified_clients(_service, _instance);
+            clear_identifying_clients( _service, _instance);
+        } else {
+            remove_identified_client(_service, _instance, _client);
+            remove_identifying_client(_service, _instance, _client);
+            remove_specific_client_endpoint(_service, _instance, _client, true);
+            remove_specific_client_endpoint(_service, _instance, _client, false);
         }
     } else {
         if(discovery_) {
@@ -208,45 +306,71 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
 void routing_manager_impl::subscribe(client_t _client, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
         subscription_type_e _subscription_type) {
+
+    VSOMEIP_DEBUG << "SUBSCRIBE("
+        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << ":"
+        << std::dec << (uint16_t)_major << "]";
+
     if (get_client() == find_local_client(_service, _instance)) {
-        if (!host_->on_subscription(_service, _instance, _eventgroup, _client, true)) {
-            on_subscribe_nack(_client, _service, _instance, _eventgroup);
+        bool subscription_accepted = host_->on_subscription(_service, _instance, _eventgroup, _client, true);
+        (void) find_or_create_local(_client);
+        if (!subscription_accepted) {
+            stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup);
             VSOMEIP_INFO << "Subscription request from client: 0x" << std::hex
                          << _client << std::dec << " for eventgroup: 0x" << _eventgroup
                          << " rejected from application handler.";
             return;
         } else {
-            on_subscribe_ack(_client, _service, _instance, _eventgroup);
+            stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup);
         }
         routing_manager_base::subscribe(_client, _service, _instance, _eventgroup, _major, _subscription_type);
     } else {
         if (discovery_) {
-            bool inserted = insert_subscription(_service, _instance, _eventgroup, _client);
-            if (inserted) {
-                if (0 == find_local_client(_service, _instance)) {
-                    client_t subscriber = VSOMEIP_ROUTING_CLIENT;
-                    // subscriber != VSOMEIP_ROUTING_CLIENT implies to use its own endpoint
-                    {
-                        std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
-                        auto found_service = specific_endpoint_clients_.find(_service);
-                        if (found_service != specific_endpoint_clients_.end()) {
-                            auto found_instance = found_service->second.find(_instance);
-                            if (found_instance != found_service->second.end()) {
-                                auto found_client = found_instance->second.find(_client);
-                                if(found_client != found_instance->second.end()) {
-                                    subscriber = _client;
-                                    if (supports_selective(_service, _instance)) {
-                                        identify_for_subscribe(_client, _service, _instance, _major);
-                                    } else {
-                                        VSOMEIP_INFO << "Subcribe to legacy selective service: " << std::hex
-                                                     << _service << ":" << _instance << ".";
-                                    }
+            client_t subscriber = VSOMEIP_ROUTING_CLIENT;
+            if (0 == find_local_client(_service, _instance)) {
+                // subscriber != VSOMEIP_ROUTING_CLIENT implies to use its own endpoint
+                bool identify(false);
+                {
+                    std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
+                    auto found_service = specific_endpoint_clients_.find(_service);
+                    if (found_service != specific_endpoint_clients_.end()) {
+                        auto found_instance = found_service->second.find(_instance);
+                        if (found_instance != found_service->second.end()) {
+                            auto found_client = found_instance->second.find(_client);
+                            if(found_client != found_instance->second.end()) {
+                                subscriber = _client;
+                                if (supports_selective(_service, _instance)) {
+                                    identify = true;
+                                } else {
+                                    VSOMEIP_INFO << "Subcribe to legacy selective service: " << std::hex
+                                                 << _service << ":" << _instance << ".";
                                 }
                             }
                         }
                     }
+                }
+                if(identify) {
+                    identify_for_subscribe(_client, _service, _instance, _major);
+                }
+            }
+            bool inserted = insert_subscription(_service, _instance, _eventgroup, _client);
+            if (inserted) {
+                if (0 == find_local_client(_service, _instance)) {
+                    static const ttl_t configured_ttl(configuration_->get_sd_ttl());
                     discovery_->subscribe(_service, _instance, _eventgroup,
-                                          _major, DEFAULT_TTL, subscriber, _subscription_type);
+                                          _major, configured_ttl, subscriber, _subscription_type);
+                    auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+                    if (its_eventgroup) {
+                        std::set<std::shared_ptr<event> > its_events
+                            = its_eventgroup->get_events();
+                        for (auto e : its_events) {
+                            if (e->is_field())
+                                e->notify_one(_client);
+                        }
+                    }
                 } else {
                    stub_->send_subscribe(routing_manager_base::find_local(_service, _instance),
                            _client, _service, _instance, _eventgroup, _major, false);
@@ -260,6 +384,14 @@ void routing_manager_impl::subscribe(client_t _client, service_t _service,
 
 void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup) {
+
+    VSOMEIP_DEBUG << "UNSUBSCRIBE("
+        << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
+        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+
+    bool last_subscriber_removed(false);
     if (discovery_) {
         {
             std::lock_guard<std::mutex> its_lock(eventgroup_clients_mutex_);
@@ -272,6 +404,7 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
                     if (found_eventgroup != found_instance->second.end()) {
                         found_eventgroup->second.erase(_client);
                         if (0 == found_eventgroup->second.size()) {
+                            last_subscriber_removed = true;
                             eventgroup_clients_.erase(_eventgroup);
                         }
                     }
@@ -295,10 +428,11 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
                     }
                 }
             }
-            discovery_->unsubscribe(_service, _instance, _eventgroup, subscriber);
+            if( last_subscriber_removed )
+                discovery_->unsubscribe(_service, _instance, _eventgroup, subscriber);
         } else {
             stub_->send_unsubscribe(routing_manager_base::find_local(_service, _instance),
-                    _client, _service, _instance, _eventgroup);
+                    _client, _service, _instance, _eventgroup, false);
         }
         clear_multicast_endpoints(_service, _instance);
     } else {
@@ -308,12 +442,12 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
 
 bool routing_manager_impl::send(client_t _client,
         std::shared_ptr<message> _message, bool _flush) {
-	return routing_manager_base::send(_client, _message, _flush);
+    return routing_manager_base::send(_client, _message, _flush);
 }
 
 bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         length_t _size, instance_t _instance,
-        bool _flush, bool _reliable, bool _initial) {
+        bool _flush, bool _reliable) {
     bool is_sent(false);
 
     std::shared_ptr<endpoint> its_target;
@@ -345,7 +479,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         }
 
         if (its_target) {
-            is_sent = send_local(its_target, _client, _data, _size, _instance, _flush, _reliable, VSOMEIP_SEND, false, _initial);
+            is_sent = send_local(its_target, _client, _data, _size, _instance, _flush, _reliable, VSOMEIP_SEND);
         } else {
             // Check whether hosting application should get the message
             // If not, check routes to external
@@ -394,8 +528,10 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                     _data[VSOMEIP_METHOD_POS_MAX]);
                             std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
                             if (its_event) {
+#ifdef USE_DLT
+                                bool has_sent(false);
+#endif
                                 std::vector< byte_t > its_data;
-
                                 for (auto its_group : its_event->get_eventgroups()) {
                                     // we need both endpoints as clients can subscribe to events via TCP and UDP
                                     std::shared_ptr<endpoint> its_unreliable_target = its_info->get_endpoint(false);
@@ -404,45 +540,44 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                         // remote
                                         auto its_eventgroup = find_eventgroup(its_service, _instance, its_group);
                                         if (its_eventgroup) {
-                                            //Unicast targets
+                                            // Unicast targets
                                             for (auto its_remote : its_eventgroup->get_targets()) {
                                                 if(its_remote.endpoint_->is_reliable() && its_reliable_target) {
-#ifdef USE_DLT
-                                                    uint16_t its_data_size
-                                                        = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
-
-                                                    tc::trace_header its_header;
-                                                    if (its_header.prepare(its_reliable_target, true))
-                                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                                                                _data, its_data_size);
-#endif
                                                     its_reliable_target->send_to(its_remote.endpoint_, _data, _size);
-                                                } else if(its_unreliable_target && !its_eventgroup->is_multicast()) {
-#ifdef USE_DLT
-                                                    uint16_t its_data_size
-                                                        = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
-
-                                                    tc::trace_header its_header;
-                                                    if (its_header.prepare(its_reliable_target, true))
-                                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                                                                _data, its_data_size);
-#endif
+                                                } else if (its_unreliable_target && !its_eventgroup->is_sending_multicast()) {
                                                     its_unreliable_target->send_to(its_remote.endpoint_, _data, _size);
                                                 }
+#ifdef USE_DLT
+                                                has_sent = true;
+#endif
                                             }
-                                            //send to multicast targets if subscribers are still interested
-                                            if(its_eventgroup->is_multicast()
-                                                    && its_eventgroup->get_unreliable_target_count() > 0 ) {
+                                            // Send to multicast targets if subscribers are still interested
+                                            if (its_eventgroup->is_sending_multicast()) {
                                                 for (auto its_multicast_target : its_eventgroup->get_multicast_targets()) {
                                                     its_unreliable_target->send_to(its_multicast_target.endpoint_, _data, _size);
+#ifdef USE_DLT
+                                                    has_sent = true;
+#endif
                                                 }
                                             }
+#ifdef USE_DLT
+                                            if (has_sent) {
+                                                uint16_t its_data_size
+                                                    = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
+
+                                                tc::trace_header its_header;
+                                                if (its_header.prepare(nullptr, true))
+                                                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
+                                                            _data, its_data_size);
+                                            }
+#endif
                                         }
                                     }
                                 }
                             }
                         } else {
-                            its_target = is_service_discovery ? sd_info_->get_endpoint(false) : its_info->get_endpoint(_reliable);
+                            its_target = is_service_discovery ?
+                                         (sd_info_ ? sd_info_->get_endpoint(false) : nullptr) : its_info->get_endpoint(_reliable);
                             if (its_target) {
 #ifdef USE_DLT
                                 uint16_t its_data_size
@@ -496,7 +631,6 @@ bool routing_manager_impl::send_to(
     std::shared_ptr<endpoint> its_endpoint = find_server_endpoint(
             _target->get_remote_port(), _target->is_reliable());
 
-
     if (its_endpoint) {
 #ifdef USE_DLT
         uint16_t its_data_size
@@ -538,7 +672,10 @@ void routing_manager_impl::register_shadow_event(client_t _client,
         event_t _event, const std::set<eventgroup_t> &_eventgroups,
         bool _is_field, bool _is_provided) {
     routing_manager_base::register_event(_client, _service, _instance,
-            _event, _eventgroups, _is_field, _is_provided, true);
+            _event, _eventgroups, _is_field,
+            std::chrono::milliseconds::zero(), false,
+            nullptr,
+            _is_provided, true);
 }
 
 void routing_manager_impl::unregister_shadow_event(client_t _client,
@@ -550,10 +687,10 @@ void routing_manager_impl::unregister_shadow_event(client_t _client,
 
 void routing_manager_impl::notify(
         service_t _service, instance_t _instance, event_t _event,
-        std::shared_ptr<payload> _payload) {
+        std::shared_ptr<payload> _payload, bool _force) {
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
-        its_event->set_payload(_payload);
+        its_event->set_payload(_payload, _force);
     } else {
         VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
             << std::hex << _service << "." << _instance << "." << _event
@@ -562,47 +699,49 @@ void routing_manager_impl::notify(
 }
 
 void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload, client_t _client) {
-	if (find_local(_client)) {
-		routing_manager_base::notify_one(_service, _instance, _event, _payload,
-				_client);
-	} else {
-		std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
-		if (its_event) {
-			// Event is valid for service/instance
-			bool found_eventgroup(false);
-			// Iterate over all groups of the event to ensure at least
-			// one valid eventgroup for service/instance exists.
-			for (auto its_group : its_event->get_eventgroups()) {
-				auto its_eventgroup = find_eventgroup(_service, _instance, its_group);
-				if (its_eventgroup) {
-					// Eventgroup is valid for service/instance
-					found_eventgroup = true;
-					break;
-				}
-			}
-			if (found_eventgroup) {
-				// Now set event's payload!
-				// Either with endpoint_definition (remote) or with client (local).
-				auto its_service = remote_subscribers_.find(_service);
-				if (its_service != remote_subscribers_.end()) {
-					auto its_instance = its_service->second.find(_instance);
-					if (its_instance != its_service->second.end()) {
-						auto its_subscriber = its_instance->second.find(_client);
-						if (its_subscriber != its_instance->second.end()) {
-							for (auto its_target : its_subscriber->second) {
-								its_event->set_payload(_payload, its_target);
-							}
-						}
-					}
-				}
-			}
-		} else {
-			VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
-				<< std::hex << _service << "." << _instance << "." << _event
-				<< "]";
-		}
-	}
+        event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+        bool _force) {
+    if (find_local(_client)) {
+        routing_manager_base::notify_one(_service, _instance, _event, _payload,
+                _client, _force);
+    } else {
+        std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+        if (its_event) {
+            // Event is valid for service/instance
+            bool found_eventgroup(false);
+            // Iterate over all groups of the event to ensure at least
+            // one valid eventgroup for service/instance exists.
+            for (auto its_group : its_event->get_eventgroups()) {
+                auto its_eventgroup = find_eventgroup(_service, _instance, its_group);
+                if (its_eventgroup) {
+                    // Eventgroup is valid for service/instance
+                    found_eventgroup = true;
+                    break;
+                }
+            }
+            if (found_eventgroup) {
+                // Now set event's payload!
+                // Either with endpoint_definition (remote) or with client (local).
+                std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                auto its_service = remote_subscribers_.find(_service);
+                if (its_service != remote_subscribers_.end()) {
+                    auto its_instance = its_service->second.find(_instance);
+                    if (its_instance != its_service->second.end()) {
+                        auto its_subscriber = its_instance->second.find(_client);
+                        if (its_subscriber != its_instance->second.end()) {
+                            for (auto its_target : its_subscriber->second) {
+                                its_event->set_payload(_payload, its_target, _force);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
+                << std::hex << _service << "." << _instance << "." << _event
+                << "]";
+        }
+    }
 }
 
 void routing_manager_impl::on_error(const byte_t *_data, length_t _length, endpoint *_receiver) {
@@ -617,7 +756,7 @@ void routing_manager_impl::on_error(const byte_t *_data, length_t _length, endpo
 }
 
 void routing_manager_impl::release_port(uint16_t _port, bool _reliable) {
-	used_client_ports_[_reliable].erase(_port);
+    used_client_ports_[_reliable].erase(_port);
 }
 
 void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
@@ -652,6 +791,13 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
             }
         } else {
             instance_t its_instance = find_instance(its_service, _receiver);
+            //Ignore messages with invalid message type
+            if(_size >= VSOMEIP_MESSAGE_TYPE_POS) {
+                if(!utility::is_valid_message_type(static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
+                    VSOMEIP_ERROR << "Ignored SomeIP message with invalid message type.";
+                    return;
+                }
+            }
             return_code_e return_code = check_error(_data, _size, its_instance);
             if(!(_size >= VSOMEIP_MESSAGE_TYPE_POS && utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
                 if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
@@ -736,50 +882,94 @@ void routing_manager_impl::on_notification(client_t _client,
                                     &_data[VSOMEIP_PAYLOAD_POS],
                                     its_length);
 
-        if (!_notify_one) {
-            its_event->set_payload(its_payload);
+        if (_notify_one) {
+            notify_one(_service, _instance, its_event->get_event(), its_payload, _client, true);
         } else {
-            notify_one(_service, _instance, its_event->get_event(), its_payload, _client);
+            if (its_event->is_field()) {
+                if (its_event->is_set()) {
+                    its_event->set_payload(its_payload);
+                } else {
+                    // Set payload first time ~> notify all remote subscriber per unicast (inital field)
+                    for (auto its_group : its_event->get_eventgroups()) {
+                        auto its_eventgroup = find_eventgroup(_service, _instance, its_group);
+                        if (its_eventgroup) {
+                            //Unicast targets
+                            for (auto its_remote : its_eventgroup->get_targets()) {
+                                its_event->set_payload(its_payload, its_remote.endpoint_, true);
+                            }
+                        }
+                    }
+                }
+            } else {
+                its_event->set_payload(its_payload);
+            }
         }
 
     }
 }
 
 void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
-    // Is called when endpoint->connect succeded!
-    for (auto &its_service : remote_services_) {
-        for (auto &its_instance : its_service.second) {
-            for (auto &its_client : its_instance.second) {
-                if (its_client.first == VSOMEIP_ROUTING_CLIENT ||
-                        its_client.first == get_client()) {
-                    auto found_endpoint = its_client.second.find(false);
-                    if (found_endpoint != its_client.second.end()) {
-                        if (found_endpoint->second.get() == _endpoint.get()) {
-                            std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
-                            if(!its_info) {
-                                return;
+    // Is called when endpoint->connect succeeded!
+    struct service_info {
+        service_t service_id_;
+        instance_t instance_id_;
+        major_version_t major_;
+        minor_version_t minor_;
+        bool reliable_;
+        std::shared_ptr<endpoint> endpoint_;
+    };
+    std::forward_list<struct service_info> services_to_report_;
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        for (auto &its_service : remote_services_) {
+            for (auto &its_instance : its_service.second) {
+                for (auto &its_client : its_instance.second) {
+                    if (its_client.first == VSOMEIP_ROUTING_CLIENT ||
+                            its_client.first == get_client()) {
+                        auto found_endpoint = its_client.second.find(false);
+                        if (found_endpoint != its_client.second.end()) {
+                            if (found_endpoint->second.get() == _endpoint.get()) {
+                                std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
+                                if (!its_info) {
+                                    return;
+                                }
+                                services_to_report_.push_front(
+                                            { its_service.first,
+                                                    its_instance.first,
+                                                    its_info->get_major(),
+                                                    its_info->get_minor(),
+                                                    false, nullptr });
                             }
-                            host_->on_availability(its_service.first, its_instance.first,
-                                    true, its_info->get_major(), its_info->get_minor());
                         }
-                    }
-                    found_endpoint = its_client.second.find(true);
-                    if (found_endpoint != its_client.second.end()) {
-                        if (found_endpoint->second.get() == _endpoint.get()) {
-                            std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
-                            if(!its_info){
-                                return;
-                            }
-                            host_->on_availability(its_service.first, its_instance.first,
-                                    true, its_info->get_major(), its_info->get_minor());
-                            stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT,
-                                    its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor());
-                            if(discovery_) {
-                                discovery_->on_reliable_endpoint_connected(its_service.first, its_instance.first, _endpoint);
+                        found_endpoint = its_client.second.find(true);
+                        if (found_endpoint != its_client.second.end()) {
+                            if (found_endpoint->second.get() == _endpoint.get()) {
+                                std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
+                                if (!its_info) {
+                                    return;
+                                }
+                                services_to_report_.push_front(
+                                            { its_service.first,
+                                                    its_instance.first,
+                                                    its_info->get_major(),
+                                                    its_info->get_minor(),
+                                                    true, _endpoint });
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+    for (const auto &s : services_to_report_) {
+        host_->on_availability(s.service_id_, s.instance_id_, true, s.major_,
+                s.minor_);
+        if (s.reliable_) {
+            stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, s.service_id_,
+                    s.instance_id_, s.major_, s.minor_);
+            if (discovery_) {
+                discovery_->on_reliable_endpoint_connected(s.service_id_,
+                        s.instance_id_, s.endpoint_);
             }
         }
     }
@@ -787,6 +977,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
 
 void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
+    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     for (auto &its_service : remote_services_) {
         for (auto &its_instance : its_service.second) {
             for (auto &its_client : its_instance.second) {
@@ -822,9 +1013,43 @@ void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     }
 }
 
-void routing_manager_impl::on_stop_offer_service(service_t _service,
+void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
-
+    {
+        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        auto found_service = local_services_.find(_service);
+        if (found_service != local_services_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                if (   std::get<0>(found_instance->second) != _major
+                    || std::get<1>(found_instance->second) != _minor
+                    || std::get<2>(found_instance->second) != _client) {
+                    VSOMEIP_WARNING
+                            << "routing_manager_impl::on_stop_offer_service: "
+                            << "trying to delete service not matching exactly "
+                            << "the one offered previously: " << "[" << std::hex
+                            << std::setw(4) << std::setfill('0') << _service
+                            << "." << _instance << "." << std::dec
+                            << static_cast<std::uint32_t>(_major)
+                            << "." << _minor << "] by application: "
+                            << std::hex << std::setw(4) << std::setfill('0')
+                            << _client << ". Stored: [" << std::hex
+                            << std::setw(4) << std::setfill('0') << _service
+                            << "." << _instance << "." << std::dec
+                            << static_cast<std::uint32_t>(std::get<0>(found_instance->second)) << "."
+                            << std::get<1>(found_instance->second)
+                            << "] by application: " << std::hex << std::setw(4)
+                            << std::setfill('0') << std::get<2>(found_instance->second);
+                }
+                if (std::get<2>(found_instance->second) == _client) {
+                    found_service->second.erase(_instance);
+                    if (found_service->second.size() == 0) {
+                        local_services_.erase(_service);
+                    }
+                }
+            }
+        }
+    }
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         auto its_events_service = events_.find(_service);
@@ -960,7 +1185,7 @@ bool routing_manager_impl::deliver_notification(
     if (its_event) {
         std::vector< byte_t > its_data;
         std::set<client_t> its_local_client_set;
-        if(its_event->is_field() && !its_event->is_shadow()) {
+        if(its_event->is_field() && !its_event->is_provided()) {
             // store the current value of the remote field
             const uint32_t its_length(utility::get_payload_size(_data, _length));
             std::shared_ptr<payload> its_payload =
@@ -1072,6 +1297,7 @@ void routing_manager_impl::init_service_info(
                 if (its_reliable_endpoint) {
                     its_info->set_endpoint(its_reliable_endpoint, true);
                     its_reliable_endpoint->increment_use_count();
+                    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
                     service_instances_[_service][its_reliable_endpoint.get()] =
                             _instance;
                 }
@@ -1083,6 +1309,7 @@ void routing_manager_impl::init_service_info(
                 if (its_unreliable_endpoint) {
                     its_info->set_endpoint(its_unreliable_endpoint, false);
                     its_unreliable_endpoint->increment_use_count();
+                    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
                     service_instances_[_service][its_unreliable_endpoint.get()] =
                             _instance;
                 }
@@ -1229,6 +1456,22 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_local(
 
 void routing_manager_impl::remove_local(client_t _client) {
     routing_manager_base::remove_local(_client);
+    std::forward_list<std::pair<service_t, instance_t>> services_to_release_;
+    {
+        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        auto its_client = requested_services_.find(_client);
+        if (its_client != requested_services_.end()) {
+            for (auto its_service : its_client->second) {
+                for (auto its_instance : its_service.second) {
+                    services_to_release_.push_front(
+                        { its_service.first, its_instance.first });
+                }
+            }
+        }
+    }
+    for (const auto &s : services_to_release_) {
+        release_service(_client, s.first, s.second);
+    }
 }
 
 instance_t routing_manager_impl::find_instance(service_t _service,
@@ -1251,39 +1494,39 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
 
     uint16_t its_local_port;
     if (configuration_->get_client_port(_service, _instance, _reliable,
-    		used_client_ports_, its_local_port)) {
-		auto found_service = remote_service_info_.find(_service);
-		if (found_service != remote_service_info_.end()) {
-			auto found_instance = found_service->second.find(_instance);
-			if (found_instance != found_service->second.end()) {
-				auto found_reliability = found_instance->second.find(_reliable);
-				if (found_reliability != found_instance->second.end()) {
-					its_endpoint_def = found_reliability->second;
-					its_endpoint = create_client_endpoint(
-							its_endpoint_def->get_address(),
-							its_local_port,
-							its_endpoint_def->get_port(),
-							_reliable, _client,
-							configuration_->is_someip(_service, _instance)
-					);
-				}
-			}
-		}
-		if (its_endpoint) {
-			used_client_ports_[_reliable].insert(its_local_port);
-			service_instances_[_service][its_endpoint.get()] = _instance;
-			remote_services_[_service][_instance][_client][_reliable] = its_endpoint;
-			if (_client == VSOMEIP_ROUTING_CLIENT) {
-				client_endpoints_by_ip_[its_endpoint_def->get_address()]
-									   [its_endpoint_def->get_port()]
-									   [_reliable] = its_endpoint;
-				// Set the basic route to the service in the service info
-				auto found_service_info = find_service(_service, _instance);
-				if (found_service_info) {
-					found_service_info->set_endpoint(its_endpoint, _reliable);
-				}
-			}
-		}
+            used_client_ports_, its_local_port)) {
+        auto found_service = remote_service_info_.find(_service);
+        if (found_service != remote_service_info_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_reliability = found_instance->second.find(_reliable);
+                if (found_reliability != found_instance->second.end()) {
+                    its_endpoint_def = found_reliability->second;
+                    its_endpoint = create_client_endpoint(
+                            its_endpoint_def->get_address(),
+                            its_local_port,
+                            its_endpoint_def->get_port(),
+                            _reliable, _client,
+                            configuration_->is_someip(_service, _instance)
+                    );
+                }
+            }
+        }
+        if (its_endpoint) {
+            used_client_ports_[_reliable].insert(its_local_port);
+            service_instances_[_service][its_endpoint.get()] = _instance;
+            remote_services_[_service][_instance][_client][_reliable] = its_endpoint;
+            if (_client == VSOMEIP_ROUTING_CLIENT) {
+                client_endpoints_by_ip_[its_endpoint_def->get_address()]
+                                       [its_endpoint_def->get_port()]
+                                       [_reliable] = its_endpoint;
+                // Set the basic route to the service in the service info
+                auto found_service_info = find_service(_service, _instance);
+                if (found_service_info) {
+                    found_service_info->set_endpoint(its_endpoint, _reliable);
+                }
+            }
+        }
     }
     return its_endpoint;
 }
@@ -1383,13 +1626,44 @@ bool routing_manager_impl::is_field(service_t _service, instance_t _instance,
     return false;
 }
 
-void routing_manager_impl::add_routing_info(
+std::chrono::milliseconds routing_manager_impl::add_routing_info(
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor, ttl_t _ttl,
         const boost::asio::ip::address &_reliable_address,
         uint16_t _reliable_port,
         const boost::asio::ip::address &_unreliable_address,
         uint16_t _unreliable_port) {
+
+    std::chrono::seconds default_ttl(DEFAULT_TTL);
+    std::chrono::milliseconds its_smallest_ttl =
+               std::chrono::duration_cast<std::chrono::milliseconds>(default_ttl);
+    std::chrono::milliseconds its_ttl(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::seconds(_ttl)));
+
+    bool offer_exists(false);
+    for (auto &s : get_services()) {
+        for (auto &i : s.second) {
+            if (i.second->is_local()) {
+                continue; //ignore local services
+            }
+            std::chrono::milliseconds its_found_ttl(i.second->get_precise_ttl());
+            if ( its_found_ttl < its_smallest_ttl ) {
+                its_smallest_ttl = its_found_ttl;
+                if( its_ttl < its_smallest_ttl ) {
+                    its_smallest_ttl = its_ttl;
+                }
+            }
+            offer_exists = true;
+        }
+    }
+    //if no remote service is in the list yet
+    if( !offer_exists ) {
+        if( its_ttl < its_smallest_ttl ) {
+            // set smallest TTL to TTL of first incoming remote offer
+            // this allows expiration of service if no further offer message is received which would trigger update_routing info
+            its_smallest_ttl = its_ttl;
+        }
+    }
 
     // Create/Update service info
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
@@ -1406,6 +1680,23 @@ void routing_manager_impl::add_routing_info(
 
         its_info = create_service_info(_service, _instance, _major, _minor, _ttl, is_local);
         init_service_info(_service, _instance, is_local);
+    } else if (its_info->is_local()) {
+        // We received a service info for a service which is already offered locally
+        VSOMEIP_ERROR << "routing_manager_impl::add_routing_info: "
+            << "rejecting routing info. Remote: "
+            << ((_reliable_port != ILLEGAL_PORT) ? _reliable_address.to_string()
+                    : _unreliable_address.to_string()) << " is trying to offer ["
+            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+            << std::dec << static_cast<std::uint32_t>(_major) << "."
+            << std::dec << _minor
+            << "] on port " << ((_reliable_port != ILLEGAL_PORT) ? _reliable_port
+                    : _unreliable_port) << " offered previously on this node: ["
+            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+            << std::dec << static_cast<std::uint32_t>(its_info->get_major())
+            << "." << its_info->get_minor() << "]";
+        return its_smallest_ttl;
     } else {
         its_info->set_ttl(_ttl);
     }
@@ -1427,7 +1718,15 @@ void routing_manager_impl::add_routing_info(
                             && its_definition->get_port() == _reliable_port) {
                         is_reliable_known = true;
                     } else {
-                        VSOMEIP_WARNING << "Reliable service endpoint has changed!";
+                        VSOMEIP_WARNING << "Reliable service endpoint has changed: ["
+                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::dec << static_cast<std::uint32_t>(_major) << "."
+                            << std::dec << _minor << "] old: "
+                            << its_definition->get_address().to_string() << ":"
+                            << its_definition->get_port() << " new: "
+                            << _reliable_address.to_string() << ":"
+                            << _reliable_port;
                     }
                 }
             }
@@ -1439,7 +1738,15 @@ void routing_manager_impl::add_routing_info(
                             && its_definition->get_port() == _unreliable_port) {
                         is_unreliable_known = true;
                     } else {
-                        VSOMEIP_WARNING << "Unreliable service endpoint has changed!";
+                        VSOMEIP_WARNING << "Unreliable service endpoint has changed: ["
+                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::dec << static_cast<std::uint32_t>(_major) << "."
+                            << std::dec << _minor << "] old: "
+                            << its_definition->get_address().to_string() << ":"
+                            << its_definition->get_port() << " new: "
+                            << _unreliable_address.to_string() << ":"
+                            << _unreliable_port;
                     }
                 }
             }
@@ -1447,12 +1754,10 @@ void routing_manager_impl::add_routing_info(
     }
 
     // Add endpoint(s) if necessary
-    bool is_added(false);
     if (_reliable_port != ILLEGAL_PORT && !is_reliable_known) {
         std::shared_ptr<endpoint_definition> endpoint_def
             = endpoint_definition::get(_reliable_address, _reliable_port, true);
         remote_service_info_[_service][_instance][true] = endpoint_def;
-        is_added = !is_unreliable_known;
 
         // check if service was requested and establish TCP connection if necessary
         {
@@ -1495,19 +1800,54 @@ void routing_manager_impl::add_routing_info(
                 }
             }
         }
+    } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
+        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        for(const auto &client_id : requested_services_) {
+            auto found_service = client_id.second.find(_service);
+            if (found_service != client_id.second.end()) {
+                auto found_instance = found_service->second.find(_instance);
+                if (found_instance != found_service->second.end()) {
+                    for (const auto &major_minor_pair : found_instance->second) {
+                        if ((major_minor_pair.first == _major
+                                || _major == DEFAULT_MAJOR)
+                                && (major_minor_pair.second <= _minor
+                                        || _minor == DEFAULT_MINOR
+                                        || major_minor_pair.second == ANY_MINOR)) {
+                            host_->on_availability(_service, _instance,
+                            true, its_info->get_major(), its_info->get_minor());
+                            if (!stub_->contained_in_routing_info(
+                                    VSOMEIP_ROUTING_CLIENT, _service, _instance,
+                                    its_info->get_major(),
+                                    its_info->get_minor())) {
+                                stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT,
+                                        _service, _instance,
+                                        its_info->get_major(),
+                                        its_info->get_minor());
+                                if (discovery_) {
+                                    discovery_->on_reliable_endpoint_connected(
+                                            _service, _instance,
+                                            its_info->get_endpoint(true));
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (_unreliable_port != ILLEGAL_PORT && !is_unreliable_known) {
         std::shared_ptr<endpoint_definition> endpoint_def
             = endpoint_definition::get(_unreliable_address, _unreliable_port, false);
         remote_service_info_[_service][_instance][false] = endpoint_def;
-        is_added = !is_reliable_known;
-        if (is_added) {
+        if (!is_reliable_known) {
             host_->on_availability(_service, _instance, true, _major, _minor);
             stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
         }
     }
 
+    return its_smallest_ttl;
 }
 
 void routing_manager_impl::del_routing_info(service_t _service, instance_t _instance,
@@ -1519,7 +1859,6 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
 
     host_->on_availability(_service, _instance, false, its_info->get_major(), its_info->get_minor());
     stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
-
     // Implicit unsubscribe
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
@@ -1533,28 +1872,29 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
             }
         }
     }
+
+    clear_identified_clients( _service, _instance);
+    clear_identifying_clients( _service, _instance);
+
     {
-        std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
-        auto its_service = identified_clients_.find(_service);
-        if (its_service != identified_clients_.end()) {
-            auto found_instance = its_service->second.find(_instance);
-            if (found_instance != its_service->second.end()) {
-                auto found_reliable = found_instance->second.find(true);
-                if (found_reliable != found_instance->second.end()) {
-                    found_reliable->second.clear();
-                }
-                auto found_unreliable = found_instance->second.find(false);
-                if (found_unreliable != found_instance->second.end()) {
-                    found_unreliable->second.clear();
-                }
+        std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+        auto found_service = remote_subscribers_.find(_service);
+        if (found_service != remote_subscribers_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                found_instance->second.clear();
             }
         }
     }
 
-    if (_has_reliable)
+    if (_has_reliable) {
         clear_client_endpoints(_service, _instance, true);
-    if (_has_unreliable)
+        clear_remote_service_info(_service, _instance, true);
+    }
+    if (_has_unreliable) {
         clear_client_endpoints(_service, _instance, false);
+        clear_remote_service_info(_service, _instance, false);
+    }
 
     clear_multicast_endpoints(_service, _instance);
 
@@ -1562,6 +1902,14 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
         clear_service_info(_service, _instance, true);
     if (_has_unreliable)
         clear_service_info(_service, _instance, false);
+
+    // For expired services using only unreliable endpoints that have never been created before
+    if (!_has_reliable && !_has_unreliable) {
+        clear_remote_service_info(_service, _instance, true);
+        clear_remote_service_info(_service, _instance, false);
+        clear_service_info(_service, _instance, true);
+        clear_service_info(_service, _instance, false);
+    }
 }
 
 std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapsed) {
@@ -1574,7 +1922,7 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
 
     for (auto &s : get_services()) {
         for (auto &i : s.second) {
-            if (routing_manager_base::find_local(s.first, i.first)) {
+            if (routing_manager_base::find_local_client(s.first, i.first) != VSOMEIP_ROUTING_CLIENT) {
                 continue; //don't expire local services
             }
             ttl_t its_ttl = i.second->get_ttl();
@@ -1600,6 +1948,8 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
 
     for (auto &s : its_expired_offers) {
         for (auto &i : s.second) {
+            VSOMEIP_DEBUG << "update_routing_info: elapsed=" << _elapsed.count()
+                    << " : delete service/instance " << std::hex << s.first << "/" << i.first;
             del_routing_info(s.first, i.first, i.second.first, i.second.second);
         }
     }
@@ -1614,7 +1964,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
 
     for (auto &s : get_services()) {
         for (auto &i : s.second) {
-            if (routing_manager_base::find_local(s.first, i.first)) {
+            if (routing_manager_base::find_local_client(s.first, i.first) != VSOMEIP_ROUTING_CLIENT) {
                 continue; //don't expire local services
             }
             bool is_gone(false);
@@ -1646,6 +1996,8 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
 
     for (auto &s : its_expired_offers) {
         for (auto &i : s.second) {
+            VSOMEIP_DEBUG << "expire_services for address: " << _address.to_string()
+                    << " : delete service/instance " << std::hex << s.first << "/" << i.first;
             del_routing_info(s.first, i.first, i.second.first, i.second.second);
         }
     }
@@ -1664,8 +2016,13 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
 
                 for (auto &its_endpoint : its_invalid_endpoints) {
                     its_eventgroup.second->remove_target(its_endpoint);
+                    auto target = routing_manager_base::find_local(its_service.first, its_instance.first);
+                    if (target) {
+                        stub_->send_unsubscribe(target, VSOMEIP_ROUTING_CLIENT, its_service.first,
+                                its_instance.first, its_eventgroup.first, true);
+                    }
                 }
-                if(its_eventgroup.second->is_multicast() &&
+                if(its_eventgroup.second->is_multicast() && its_invalid_endpoints.size() &&
                         0 == its_eventgroup.second->get_unreliable_target_count() ) {
                     //clear multicast targets if no subscriber is left for multicast eventgroup
                     its_eventgroup.second->clear_multicast_targets();
@@ -1706,7 +2063,7 @@ void routing_manager_impl::init_routing_info() {
 
 bool routing_manager_impl::on_subscribe_accepted(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, const std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::high_resolution_clock::time_point &_expiration) {
+            const std::chrono::steady_clock::time_point &_expiration) {
     std::shared_ptr<eventgroupinfo> its_eventgroup
         = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
@@ -1759,8 +2116,10 @@ bool routing_manager_impl::on_subscribe_accepted(service_t _service, instance_t 
 
         stub_->send_subscribe(routing_manager_base::find_local(_service, _instance),
                 client, _service, _instance, _eventgroup, its_eventgroup->get_major(), true);
-
-        remote_subscribers_[_service][_instance][client].insert(_target);
+        {
+            std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+            remote_subscribers_[_service][_instance][client].insert(_target);
+        }
     } else {
         VSOMEIP_ERROR<< "subscribe: attempt to subscribe to unknown eventgroup!";
         return false;
@@ -1772,14 +2131,14 @@ void routing_manager_impl::on_subscribe(
         service_t _service,    instance_t _instance, eventgroup_t _eventgroup,
         std::shared_ptr<endpoint_definition> _subscriber,
         std::shared_ptr<endpoint_definition> _target,
-        const std::chrono::high_resolution_clock::time_point &_expiration) {
+        const std::chrono::steady_clock::time_point &_expiration) {
 
     std::shared_ptr<eventgroupinfo> its_eventgroup
         = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         // IP address of target is a multicast address if the event is in a multicast eventgroup
         bool target_added(false);
-        if( its_eventgroup->is_multicast() && !_subscriber->is_reliable()) {
+        if (its_eventgroup->is_multicast() && !_subscriber->is_reliable()) {
             // Event is in multicast eventgroup and subscribe for UDP
             target_added = its_eventgroup->add_target({ _target, _expiration }, {_subscriber, _expiration});
 
@@ -1797,9 +2156,9 @@ void routing_manager_impl::on_subscribe(
         }
 
         if (target_added) { // unicast or multicast
-            // send initial events
+            // send initial events if we already have a cached field (is_set)
             for (auto its_event : its_eventgroup->get_events()) {
-                if (its_event->is_field()) {
+                if (its_event->is_field() && its_event->is_set()) {
                     its_event->notify_one(_subscriber); // unicast
                 }
             }
@@ -1830,9 +2189,19 @@ void routing_manager_impl::on_unsubscribe(service_t _service,
         clear_remote_subscriber(_service, _instance, its_client, _target);
 
         stub_->send_unsubscribe(routing_manager_base::find_local(_service, _instance),
-                its_client, _service, _instance, _eventgroup);
+                its_client, _service, _instance, _eventgroup, true);
 
         host_->on_subscription(_service, _instance, _eventgroup, its_client, false);
+
+        if (its_eventgroup->get_targets().size() == 0) {
+            std::set<std::shared_ptr<event> > its_events
+                = its_eventgroup->get_events();
+            for (auto e : its_events) {
+                if (e->is_shadow()) {
+                    e->unset_payload();
+                }
+            }
+        }
 
     } else {
         VSOMEIP_ERROR<<"unsubscribe: attempt to subscribe to unknown eventgroup!";
@@ -1924,6 +2293,7 @@ void routing_manager_impl::on_subscribe_nack(client_t _client,
 bool routing_manager_impl::deliver_specific_endpoint_message(service_t _service,
         instance_t _instance, const byte_t *_data, length_t _size, endpoint *_receiver) {
     // Try to deliver specific endpoint message (for selective subscribers)
+    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     auto found_servic = remote_services_.find(_service);
     if (found_servic != remote_services_.end()) {
         auto found_instance = found_servic->second.find(_instance);
@@ -2011,21 +2381,8 @@ void routing_manager_impl::clear_client_endpoints(service_t _service, instance_t
             }
         }
     }
-    // Clear remote_service_info_
-    if (remote_service_info_.find(_service) != remote_service_info_.end()) {
-        if (remote_service_info_[_service].find(_instance) != remote_service_info_[_service].end()) {
-            remote_service_info_[_service][_instance].erase(_reliable);
-            auto found_endpoint_def = remote_service_info_[_service][_instance].find(!_reliable);
-            if (found_endpoint_def == remote_service_info_[_service][_instance].end()) {
-                remote_service_info_[_service].erase(_instance);
-                if (0 >= remote_service_info_[_service].size()) {
-                    remote_service_info_.erase(_service);
-                }
-            }
-        }
-    }
 
-    if (1 >= service_instances_[_service].size()) {
+    if (!service_instances_[_service].size()) {
         service_instances_.erase(_service);
     }
     if(deleted_endpoint) {
@@ -2233,16 +2590,33 @@ void routing_manager_impl::send_error(return_code_e _return_code,
 
 void routing_manager_impl::on_identify_response(client_t _client, service_t _service,
         instance_t _instance, bool _reliable) {
-    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
-    identified_clients_[_service][_instance][_reliable].insert(_client);
+    {
+        std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+        auto its_service = identifying_clients_.find(_service);
+        if (its_service != identifying_clients_.end()) {
+            auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                auto its_reliable = its_instance->second.find(_reliable);
+                if (its_reliable != its_instance->second.end()) {
+                    its_reliable->second.erase(_client);
+                }
+            }
+        }
+        identified_clients_[_service][_instance][_reliable].insert(_client);
+    }
     discovery_->send_subscriptions(_service, _instance, _client, _reliable);
 }
 
 void routing_manager_impl::identify_for_subscribe(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major) {
-    if (!has_identified(_client, _service, _instance, false)) {
+    if (!has_identified(_client, _service, _instance, false) &&
+            !is_identifying(_client, _service, _instance, false)) {
         auto unreliable_endpoint = find_or_create_remote_client(_service, _instance, false, _client);
         if (unreliable_endpoint) {
+            {
+                std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+                identifying_clients_[_service][_instance][false].insert(_client);
+            }
             auto message = runtime::get()->create_message(false);
             message->set_service(_service);
             message->set_instance(_instance);
@@ -2258,9 +2632,14 @@ void routing_manager_impl::identify_for_subscribe(client_t _client,
             }
         }
     }
-    if (!has_identified(_client, _service, _instance, true)) {
+    if (!has_identified(_client, _service, _instance, true) &&
+            !is_identifying(_client, _service, _instance, true)) {
         auto reliable_endpoint = find_or_create_remote_client(_service, _instance, true, _client);
         if (reliable_endpoint) {
+            {
+                std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+                identifying_clients_[_service][_instance][true].insert(_client);
+            }
             auto message = runtime::get()->create_message(true);
             message->set_service(_service);
             message->set_instance(_instance);
@@ -2294,6 +2673,30 @@ bool routing_manager_impl::supports_selective(service_t _service, instance_t _in
     return supports_selective;
 }
 
+bool routing_manager_impl::is_identifying(client_t _client, service_t _service,
+            instance_t _instance, bool _reliable) {
+    if (!supports_selective(_service, _instance)) {
+        // For legacy selective services clients can't be identified!
+        return false;
+    }
+    bool is_identifieing(false);
+    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    auto its_service = identifying_clients_.find(_service);
+    if (its_service != identifying_clients_.end()) {
+        auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            auto its_reliable = its_instance->second.find(_reliable);
+            if (its_reliable != its_instance->second.end()) {
+                auto its_client = its_reliable->second.find(_client);
+                if (its_client != its_reliable->second.end()) {
+                    is_identifieing = true;
+                }
+            }
+        }
+    }
+    return is_identifieing;
+}
+
 bool routing_manager_impl::has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) {
     if (!supports_selective(_service, _instance)) {
@@ -2321,6 +2724,7 @@ bool routing_manager_impl::has_identified(client_t _client, service_t _service,
 void routing_manager_impl::clear_remote_subscriber(
         service_t _service, instance_t _instance, client_t _client,
         const std::shared_ptr<endpoint_definition> &_target) {
+    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
     auto its_service = remote_subscribers_.find(_service);
     if (its_service != remote_subscribers_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -2337,13 +2741,13 @@ void routing_manager_impl::clear_remote_subscriber(
     }
 }
 
-std::chrono::high_resolution_clock::time_point
+std::chrono::steady_clock::time_point
 routing_manager_impl::expire_subscriptions() {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    std::chrono::high_resolution_clock::time_point now
-        = std::chrono::high_resolution_clock::now();
-    std::chrono::high_resolution_clock::time_point next_expiration
-        = std::chrono::high_resolution_clock::now() + std::chrono::hours(24);
+    std::chrono::steady_clock::time_point now
+        = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point next_expiration
+        = std::chrono::steady_clock::now() + std::chrono::hours(24);
 
     for (auto &its_service : eventgroups_) {
         for (auto &its_instance : its_service.second) {
@@ -2366,6 +2770,12 @@ routing_manager_impl::expire_subscriptions() {
                     clear_remote_subscriber(its_service.first, its_instance.first,
                             its_client, its_endpoint);
 
+                    auto target = routing_manager_base::find_local(its_service.first, its_instance.first);
+                    if (target) {
+                        stub_->send_unsubscribe(target, VSOMEIP_ROUTING_CLIENT, its_service.first,
+                                its_instance.first, its_eventgroup.first, true);
+                    }
+
                     VSOMEIP_DEBUG << "Expired subscription ("
                             << std::hex << its_service.first << "."
                             << its_instance .first << "."
@@ -2374,7 +2784,7 @@ routing_manager_impl::expire_subscriptions() {
                             << std::dec << its_endpoint->get_port()
                             << "(" << std::hex << its_client << ")";
                 }
-                if(its_eventgroup.second->is_multicast() &&
+                if(its_eventgroup.second->is_multicast() && its_expired_endpoints.size() &&
                         0 == its_eventgroup.second->get_unreliable_target_count() ) {
                     //clear multicast targets if no unreliable subscriber is left for multicast eventgroup
                     its_eventgroup.second->clear_multicast_targets();
@@ -2386,8 +2796,407 @@ routing_manager_impl::expire_subscriptions() {
     return next_expiration;
 }
 
-bool routing_manager_impl::queue_message(const byte_t *_data, uint32_t _size) const {
-    return stub_->queue_message(_data, _size);
+void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const & _error) {
+    if (!_error) {
+
+#ifndef VSOMEIP_VERSION
+#define VSOMEIP_VERSION "unknown version"
+#endif
+
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION;
+        version_log_timer_.expires_from_now(
+                std::chrono::seconds(configuration_->get_log_version_interval()));
+        version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
+                this, std::placeholders::_1));
+    }
 }
 
+#ifndef WITHOUT_SYSTEMD
+void routing_manager_impl::watchdog_cbk(boost::system::error_code const &_error) {
+    if (!_error) {
+        static bool is_ready(false);
+        static bool has_interval(false);
+        static uint64_t its_interval(0);
+
+        if (is_ready) {
+            sd_notify(0, "WATCHDOG=1");
+        } else {
+            is_ready = true;
+            sd_notify(0, "READY=1");
+            if (0 < sd_watchdog_enabled(0, &its_interval)) {
+                has_interval = true;
+            }
+        }
+
+        if (has_interval) {
+            watchdog_timer_.expires_from_now(std::chrono::microseconds(its_interval / 2));
+            watchdog_timer_.async_wait(std::bind(&routing_manager_impl::watchdog_cbk,
+                    this, std::placeholders::_1));
+        }
+    }
+}
+#endif
+
+void routing_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable) {
+    // Clear remote_service_info_
+    if (remote_service_info_.find(_service) != remote_service_info_.end()) {
+        if (remote_service_info_[_service].find(_instance) != remote_service_info_[_service].end()) {
+            remote_service_info_[_service][_instance].erase(_reliable);
+            auto found_endpoint_def = remote_service_info_[_service][_instance].find(!_reliable);
+            if (found_endpoint_def == remote_service_info_[_service][_instance].end()) {
+                remote_service_info_[_service].erase(_instance);
+                if (0 >= remote_service_info_[_service].size()) {
+                    remote_service_info_.erase(_service);
+                }
+            }
+        }
+    }
+}
+
+bool routing_manager_impl::handle_local_offer_service(client_t _client, service_t _service,
+        instance_t _instance, major_version_t _major,minor_version_t _minor) {
+    bool previously_offered(false);
+    {
+        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        auto found_service = local_services_.find(_service);
+        if (found_service != local_services_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                const major_version_t its_stored_major(std::get<0>(found_instance->second));
+                const minor_version_t its_stored_minor(std::get<1>(found_instance->second));
+                const client_t its_stored_client(std::get<2>(found_instance->second));
+                if (   its_stored_major == _major
+                    && its_stored_minor == _minor
+                    && its_stored_client == _client) {
+                    VSOMEIP_WARNING << "routing_manager_impl::handle_local_offer_service: "
+                        << "Application: " << std::hex << std::setfill('0')
+                        << std::setw(4) << _client << " is offering: ["
+                        << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                        << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                        << std::dec << static_cast<std::uint32_t>(_major) << "."
+                        << _minor << "] offered previously by itself.";
+                    previously_offered = true;
+                } else if (   its_stored_major == _major
+                           && its_stored_minor == _minor
+                           && its_stored_client != _client) {
+                    // check if previous offering application is still alive
+                    bool already_pinged(false);
+                    {
+                        std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                        auto found_service2 = pending_offers_.find(_service);
+                        if (found_service2 != pending_offers_.end()) {
+                            auto found_instance2 = found_service2->second.find(_instance);
+                            if (found_instance2 != found_service2->second.end()) {
+                                if(std::get<2>(found_instance2->second) == _client) {
+                                    already_pinged = true;
+                                } else {
+                                    VSOMEIP_ERROR << "routing_manager_impl::handle_local_offer_service: "
+                                        << "rejecting service registration. Application: "
+                                        << std::hex << std::setfill('0') << std::setw(4)
+                                        << _client << " is trying to offer ["
+                                        << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                                        << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                                        << std::dec << static_cast<std::uint32_t>(_major) << "."
+                                        << std::dec << _minor
+                                        << "] current pending offer by application: " << std::hex
+                                        << std::setfill('0') << std::setw(4)
+                                        << its_stored_client << ": ["
+                                        << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                                        << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                                        << std::dec << static_cast<std::uint32_t>(its_stored_major)
+                                        << "." << its_stored_minor << "]";
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    if (!already_pinged) {
+                        // find out endpoint of previously offering application
+                        std::shared_ptr<local_client_endpoint_base_impl>
+                            its_old_endpoint
+                                = std::dynamic_pointer_cast<local_client_endpoint_base_impl>(
+                                        find_local(its_stored_client));
+                        if (its_old_endpoint) {
+                            std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                            if(stub_->send_ping(its_stored_client)) {
+                                pending_offers_[_service][_instance] =
+                                        std::make_tuple(_major, _minor, _client,
+                                                        its_stored_client);
+                                VSOMEIP_WARNING << "OFFER("
+                                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << _instance
+                                    << ":" << std::dec << int(_major) << "." << std::dec << _minor
+                                    << "] is now pending. Waiting for pong from application: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_stored_client;
+                                return false;
+                            }
+                        } else if (its_stored_client == host_->get_client()) {
+                            VSOMEIP_ERROR << "routing_manager_impl::handle_local_offer_service: "
+                                << "rejecting service registration. Application: "
+                                << std::hex << std::setfill('0') << std::setw(4)
+                                << _client << " is trying to offer ["
+                                << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                                << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                                << std::dec << static_cast<std::uint32_t>(_major) << "."
+                                << std::dec << _minor
+                                << "] offered previously by routing manager stub itself with application: "
+                                << std::hex << std::setfill('0') << std::setw(4)
+                                << its_stored_client << ": ["
+                                << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                                << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                                << std::dec << static_cast<std::uint32_t>(its_stored_major)
+                                << "." << its_stored_minor << "] which is still alive";
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    VSOMEIP_ERROR << "routing_manager_impl::handle_local_offer_service: "
+                        << "rejecting service registration. Application: "
+                        << std::hex << std::setfill('0') << std::setw(4)
+                        << _client << " is trying to offer ["
+                        << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                        << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                        << std::dec << static_cast<std::uint32_t>(_major) << "."
+                        << std::dec << _minor
+                        << "] offered previously by application: " << std::hex
+                        << std::setfill('0') << std::setw(4)
+                        << its_stored_client << ": ["
+                        << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                        << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                        << std::dec << static_cast<std::uint32_t>(its_stored_major)
+                        << "." << its_stored_minor << "]";
+                    return false;
+                }
+            }
+        }
+
+        // check if the same service instance is already offered remotely
+        if (routing_manager_base::offer_service(_client, _service, _instance,
+                _major, _minor) || previously_offered) {
+            local_services_[_service][_instance] = std::make_tuple(_major,
+                    _minor, _client);
+        } else {
+            VSOMEIP_ERROR << "routing_manager_impl::handle_local_offer_service: "
+                << "rejecting service registration. Application: "
+                << std::hex << std::setfill('0') << std::setw(4)
+                << _client << " is trying to offer ["
+                << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                << std::dec << static_cast<std::uint32_t>(_major) << "."
+                << std::dec << _minor << "]"
+                << "] already offered remotely";
+            return false;
+        }
+    }
+    return true;
+}
+
+void routing_manager_impl::on_pong(client_t _client) {
+    std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+    if (pending_offers_.size() == 0) {
+        return;
+    }
+    for (auto service_iter = pending_offers_.begin();
+            service_iter != pending_offers_.end(); ) {
+        for (auto instance_iter = service_iter->second.begin();
+                instance_iter != service_iter->second.end(); ) {
+            if (std::get<3>(instance_iter->second) == _client) {
+                // received pong from an application were another application wants
+                // to offer its service, delete the other applications offer as
+                // the current offering application is still alive
+                VSOMEIP_WARNING << "OFFER("
+                    << std::hex << std::setw(4) << std::setfill('0')
+                    << std::get<2>(instance_iter->second) <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0')
+                    << service_iter->first << "."
+                    << std::hex << std::setw(4) << std::setfill('0')
+                    << instance_iter->first << ":" << std::dec
+                    << std::uint32_t(std::get<0>(instance_iter->second))
+                    << "." << std::dec << std::get<1>(instance_iter->second)
+                    << "] was rejected as application: "
+                    << std::hex << std::setw(4) << std::setfill('0') << _client
+                    << " is still alive";
+                instance_iter = service_iter->second.erase(instance_iter);
+            } else {
+                ++instance_iter;
+            }
+        }
+
+        if (service_iter->second.size() == 0) {
+            service_iter = pending_offers_.erase(service_iter);
+        } else {
+            ++service_iter;
+        }
+    }
+}
+
+void routing_manager_impl::on_clientendpoint_error(client_t _client) {
+    VSOMEIP_WARNING << "Application/Client "
+        << std::hex << std::setw(4) << std::setfill('0')
+        << _client << " will be deregistered because of an client endpoint error.";
+    stub_->deregister_erroneous_client(_client);
+}
+
+void routing_manager_impl::confirm_pending_offers(client_t _client) {
+    std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t,
+                                        minor_version_t>> its_offers;
+    {
+        std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+        if (pending_offers_.size() == 0) {
+            return;
+        }
+
+        for (auto service_iter = pending_offers_.begin();
+                service_iter != pending_offers_.end(); ) {
+            for (auto instance_iter = service_iter->second.begin();
+                    instance_iter != service_iter->second.end(); ) {
+                if (std::get<3>(instance_iter->second) == _client) {
+                    VSOMEIP_WARNING << "OFFER("
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::get<2>(instance_iter->second) <<"): ["
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << service_iter->first << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << instance_iter->first << ":" << std::dec
+                        << std::uint32_t(std::get<0>(instance_iter->second))
+                        << "." << std::dec << std::get<1>(instance_iter->second)
+                        << "] is not pending anymore as application: "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::get<3>(instance_iter->second)
+                        << " is dead. Offering again!";
+                    its_offers.push_front(std::make_tuple(
+                                    std::get<2>(instance_iter->second),
+                                    service_iter->first,
+                                    instance_iter->first,
+                                    std::get<0>(instance_iter->second),
+                                    std::get<1>(instance_iter->second)));
+                    instance_iter = service_iter->second.erase(instance_iter);
+                } else {
+                    ++instance_iter;
+                }
+            }
+
+            if (service_iter->second.size() == 0) {
+                service_iter = pending_offers_.erase(service_iter);
+            } else {
+                ++service_iter;
+            }
+        }
+    }
+    for (const auto &offer : its_offers) {
+        offer_service(std::get<0>(offer), std::get<1>(offer), std::get<2>(offer),
+                std::get<3>(offer), std::get<4>(offer));
+    }
+}
+
+void routing_manager_impl::remove_specific_client_endpoint(client_t _client, service_t _service, instance_t _instance, bool _reliable)
+{
+    std::lock_guard<std::mutex> its_lock(specific_endpoint_clients_mutex_);
+    auto found_service = specific_endpoint_clients_.find(_service);
+    if(found_service != specific_endpoint_clients_.end()){
+        auto found_instance = found_service->second.find(_instance);
+        if(found_instance != found_service->second.end()) {
+            auto its_client = found_instance->second.find(_client);
+            if (its_client != found_instance->second.end()) {
+                if (remote_services_.find(_service) != remote_services_.end()) {
+                    if (remote_services_[_service].find(_instance) != remote_services_[_service].end()) {
+                        auto endpoint = remote_services_[_service][_instance][_client][_reliable];
+                        if (endpoint) {
+                            service_instances_[_service].erase(endpoint.get());
+                            endpoint->stop();
+                        }
+                        remote_services_[_service][_instance][_client].erase(_reliable);
+                        auto found_endpoint = remote_services_[_service][_instance][_client].find(!_reliable);
+                        if (found_endpoint == remote_services_[_service][_instance][_client].end()) {
+                            remote_services_[_service][_instance].erase(_client);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void routing_manager_impl::clear_identified_clients( service_t _service, instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    auto its_service = identified_clients_.find(_service);
+    if (its_service != identified_clients_.end()) {
+        auto found_instance = its_service->second.find(_instance);
+        if (found_instance != its_service->second.end()) {
+            auto found_reliable = found_instance->second.find(true);
+            if (found_reliable != found_instance->second.end()) {
+                found_reliable->second.clear();
+            }
+            auto found_unreliable = found_instance->second.find(false);
+            if (found_unreliable != found_instance->second.end()) {
+                found_unreliable->second.clear();
+            }
+        }
+    }
+}
+
+void routing_manager_impl::clear_identifying_clients( service_t _service, instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    auto its_service = identifying_clients_.find(_service);
+    if (its_service != identifying_clients_.end()) {
+        auto found_instance = its_service->second.find(_instance);
+        if (found_instance != its_service->second.end()) {
+            auto found_reliable = found_instance->second.find(true);
+            if (found_reliable != found_instance->second.end()) {
+                found_reliable->second.clear();
+            }
+            auto found_unreliable = found_instance->second.find(false);
+            if (found_unreliable != found_instance->second.end()) {
+                found_unreliable->second.clear();
+            }
+        }
+    }
+}
+
+void routing_manager_impl::remove_identified_client(service_t _service, instance_t _instance, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    auto its_service = identified_clients_.find(_service);
+    if (its_service != identified_clients_.end()) {
+        auto found_instance = its_service->second.find(_instance);
+        if (found_instance != its_service->second.end()) {
+            auto found_reliable = found_instance->second.find(true);
+            if (found_reliable != found_instance->second.end()) {
+                auto found_client = found_reliable->second.find(_client);
+                if(found_client != found_reliable->second.end())
+                    found_reliable->second.erase(_client);
+            }
+            auto found_unreliable = found_instance->second.find(false);
+            if (found_unreliable != found_instance->second.end()) {
+                auto found_client = found_unreliable->second.find(_client);
+                if(found_client != found_unreliable->second.end())
+                    found_unreliable->second.erase(_client);
+            }
+        }
+    }
+}
+
+void routing_manager_impl::remove_identifying_client(service_t _service, instance_t _instance, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
+    auto its_service = identifying_clients_.find(_service);
+    if (its_service != identifying_clients_.end()) {
+        auto found_instance = its_service->second.find(_instance);
+        if (found_instance != its_service->second.end()) {
+            auto found_reliable = found_instance->second.find(true);
+            if (found_reliable != found_instance->second.end()) {
+                auto found_client = found_reliable->second.find(_client);
+                if(found_client != found_reliable->second.end())
+                    found_reliable->second.erase(_client);
+            }
+            auto found_unreliable = found_instance->second.find(false);
+            if (found_unreliable != found_instance->second.end()) {
+                auto found_client = found_unreliable->second.find(_client);
+                if(found_client != found_unreliable->second.end())
+                    found_unreliable->second.erase(_client);
+            }
+        }
+    }
+}
 } // namespace vsomeip

@@ -57,38 +57,34 @@ public:
 
     bool is_local() const;
 
-    bool queue_message(const byte_t *_data, uint32_t _size);
-
 private:
     class connection: public boost::enable_shared_from_this<connection> {
 
     public:
         typedef boost::shared_ptr<connection> ptr;
 
-        static ptr create(local_server_endpoint_impl *_server,
+        static ptr create(std::weak_ptr<local_server_endpoint_impl> _server,
                 std::uint32_t _max_message_size);
         socket_type & get_socket();
 
         void start();
+        void stop();
 
         void send_queued(queue_iterator_type _queue_iterator);
 
-        bool queue_message(const byte_t *_data, uint32_t _size);
-
     private:
-        connection(local_server_endpoint_impl *_owner, std::uint32_t _max_message_size);
+        connection(std::weak_ptr<local_server_endpoint_impl> _server,
+                   std::uint32_t _max_message_size);
 
         void send_magic_cookie();
 
         local_server_endpoint_impl::socket_type socket_;
-        local_server_endpoint_impl *server_;
+        std::weak_ptr<local_server_endpoint_impl> server_;
 
         uint32_t max_message_size_;
 
         receive_buffer_t recv_buffer_;
         size_t recv_buffer_size_;
-
-        static std::vector<byte_t> queued_data_;
 
     private:
         void receive_cbk(boost::system::error_code const &_error,
@@ -101,6 +97,7 @@ private:
     boost::asio::local::stream_protocol::acceptor acceptor_;
 #endif
 
+    std::mutex connections_mutex_;
     std::map<endpoint_type, connection::ptr> connections_;
     connection::ptr current_;
 

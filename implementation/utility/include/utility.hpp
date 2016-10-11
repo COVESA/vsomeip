@@ -11,6 +11,7 @@
 
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
+#include "criticalsection.hpp"
 
 namespace vsomeip {
 
@@ -72,16 +73,33 @@ public:
     static bool is_file(const std::string &_path);
     static bool is_folder(const std::string &_path);
 
-    static struct configuration_data_t *the_configuration_data__;
-    static bool auto_configuration_init(const std::string &_name);
-    static void auto_configuration_exit();
+    static CriticalSection its_local_configuration_mutex__;
 
-    static bool is_routing_manager_host__;
-    static bool is_routing_manager_host();
+    static struct configuration_data_t *the_configuration_data__;
+    static bool auto_configuration_init();
+    static void auto_configuration_exit(client_t _client);
+
+    static bool is_routing_manager_host(client_t _client);
+    static void set_routing_manager_host(client_t _client);
 
     static bool is_used_client_id(client_t _client);
-    static client_t request_client_id(client_t _client);
+    static client_t request_client_id(const std::string &_name,
+            client_t _client);
     static void release_client_id(client_t _client);
+
+    static inline bool is_valid_message_type(message_type_e _type) {
+        return (_type == message_type_e::MT_REQUEST
+                || _type == message_type_e::MT_REQUEST_NO_RETURN
+                || _type == message_type_e::MT_NOTIFICATION
+                || _type == message_type_e::MT_REQUEST_ACK
+                || _type == message_type_e::MT_REQUEST_NO_RETURN_ACK
+                || _type == message_type_e::MT_NOTIFICATION_ACK
+                || _type == message_type_e::MT_RESPONSE
+                || _type == message_type_e::MT_ERROR
+                || _type == message_type_e::MT_RESPONSE_ACK
+                || _type == message_type_e::MT_ERROR_ACK
+                || _type == message_type_e::MT_UNKNOWN);
+    }
 
     static uint16_t its_configuration_refs__;
 };

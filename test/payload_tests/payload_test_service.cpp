@@ -115,9 +115,6 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
     // TR_SOMEIP_00055
     ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
 
-    // make sure the message was sent from the service
-    ASSERT_EQ(_request->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
-
     if (check_payload) {
         std::shared_ptr<vsomeip::payload> pl = _request->get_payload();
         vsomeip::byte_t* pl_ptr = pl->get_data();

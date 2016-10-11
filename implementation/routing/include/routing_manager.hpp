@@ -12,6 +12,7 @@
 
 #include <boost/asio/io_service.hpp>
 
+#include <vsomeip/function_types.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/handler.hpp>
 
@@ -35,12 +36,13 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
 
-    virtual void offer_service(client_t _client, service_t _service,
+    virtual bool offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor) = 0;
 
     virtual void stop_offer_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major, minor_version_t _minor) = 0;
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor) = 0;
 
     virtual void request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
@@ -61,7 +63,7 @@ public:
             bool _flush) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _initial) = 0;
+            instance_t _instance, bool _flush, bool _reliable) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message>) = 0;
@@ -69,13 +71,16 @@ public:
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size) = 0;
 
-    virtual void register_event(client_t _client, service_t _service, instance_t _instance,
-            event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field, bool _is_provided, bool _is_shadow = false,
+    virtual void register_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            epsilon_change_func_t _epsilon_change_func,
+            bool _is_provided, bool _is_shadow = false,
             bool _is_cache_placeholder = false) = 0;
 
-    virtual void unregister_event(client_t _client, service_t _service, instance_t _instance,
-            event_t _event, bool _is_provided) = 0;
+    virtual void unregister_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event, bool _is_provided) = 0;
 
     virtual std::shared_ptr<event> get_event(service_t _service,
             instance_t _instance, event_t _event) const = 0;
@@ -84,13 +89,15 @@ public:
             instance_t _instance, eventgroup_t _eventgroup) const = 0;
 
     virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload) = 0;
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force) = 0;
 
     virtual void notify_one(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload, client_t _client) = 0;
+            event_t _event, std::shared_ptr<payload> _payload,
+            client_t _client, bool _force) = 0;
 
-    virtual void on_identify_response(client_t _client, service_t _service, instance_t _instance,
-            bool _reliable) = 0;
+    virtual void on_identify_response(client_t _client, service_t _service,
+            instance_t _instance, bool _reliable) = 0;
 };
 
 }  // namespace vsomeip

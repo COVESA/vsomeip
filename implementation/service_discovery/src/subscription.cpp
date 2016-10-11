@@ -13,7 +13,7 @@ subscription::subscription(major_version_t _major, ttl_t _ttl,
         std::shared_ptr<endpoint> _unreliable,
         subscription_type_e _subscription_type,
         uint8_t _counter,
-        std::chrono::high_resolution_clock::time_point _expiration)
+        std::chrono::steady_clock::time_point _expiration)
         : major_(_major), ttl_(_ttl),
           reliable_(_reliable), unreliable_(_unreliable),
           is_acknowledged_(true),
@@ -73,11 +73,11 @@ uint8_t subscription::get_counter() const {
     return counter_;
 }
 
-std::chrono::high_resolution_clock::time_point subscription::get_expiration() const {
+std::chrono::steady_clock::time_point subscription::get_expiration() const {
     return expiration_;
 }
 
-void subscription::set_expiration(std::chrono::high_resolution_clock::time_point _expiration) {
+void subscription::set_expiration(std::chrono::steady_clock::time_point _expiration) {
     expiration_ = _expiration;
 }
 

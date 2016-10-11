@@ -12,7 +12,7 @@ extern "C"
     __declspec(dllexport) std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL;
 }
 #else
-std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL;
+std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL(vsomeip::sd::runtime::get());
 #endif
 
 #ifdef WIN32
@@ -22,16 +22,11 @@ std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL;
     static void __cdecl f(void); \
     __declspec(allocate(".CRT$XCU")) void(__cdecl*f##_)(void) = f; \
     static void __cdecl f(void)
-#else
-#define CCALL
-#define INITIALIZER(f) \
-    static void f(void) __attribute__((constructor)); \
-    static void f(void)
-#endif
 
 INITIALIZER(init_vsomeip_sd) {
     VSOMEIP_SD_RUNTIME_SYMBOL = vsomeip::sd::runtime::get();
 }
+#endif
 
 namespace vsomeip {
 namespace sd {

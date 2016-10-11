@@ -73,6 +73,8 @@ public:
     bool serialize(vsomeip::serializer *_to) const;
     bool deserialize(vsomeip::deserializer *_from);
 
+    length_t get_someip_length() const;
+
 private:
     entry_impl * deserialize_entry(vsomeip::deserializer *_from);
     option_impl * deserialize_option(vsomeip::deserializer *_from);

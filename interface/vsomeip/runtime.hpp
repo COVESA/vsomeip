@@ -19,7 +19,7 @@ class application;
 class message;
 class payload;
 
-class VSOMEIP_EXPORT runtime {
+class VSOMEIP_IMPORT_EXPORT runtime {
 public:
 
     static std::string get_property(const std::string &_name);

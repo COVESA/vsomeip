@@ -159,7 +159,7 @@ void external_local_routing_test_service::run()
         condition_.wait(its_lock);
     }
 
-    std::thread t2([](){ usleep(1000000 * 2);});
+    std::thread t2([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 2));});
     t2.join();
     app_->stop();
 }

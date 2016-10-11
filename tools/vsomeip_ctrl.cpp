@@ -5,7 +5,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include "../implementation/configuration/include/internal.hpp"
-#include "../../implementation/logging/include/logger.hpp"
+#include "../implementation/logging/include/logger.hpp"
 #include "../implementation/service_discovery/include/constants.hpp"
 #include "../implementation/utility/include/byteorder.hpp"
 
@@ -91,7 +91,7 @@ public:
                 "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            app_->request_service(service_id_, vsomeip::ANY_INSTANCE);
+            app_->request_service(service_id_, instance_);
         }
     }
 
@@ -112,23 +112,25 @@ public:
             << "." << std::setw(4) << std::setfill('0') << std::hex
             << _response->get_instance() << "]:";
         VSOMEIP_INFO << "########## begin message";
-        VSOMEIP_INFO << std::setw(4)  << std::setfill('0') << std::hex
-                << _response->get_service() << std::setw(4) << std::setfill('0')
-                << std::hex << _response->get_method()
+        VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
+                << _response->get_service() 
+                << std::hex << std::setw(4) << std::setfill('0')
+                << _response->get_method()
                 << " # service id / instance id";
-        VSOMEIP_INFO << std::setw(8)  << std::setfill('0') << std::hex
+        VSOMEIP_INFO << std::hex << std::setw(8)  << std::setfill('0') 
                 << _response->get_length() << " # length";
-        VSOMEIP_INFO << std::setw(4)  << std::setfill('0') << std::hex
-                << _response->get_client() << std::setw(4) << std::setfill('0')
-                << std::hex << _response->get_session()
+        VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
+                << _response->get_client()
+                << std::hex << std::setw(4) << std::setfill('0')
+                << _response->get_session()
                 << " # client id / session id";
-        VSOMEIP_INFO << std::setw(2)  << std::setfill('0') << std::hex
+        VSOMEIP_INFO  << std::hex << std::setw(2)  << std::setfill('0')
                 << static_cast<std::uint16_t>(_response->get_protocol_version())
-                << std::setw(2) << std::setfill('0') << std::hex
+                << std::hex << std::setw(2) << std::setfill('0')
                 << static_cast<std::uint16_t>(_response->get_interface_version())
-                << std::setw(2) << std::setfill('0') << std::hex
+                << std::hex << std::setw(2) << std::setfill('0')
                 << static_cast<std::uint16_t>(_response->get_message_type())
-                << std::setw(2) << std::setfill('0') << std::hex
+                << std::hex << std::setw(2) << std::setfill('0')
                 << static_cast<std::uint16_t>(_response->get_return_code())
                 << " # protocol version / interface version / "
                 << "message type / return code";

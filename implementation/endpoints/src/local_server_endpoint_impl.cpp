@@ -21,8 +21,18 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
-      acceptor_(_io, _local), current_(nullptr) {
+      acceptor_(_io), current_(nullptr) {
     is_supporting_magic_cookies_ = false;
+
+    boost::system::error_code ec;
+    acceptor_.open(_local.protocol(), ec);
+    boost::asio::detail::throw_error(ec, "acceptor open");
+    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
+    boost::asio::detail::throw_error(ec, "acceptor set_option");
+    acceptor_.bind(_local, ec);
+    boost::asio::detail::throw_error(ec, "acceptor bind");
+    acceptor_.listen(boost::asio::socket_base::max_connections, ec);
+    boost::asio::detail::throw_error(ec, "acceptor listen");
 }
 
 local_server_endpoint_impl::~local_server_endpoint_impl() {
@@ -33,25 +43,39 @@ bool local_server_endpoint_impl::is_local() const {
 }
 
 void local_server_endpoint_impl::start() {
-    current_ = connection::create(this, max_message_size_);
+    if (acceptor_.is_open()) {
+        current_ = connection::create(
+                std::dynamic_pointer_cast<local_server_endpoint_impl>(
+                        shared_from_this()), max_message_size_);
 
-    acceptor_.async_accept(
-        current_->get_socket(),
-        std::bind(
-            &local_server_endpoint_impl::accept_cbk,
-            std::dynamic_pointer_cast<
-                local_server_endpoint_impl
-            >(shared_from_this()),
-            current_,
-            std::placeholders::_1
-        )
-    );
+        acceptor_.async_accept(
+            current_->get_socket(),
+            std::bind(
+                &local_server_endpoint_impl::accept_cbk,
+                std::dynamic_pointer_cast<
+                    local_server_endpoint_impl
+                >(shared_from_this()),
+                current_,
+                std::placeholders::_1
+            )
+        );
+    }
 }
 
 void local_server_endpoint_impl::stop() {
     if (acceptor_.is_open()) {
         boost::system::error_code its_error;
         acceptor_.close(its_error);
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        for (const auto &c : connections_) {
+            if (c.second->get_socket().is_open()) {
+                boost::system::error_code its_error;
+                c.second->get_socket().cancel(its_error);
+            }
+        }
+        connections_.clear();
     }
     server_endpoint_impl::stop();
 }
@@ -68,6 +92,7 @@ bool local_server_endpoint_impl::send_to(
 
 void local_server_endpoint_impl::send_queued(
         queue_iterator_type _queue_iterator) {
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
     auto connection_iterator = connections_.find(_queue_iterator->first);
     if (connection_iterator != connections_.end())
         connection_iterator->second->send_queued(_queue_iterator);
@@ -79,13 +104,6 @@ void local_server_endpoint_impl::receive() {
 
 void local_server_endpoint_impl::restart() {
     current_->start();
-}
-
-bool local_server_endpoint_impl::queue_message(const byte_t *_data, uint32_t _size) {
-    if (current_) {
-        return current_->queue_message(_data, _size);
-    }
-    return false;
 }
 
 local_server_endpoint_impl::endpoint_type
@@ -102,15 +120,14 @@ bool local_server_endpoint_impl::get_default_target(
 
 void local_server_endpoint_impl::remove_connection(
         local_server_endpoint_impl::connection *_connection) {
-    std::map< endpoint_type, connection::ptr >::iterator i
-        = connections_.end();
-    for (i = connections_.begin(); i != connections_.end(); i++) {
-        if (i->second.get() == _connection)
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    for (auto it = connections_.begin(); it != connections_.end();) {
+        if (it->second.get() == _connection) {
+            it = connections_.erase(it);
             break;
-    }
-
-    if (i != connections_.end()) {
-        connections_.erase(i);
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -122,23 +139,27 @@ void local_server_endpoint_impl::accept_cbk(
         boost::system::error_code its_error;
         endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
         if(!its_error) {
+            std::lock_guard<std::mutex> its_lock(connections_mutex_);
             connections_[remote] = _connection;
             _connection->start();
         }
     }
 
-    start();
+    if (_error != boost::asio::error::bad_descriptor &&
+            _error != boost::asio::error::operation_aborted) {
+        start();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // class local_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<byte_t> local_server_endpoint_impl::connection::queued_data_;
-
 local_server_endpoint_impl::connection::connection(
-        local_server_endpoint_impl *_server, std::uint32_t _max_message_size)
-    : socket_(_server->service_), server_(_server),
+        std::weak_ptr<local_server_endpoint_impl> _server,
+        std::uint32_t _max_message_size)
+    : socket_(_server.lock()->service_),
+      server_(_server),
       max_message_size_(_max_message_size + 8),
       recv_buffer_(max_message_size_, 0),
       recv_buffer_size_(0) {
@@ -146,7 +167,8 @@ local_server_endpoint_impl::connection::connection(
 
 local_server_endpoint_impl::connection::ptr
 local_server_endpoint_impl::connection::create(
-        local_server_endpoint_impl *_server, std::uint32_t _max_message_size) {
+        std::weak_ptr<local_server_endpoint_impl> _server,
+        std::uint32_t _max_message_size) {
     return ptr(new connection(_server, _max_message_size));
 }
 
@@ -156,20 +178,30 @@ local_server_endpoint_impl::connection::get_socket() {
 }
 
 void local_server_endpoint_impl::connection::start() {
-    if (recv_buffer_size_ == max_message_size_) {
-        // Overrun -> Reset buffer
-        recv_buffer_size_ = 0;
+    if (socket_.is_open()) {
+        if (recv_buffer_size_ == max_message_size_) {
+            // Overrun -> Reset buffer
+            recv_buffer_size_ = 0;
+        }
+        size_t buffer_size = max_message_size_ - recv_buffer_size_;
+        socket_.async_receive(
+            boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
+            std::bind(
+                &local_server_endpoint_impl::connection::receive_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
     }
-    size_t buffer_size = max_message_size_ - recv_buffer_size_;
-    socket_.async_receive(
-        boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
-        std::bind(
-            &local_server_endpoint_impl::connection::receive_cbk,
-            shared_from_this(),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+}
+
+void local_server_endpoint_impl::connection::stop() {
+    if (socket_.is_open()) {
+        boost::system::error_code its_error;
+        socket_.shutdown(socket_.shutdown_both, its_error);
+        socket_.close(its_error);
+    }
 }
 
 void local_server_endpoint_impl::connection::send_queued(
@@ -178,6 +210,12 @@ void local_server_endpoint_impl::connection::send_queued(
     // TODO: We currently do _not_ use the send method of the local server
     // endpoints. If we ever need it, we need to add the "start tag", "data",
     // "end tag" sequence here.
+    std::shared_ptr<local_server_endpoint_impl> its_server(server_.lock());
+    if (!its_server) {
+        VSOMEIP_TRACE << "local_server_endpoint_impl::connection::send_queued "
+                " couldn't lock server_";
+        return;
+    }
 
     message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
 #if 0
@@ -193,26 +231,12 @@ void local_server_endpoint_impl::connection::send_queued(
         boost::asio::buffer(*its_buffer),
         std::bind(
             &local_server_endpoint_base_impl::send_cbk,
-            server_->shared_from_this(),
+            its_server,
             _queue_iterator,
             std::placeholders::_1,
             std::placeholders::_2
         )
     );
-}
-
-bool local_server_endpoint_impl::connection::queue_message(const byte_t *_data, uint32_t _size) {
-#if 0
-        std::stringstream msg;
-        msg << "lse::qm: ";
-        for (std::size_t i = 0; i < _size; i++)
-            msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int)(_data)[i] << " ";
-        VSOMEIP_INFO << msg.str();
-#endif
-    queued_data_.resize(_size);
-    memcpy(&queued_data_[0], _data, _size);
-    return true;
 }
 
 void local_server_endpoint_impl::connection::send_magic_cookie() {
@@ -221,7 +245,17 @@ void local_server_endpoint_impl::connection::send_magic_cookie() {
 void local_server_endpoint_impl::connection::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
 
-    std::shared_ptr<endpoint_host> its_host = server_->host_.lock();
+    if (_error == boost::asio::error::operation_aborted) {
+        stop();
+        return;
+    }
+    std::shared_ptr<local_server_endpoint_impl> its_server(server_.lock());
+    if (!its_server) {
+        VSOMEIP_TRACE << "local_server_endpoint_impl::connection::receive_cbk "
+                " couldn't lock server_";
+        return;
+    }
+    std::shared_ptr<endpoint_host> its_host = its_server->host_.lock();
     if (its_host) {
         std::size_t its_start;
         std::size_t its_end;
@@ -269,13 +303,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                 if (its_start != MESSAGE_IS_EMPTY &&
                     its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
                     its_host->on_message(&recv_buffer_[its_start],
-                                         uint32_t(its_end - its_start), server_);
-
-                    // If there was a queued message --> consume it now!
-                    if (queued_data_.size() > 0) {
-                        its_host->on_message(&queued_data_[0], static_cast<length_t>(queued_data_.size()), server_);
-                        queued_data_.clear();
-                    }
+                                         uint32_t(its_end - its_start), its_server.get());
 
                     #if 0
                             std::stringstream local_msg;
@@ -301,9 +329,14 @@ void local_server_endpoint_impl::connection::receive_cbk(
             } while (recv_buffer_size_ > 0 && its_start == FOUND_MESSAGE);
         }
 
-        if (_error == boost::asio::error::misc_errors::eof) {
-            server_->remove_connection(this);
-        } else {
+        if (_error == boost::asio::error::eof
+                || _error == boost::asio::error::connection_reset) {
+            {
+                std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+                stop();
+            }
+            its_server->remove_connection(this);
+        } else if (_error != boost::asio::error::bad_descriptor) {
             start();
         }
     }

@@ -61,7 +61,7 @@ private:
     public:
         typedef boost::shared_ptr<connection> ptr;
 
-        static ptr create(tcp_server_endpoint_impl *_server,
+        static ptr create(std::weak_ptr<tcp_server_endpoint_impl> _server,
                           std::uint32_t _max_message_size);
         socket_type & get_socket();
 
@@ -74,11 +74,12 @@ private:
         void send_queued(queue_iterator_type _queue_iterator);
 
     private:
-        connection(tcp_server_endpoint_impl *_owner, std::uint32_t _max_message_size);
+        connection(std::weak_ptr<tcp_server_endpoint_impl> _server,
+                   std::uint32_t _max_message_size);
         void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
         tcp_server_endpoint_impl::socket_type socket_;
-        tcp_server_endpoint_impl *server_;
+        std::weak_ptr<tcp_server_endpoint_impl> server_;
 
         uint32_t max_message_size_;
 
@@ -93,10 +94,12 @@ private:
     };
 
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::mutex connections_mutex_;
     std::map<endpoint_type, connection::ptr> connections_;
     connection *current_;
 
 private:
+    void remove_connection(connection *_connection);
     void accept_cbk(connection::ptr _connection,
                     boost::system::error_code const &_error);
 };

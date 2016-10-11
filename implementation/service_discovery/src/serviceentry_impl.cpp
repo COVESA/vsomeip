@@ -41,15 +41,15 @@ bool serviceentry_impl::serialize(vsomeip::serializer *_to) const {
 bool serviceentry_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = entry_impl::deserialize(_from);
 
-    uint8_t tmp_major_version;
+    uint8_t tmp_major_version(0);
     is_successful = is_successful && _from->deserialize(tmp_major_version);
     major_version_ = static_cast<major_version_t>(tmp_major_version);
 
-    uint32_t tmp_ttl;
+    uint32_t tmp_ttl(0);
     is_successful = is_successful && _from->deserialize(tmp_ttl, true);
     ttl_ = static_cast<ttl_t>(tmp_ttl);
 
-    uint32_t tmp_minor_version;
+    uint32_t tmp_minor_version(0);
     is_successful = is_successful && _from->deserialize(tmp_minor_version);
     minor_version_ = static_cast<minor_version_t>(tmp_minor_version);
 

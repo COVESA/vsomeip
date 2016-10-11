@@ -7,7 +7,7 @@ cmake_minimum_required (VERSION 2.8)
 
 # Daemon
 add_executable(vsomeipd vsomeipd.cpp)
-target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} ${systemd-journal_LIBRARIES} ${DL_LIBRARY} ${DLT_LIBRARIES})
+target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY} ${DLT_LIBRARIES})
 
 install (
     TARGETS vsomeipd

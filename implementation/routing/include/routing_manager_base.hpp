@@ -48,7 +48,7 @@ public:
 
     virtual void init();
 
-    virtual void offer_service(client_t _client, service_t _service,
+    virtual bool offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
 
@@ -63,9 +63,10 @@ public:
             instance_t _instance);
 
     virtual void register_event(client_t _client, service_t _service, instance_t _instance,
-            event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field, bool _is_provided, bool _is_shadow = false,
-            bool _is_cache_placeholder = false);
+            event_t _event, const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            epsilon_change_func_t _epsilon_change_func,
+            bool _is_provided, bool _is_shadow = false, bool _is_cache_placeholder = false);
 
     virtual void unregister_event(client_t _client, service_t _service, instance_t _instance,
             event_t _event, bool _is_provided);
@@ -84,19 +85,18 @@ public:
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup);
 
-	virtual void notify(service_t _service, instance_t _instance,
-			event_t _event, std::shared_ptr<payload> _payload);
+    virtual void notify(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload, bool _force);
 
-	virtual void notify_one(service_t _service, instance_t _instance,
-			event_t _event, std::shared_ptr<payload> _payload, client_t _client);
+    virtual void notify_one(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload,
+            client_t _client, bool _force);
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message,
             bool _flush);
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _initial) = 0;
-
-    virtual bool queue_message(const byte_t *_data, uint32_t _size) const = 0;
+            instance_t _instance, bool _flush, bool _reliable) = 0;
 
     // Endpoint host ~> will be implemented by routing_manager_impl/_proxy/
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
@@ -106,6 +106,8 @@ public:
             = boost::asio::ip::address()) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
             endpoint *_receiver) = 0;
+
+    virtual void on_clientendpoint_error(client_t _client);
 
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
@@ -138,15 +140,14 @@ protected:
     void remove_eventgroup_info(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
 
-    void send_local_notification(client_t _client,
+    bool send_local_notification(client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush = true, bool _reliable = false, bool _inital = false);
+            bool _flush = true, bool _reliable = false);
 
     bool send_local(
             std::shared_ptr<endpoint> &_target, client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush, bool _reliable, uint8_t _command, bool _queue_message = false,
-            bool _initial = false) const;
+            bool _flush, bool _reliable, uint8_t _command) const;
 
     bool insert_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);

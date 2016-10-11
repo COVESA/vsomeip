@@ -1,0 +1,20 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"info",
+        "console":"true",
+        "file":
+        {
+            "enable":"false",
+            "path":"/tmp/vsomeip.log"
+        },
+        "dlt":"false"
+    },
+    "routing":"vsomeipd",
+    "service-discovery":
+    {
+        "enable":"false"
+    }
+}
+

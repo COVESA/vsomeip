@@ -7,8 +7,8 @@ cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 2)
-set (VSOMEIP_PATCH_VERSION 4)
+set (VSOMEIP_MINOR_VERSION 4)
+set (VSOMEIP_PATCH_VERSION 2)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -59,9 +59,15 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS_CXX_FLAGS "-pthread")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
+# Signal handling
+if (ENABLE_SIGNAL_HANDLING)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
+endif ()
+
 include_directories(
     "interface" 
 )
+
 # Threads
 find_package(Threads REQUIRED)
 
@@ -89,6 +95,14 @@ IF(DLT_FOUND)
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
 ENDIF(DLT_FOUND)
 
+# SystemD
+pkg_check_modules(SystemD "libsystemd")
+
+if(NOT SystemD_FOUND)
+MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
+endif(NOT SystemD_FOUND)
+
 include_directories(
     include
     implementation/helper
@@ -110,17 +124,23 @@ file(GLOB vsomeip_SRC
     "implementation/runtime/src/*.cpp"
     "implementation/utility/src/*.cpp"
 )
+list(SORT vsomeip_SRC)
 
-if (MSVC) 
-SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
-set(USE_RT "")
-set(Boost_LIBRARIES "")
-link_directories(${Boost_LIBRARY_DIR})
+add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
+
+if (MSVC)
+    message("using MSVC Compiler")
+    add_definitions(-DVSOMEIP_DLL_COMPILATION)
+    SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+    set(USE_RT "")
+    set(Boost_LIBRARIES "")
+    link_directories(${Boost_LIBRARY_DIR_DEBUG})
+    ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++0x ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
-set(USE_RT "rt")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++0x ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set(USE_RT "rt")
 endif()
 
 add_library(vsomeip SHARED ${vsomeip_SRC})
@@ -130,15 +150,16 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES})
+target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} )
 
 file(GLOB vsomeip-sd_SRC
     "implementation/service_discovery/src/*.cpp"
 )
+list(SORT vsomeip-sd_SRC)
 
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY})
+target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 # Configuration files
 
@@ -168,12 +189,12 @@ message("Predefined unicast address: ${VSOMEIP_UNICAST_ADDRESS}")
 message("Predefined diagnosis address: ${VSOMEIP_DIAGNOSIS_ADDRESS}")
 message("Predefined routing application: ${VSOMEIP_ROUTING}")
 
-
 ###################################################################################################
 
 set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
 file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.hpp"  )
+list (SORT vsomeip_INCLUDE)
 
 foreach ( file ${vsomeip_INCLUDE} )
     get_filename_component( dir ${file} DIRECTORY )
@@ -184,8 +205,9 @@ install (
     TARGETS vsomeip 
     # IMPORTANT: Add the vsomeip library to the "export-set"
     EXPORT vsomeipTargets
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT
+    ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
     COMPONENT dev
 )
 

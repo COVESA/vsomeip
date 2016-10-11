@@ -17,6 +17,7 @@
 #include "trace.hpp"
 #include "configuration.hpp"
 #include "watchdog.hpp"
+#include "service_instance_range.hpp"
 
 namespace vsomeip {
 namespace cfg {
@@ -24,6 +25,7 @@ namespace cfg {
 struct client;
 struct service;
 struct servicegroup;
+struct event;
 struct eventgroup;
 struct watchdog;
 
@@ -85,11 +87,21 @@ public:
     VSOMEIP_EXPORT bool get_multicast(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const;
 
+    VSOMEIP_EXPORT uint8_t get_threshold(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup) const;
+
     VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
     VSOMEIP_EXPORT std::uint32_t get_message_size_reliable(const std::string& _address,
                                            std::uint16_t _port) const;
 
     VSOMEIP_EXPORT bool supports_selective_broadcasts(boost::asio::ip::address _address) const;
+
+    VSOMEIP_EXPORT bool is_offered_remote(service_t _service, instance_t _instance) const;
+
+    VSOMEIP_EXPORT bool log_version() const;
+    VSOMEIP_EXPORT uint32_t get_log_version_interval() const;
+
+    VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
 
     // Service Discovery configuration
     VSOMEIP_EXPORT bool is_sd_enabled() const;
@@ -159,12 +171,18 @@ private:
             std::string &_criteria,
             std::shared_ptr<trace_filter_rule> &_filter_rule);
     void get_permission_configuration(const element &_element);
+    void get_internal_services(const boost::property_tree::ptree &_tree);
 
     servicegroup *find_servicegroup(const std::string &_name) const;
     std::shared_ptr<client> find_client(service_t _service, instance_t _instance) const;
     std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
+
+    void set_magic_cookies_unicast_address();
+
+    bool is_remote(std::shared_ptr<service> _service) const;
+    bool is_internal_service(service_t _service, instance_t _instance) const;
 
 private:
     static std::shared_ptr<configuration_impl> the_configuration;
@@ -218,6 +236,11 @@ protected:
 
     std::shared_ptr<watchdog> watchdog_;
 
+    std::vector<service_instance_range> internal_service_ranges_;
+
+    bool log_version_;
+    uint32_t log_version_interval_;
+
     enum element_type_e {
         ET_UNICAST,
         ET_DIAGNOSIS,
@@ -241,7 +264,8 @@ protected:
 		ET_WATCHDOG_TIMEOUT,
 		ET_WATCHDOG_ALLOWED_MISSING_PONGS,
 		ET_TRACING_ENABLE,
-		ET_MAX = 22
+		ET_TRACING_SD_ENABLE,
+		ET_MAX = 23
     };
 
     bool is_configured_[ET_MAX];

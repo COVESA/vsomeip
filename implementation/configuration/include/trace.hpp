@@ -46,7 +46,8 @@ struct trace {
     trace() :
         channels_(),
         filter_rules_(),
-        is_enabled_(false) {
+        is_enabled_(false),
+        is_sd_enabled_(false) {
         channels_.push_back(std::make_shared<trace_channel>());
     }
 
@@ -54,6 +55,7 @@ struct trace {
     std::vector<std::shared_ptr<trace_filter_rule>> filter_rules_;
 
     bool is_enabled_;
+    bool is_sd_enabled_;
 };
 
 } // namespace cfg

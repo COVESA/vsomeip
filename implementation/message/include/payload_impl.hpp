@@ -32,6 +32,7 @@ public:
 
     VSOMEIP_EXPORT void set_data(const byte_t *_data, length_t _length);
     VSOMEIP_EXPORT void set_data(const std::vector< byte_t > &_data);
+    VSOMEIP_EXPORT void set_data(std::vector< byte_t > &&_data);
 
     VSOMEIP_EXPORT bool serialize(serializer *_to) const;
     VSOMEIP_EXPORT bool deserialize(deserializer *_from);

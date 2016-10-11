@@ -19,14 +19,14 @@
 
 namespace vsomeip {
 
-class VSOMEIP_EXPORT logger {
+class VSOMEIP_IMPORT_EXPORT logger {
 public:
     static std::shared_ptr<logger> get();
 
     virtual ~logger() {
     }
 
-    virtual boost::log::sources::severity_logger<
+    virtual boost::log::sources::severity_logger_mt<
             boost::log::trivial::severity_level> & get_internal() = 0;
 };
 

@@ -8,7 +8,6 @@
 
 #include <boost/asio/ip/multicast.hpp>
 
-
 #include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
@@ -39,6 +38,12 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
         boost::asio::ip::address_v4 its_unicast_address
             = configuration::get()->get_unicast_address().to_v4();
         boost::asio::ip::multicast::outbound_interface option(its_unicast_address);
+        socket_.set_option(option);
+    } else if (_local.address().is_v6()) {
+        boost::asio::ip::address_v6 its_unicast_address
+            = configuration::get()->get_unicast_address().to_v6();
+        boost::asio::ip::multicast::outbound_interface option(
+                static_cast<unsigned int>(its_unicast_address.scope_id()));
         socket_.set_option(option);
     }
 
@@ -75,6 +80,7 @@ void udp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
     if (socket_.is_open()) {
         boost::system::error_code its_error;
+        socket_.shutdown(socket_type::shutdown_both, its_error);
         socket_.close(its_error);
     }
 }

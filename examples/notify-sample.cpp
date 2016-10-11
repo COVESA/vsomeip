@@ -2,7 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#include <csignal>
+#endif
 #include <chrono>
 #include <condition_variable>
 #include <iomanip>
@@ -22,6 +24,7 @@ public:
             use_tcp_(_use_tcp),
             cycle_(_cycle),
             blocked_(false),
+            running_(true),
             is_offered_(false),
             offer_thread_(std::bind(&service_sample::run, this)),
             notify_thread_(std::bind(&service_sample::notify, this)) {
@@ -66,6 +69,21 @@ public:
     void start() {
         app_->start();
     }
+
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    /*
+     * Handle signal to shutdown
+     */
+    void stop() {
+        running_ = false;
+        blocked_ = true;
+        condition_.notify_one();
+        notify_condition_.notify_one();
+        offer_thread_.join();
+        notify_thread_.join();
+        app_->stop();
+    }
+#endif
 
     void offer() {
         std::lock_guard<std::mutex> its_lock(notify_mutex_);
@@ -117,13 +135,15 @@ public:
             condition_.wait(its_lock);
 
         bool is_offer(true);
-        while (true) {
+        while (running_) {
             if (is_offer)
                 offer();
             else
                 stop_offer();
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+            for (int i = 0; i < 10 && running_; i++)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
             is_offer = !is_offer;
         }
     }
@@ -139,11 +159,11 @@ public:
         vsomeip::byte_t its_data[10];
         uint32_t its_size = 1;
 
-        while (true) {
+        while (running_) {
             std::unique_lock<std::mutex> its_lock(notify_mutex_);
-            while (!is_offered_)
+            while (!is_offered_ && running_)
                 notify_condition_.wait(its_lock);
-            while (is_offered_) {
+            while (is_offered_ && running_) {
                 if (its_size == sizeof(its_data))
                     its_size = 1;
 
@@ -171,6 +191,7 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
+    bool running_;
 
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
@@ -182,6 +203,15 @@ private:
     std::thread offer_thread_;
     std::thread notify_thread_;
 };
+
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    service_sample *its_sample_ptr(nullptr);
+    void handle_signal(int _signal) {
+        if (its_sample_ptr != nullptr &&
+                (_signal == SIGINT || _signal == SIGTERM))
+            its_sample_ptr->stop();
+    }
+#endif
 
 int main(int argc, char **argv) {
     bool use_tcp = false;
@@ -210,6 +240,11 @@ int main(int argc, char **argv) {
     }
 
     service_sample its_sample(use_tcp, cycle);
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    its_sample_ptr = &its_sample;
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+#endif
     its_sample.init();
     its_sample.start();
 

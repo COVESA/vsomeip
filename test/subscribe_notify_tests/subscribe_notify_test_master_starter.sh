@@ -18,6 +18,7 @@ then
     echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
     echo "Please pass a json file to this script."
     echo "For example: $0 UDP subscribe_notify_test_diff_client_ids_diff_ports_master.json"
+    echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
     exit 1
 fi
 
@@ -50,15 +51,15 @@ FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_one
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 1 $1 &
+./subscribe_notify_test_service 1 $1 $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_two
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 2 $1 &
+./subscribe_notify_test_service 2 $1 $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_three
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 3 $1 &
+./subscribe_notify_test_service 3 $1 $3 &
 
 sleep 1
 
@@ -66,7 +67,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE
+** subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE $3
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in

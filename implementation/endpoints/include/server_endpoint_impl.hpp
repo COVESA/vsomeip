@@ -67,7 +67,7 @@ protected:
     std::mutex clients_mutex_;
     std::map<client_t, std::map<session_t, endpoint_type> > clients_;
 
-    boost::asio::system_timer flush_timer_;
+    boost::asio::steady_timer flush_timer_;
 
     std::mutex mutex_;
 };

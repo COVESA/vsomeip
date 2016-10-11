@@ -21,6 +21,7 @@ public:
     const ipv6_address_t & get_address() const;
     void set_address(const ipv6_address_t &_address);
 
+    bool is_multicast() const;
     bool serialize(vsomeip::serializer *_to) const;
     bool deserialize(vsomeip::deserializer *_from);
 

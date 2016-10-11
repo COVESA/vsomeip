@@ -2,7 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#include <csignal>
+#endif
 #include <chrono>
 #include <condition_variable>
 #include <iomanip>
@@ -76,6 +78,19 @@ public:
     void start() {
         app_->start();
     }
+
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    /*
+     * Handle signal to shutdown
+     */
+    void stop() {
+        running_ = false;
+        blocked_ = true;
+        condition_.notify_one();
+        sender_.join();
+        app_->stop();
+    }
+#endif
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
@@ -165,6 +180,14 @@ private:
     std::thread sender_;
 };
 
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    client_sample *its_sample_ptr(nullptr);
+    void handle_signal(int _signal) {
+        if (its_sample_ptr != nullptr &&
+                (_signal == SIGINT || _signal == SIGTERM))
+            its_sample_ptr->stop();
+    }
+#endif
 
 int main(int argc, char **argv) {
     bool use_tcp = false;
@@ -194,6 +217,11 @@ int main(int argc, char **argv) {
     }
 
     client_sample its_sample(use_tcp, be_quiet, cycle);
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+    its_sample_ptr = &its_sample;
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+#endif
     its_sample.init();
     its_sample.start();
     return 0;

@@ -18,6 +18,7 @@ then
     echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
     echo "Please pass a json file to this script."
     echo "For example: $0 UDP subscribe_notify_test_diff_client_ids_diff_ports_slave.json"
+    echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
     exit 1
 fi
 
@@ -45,15 +46,15 @@ FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_four
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 4 $1 &
+./subscribe_notify_test_service 4 $1 $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_five
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 5 $1 &
+./subscribe_notify_test_service 5 $1 $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_six
 export VSOMEIP_CONFIGURATION=$2
-./subscribe_notify_test_service 6 $1 &
+./subscribe_notify_test_service 6 $1 $3 &
 
 # Wait until all applications are finished
 for job in $(jobs -p)

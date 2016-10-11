@@ -13,9 +13,11 @@
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
-#include <boost/asio/system_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/function_types.hpp>
+#include <vsomeip/payload.hpp>
 
 namespace vsomeip {
 
@@ -43,14 +45,17 @@ public:
 
     const std::shared_ptr<payload> get_payload() const;
 
-    void set_payload(std::shared_ptr<payload> _payload, const client_t _client);
+    void set_payload(const std::shared_ptr<payload> &_payload,
+            const client_t _client, bool _force = false);
 
-    void set_payload(std::shared_ptr<payload> _payload,
-            const std::shared_ptr<endpoint_definition> _target);
+    void set_payload(const std::shared_ptr<payload> &_payload,
+            const std::shared_ptr<endpoint_definition> _target,
+            bool _force = false);
 
-    void set_payload_dont_notify(std::shared_ptr<payload> _payload);
+    void set_payload_dont_notify(const std::shared_ptr<payload> &_payload);
 
-    void set_payload(std::shared_ptr<payload> _payload);
+    void set_payload(const std::shared_ptr<payload> &_payload,
+            bool _force = false);
     void unset_payload(bool _force = false);
 
     bool is_field() const;
@@ -63,18 +68,20 @@ public:
 
     // SIP_RPC_357
     void set_update_cycle(std::chrono::milliseconds &_cycle);
+    void set_change_resets_cycle(bool _change_resets_cycle);
 
     // SIP_RPC_358
     void set_update_on_change(bool _is_on);
 
-    // SIP_RPC_359 (epsilon change) is not supported!
+    // SIP_RPC_359 (epsilon change)
+    void set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func);
 
     const std::set<eventgroup_t> & get_eventgroups() const;
     void add_eventgroup(eventgroup_t _eventgroup);
     void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
 
     void notify_one(const std::shared_ptr<endpoint_definition> &_target);
-    void notify_one(client_t _client, bool _is_initial = false);
+    void notify_one(client_t _client);
 
     void add_ref(client_t _client, bool _is_provided);
     void remove_ref(client_t _client, bool _is_provided);
@@ -91,17 +98,24 @@ private:
     void notify();
     void notify(client_t _client, const std::shared_ptr<endpoint_definition> &_target);
 
-private:
-    bool set_payload_helper(std::shared_ptr<payload> _payload);
+    void start_cycle();
+    void stop_cycle();
 
+    bool compare(const std::shared_ptr<payload> &_lhs, const std::shared_ptr<payload> &_rhs) const;
+
+    bool set_payload_helper(const std::shared_ptr<payload> &_payload, bool _force);
+    void reset_payload(const std::shared_ptr<payload> &_payload);
+
+private:
     routing_manager *routing_;
     std::mutex mutex_;
     std::shared_ptr<message> message_;
 
     bool is_field_;
 
-    boost::asio::system_timer cycle_timer_;
+    boost::asio::steady_timer cycle_timer_;
     std::chrono::milliseconds cycle_;
+    bool change_resets_cycle_;
 
     bool is_updating_on_change_;
 
@@ -115,6 +129,8 @@ private:
     bool is_shadow_;
 
     bool is_cache_placeholder_;
+
+    epsilon_change_func_t epsilon_change_func_;
 };
 
 }  // namespace vsomeip

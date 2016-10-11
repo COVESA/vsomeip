@@ -105,7 +105,6 @@ void header_factory_test_client::on_message(const std::shared_ptr<vsomeip::messa
     number_of_acknowledged_messages_++;
     ASSERT_EQ(_response->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
     ASSERT_EQ(_response->get_instance(), vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    ASSERT_EQ(_response->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
     ASSERT_EQ(_response->get_session(),
             static_cast<vsomeip::session_t>(number_of_acknowledged_messages_));
     if(number_of_acknowledged_messages_ == number_of_messages_to_send_) {

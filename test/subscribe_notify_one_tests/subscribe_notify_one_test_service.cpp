@@ -34,7 +34,6 @@ public:
             offer_thread_(std::bind(&subscribe_notify_one_test_service::run, this)),
             wait_for_stop_(true),
             stop_thread_(std::bind(&subscribe_notify_one_test_service::wait_for_stop, this)),
-            //number_of_subscribers_(0),
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)) {
         app_->init();
@@ -90,7 +89,6 @@ public:
     ~subscribe_notify_one_test_service() {
         offer_thread_.join();
         stop_thread_.join();
-        notify_thread_.join();
     }
 
     void offer() {
@@ -120,7 +118,8 @@ public:
             if(its_service != other_services_available_.end()) {
                 if(its_service->second != _is_available) {
                 its_service->second = true;
-                VSOMEIP_INFO << "Service ["
+                VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+                        << service_info_.service_id << "] Service ["
                 << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
                 << "] is available.";
 
@@ -140,11 +139,8 @@ public:
     }
 
     bool on_subscription(vsomeip::client_t _client, bool _subscribed) {
-        (void)(_client);
-        //_subscribed ? number_of_subscribers_++ : number_of_subscribers_--;
         // check if all other services have subscribed:
-        // -1 for placeholder in array
-
+        // -1 for placeholder in array and -1 for the service itself
         if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2) {
             return true;
         }
@@ -160,10 +156,6 @@ public:
                 << " subscribed, now have " << std::dec << subscribers_.size()
                 << " subscribers" ;
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] " << "Client: " << _client
-                << " subscribed, now have " << std::dec << subscribers_.size()
-                << " subscribers" ;
         if(subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2)
         {
             // notify the notify thread to start sending out notifications
@@ -359,6 +351,9 @@ public:
                 << service_info_.service_id
                 << "] Received notifications from all other services, going down";
 
+        // wait until all notifications have been sent out
+        notify_thread_.join();
+
         // let offer thread exit
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -389,7 +384,6 @@ private:
     std::condition_variable stop_condition_;
     std::thread stop_thread_;
 
-    //std::uint32_t number_of_subscribers_;
     bool wait_for_notify_;
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;

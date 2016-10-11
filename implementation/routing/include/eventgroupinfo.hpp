@@ -25,7 +25,7 @@ class eventgroupinfo {
 public:
     struct target_t {
         std::shared_ptr<endpoint_definition> endpoint_;
-        std::chrono::high_resolution_clock::time_point expiration_;
+        std::chrono::steady_clock::time_point expiration_;
 
         bool operator==(const target_t &_other) const {
             return (endpoint_ == _other.endpoint_);
@@ -47,19 +47,20 @@ public:
             uint16_t &_port) const;
     VSOMEIP_EXPORT void set_multicast(const boost::asio::ip::address &_address,
             uint16_t _port);
+    VSOMEIP_EXPORT bool is_sending_multicast() const;
 
     VSOMEIP_EXPORT const std::set<std::shared_ptr<event> > get_events() const;
     VSOMEIP_EXPORT void add_event(std::shared_ptr<event> _event);
     VSOMEIP_EXPORT void remove_event(std::shared_ptr<event> _event);
 
     VSOMEIP_EXPORT const std::list<target_t> get_targets() const;
-    VSOMEIP_EXPORT uint32_t get_unreliable_target_count();
+    VSOMEIP_EXPORT uint32_t get_unreliable_target_count() const;
 
     VSOMEIP_EXPORT bool add_target(const target_t &_target);
     VSOMEIP_EXPORT bool add_target(const target_t &_target, const target_t &_subscriber);
     VSOMEIP_EXPORT bool update_target(
             const std::shared_ptr<endpoint_definition> &_target,
-            const std::chrono::high_resolution_clock::time_point &_expiration);
+            const std::chrono::steady_clock::time_point &_expiration);
     VSOMEIP_EXPORT bool remove_target(
             const std::shared_ptr<endpoint_definition> &_target);
     VSOMEIP_EXPORT void clear_targets();
@@ -67,6 +68,9 @@ public:
     VSOMEIP_EXPORT void add_multicast_target(const target_t &_multicast_target);
     VSOMEIP_EXPORT void clear_multicast_targets();
     VSOMEIP_EXPORT const std::list<target_t> get_multicast_targets() const;
+
+    VSOMEIP_EXPORT uint8_t get_threshold() const;
+    VSOMEIP_EXPORT void set_threshold(uint8_t _threshold);
 
 private:
     major_version_t major_;
@@ -78,6 +82,8 @@ private:
     std::set<std::shared_ptr<event> > events_;
     std::list<target_t> targets_;
     std::list<target_t> multicast_targets_;
+
+    uint8_t threshold_;
 };
 
 } // namespace vsomeip

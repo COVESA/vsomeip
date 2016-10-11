@@ -41,7 +41,7 @@ bool message_impl::deserialize(deserializer *_from) {
     payload_ = runtime::get()->create_payload();
     bool is_successful = header_.deserialize(_from);
     if (is_successful) {
-        payload_->set_capacity(header_.length_);
+        payload_->set_capacity(header_.length_ - VSOMEIP_SOMEIP_HEADER_SIZE);
         is_successful = payload_->deserialize(_from);
     }
     return is_successful;

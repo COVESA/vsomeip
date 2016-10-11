@@ -69,7 +69,6 @@ TEST_F(someip_header_factory_test, create_request_and_response_test)
 
     ASSERT_EQ(response_->get_service(), request_->get_service());
     ASSERT_EQ(response_->get_method(), request_->get_method());
-    ASSERT_EQ(response_->get_client(), request_->get_client());
     ASSERT_EQ(response_->get_session(), request_->get_session());
 
     // length? --> gets only set if a payload is added

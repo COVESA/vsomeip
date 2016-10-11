@@ -33,6 +33,10 @@ void ipv6_option_impl::set_address(const ipv6_address_t &_address) {
     address_ = _address;
 }
 
+bool ipv6_option_impl::is_multicast() const {
+    return (type_ == option_type_e::IP6_MULTICAST);
+}
+
 bool ipv6_option_impl::serialize(vsomeip::serializer *_to) const {
     bool is_successful = option_impl::serialize(_to);
     _to->serialize(&address_[0], uint32_t(address_.size()));

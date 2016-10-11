@@ -49,11 +49,6 @@ void ip_option_impl::set_layer_four_protocol(
     protocol_ = _protocol;
 }
 
-bool ip_option_impl::is_multicast() const {
-    return (type_ == option_type_e::IP4_MULTICAST
-            || type_ == option_type_e::IP6_MULTICAST);
-}
-
 } // namespace sd
 } // namespace vsomeip
 

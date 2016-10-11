@@ -9,6 +9,7 @@
 #include "../include/message_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
+#include "../../logging/include/logger.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -87,25 +88,20 @@ const std::vector<uint8_t> & entry_impl::get_options(uint8_t _run) const {
 
 void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option) {
     uint8_t option_index = uint8_t(get_owning_message()->get_option_index(_option));
-    if (0x10 > option_index) { // as we have only a nibble for the option counter
-        if (options_[0].empty() ||
+    if (options_[0].empty() ||
             options_[0][0] == option_index + 1 ||
             options_[0][options_[0].size() - 1] + 1 == option_index) {
-            options_[0].push_back(option_index);
-            std::sort(options_[0].begin(), options_[0].end());
-            num_options_[0]++;
-        } else
-        if (options_[1].empty() ||
+        options_[0].push_back(option_index);
+        std::sort(options_[0].begin(), options_[0].end());
+        num_options_[0]++;
+    } else if (options_[1].empty() ||
             options_[1][0] == option_index + 1 ||
             options_[1][options_[1].size() - 1] + 1 == option_index) {
-            options_[1].push_back(option_index);
-            std::sort(options_[1].begin(), options_[1].end());
-            num_options_[1]++;
-        } else {
-            // TODO: copy data
-        }
+        options_[1].push_back(option_index);
+        std::sort(options_[1].begin(), options_[1].end());
+        num_options_[1]++;
     } else {
-        // TODO: decide what to do if option does not belong to the message.
+        VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of endpoint options reached!";
     }
 }
 
@@ -143,25 +139,25 @@ bool entry_impl::deserialize(vsomeip::deserializer *_from) {
     is_successful = is_successful && _from->deserialize(its_type);
     type_ = static_cast<entry_type_e>(its_type);
 
-    uint8_t its_index1;
+    uint8_t its_index1(0);
     is_successful = is_successful && _from->deserialize(its_index1);
 
-    uint8_t its_index2;
+    uint8_t its_index2(0);
     is_successful = is_successful && _from->deserialize(its_index2);
 
-    uint8_t its_numbers;
+    uint8_t its_numbers(0);
     is_successful = is_successful && _from->deserialize(its_numbers);
 
     num_options_[0] = uint8_t(its_numbers >> 4);
     num_options_[1] = uint8_t(its_numbers & 0xF);
 
-    for (uint8_t i = its_index1; i < its_index1 + num_options_[0]; ++i)
-        options_[0].push_back(i);
+    for (uint16_t i = its_index1; i < its_index1 + num_options_[0]; ++i)
+        options_[0].push_back((uint8_t)(i));
 
-    for (uint8_t i = its_index2; i < its_index2 + num_options_[1]; ++i)
-        options_[1].push_back(i);
+    for (uint16_t i = its_index2; i < its_index2 + num_options_[1]; ++i)
+        options_[1].push_back((uint8_t)(i));
 
-    uint16_t its_id;
+    uint16_t its_id(0);
     is_successful = is_successful && _from->deserialize(its_id);
     service_ = static_cast<service_t>(its_id);
 

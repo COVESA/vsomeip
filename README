@@ -96,6 +96,17 @@ cmake -DDIAGNOSIS_ADDRESS=<YOUR DIAGNOSIS ADDRESS> ..
 ----
 The diagnosis address is a single byte value.
 
+Compilation with signal handling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To compile vsomeip with signal handling (SIGINT/SIGTERM) enabled,
+call cmake like:
+[source,bash]
+----
+cmake -DENABLE_SIGNAL_HANDLING=1 ..
+----
+In the default setting, the application has to take care of shutting
+down vsomeip in case these signals are received.
+
 Compilation of examples
 ^^^^^^^^^^^^^^^^^^^^^^^
 For compilation of the examples call:
@@ -289,9 +300,15 @@ _true, false_).
 +
 ** 'enable'
 +
-Specifies whether the tracing of the internal messages is enabled 
-(valid values: _true, false_). If tracing is enabled, the messages will be
-forwarded to DLT by the <<traceconnector, Trace Connector>> 
+Specifies whether the tracing of the SOME/IP messages is enabled 
+(valid values: _true, false_). Default value is _false_.
+If tracing is enabled, the messages will be forwarded to DLT by 
+the <<traceconnector, Trace Connector>>
++
+** 'sd_enable'
++
+Specifies whether the tracing of the SOME/IP service discovery messages is 
+enabled (valid values: _true, false_). Default value is _false_.
 +
 ** 'channels (array)' (optional)
 +
@@ -456,6 +473,15 @@ The multicast address.
 +
 The multicast port.
 
+*** `threshold`
++
+Specifies when to use multicast and when to use unicast to send a notification event.
+Must be set to a non-negative number. If it is set to zero, all events of the eventgroup
+will be sent by unicast. Otherwise, the events will be sent by unicast as long as the
+number of subscribers is lower than the threshold and by multicast if the number
+of subscribers is greater or equal. This means, a threshold of 1 will lead to all events
+being sent by multicast. The default value is _0_.  
+
 * `clients` (array)
 +
 The client-side ports that shall be used to connect to a specific service.
@@ -519,6 +545,40 @@ service offered on previously specified IP and port. If multiple services are
 hosted on the same port all of them are allowed to receive oversized messages
 and send oversized responses.
 
+* `internal_services` (optional array)
++
+Specifies service/instance ranges for pure internal service-instances.
+This information is used by vSomeIP to avoid sending Find-Service messages
+via the Service-Discovery when a client is requesting a not available service-
+instance. Its can either be done on service/instance level or on service level
+only which then includes all instance from 0x0000-0xffff.
+
+** `first`
++
+The lowest entry of the internal service range.
+
+*** `service`
++
+The lowest Service-ID in hex of the internal service range.
+
+*** `instance` (optional)
++
+The lowest Instance-ID in hex of a internal service-instance range.
+If not specified the lowest Instance-ID is 0x0000.
+
+** `last`
++
+The highest entry of the internal service range.
+
+*** `service`
++
+The highest Service-ID in hex of a internal service range.
+
+*** `instance` (optional)
++
+The highest Instance-ID in hex of a internal service-instance range.
+If not specified the highest Instance-ID is 0xFFFF.
+
 * `routing`
 +
 The name of the application that is responsible for the routing.
@@ -535,11 +595,11 @@ _false_). The default value is _true_.
 ** `multicast`
 +
 The multicast address which the messages of the Service Discovery will be sent
-to. The default value is "224.0.0.1".
+to. The default value is _224.0.0.1_.
 
 ** `port`
 +
-The port of the Service Discovery. The default setting is 30490.
+The port of the Service Discovery. The default setting is _30490_.
 
 ** `protocol`
 +

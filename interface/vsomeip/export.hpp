@@ -7,9 +7,17 @@
 #define __EXPORT__HPP__
 
 #if WIN32
-#define VSOMEIP_EXPORT __declspec(dllexport)
+    #define VSOMEIP_EXPORT __declspec(dllexport)
+    #define VSOMEIP_EXPORT_CLASS_EXPLICIT
+
+    #if VSOMEIP_DLL_COMPILATION
+        #define VSOMEIP_IMPORT_EXPORT __declspec(dllexport)
+    #else
+        #define VSOMEIP_IMPORT_EXPORT __declspec(dllimport)
+    #endif
 #else
-#define VSOMEIP_EXPORT
+    #define VSOMEIP_EXPORT
+    #define VSOMEIP_IMPORT_EXPORT
 #endif
 
 #endif

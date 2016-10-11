@@ -33,6 +33,9 @@ public:
     VSOMEIP_EXPORT virtual length_t get_length() const = 0;
 
     VSOMEIP_EXPORT virtual void set_capacity(length_t _length) = 0;
+
+    VSOMEIP_EXPORT virtual void set_data(
+            std::vector<byte_t> &&_data) = 0;    
 };
 
 } // namespace vsomeip

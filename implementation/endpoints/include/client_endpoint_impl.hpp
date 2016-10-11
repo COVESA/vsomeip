@@ -60,17 +60,20 @@ public:
 public:
     virtual void connect() = 0;
     virtual void receive() = 0;
+    typedef std::function<void()> endpoint_error_handler_t;
+    void register_error_callback(endpoint_error_handler_t _callback);
 
 protected:
     virtual void send_queued() = 0;
+    void shutdown_and_close_socket();
 
     socket_type socket_;
     endpoint_type remote_;
 
     uint16_t local_port_;
 
-    boost::asio::system_timer flush_timer_;
-    boost::asio::system_timer connect_timer_;
+    boost::asio::steady_timer flush_timer_;
+    boost::asio::steady_timer connect_timer_;
     uint32_t connect_timeout_;
     bool is_connected_;
 
@@ -81,6 +84,9 @@ protected:
     std::mutex mutex_;
 
     bool was_not_connected_;
+
+    std::mutex error_handler_mutex_;
+    endpoint_error_handler_t error_handler_;
 };
 
 } // namespace vsomeip

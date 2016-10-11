@@ -37,7 +37,7 @@ public:
 
     logger_impl();
 
-    boost::log::sources::severity_logger<
+    boost::log::sources::severity_logger_mt<
             boost::log::trivial::severity_level> & get_internal();
 
 private:
@@ -47,13 +47,14 @@ private:
                     const std::string &_context_id);
 
 private:
-    boost::log::sources::severity_logger<
+    static boost::log::sources::severity_logger_mt<
             boost::log::trivial::severity_level> logger_;
     boost::log::trivial::severity_level loglevel_;
 
     boost::shared_ptr<sink_t> console_sink_;
     boost::shared_ptr<sink_t> file_sink_;
     boost::shared_ptr<dlt_sink_t> dlt_sink_;
+    boost::log::core_ptr log_core_;
 
 private:
     void use_null_logger();

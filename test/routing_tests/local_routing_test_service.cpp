@@ -104,9 +104,6 @@ void local_routing_test_service::on_message(const std::shared_ptr<vsomeip::messa
     // TR_SOMEIP_00055
     ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
 
-    // make sure the message was sent from the service
-    ASSERT_EQ(_request->get_client(), vsomeip_test::TEST_CLIENT_CLIENT_ID);
-
     // check the session id.
     ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_of_received_messages_));
 
@@ -141,7 +138,7 @@ void local_routing_test_service::run()
     while (!blocked_)
         condition_.wait(its_lock);
 
-    std::thread t2([](){ usleep(1000000 * 5);});
+    std::thread t2([](){ std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5));});
     t2.join();
     app_->stop();
 }
