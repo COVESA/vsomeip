@@ -46,7 +46,6 @@ To build the documentation asciidoc, source-highlight, doxygen and graphviz is n
 
 For compilation call:
 
-[source, bash]
 ```bash
 mkdir build
 cd build
