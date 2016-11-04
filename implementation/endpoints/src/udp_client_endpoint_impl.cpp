@@ -139,15 +139,23 @@ void udp_client_endpoint_impl::receive_cbk(
                 << (int) recv_buffer_[i] << " ";
         VSOMEIP_DEBUG << msg.str();
 #endif
-        uint32_t current_message_size
-            = utility::get_message_size(&this->recv_buffer_[0],
-                    (uint32_t) _bytes);
-        if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
-                current_message_size <= _bytes) {
-            its_host->on_message(&recv_buffer_[0], current_message_size, this);
-        } else {
-            VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad length field";
-        }
+        std::size_t remaining_bytes = _bytes;
+        std::size_t i = 0;
+        do {
+            uint32_t current_message_size
+                = utility::get_message_size(&this->recv_buffer_[i],
+                        (uint32_t) remaining_bytes);
+            if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
+                    current_message_size <= remaining_bytes) {
+                remaining_bytes -= current_message_size;
+
+	            its_host->on_message(&recv_buffer_[i], current_message_size, this);
+			} else {
+	            VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad length field";
+				remaining_bytes = 0;
+			}
+            i += current_message_size;
+        } while (remaining_bytes > 0);
     }
     if (!_error) {
         receive();

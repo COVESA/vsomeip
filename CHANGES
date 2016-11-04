@@ -224,3 +224,7 @@ v2.4.2
 - Incoming find service entries with unicast flag set to 0 are now replied with
   a unicast offer service message instead of a multicast offer service message.
 - application::stop() now blocks until the shutdown has finished completely
+
+v2.4.3
+- Fix receiving of UDP frames containing multiple SOME/IP messages via UDP from
+  external service instances
