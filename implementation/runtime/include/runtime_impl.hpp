@@ -43,7 +43,7 @@ private:
     static std::shared_ptr<runtime> the_runtime_;
     static std::map<std::string, std::string> properties_;
 
-    std::map<std::string, std::shared_ptr<application>> applications_;
+    std::map<std::string, std::weak_ptr<application>> applications_;
 };
 
 } // namespace vsomeip

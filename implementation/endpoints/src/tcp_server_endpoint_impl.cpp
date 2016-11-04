@@ -121,12 +121,6 @@ bool tcp_server_endpoint_impl::is_established(std::shared_ptr<endpoint_definitio
     return is_connected;
 }
 
-tcp_server_endpoint_impl::endpoint_type
-tcp_server_endpoint_impl::get_remote() const {
-    boost::system::error_code its_error;
-    return current_->get_socket().remote_endpoint(its_error);
-}
-
 bool tcp_server_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
 
@@ -232,7 +226,8 @@ tcp_server_endpoint_impl::connection::get_socket() {
 void tcp_server_endpoint_impl::connection::start() {
     receive();
     // Nagle algorithm off
-    socket_.set_option(ip::tcp::no_delay(true));
+    boost::system::error_code ec;
+    socket_.set_option(ip::tcp::no_delay(true), ec);
 }
 
 void tcp_server_endpoint_impl::connection::receive() {

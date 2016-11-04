@@ -9,6 +9,7 @@
     #include <dlfcn.h>
     #include <sys/mman.h>
     #include <thread>
+    #include <sstream>
 #endif
 
 #include <sys/stat.h>
@@ -129,9 +130,8 @@ static HANDLE configuration_data_mutex(INVALID_HANDLE_VALUE);
 static HANDLE its_descriptor(INVALID_HANDLE_VALUE);
 #endif
 
-bool utility::auto_configuration_init() {
+bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
-    std::shared_ptr<configuration> its_config(configuration::get());
 
 #ifdef WIN32
     if (its_configuration_refs__ > 0) {
@@ -212,7 +212,7 @@ bool utility::auto_configuration_init() {
                             = reinterpret_cast<configuration_data_t *>(its_segment);
 
                         the_configuration_data__->client_base_
-                            = static_cast<unsigned short>(its_config->get_diagnosis_address() << 8);
+                            = static_cast<unsigned short>(_config->get_diagnosis_address() << 8);
                         the_configuration_data__->used_client_ids_[0]
                             = the_configuration_data__->client_base_;
                         the_configuration_data__->client_base_++;
@@ -220,7 +220,7 @@ bool utility::auto_configuration_init() {
                         the_configuration_data__->max_assigned_client_id_low_byte_ = 0x00;
 
                         the_configuration_data__->routing_manager_host_ = 0x0000;
-                        std::string its_name = its_config->get_routing_host();
+                        std::string its_name = _config->get_routing_host();
                         if (its_name == "")
                             the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
 
@@ -252,9 +252,9 @@ bool utility::auto_configuration_init() {
         }
     }
 #else
-    const mode_t previous_mask(::umask(static_cast<mode_t>(its_config->get_umask())));
+    const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
     int its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR | O_CREAT | O_EXCL,
-            static_cast<mode_t>(its_config->get_permissions_shm()));
+            static_cast<mode_t>(_config->get_permissions_shm()));
     ::umask(previous_mask);
     if (its_descriptor > -1) {
         if (-1 == ftruncate(its_descriptor, sizeof(configuration_data_t))) {
@@ -292,7 +292,7 @@ bool utility::auto_configuration_init() {
                     }
 
                     the_configuration_data__->client_base_
-                        = static_cast<unsigned short>(its_config->get_diagnosis_address() << 8);
+                        = static_cast<unsigned short>(_config->get_diagnosis_address() << 8);
                     the_configuration_data__->used_client_ids_[0]
                         = the_configuration_data__->client_base_;
                     the_configuration_data__->client_base_++;
@@ -300,7 +300,7 @@ bool utility::auto_configuration_init() {
                     the_configuration_data__->max_assigned_client_id_low_byte_ = 0x00;
 
                     the_configuration_data__->routing_manager_host_ = 0x0000;
-                    std::string its_name = its_config->get_routing_host();
+                    std::string its_name = _config->get_routing_host();
                     if (its_name == "")
                         the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
 
@@ -321,9 +321,9 @@ bool utility::auto_configuration_init() {
             }
         }
     } else if (errno == EEXIST) {
-        const mode_t previous_mask(::umask(static_cast<mode_t>(its_config->get_umask())));
+        const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
         its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR,
-                static_cast<mode_t>(its_config->get_permissions_shm()));
+                static_cast<mode_t>(_config->get_permissions_shm()));
         ::umask(previous_mask);
         if (-1 == its_descriptor) {
             VSOMEIP_ERROR << "utility::auto_configuration_init: "
@@ -437,10 +437,22 @@ bool utility::is_used_client_id(client_t _client) {
             return true;
         }
     }
+#ifndef WIN32
+    std::stringstream its_client;
+    its_client << VSOMEIP_BASE_PATH << std::hex << _client;
+    if (exists(its_client.str())) {
+        if (-1 == ::unlink(its_client.str().c_str())) {
+            VSOMEIP_WARNING << "unlink failed for " << its_client.str() << ". Client identifier 0x"
+                    << std::hex << _client << " can't be reused!";
+            return true;
+        }
+
+    }
+#endif
     return false;
 }
 
-client_t utility::request_client_id(const std::string &_name, client_t _client) {
+client_t utility::request_client_id(const std::shared_ptr<configuration> &_config, const std::string &_name, client_t _client) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
@@ -451,8 +463,7 @@ client_t utility::request_client_id(const std::string &_name, client_t _client) 
 #else
         pthread_mutex_lock(&the_configuration_data__->mutex_);
 #endif
-        std::shared_ptr<configuration> its_config(configuration::get());
-        const std::string its_name = its_config->get_routing_host();
+        const std::string its_name = _config->get_routing_host();
         bool set_client_as_manager_host(false);
         if (its_name != "" && its_name == _name) {
             if (the_configuration_data__->routing_manager_host_ == 0x0000) {

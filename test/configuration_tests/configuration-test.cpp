@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <cstdlib>
 #include <iostream>
 
 #include <vsomeip/constants.hpp>
@@ -109,155 +110,158 @@ void check_file(const std::string &_config_file,
                 vsomeip::ttl_t _expected_cyclic_offer_delay,
                 vsomeip::ttl_t _expected_request_response_delay) {
 
-    // Reset configuration
-    vsomeip::configuration::reset();
+    // 0. Create configuration object
+    std::shared_ptr<vsomeip::configuration> its_configuration
+            = vsomeip::configuration::get();
 
-        // Load test configuration
-    std::set<std::string> its_configuration_files;
-    its_configuration_files.insert(_config_file);
-        std::shared_ptr<vsomeip::configuration> its_configuration
-            = vsomeip::configuration::get(its_configuration_files);
+    // 1. Did we get a configuration object?
+    if (0 == its_configuration) {
+        VSOMEIP_ERROR << "No configuration object. "
+                "Either memory overflow or loading error detected!";
+        return;
+    }
 
-        // 1. Did we get a configuration object?
-        if (0 == its_configuration) {
-            VSOMEIP_ERROR << "No configuration object. "
-                    "Either memory overflow or loading error detected!";
-            return;
-        }
+    // 2. Set environment variable to config file and load it
+#ifndef WIN32
+    setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
+#else
+    _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()
+#endif
+    its_configuration->load(EXPECTED_ROUTING_MANAGER_HOST);
 
-        // 2. Check host address
-        boost::asio::ip::address its_host_unicast_address
-            = its_configuration->get_unicast_address();
-        check<std::string>(its_host_unicast_address.to_string(),
-                           _expected_unicast_address, "UNICAST ADDRESS");
+    // 3. Check host address
+    boost::asio::ip::address its_host_unicast_address
+        = its_configuration->get_unicast_address();
+    check<std::string>(its_host_unicast_address.to_string(),
+                       _expected_unicast_address, "UNICAST ADDRESS");
 
-        // 3. Check logging
-        bool has_console = its_configuration->has_console_log();
-        bool has_file = its_configuration->has_file_log();
-        bool has_dlt = its_configuration->has_dlt_log();
-        std::string logfile = its_configuration->get_logfile();
-        boost::log::trivial::severity_level loglevel
-            = its_configuration->get_loglevel();
+    // 4. Check logging
+    bool has_console = its_configuration->has_console_log();
+    bool has_file = its_configuration->has_file_log();
+    bool has_dlt = its_configuration->has_dlt_log();
+    std::string logfile = its_configuration->get_logfile();
+    boost::log::trivial::severity_level loglevel
+        = its_configuration->get_loglevel();
 
-        check<bool>(has_console, _expected_has_console, "HAS CONSOLE");
-        check<bool>(has_file, _expected_has_file, "HAS FILE");
-        check<bool>(has_dlt, _expected_has_dlt, "HAS DLT");
-        check<std::string>(logfile, _expected_logfile, "LOGFILE");
-        check<std::string>(boost::log::trivial::to_string(loglevel),
-                           _expected_loglevel, "LOGLEVEL");
+    check<bool>(has_console, _expected_has_console, "HAS CONSOLE");
+    check<bool>(has_file, _expected_has_file, "HAS FILE");
+    check<bool>(has_dlt, _expected_has_dlt, "HAS DLT");
+    check<std::string>(logfile, _expected_logfile, "LOGFILE");
+    check<std::string>(boost::log::trivial::to_string(loglevel),
+                       _expected_loglevel, "LOGLEVEL");
 
-        // 4. Services
-        std::string its_unicast_address
-            = its_configuration->get_unicast_address(0x1234, 0x0022);
-        uint16_t its_reliable_port
-            = its_configuration->get_reliable_port(0x1234, 0x0022);
-        uint16_t its_unreliable_port
-            = its_configuration->get_unreliable_port(0x1234, 0x0022);
+    // 5. Services
+    std::string its_unicast_address
+        = its_configuration->get_unicast_address(0x1234, 0x0022);
+    uint16_t its_reliable_port
+        = its_configuration->get_reliable_port(0x1234, 0x0022);
+    uint16_t its_unreliable_port
+        = its_configuration->get_unreliable_port(0x1234, 0x0022);
 
-        check<std::string>(its_unicast_address,
-                _expected_unicast_address_1234_0022,
-                "UNICAST_ADDRESS_1234_0022");
-        check<uint16_t>(its_reliable_port,
-                _expected_reliable_port_1234_0022,
-                "RELIABLE_PORT_1234_0022");
-        check<uint16_t>(its_unreliable_port,
-                _expected_unreliable_port_1234_0022,
-                "UNRELIABLE_PORT_1234_0022");
+    check<std::string>(its_unicast_address,
+            _expected_unicast_address_1234_0022,
+            "UNICAST_ADDRESS_1234_0022");
+    check<uint16_t>(its_reliable_port,
+            _expected_reliable_port_1234_0022,
+            "RELIABLE_PORT_1234_0022");
+    check<uint16_t>(its_unreliable_port,
+            _expected_unreliable_port_1234_0022,
+            "UNRELIABLE_PORT_1234_0022");
 
-        its_unicast_address
-            = its_configuration->get_unicast_address(0x1234, 0x0023);
-        its_reliable_port
-            = its_configuration->get_reliable_port(0x1234, 0x0023);
-        its_unreliable_port
-            = its_configuration->get_unreliable_port(0x1234, 0x0023);
+    its_unicast_address
+        = its_configuration->get_unicast_address(0x1234, 0x0023);
+    its_reliable_port
+        = its_configuration->get_reliable_port(0x1234, 0x0023);
+    its_unreliable_port
+        = its_configuration->get_unreliable_port(0x1234, 0x0023);
 
-        check<std::string>(its_unicast_address,
-                _expected_unicast_address_1234_0023,
-                "UNICAST_ADDRESS_1234_0023");
-        check<uint16_t>(its_reliable_port,
-                _expected_reliable_port_1234_0023,
-                "RELIABLE_PORT_1234_0023");
-        check<uint16_t>(its_unreliable_port,
-                _expected_unreliable_port_1234_0023,
-                "UNRELIABLE_PORT_1234_0023");
+    check<std::string>(its_unicast_address,
+            _expected_unicast_address_1234_0023,
+            "UNICAST_ADDRESS_1234_0023");
+    check<uint16_t>(its_reliable_port,
+            _expected_reliable_port_1234_0023,
+            "RELIABLE_PORT_1234_0023");
+    check<uint16_t>(its_unreliable_port,
+            _expected_unreliable_port_1234_0023,
+            "UNRELIABLE_PORT_1234_0023");
 
-        its_unicast_address
-            = its_configuration->get_unicast_address(0x2277, 0x0022);
-        its_reliable_port
-            = its_configuration->get_reliable_port(0x2277, 0x0022);
-        its_unreliable_port
-            = its_configuration->get_unreliable_port(0x2277, 0x0022);
+    its_unicast_address
+        = its_configuration->get_unicast_address(0x2277, 0x0022);
+    its_reliable_port
+        = its_configuration->get_reliable_port(0x2277, 0x0022);
+    its_unreliable_port
+        = its_configuration->get_unreliable_port(0x2277, 0x0022);
 
-        check<std::string>(its_unicast_address,
-                _expected_unicast_address_2277_0022,
-                "UNICAST_ADDRESS_2277_0022");
-        check<uint16_t>(its_reliable_port,
-                _expected_reliable_port_2277_0022,
-                "RELIABLE_PORT_2277_0022");
-        check<uint16_t>(its_unreliable_port,
-                _expected_unreliable_port_2277_0022,
-                "UNRELIABLE_PORT_2277_0022");
+    check<std::string>(its_unicast_address,
+            _expected_unicast_address_2277_0022,
+            "UNICAST_ADDRESS_2277_0022");
+    check<uint16_t>(its_reliable_port,
+            _expected_reliable_port_2277_0022,
+            "RELIABLE_PORT_2277_0022");
+    check<uint16_t>(its_unreliable_port,
+            _expected_unreliable_port_2277_0022,
+            "UNRELIABLE_PORT_2277_0022");
 
-        its_unicast_address
-            = its_configuration->get_unicast_address(0x2266, 0x0022);
-        its_reliable_port
-            = its_configuration->get_reliable_port(0x2266, 0x0022);
-        its_unreliable_port
-            = its_configuration->get_unreliable_port(0x2266, 0x0022);
+    its_unicast_address
+        = its_configuration->get_unicast_address(0x2266, 0x0022);
+    its_reliable_port
+        = its_configuration->get_reliable_port(0x2266, 0x0022);
+    its_unreliable_port
+        = its_configuration->get_unreliable_port(0x2266, 0x0022);
 
-        check<std::string>(its_unicast_address,
-                _expected_unicast_address_2266_0022,
-                "UNICAST_ADDRESS_2266_0022");
-        check<uint16_t>(its_reliable_port,
-                _expected_reliable_port_2266_0022,
-                "RELIABLE_PORT_2266_0022");
-        check<uint16_t>(its_unreliable_port,
-                _expected_unreliable_port_2266_0022,
-                "UNRELIABLE_PORT_2266_0022");
+    check<std::string>(its_unicast_address,
+            _expected_unicast_address_2266_0022,
+            "UNICAST_ADDRESS_2266_0022");
+    check<uint16_t>(its_reliable_port,
+            _expected_reliable_port_2266_0022,
+            "RELIABLE_PORT_2266_0022");
+    check<uint16_t>(its_unreliable_port,
+            _expected_unreliable_port_2266_0022,
+            "UNRELIABLE_PORT_2266_0022");
 
-        its_unicast_address
-            = its_configuration->get_unicast_address(0x4466, 0x0321);
-        its_reliable_port
-            = its_configuration->get_reliable_port(0x4466, 0x0321);
-        its_unreliable_port
-            = its_configuration->get_unreliable_port(0x4466, 0x0321);
+    its_unicast_address
+        = its_configuration->get_unicast_address(0x4466, 0x0321);
+    its_reliable_port
+        = its_configuration->get_reliable_port(0x4466, 0x0321);
+    its_unreliable_port
+        = its_configuration->get_unreliable_port(0x4466, 0x0321);
 
-        check<std::string>(its_unicast_address,
-                _expected_unicast_address_4466_0321,
-                "UNICAST_ADDRESS_4466_0321");
-        check<uint16_t>(its_reliable_port,
-                _expected_reliable_port_4466_0321,
-                "RELIABLE_PORT_4466_0321");
-        check<uint16_t>(its_unreliable_port,
-                _expected_unreliable_port_4466_0321,
-                "UNRELIABLE_PORT_4466_0321");
+    check<std::string>(its_unicast_address,
+            _expected_unicast_address_4466_0321,
+            "UNICAST_ADDRESS_4466_0321");
+    check<uint16_t>(its_reliable_port,
+            _expected_reliable_port_4466_0321,
+            "RELIABLE_PORT_4466_0321");
+    check<uint16_t>(its_unreliable_port,
+            _expected_unreliable_port_4466_0321,
+            "UNRELIABLE_PORT_4466_0321");
 
-        // 5. Service discovery
-        bool enabled = its_configuration->is_sd_enabled();
-        std::string protocol = its_configuration->get_sd_protocol();
-        uint16_t port = its_configuration->get_sd_port();
-        std::string multicast = its_configuration->get_sd_multicast();
+    // 6. Service discovery
+    bool enabled = its_configuration->is_sd_enabled();
+    std::string protocol = its_configuration->get_sd_protocol();
+    uint16_t port = its_configuration->get_sd_port();
+    std::string multicast = its_configuration->get_sd_multicast();
 
-        int32_t initial_delay_min = its_configuration->get_sd_initial_delay_min();
-        int32_t initial_delay_max = its_configuration->get_sd_initial_delay_max();
-        int32_t repetitions_base_delay = its_configuration->get_sd_repetitions_base_delay();
-        uint8_t repetitions_max = its_configuration->get_sd_repetitions_max();
-        vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
-        int32_t cyclic_offer_delay = its_configuration->get_sd_cyclic_offer_delay();
-        int32_t request_response_delay = its_configuration->get_sd_request_response_delay();
+    int32_t initial_delay_min = its_configuration->get_sd_initial_delay_min();
+    int32_t initial_delay_max = its_configuration->get_sd_initial_delay_max();
+    int32_t repetitions_base_delay = its_configuration->get_sd_repetitions_base_delay();
+    uint8_t repetitions_max = its_configuration->get_sd_repetitions_max();
+    vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
+    int32_t cyclic_offer_delay = its_configuration->get_sd_cyclic_offer_delay();
+    int32_t request_response_delay = its_configuration->get_sd_request_response_delay();
 
-        check<bool>(enabled, _expected_enabled, "SD ENABLED");
-        check<std::string>(protocol, _expected_protocol, "SD PROTOCOL");
-        check<std::string>(multicast, _expected_multicast, "SD MULTICAST");
-        check<uint16_t>(port, _expected_port, "SD PORT");
+    check<bool>(enabled, _expected_enabled, "SD ENABLED");
+    check<std::string>(protocol, _expected_protocol, "SD PROTOCOL");
+    check<std::string>(multicast, _expected_multicast, "SD MULTICAST");
+    check<uint16_t>(port, _expected_port, "SD PORT");
 
-        check<int32_t>(initial_delay_min, _expected_initial_delay_min, "SD INITIAL DELAY MIN");
-        check<int32_t>(initial_delay_max, _expected_initial_delay_max, "SD INITIAL DELAY MAX");
-        check<int32_t>(repetitions_base_delay, _expected_repetitions_base_delay, "SD REPETITION BASE DELAY");
-        check<uint8_t>(repetitions_max,_expected_repetitions_max, "SD REPETITION MAX");
-        check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL");
-        check<int32_t>(cyclic_offer_delay, _expected_cyclic_offer_delay, "SD CYCLIC OFFER DELAY");
-        check<int32_t>(request_response_delay, _expected_request_response_delay, "SD RESPONSE REQUEST DELAY");
+    check<int32_t>(initial_delay_min, _expected_initial_delay_min, "SD INITIAL DELAY MIN");
+    check<int32_t>(initial_delay_max, _expected_initial_delay_max, "SD INITIAL DELAY MAX");
+    check<int32_t>(repetitions_base_delay, _expected_repetitions_base_delay, "SD REPETITION BASE DELAY");
+    check<uint8_t>(repetitions_max,_expected_repetitions_max, "SD REPETITION MAX");
+    check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL");
+    check<int32_t>(cyclic_offer_delay, _expected_cyclic_offer_delay, "SD CYCLIC OFFER DELAY");
+    check<int32_t>(request_response_delay, _expected_request_response_delay, "SD RESPONSE REQUEST DELAY");
 }
 
 

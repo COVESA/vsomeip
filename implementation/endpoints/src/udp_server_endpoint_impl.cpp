@@ -32,26 +32,30 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     boost::system::error_code ec;
 
     boost::asio::socket_base::reuse_address optionReuseAddress(true);
-    socket_.set_option(optionReuseAddress);
-
-    if (_local.address().is_v4()) {
-        boost::asio::ip::address_v4 its_unicast_address
-            = configuration::get()->get_unicast_address().to_v4();
-        boost::asio::ip::multicast::outbound_interface option(its_unicast_address);
-        socket_.set_option(option);
-    } else if (_local.address().is_v6()) {
-        boost::asio::ip::address_v6 its_unicast_address
-            = configuration::get()->get_unicast_address().to_v6();
-        boost::asio::ip::multicast::outbound_interface option(
-                static_cast<unsigned int>(its_unicast_address.scope_id()));
-        socket_.set_option(option);
-    }
+    socket_.set_option(optionReuseAddress, ec);
+    boost::asio::detail::throw_error(ec, "reuse address");
 
     socket_.bind(_local, ec);
     boost::asio::detail::throw_error(ec, "bind");
 
+    if (_local.address().is_v4()) {
+        boost::asio::ip::address_v4 its_unicast_address
+            = _host->get_configuration()->get_unicast_address().to_v4();
+        boost::asio::ip::multicast::outbound_interface option(its_unicast_address);
+        socket_.set_option(option, ec);
+        boost::asio::detail::throw_error(ec, "outbound interface option IPv4");
+    } else if (_local.address().is_v6()) {
+        boost::asio::ip::address_v6 its_unicast_address
+            = _host->get_configuration()->get_unicast_address().to_v6();
+        boost::asio::ip::multicast::outbound_interface option(
+                static_cast<unsigned int>(its_unicast_address.scope_id()));
+        socket_.set_option(option, ec);
+        boost::asio::detail::throw_error(ec, "outbound interface option IPv6");
+    }
+
     boost::asio::socket_base::broadcast option(true);
-    socket_.set_option(option);
+    socket_.set_option(option, ec);
+    boost::asio::detail::throw_error(ec, "broadcast option");
 
 #ifdef WIN32
     const char* optval("0001");
@@ -140,11 +144,6 @@ void udp_server_endpoint_impl::send_queued(
     );
 }
 
-udp_server_endpoint_impl::endpoint_type
-udp_server_endpoint_impl::get_remote() const {
-    return remote_;
-}
-
 bool udp_server_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
     boost::asio::ip::address its_address = remote_.address();
@@ -171,16 +170,31 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
                 socket_.set_option(ip::udp_ext::socket::reuse_address(true));
                 socket_.set_option(
                     boost::asio::ip::multicast::enable_loopback(false));
+#ifdef WIN32
+                socket_.set_option(boost::asio::ip::multicast::join_group(
+                    boost::asio::ip::address::from_string(_address).to_v4(),
+                    local_.address().to_v4()));
+#else
                 socket_.set_option(boost::asio::ip::multicast::join_group(
                     boost::asio::ip::address::from_string(_address).to_v4()));
+#endif
             } else if (local_.address().is_v6()) {
                 socket_.set_option(ip::udp_ext::socket::reuse_address(true));
                 socket_.set_option(
                     boost::asio::ip::multicast::enable_loopback(false));
+#ifdef WIN32
+                socket_.set_option(boost::asio::ip::multicast::join_group(
+                    boost::asio::ip::address::from_string(_address).to_v6(),
+                    local_.address().to_v6().scope_id()));
+#else
                 socket_.set_option(boost::asio::ip::multicast::join_group(
                     boost::asio::ip::address::from_string(_address).to_v6()));
+#endif
             }
             joined_.insert(_address);
+        } else {
+            VSOMEIP_DEBUG << "udp_server_endpoint_impl::join: "
+                    "Trying to join already joined address: " << _address;
         }
     }
     catch (const std::exception &e) {

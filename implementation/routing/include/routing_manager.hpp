@@ -22,7 +22,6 @@ class endpoint;
 class endpoint_definition;
 class event;
 class payload;
-class service_info;
 
 class routing_manager {
 public:
@@ -66,10 +65,10 @@ public:
             instance_t _instance, bool _flush, bool _reliable) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            std::shared_ptr<message>) = 0;
+            std::shared_ptr<message>, bool _flush) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size) = 0;
+            const byte_t *_data, uint32_t _size, bool _flush) = 0;
 
     virtual void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
@@ -90,14 +89,16 @@ public:
 
     virtual void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            bool _force) = 0;
+            bool _force, bool _flush) = 0;
 
     virtual void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force) = 0;
+            client_t _client, bool _force, bool _flush) = 0;
 
     virtual void on_identify_response(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;
+
+    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 };
 
 }  // namespace vsomeip

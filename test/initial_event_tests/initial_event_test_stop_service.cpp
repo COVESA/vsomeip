@@ -33,7 +33,10 @@ public:
             wait_for_stop_(true),
             stop_thread_(std::bind(&initial_event_test_stop_service::wait_for_stop, this)),
             called_other_node_(false) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&initial_event_test_stop_service::on_state, this,
                         std::placeholders::_1));
@@ -204,7 +207,7 @@ public:
             wait_until_shutdown_method_called_ = false;
             condition_.notify_one();
         }
-
+        app_->clear_all_handler();
         app_->stop();
     }
 

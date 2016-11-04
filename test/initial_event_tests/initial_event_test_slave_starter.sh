@@ -69,11 +69,18 @@ unset VSOMEIP_APPLICATION_NAME
 CLIENT_PIDS=()
 
 # Start some clients
-for client_number in $(seq 9000 9009)
-do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-   CLIENT_PIDS+=($!)
-done
+if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
+then
+    ./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+    FIRST_PID=$!
+    wait $FIRST_PID || FAIL=$(($FAIL+1))
+else
+    for client_number in $(seq 9000 9009)
+    do
+        ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+        CLIENT_PIDS+=($!)
+    done
+fi
 
 # Start availability checker in order to wait until the services on the remote
 # were started as well
@@ -87,12 +94,18 @@ wait $PID_AVAILABILITY_CHECKER
 # the cached event from the routing manager daemon
 sleep 2
 
-for client_number in $(seq 9010 9020)
-do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-   CLIENT_PIDS+=($!)
-done
-
+if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
+then
+    ./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+    FIRST_PID=$!
+    wait $FIRST_PID || FAIL=$(($FAIL+1))
+else
+    for client_number in $(seq 9010 9020)
+    do
+       ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+       CLIENT_PIDS+=($!)
+    done
+fi
 
 # Wait until all clients are finished
 for job in ${CLIENT_PIDS[*]}

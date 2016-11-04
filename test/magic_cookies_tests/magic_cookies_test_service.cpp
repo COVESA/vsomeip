@@ -30,7 +30,10 @@ public:
     void init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            exit(EXIT_FAILURE);
+        }
         app_->register_message_handler(
                 vsomeip_test::TEST_SERVICE_SERVICE_ID,
                 vsomeip_test::TEST_SERVICE_INSTANCE_ID,
@@ -112,6 +115,7 @@ public:
                 condition_.wait(its_lock);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            app_->clear_all_handler();
             app_->stop();
         } else {
             while (true) {

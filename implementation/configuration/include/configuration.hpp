@@ -25,12 +25,12 @@ namespace vsomeip {
 
 class event;
 
-class VSOMEIP_IMPORT_EXPORT configuration {
+class VSOMEIP_IMPORT_EXPORT_CONFIG configuration {
 public:
-    static std::shared_ptr<configuration> get(
-            const std::set<std::string> &_input = std::set<std::string>());
-    static void reset();
+    static std::shared_ptr<configuration> get();
     virtual ~configuration() {}
+
+    virtual bool load(const std::string &_name) = 0;
 
     virtual const boost::asio::ip::address & get_unicast_address() const = 0;
     virtual unsigned short get_diagnosis_address() const = 0;
@@ -98,6 +98,7 @@ public:
     virtual ttl_t get_sd_ttl() const = 0;
     virtual int32_t get_sd_cyclic_offer_delay() const = 0;
     virtual int32_t get_sd_request_response_delay() const = 0;
+    virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
 
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
@@ -113,6 +114,14 @@ public:
 
     virtual bool log_version() const = 0;
     virtual uint32_t get_log_version_interval() const = 0;
+
+    // Security
+    virtual bool is_security_enabled() const = 0;
+    virtual bool is_client_allowed(client_t _client, service_t _service,
+            instance_t _instance) const = 0;
+    virtual bool is_offer_allowed(client_t _client, service_t _service,
+            instance_t _instance) const = 0;
+    virtual bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
 };
 
 } // namespace vsomeip

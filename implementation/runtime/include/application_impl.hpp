@@ -26,6 +26,7 @@
 
 namespace vsomeip {
 
+class runtime;
 class configuration;
 class logger;
 class routing_manager;
@@ -95,12 +96,18 @@ public:
     VSOMEIP_EXPORT void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
             bool _force) const;
+    VSOMEIP_EXPORT void notify(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force, bool _flush) const;
 
     VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload, client_t _client) const;
     VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload, client_t _client,
             bool _force) const;
+    VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+            bool _force, bool _flush) const;
 
     VSOMEIP_EXPORT void register_state_handler(state_handler_t _handler);
     VSOMEIP_EXPORT void unregister_state_handler();
@@ -152,6 +159,9 @@ public:
     VSOMEIP_EXPORT bool are_available(available_t &_available,
                        service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
                        major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const;
+    VSOMEIP_EXPORT void set_routing_state(routing_state_e _routing_state);
+
+    VSOMEIP_EXPORT void clear_all_handler();
 
 private:
     //
@@ -181,7 +191,6 @@ private:
     //
     // Methods
     //
-    void service();
     inline void update_session() {
         session_++;
         if (0 == session_) {
@@ -206,7 +215,6 @@ private:
     bool is_active_dispatcher(std::thread::id &_id);
     void remove_elapsed_dispatchers();
 
-    void clear_all_handler();
     void shutdown();
 
     void send_back_cached_event(service_t _service, instance_t _instance, event_t _event);
@@ -215,6 +223,7 @@ private:
     //
     // Attributes
     //
+    std::shared_ptr<runtime> runtime_;
     client_t client_; // unique application identifier
     session_t session_;
     std::mutex session_mutex_;
@@ -224,10 +233,9 @@ private:
 
     std::string name_;
     std::shared_ptr<configuration> configuration_;
-    std::string file_; // configuration file
-    std::string folder_; // configuration folder
 
     boost::asio::io_service io_;
+    std::set<std::shared_ptr<std::thread> > io_threads_;
     std::shared_ptr<boost::asio::io_service::work> work_;
 
     // Proxy to or the Routing Manager itself
@@ -308,10 +316,9 @@ private:
     std::map<service_t, std::map<instance_t, std::map<event_t, bool>>> event_subscriptions_;
 
     std::thread::id stop_caller_id_;
+    std::thread::id start_caller_id_;
 
     bool stopped_called_;
-
-    std::thread::id io_thread_id_;
 };
 
 } // namespace vsomeip

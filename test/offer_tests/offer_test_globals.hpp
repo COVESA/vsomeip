@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
-#define SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
+#ifndef OFFER_TEST_GLOBALS_HPP_
+#define OFFER_TEST_GLOBALS_HPP_
 
 namespace offer_test {
 
@@ -22,4 +22,4 @@ struct service_info service = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404 };
 static constexpr int number_of_messages_to_send = 150;
 }
 
-#endif /* SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_ */
+#endif /* OFFER_TEST_GLOBALS_HPP_ */

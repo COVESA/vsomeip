@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <forward_list>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -77,25 +78,16 @@ public:
             const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_destination);
 
-    void on_offer_change();
-
-    void send_unicast_offer_service(const std::shared_ptr<const serviceinfo> &_info,
-            service_t _service, instance_t _instance,
-            major_version_t _major,
-            minor_version_t _minor);
-
-    void send_multicast_offer_service(const std::shared_ptr<const serviceinfo>& _info,
-            service_t _service, instance_t _instance,
-            major_version_t _major,
-            minor_version_t _minor);
-
     void on_reliable_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<const vsomeip::endpoint> &_endpoint);
 
+    void offer_service(service_t _service, instance_t _instance,
+                                   std::shared_ptr<serviceinfo> _info);
+    void stop_offer_service(service_t _service, instance_t _instance,
+                            std::shared_ptr<serviceinfo> _info);
+
 private:
-
-
     std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
 
@@ -110,7 +102,8 @@ private:
     void insert_find_entries(std::shared_ptr<message_impl> &_message,
             requests_t &_requests, uint32_t _start, uint32_t &_size, bool &_done);
     void insert_offer_entries(std::shared_ptr<message_impl> &_message,
-            services_t &_services, uint32_t &_start, uint32_t _size, bool &_done);
+                              const services_t &_services, uint32_t &_start,
+                              uint32_t _size, bool &_done, bool _ignore_phase);
     bool insert_offer_service(std::shared_ptr<message_impl> _message,
                               service_t _service, instance_t _instance,
                               const std::shared_ptr<const serviceinfo> &_info,
@@ -221,6 +214,49 @@ private:
 
     std::shared_ptr<request> find_request(service_t _service, instance_t _instance);
 
+    void start_offer_debounce_timer(bool _first_start);
+    void on_offer_debounce_timer_expired(const boost::system::error_code &_error);
+
+    void on_repetition_phase_timer_expired(
+            const boost::system::error_code &_error,
+            std::shared_ptr<boost::asio::steady_timer> _timer,
+            std::uint8_t _repetition, std::uint32_t _last_delay);
+    void move_offers_into_main_phase(
+            const std::shared_ptr<boost::asio::steady_timer> &_timer);
+
+    void fill_message_with_offer_entries(
+            std::shared_ptr<runtime> _runtime,
+            std::shared_ptr<message_impl> _message,
+            std::vector<std::shared_ptr<message_impl>> &_messages,
+            const services_t &_offers, bool _ignore_phase);
+
+    bool serialize_and_send_messages(
+            const std::vector<std::shared_ptr<message_impl>> &_messages);
+
+    bool send_stop_offer(service_t _service, instance_t _instance,
+                         std::shared_ptr<serviceinfo> _info);
+
+    void start_main_phase_timer();
+    void on_main_phase_timer_expired(const boost::system::error_code &_error);
+
+
+    void send_uni_or_multicast_offerservice(
+            service_t _service, instance_t _instance, major_version_t _major,
+            minor_version_t _minor,
+            const std::shared_ptr<const serviceinfo> &_info,
+            bool _unicast_flag);
+    bool last_offer_shorter_half_offer_delay_ago();
+    void send_unicast_offer_service(
+            const std::shared_ptr<const serviceinfo> &_info, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
+    void send_multicast_offer_service(
+            const std::shared_ptr<const serviceinfo>& _info, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
+
+    bool check_source_address(const boost::asio::ip::address &its_source_address) const;
+
 private:
     boost::asio::io_service &io_;
     service_discovery_host *host_;
@@ -232,9 +268,6 @@ private:
 
     std::shared_ptr<serializer> serializer_;
     std::shared_ptr<deserializer> deserializer_;
-
-    std::shared_ptr<service_discovery_fsm> default_;
-    std::map<std::string, std::shared_ptr<service_discovery_fsm> > additional_;
 
     requests_t requested_;
     std::mutex requested_mutex_;
@@ -265,6 +298,25 @@ private:
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
     uint32_t max_message_size_;
+
+    std::chrono::milliseconds initial_delay_;
+    std::chrono::milliseconds offer_debounce_time_;
+    std::chrono::milliseconds repetitions_base_delay_;
+    std::uint8_t repetitions_max_;
+    std::chrono::milliseconds cyclic_offer_delay_;
+    boost::asio::steady_timer offer_debounce_timer_;
+    // this map is used to collect offers while for offer debouncing
+    std::mutex collected_offers_mutex_;
+    services_t collected_offers_;
+
+    // this map contains the offers and their timers currently in repetition phase
+    std::mutex repetition_phase_timers_mutex_;
+    std::map<std::shared_ptr<boost::asio::steady_timer>,
+            services_t> repetition_phase_timers_;
+
+    boost::asio::steady_timer main_phase_timer_;
+
+    bool is_suspended_;
 };
 
 }  // namespace sd

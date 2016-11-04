@@ -6,6 +6,10 @@
 /daemon/CMakeFiles
 /examples/CMakeFiles
 /implementation/configuration/include/internal.hpp
+/test/application_tests/application_test.json
+/test/application_tests/application_test_daemon.json
+/test/application_tests/application_test_no_dispatch_threads.json
+/test/application_tests/application_test_no_dispatch_threads_daemon.json
 /test/big_payload_tests/big_payload_test_tcp_client.json
 /test/big_payload_tests/big_payload_test_tcp_service.json
 /test/magic_cookies_tests/magic_cookies_test_client.json
@@ -15,6 +19,7 @@
 /test/payload_tests/external_local_payload_test_service.json
 /test/routing_tests/external_local_routing_test_client_external.json
 /test/routing_tests/external_local_routing_test_service.json
+/test/routing_tests/local_routing_test_starter.sh
 /test/client_id_tests/client_id_test_diff_client_ids_diff_ports_master.json
 /test/client_id_tests/client_id_test_diff_client_ids_diff_ports_slave.json
 /test/client_id_tests/client_id_test_diff_client_ids_same_ports_master.json

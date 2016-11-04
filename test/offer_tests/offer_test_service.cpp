@@ -35,7 +35,10 @@ public:
             wait_until_registered_(true),
             offer_thread_(std::bind(&offer_test_service::run, this)),
             shutdown_method_called_(false) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&offer_test_service::on_state, this,
                         std::placeholders::_1));
@@ -94,6 +97,7 @@ public:
         // this is will trigger a warning
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id, 44, 4711);
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
+        app_->clear_all_handler();
         app_->stop();
     }
 

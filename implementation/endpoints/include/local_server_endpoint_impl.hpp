@@ -7,6 +7,8 @@
 #define VSOMEIP_LOCAL_SERVER_ENDPOINT_IMPL_HPP
 
 #include <map>
+#include <thread>
+#include <condition_variable>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
@@ -40,6 +42,13 @@ public:
                                endpoint_type _local,
                                boost::asio::io_service &_io,
                                std::uint32_t _max_message_size);
+
+    local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
+                               endpoint_type _local,
+                               boost::asio::io_service &_io,
+                               std::uint32_t _max_message_size,
+							   int native_socket);
+
     virtual ~local_server_endpoint_impl();
 
     void start();
@@ -52,10 +61,11 @@ public:
                  const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);
 
-    endpoint_type get_remote() const;
     bool get_default_target(service_t, endpoint_type &) const;
 
     bool is_local() const;
+
+    void accept_client_func();
 
 private:
     class connection: public boost::enable_shared_from_this<connection> {
@@ -72,6 +82,8 @@ private:
 
         void send_queued(queue_iterator_type _queue_iterator);
 
+        void set_bound_client(client_t _client);
+
     private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
                    std::uint32_t _max_message_size);
@@ -85,6 +97,8 @@ private:
 
         receive_buffer_t recv_buffer_;
         size_t recv_buffer_size_;
+
+        client_t bound_client_;
 
     private:
         void receive_cbk(boost::system::error_code const &_error,

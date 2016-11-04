@@ -73,6 +73,7 @@ if(NOT ${TESTS_BAT})
     add_executable(${TEST_CONFIGURATION} configuration_tests/configuration-test.cpp)
     target_link_libraries(${TEST_CONFIGURATION}
         vsomeip
+        vsomeip-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
     )
@@ -105,25 +106,56 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
     )
 
+    set(TEST_APPLICATION_SINGLE_PROCESS_NAME ${TEST_APPLICATION}_single_process)
+    add_executable(${TEST_APPLICATION_SINGLE_PROCESS_NAME} application_tests/${TEST_APPLICATION_SINGLE_PROCESS_NAME}.cpp)
+    target_link_libraries(${TEST_APPLICATION_SINGLE_PROCESS_NAME}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE ${TEST_APPLICATION}_single_process.json)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
+        ${TEST_APPLICATION}_single_process
+    )
+    
     set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_CONFIGURATION_FILE}
         ${TEST_APPLICATION}
     )
 
     set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
+        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
         ${TEST_APPLICATION}
     )
 
     set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
         ${TEST_APPLICATION}
     )
 
     set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
+        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         ${TEST_APPLICATION}
@@ -133,6 +165,12 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_STARTER}
         ${TEST_APPLICATION}
+    )
+    
+    set(TEST_APPLICATION_SINGLE_PROCESS_STARTER ${TEST_APPLICATION}_single_process_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
+        ${TEST_APPLICATION}_single_process
     )
 endif()
 ##############################################################################
@@ -332,6 +370,10 @@ if(NOT ${TESTS_BAT})
 
     # Copy bashscript to start client and server $BUILDDIR/test
     set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.in
+        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_ROUTING_STARTER}
         ${TEST_LOCAL_ROUTING_CLIENT}
@@ -445,6 +487,10 @@ else()
 
     # Copy bashscript to start client and server $BUILDDIR/test
     set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.bat.in
+        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
+        @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_ROUTING_STARTER}
         ${TEST_LOCAL_ROUTING_CLIENT}
@@ -1509,6 +1555,7 @@ endif()
 if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_CONFIGURATION} gtest)
     add_dependencies(${TEST_APPLICATION} gtest)
+    add_dependencies(${TEST_APPLICATION_SINGLE_PROCESS_NAME} gtest)
     add_dependencies(${TEST_MAGIC_COOKIES_CLIENT} gtest)
     add_dependencies(${TEST_MAGIC_COOKIES_SERVICE} gtest)
     add_dependencies(${TEST_HEADER_FACTORY} gtest)
@@ -1546,6 +1593,7 @@ endif()
 if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_CONFIGURATION})
     add_dependencies(build_tests ${TEST_APPLICATION})
+    add_dependencies(build_tests ${TEST_APPLICATION_SINGLE_PROCESS_NAME})
     add_dependencies(build_tests ${TEST_MAGIC_COOKIES_CLIENT})
     add_dependencies(build_tests ${TEST_MAGIC_COOKIES_SERVICE})
     add_dependencies(build_tests ${TEST_HEADER_FACTORY})
@@ -1595,6 +1643,10 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_STARTER}
     )
     set_tests_properties(${TEST_APPLICATION} PROPERTIES TIMEOUT 40)
+    add_test(NAME ${TEST_APPLICATION_SINGLE_PROCESS_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
+    )
+    set_tests_properties(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PROPERTIES TIMEOUT 60)
 
     # magic cookies test
     add_test(NAME ${TEST_MAGIC_COOKIES_NAME}
@@ -1745,10 +1797,10 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 60)
-# TODO
-#    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-#        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
-#    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_udp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
@@ -1765,10 +1817,10 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 60)
-# TODO
-#    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-#        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
-#    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_udp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
@@ -1777,10 +1829,10 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 60)
-# TODO
-#    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
-#        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
-#    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 60)
     
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID)

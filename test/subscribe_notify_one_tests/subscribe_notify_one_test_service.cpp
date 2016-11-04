@@ -36,7 +36,10 @@ public:
             stop_thread_(std::bind(&subscribe_notify_one_test_service::wait_for_stop, this)),
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&subscribe_notify_one_test_service::on_state, this,
                         std::placeholders::_1));
@@ -362,6 +365,7 @@ public:
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(6));
+        app_->clear_all_handler();
         app_->stop();
     }
 

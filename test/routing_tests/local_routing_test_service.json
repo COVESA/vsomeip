@@ -1,5 +1,6 @@
 {
    "unicast" : "127.0.0.1",
+   "diagnosis":"0x12",
    "logging" : 
    {
       "level" : "debug",

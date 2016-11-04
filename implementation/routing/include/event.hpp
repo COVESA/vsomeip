@@ -46,16 +46,16 @@ public:
     const std::shared_ptr<payload> get_payload() const;
 
     void set_payload(const std::shared_ptr<payload> &_payload,
-            const client_t _client, bool _force = false);
+            const client_t _client, bool _force, bool _flush);
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             const std::shared_ptr<endpoint_definition> _target,
-            bool _force = false);
+            bool _force, bool _flush);
 
     void set_payload_dont_notify(const std::shared_ptr<payload> &_payload);
 
     void set_payload(const std::shared_ptr<payload> &_payload,
-            bool _force = false);
+            bool _force, bool _flush);
     void unset_payload(bool _force = false);
 
     bool is_field() const;
@@ -80,8 +80,8 @@ public:
     void add_eventgroup(eventgroup_t _eventgroup);
     void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
 
-    void notify_one(const std::shared_ptr<endpoint_definition> &_target);
-    void notify_one(client_t _client);
+    void notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush);
+    void notify_one(client_t _client, bool _flush);
 
     void add_ref(client_t _client, bool _is_provided);
     void remove_ref(client_t _client, bool _is_provided);
@@ -95,7 +95,7 @@ public:
 
 private:
     void update_cbk(boost::system::error_code const &_error);
-    void notify();
+    void notify(bool _flush);
     void notify(client_t _client, const std::shared_ptr<endpoint_definition> &_target);
 
     void start_cycle();
@@ -108,7 +108,7 @@ private:
 
 private:
     routing_manager *routing_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::shared_ptr<message> message_;
 
     bool is_field_;

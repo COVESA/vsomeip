@@ -78,6 +78,7 @@ public:
     virtual void on_pong(client_t _client) = 0;
     virtual void on_clientendpoint_error(client_t _client) = 0;
     virtual void confirm_pending_offers(client_t _client) = 0;
+    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 };
 
 } // namespace vsomeip

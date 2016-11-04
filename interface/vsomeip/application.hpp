@@ -147,6 +147,16 @@ public:
     virtual bool are_available(available_t &_available,
                        service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
                        major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
+
+    virtual void notify(service_t _service, instance_t _instance,
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force, bool _flush) const = 0;
+
+    virtual void notify_one(service_t _service, instance_t _instance,
+                event_t _event, std::shared_ptr<payload> _payload,
+                client_t _client, bool _force, bool _flush) const = 0;
+
+    virtual  void set_routing_state(routing_state_e _routing_state) = 0;
 };
 
 } // namespace vsomeip

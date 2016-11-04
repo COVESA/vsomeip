@@ -21,10 +21,10 @@ constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID_SHUTDOWN = 0x7777;
 constexpr vsomeip::client_t TEST_SERVICE_CLIENT_ID = 0x1277;
 
 // Client local
-constexpr vsomeip::client_t TEST_CLIENT_CLIENT_ID = 0x1343;
+constexpr vsomeip::client_t TEST_CLIENT_CLIENT_ID = 0x1255;
 
 // Client external
-constexpr vsomeip::client_t TEST_CLIENT_EXTERNAL_CLIENT_ID = 0x1344;
+constexpr vsomeip::client_t TEST_CLIENT_EXTERNAL_CLIENT_ID = 0x1644;
 
 
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND = 10;

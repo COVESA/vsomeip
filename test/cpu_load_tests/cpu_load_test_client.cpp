@@ -52,7 +52,10 @@ public:
             payload_size_(_payload_size),
             wait_for_all_msg_acknowledged_(true),
             sender_(std::bind(&cpu_load_test_client::run, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
 
         app_->register_state_handler(
                 std::bind(&cpu_load_test_client::on_state, this,
@@ -84,11 +87,7 @@ private:
         {
             shutdown_service();
         }
-        app_->unregister_availability_handler(cpu_load_test::service_id,
-                cpu_load_test::instance_id);
-        app_->unregister_state_handler();
-        app_->unregister_message_handler(vsomeip::ANY_SERVICE,
-                vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD);
+        app_->clear_all_handler();
     }
 
     void on_state(vsomeip::state_type_e _state) {

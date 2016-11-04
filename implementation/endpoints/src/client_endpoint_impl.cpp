@@ -73,9 +73,11 @@ void client_endpoint_impl<Protocol>::stop() {
                 times_slept++;
             }
         }
-
-        if (socket_.is_open()) {
-            socket_.cancel();
+        {
+            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            if (socket_.is_open()) {
+                socket_.cancel();
+            }
         }
     }
 }
@@ -86,6 +88,7 @@ void client_endpoint_impl<Protocol>::restart() {
         std::lock_guard<std::mutex> its_lock(mutex_);
         queue_.clear();
     }
+    shutdown_and_close_socket();
     is_connected_ = false;
     connect_timer_.expires_from_now(
             std::chrono::milliseconds(connect_timeout_));
@@ -141,10 +144,12 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
         flush_timer_.expires_from_now(
                 std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
         flush_timer_.async_wait(
-                        std::bind(
-                            &client_endpoint_impl<Protocol>::flush_cbk,
-                            this->shared_from_this(),
-                            std::placeholders::_1));
+            std::bind(
+                &client_endpoint_impl<Protocol>::flush_cbk,
+                this->shared_from_this(),
+                std::placeholders::_1
+            )
+        );
     }
 
     if (queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
@@ -251,9 +256,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
             }
         }
         if (socket_.is_open()) {
-            boost::system::error_code its_error;
-            socket_.shutdown(Protocol::socket::shutdown_both, its_error);
-            socket_.close(its_error);
+            shutdown_and_close_socket();
         }
         connect();
     } else if (_error == boost::asio::error::not_connected
@@ -283,6 +286,7 @@ void client_endpoint_impl<Protocol>::register_error_callback(
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
     if (socket_.is_open()) {
         boost::system::error_code its_error;
         socket_.shutdown(Protocol::socket::shutdown_both, its_error);

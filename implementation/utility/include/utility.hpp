@@ -15,6 +15,8 @@
 
 namespace vsomeip {
 
+class configuration;
+
 class utility {
 public:
     static void * load_library(const std::string &_path,
@@ -70,21 +72,21 @@ public:
     static uint32_t get_payload_size(const byte_t *_data, uint32_t _size);
 
     static bool exists(const std::string &_path);
-    static bool is_file(const std::string &_path);
-    static bool is_folder(const std::string &_path);
+    static bool VSOMEIP_IMPORT_EXPORT is_file(const std::string &_path);
+    static bool VSOMEIP_IMPORT_EXPORT is_folder(const std::string &_path);
 
     static CriticalSection its_local_configuration_mutex__;
 
     static struct configuration_data_t *the_configuration_data__;
-    static bool auto_configuration_init();
+    static bool auto_configuration_init(const std::shared_ptr<configuration> &_config);
     static void auto_configuration_exit(client_t _client);
 
     static bool is_routing_manager_host(client_t _client);
     static void set_routing_manager_host(client_t _client);
 
     static bool is_used_client_id(client_t _client);
-    static client_t request_client_id(const std::string &_name,
-            client_t _client);
+    static client_t request_client_id(const std::shared_ptr<configuration> &_config,
+            const std::string &_name, client_t _client);
     static void release_client_id(client_t _client);
 
     static inline bool is_valid_message_type(message_type_e _type) {

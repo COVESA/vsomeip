@@ -29,7 +29,8 @@
                 "repetition-base" : "200",
                 "repetition-max" : "7",
                 "cyclic-offer" : "2132",
-                "cyclic-request" : "2001"
+                "cyclic-request" : "2001",
+                "ttl" : "5"
             },
             "services" :
             [
@@ -84,11 +85,12 @@
             "unicast" : "local",
             "delays" :
             {
-                "initial" : { "minimum" : "100", "maximum" : "200" },
-                "repetition-base" : "300",
-                "repetition-max" : "5",
-                "cyclic-offer" : "2500",
-                "cyclic-request" : "2221"
+                "initial" : { "minimum" : "10", "maximum" : "100" },
+                "repetition-base" : "200",
+                "repetition-max" : "7",
+                "cyclic-offer" : "2132",
+                "cyclic-request" : "2001",
+                "ttl" : "5"
             },
             "services" :
             [

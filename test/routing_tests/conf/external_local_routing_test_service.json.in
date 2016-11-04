@@ -1,5 +1,6 @@
 {
    "unicast" : "@TEST_IP_MASTER@",
+   "diagnosis":"0x12",
    "logging" : 
    {
       "level" : "debug",

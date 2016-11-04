@@ -13,6 +13,7 @@
 #include <vsomeip/enumeration_types.hpp>
 #include "../../routing/include/serviceinfo.hpp"
 #include "../../endpoints/include/endpoint.hpp"
+#include "../include/service_discovery_host.hpp"
 
 namespace vsomeip {
 
@@ -49,22 +50,17 @@ public:
             const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_destination) = 0;
 
-    virtual void on_offer_change() = 0;
-
     virtual void send_subscriptions(service_t _service, instance_t _instance,
             client_t _client, bool _reliable) = 0;
 
-    virtual void send_unicast_offer_service(const std::shared_ptr<const serviceinfo> &_info,
-            service_t _service, instance_t _instance,
-            major_version_t _major,
-            minor_version_t _minor) = 0;
-    virtual void send_multicast_offer_service(const std::shared_ptr<const serviceinfo>& _info,
-            service_t _service, instance_t _instance,
-            major_version_t _major,
-            minor_version_t _minor) = 0;
     virtual void on_reliable_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<const vsomeip::endpoint> &_endpoint) = 0;
+
+    virtual void offer_service(service_t _service, instance_t _instance,
+                               std::shared_ptr<serviceinfo> _info) = 0;
+    virtual void stop_offer_service(service_t _service, instance_t _instance,
+                                    std::shared_ptr<serviceinfo> _info) = 0;
 };
 
 } // namespace sd

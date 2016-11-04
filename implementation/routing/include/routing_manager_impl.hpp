@@ -52,7 +52,7 @@ public:
 
     boost::asio::io_service & get_io();
     client_t get_client() const;
-    std::shared_ptr<configuration> get_configuration() const;
+    const std::shared_ptr<configuration> get_configuration() const;
 
     void init();
     void start();
@@ -85,10 +85,10 @@ public:
             instance_t _instance, bool _flush, bool _reliable);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            std::shared_ptr<message> _message);
+            std::shared_ptr<message> _message, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size);
+            const byte_t *_data, uint32_t _size, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port);
@@ -103,11 +103,11 @@ public:
             bool _is_provided);
 
     void notify(service_t _service, instance_t _instance, event_t _event,
-            std::shared_ptr<payload> _payload, bool _force);
+            std::shared_ptr<payload> _payload, bool _force, bool _flush);
 
     void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force);
+            client_t _client, bool _force, bool _flush);
 
     void on_subscribe_nack(client_t _client, service_t _service,
                     instance_t _instance, eventgroup_t _eventgroup);
@@ -119,8 +119,13 @@ public:
             bool _reliable);
 
     // interface to stub
-    std::shared_ptr<endpoint> find_local(client_t _client);
-    std::shared_ptr<endpoint> find_or_create_local(client_t _client);
+    inline std::shared_ptr<endpoint> find_local(client_t _client) {
+        return routing_manager_base::find_local(_client);
+    }
+    inline std::shared_ptr<endpoint> find_or_create_local(
+            client_t _client) {
+        return routing_manager_base::find_or_create_local(_client);
+    }
     void remove_local(client_t _client);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
@@ -135,7 +140,8 @@ public:
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
-                    const boost::asio::ip::address &_destination);
+                    const boost::asio::ip::address &_destination,
+                    client_t _bound_client);
     void on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable);
     void on_notification(client_t _client, service_t _service,
@@ -187,6 +193,8 @@ public:
 
     void on_clientendpoint_error(client_t _client);
     void confirm_pending_offers(client_t _client);
+
+    void set_routing_state(routing_state_e _routing_state);
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
@@ -268,6 +276,14 @@ private:
 
     void remove_identifying_client(service_t _service, instance_t _instance, client_t _client);
 
+    inline std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance) {
+        return routing_manager_base::find_local(_service, _instance);
+    }
+
+    void send_subscribe(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            major_version_t _major, subscription_type_e _subscription_type);
+
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
@@ -310,6 +326,7 @@ private:
     std::shared_ptr<serviceinfo> sd_info_;
 
     std::map<bool, std::set<uint16_t>> used_client_ports_;
+    std::mutex used_client_ports_mutex_;
 
     boost::asio::steady_timer version_log_timer_;
 
@@ -326,6 +343,8 @@ private:
         std::map<instance_t,
                 std::tuple<major_version_t, minor_version_t,
                             client_t, client_t>>> pending_offers_;
+
+    std::mutex pending_subscription_mutex_;
 };
 
 }  // namespace vsomeip

@@ -20,7 +20,10 @@ header_factory_test_client::header_factory_test_client(bool _use_tcp) :
 
 void header_factory_test_client::init()
 {
-    app_->init();
+    if (!app_->init()) {
+        VSOMEIP_ERROR << "Couldn't initialize application";
+        EXPECT_TRUE(false);
+    }
 
     app_->register_state_handler(
             std::bind(&header_factory_test_client::on_state, this,
@@ -47,12 +50,7 @@ void header_factory_test_client::start()
 void header_factory_test_client::stop()
 {
     VSOMEIP_INFO << "Stopping...";
-    app_->unregister_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app_->unregister_state_handler();
-    app_->unregister_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
-
+    app_->clear_all_handler();
     app_->stop();
 }
 

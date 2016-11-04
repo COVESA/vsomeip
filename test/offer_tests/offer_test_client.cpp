@@ -40,7 +40,10 @@ public:
             last_received_counter_(0),
             last_received_response_(std::chrono::steady_clock::now()),
             number_received_responses_(0) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&offer_test_client::on_state, this,
                         std::placeholders::_1));
@@ -215,7 +218,7 @@ public:
             stop_condition_.wait(its_lock);
         }
         VSOMEIP_INFO << "going down";
-
+        app_->clear_all_handler();
         app_->stop();
     }
 

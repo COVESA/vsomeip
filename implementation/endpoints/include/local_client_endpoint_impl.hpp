@@ -51,6 +51,8 @@ private:
     void receive();
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
+
+    receive_buffer_t recv_buffer_;
 };
 
 } // namespace vsomeip

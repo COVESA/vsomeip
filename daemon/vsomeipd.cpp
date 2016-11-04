@@ -28,6 +28,11 @@ static std::shared_ptr<vsomeip::application> its_application;
 void vsomeipd_stop(int _signal) {
     if (_signal == SIGINT || _signal == SIGTERM)
         its_application->stop();
+    if (_signal == SIGABRT) {
+        VSOMEIP_DEBUG << "Suspending service discovery";
+        its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+        its_application->stop();
+    }
 }
 #endif
 
@@ -55,6 +60,7 @@ int vsomeipd_process(bool _is_quiet) {
     // Handle signals
     signal(SIGINT, vsomeipd_stop);
     signal(SIGTERM, vsomeipd_stop);
+    signal(SIGABRT, vsomeipd_stop);
 #endif
     if (its_application->init()) {
         if (its_application->is_routing()) {

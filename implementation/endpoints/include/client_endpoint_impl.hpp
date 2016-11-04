@@ -15,7 +15,6 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/utility.hpp>
-
 #include <vsomeip/constants.hpp>
 
 #include "buffer.hpp"
@@ -70,8 +69,6 @@ protected:
     socket_type socket_;
     endpoint_type remote_;
 
-    uint16_t local_port_;
-
     boost::asio::steady_timer flush_timer_;
     boost::asio::steady_timer connect_timer_;
     uint32_t connect_timeout_;
@@ -87,6 +84,8 @@ protected:
 
     std::mutex error_handler_mutex_;
     endpoint_error_handler_t error_handler_;
+
+    std::mutex stop_mutex_;
 };
 
 } // namespace vsomeip

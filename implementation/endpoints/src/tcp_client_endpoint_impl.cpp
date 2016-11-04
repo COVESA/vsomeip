@@ -52,12 +52,12 @@ void tcp_client_endpoint_impl::connect() {
 
     if (!its_error || its_error == boost::asio::error::already_open) {
         // Nagle algorithm off
-        socket_.set_option(ip::tcp::no_delay(true));
+        socket_.set_option(ip::tcp::no_delay(true), its_error);
 
         // Enable SO_REUSEADDR to avoid bind problems with services going offline
         // and coming online again and the user has specified only a small number
         // of ports in the clients section for one service instance
-        socket_.set_option(boost::asio::socket_base::reuse_address(true));
+        socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
 
         // In case a client endpoint port was configured,
         // bind to it before connecting

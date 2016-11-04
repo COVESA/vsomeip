@@ -47,6 +47,9 @@ public:
 
     VSOMEIP_EXPORT bool is_local() const;
 
+    VSOMEIP_EXPORT bool is_in_mainphase() const;
+    VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
+
 private:
     servicegroup *group_;
 
@@ -60,6 +63,7 @@ private:
     std::set<client_t> requesters_;
 
     bool is_local_;
+    bool is_in_mainphase_;
 };
 
 }  // namespace vsomeip

@@ -46,9 +46,6 @@ using namespace boost::log::trivial;
 
 namespace vsomeip {
 
-boost::log::sources::severity_logger_mt<
-            boost::log::trivial::severity_level> logger_impl::logger_;
-
 std::shared_ptr<logger_impl> & logger_impl::get() {
     static std::shared_ptr<logger_impl> the_logger__ = std::make_shared<
             logger_impl>();
@@ -74,9 +71,13 @@ void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
 
     if (_configuration->has_console_log())
         get()->enable_console();
+    else
+        get()->disable_console();
 
     if (_configuration->has_file_log())
         get()->enable_file(_configuration->get_logfile());
+    else
+        get()->disable_file();
 
     if (_configuration->has_dlt_log()) {
         std::string app_id = runtime::get_property("LogApplication");
@@ -84,6 +85,13 @@ void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
         std::string context_id = runtime::get_property("LogContext");
         if (context_id == "") context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
         get()->enable_dlt(app_id, context_id);
+    } else
+        get()->disable_dlt();
+
+    if (!_configuration->has_console_log() &&
+           !_configuration->has_file_log() &&
+           !_configuration->has_dlt_log()) {
+        get()->use_null_logger();
     }
 }
 
@@ -114,6 +122,11 @@ void logger_impl::enable_console() {
     logging::core::get()->add_sink(console_sink_);
 }
 
+void logger_impl::disable_console() {
+    if (console_sink_)
+        logging::core::get()->remove_sink(console_sink_);
+}
+
 void logger_impl::enable_file(const std::string &_path) {
     if (file_sink_)
         return;
@@ -135,6 +148,12 @@ void logger_impl::enable_file(const std::string &_path) {
     logging::core::get()->add_sink(file_sink_);
 }
 
+void logger_impl::disable_file() {
+    if (file_sink_)
+        logging::core::get()->remove_sink(file_sink_);
+}
+
+
 void logger_impl::enable_dlt(const std::string &_app_id,
                              const std::string &_context_id) {
 #ifdef USE_DLT
@@ -149,6 +168,11 @@ void logger_impl::enable_dlt(const std::string &_app_id,
     (void)_app_id;
     (void)_context_id;
 #endif
+}
+
+void logger_impl::disable_dlt() {
+    if (dlt_sink_)
+        logging::core::get()->remove_sink(dlt_sink_);
 }
 
 void logger_impl::use_null_logger() {

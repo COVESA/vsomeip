@@ -34,7 +34,10 @@ public:
             wait_until_registered_(true),
             wait_until_service_available_(true),
             offer_thread_(std::bind(&offer_test_service::run, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&offer_test_service::on_state, this,
                         std::placeholders::_1));
@@ -91,17 +94,19 @@ public:
     void run() {
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Running";
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while (wait_until_registered_) {
+                condition_.wait(its_lock);
+            }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Offering";
-        offer();
+            VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+                    << service_info_.service_id << "] Offering";
+            offer();
 
-        while(wait_until_service_available_) {
-            condition_.wait(its_lock);
+            while(wait_until_service_available_) {
+                condition_.wait(its_lock);
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -114,6 +119,7 @@ public:
         msg->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         app_->send(msg);
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        app_->clear_all_handler();
         app_->stop();
     }
 

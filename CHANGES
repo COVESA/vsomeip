@@ -228,3 +228,17 @@ v2.4.2
 v2.4.3
 - Fix receiving of UDP frames containing multiple SOME/IP messages via UDP from
   external service instances
+
+v2.5.0
+- Added notify-/notify_one-methods to enable flush control for notifications.
+- Restructured configuration to be a separate module (preparation to enable
+  the usage of compiled configurations to speed-up startup)
+- Added vSomeIP-Security: Socket authentication based on Linux-credentials
+  together with further security checks using configurable policies.
+- Fixed pending subscriptions had not sent out if subscribing application
+  hosts the routing manager.
+- Fixed crash in vsomeipd due to concurrent access when closing/shutdown socket.
+- The service discovery now debounces newly offered service instances to avoid
+  sending out the offers of the same service instance with a too high frequency.
+  The default debounce time is set to 500ms. It can be changed via the new json
+  file parameter service-discovery/offer_debounce_time.

@@ -27,7 +27,10 @@ public:
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
             offer_thread_(std::bind(&initial_event_test_service::run, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&initial_event_test_service::on_state, this,
                         std::placeholders::_1));

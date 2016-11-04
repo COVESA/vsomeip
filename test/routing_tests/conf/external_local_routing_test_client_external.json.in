@@ -1,6 +1,7 @@
 {
    "unicast" : "@TEST_IP_SLAVE@",
    "netmask" : "255.255.255.0",
+   "diagnosis" : "0x16",
    "logging" : 
    {
       "level" : "debug",
@@ -18,7 +19,7 @@
    [
       {
          "name" : "external_local_routing_test_client_external",
-         "id" : "0x1344"
+         "id" : "0x1644"
       }
    ],
 
@@ -27,7 +28,7 @@
       {
          "service" : "0x1234",
          "instance" : "0x5678",
-         "unicast" : "@TEST_IP_MASTER@",         
+         "unicast" : "@TEST_IP_MASTER@",
          "unreliable" : "30509"
       }
    ],

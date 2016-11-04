@@ -45,6 +45,22 @@ then
     exit 1
 fi
 
+print_starter_message () {
+cat <<End-of-message
+*******************************************************************************
+*******************************************************************************
+** Please now run:
+** initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG
+** from an external host to successfully complete this test.
+**
+** You probably will need to adapt the 'unicast' settings in
+** initial_event_test_diff_client_ids_diff_ports_master.json and
+** initial_event_test_diff_client_ids_diff_ports_slave.json to your personal setup.
+*******************************************************************************
+*******************************************************************************
+End-of-message
+}
+
 # replace master with slave to be able display the correct json file to be used
 # with the slave script
 MASTER_JSON_FILE=$PASSED_JSON_FILE
@@ -73,11 +89,21 @@ unset VSOMEIP_APPLICATION_NAME
 CLIENT_PIDS=()
 
 # Start some clients
-for client_number in $(seq 9000 9009)
-do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-   CLIENT_PIDS+=($!)
-done
+if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
+then
+    ./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+    FIRST_PID=$!
+    sleep 1
+    print_starter_message
+    wait $FIRST_PID || FAIL=$(($FAIL+1))
+else
+    for client_number in $(seq 9000 9009)
+    do
+        ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+        CLIENT_PIDS+=($!)
+    done
+fi
+
 
 # Start availability checker in order to wait until the services on the remote
 # were started as well
@@ -86,19 +112,10 @@ PID_AVAILABILITY_CHECKER=$!
 
 sleep 1
 
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Please now run:
-** initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG
-** from an external host to successfully complete this test.
-**
-** You probably will need to adapt the 'unicast' settings in
-** initial_event_test_diff_client_ids_diff_ports_master.json and
-** initial_event_test_diff_client_ids_diff_ports_slave.json to your personal setup.
-*******************************************************************************
-*******************************************************************************
-End-of-message
+if [ $PASSED_SUBSCRIPTION_TYPE != "TCP_AND_UDP" ]
+then
+    print_starter_message
+fi
 
 # wait unti the services on the remote node were started as well
 wait $PID_AVAILABILITY_CHECKER
@@ -107,11 +124,18 @@ wait $PID_AVAILABILITY_CHECKER
 # the cached event from the routing manager daemon
 sleep 2
 
-for client_number in $(seq 9010 9020)
-do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-   CLIENT_PIDS+=($!)
-done
+if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
+then
+    ./initial_event_test_client 9010 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+    FIRST_PID=$!
+    wait $FIRST_PID || FAIL=$(($FAIL+1))
+else
+    for client_number in $(seq 9010 9020)
+    do
+       ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
+       CLIENT_PIDS+=($!)
+    done
+fi
 
 
 # Wait until all clients are finished

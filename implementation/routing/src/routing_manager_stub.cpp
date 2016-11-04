@@ -21,6 +21,11 @@
 #include <vsomeip/runtime.hpp>
 #include <vsomeip/error.hpp>
 
+#ifndef WITHOUT_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+#define SD_LISTEN_FDS_START 3
+
 #include "../include/routing_manager_stub.hpp"
 #include "../include/routing_manager_stub_host.hpp"
 #include "../../configuration/include/configuration.hpp"
@@ -94,16 +99,18 @@ void routing_manager_stub::stop() {
 
     watchdog_timer_.cancel();
 
-    endpoint_->stop();
-    endpoint_ = nullptr;
+    if( !is_socket_activated_) {
+        endpoint_->stop();
+        endpoint_ = nullptr;
 #ifdef WIN32
-    ::_unlink(endpoint_path_.c_str());
+        ::_unlink(endpoint_path_.c_str());
 #else
-    if (-1 == ::unlink(endpoint_path_.c_str())) {
-        VSOMEIP_ERROR << "routing_manager_stub::stop() unlink failed ("
-                << endpoint_path_ << "): "<< std::strerror(errno);
-    }
+        if (-1 == ::unlink(endpoint_path_.c_str())) {
+            VSOMEIP_ERROR << "routing_manager_stub::stop() unlink failed ("
+                    << endpoint_path_ << "): "<< std::strerror(errno);
+        }
 #endif
+    }
 
     if(local_receiver_) {
         local_receiver_->stop();
@@ -119,6 +126,10 @@ void routing_manager_stub::stop() {
     }
 
     broadcast_routing_info(true);
+}
+
+const std::shared_ptr<configuration> routing_manager_stub::get_configuration() const {
+    return configuration_;
 }
 
 void routing_manager_stub::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -146,7 +157,8 @@ void routing_manager_stub::release_port(uint16_t _port, bool _reliable) {
 }
 
 void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
-        endpoint *_receiver, const boost::asio::ip::address &_destination) {
+        endpoint *_receiver, const boost::asio::ip::address &_destination,
+        client_t _bound_client) {
     (void)_receiver;
     (void)_destination;
 #if 0
@@ -177,10 +189,22 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         bool use_exclusive_proxy(false);
         subscription_type_e its_subscription_type;
         bool is_remote_subscriber(false);
+        client_t its_client_from_header;
+        client_t its_target_client;
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
         std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
                 sizeof(its_client));
+
+        if (configuration_->is_security_enabled() && _bound_client != its_client) {
+            VSOMEIP_WARNING << "Security: Routing Manager received a message from client "
+                    << std::hex << std::setw(4) << std::setfill('0')
+                    << its_client << " with command " << (uint32_t)its_command <<
+                    " which doesn't match the bound client "
+                    << std::setw(4) << std::setfill('0') << _bound_client
+                    << " ~> skip message!";
+            return;
+        }
 
         std::memcpy(&its_size, &_data[VSOMEIP_COMMAND_SIZE_POS_MIN],
                 sizeof(its_size));
@@ -257,8 +281,16 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             sizeof(is_remote_subscriber));
                 std::memcpy(&its_subscription_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
                             sizeof(its_subscription_type));
-                host_->subscribe(its_client, its_service,
-                        its_instance, its_eventgroup, its_major, its_subscription_type);
+                if (configuration_->is_client_allowed(its_client,
+                        its_service, its_instance)) {
+                    host_->subscribe(its_client, its_service,
+                            its_instance, its_eventgroup, its_major, its_subscription_type);
+                } else {
+                    VSOMEIP_WARNING << "Security: Client " << std::hex
+                            << its_client << " subscribes to service/instance "
+                            << its_service << "/" << its_instance
+                            << " which violates the security policy ~> Skip subscribe!";
+                }
                 break;
 
             case VSOMEIP_UNSUBSCRIBE:
@@ -307,9 +339,33 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
+                its_client_from_header = VSOMEIP_BYTES_TO_WORD(
+                        its_data[VSOMEIP_CLIENT_POS_MIN],
+                        its_data[VSOMEIP_CLIENT_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
                                                   - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
                 std::memcpy(&its_reliable, &_data[_size - sizeof(bool)], sizeof(its_reliable));
+                if (utility::is_request(its_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+                    if (!configuration_->is_client_allowed(its_client_from_header,
+                            its_service, its_instance)) {
+                        VSOMEIP_WARNING << std::hex << "Security: Client 0x" << its_client_from_header
+                                << " isn't allow to send a request to service/instance "
+                                << its_service << "/" << its_instance
+                                << " : Skip message!";
+                        return;
+                    }
+                } else {
+                    if (!configuration_->is_client_allowed(get_client(), its_service,
+                            its_instance)) {
+                        VSOMEIP_WARNING << std::hex << "Security: Client 0x"
+                                << get_client()
+                                << " isn't allow receive a response from to service/instance "
+                                << its_service << "/" << its_instance
+                                << " respectively from client 0x" << its_client
+                                << " : Skip message!";
+                        return;
+                    }
+                }
                 host_->on_message(its_service, its_instance, its_data, its_size, its_reliable);
                 break;
 
@@ -318,21 +374,22 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
-                its_client = VSOMEIP_BYTES_TO_WORD(
-                        its_data[VSOMEIP_CLIENT_POS_MIN],
-                        its_data[VSOMEIP_CLIENT_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
                                                   - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                host_->on_notification(its_client, its_service, its_instance, its_data, its_size);
+                host_->on_notification(VSOMEIP_ROUTING_CLIENT, its_service, its_instance,
+                        its_data, its_size);
                 break;
             case VSOMEIP_NOTIFY_ONE:
                 its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
-                std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
-                                                  - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                host_->on_notification(its_client, its_service, its_instance, its_data, its_size, true);
+                std::memcpy(&its_instance, &_data[_size - sizeof(instance_t) -
+                                                 sizeof(bool) - sizeof(bool) - sizeof(client_t)],
+                                                sizeof(its_instance));
+                std::memcpy(&its_target_client, &_data[_size - sizeof(client_t)], sizeof(client_t));
+                host_->on_notification(its_target_client, its_service, its_instance,
+                        its_data, its_size, true);
                 break;
 
             case VSOMEIP_REQUEST_SERVICE:
@@ -347,8 +404,15 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         sizeof(its_minor));
                 std::memcpy(&use_exclusive_proxy, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
                                         sizeof(use_exclusive_proxy));
-                host_->request_service(its_client, its_service, its_instance,
-                        its_major, its_minor, use_exclusive_proxy);
+                if (configuration_->is_client_allowed(its_client, its_service, its_instance)) {
+                    host_->request_service(its_client, its_service, its_instance,
+                            its_major, its_minor, use_exclusive_proxy);
+                } else {
+                    VSOMEIP_WARNING << "Security: Client " << std::hex
+                            << its_client << " requests service/instance "
+                            << its_service << "/" << its_instance
+                            << " which violates the security policy ~> Skip request!";
+                }
                 break;
 
                 case VSOMEIP_RELEASE_SERVICE:
@@ -376,6 +440,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     std::memcpy(&is_provided,
                             &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 7],
                             sizeof(is_provided));
+                    if (is_provided
+                            && !configuration_->is_offered_remote(its_service,
+                                    its_instance)) {
+                        break;
+                    }
                     for (std::size_t i = 8; i+1 < its_size; i++) {
                         std::memcpy(&its_eventgroup,
                                 &_data[VSOMEIP_COMMAND_PAYLOAD_POS + i],
@@ -404,6 +473,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     std::memcpy(&is_provided,
                             &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
                             sizeof(is_provided));
+                    if (is_provided
+                            && !configuration_->is_offered_remote(its_service,
+                                    its_instance)) {
+                        break;
+                    }
                     host_->unregister_shadow_event(its_client, its_service, its_instance,
                             its_event, is_provided);
                     VSOMEIP_DEBUG << "UNREGISTER EVENT("
@@ -429,6 +503,13 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                         << std::hex << std::setw(4) << std::setfill('0') << its_instance
                         << ":is_reliable=" << its_reliable << "]";
+                    break;
+
+                case VSOMEIP_REGISTERED_ACK:
+                    VSOMEIP_DEBUG << "REGISTERED_ACK("
+                        << std::hex << std::setw(4) << std::setfill('0') << its_client << ")";
+                    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                    broadcast_routing_info(false, its_client);
                     break;
             }
         }
@@ -486,23 +567,20 @@ void routing_manager_stub::client_registration_func(void) {
                     on_deregister_application(r.first);
                 }
                 {
-                    // Inform (de)registered client first then broadcast all others
+                    // Inform (de)registered client. All others will be informed after
+                    // the client acknowledged its registered state!
                     // Don't inform client if we deregister because of an client
                     // endpoint error to avoid writing in an already closed socket
                     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
                     if (b != registration_type_e::DEREGISTER_ERROR_CASE) {
                         send_routing_info(r.first);
                     }
-                    for (auto& info : routing_info_) {
-                        if (info.first != VSOMEIP_ROUTING_CLIENT &&
-                                info.first != host_->get_client() &&
-                                info.first != r.first) {
-                            send_routing_info(info.first);
-                        }
-                    }
                 }
-                if (b == registration_type_e::DEREGISTER
-                        || b == registration_type_e::DEREGISTER_ERROR_CASE) {
+                if (b != registration_type_e::REGISTER) {
+                    {
+                        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                        broadcast_routing_info(false, r.first);
+                    }
                     host_->remove_local(r.first);
                 }
                 if (b == registration_type_e::DEREGISTER_ERROR_CASE) {
@@ -519,40 +597,73 @@ void routing_manager_stub::init_routing_endpoint() {
     std::stringstream its_endpoint_path;
     its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
     endpoint_path_ = its_endpoint_path.str();
-
-#if WIN32
-    ::_unlink(endpoint_path_.c_str());
-    int port = VSOMEIP_INTERNAL_BASE_PORT;
-    VSOMEIP_DEBUG << "Routing endpoint at " << port;
-#else
-    if (-1 == ::unlink(endpoint_path_.c_str()) && errno != ENOENT) {
-        VSOMEIP_ERROR << "routing_manager_stub::init_endpoint unlink failed ("
-                << endpoint_path_ << "): "<< std::strerror(errno);
+    client_t routing_host_id = configuration_->get_id(configuration_->get_routing_host());
+    if (configuration_->is_security_enabled() && get_client() != routing_host_id) {
+        VSOMEIP_ERROR << "routing_manager_stub::init_routing_endpoint: "
+                << std::hex << "Client " << get_client() << " isn't allow"
+                << " to create the routing endpoint due to its not configured as the routing master!";
+        return;
     }
-    VSOMEIP_DEBUG << "Routing endpoint at " << endpoint_path_;
-
-    const mode_t previous_mask(::umask(static_cast<mode_t>(configuration_->get_umask())));
+    uint32_t native_socket_fd, num_fd = 0;
+#ifndef WITHOUT_SYSTEMD
+    num_fd = sd_listen_fds(0);
 #endif
+    if (num_fd > 1) {
+        VSOMEIP_ERROR <<  "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
+    } else if (num_fd == 1) {
+        native_socket_fd = SD_LISTEN_FDS_START + 0;
+        VSOMEIP_INFO <<  "Using native socket created by systemd socket activation! fd: " << native_socket_fd;
+        #ifndef WIN32
+            try {
+                endpoint_ =
+                        std::make_shared < local_server_endpoint_impl
+                                > (shared_from_this(),
+                                    boost::asio::local::stream_protocol::endpoint(endpoint_path_),
+                                    io_, configuration_->get_max_message_size_local(), native_socket_fd);
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
+                            << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
+                VSOMEIP_ERROR << "routing_manager_stub::init_endpoint Client ID: "
+                        << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+            }
+        #endif
+        is_socket_activated_ = true;
+    } else {
+		#if WIN32
+			::_unlink(endpoint_path_.c_str());
+			int port = VSOMEIP_INTERNAL_BASE_PORT;
+			VSOMEIP_DEBUG << "Routing endpoint at " << port;
+		#else
+			if (-1 == ::unlink(endpoint_path_.c_str()) && errno != ENOENT) {
+				VSOMEIP_ERROR << "routing_manager_stub::init_endpoint unlink failed ("
+						<< endpoint_path_ << "): "<< std::strerror(errno);
+			}
+			VSOMEIP_DEBUG << "init_routing_endpoint Routing endpoint at " << endpoint_path_;
 
-    try {
-        endpoint_ =
-                std::make_shared < local_server_endpoint_impl
-                        > (shared_from_this(),
-                        #ifdef WIN32
-                            boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
-                        #else
-                            boost::asio::local::stream_protocol::endpoint(endpoint_path_),
-                        #endif
-                            io_, configuration_->get_max_message_size_local());
-    } catch (const std::exception &e) {
-        VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
-                    << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
-        VSOMEIP_ERROR << "routing_manager_stub::init_endpoint Client ID: "
-                << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+			const mode_t previous_mask(::umask(static_cast<mode_t>(configuration_->get_umask())));
+		#endif
+
+        try {
+            endpoint_ =
+                    std::make_shared < local_server_endpoint_impl
+                            > (shared_from_this(),
+                            #ifdef WIN32
+                                boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
+                            #else
+                                boost::asio::local::stream_protocol::endpoint(endpoint_path_),
+                            #endif
+                                io_, configuration_->get_max_message_size_local());
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
+                        << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
+            VSOMEIP_ERROR << "routing_manager_stub::init_endpoint Client ID: "
+                    << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+        }
+        #ifndef WIN32
+            ::umask(previous_mask);
+		#endif
+        is_socket_activated_ = false;
     }
-#ifndef WIN32
-    ::umask(previous_mask);
-#endif
 }
 
 void routing_manager_stub::on_offer_service(client_t _client,
@@ -561,8 +672,17 @@ void routing_manager_stub::on_offer_service(client_t _client,
     if (_client == host_->get_client()) {
         create_local_receiver();
     }
-    routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
-    broadcast_routing_info();
+
+    if (_client == VSOMEIP_ROUTING_CLIENT ||
+            configuration_->is_offer_allowed(_client, _service, _instance)) {
+        routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
+        broadcast_routing_info();
+    } else {
+        VSOMEIP_WARNING << std::hex << "Security: Client 0x" << _client
+                << " isn't allow to offer the following service/instance "
+                << _service << "/" << _instance
+                << " : Skip offer!";
+    }
 }
 
 void routing_manager_stub::on_stop_offer_service(client_t _client,
@@ -605,7 +725,7 @@ void routing_manager_stub::send_routing_info(client_t _client, bool _empty) {
         its_command.push_back(VSOMEIP_ROUTING_INFO);
 
         // Sender client
-        client_t client = 0x0;
+        client_t client = get_client();
         for (uint32_t i = 0; i < sizeof(client_t); ++i) {
             its_command.push_back(
                     reinterpret_cast<const byte_t*>(&client)[i]);
@@ -705,9 +825,11 @@ void routing_manager_stub::send_routing_info(client_t _client, bool _empty) {
     }
 }
 
-void routing_manager_stub::broadcast_routing_info(bool _empty) {
+void routing_manager_stub::broadcast_routing_info(bool _empty, client_t _ignore) {
     for (auto& info : routing_info_) {
-        if (info.first != VSOMEIP_ROUTING_CLIENT && info.first != host_->get_client()) {
+        if (info.first != VSOMEIP_ROUTING_CLIENT &&
+                info.first != host_->get_client() &&
+                info.first != _ignore) {
             send_routing_info(info.first, _empty);
         }
     }
@@ -788,8 +910,9 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
         uint32_t its_size = VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE
                 - VSOMEIP_COMMAND_HEADER_SIZE;
 
+        client_t this_client = get_client();
         its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SUBSCRIBE_ACK;
-        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
+        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &this_client,
                 sizeof(_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
                 sizeof(its_size));
@@ -813,8 +936,9 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
         uint32_t its_size = VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE
                 - VSOMEIP_COMMAND_HEADER_SIZE;
 
+        client_t this_client = get_client();
         its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SUBSCRIBE_NACK;
-        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
+        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &this_client,
                 sizeof(_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
                 sizeof(its_size));
@@ -929,6 +1053,12 @@ void routing_manager_stub::create_local_receiver() {
     ::_unlink(local_receiver_path_.c_str());
     int port = VSOMEIP_INTERNAL_BASE_PORT;
 #else
+    if (!check_credentials(get_client(), getuid(), getgid())) {
+        VSOMEIP_ERROR << "routing_manager_stub::create_local_receiver: "
+                << std::hex << "Client " << get_client() << " isn't allow"
+                << " to create a server endpoint due to credential check failed!";
+        return;
+    }
     if (-1 == ::unlink(local_receiver_path_.c_str()) && errno != ENOENT) {
         VSOMEIP_ERROR << "routing_manager_stub::create_local_receiver unlink (local receiver) failed ("
                 << local_receiver_path_ << "): "<< std::strerror(errno);
@@ -936,7 +1066,6 @@ void routing_manager_stub::create_local_receiver() {
 
     const mode_t previous_mask(::umask(static_cast<mode_t>(configuration_->get_umask())));
 #endif
-
     try {
         local_receiver_ =
                 std::make_shared < local_server_endpoint_impl
@@ -1114,5 +1243,15 @@ void routing_manager_stub::deregister_erroneous_client(client_t _client) {
     pending_client_registrations_[_client].push_back(registration_type_e::DEREGISTER_ERROR_CASE);
     client_registration_condition_.notify_one();
 }
+
+client_t routing_manager_stub::get_client() const {
+    return host_->get_client();
+}
+
+#ifndef WIN32
+bool routing_manager_stub::check_credentials(client_t _client, uid_t _uid, gid_t _gid) {
+    return configuration_->check_credentials(_client, _uid, _gid);
+}
+#endif
 
 } // namespace vsomeip

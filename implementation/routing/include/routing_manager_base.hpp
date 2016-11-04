@@ -8,6 +8,8 @@
 
 #include <mutex>
 #include <unordered_set>
+#include <queue>
+#include <condition_variable>
 
 #include <vsomeip/constants.hpp>
 #include "routing_manager.hpp"
@@ -86,11 +88,12 @@ public:
             instance_t _instance, eventgroup_t _eventgroup);
 
     virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload, bool _force);
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force, bool _flush);
 
     virtual void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force);
+            client_t _client, bool _force, bool _flush);
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message,
             bool _flush);
@@ -103,11 +106,16 @@ public:
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_message(const byte_t *_data, length_t _length,
         endpoint *_receiver, const boost::asio::ip::address &_destination
-            = boost::asio::ip::address()) = 0;
+            = boost::asio::ip::address(), client_t _bound_client = VSOMEIP_ROUTING_CLIENT) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
             endpoint *_receiver) = 0;
+#ifndef WIN32
+    virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
+#endif
 
     virtual void on_clientendpoint_error(client_t _client);
+
+    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
@@ -152,15 +160,29 @@ protected:
     bool insert_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
 
+    std::shared_ptr<deserializer> get_deserializer();
+    void put_deserializer(std::shared_ptr<deserializer>);
+
+    void send_pending_subscriptions(service_t _service,
+            instance_t _instance, major_version_t _major);
+
+    virtual void send_subscribe(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            major_version_t _major, subscription_type_e _subscription_type) = 0;
+
+    void remove_pending_subscription(service_t _service, instance_t _instance);
+
     routing_manager_host *host_;
     boost::asio::io_service &io_;
     client_t client_;
 
     std::shared_ptr<configuration> configuration_;
     std::shared_ptr<serializer> serializer_;
-    std::shared_ptr<deserializer> deserializer_;
-
     std::mutex serialize_mutex_;
+
+    std::queue<std::shared_ptr<deserializer>> deserializers_;
+    std::mutex deserializer_mutex_;
+    std::condition_variable deserializer_condition_;
 
     std::mutex local_services_mutex_;
     std::map<service_t, std::map<instance_t, std::tuple< major_version_t, minor_version_t, client_t> > > local_services_;
@@ -180,6 +202,24 @@ protected:
 #ifdef USE_DLT
     std::shared_ptr<tc::trace_connector> tc_;
 #endif
+
+    struct eventgroup_data_t {
+        service_t service_;
+        instance_t instance_;
+        eventgroup_t eventgroup_;
+        major_version_t major_;
+        subscription_type_e subscription_type_;
+
+        bool operator<(const eventgroup_data_t &_other) const {
+            return (service_ < _other.service_
+                    || (service_ == _other.service_
+                        && instance_ < _other.instance_)
+                        || (service_ == _other.service_
+                            && instance_ == _other.instance_
+                            && eventgroup_ < _other.eventgroup_));
+        }
+    };
+    std::set<eventgroup_data_t> pending_subscriptions_;
 
 private:
     services_t services_;

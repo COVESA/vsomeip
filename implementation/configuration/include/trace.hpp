@@ -6,6 +6,9 @@
 #ifndef CONFIGURATION_INCLUDE_TRACE_HPP_
 #define CONFIGURATION_INCLUDE_TRACE_HPP_
 
+#include <string>
+#include <vector>
+
 #include <vsomeip/primitive_types.hpp>
 
 #include "../../tracing/include/defines.hpp"

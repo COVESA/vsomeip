@@ -1,6 +1,7 @@
 {
    "unicast" : "127.0.0.1",
    "netmask" : "255.255.255.0",
+   "diagnosis":"0x12",
    "logging" : 
    {
       "level" : "debug",
@@ -18,7 +19,7 @@
    [
       {
          "name" : "local_routing_test_client",
-         "id" : "0x1343"
+         "id" : "0x1255"
       }
    ],
 

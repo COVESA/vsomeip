@@ -22,6 +22,8 @@ class configuration;
 class event;
 class routing_manager_host;
 
+class logger;
+
 class routing_manager_proxy: public routing_manager_base {
 public:
     routing_manager_proxy(routing_manager_host *_host);
@@ -30,6 +32,8 @@ public:
     void init();
     void start();
     void stop();
+
+    const std::shared_ptr<configuration> get_configuration() const;
 
     bool offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
@@ -56,10 +60,10 @@ public:
             instance_t _instance, bool _flush = true, bool _reliable = false);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            std::shared_ptr<message> _message);
+            std::shared_ptr<message> _message, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size);
+            const byte_t *_data, uint32_t _size, bool _flush);
 
     void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
@@ -73,12 +77,13 @@ public:
             bool _is_provided);
 
     void notify(service_t _service, instance_t _instance, event_t _event,
-            std::shared_ptr<payload> _payload, bool _force);
+            std::shared_ptr<payload> _payload, bool _force, bool _flush);
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
-            const boost::asio::ip::address &_destination);
+            const boost::asio::ip::address &_destination,
+            client_t _bound_client);
     void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
     void release_port(uint16_t _port, bool _reliable);
 
@@ -123,9 +128,6 @@ private:
     void on_subscribe_ack(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup);
 
-    void send_pending_subscriptions(service_t _service, instance_t _instance,
-            major_version_t _major);
-
     void cache_event_payload(const std::shared_ptr<message> &_message);
 
     void on_stop_offer_service(service_t _service, instance_t _instance,
@@ -142,6 +144,15 @@ private:
             eventgroup_t _eventgroup, bool _increment);
 
     void register_application_timeout_cbk(boost::system::error_code const &_error);
+
+    void send_registered_ack();
+
+    void set_routing_state(routing_state_e _routing_state) {
+        (void)_routing_state;
+    };
+
+    bool is_client_known(client_t _client);
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,
@@ -156,6 +167,7 @@ private:
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
 
+    std::mutex known_clients_mutex_;
     std::unordered_set<client_t> known_clients_;
 
     struct service_data_t {
@@ -193,31 +205,14 @@ private:
     };
     std::set<event_data_t> pending_event_registrations_;
 
-    struct eventgroup_data_t {
-        service_t service_;
-        instance_t instance_;
-        eventgroup_t eventgroup_;
-        major_version_t major_;
-        subscription_type_e subscription_type_;
-
-        bool operator<(const eventgroup_data_t &_other) const {
-            return (service_ < _other.service_
-                    || (service_ == _other.service_
-                        && instance_ < _other.instance_)
-                        || (service_ == _other.service_
-                            && instance_ == _other.instance_
-                            && eventgroup_ < _other.eventgroup_));
-        }
-    };
-    std::set<eventgroup_data_t> pending_subscriptions_;
     std::map<client_t, std::set<eventgroup_data_t>> pending_ingoing_subscripitons_;
+    std::mutex pending_ingoing_subscripitons_mutex_;
 
     std::map<service_t,
         std::map<instance_t,
             std::map<event_t,
                 std::shared_ptr<message> > > > pending_notifications_;
 
-    std::mutex send_mutex_;
     std::mutex deserialize_mutex_;
 
     std::mutex state_mutex_;
@@ -229,6 +224,8 @@ private:
     mutable std::recursive_mutex sender_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
+
+    std::shared_ptr<logger> logger_;
 };
 
 } // namespace vsomeip

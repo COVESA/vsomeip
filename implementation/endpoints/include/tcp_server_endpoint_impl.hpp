@@ -39,7 +39,6 @@ public:
 
     VSOMEIP_EXPORT bool is_established(std::shared_ptr<endpoint_definition> _endpoint);
 
-    endpoint_type get_remote() const;
     bool get_remote_address(boost::asio::ip::address &_address) const;
     unsigned short get_remote_port() const;
     bool get_default_target(service_t, endpoint_type &) const;

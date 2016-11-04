@@ -17,6 +17,8 @@ global:
         vsomeip::udp*;
         *vsomeip::logger;
         vsomeip::logger::get*;
+        *vsomeip::logger_impl;
+        vsomeip::logger_impl::init*;
         *vsomeip::message_base_impl;
         *vsomeip::message_base_impl::*;
         *vsomeip::message_header_impl;
@@ -34,7 +36,10 @@ global:
         vsomeip::serviceinfo::*;
         *vsomeip::sd::runtime;
         vsomeip::sd::runtime::*;
+        *vsomeip::utility;
+        vsomeip::utility::is*;
     }; 
+    VSOMEIP_CFG_RUNTIME;
     VSOMEIP_SD_RUNTIME;
 local:
     *;

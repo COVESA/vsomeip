@@ -13,11 +13,13 @@
 #include <mutex>
 #include <set>
 #include <thread>
+#include <atomic>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include "../../endpoints/include/endpoint_host.hpp"
+#include "../../configuration/include/internal.hpp"
 
 namespace vsomeip {
 
@@ -36,10 +38,13 @@ public:
     void start();
     void stop();
 
+    const std::shared_ptr<configuration> get_configuration() const;
+
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
-            const boost::asio::ip::address &_destination);
+            const boost::asio::ip::address &_destination,
+            client_t _bound_client);
     void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
     void release_port(uint16_t _port, bool _reliable);
 
@@ -71,13 +76,18 @@ public:
     void create_local_receiver();
     bool send_ping(client_t _client);
     void deregister_erroneous_client(client_t _client);
+    client_t get_client() const;
+#ifndef WIN32
+    virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
+#endif
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
 
-    void broadcast_routing_info(bool _empty = false);
+    void broadcast_routing_info(bool _empty = false,
+            client_t _ignore = VSOMEIP_ROUTING_CLIENT);
     void send_routing_info(client_t _client, bool _empty = false);
 
     void broadcast_ping() const;
@@ -90,6 +100,9 @@ private:
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const &_error);
     void remove_from_pinged_clients(client_t _client);
+    void set_routing_state(routing_state_e _routing_state) {
+        (void)_routing_state;
+    };
 
 private:
     routing_manager_stub_host *host_;
@@ -108,7 +121,8 @@ private:
 
     size_t routingCommandSize_;
 
-    bool client_registration_running_;
+    bool is_socket_activated_;
+    std::atomic<bool> client_registration_running_;
     std::shared_ptr<std::thread> client_registration_thread_;
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;

@@ -107,7 +107,7 @@ std::shared_ptr<application> runtime_impl::get_application(
         const std::string &_name) const {
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end())
-        return found_application->second;
+        return found_application->second.lock();
     return nullptr;
 }
 

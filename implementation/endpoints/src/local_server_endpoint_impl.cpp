@@ -7,12 +7,19 @@
 #include <iomanip>
 #include <sstream>
 
+#include <sys/types.h>
 #include <boost/asio/write.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/local_server_endpoint_impl.hpp"
 
 #include "../../logging/include/logger.hpp"
+#include "../../configuration/include/configuration.hpp"
+
+// Credentials
+#ifndef WIN32
+#include "../include/credentials.hpp"
+#endif
 
 namespace vsomeip {
 
@@ -33,6 +40,32 @@ local_server_endpoint_impl::local_server_endpoint_impl(
     boost::asio::detail::throw_error(ec, "acceptor bind");
     acceptor_.listen(boost::asio::socket_base::max_connections, ec);
     boost::asio::detail::throw_error(ec, "acceptor listen");
+
+#ifndef WIN32
+    if (_host->get_configuration()->is_security_enabled()) {
+        credentials::activate_credentials(acceptor_.native());
+    }
+#endif
+}
+
+local_server_endpoint_impl::local_server_endpoint_impl(
+        std::shared_ptr< endpoint_host > _host,
+        endpoint_type _local, boost::asio::io_service &_io,
+        std::uint32_t _max_message_size,
+		int native_socket)
+    : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
+      acceptor_(_io), current_(nullptr) {
+    is_supporting_magic_cookies_ = false;
+
+   boost::system::error_code ec;
+   acceptor_.assign(_local.protocol(), native_socket, ec);
+   boost::asio::detail::throw_error(ec, "acceptor assign native socket");
+
+#ifndef WIN32
+    if (_host->get_configuration()->is_security_enabled()) {
+        credentials::activate_credentials(acceptor_.native());
+    }
+#endif
 }
 
 local_server_endpoint_impl::~local_server_endpoint_impl() {
@@ -106,12 +139,6 @@ void local_server_endpoint_impl::restart() {
     current_->start();
 }
 
-local_server_endpoint_impl::endpoint_type
-local_server_endpoint_impl::get_remote() const {
-    boost::system::error_code its_error;
-    return current_->get_socket().remote_endpoint(its_error);
-}
-
 bool local_server_endpoint_impl::get_default_target(
         service_t,
         local_server_endpoint_impl::endpoint_type &) const {
@@ -134,20 +161,42 @@ void local_server_endpoint_impl::remove_connection(
 void local_server_endpoint_impl::accept_cbk(
         connection::ptr _connection, boost::system::error_code const &_error) {
 
+    if (_error != boost::asio::error::bad_descriptor &&
+            _error != boost::asio::error::operation_aborted) {
+        start();
+    }
+
     if (!_error) {
         socket_type &new_connection_socket = _connection->get_socket();
+#ifndef WIN32
+        auto its_host = host_.lock();
+        if (its_host) {
+            if (its_host->get_configuration()->is_security_enabled()) {
+                uid_t uid;
+                gid_t gid;
+                client_t client = credentials::receive_credentials(
+                     new_connection_socket.native(), uid, gid);
+                if (!its_host->check_credentials(client, uid, gid)) {
+                     VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                             << " received client credentials from client 0x" << client
+                             << " which violates the security policy : uid/gid="
+                             << std::dec << uid << "/" << gid;
+                     boost::system::error_code er;
+                     new_connection_socket.close(er);
+                     return;
+                }
+                _connection->set_bound_client(client);
+                credentials::deactivate_credentials(new_connection_socket.native());
+            }
+        }
+#endif
         boost::system::error_code its_error;
         endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
-        if(!its_error) {
+        if (!its_error) {
             std::lock_guard<std::mutex> its_lock(connections_mutex_);
             connections_[remote] = _connection;
             _connection->start();
         }
-    }
-
-    if (_error != boost::asio::error::bad_descriptor &&
-            _error != boost::asio::error::operation_aborted) {
-        start();
     }
 }
 
@@ -162,7 +211,7 @@ local_server_endpoint_impl::connection::connection(
       server_(_server),
       max_message_size_(_max_message_size + 8),
       recv_buffer_(max_message_size_, 0),
-      recv_buffer_size_(0) {
+      recv_buffer_size_(0), bound_client_(VSOMEIP_ROUTING_CLIENT) {
 }
 
 local_server_endpoint_impl::connection::ptr
@@ -303,7 +352,8 @@ void local_server_endpoint_impl::connection::receive_cbk(
                 if (its_start != MESSAGE_IS_EMPTY &&
                     its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
                     its_host->on_message(&recv_buffer_[its_start],
-                                         uint32_t(its_end - its_start), its_server.get());
+                                         uint32_t(its_end - its_start), its_server.get(),
+                                         boost::asio::ip::address(), bound_client_);
 
                     #if 0
                             std::stringstream local_msg;
@@ -340,6 +390,10 @@ void local_server_endpoint_impl::connection::receive_cbk(
             start();
         }
     }
+}
+
+void local_server_endpoint_impl::connection::set_bound_client(client_t _client) {
+    bound_client_ = _client;
 }
 
 } // namespace vsomeip

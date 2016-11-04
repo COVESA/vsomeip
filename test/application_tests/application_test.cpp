@@ -24,7 +24,10 @@ public:
 protected:
     void SetUp() {
         app_ = runtime::get()->create_application("application_test");
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
 
         app_->register_state_handler(
                 std::bind(&someip_application_test::on_state, this,
@@ -127,7 +130,10 @@ protected:
         is_available_ = false;
 
         app_ = runtime::get()->create_application("application_test");
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
 
         app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                 vsomeip_test::TEST_SERVICE_INSTANCE_ID,
@@ -179,10 +185,7 @@ protected:
     {
         (void)_request;
         VSOMEIP_INFO << "Shutdown method was called, going down now.";
-        app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-        app_->unregister_state_handler();
+        app_->clear_all_handler();
         app_->stop();
     }
 

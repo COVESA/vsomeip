@@ -7,8 +7,8 @@ cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 4)
-set (VSOMEIP_PATCH_VERSION 3)
+set (VSOMEIP_MINOR_VERSION 5)
+set (VSOMEIP_PATCH_VERSION 0)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -115,7 +115,6 @@ link_directories(
 
 # Base library
 file(GLOB vsomeip_SRC
-    "implementation/configuration/src/*.cpp"
     "implementation/endpoints/src/*.cpp"
     "implementation/logging/src/*.cpp"
     "implementation/tracing/src/*.cpp"
@@ -130,7 +129,7 @@ add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
 
 if (MSVC)
     message("using MSVC Compiler")
-    add_definitions(-DVSOMEIP_DLL_COMPILATION)
+    # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DUSE_VSOMEIP_STATISTICS -DCOMMONAPI_INTERNAL_COMPILATION -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
@@ -152,6 +151,16 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # the build.
 target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} )
 
+# Configuration library
+file(GLOB vsomeip-cfg_SRC
+    "implementation/configuration/src/*.cpp"
+)
+list(SORT vsomeip-cfg_SRC)
+
+add_library(vsomeip-cfg SHARED ${vsomeip-cfg_SRC})
+set_target_properties (vsomeip-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(vsomeip-cfg vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
 file(GLOB vsomeip-sd_SRC
     "implementation/service_discovery/src/*.cpp"
 )
@@ -160,6 +169,12 @@ list(SORT vsomeip-sd_SRC)
 add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
 set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+if (MSVC)
+    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_CONFIG")
+    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+    set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+endif()
 
 # Configuration files
 
@@ -209,6 +224,12 @@ install (
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT
     ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
     COMPONENT dev
+)
+
+install (
+    TARGETS vsomeip-cfg
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
 
 install (
@@ -321,8 +342,8 @@ else()
                        COMMAND asciidoc
                                -a version=${VSOMEIP_VERSION}
                                -b html
-                               -o documentation/README.html
-                               ${PROJECT_BINARY_DIR}/../README)
+                               -o documentation/vsomeipUserGuide.html
+                               ${PROJECT_BINARY_DIR}/../documentation/vsomeipUserGuide)
 endif()
 
 ##############################################################################

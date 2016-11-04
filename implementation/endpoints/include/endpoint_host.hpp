@@ -9,25 +9,33 @@
 #include <memory>
 
 #include <boost/asio/ip/address.hpp>
+#include "../../configuration/include/internal.hpp"
 
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 
+class configuration;
 class endpoint;
 
 class endpoint_host {
 public:
     virtual ~endpoint_host() {}
 
+    virtual const std::shared_ptr<configuration> get_configuration() const = 0;
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_message(const byte_t *_data, length_t _length,
         endpoint *_receiver, const boost::asio::ip::address &_destination
-            = boost::asio::ip::address()) = 0;
+            = boost::asio::ip::address(),
+            client_t _bound_client = VSOMEIP_ROUTING_CLIENT) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
             endpoint *_receiver) = 0;
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
+    virtual client_t get_client() const = 0;
+#ifndef WIN32
+    virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid) = 0;
+#endif
 };
 
 } // namespace vsomeip

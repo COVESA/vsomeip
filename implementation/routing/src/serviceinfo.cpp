@@ -15,7 +15,8 @@ serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
       ttl_(0),
       reliable_(nullptr),
       unreliable_(nullptr),
-      is_local_(_is_local) {
+      is_local_(_is_local),
+      is_in_mainphase_(false) {
 
     std::chrono::seconds ttl = static_cast<std::chrono::seconds> (_ttl);
     ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(ttl);
@@ -85,6 +86,14 @@ uint32_t serviceinfo::get_requesters_size() {
 
 bool serviceinfo::is_local() const {
     return is_local_;
+}
+
+bool serviceinfo::is_in_mainphase() const {
+    return is_in_mainphase_;
+}
+
+void serviceinfo::set_is_in_mainphase(bool _in_mainphase) {
+    is_in_mainphase_ = _in_mainphase;
 }
 
 }  // namespace vsomeip

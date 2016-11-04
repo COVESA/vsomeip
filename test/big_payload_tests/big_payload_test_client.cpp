@@ -21,7 +21,10 @@ big_payload_test_client::big_payload_test_client(bool _use_tcp) :
 
 void big_payload_test_client::init()
 {
-    app_->init();
+    if (!app_->init()) {
+        VSOMEIP_ERROR << "Couldn't initialize application";
+        EXPECT_TRUE(false);
+    }
 
     app_->register_state_handler(
             std::bind(&big_payload_test_client::on_state, this,
@@ -53,7 +56,7 @@ void big_payload_test_client::stop()
     app_->unregister_state_handler();
     app_->unregister_message_handler(vsomeip::ANY_SERVICE,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
-
+    app_->clear_all_handler();
     app_->stop();
 }
 

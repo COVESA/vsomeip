@@ -5,6 +5,7 @@
 
 #include <vsomeip/constants.hpp>
 
+#include <random>
 #include <forward_list>
 
 #include "../include/constants.hpp"
@@ -17,7 +18,6 @@
 #include "../include/message_impl.hpp"
 #include "../include/request.hpp"
 #include "../include/runtime.hpp"
-#include "../include/service_discovery_fsm.hpp"
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_impl.hpp"
 #include "../include/serviceentry_impl.hpp"
@@ -39,11 +39,23 @@ namespace sd {
 service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
         : io_(_host->get_io()),
           host_(_host),
+          port_(VSOMEIP_SD_DEFAULT_PORT),
+          reliable_(false),
           serializer_(std::make_shared<serializer>()),
           deserializer_(std::make_shared<deserializer>()),
           ttl_timer_(_host->get_io()),
           smallest_ttl_(DEFAULT_TTL),
-          subscription_expiration_timer_(_host->get_io()) {
+          ttl_(VSOMEIP_SD_DEFAULT_TTL),
+          subscription_expiration_timer_(_host->get_io()),
+          max_message_size_(VSOMEIP_MAX_UDP_SD_PAYLOAD),
+          initial_delay_(0),
+          offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+          repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
+          repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
+          cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
+          offer_debounce_timer_(_host->get_io()),
+          main_phase_timer_(_host->get_io()),
+          is_suspended_(false) {
     std::chrono::seconds smallest_ttl(DEFAULT_TTL);
     smallest_ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(smallest_ttl);
 
@@ -64,7 +76,6 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 
 void service_discovery_impl::init() {
     runtime_ = runtime::get();
-    default_ = std::make_shared<service_discovery_fsm>(shared_from_this());
 
     std::shared_ptr < configuration > its_configuration =
             host_->get_configuration();
@@ -86,24 +97,60 @@ void service_discovery_impl::init() {
                 its_configuration->get_sd_multicast(), port_, reliable_);
 
         ttl_ = its_configuration->get_sd_ttl();
+
+        // generate random initial delay based on initial delay min and max
+        std::int32_t initial_delay_min =
+                its_configuration->get_sd_initial_delay_min();
+        if (initial_delay_min < 0) {
+            initial_delay_min = VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN;
+        }
+        std::int32_t initial_delay_max =
+                its_configuration->get_sd_initial_delay_max();
+        if (initial_delay_max < 0) {
+            initial_delay_max = VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX;
+        }
+        if (initial_delay_min > initial_delay_max) {
+            const std::uint32_t tmp(initial_delay_min);
+            initial_delay_min = initial_delay_max;
+            initial_delay_max = tmp;
+        }
+
+        std::random_device r;
+        std::mt19937 e(r());
+        std::uniform_int_distribution<std::uint32_t> distribution(
+                initial_delay_min, initial_delay_max);
+        initial_delay_ = std::chrono::milliseconds(distribution(e));
+
+
+        repetitions_base_delay_ = std::chrono::milliseconds(
+                its_configuration->get_sd_repetitions_base_delay());
+        repetitions_max_ = its_configuration->get_sd_repetitions_max();
+        cyclic_offer_delay_ = std::chrono::milliseconds(
+                its_configuration->get_sd_cyclic_offer_delay());
+        offer_debounce_time_ = std::chrono::milliseconds(
+                its_configuration->get_sd_offer_debounce_time());
     } else {
         VSOMEIP_ERROR << "SD: no configuration found!";
     }
 }
 
 void service_discovery_impl::start() {
-    default_->start();
-    for (auto &its_group : additional_) {
-        its_group.second->start();
-    }
-
-    default_->process(ev_none());
-    for (auto &its_group : additional_) {
-        its_group.second->process(ev_none());
-    }
+    is_suspended_ = false;
+    start_main_phase_timer();
+    start_offer_debounce_timer(true);
 }
 
 void service_discovery_impl::stop() {
+    boost::system::error_code ec;
+    is_suspended_ = true;
+    main_phase_timer_.cancel(ec);
+    offer_debounce_timer_.cancel(ec);
+    {
+        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        for(const auto &t : repetition_phase_timers_) {
+            t.first->cancel(ec);
+        }
+    }
 }
 
 void service_discovery_impl::request_service(service_t _service,
@@ -128,7 +175,7 @@ void service_discovery_impl::request_service(service_t _service,
         }
     }
     if (is_new_request) {
-        default_->process(ev_request_service());
+        send(false, true);
     }
 }
 
@@ -592,7 +639,7 @@ void service_discovery_impl::insert_find_entries(
         for (auto its_instance : its_service.second) {
             auto its_request = its_instance.second;
             uint8_t its_sent_counter = its_request->get_sent_counter();
-            if (its_sent_counter != default_->get_repetition_max() + 1) {
+            if (its_sent_counter != repetitions_max_ + 1) {
                 if (i >= _start) {
                     if (its_size + VSOMEIP_SOMEIP_SD_ENTRY_SIZE <= max_message_size_) {
                         std::shared_ptr < serviceentry_impl > its_entry =
@@ -625,15 +672,16 @@ void service_discovery_impl::insert_find_entries(
 }
 
 void service_discovery_impl::insert_offer_entries(
-        std::shared_ptr<message_impl> &_message, services_t &_services,
-        uint32_t &_start, uint32_t _size, bool &_done) {
+        std::shared_ptr<message_impl> &_message, const services_t &_services,
+        uint32_t &_start, uint32_t _size, bool &_done, bool _ignore_phase) {
     uint32_t i = 0;
     uint32_t its_size(_size);
-    for (auto its_service : _services) {
-        for (auto its_instance : its_service.second) {
+    for (const auto its_service : _services) {
+        for (const auto its_instance : its_service.second) {
             // Only insert services with configured endpoint(s)
-            if (its_instance.second->get_endpoint(false)
-                    || its_instance.second->get_endpoint(true)) {
+            if ((_ignore_phase || its_instance.second->is_in_mainphase())
+                    && (its_instance.second->get_endpoint(false)
+                            || its_instance.second->get_endpoint(true))) {
                 if (i >= _start) {
                     if (!insert_offer_service(_message, its_service.first,
                             its_instance.first, its_instance.second, its_size)) {
@@ -673,14 +721,14 @@ void service_discovery_impl::insert_subscription(
     std::shared_ptr < endpoint > its_endpoint;
     if (_insert_reliable) {
         its_endpoint = _subscription->get_endpoint(true);
-        if (its_endpoint) {
+        if (its_endpoint && its_endpoint->get_local_port()) {
             insert_option(_message, its_entry, unicast_,
                     its_endpoint->get_local_port(), true);
         }
     }
     if (_insert_unreliable) {
         its_endpoint = _subscription->get_endpoint(false);
-        if (its_endpoint) {
+        if (its_endpoint && its_endpoint->get_local_port()) {
             insert_option(_message, its_entry, unicast_,
                     its_endpoint->get_local_port(), false);
         }
@@ -801,38 +849,12 @@ bool service_discovery_impl::send(bool _is_announcing, bool _is_find) {
 
         if (!_is_find) {
             services_t its_offers = host_->get_offered_services();
-
-            uint32_t its_start(0);
-            bool is_done(false);
-            while (!is_done) {
-                insert_offer_entries(its_message, its_offers, its_start, its_remaining, is_done);
-                if (!is_done) {
-                    its_remaining = max_message_size_;
-                    its_message = its_runtime->create_message();
-                    its_messages.push_back(its_message);
-                }
-            }
+            fill_message_with_offer_entries(its_runtime, its_message,
+                    its_messages, its_offers, false);
         }
 
         // Serialize and send
-        bool has_sent(false);
-        {
-            // lock serialize mutex here as well even if we don't use the
-            // serializer as it's used to guard access to the sessions_sent_ map
-            std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-            for (auto m : its_messages) {
-                if (m->get_entries().size() > 0) {
-                    std::pair<session_t, bool> its_session = get_session(unicast_);
-                    m->set_session(its_session.first);
-                    m->set_reboot_flag(its_session.second);
-                    if (host_->send(VSOMEIP_SD_CLIENT, m, true)) {
-                        increment_session(unicast_);
-                    }
-                    has_sent = true;
-                }
-            }
-        }
-        return has_sent;
+        return serialize_and_send_messages(its_messages);
     }
     return false;
 }
@@ -848,10 +870,17 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
     msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
+    if(is_suspended_) {
+        return;
+    }
     deserializer_->set_data(_data, _length);
     std::shared_ptr < message_impl
             > its_message(deserializer_->deserialize_sd_message());
     if (its_message) {
+        // ignore all SD messages with source address equal to node's unicast address
+        if (!check_source_address(_sender)) {
+            return;
+        }
         // ignore all messages which are sent with invalid header fields
         if(!check_static_header_fields(its_message)) {
             return;
@@ -907,10 +936,6 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
         VSOMEIP_ERROR << "service_discovery_impl::on_message: deserialization error.";
         return;
     }
-}
-
-void service_discovery_impl::on_offer_change() {
-    default_->process(ev_offer_change());
 }
 
 // Entry processing
@@ -1011,9 +1036,9 @@ void service_discovery_impl::process_serviceentry(
 
     } else {
         std::shared_ptr<request> its_request = find_request(its_service, its_instance);
-        if (its_request)
-            its_request->set_sent_counter((uint8_t) (default_->get_repetition_max() + 1));
-
+        if (its_request) {
+            its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
+        }
         unsubscribe_all(its_service, its_instance);
         host_->del_routing_info(its_service, its_instance,
                                 (its_reliable_port != ILLEGAL_PORT),
@@ -1034,7 +1059,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     std::shared_ptr<request> its_request = find_request(_service, _instance);
     if (its_request)
-        its_request->set_sent_counter((uint8_t) (default_->get_repetition_max() + 1));
+        its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
 
     smallest_ttl_ = host_->add_routing_info(_service, _instance,
                             _major, _minor, _ttl,
@@ -1142,18 +1167,14 @@ void service_discovery_impl::process_findservice_serviceentry(
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 std::shared_ptr<serviceinfo> its_info = found_instance->second;
-
-                ev_find_service find_event(its_info, _service,
-                                           _instance, _major, _minor, _unicast_flag );
-                default_->process(find_event);
+                send_uni_or_multicast_offerservice(_service, _instance, _major, _minor, its_info,
+                        _unicast_flag);
             }
         } else {
             // send back all available instances
             for (const auto &found_instance : found_service->second) {
-
-                ev_find_service find_event(found_instance.second, _service,
-                                           _instance, _major, _minor, _unicast_flag );
-                default_->process(find_event);
+                send_uni_or_multicast_offerservice(_service, _instance, _major, _minor,
+                        found_instance.second, _unicast_flag);
             }
         }
     }
@@ -1174,8 +1195,14 @@ void service_discovery_impl::send_unicast_offer_service(
                 uint32_t its_size(max_message_size_);
                 insert_offer_service(its_message, _service, _instance, _info,
                         its_size);
-
-                serialize_and_send(its_message, get_current_remote_address());
+                const boost::asio::ip::address its_address(get_current_remote_address());
+                if (its_address.is_unspecified()) {
+                    VSOMEIP_ERROR << "service_discovery_impl::"
+                            "send_unicast_offer_service current remote address "
+                            "is unspecified, won't send offer.";
+                } else {
+                    serialize_and_send(its_message, its_address);
+                }
             }
         }
     }
@@ -1921,11 +1948,21 @@ void service_discovery_impl::check_ttl(const boost::system::error_code &_error) 
 }
 
 boost::asio::ip::address service_discovery_impl::get_current_remote_address() const {
+    boost::asio::ip::address its_address;
     if (reliable_) {
-        return std::static_pointer_cast<tcp_server_endpoint_impl>(endpoint_)->get_remote().address();
+        auto endpoint = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint_);
+        if (endpoint && !endpoint->get_remote_address(its_address)) {
+            VSOMEIP_ERROR << "service_discovery_impl::get_current_remote_address: "
+                    "couldn't determine remote address (reliable)";
+        }
     } else {
-        return std::static_pointer_cast<udp_server_endpoint_impl>(endpoint_)->get_remote().address();
+        auto endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
+        if (endpoint && !endpoint->get_remote_address(its_address)) {
+            VSOMEIP_ERROR << "service_discovery_impl::get_current_remote_address: "
+                    "couldn't determine remote address (unreliable)";
+        }
     }
+    return its_address;
 }
 
 bool service_discovery_impl::check_static_header_fields(
@@ -2087,6 +2124,382 @@ bool service_discovery_impl::check_ipv4_address(
         }
     }
     return is_valid;
+}
+
+void service_discovery_impl::offer_service(service_t _service,
+                                           instance_t _instance,
+                                           std::shared_ptr<serviceinfo> _info) {
+    std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+    // check if offer is in map
+    bool found(false);
+    const auto its_service = collected_offers_.find(_service);
+    if (its_service != collected_offers_.end()) {
+        const auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            found = true;
+        }
+    }
+    if (!found) {
+        collected_offers_[_service][_instance] = _info;
+    }
+}
+
+void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+    boost::system::error_code ec;
+    if (_first_start) {
+        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
+    } else {
+        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
+    }
+    if (ec) {
+        VSOMEIP_ERROR<< "service_discovery_impl::start_offer_debounce_timer "
+        "setting expiry time of timer failed: " << ec.message();
+    }
+    offer_debounce_timer_.async_wait(
+            std::bind(
+                    &service_discovery_impl::on_offer_debounce_timer_expired,
+                    this, std::placeholders::_1));
+}
+
+void service_discovery_impl::on_offer_debounce_timer_expired(
+        const boost::system::error_code &_error) {
+    if(_error) { // timer was canceled
+        return;
+    }
+
+    // copy the accumulated offers of the initial wait phase
+    services_t repetition_phase_offers;
+    bool new_offers(false);
+    {
+        std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+        if (collected_offers_.size()) {
+            repetition_phase_offers = collected_offers_;
+            collected_offers_.clear();
+            new_offers = true;
+        }
+    }
+
+    if (!new_offers) {
+        start_offer_debounce_timer(false);
+        return;
+    }
+
+    // Sent out offers for the first time as initial wait phase ended
+    std::shared_ptr<runtime> its_runtime = runtime_.lock();
+    if (its_runtime) {
+        std::vector<std::shared_ptr<message_impl>> its_messages;
+        std::shared_ptr<message_impl> its_message =
+                its_runtime->create_message();
+        its_messages.push_back(its_message);
+        fill_message_with_offer_entries(its_runtime, its_message, its_messages,
+                repetition_phase_offers, true);
+
+        // Serialize and send
+        serialize_and_send_messages(its_messages);
+    }
+
+    std::chrono::milliseconds its_delay(0);
+    std::uint8_t its_repetitions(0);
+    if (repetitions_max_) {
+        // start timer for repetition phase the first time
+        // with 2^0 * repetitions_base_delay
+        its_delay = repetitions_base_delay_;
+        its_repetitions = 1;
+    } else {
+        // if repetitions_max is set to zero repetition phase is skipped,
+        // therefore wait one cyclic offer delay before entering main phase
+        its_delay = cyclic_offer_delay_;
+        its_repetitions = 0;
+    }
+
+    std::shared_ptr<boost::asio::steady_timer> its_timer = std::make_shared<
+            boost::asio::steady_timer>(host_->get_io());
+
+    {
+        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        repetition_phase_timers_[its_timer] = repetition_phase_offers;
+    }
+
+    boost::system::error_code ec;
+    its_timer->expires_from_now(its_delay, ec);
+    if (ec) {
+        VSOMEIP_ERROR<< "service_discovery_impl::on_offer_debounce_timer_expired "
+        "setting expiry time of timer failed: " << ec.message();
+    }
+    its_timer->async_wait(
+            std::bind(
+                    &service_discovery_impl::on_repetition_phase_timer_expired,
+                    this, std::placeholders::_1, its_timer, its_repetitions,
+                    its_delay.count()));
+    start_offer_debounce_timer(false);
+}
+
+void service_discovery_impl::on_repetition_phase_timer_expired(
+        const boost::system::error_code &_error,
+        std::shared_ptr<boost::asio::steady_timer> _timer,
+        std::uint8_t _repetition, std::uint32_t _last_delay) {
+    if (_error) {
+        return;
+    }
+    if (_repetition == 0) {
+        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        // we waited one cyclic offer delay, the offers can now be sent in the
+        // main phase and the timer can be deleted
+        move_offers_into_main_phase(_timer);
+    } else {
+        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        auto its_timer_pair = repetition_phase_timers_.find(_timer);
+        if (its_timer_pair != repetition_phase_timers_.end()) {
+            std::chrono::milliseconds new_delay(0);
+            std::uint8_t repetition(0);
+            if (_repetition <= repetitions_max_) {
+                // sent offers, double time to wait and start timer again.
+                std::shared_ptr<runtime> its_runtime = runtime_.lock();
+                if (its_runtime) {
+                    std::vector<std::shared_ptr<message_impl>> its_messages;
+                    std::shared_ptr<message_impl> its_message =
+                            its_runtime->create_message();
+                    its_messages.push_back(its_message);
+                    fill_message_with_offer_entries(its_runtime, its_message,
+                            its_messages, its_timer_pair->second, true);
+
+                    // Serialize and send
+                    serialize_and_send_messages(its_messages);
+                }
+                new_delay = std::chrono::milliseconds(_last_delay * 2);
+                repetition = ++_repetition;
+            } else {
+                // repetition phase is now over we have to sleep one cyclic
+                // offer delay before it's allowed to sent the offer again.
+                // If the last offer was sent shorter than half the
+                // configured cyclic_offer_delay_ago the offers are directly
+                // moved into the mainphase to avoid potentially sleeping twice
+                // the cyclic offer delay before moving the offers in to main
+                // phase
+                if (last_offer_shorter_half_offer_delay_ago()) {
+                    move_offers_into_main_phase(_timer);
+                    return;
+                } else {
+                    new_delay = cyclic_offer_delay_;
+                    repetition = 0;
+                }
+            }
+            boost::system::error_code ec;
+            its_timer_pair->first->expires_from_now(new_delay, ec);
+            if (ec) {
+                VSOMEIP_ERROR <<
+                "service_discovery_impl::on_repetition_phase_timer_expired "
+                "setting expiry time of timer failed: " << ec.message();
+            }
+            its_timer_pair->first->async_wait(
+                    std::bind(
+                            &service_discovery_impl::on_repetition_phase_timer_expired,
+                            this, std::placeholders::_1, its_timer_pair->first,
+                            repetition, new_delay.count()));
+        }
+    }
+}
+
+void service_discovery_impl::move_offers_into_main_phase(
+        const std::shared_ptr<boost::asio::steady_timer> &_timer) {
+    // HINT: make sure to lock the repetition_phase_timers_mutex_ before calling
+    // this function
+    // set flag on all serviceinfos bound to this timer
+    // that they will be included in the cyclic offers from now on
+    const auto its_timer = repetition_phase_timers_.find(_timer);
+    if (its_timer != repetition_phase_timers_.end()) {
+        for (const auto its_service : its_timer->second) {
+            for (const auto instance : its_service.second) {
+                instance.second->set_is_in_mainphase(true);
+            }
+        }
+        repetition_phase_timers_.erase(_timer);
+    }
+}
+
+void service_discovery_impl::fill_message_with_offer_entries(
+        std::shared_ptr<runtime> _runtime,
+        std::shared_ptr<message_impl> _message,
+        std::vector<std::shared_ptr<message_impl>> &_messages,
+        const services_t &_offers, bool _ignore_phase) {
+    uint32_t its_remaining(max_message_size_);
+    uint32_t its_start(0);
+    bool is_done(false);
+    while (!is_done) {
+        insert_offer_entries(_message, _offers, its_start, its_remaining,
+                is_done, _ignore_phase);
+        if (!is_done) {
+            its_remaining = max_message_size_;
+            _message = _runtime->create_message();
+            _messages.push_back(_message);
+        }
+    }
+}
+
+bool service_discovery_impl::serialize_and_send_messages(
+        const std::vector<std::shared_ptr<message_impl>> &_messages) {
+    bool has_sent(false);
+    // lock serialize mutex here as well even if we don't use the
+    // serializer as it's used to guard access to the sessions_sent_ map
+    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+    for (const auto m : _messages) {
+        if (m->get_entries().size() > 0) {
+            std::pair<session_t, bool> its_session = get_session(unicast_);
+            m->set_session(its_session.first);
+            m->set_reboot_flag(its_session.second);
+            if (host_->send(VSOMEIP_SD_CLIENT, m, true)) {
+                increment_session(unicast_);
+            }
+            has_sent = true;
+        }
+    }
+    return has_sent;
+}
+
+void service_discovery_impl::stop_offer_service(
+        service_t _service, instance_t _instance,
+        std::shared_ptr<serviceinfo> _info) {
+    bool stop_offer_required(false);
+    // delete from initial phase offers
+    {
+        std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
+        if (collected_offers_.size()) {
+            auto its_service = collected_offers_.find(_service);
+            if (its_service != collected_offers_.end()) {
+                auto its_instance = its_service->second.find(_instance);
+                if (its_instance != its_service->second.end()) {
+                    if (its_instance->second == _info) {
+                        its_service->second.erase(its_instance);
+
+                        if (!collected_offers_[its_service->first].size()) {
+                            collected_offers_.erase(its_service);
+                        }
+                    }
+                }
+            }
+        }
+        // no need to sent out a stop offer message here as all services
+        // instances contained in the collected offers weren't broadcasted yet
+    }
+
+    // delete from repetition phase offers
+    {
+        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
+        for (auto rpt = repetition_phase_timers_.begin();
+                rpt != repetition_phase_timers_.end();) {
+            auto its_service = rpt->second.find(_service);
+            if (its_service != rpt->second.end()) {
+                auto its_instance = its_service->second.find(_instance);
+                if (its_instance != its_service->second.end()) {
+                    if (its_instance->second == _info) {
+                        its_service->second.erase(its_instance);
+                        stop_offer_required = true;
+                        if (!rpt->second[its_service->first].size()) {
+                            rpt->second.erase(_service);
+                        }
+                    }
+                }
+            }
+            if (!rpt->second.size()) {
+                rpt = repetition_phase_timers_.erase(rpt);
+            } else {
+                ++rpt;
+            }
+        }
+    }
+    // sent stop offer
+    if(_info->is_in_mainphase() || stop_offer_required) {
+        send_stop_offer(_service, _instance, _info);
+    }
+}
+
+bool service_discovery_impl::send_stop_offer(
+        service_t _service, instance_t _instance,
+        std::shared_ptr<serviceinfo> _info) {
+    std::shared_ptr < runtime > its_runtime = runtime_.lock();
+    if (its_runtime) {
+        std::vector<std::shared_ptr<message_impl>> its_messages;
+        std::shared_ptr<message_impl> its_message;
+        its_message = its_runtime->create_message();
+        its_messages.push_back(its_message);
+
+        uint32_t its_size(max_message_size_);
+        insert_offer_service(its_message, _service, _instance, _info, its_size);
+
+        // Serialize and send
+        return serialize_and_send_messages(its_messages);
+    }
+    return false;
+}
+
+void service_discovery_impl::start_main_phase_timer() {
+    boost::system::error_code ec;
+    main_phase_timer_.expires_from_now(cyclic_offer_delay_);
+    if (ec) {
+        VSOMEIP_ERROR<< "service_discovery_impl::start_main_phase_timer "
+        "setting expiry time of timer failed: " << ec.message();
+    }
+    main_phase_timer_.async_wait(
+            std::bind(&service_discovery_impl::on_main_phase_timer_expired,
+                    this, std::placeholders::_1));
+}
+
+void service_discovery_impl::on_main_phase_timer_expired(
+        const boost::system::error_code &_error) {
+    if (_error) {
+        return;
+    }
+    send(true, false);
+    start_main_phase_timer();
+}
+
+void service_discovery_impl::send_uni_or_multicast_offerservice(
+        service_t _service, instance_t _instance, major_version_t _major,
+        minor_version_t _minor, const std::shared_ptr<const serviceinfo> &_info,
+        bool _unicast_flag) {
+    if (_unicast_flag) { // SID_SD_826
+        if (last_offer_shorter_half_offer_delay_ago()) { // SIP_SD_89
+            send_unicast_offer_service(_info, _service, _instance, _major, _minor);
+        } else { // SIP_SD_90
+            send_multicast_offer_service(_info, _service, _instance, _major, _minor);
+        }
+    } else { // SID_SD_826
+        send_unicast_offer_service(_info, _service, _instance, _major, _minor);
+    }
+}
+
+bool service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
+    //get remaining time to next offer since last offer
+    std::chrono::milliseconds remaining = std::chrono::duration_cast<
+            std::chrono::milliseconds>(main_phase_timer_.expires_from_now());
+
+    if (std::chrono::milliseconds(0) > remaining) {
+        remaining = cyclic_offer_delay_;
+    }
+    const std::chrono::milliseconds half_cyclic_offer_delay =
+            cyclic_offer_delay_ / 2;
+
+    return remaining > half_cyclic_offer_delay;
+}
+
+bool service_discovery_impl::check_source_address(
+        const boost::asio::ip::address &its_source_address) const {
+   bool is_valid = true;
+   std::shared_ptr<configuration> its_configuration =
+           host_->get_configuration();
+
+   if(its_configuration) {
+       boost::asio::ip::address its_unicast_address =
+               its_configuration.get()->get_unicast_address();
+       // check if source address is same as nodes unicast address
+       if(its_unicast_address
+               == its_source_address) {
+           VSOMEIP_ERROR << "Source address of message is same as DUT's unicast address! : "
+                   << its_source_address.to_string();
+           is_valid = false;
+       }
+   }
+   return is_valid;
 }
 
 }  // namespace sd

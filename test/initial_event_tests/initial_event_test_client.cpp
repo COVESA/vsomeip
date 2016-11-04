@@ -33,7 +33,10 @@ public:
             wait_until_other_services_available_(true),
             wait_for_stop_(true),
             stop_thread_(std::bind(&initial_event_test_client::wait_for_stop, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&initial_event_test_client::on_state, this,
                         std::placeholders::_1));
@@ -164,7 +167,20 @@ public:
                 [&](const std::map<std::pair<vsomeip::service_t,
                         vsomeip::method_t>, std::uint32_t>::value_type& v)
                 {
-                    return v.second == initial_event_test::notifications_to_send;
+                    if (v.second == initial_event_test::notifications_to_send) {
+                        return true;
+                    } else if (v.second >= initial_event_test::notifications_to_send){
+                        VSOMEIP_WARNING
+                                << " Received multiple initial events from service/instance: "
+                                << std::setw(4) << std::setfill('0') << std::hex << v.first.first
+                                << "."
+                                << std::setw(4) << std::setfill('0') << std::hex << v.first.second
+                                << " number of received events: " << v.second
+                                << ". This is caused by StopSubscribe/Subscribe messages.";
+                        return true;
+                    } else {
+                        return false;
+                    }
                 }
         );
     }
@@ -173,7 +189,16 @@ public:
         std::uint32_t received_twice(0);
         std::uint32_t received_normal(0);
         for(const auto &v : other_services_received_notification_) {
-            if (v.second == initial_event_test::notifications_to_send * 2) {
+            if (v.second > initial_event_test::notifications_to_send * 2) {
+                VSOMEIP_WARNING
+                        << " Received multiple initial events from service/instance: "
+                        << std::setw(4) << std::setfill('0') << std::hex << v.first.first
+                        << "."
+                        << std::setw(4) << std::setfill('0') << std::hex << v.first.second
+                        << " number of received events: " << v.second
+                        << ". This is caused by StopSubscribe/Subscribe messages.";
+                received_twice++;
+            } else if (v.second == initial_event_test::notifications_to_send * 2) {
                 received_twice++;
             } else if(v.second == initial_event_test::notifications_to_send) {
                 received_normal++;
@@ -181,7 +206,7 @@ public:
         }
 
         if(   received_twice == (service_infos_.size() - 1) / 2
-           && received_normal == (service_infos_.size() - 1) / 2 - 1) {
+           && received_normal == (service_infos_.size() - 1) / 2) {
             // routing manager stub receives the notification
             // - twice from external nodes
             // - and normal from all internal nodes
@@ -196,14 +221,22 @@ public:
     }
 
     void wait_for_stop() {
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
+        {
+            std::unique_lock<std::mutex> its_lock(stop_mutex_);
+            while (wait_for_stop_) {
+                stop_condition_.wait(its_lock);
+            }
+            VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+                    << client_number_
+                    << "] Received notifications from all services, going down";
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << client_number_
-                << "] Received notifications from all services, going down";
-
+        for (const auto& i : service_infos_) {
+            if (i.service_id == 0xFFFF && i.instance_id == 0xFFFF) {
+                continue;
+            }
+            app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
+        }
+        app_->clear_all_handler();
         app_->stop();
     }
 

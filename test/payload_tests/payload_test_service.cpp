@@ -23,7 +23,10 @@ void payload_test_service::init()
 {
     std::lock_guard<std::mutex> its_lock(mutex_);
 
-    app_->init();
+    if (!app_->init()) {
+        VSOMEIP_ERROR << "Couldn't initialize application";
+        EXPECT_TRUE(false);
+    }
     app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
             std::bind(&payload_test_service::on_message, this,
@@ -49,11 +52,7 @@ void payload_test_service::start()
 void payload_test_service::stop()
 {
     VSOMEIP_INFO << "Stopping...";
-    app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID);
-    app_->unregister_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->unregister_state_handler();
+    app_->clear_all_handler();
     app_->stop();
 }
 

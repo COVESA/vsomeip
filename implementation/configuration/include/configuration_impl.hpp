@@ -18,6 +18,7 @@
 #include "configuration.hpp"
 #include "watchdog.hpp"
 #include "service_instance_range.hpp"
+#include "policy.hpp"
 
 namespace vsomeip {
 namespace cfg {
@@ -38,18 +39,15 @@ struct element {
     }
 };
 
-class configuration_impl: public configuration {
+class configuration_impl: public configuration, public std::enable_shared_from_this<configuration_impl> {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<configuration> get(
-            const std::set<std::string> &_input);
-    VSOMEIP_EXPORT static void reset();
+    VSOMEIP_EXPORT static std::shared_ptr<configuration> get();
 
     VSOMEIP_EXPORT configuration_impl();
     VSOMEIP_EXPORT configuration_impl(const configuration_impl &_cfg);
     VSOMEIP_EXPORT virtual ~configuration_impl();
 
-    VSOMEIP_EXPORT void load(const element &_element);
-    VSOMEIP_EXPORT void load_log(const std::vector<element> &_elements);
+    VSOMEIP_EXPORT bool load(const std::string &_name);
 
     VSOMEIP_EXPORT const boost::asio::ip::address & get_unicast_address() const;
     VSOMEIP_EXPORT unsigned short get_diagnosis_address() const;
@@ -117,6 +115,7 @@ public:
     VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -125,53 +124,72 @@ public:
     VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
 
-
     VSOMEIP_EXPORT std::uint32_t get_umask() const;
     VSOMEIP_EXPORT std::uint32_t get_permissions_shm() const;
 
+    // Policy
+    VSOMEIP_EXPORT bool is_security_enabled() const;
+    VSOMEIP_EXPORT bool is_client_allowed(client_t _client, service_t _service,
+            instance_t _instance) const;
+    VSOMEIP_EXPORT bool is_offer_allowed(client_t _client, service_t _service,
+            instance_t _instance) const;
+    VSOMEIP_EXPORT bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const;
+
 private:
-    void get_logging_configuration(const element &_element,
-    		std::set<std::string> &_warnings);
+    void read_data(const std::set<std::string> &_input,
+            std::vector<element> &_elements,
+            std::set<std::string> &_failed,
+            bool _standard_only);
 
-    void get_someip_configuration(const element &_element);
-    void get_services_configuration(const boost::property_tree::ptree &_tree);
-    void get_clients_configuration(const boost::property_tree::ptree &_tree);
-    void get_payload_sizes_configuration(const boost::property_tree::ptree &_tree);
-    void get_routing_configuration(const element &_element);
-    void get_service_discovery_configuration(const element &_element);
-    void get_applications_configuration(const element &_tree);
-    void get_trace_configuration(const element &_tree);
-    void get_supports_selective_broadcasts(const boost::property_tree::ptree &_tree);
-    void get_watchdog_configuration(const element &_element);
+    bool load_data(const std::vector<element> &_elements,
+            bool _load_mandatory, bool _load_optional);
 
-    void get_servicegroup_configuration(
-            const boost::property_tree::ptree &_tree);
-    void get_delays_configuration(const boost::property_tree::ptree &_tree);
-    void get_service_configuration(const boost::property_tree::ptree &_tree,
-            const std::string &_unicast_address);
-    void get_client_configuration(const boost::property_tree::ptree &_tree);
-    std::set<uint16_t> get_client_port_configuration(
-    		const boost::property_tree::ptree &_tree);
-    void get_event_configuration(std::shared_ptr<service> &_service,
-            const boost::property_tree::ptree &_tree);
-    void get_eventgroup_configuration(std::shared_ptr<service> &_service,
-            const boost::property_tree::ptree &_tree);
-    void get_application_configuration(
-            const boost::property_tree::ptree &_tree, const std::string &_file_name);
-    void get_trace_channels_configuration(
-            const boost::property_tree::ptree &_tree);
-    void get_trace_channel_configuration(
-            const boost::property_tree::ptree &_tree);
-    void get_trace_filters_configuration(
-            const boost::property_tree::ptree &_tree);
-    void get_trace_filter_configuration(
-            const boost::property_tree::ptree &_tree);
-    void get_trace_filter_expressions(
+    bool load_logging(const element &_element,
+                std::set<std::string> &_warnings);
+    bool load_routing(const element &_element);
+
+    bool load_applications(const element &_element);
+    void load_application_data(const boost::property_tree::ptree &_tree,
+            const std::string &_name);
+
+    void load_tracing(const element &_element);
+    void load_trace_channels(const boost::property_tree::ptree &_tree);
+    void load_trace_channel(const boost::property_tree::ptree &_tree);
+    void load_trace_filters(const boost::property_tree::ptree &_tree);
+    void load_trace_filter(const boost::property_tree::ptree &_tree);
+    void load_trace_filter_expressions(
             const boost::property_tree::ptree &_tree,
             std::string &_criteria,
             std::shared_ptr<trace_filter_rule> &_filter_rule);
-    void get_permission_configuration(const element &_element);
-    void get_internal_services(const boost::property_tree::ptree &_tree);
+
+    void load_unicast_address(const element &_element);
+    void load_diagnosis_address(const element &_element);
+
+    void load_service_discovery(const element &_element);
+    void load_delays(const boost::property_tree::ptree &_tree);
+
+    void load_services(const element &_element);
+    void load_servicegroup(const boost::property_tree::ptree &_tree);
+    void load_service(const boost::property_tree::ptree &_tree,
+            const std::string &_unicast_address);
+    void load_event(std::shared_ptr<service> &_service,
+            const boost::property_tree::ptree &_tree);
+    void load_eventgroup(std::shared_ptr<service> &_service,
+            const boost::property_tree::ptree &_tree);
+
+    void load_internal_services(const element &_element);
+
+    void load_clients(const element &_element);
+    void load_client(const boost::property_tree::ptree &_tree);
+    std::set<uint16_t> load_client_ports(const boost::property_tree::ptree &_tree);
+
+    void load_watchdog(const element &_element);
+
+    void load_payload_sizes(const element &_element);
+    void load_permissions(const element &_element);
+    void load_selective_broadcasts_support(const element &_element);
+    void load_policies(const element &_element);
+    void load_policy(const boost::property_tree::ptree &_tree);
 
     servicegroup *find_servicegroup(const std::string &_name) const;
     std::shared_ptr<client> find_client(service_t _service, instance_t _instance) const;
@@ -181,12 +199,20 @@ private:
 
     void set_magic_cookies_unicast_address();
 
+    bool is_mandatory(const std::string &_name) const;
     bool is_remote(std::shared_ptr<service> _service) const;
     bool is_internal_service(service_t _service, instance_t _instance) const;
 
+    void set_mandatory(const std::string &_input);
+    void trim(std::string &_s);
+
 private:
-    static std::shared_ptr<configuration_impl> the_configuration;
-    static std::mutex mutex_;
+    std::mutex mutex_;
+
+    bool is_loaded_;
+    bool is_logging_loaded_;
+
+    std::set<std::string> mandatory_;
 
 protected:
     // Configuration data
@@ -224,6 +250,7 @@ protected:
     ttl_t sd_ttl_;
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
+    std::uint32_t sd_offer_debounce_time_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -265,12 +292,17 @@ protected:
 		ET_WATCHDOG_ALLOWED_MISSING_PONGS,
 		ET_TRACING_ENABLE,
 		ET_TRACING_SD_ENABLE,
-		ET_MAX = 23
+        ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
+        ET_MAX = 24
     };
 
     bool is_configured_[ET_MAX];
     std::uint32_t permissions_shm_;
     std::uint32_t umask_;
+
+    std::map<client_t, std::shared_ptr<policy>> policies_;
+    bool policy_enabled_;
+    bool check_credentials_;
 };
 
 } // namespace cfg

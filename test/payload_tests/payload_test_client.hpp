@@ -10,6 +10,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
+#include <cmath>
 #include <thread>
 #include <mutex>
 #include <condition_variable>

@@ -42,7 +42,10 @@ payload_test_client::payload_test_client(
 
 void payload_test_client::init()
 {
-    app_->init();
+    if (!app_->init()) {
+        VSOMEIP_ERROR << "Couldn't initialize application";
+        EXPECT_TRUE(false);
+    }
 
     app_->register_state_handler(
             std::bind(&payload_test_client::on_state, this,
@@ -74,11 +77,7 @@ void payload_test_client::stop()
     {
         shutdown_service();
     }
-    app_->unregister_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app_->unregister_state_handler();
-    app_->unregister_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
+    app_->clear_all_handler();
 }
 
 void payload_test_client::shutdown_service()

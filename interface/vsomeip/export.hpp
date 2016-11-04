@@ -15,9 +15,16 @@
     #else
         #define VSOMEIP_IMPORT_EXPORT __declspec(dllimport)
     #endif
+
+    #if VSOMEIP_DLL_COMPILATION_CONFIG
+        #define VSOMEIP_IMPORT_EXPORT_CONFIG __declspec(dllexport)
+    #else
+        #define VSOMEIP_IMPORT_EXPORT_CONFIG __declspec(dllimport)
+    #endif
 #else
     #define VSOMEIP_EXPORT
     #define VSOMEIP_IMPORT_EXPORT
+    #define VSOMEIP_IMPORT_EXPORT_CONFIG
 #endif
 
 #endif

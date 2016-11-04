@@ -5,15 +5,32 @@
 
 #include "../include/configuration_impl.hpp"
 
+#ifdef WIN32
+extern "C"
+{
+    __declspec(dllexport) std::shared_ptr<vsomeip::configuration> VSOMEIP_CFG_RUNTIME_SYMBOL;
+}
+#else
+std::shared_ptr<vsomeip::configuration> VSOMEIP_CFG_RUNTIME_SYMBOL(vsomeip::configuration::get());
+#endif
+
+#ifdef WIN32
+#define CCALL __cdecl
+#pragma section(".CRT$XCU",read)
+#define INITIALIZER(f) \
+    static void __cdecl f(void); \
+    __declspec(allocate(".CRT$XCU")) void(__cdecl*f##_)(void) = f; \
+    static void __cdecl f(void)
+
+INITIALIZER(init_vsomeip_cfg) {
+    VSOMEIP_CFG_RUNTIME_SYMBOL = vsomeip::configuration::get();
+}
+#endif
+
 namespace vsomeip {
 
-std::shared_ptr<configuration> configuration::get(
-        const std::set<std::string> &_input) {
-    return cfg::configuration_impl::get(_input);
-}
-
-void configuration::reset() {
-    cfg::configuration_impl::reset();
+std::shared_ptr<configuration> configuration::get() {
+    return cfg::configuration_impl::get();
 }
 
 } // namespace vsomeip

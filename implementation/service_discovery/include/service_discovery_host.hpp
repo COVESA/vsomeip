@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <chrono>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
@@ -28,7 +29,7 @@ public:
     }
 
     virtual boost::asio::io_service & get_io() = 0;
-    virtual std::shared_ptr<configuration> get_configuration() const = 0;
+    virtual const std::shared_ptr<configuration> get_configuration() const = 0;
 
     virtual std::shared_ptr<endpoint> create_service_discovery_endpoint(
             const std::string &_address, uint16_t _port, bool _reliable) = 0;

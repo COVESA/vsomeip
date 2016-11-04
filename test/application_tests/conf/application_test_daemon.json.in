@@ -1,5 +1,5 @@
 {
-    "unicast":"127.0.0.1",
+    "unicast":"@TEST_IP_MASTER@",
     "logging":
     {
         "level":"warning",
@@ -15,7 +15,8 @@
     [
         {
             "name":"application_test",
-            "id":"0x7788"
+            "id":"0x7788",
+            "num_dispatchers":"5"
         }
     ],
     "services":
@@ -26,7 +27,7 @@
             "reliable":"30503"
         }
     ],
-    "routing":"application_test",
+    "routing":"vsomeipd",
     "service-discovery":
     {
         "enable":"true",

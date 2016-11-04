@@ -37,7 +37,6 @@ public:
             const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);
 
-    endpoint_type get_remote() const;
     bool get_remote_address(boost::asio::ip::address &_address) const;
     unsigned short get_remote_port() const;
 

@@ -33,7 +33,7 @@ typedef boost::log::sinks::synchronous_sink<
 class logger_impl: public logger {
 public:
     static std::shared_ptr<logger_impl> & get();
-    static void init(const std::shared_ptr<configuration> &_configuration);
+    VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration> &_configuration);
 
     logger_impl();
 
@@ -42,12 +42,17 @@ public:
 
 private:
     void enable_console();
+    void disable_console();
+
     void enable_file(const std::string &_path);
+    void disable_file();
+
     void enable_dlt(const std::string &_app_id,
                     const std::string &_context_id);
+    void disable_dlt();
 
 private:
-    static boost::log::sources::severity_logger_mt<
+    boost::log::sources::severity_logger_mt<
             boost::log::trivial::severity_level> logger_;
     boost::log::trivial::severity_level loglevel_;
 

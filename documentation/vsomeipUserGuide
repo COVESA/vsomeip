@@ -133,13 +133,16 @@ network setup:
 If one of this variables isn't specified, only the tests using local
 communication exclusively will be runnable.
 
+Additionally the unit tests require enabled signal handling which can be enabled
+via the `ENABLE_SIGNAL_HANDLING` cmake variable.
+
 Example, compilation of tests:
 [source, bash]
 ----
 mkdir build
 cd build
 export GTEST_ROOT=$PATH_TO_GTEST/gtest-1.7.0/
-cmake -DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125 ..
+cmake -DENABLE_SIGNAL_HANDLING=1 -DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125 ..
 make check
 ----
 
@@ -214,6 +217,11 @@ On startup the following environment variables are read out:
    local configuration file `./vsomeip.json` and/or a local configuration folder `./vsomeip`.
    If `VSOMEIP_CONFIGURATION` is set to a valid file or directory path, this is used instead
    of the standard configuration (thus neither default nor local file/folder will be parsed).
+* `VSOMEIP_MANDATORY_CONFIGURATION_FILES`: vsomeip allows to specify mandatory configuration
+   files to speed-up application startup. While mandatory configuration files are read by all
+   applications, all other configuration files are only read by the application that is 
+   responsible for connections to external devices. If this configuration variable is not set,
+   the default mandatory files vsomeip_std.json, vsomeip_app.json and vsomeip_plc.json are used.
 
 NOTE: If the file/folder that is configured by `VSOMEIP_CONFIGURATION` does _not_ exist,
 the default configuration locations will be used.
@@ -432,7 +440,7 @@ Contains the events of the service.
 +
 The id of the event.
 
-**** `is_field`
+*** `is_field`
 +
 Specifies whether the event is of type field.
 +
@@ -440,7 +448,7 @@ NOTE: A field is a combination of getter, setter and notification event. It
 contains at least a getter, a setter, or a notifier. The notifier sends an event
 message that transports the current value of a field on change.
 
-**** `is_reliable`
+*** `is_reliable`
 +
 Specifies whether the communication is reliable respectively whether the event
 is sent with the TCP protocol (valid values: _true_,_false_).
@@ -636,6 +644,13 @@ Cycle of the OfferService messages in the main phase.
 Minimum delay of a unicast message to a multicast message for
 provided services and eventgroups.
 +
+
+** `offer_debounce_time`
++
+Time which the stack collects new service offers before they enter the
+repetition phase. This can be used to reduce the number of
+sent messages during startup. The default setting is _500ms_.
++
 //Watchdog
 * anchor:config-watchdog[]'watchdog' (optional)
 +
@@ -672,6 +687,105 @@ normal events.
 Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported.
 Multiple addresses can be configuered.
 
+Security
+--------
+vSomeIP has a security implementation based on UNIX credentials.
+If activated every local connection is authenticated during connect using the standard UNIX credential passing mechanism.
+During authentification a client transfers its client identifier together with its credentials (UID / GID) to the server which is then matched against the configuration.
+If received credentials don't match the policy the socket will be immediately closed by the server and an message is logged.
+If accepted the client identifier is bound to the receiving socket and can therefore be used to do further security checks on incoming messages (vSomeIP messages as well as internal commands).
+
+In general clients can be configured to be allowed/denied to request (means communicate with) and offer different service instances.
+Every incoming vSomeIP message (request/response/notifcation) as well as offer service requests or local subscriptions are then checked against the policy.
+If an incoming vSomeIP message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.
+
+Furthermore if an application receives a routing table (information about other clients/services in the system) it must be received from the authenticated routing manager which means the routing manager must be a configured application if security is active.
+This should avoid malicious applications faking the routing manager and therfore could wrongly inform other clients about services running on the system.
+
+Credential passing is only possible via Unix-Domain-Sockets and therefore only available for local communication.
+However if security is activated method calls from remote clients to local services are checked as well which means remote clients needs to be explicitly allowed.
+Such a policy looks same in case for local clients except the _credentials_ tag can be skipped.
+
+It follows the available configuration switches for the security feature including its functional behavior: 
+
+// Security
+* anchor:config-policy[]'security' (optional)
++
+If specified the credential passing mechanism is activated. However no credential or security checks are done as long as _check_credentials_ isn't set to _true_.
+
+** 'check_credentials (optional)'
++
+Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow.
+(valid values: _true, false_), (default is _false_).
+
+** 'policies' (array)
++
+Specifies the security policies. Each policy at least needs to specify _client_ and _allow_ / _deny_.
+
+*** 'client'
++
+Specifies a client for which a security policy will be applied (valid value: A valid client identifier in hex: e.g. _0x1234_).
+It is also possible to specify a client identifier range to easily apply a policy to a set of clients.
+A usecase is e.g. to allow a set of remote clients communicate with local services offered remote.
+
+**** 'first'
++
+Specifies the first client of a range (first is included).
+(valid value: A valid client identifier in hex: e.g. _0x1234_)
+
+**** 'last'
++
+Specifies the last client id of a range (last is included).
+(valid value: A valid client identifier in hex: e.g. _0x1234_)
+
+*** 'credentials' (optional)
++
+Specifies the credentials of the above client(s).
+If _check_credentials_ is set to _true_ the credentials for the above client(s) (if they running locally) needs to be specified correctly to ensure local socket authentification can succeed.
+This entry is optional due to the fact that remote clients needs to be configured as well to allow to communicate with local services as already mentioned above.
+For remote clients this entry should be skipped. 
+
+**** 'uid'
++
+Specifies the LINUX user id of the above client(s) as decimal number.
+
+**** 'gid'
++
+Specifies the LINUX group id of the above client(s) as decimal number.
+
+*** 'allow/deny'
++
+This tag specifies either _allow_ or _deny_ depending on white- or blacklisting is needed. Specifing _allow_ and _deny_ entries in one policy is therefore not allowed.
+With _allow_ a whitelisting of what is allowed can be done which means an empty _allow_ tag implies everything is denied.
+With _deny_ a blacklisting of what is allowed can be done which means an empty _deny_ tag implies everything is allowed.
+
+**** 'requests' (array)
++
+Specifies a set of serivce instance pairs which the above client(s) is allowed/denied to communicate with.
+
+***** 'service'
++
+Specifies a service for the _requests_.
+
+***** 'instance'
++
+Specifies a instance for the _requests_
+
+**** 'offers' (array)
++
+Specifies a set of service instance pairs which are allowed/denied to be offered by the above client(s).
+
+***** 'service'
++
+Specifies a service for the _offers_.
+
+***** 'instance'
++
+Specifies a instance for the _offers_
+
+In the config/ folder are some vSomeIP configuration files to run the vSomeIP examples with activated security checks.
+They give a basic overview how to use the security related configuration tags described in this chapter to run a simple request/response or subscribe/notify example locally or over remote.
+
 Autoconfiguration
 -----------------
 vsomeip supports the automatic configuration of client identifiers and the routing.
@@ -681,6 +795,11 @@ are generated from the diagnosis address that can be specified by defining
 DIAGNOSIS_ADDRESS when compiling vsomeip. vsomeip will use the diagnosis address
 as the high byte and enumerate the connecting applications within the low byte
 of the client identifier.
+
+Autoconfiguration of client identifiers isn't meant to be used together with vSomeIP Security.
+Every client running locally needs to have at least its own credentials configured when security is activated to ensure the credential checks can pass.
+Practically that means if a client requests its identifier over the autoconfiguration for which no credentials are configured (at least it isn't known which client identifier is used beforehand) it is impossible for that client to establish a connection to a server endpoint.
+However if the credentials for all clients are same it's possible to configure them for the overall (or DIAGNOSIS_ADDRESS) client identifier range to mix autoconfiguration together with activated security.
 
 vsomeipd
 --------
@@ -771,7 +890,7 @@ CMakeFile
 
 [source, bash]
 ----
-include::examples/hello_world/CMakeLists.txt[]
+include::../examples/hello_world/CMakeLists.txt[]
 ----
 
 Configuration File For Client and Service
@@ -779,7 +898,7 @@ Configuration File For Client and Service
 
 [source, bash]
 ----
-include::examples/hello_world/helloworld-local.json[]
+include::../examples/hello_world/helloworld-local.json[]
 ----
 
 Service
@@ -787,7 +906,7 @@ Service
 
 [source, bash]
 ----
-include::examples/hello_world/hello_world_service.cpp[]
+include::../examples/hello_world/hello_world_service.cpp[]
 ----
 
 The service example results in the following program execution:
@@ -870,7 +989,7 @@ Client
 ~~~~~~
 [source, bash]
 ----
-include::examples/hello_world/hello_world_client.cpp[]
+include::../examples/hello_world/hello_world_client.cpp[]
 ----
 
 The client example results in the following program execution:

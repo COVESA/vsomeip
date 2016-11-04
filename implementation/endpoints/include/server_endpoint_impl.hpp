@@ -55,8 +55,6 @@ public:
                              uint32_t _port, bool _flush);
     virtual void send_queued(queue_iterator_type _queue_iterator) = 0;
 
-    virtual endpoint_type get_remote() const = 0;
-
     virtual bool get_default_target(service_t _service,
             endpoint_type &_target) const = 0;
 

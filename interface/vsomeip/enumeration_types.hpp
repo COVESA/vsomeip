@@ -54,6 +54,14 @@ enum class subscription_type_e : uint8_t {
     SU_RELIABLE = 0x04,
 };
 
+enum class routing_state_e : uint8_t {
+    RS_RUNNING = 0x00,
+    RS_SUSPENDED = 0x01,
+    RS_RESUMED = 0x02,
+    RS_SHUTDOWN = 0x03,
+    RS_UNKNOWN = 0xFF
+};
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_ENUMERATION_TYPES_HPP

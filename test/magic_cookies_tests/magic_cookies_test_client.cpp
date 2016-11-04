@@ -26,7 +26,10 @@ public:
 
     void init() {
         VSOMEIP_INFO << "Initializing...";
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            exit(EXIT_FAILURE);
+        }
 
         app_->register_state_handler(
                 std::bind(
@@ -53,6 +56,7 @@ public:
 
     void stop() {
         VSOMEIP_INFO << "Stopping...";
+        app_->clear_all_handler();
         app_->stop();
     }
 

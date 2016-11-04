@@ -13,6 +13,13 @@
 #include "../include/endpoint_host.hpp"
 #include "../include/local_client_endpoint_impl.hpp"
 #include "../../logging/include/logger.hpp"
+#include "../include/local_server_endpoint_impl.hpp"
+#include "../../configuration/include/configuration.hpp"
+
+// Credentials
+#ifndef WIN32
+#include "../include/credentials.hpp"
+#endif
 
 namespace vsomeip {
 
@@ -21,9 +28,10 @@ local_client_endpoint_impl::local_client_endpoint_impl(
         endpoint_type _remote,
         boost::asio::io_service &_io,
         std::uint32_t _max_message_size)
-    : local_client_endpoint_base_impl(_host, _remote, _remote, _io, _max_message_size) {
-									  // Using _remote for the local(!) endpoint is ok,
-									  // because we have no bind for local endpoints!
+    : local_client_endpoint_base_impl(_host, _remote, _remote, _io, _max_message_size),
+                                      // Using _remote for the local(!) endpoint is ok,
+                                      // because we have no bind for local endpoints!
+      recv_buffer_(1,0) {
     is_supporting_magic_cookies_ = false;
 }
 
@@ -38,10 +46,13 @@ bool local_client_endpoint_impl::is_local() const {
 void local_client_endpoint_impl::start() {
     if (socket_.is_open()) {
         sending_blocked_ = false;
-        boost::system::error_code its_error;
-        socket_.cancel(its_error);
-        socket_.shutdown(socket_type::shutdown_both, its_error);
-        socket_.close(its_error);
+        {
+            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            boost::system::error_code its_error;
+            socket_.cancel(its_error);
+            socket_.shutdown(socket_type::shutdown_both, its_error);
+            socket_.close(its_error);
+        }
         restart();
     } else {
         connect();
@@ -53,9 +64,23 @@ void local_client_endpoint_impl::connect() {
     socket_.open(remote_.protocol(), its_error);
 
     if (!its_error || its_error == boost::asio::error::already_open) {
-        socket_.set_option(boost::asio::socket_base::reuse_address(true));
         boost::system::error_code error;
+        socket_.set_option(boost::asio::socket_base::reuse_address(true), error);
         error = socket_.connect(remote_, error);
+
+// Credentials
+#ifndef WIN32
+        if (!error) {
+            auto its_host = host_.lock();
+            if (its_host) {
+                if (its_host->get_configuration()->is_security_enabled()) {
+                    credentials::send_credentials(socket_.native(),
+                            its_host->get_client());
+                }
+            }
+        }
+#endif
+
         connect_cbk(error);
     } else {
         VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
@@ -65,9 +90,8 @@ void local_client_endpoint_impl::connect() {
 
 void local_client_endpoint_impl::receive() {
 #ifndef WIN32
-    receive_buffer_t its_buffer(VSOMEIP_MAX_LOCAL_MESSAGE_SIZE , 0);
     socket_.async_receive(
-        boost::asio::buffer(its_buffer),
+        boost::asio::buffer(recv_buffer_),
         std::bind(
             &local_client_endpoint_impl::receive_cbk,
             std::dynamic_pointer_cast<
@@ -129,11 +153,15 @@ void local_client_endpoint_impl::receive_cbk(
         // endpoint was stopped
         shutdown_and_close_socket();
     } else if (_error == boost::asio::error::connection_reset
-            || _error == boost::asio::error::eof) {
-        VSOMEIP_TRACE << "local_client_endpoint: connection_reseted/EOF";
-    } else {
+            || _error == boost::asio::error::eof
+            || _error != boost::asio::error::bad_descriptor) {
+        VSOMEIP_TRACE << "local_client_endpoint:"
+                " connection_reseted/EOF/bad_descriptor";
+    } else if (_error) {
         VSOMEIP_ERROR << "Local endpoint received message ("
                       << _error.message() << ")";
+    } else {
+        receive();
     }
 }
 

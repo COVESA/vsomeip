@@ -40,7 +40,10 @@ public:
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_message_handler(cpu_load_test::service_id,
                 cpu_load_test::instance_id, cpu_load_test::method_id,
                 std::bind(&cpu_load_test_service::on_message, this,
@@ -73,11 +76,7 @@ public:
     {
         VSOMEIP_INFO << "Stopping...";
         app_->stop_offer_service(cpu_load_test::service_id, cpu_load_test::instance_id);
-        app_->unregister_message_handler(cpu_load_test::service_id,
-                cpu_load_test::instance_id, cpu_load_test::method_id);
-        app_->unregister_message_handler(cpu_load_test::service_id,
-                cpu_load_test::instance_id, cpu_load_test::method_id_shutdown);
-        app_->unregister_state_handler();
+        app_->clear_all_handler();
         app_->stop();
     }
 

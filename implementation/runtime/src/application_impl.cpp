@@ -22,7 +22,6 @@
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_proxy.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../configuration/include/configuration_impl.hpp"
 #include "../../tracing/include/trace_connector.hpp"
 #include "../../tracing/include/enumeration_types.hpp"
 
@@ -32,11 +31,11 @@ uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
 application_impl::application_impl(const std::string &_name)
-        : client_(ILLEGAL_CLIENT),
+        : runtime_(runtime::get()),
+          client_(ILLEGAL_CLIENT),
           session_(1),
           is_initialized_(false), name_(_name),
-          file_(VSOMEIP_DEFAULT_CONFIGURATION_FILE),
-          folder_(VSOMEIP_DEFAULT_CONFIGURATION_FOLDER),
+          work_(std::make_shared<boost::asio::io_service::work>(io_)),
           routing_(0),
           state_(state_type_e::ST_DEREGISTERED),
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -60,8 +59,8 @@ application_impl::~application_impl() {
 
 void application_impl::set_configuration(
         const std::shared_ptr<configuration> _configuration) {
-    if(_configuration)
-        configuration_ = std::make_shared<cfg::configuration_impl>(*(std::static_pointer_cast<cfg::configuration_impl, configuration>(_configuration)));
+    (void)_configuration;
+    // Dummy.
 }
 
 bool application_impl::init() {
@@ -80,74 +79,26 @@ bool application_impl::init() {
     // load configuration from module
     std::string config_module = "";
     const char *its_config_module = getenv(VSOMEIP_ENV_CONFIGURATION_MODULE);
-    if(nullptr != its_config_module) {
-        config_module = its_config_module;
-        if (config_module.rfind(".so") != config_module.length() - 3) {
-                config_module += ".so";
-        }
-        VSOMEIP_INFO << "Loading configuration from module \"" << config_module << "\".";
-#ifdef WIN32
-        HMODULE config = LoadLibrary(config_module.c_str());
-        if (config != 0) {
-            VSOMEIP_INFO << "\"" << config_module << "\" is loaded.";
-            if (!configuration_) {
-                VSOMEIP_ERROR << "Configuration not set.";
-                return false;
-            }
-        } else {
-            VSOMEIP_ERROR << "\"" << config_module << "\" could not be loaded (" << GetLastError() << ")";
-            return false;
-        }
-        FreeModule(config);
-#else
-        void *config = dlopen(config_module.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-        if(config != 0) {
-            VSOMEIP_INFO << "\"" << config_module << "\" is loaded.";
-            if(!configuration_) {
-                VSOMEIP_ERROR << "Configuration not set.";
-                return false;
-            }
-        } else {
-            VSOMEIP_ERROR << "\"" << config_module << "\" could not be loaded (" << dlerror() << ").";
-            return false;
-        }
-        dlclose(config);
-#endif
-    } else {
-        // Override with local file /folder
-        std::string its_local_file(VSOMEIP_LOCAL_CONFIGURATION_FILE);
-        if (utility::is_file(its_local_file)) {
-            file_ = its_local_file;
-        }
+    if (nullptr != its_config_module) {
+        // TODO: Add loading of custom configuration module
+    } else { // load default module
+        std::shared_ptr<configuration> *its_configuration =
+                static_cast<std::shared_ptr<configuration> *>(utility::load_library(
+                        VSOMEIP_CFG_LIBRARY,
+                        VSOMEIP_CFG_RUNTIME_SYMBOL_STRING));
 
-        std::string its_local_folder(VSOMEIP_LOCAL_CONFIGURATION_FOLDER);
-        if (utility::is_folder(its_local_folder)) {
-            folder_ = its_local_folder;
-        }
-
-        // Finally, override with path from environment
-        const char *its_env = getenv(VSOMEIP_ENV_CONFIGURATION);
-        if (nullptr != its_env) {
-            if (utility::is_file(its_env)) {
-                file_ = its_env;
-                folder_ = "";
-            } else if (utility::is_folder(its_env)) {
-                folder_ = its_env;
-                file_ = "";
-            }
+        if (its_configuration && (*its_configuration)) {
+            configuration_ = (*its_configuration);
+            configuration_->load(name_);
+            VSOMEIP_INFO << "Default configuration module loaded.";
+        } else {
+            exit(-1);
         }
     }
 
     std::shared_ptr<configuration> its_configuration = get_configuration();
     if (its_configuration) {
         VSOMEIP_INFO << "Initializing vsomeip application \"" << name_ << "\".";
-
-        if (utility::is_file(file_))
-            VSOMEIP_INFO << "Using configuration file: \"" << file_ << "\".";
-
-        if (utility::is_folder(folder_))
-            VSOMEIP_INFO << "Using configuration folder: \"" << folder_ << "\".";
-
         client_ = its_configuration->get_id(name_);
 
         // Max dispatchers is the configured maximum number of dispatchers and
@@ -156,13 +107,13 @@ bool application_impl::init() {
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
 
         std::string its_routing_host = its_configuration->get_routing_host();
-        if (!utility::auto_configuration_init()) {
+        if (!utility::auto_configuration_init(its_configuration)) {
             VSOMEIP_WARNING << "Could _not_ initialize auto-configuration:"
                     " Cannot guarantee unique application identifiers!";
         } else {
             // Client Identifier
             client_t its_old_client = client_;
-            client_ = utility::request_client_id(name_, client_);
+            client_ = utility::request_client_id(its_configuration, name_, client_);
             if (client_ == ILLEGAL_CLIENT) {
                 VSOMEIP_ERROR << "Couldn't acquire client identifier";
                 return false;
@@ -178,11 +129,8 @@ bool application_impl::init() {
 
             // Routing
             if (its_routing_host == "") {
+                VSOMEIP_INFO << "No routing manager configured. Using auto-configuration.";
                 is_routing_manager_host_ = utility::is_routing_manager_host(client_);
-                VSOMEIP_INFO << "No routing manager configured. "
-                        << "Using auto-configuration ("
-                        << (is_routing_manager_host_ ?
-                                "Host" : "Proxy") << ")";
             } 
         }
 
@@ -191,8 +139,10 @@ bool application_impl::init() {
         }
 
         if (is_routing_manager_host_) {
+            VSOMEIP_INFO << "Instantiating routing manager [Host].";
             routing_ = std::make_shared<routing_manager_impl>(this);
         } else {
+            VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
             routing_ = std::make_shared<routing_manager_proxy>(this);
         }
 
@@ -294,7 +244,7 @@ void application_impl::start() {
 
         is_dispatching_ = true;
 
-        io_thread_id_ = std::this_thread::get_id();
+        start_caller_id_ = std::this_thread::get_id();
 
         auto its_main_dispatcher = std::make_shared<std::thread>(
                 std::bind(&application_impl::main_dispatch, this));
@@ -307,14 +257,19 @@ void application_impl::start() {
 
         if (routing_)
             routing_->start();
+
+        for (int i = 0; i < 3; i++) {
+            std::shared_ptr<std::thread> its_thread
+                = std::make_shared<std::thread>([this, i] {
+                      io_.run();
+                  });
+            io_threads_.insert(its_thread);
+        }
     }
 
     app_counter_mutex__.lock();
     app_counter__++;
     app_counter_mutex__.unlock();
-
-    work_ = std::make_shared<boost::asio::io_service::work>(io_);
-    io_.run();
 
     if (stop_thread_.joinable()) {
         stop_thread_.join();
@@ -360,7 +315,12 @@ void application_impl::stop() {
         stop_caller_id_ = std::this_thread::get_id();
         stopped_ = true;
         stopped_called_ = true;
-        if (io_thread_id_ == std::this_thread::get_id()) {
+        for (auto thread : io_threads_) {
+            if (thread->get_id() == std::this_thread::get_id()) {
+                block = false;
+            }
+        }
+        if (start_caller_id_ == stop_caller_id_) {
             block = false;
         }
     }
@@ -640,19 +600,25 @@ void application_impl::send(std::shared_ptr<message> _message, bool _flush) {
 
 void application_impl::notify(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload) const {
-    return notify(_service, _instance, _event, _payload, false);
+    return notify(_service, _instance, _event, _payload, false, true);
 }
 
 void application_impl::notify(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload, bool _force) const {
     if (routing_)
-        routing_->notify(_service, _instance, _event, _payload, _force);
+        routing_->notify(_service, _instance, _event, _payload, _force, true);
+}
+
+void application_impl::notify(service_t _service, instance_t _instance,
+        event_t _event, std::shared_ptr<payload> _payload, bool _force, bool _flush) const {
+    if (routing_)
+        routing_->notify(_service, _instance, _event, _payload, _force, _flush);
 }
 
 void application_impl::notify_one(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload,
         client_t _client) const {
-    return notify_one(_service, _instance, _event, _payload, _client, false);
+    return notify_one(_service, _instance, _event, _payload, _client, false, true);
 }
 
 void application_impl::notify_one(service_t _service, instance_t _instance,
@@ -660,7 +626,16 @@ void application_impl::notify_one(service_t _service, instance_t _instance,
         client_t _client, bool _force) const {
     if (routing_) {
         routing_->notify_one(_service, _instance, _event, _payload, _client,
-                _force);
+                _force, true);
+    }
+}
+
+void application_impl::notify_one(service_t _service, instance_t _instance,
+        event_t _event, std::shared_ptr<payload> _payload,
+        client_t _client, bool _force, bool _flush) const {
+    if (routing_) {
+        routing_->notify_one(_service, _instance, _event, _payload, _client,
+                _force, _flush);
     }
 }
 
@@ -749,7 +724,7 @@ void application_impl::register_subscription_handler(service_t _service,
     subscription_[_service][_instance][_eventgroup] = _handler;
 
     message_handler_t handler([&](const std::shared_ptr<message>& request) {
-        send(runtime::get()->create_response(request), true);
+        send(runtime_->create_response(request), true);
     });
     register_message_handler(_service, _instance, ANY_METHOD - 1, handler);
 }
@@ -895,20 +870,7 @@ client_t application_impl::get_client() const {
 }
 
 std::shared_ptr<configuration> application_impl::get_configuration() const {
-    if(configuration_) {
-        return configuration_;
-    } else {
-        std::set<std::string> its_input;
-        std::shared_ptr<configuration> its_configuration;
-        if (file_ != "") {
-            its_input.insert(file_);
-        }
-        if (folder_ != "") {
-            its_input.insert(folder_);
-        }
-        its_configuration = configuration::get(its_input);
-        return its_configuration;
-    }
+    return configuration_;
 }
 
 boost::asio::io_service & application_impl::get_io() {
@@ -916,24 +878,25 @@ boost::asio::io_service & application_impl::get_io() {
 }
 
 void application_impl::on_state(state_type_e _state) {
-    if (state_ != _state) {
-        state_ = _state;
-        if (state_ == state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> availability_lock(availability_mutex_);
-            for (auto &its_service : availability_) {
-                for (auto &its_instance : its_service.second) {
-                    if (!std::get<3>(its_instance.second)) {
-                        do_register_availability_handler(
-                                its_service.first, its_instance.first,
-                                std::get<2>(its_instance.second),
-                                std::get<0>(its_instance.second),
-                                std::get<1>(its_instance.second));
+    {
+        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        if (state_ != _state) {
+            state_ = _state;
+            if (state_ == state_type_e::ST_REGISTERED) {
+                for (auto &its_service : availability_) {
+                    for (auto &its_instance : its_service.second) {
+                        if (!std::get<3>(its_instance.second)) {
+                            do_register_availability_handler(
+                                    its_service.first, its_instance.first,
+                                    std::get<2>(its_instance.second),
+                                    std::get<0>(its_instance.second),
+                                    std::get<1>(its_instance.second));
+                        }
                     }
                 }
             }
         }
     }
-
     if (handler_) {
         {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
@@ -1161,15 +1124,9 @@ routing_manager * application_impl::get_routing_manager() const {
     return routing_.get();
 }
 
-// Internal
-void application_impl::service() {
-    io_.run();
-}
-
 void application_impl::main_dispatch() {
+    std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_dispatching_) {
-        std::unique_lock<std::mutex> its_lock(handlers_mutex_);
-
         if (handlers_.empty()) {
             // Cancel other waiting dispatcher
             dispatcher_condition_.notify_all();
@@ -1178,7 +1135,7 @@ void application_impl::main_dispatch() {
                 dispatcher_condition_.wait(its_lock);
             }
         } else {
-            while (!handlers_.empty()) {
+            while (is_dispatching_ && !handlers_.empty()) {
                 std::shared_ptr<sync_handler> its_handler = handlers_.front();
                 handlers_.pop_front();
                 its_lock.unlock();
@@ -1301,6 +1258,10 @@ void application_impl::clear_all_handler() {
 }
 
 void application_impl::shutdown() {
+#ifndef WIN32
+    boost::asio::detail::posix_signal_blocker blocker;
+#endif
+
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
         while(!stopped_) {
@@ -1308,7 +1269,7 @@ void application_impl::shutdown() {
         }
     }
     {
-        std::unique_lock<std::mutex> its_lock(handlers_mutex_);
+        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
         is_dispatching_ = false;
     }
     dispatcher_condition_.notify_all();
@@ -1338,6 +1299,14 @@ void application_impl::shutdown() {
 
     work_.reset();
     io_.stop();
+
+    {
+        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        for (auto t : io_threads_) {
+            t->join();
+        }
+        io_threads_.clear();
+    }
 }
 
 bool application_impl::is_routing() const {
@@ -1350,7 +1319,7 @@ void application_impl::send_back_cached_event(service_t _service,
     std::shared_ptr<event> its_event = routing_->get_event(_service,
             _instance, _event);
     if (its_event && its_event->is_field() && its_event->is_set()) {
-        std::shared_ptr<message> its_message = runtime::get()->create_notification();
+        std::shared_ptr<message> its_message = runtime_->create_notification();
         its_message->set_service(_service);
         its_message->set_method(_event);
         its_message->set_instance(_instance);
@@ -1367,7 +1336,7 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
             _eventgroup);
     for(const auto &its_event : its_events) {
         if (its_event && its_event->is_field() && its_event->is_set()) {
-            std::shared_ptr<message> its_message = runtime::get()->create_notification();
+            std::shared_ptr<message> its_message = runtime_->create_notification();
             its_message->set_service(_service);
             its_message->set_method(its_event->get_event());
             its_message->set_instance(_instance);
@@ -1376,6 +1345,11 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
             on_message(its_message);
         }
     }
+}
+
+void application_impl::set_routing_state(routing_state_e _routing_state) {
+    if (routing_)
+        routing_->set_routing_state(_routing_state);
 }
 
 } // namespace vsomeip

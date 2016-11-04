@@ -31,7 +31,10 @@ public:
             wait_until_other_services_available_(true),
             wait_for_stop_(true),
             stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            EXPECT_TRUE(false);
+        }
         app_->register_state_handler(
                 std::bind(&initial_event_test_availability_checker::on_state, this,
                         std::placeholders::_1));
@@ -103,6 +106,7 @@ public:
         }
         VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << client_number_ << "] all services are available. Going down";
+        app_->clear_all_handler();
         app_->stop();
     }
 
