@@ -146,6 +146,7 @@ void local_client_endpoint_impl::receive_cbk(
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             shutdown_and_close_socket();
+            return;
         } else if (_error == boost::asio::error::connection_reset
                 || _error == boost::asio::error::eof
                 || _error == boost::asio::error::bad_descriptor) {

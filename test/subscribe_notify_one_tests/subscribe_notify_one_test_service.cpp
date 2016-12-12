@@ -292,8 +292,6 @@ public:
                 continue;
             }
 
-            app_->request_service(i.service_id, i.instance_id, vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR, true);
-
             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
                             vsomeip::DEFAULT_MAJOR, subscription_type_);
 

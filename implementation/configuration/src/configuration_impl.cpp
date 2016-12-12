@@ -474,16 +474,20 @@ void configuration_impl::load_application_data(
     }
     if (its_name != "") {
         if (applications_.find(its_name) == applications_.end()) {
-            if (!is_configured_client_id(its_id)) {
-                applications_[its_name]
-                    = std::make_tuple(its_id, its_max_dispatchers,
-                            its_max_dispatch_time, its_io_thread_count);
-                client_identifiers_.insert(its_id);
-            } else {
-                VSOMEIP_WARNING << "Multiple configurations for application "
-                        << its_name << ". Ignoring a configuration from "
-                        << _file_name;
+            if (its_id > 0) {
+                if (!is_configured_client_id(its_id)) {
+                    client_identifiers_.insert(its_id);
+                } else {
+                    VSOMEIP_ERROR << "Multiple applications are configured to use"
+                            << " client identifier " << std::hex << its_id
+                            << ". Ignoring the configuration for application "
+                            << its_name;
+                    its_id = 0;
+                }
             }
+            applications_[its_name]
+                = std::make_tuple(its_id, its_max_dispatchers,
+                        its_max_dispatch_time, its_io_thread_count);
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "

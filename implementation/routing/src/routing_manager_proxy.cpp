@@ -539,6 +539,12 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
     (void)_client;
     bool is_sent(false);
     bool has_remote_subscribers(false);
+    {
+        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        if (state_ != inner_state_type_e::ST_REGISTERED) {
+            return false;
+        }
+    }
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
         std::shared_ptr<endpoint> its_target;
         if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
@@ -647,31 +653,6 @@ bool routing_manager_proxy::send_to(
     (void)_size;
     (void)_flush;
     return (false);
-}
-
-void routing_manager_proxy::notify(
-        service_t _service, instance_t _instance, event_t _event,
-        std::shared_ptr<payload> _payload, bool _force, bool _flush) {
-    {
-        std::lock_guard<std::mutex> its_lock(state_mutex_);
-        if (state_ == inner_state_type_e::ST_REGISTERED) {
-            routing_manager_base::notify(_service, _instance, _event, _payload, _force, _flush);
-        }
-
-        if (is_field(_service, _instance, _event)){
-            std::shared_ptr<message> its_notification
-                = runtime::get()->create_notification();
-            its_notification->set_service(_service);
-            its_notification->set_instance(_instance);
-            its_notification->set_method(_event);
-            its_notification->set_payload(_payload);
-            auto service_info = find_service(_service, _instance);
-            if (service_info) {
-                its_notification->set_interface_version(service_info->get_major());
-            }
-            pending_notifications_[_service][_instance][_event] = its_notification;
-        }
-    }
 }
 
 void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -1463,15 +1444,6 @@ void routing_manager_proxy::send_pending_commands() {
         send_register_event(client_, per.service_, per.instance_,
                 per.event_, per.eventgroups_,
                 per.is_field_, per.is_provided_);
-
-    for (auto &s : pending_notifications_) {
-        for (auto &i : s.second) {
-            for (auto &pn : i.second) {
-                routing_manager_base::notify(s.first, i.first,
-                        pn.first, pn.second->get_payload(), false, true); // TODO: Use _flush argument to send all events at once
-            }
-        }
-    }
 
     for (auto &po : pending_requests_) {
         send_request_service(client_, po.service_, po.instance_,

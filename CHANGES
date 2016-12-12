@@ -260,3 +260,9 @@ v2.5.1
 - Made number of internal threads per application configurable.
 - Postpone notify_one events sent from subscription handler to ensure correct
   message order on receiver side.
+
+v2.5.2
+- Fixed deadlock and crashes
+- Prevent race of initial attributes
+- Allow incomplete application configurations
+- Unit test timeouts increased to avoid failures on (slow) build servers

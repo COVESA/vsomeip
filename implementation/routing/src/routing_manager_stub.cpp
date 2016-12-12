@@ -88,8 +88,10 @@ void routing_manager_stub::start() {
         VSOMEIP_INFO << "Watchdog is disabled!";
     }
 
-    std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
-    routing_info_[host_->get_client()].first = 0;
+    {
+        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        routing_info_[host_->get_client()].first = 0;
+    }
 }
 
 void routing_manager_stub::stop() {
@@ -127,7 +129,10 @@ void routing_manager_stub::stop() {
 #endif
     }
 
-    broadcast_routing_info(true);
+    {
+        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        broadcast_routing_info(true);
+    }
 }
 
 const std::shared_ptr<configuration> routing_manager_stub::get_configuration() const {
@@ -551,24 +556,31 @@ void routing_manager_stub::on_register_application(client_t _client) {
 }
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
-    routing_info_mutex_.lock();
-    auto its_info = routing_info_.find(_client);
-    if (its_info != routing_info_.end()) {
-        for (auto &its_service : its_info->second.second) {
-            for (auto &its_instance : its_service.second) {
-                auto its_version = its_instance.second;
-                routing_info_mutex_.unlock();
-                host_->on_availability(its_service.first, its_instance.first,
-                        false, its_version.first, its_version.second);
-                host_->on_stop_offer_service(_client, its_service.first,
-                        its_instance.first, its_version.first,
-                        its_version.second);
-                routing_info_mutex_.lock();
+    std::vector<
+            std::tuple<service_t, instance_t,
+                       major_version_t, minor_version_t>> services_to_report;
+    {
+        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        auto its_info = routing_info_.find(_client);
+        if (its_info != routing_info_.end()) {
+            for (const auto &its_service : its_info->second.second) {
+                for (const auto &its_instance : its_service.second) {
+                    const auto its_version = its_instance.second;
+                    services_to_report.push_back(
+                            std::make_tuple(its_service.first,
+                                    its_instance.first, its_version.first,
+                                    its_version.second));
+                }
             }
         }
+        routing_info_.erase(_client);
     }
-    routing_info_.erase(_client);
-    routing_info_mutex_.unlock();
+    for (const auto &s : services_to_report) {
+        host_->on_availability(std::get<0>(s), std::get<1>(s), false,
+                std::get<2>(s), std::get<3>(s));
+        host_->on_stop_offer_service(_client, std::get<0>(s), std::get<1>(s),
+                std::get<2>(s), std::get<3>(s));
+    }
 }
 
 void routing_manager_stub::client_registration_func(void) {
@@ -694,13 +706,13 @@ void routing_manager_stub::init_routing_endpoint() {
 
 void routing_manager_stub::on_offer_service(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
     if (_client == host_->get_client()) {
         create_local_receiver();
     }
 
     if (_client == VSOMEIP_ROUTING_CLIENT ||
             configuration_->is_offer_allowed(_client, _service, _instance)) {
+        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
         routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
         broadcast_routing_info();
     } else {

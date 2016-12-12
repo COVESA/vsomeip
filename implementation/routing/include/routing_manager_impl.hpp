@@ -348,6 +348,7 @@ private:
     std::map<bool, std::set<uint16_t>> used_client_ports_;
     std::mutex used_client_ports_mutex_;
 
+    std::mutex version_log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
 
     bool if_state_running_;

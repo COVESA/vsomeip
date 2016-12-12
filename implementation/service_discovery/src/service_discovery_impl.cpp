@@ -161,8 +161,14 @@ void service_discovery_impl::start() {
 void service_discovery_impl::stop() {
     boost::system::error_code ec;
     is_suspended_ = true;
-    main_phase_timer_.cancel(ec);
-    offer_debounce_timer_.cancel(ec);
+    {
+        std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
+        main_phase_timer_.cancel(ec);
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
+        offer_debounce_timer_.cancel(ec);
+    }
     {
         std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
         for(const auto &t : repetition_phase_timers_) {
@@ -968,8 +974,6 @@ bool service_discovery_impl::send(bool _is_announcing, bool _is_find) {
         std::vector< std::shared_ptr< message_impl > > its_messages;
         std::shared_ptr < message_impl > its_message;
 
-        uint32_t its_remaining(max_message_size_);
-
         if (_is_find || !_is_announcing) {
             uint32_t its_start(0);
             uint32_t its_size(0);
@@ -981,7 +985,6 @@ bool service_discovery_impl::send(bool _is_announcing, bool _is_find) {
                 insert_find_entries(its_message, its_start, its_size, is_done);
                 its_start += its_size / VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
             };
-            its_remaining -= its_size;
         } else {
             its_message = its_runtime->create_message();
             its_messages.push_back(its_message);
@@ -2274,6 +2277,7 @@ void service_discovery_impl::offer_service(service_t _service,
 }
 
 void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+    std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
     boost::system::error_code ec;
     if (_first_start) {
         offer_debounce_timer_.expires_from_now(initial_delay_, ec);
@@ -2564,6 +2568,7 @@ bool service_discovery_impl::send_stop_offer(
 }
 
 void service_discovery_impl::start_main_phase_timer() {
+    std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
     boost::system::error_code ec;
     main_phase_timer_.expires_from_now(cyclic_offer_delay_);
     if (ec) {
@@ -2601,9 +2606,12 @@ void service_discovery_impl::send_uni_or_multicast_offerservice(
 
 bool service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
     //get remaining time to next offer since last offer
-    std::chrono::milliseconds remaining = std::chrono::duration_cast<
-            std::chrono::milliseconds>(main_phase_timer_.expires_from_now());
-
+    std::chrono::milliseconds remaining(0);
+    {
+        std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
+        remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                main_phase_timer_.expires_from_now());
+    }
     if (std::chrono::milliseconds(0) > remaining) {
         remaining = cyclic_offer_delay_;
     }

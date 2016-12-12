@@ -8,6 +8,7 @@
 
 #include <map>
 #include <mutex>
+#include <atomic>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -75,9 +76,6 @@ public:
     void unregister_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
             bool _is_provided);
-
-    void notify(service_t _service, instance_t _instance, event_t _event,
-            std::shared_ptr<payload> _payload, bool _force, bool _flush);
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
@@ -165,7 +163,7 @@ private:
     };
 
     bool is_connected_;
-    bool is_started_;
+    std::atomic<bool> is_started_;
     inner_state_type_e state_;
 
     std::shared_ptr<endpoint> sender_;  // --> stub
@@ -211,11 +209,6 @@ private:
 
     std::map<client_t, std::set<eventgroup_data_t>> pending_ingoing_subscripitons_;
     std::mutex pending_ingoing_subscripitons_mutex_;
-
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<event_t,
-                std::shared_ptr<message> > > > pending_notifications_;
 
     std::mutex deserialize_mutex_;
 

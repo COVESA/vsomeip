@@ -11,6 +11,7 @@
 #include <mutex>
 #include <set>
 #include <forward_list>
+#include <atomic>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -306,6 +307,7 @@ private:
     std::chrono::milliseconds repetitions_base_delay_;
     std::uint8_t repetitions_max_;
     std::chrono::milliseconds cyclic_offer_delay_;
+    std::mutex offer_debounce_timer_mutex_;
     boost::asio::steady_timer offer_debounce_timer_;
     // this map is used to collect offers while for offer debouncing
     std::mutex collected_offers_mutex_;
@@ -316,9 +318,10 @@ private:
     std::map<std::shared_ptr<boost::asio::steady_timer>,
             services_t> repetition_phase_timers_;
 
+    std::mutex main_phase_timer_mutex_;
     boost::asio::steady_timer main_phase_timer_;
 
-    bool is_suspended_;
+    std::atomic<bool> is_suspended_;
 
     std::string sd_multicast_;
 

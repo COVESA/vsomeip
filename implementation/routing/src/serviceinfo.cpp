@@ -42,20 +42,24 @@ minor_version_t serviceinfo::get_minor() const {
 }
 
 ttl_t serviceinfo::get_ttl() const {
+  std::lock_guard<std::mutex> its_lock(ttl_mutex_);
   ttl_t ttl = static_cast<ttl_t>(std::chrono::duration_cast<std::chrono::seconds>(ttl_).count());
   return ttl;
 }
 
 void serviceinfo::set_ttl(ttl_t _ttl) {
+  std::lock_guard<std::mutex> its_lock(ttl_mutex_);
   std::chrono::seconds ttl = static_cast<std::chrono::seconds>(_ttl);
   ttl_ = std::chrono::duration_cast<std::chrono::milliseconds> (ttl);
 }
 
 std::chrono::milliseconds serviceinfo::get_precise_ttl() const {
+  std::lock_guard<std::mutex> its_lock(ttl_mutex_);
   return ttl_;
 }
 
 void serviceinfo::set_precise_ttl(std::chrono::milliseconds _precise_ttl) {
+  std::lock_guard<std::mutex> its_lock(ttl_mutex_);
   ttl_ = _precise_ttl;
 }
 
@@ -73,14 +77,17 @@ void serviceinfo::set_endpoint(std::shared_ptr<endpoint> _endpoint,
 }
 
 void serviceinfo::add_client(client_t _client) {
+  std::lock_guard<std::mutex> its_lock(requesters_mutex_);
   requesters_.insert(_client);
 }
 
 void serviceinfo::remove_client(client_t _client) {
+  std::lock_guard<std::mutex> its_lock(requesters_mutex_);
   requesters_.erase(_client);
 }
 
 uint32_t serviceinfo::get_requesters_size() {
+    std::lock_guard<std::mutex> its_lock(requesters_mutex_);
     return static_cast<std::uint32_t>(requesters_.size());
 }
 

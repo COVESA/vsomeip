@@ -245,6 +245,7 @@ private:
     state_type_e state_;
 
     // vsomeip state handler
+    std::mutex state_handler_mutex_;
     state_handler_t handler_;
 
     // Method/Event (=Member) handlers

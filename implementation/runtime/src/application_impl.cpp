@@ -643,10 +643,12 @@ void application_impl::notify_one(service_t _service, instance_t _instance,
 }
 
 void application_impl::register_state_handler(state_handler_t _handler) {
+    std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
     handler_ = _handler;
 }
 
 void application_impl::unregister_state_handler() {
+    std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
     handler_ = nullptr;
 }
 
@@ -900,16 +902,22 @@ void application_impl::on_state(state_type_e _state) {
             }
         }
     }
-    if (handler_) {
+    bool has_state_handler(false);
+    state_handler_t handler = nullptr;
+    {
+        std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
+        if (handler_) {
+            has_state_handler = true;
+            handler = handler_;
+        }
+    }
+    if (has_state_handler) {
         {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-
-            state_handler_t handler = handler_;
             std::shared_ptr<sync_handler> its_sync_handler
                 = std::make_shared<sync_handler>([handler, _state]() {
                                                     handler(_state);
                                                  });
-
             handlers_.push_back(its_sync_handler);
         }
         dispatcher_condition_.notify_one();
