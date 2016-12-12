@@ -46,6 +46,11 @@ then
 fi
 
 print_starter_message () {
+
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting initial event test on slave LXC with params $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG\"" &
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -59,6 +64,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 }
 
 # replace master with slave to be able display the correct json file to be used

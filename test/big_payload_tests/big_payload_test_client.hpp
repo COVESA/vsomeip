@@ -14,14 +14,16 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <atomic>
 
-#include "../someip_test_globals.hpp"
+#include "big_payload_test_globals.hpp"
+#include "../../implementation/logging/include/logger.hpp"
 
 class big_payload_test_client
 {
 public:
-    big_payload_test_client(bool _use_tcp);
-    void init();
+    big_payload_test_client(bool _use_tcp, big_payload_test::test_mode _random_mode);
+    bool init();
     void start();
     void stop();
     void join_sender_thread();
@@ -40,10 +42,12 @@ private:
     bool running_;
     bool blocked_;
     bool is_available_;
+    big_payload_test::test_mode test_mode_;
     std::uint32_t number_of_messages_to_send_;
     std::uint32_t number_of_sent_messages_;
-    std::uint32_t number_of_acknowledged_messages_;
+    std::atomic<std::uint32_t> number_of_acknowledged_messages_;
     std::thread sender_;
+    vsomeip::service_t service_id_;
 };
 
 #endif /* BIGPAYLOADTESTCLIENT_HPP_ */

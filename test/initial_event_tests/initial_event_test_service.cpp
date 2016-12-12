@@ -28,8 +28,8 @@ public:
             wait_until_registered_(true),
             offer_thread_(std::bind(&initial_event_test_service::run, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&initial_event_test_service::on_state, this,

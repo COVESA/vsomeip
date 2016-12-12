@@ -14,11 +14,11 @@
 namespace vsomeip {
 
 eventgroupinfo::eventgroupinfo()
-        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL) {
+        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL), port_(ILLEGAL_PORT), threshold_(0) {
 }
 
 eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl)
-        : major_(_major), ttl_(_ttl) {
+        : major_(_major), ttl_(_ttl), port_(ILLEGAL_PORT), threshold_(0) {
 }
 
 eventgroupinfo::~eventgroupinfo() {

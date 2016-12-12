@@ -129,7 +129,7 @@ void udp_server_endpoint_impl::send_queued(
         for (std::size_t i = 0; i < its_buffer->size(); ++i)
             msg << std::hex << std::setw(2) << std::setfill('0')
                 << (int)(*its_buffer)[i] << " ";
-        VSOMEIP_DEBUG << msg.str();
+        VSOMEIP_INFO << msg.str();
 #endif
      socket_.async_send_to(
         boost::asio::buffer(*its_buffer),
@@ -142,21 +142,6 @@ void udp_server_endpoint_impl::send_queued(
             std::placeholders::_2
         )
     );
-}
-
-bool udp_server_endpoint_impl::get_remote_address(
-        boost::asio::ip::address &_address) const {
-    boost::asio::ip::address its_address = remote_.address();
-    if (its_address.is_unspecified()) {
-        return false;
-    } else {
-        _address = its_address;
-    }
-    return true;
-}
-
-unsigned short udp_server_endpoint_impl::get_remote_port() const {
-    return remote_.port();
 }
 
 bool udp_server_endpoint_impl::is_joined(const std::string &_address) const {
@@ -193,7 +178,7 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
             }
             joined_.insert(_address);
         } else {
-            VSOMEIP_DEBUG << "udp_server_endpoint_impl::join: "
+            VSOMEIP_INFO << "udp_server_endpoint_impl::join: "
                     "Trying to join already joined address: " << _address;
         }
     }
@@ -257,13 +242,15 @@ void udp_server_endpoint_impl::receive_cbk(
     for (std::size_t i = 0; i < _bytes; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0')
             << (int) recv_buffer_[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
     std::shared_ptr<endpoint_host> its_host = this->host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
             std::size_t remaining_bytes = _bytes;
             std::size_t i = 0;
+            const boost::asio::ip::address its_remote_address(remote_.address());
+            const std::uint16_t its_remote_port(remote_.port());
             do {
                 uint32_t current_message_size
                     = utility::get_message_size(&this->recv_buffer_[i],
@@ -290,7 +277,10 @@ void udp_server_endpoint_impl::receive_cbk(
                     if (its_service != VSOMEIP_SD_SERVICE ||
                         (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
                                 current_message_size >= remaining_bytes)) {
-                            its_host->on_message(&recv_buffer_[i], current_message_size, this, _destination);
+                        its_host->on_message(&recv_buffer_[i],
+                                current_message_size, this, _destination,
+                                VSOMEIP_ROUTING_CLIENT, its_remote_address,
+                                its_remote_port);
                     } else {
                         //ignore messages for service discovery with shorter SomeIP length
                         VSOMEIP_ERROR << "Received an unreliable vSomeIP SD message with too short length field";
@@ -301,7 +291,9 @@ void udp_server_endpoint_impl::receive_cbk(
                     service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[VSOMEIP_SERVICE_POS_MIN],
                             recv_buffer_[VSOMEIP_SERVICE_POS_MAX]);
                     if (its_service != VSOMEIP_SD_SERVICE) {
-                        its_host->on_error(&recv_buffer_[i], (uint32_t)remaining_bytes, this);
+                        its_host->on_error(&recv_buffer_[i],
+                                (uint32_t)remaining_bytes, this,
+                                its_remote_address, its_remote_port);
                     }
                     remaining_bytes = 0;
                 }

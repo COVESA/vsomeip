@@ -13,22 +13,23 @@
 namespace vsomeip {
 
 message_header_impl::message_header_impl()
-    : service_(0x0), method_(0x0),
+    : service_(0x0), method_(0x0), length_(0x0),
       client_(0x0), session_(0x0),
       protocol_version_(0x1), interface_version_(0x0),
       type_(message_type_e::MT_UNKNOWN),
       code_(return_code_e::E_UNKNOWN),
-      instance_(0x0) {
+      instance_(0x0), owner_(0x0) {
 };
 
 message_header_impl::message_header_impl(const message_header_impl &_header)
     : service_(_header.service_), method_(_header.method_),
+      length_(_header.length_),
       client_(_header.client_), session_(_header.session_),
       protocol_version_(_header.protocol_version_),
       interface_version_(_header.interface_version_),
       type_(_header.type_),
       code_(_header.code_),
-      instance_(_header.instance_) {
+      instance_(_header.instance_), owner_(_header.owner_) {
 };
 
 bool message_header_impl::serialize(serializer *_to) const {

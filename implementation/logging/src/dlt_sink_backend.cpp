@@ -21,9 +21,7 @@ dlt_sink_backend::dlt_sink_backend(const std::string &_app_id,
                                    const std::string &_context_id) {
     (void)_app_id;
 #ifdef USE_DLT
-    DLT_REGISTER_CONTEXT_LL_TS(dlt_, _context_id.c_str(),
-            VSOMEIP_LOG_DEFAULT_CONTEXT_NAME, DLT_LOG_DEBUG,
-            DLT_TRACE_STATUS_ON);
+    DLT_REGISTER_CONTEXT(dlt_, _context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
 #else
     (void)_context_id;
 #endif

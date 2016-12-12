@@ -20,7 +20,7 @@ class payload_test_service
 {
 public:
     payload_test_service(bool _use_tcp);
-    void init();
+    bool init();
     void start();
     void stop();
     void offer();

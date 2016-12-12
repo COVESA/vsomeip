@@ -37,7 +37,7 @@ BOOST_ASIO_DECL size_t sync_recvfrom(socket_type s, state_type state,
 BOOST_ASIO_DECL void complete_iocp_recvfrom(
     const weak_cancel_token_type& cancel_token,
     boost::system::error_code& ec,
-	boost::asio::ip::address& da);
+    boost::asio::ip::address& da);
 
 #else // defined(BOOST_ASIO_HAS_IOCP)
 

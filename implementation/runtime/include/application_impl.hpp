@@ -146,7 +146,7 @@ public:
     VSOMEIP_EXPORT void on_state(state_type_e _state);
     VSOMEIP_EXPORT void on_availability(service_t _service, instance_t _instance,
             bool _is_available, major_version_t _major, minor_version_t _minor);
-    VSOMEIP_EXPORT void on_message(std::shared_ptr<message> _message);
+    VSOMEIP_EXPORT void on_message(const std::shared_ptr<message> &&_message);
     VSOMEIP_EXPORT void on_error(error_code_e _error);
     VSOMEIP_EXPORT bool on_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client, bool _subscribed);
@@ -290,7 +290,6 @@ private:
     std::mutex dispatcher_mutex_;
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;
-    boost::asio::steady_timer dispatcher_timer_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
 

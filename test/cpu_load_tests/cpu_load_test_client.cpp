@@ -53,8 +53,8 @@ public:
             wait_for_all_msg_acknowledged_(true),
             sender_(std::bind(&cpu_load_test_client::run, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
 
         app_->register_state_handler(

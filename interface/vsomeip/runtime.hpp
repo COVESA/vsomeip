@@ -50,6 +50,8 @@ public:
 
     virtual std::shared_ptr<application> get_application(
             const std::string &_name) const = 0;
+
+    virtual void remove_application( const std::string &_name) = 0;
 };
 
 } // namespace vsomeip

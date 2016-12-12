@@ -43,6 +43,8 @@ public:
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client) = 0;
     virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
+    virtual void unsubscribe_client(service_t _service, instance_t _instance,
+                                    client_t _client) = 0;
 
     virtual bool send(bool _is_announcing, bool _is_find = false) = 0;
 

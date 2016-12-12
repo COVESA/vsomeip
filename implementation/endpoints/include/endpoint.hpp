@@ -37,9 +37,7 @@ public:
             const std::string &_address, uint16_t _port) = 0;
     virtual void remove_default_target(service_t _service) = 0;
 
-    virtual bool get_remote_address(boost::asio::ip::address &_address) const = 0;
     virtual unsigned short get_local_port() const = 0;
-    virtual unsigned short get_remote_port() const = 0;
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
 

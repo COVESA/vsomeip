@@ -27,10 +27,13 @@ public:
             offer_thread_(std::bind(&service_sample::run, this)) {
     }
 
-    void init() {
+    bool init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
-        app_->init();
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
         app_->register_state_handler(
                 std::bind(&service_sample::on_state, this,
                         std::placeholders::_1));
@@ -41,6 +44,7 @@ public:
 
         std::cout << "Static routing " << (use_static_routing_ ? "ON" : "OFF")
                   << std::endl;
+        return true;
     }
 
     void start() {
@@ -54,6 +58,8 @@ public:
     void stop() {
         running_ = false;
         blocked_ = true;
+        app_->clear_all_handler();
+        stop_offer();
         condition_.notify_one();
         offer_thread_.join();
         app_->stop();
@@ -172,8 +178,10 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    its_sample.init();
-    its_sample.start();
-
-    return 0;
+    if (its_sample.init()) {
+        its_sample.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

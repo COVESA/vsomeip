@@ -17,20 +17,28 @@
 
 namespace vsomeip {
 
-deserializer::deserializer()
+deserializer::deserializer(std::uint32_t _buffer_shrink_threshold)
     : position_(data_.begin()),
-      remaining_(0) {
+      remaining_(0),
+      buffer_shrink_threshold_(_buffer_shrink_threshold),
+      shrink_count_(0) {
 }
 
-deserializer::deserializer(byte_t *_data, std::size_t _length)
+deserializer::deserializer(byte_t *_data, std::size_t _length,
+                           std::uint32_t _buffer_shrink_threshold)
     : data_(_data, _data + _length),
       position_(data_.begin()),
-      remaining_(_length) {
+      remaining_(_length),
+      buffer_shrink_threshold_(_buffer_shrink_threshold),
+      shrink_count_(0) {
 }
 
 deserializer::deserializer(const deserializer &_other)
     : data_(_other.data_),
-      position_(_other.position_){
+      position_(_other.position_),
+      remaining_(_other.remaining_),
+      buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
+      shrink_count_(_other.shrink_count_) {
 }
 
 deserializer::~deserializer() {
@@ -183,9 +191,20 @@ void deserializer::drop_data(std::size_t _length) {
 }
 
 void deserializer::reset() {
-    data_.erase(data_.begin(), position_);
+    if (buffer_shrink_threshold_) {
+        if (data_.size() < (data_.capacity() >> 1)) {
+            shrink_count_++;
+        } else {
+            shrink_count_ = 0;
+        }
+    }
+    data_.clear();
     position_ = data_.begin();
     remaining_ = data_.size();
+    if (buffer_shrink_threshold_ && shrink_count_ > buffer_shrink_threshold_) {
+        data_.shrink_to_fit();
+        shrink_count_ = 0;
+    }
 }
 
 #ifdef VSOMEIP_DEBUGGING
@@ -198,7 +217,7 @@ void deserializer::show() const {
     for (int i = 0; i < data_.size(); ++i)
         its_message << std::hex << std::setw(2) << std::setfill('0')
                     << (int)data_[i] << " ";
-    VSOMEIP_DEBUG << its_message;
+    VSOMEIP_INFO << its_message;
 }
 #endif
 

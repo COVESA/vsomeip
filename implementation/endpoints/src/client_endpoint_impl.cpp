@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <thread>
+#include <limits>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -124,8 +125,16 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
     for (uint32_t i = 0; i < _size; i++)
     msg << std::hex << std::setw(2) << std::setfill('0')
     << (int)_data[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
+
+    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
+            && _size > endpoint_impl<Protocol>::max_message_size_) {
+        VSOMEIP_ERROR << "cei::send: Dropping to big message (" << std::dec
+                << _size << " Bytes). Maximum allowed message size is: "
+                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+        return false;
+    }
 
     const bool queue_size_zero_on_entry(queue_.empty());
     if (packetizer_->size() + _size > endpoint_impl<Protocol>::max_message_size_
@@ -199,7 +208,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 
             // Double the timeout as long as the maximum allowed is larger
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
-            	connect_timeout_ <<= 1;
+                connect_timeout_ <<= 1;
 
             if (is_connected_) {
                 is_connected_ = false;
@@ -245,14 +254,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
         }
     } else if (_error == boost::asio::error::broken_pipe) {
         is_connected_ = false;
-        if (endpoint_impl<Protocol>::sending_blocked_ || error_handler_) {
+        if (endpoint_impl<Protocol>::sending_blocked_) {
             {
                 std::lock_guard<std::mutex> its_lock(mutex_);
                 queue_.clear();
-            }
-            if (error_handler_) {
-                std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
-                error_handler_();
             }
         }
         if (socket_.is_open()) {
@@ -278,13 +283,6 @@ void client_endpoint_impl<Protocol>::flush_cbk(
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::register_error_callback(
-        endpoint_error_handler_t _callback) {
-    std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
-    error_handler_ = _callback;
-}
-
-template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
     std::lock_guard<std::mutex> its_lock(stop_mutex_);
     if (socket_.is_open()) {
@@ -292,6 +290,18 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
         socket_.shutdown(Protocol::socket::shutdown_both, its_error);
         socket_.close(its_error);
     }
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::get_remote_address(
+        boost::asio::ip::address &_address) const {
+    (void)_address;
+    return false;
+}
+
+template<typename Protocol>
+unsigned short client_endpoint_impl<Protocol>::get_remote_port() const {
+    return 0;
 }
 
 // Instantiate template

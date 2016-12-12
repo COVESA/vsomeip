@@ -50,7 +50,9 @@ routing_manager_stub::routing_manager_stub(
         local_receiver_(nullptr),
         configuration_(_configuration),
         routingCommandSize_(VSOMEIP_ROUTING_INFO_SIZE_INIT),
+        is_socket_activated_(false),
         client_registration_running_(false),
+        max_local_message_size_(configuration_->get_max_message_size_local()),
         configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
         pinged_clients_timer_(io_) {
 }
@@ -80,7 +82,7 @@ void routing_manager_stub::start() {
                      << configuration_->get_watchdog_timeout()
                      << " : Allowed missing pongs = "
                      << configuration_->get_allowed_missing_pongs()
-					 << ".";
+                     << ".";
         start_watchdog();
     } else {
         VSOMEIP_INFO << "Watchdog is disabled!";
@@ -140,27 +142,35 @@ void routing_manager_stub::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     (void)_endpoint;
 }
 
-void routing_manager_stub::on_error(const byte_t *_data, length_t _length,
-        endpoint *_receiver) {
+void routing_manager_stub::on_error(
+        const byte_t *_data, length_t _length, endpoint *_receiver,
+        const boost::asio::ip::address &_remote_address,
+        std::uint16_t _remote_port) {
 
     // Implement me when needed
 
     (void)(_data);
     (void)(_length);
     (void)(_receiver);
+    (void)(_remote_address);
+    (void)(_remote_port);
 }
 
 void routing_manager_stub::release_port(uint16_t _port, bool _reliable) {
-	(void)_port;
-	(void)_reliable;
-	// intentionally empty
+    (void)_port;
+    (void)_reliable;
+    // intentionally empty
 }
 
 void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         endpoint *_receiver, const boost::asio::ip::address &_destination,
-        client_t _bound_client) {
+        client_t _bound_client,
+        const boost::asio::ip::address &_remote_address,
+        std::uint16_t _remote_port) {
     (void)_receiver;
     (void)_destination;
+    (void)_remote_address;
+    (void) _remote_port;
 #if 0
     std::stringstream msg;
     msg << "rms::on_message: ";
@@ -312,7 +322,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
                         sizeof(its_eventgroup));
                 host_->on_subscribe_ack(its_client, its_service, its_instance, its_eventgroup);
-                VSOMEIP_DEBUG << "SUBSCRIBE ACK("
+                VSOMEIP_INFO << "SUBSCRIBE ACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                     << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -327,14 +337,14 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
                         sizeof(its_eventgroup));
                 host_->on_subscribe_nack(its_client, its_service, its_instance, its_eventgroup);
-                VSOMEIP_DEBUG << "SUBSCRIBE NACK("
+                VSOMEIP_INFO << "SUBSCRIBE NACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                     << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
                     << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "]";
                 break;
 
-            case VSOMEIP_SEND:
+            case VSOMEIP_SEND: {
                 its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
@@ -366,20 +376,28 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         return;
                     }
                 }
-                host_->on_message(its_service, its_instance, its_data, its_size, its_reliable);
+                // reduce by size of instance, flush and reliable flag
+                const std::uint32_t its_message_size = its_size -
+                        static_cast<std::uint32_t>(sizeof(its_instance)
+                        + sizeof(bool) + sizeof(bool));
+                host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable);
                 break;
-
-            case VSOMEIP_NOTIFY:
+            }
+            case VSOMEIP_NOTIFY: {
                 its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
                                                   - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                host_->on_notification(VSOMEIP_ROUTING_CLIENT, its_service, its_instance,
-                        its_data, its_size);
+                // reduce by size of instance, flush and reliable flag
+                const std::uint32_t its_message_size = its_size -
+                        static_cast<uint32_t>(sizeof(its_instance)
+                        + sizeof(bool) + sizeof(bool));
+                host_->on_notification(VSOMEIP_ROUTING_CLIENT, its_service, its_instance, its_data, its_message_size);
                 break;
-            case VSOMEIP_NOTIFY_ONE:
+            }
+            case VSOMEIP_NOTIFY_ONE: {
                 its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
@@ -388,10 +406,14 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                                                  sizeof(bool) - sizeof(bool) - sizeof(client_t)],
                                                 sizeof(its_instance));
                 std::memcpy(&its_target_client, &_data[_size - sizeof(client_t)], sizeof(client_t));
+                // reduce by size of instance, flush, reliable flag and target client
+                const std::uint32_t its_message_size = its_size -
+                        static_cast<uint32_t>(sizeof(its_instance)
+                        + sizeof(bool) + sizeof(bool) + sizeof(client_t));
                 host_->on_notification(its_target_client, its_service, its_instance,
-                        its_data, its_size, true);
+                        its_data, its_message_size, true);
                 break;
-
+            }
             case VSOMEIP_REQUEST_SERVICE:
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
@@ -454,7 +476,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     host_->register_shadow_event(its_client, its_service,
                             its_instance, its_event, its_eventgroups,
                             is_field, is_provided);
-                    VSOMEIP_DEBUG << "REGISTER EVENT("
+                    VSOMEIP_INFO << "REGISTER EVENT("
                         << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                         << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                         << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -480,7 +502,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     }
                     host_->unregister_shadow_event(its_client, its_service, its_instance,
                             its_event, is_provided);
-                    VSOMEIP_DEBUG << "UNREGISTER EVENT("
+                    VSOMEIP_INFO << "UNREGISTER EVENT("
                         << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                         << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                         << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -506,7 +528,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     break;
 
                 case VSOMEIP_REGISTERED_ACK:
-                    VSOMEIP_DEBUG << "REGISTERED_ACK("
+                    VSOMEIP_INFO << "REGISTERED_ACK("
                         << std::hex << std::setw(4) << std::setfill('0') << its_client << ")";
                     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
                     broadcast_routing_info(false, its_client);
@@ -536,6 +558,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
             for (auto &its_instance : its_service.second) {
                 auto its_version = its_instance.second;
                 routing_info_mutex_.unlock();
+                host_->on_availability(its_service.first, its_instance.first,
+                        false, its_version.first, its_version.second);
                 host_->on_stop_offer_service(_client, its_service.first,
                         its_instance.first, its_version.first,
                         its_version.second);
@@ -619,29 +643,30 @@ void routing_manager_stub::init_routing_endpoint() {
                         std::make_shared < local_server_endpoint_impl
                                 > (shared_from_this(),
                                     boost::asio::local::stream_protocol::endpoint(endpoint_path_),
-                                    io_, configuration_->get_max_message_size_local(), native_socket_fd);
+                                    io_, configuration_->get_max_message_size_local(), native_socket_fd,
+                                    configuration_->get_buffer_shrink_threshold());
             } catch (const std::exception &e) {
                 VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
                             << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
-                VSOMEIP_ERROR << "routing_manager_stub::init_endpoint Client ID: "
+                VSOMEIP_ERROR << "routing_manager_stub::init_routing_endpoint Client ID: "
                         << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
             }
         #endif
         is_socket_activated_ = true;
     } else {
-		#if WIN32
-			::_unlink(endpoint_path_.c_str());
-			int port = VSOMEIP_INTERNAL_BASE_PORT;
-			VSOMEIP_DEBUG << "Routing endpoint at " << port;
-		#else
-			if (-1 == ::unlink(endpoint_path_.c_str()) && errno != ENOENT) {
-				VSOMEIP_ERROR << "routing_manager_stub::init_endpoint unlink failed ("
-						<< endpoint_path_ << "): "<< std::strerror(errno);
-			}
-			VSOMEIP_DEBUG << "init_routing_endpoint Routing endpoint at " << endpoint_path_;
+        #if WIN32
+            ::_unlink(endpoint_path_.c_str());
+            int port = VSOMEIP_INTERNAL_BASE_PORT;
+            VSOMEIP_INFO << "Routing endpoint at " << port;
+        #else
+            if (-1 == ::unlink(endpoint_path_.c_str()) && errno != ENOENT) {
+                VSOMEIP_ERROR << "routing_manager_stub::init_endpoint unlink failed ("
+                        << endpoint_path_ << "): "<< std::strerror(errno);
+            }
+            VSOMEIP_INFO << "init_routing_endpoint Routing endpoint at " << endpoint_path_;
 
-			const mode_t previous_mask(::umask(static_cast<mode_t>(configuration_->get_umask())));
-		#endif
+            const mode_t previous_mask(::umask(static_cast<mode_t>(configuration_->get_umask())));
+        #endif
 
         try {
             endpoint_ =
@@ -652,16 +677,17 @@ void routing_manager_stub::init_routing_endpoint() {
                             #else
                                 boost::asio::local::stream_protocol::endpoint(endpoint_path_),
                             #endif
-                                io_, configuration_->get_max_message_size_local());
+                                io_, configuration_->get_max_message_size_local(),
+                                configuration_->get_buffer_shrink_threshold());
         } catch (const std::exception &e) {
             VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
                         << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
-            VSOMEIP_ERROR << "routing_manager_stub::init_endpoint Client ID: "
+            VSOMEIP_ERROR << "routing_manager_stub::init_routing_endpoint Client ID: "
                     << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
         }
         #ifndef WIN32
             ::umask(previous_mask);
-		#endif
+        #endif
         is_socket_activated_ = false;
     }
 }
@@ -813,11 +839,12 @@ void routing_manager_stub::send_routing_info(client_t _client, bool _empty) {
         msg << "rms::send_routing_info ";
         for (uint32_t i = 0; i < its_size; ++i)
             msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
-        VSOMEIP_DEBUG << msg.str();
+        VSOMEIP_INFO << msg.str();
 #endif
 
         // Send routing info or error!
-        if(its_command.size() <= VSOMEIP_MAX_LOCAL_MESSAGE_SIZE) {
+        if(its_command.size() <= max_local_message_size_
+                || VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0) {
             its_endpoint->send(&its_command[0], uint32_t(its_size), true);
         } else {
             VSOMEIP_ERROR << "Routing info exceeds maximum message size: Can't send!";
@@ -1075,7 +1102,8 @@ void routing_manager_stub::create_local_receiver() {
                         #else
                             boost::asio::local::stream_protocol::endpoint(local_receiver_path_),
                         #endif
-                            io_, configuration_->get_max_message_size_local());
+                            io_, configuration_->get_max_message_size_local(),
+                            configuration_->get_buffer_shrink_threshold());
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
                     << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
@@ -1233,6 +1261,11 @@ void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
     pinged_clients_timer_.async_wait(
             std::bind(&routing_manager_stub::on_ping_timer_expired, this,
                     std::placeholders::_1));
+}
+
+bool routing_manager_stub::is_registered(client_t _client) const {
+    std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+    return (routing_info_.find(_client) != routing_info_.end());
 }
 
 void routing_manager_stub::deregister_erroneous_client(client_t _client) {

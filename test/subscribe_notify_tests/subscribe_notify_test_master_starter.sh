@@ -63,7 +63,12 @@ export VSOMEIP_CONFIGURATION=$2
 
 sleep 1
 
-cat <<End-of-message
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $1 $CLIENT_JSON_FILE $3"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE $3\"" &
+    echo "remote ssh job id: $!"
+else
+    cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
@@ -76,6 +81,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # Wait until client and service are finished
 for job in $(jobs -p)

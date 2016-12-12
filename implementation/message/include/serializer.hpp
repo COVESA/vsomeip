@@ -17,7 +17,7 @@ class serializable;
 
 class  VSOMEIP_IMPORT_EXPORT serializer {
 public:
-    serializer();
+    serializer(std::uint32_t _buffer_shrink_threshold);
     virtual ~serializer();
 
     bool serialize(const serializable *_from);
@@ -26,12 +26,12 @@ public:
     bool serialize(const uint16_t _value);
     bool serialize(const uint32_t _value, bool _omit_last_byte = false);
     bool serialize(const uint8_t *_data, uint32_t _length);
+    bool serialize(const std::vector<byte_t> &_data);
 
-    virtual uint8_t * get_data() const;
+    virtual const uint8_t * get_data() const;
     virtual uint32_t get_capacity() const;
     virtual uint32_t get_size() const;
 
-    virtual void create_data(uint32_t _capacity);
     virtual void set_data(uint8_t *_data, uint32_t _capacity);
 
     virtual void reset();
@@ -40,11 +40,9 @@ public:
     virtual void show();
 #endif
 private:
-    byte_t * data_;
-    uint32_t capacity_;
-
-    byte_t *position_;
-    uint32_t remaining_;
+    std::vector<byte_t> data_;
+    std::uint32_t shrink_count_;
+    std::uint32_t buffer_shrink_threshold_;
 };
 
 } // namespace vsomeip

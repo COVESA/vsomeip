@@ -41,8 +41,8 @@ public:
             last_received_response_(std::chrono::steady_clock::now()),
             number_received_responses_(0) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&offer_test_client::on_state, this,

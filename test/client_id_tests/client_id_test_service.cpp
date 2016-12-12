@@ -30,8 +30,8 @@ public:
             stopped_(false),
             stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&client_id_test_service::on_state, this,

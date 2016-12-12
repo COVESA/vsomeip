@@ -37,8 +37,8 @@ public:
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&subscribe_notify_one_test_service::on_state, this,
@@ -77,6 +77,8 @@ public:
                     std::bind(&subscribe_notify_one_test_service::on_availability, this,
                             std::placeholders::_1, std::placeholders::_2,
                             std::placeholders::_3));
+
+            app_->request_service(i.service_id, i.instance_id, vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR, true);
 
             std::set<vsomeip::eventgroup_t> its_eventgroups;
             its_eventgroups.insert(i.eventgroup_id);
@@ -319,7 +321,7 @@ public:
         // successfully subscribed as we only receive once subscription per
         // remote node no matter how many clients subscribed to this eventgroup
         // on the remote node
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Starting to notify";
@@ -341,7 +343,7 @@ public:
                 app_->notify_one(service_info_.service_id, service_info_.instance_id,
                         service_info_.event_id, its_payload, client);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 
@@ -363,8 +365,17 @@ public:
             wait_until_notified_from_other_services_ = false;
             condition_.notify_one();
         }
-
-        std::this_thread::sleep_for(std::chrono::seconds(6));
+        for(const auto& i : subscribe_notify_one_test::service_infos) {
+            if ((i.service_id == service_info_.service_id
+                    && i.instance_id == service_info_.instance_id)
+                    || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
+                continue;
+            }
+            app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
+            app_->release_event(i.service_id, i.instance_id, i.event_id);
+            app_->release_service(i.service_id, i.instance_id);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         app_->clear_all_handler();
         app_->stop();
     }

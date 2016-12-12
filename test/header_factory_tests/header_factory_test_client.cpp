@@ -18,11 +18,11 @@ header_factory_test_client::header_factory_test_client(bool _use_tcp) :
 {
 }
 
-void header_factory_test_client::init()
+bool header_factory_test_client::init()
 {
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
 
     app_->register_state_handler(
@@ -39,6 +39,7 @@ void header_factory_test_client::init()
             std::bind(&header_factory_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
+    return true;
 }
 
 void header_factory_test_client::start()
@@ -155,9 +156,10 @@ TEST(someip_header_factory_test, send_message_ten_times_test)
 {
     bool use_tcp = false;
     header_factory_test_client test_client_(use_tcp);
-    test_client_.init();
-    test_client_.start();
-    test_client_.join_sender_thread();
+    if (test_client_.init()) {
+        test_client_.start();
+        test_client_.join_sender_thread();
+    }
 }
 
 #ifndef WIN32

@@ -56,6 +56,11 @@ SERIVCE_PID=$!
 
 # Display a message to show the user that he must now call the external client
 # to finish the test successfully
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting external local payload on slave LXC"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./external_local_payload_test_client_external_start.sh\"" &
+    echo "remote ssh job id: $!"
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -69,6 +74,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # The service should listen on a TCP and UDP socket now
 sleep 1
@@ -78,12 +84,11 @@ check_tcp_udp_sockets_are_open $SERIVCE_PID 2
 # The client remotely shuts down the service if he has successfully transmitted
 # all the packets with different payloads. Therefore we can assume that everything
 # went well, even if we can only check the exit code of the service here.
-for job in $(jobs -p)
-do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
-    wait $job || ((FAIL+=1))
-done
+
+# Fail gets incremented if either client or service exit
+# with a non-zero exit code
+wait $SERIVCE_PID || ((FAIL+=1))
+
 
 # Start the service for payload test with tcp
 export VSOMEIP_APPLICATION_NAME=external_local_payload_test_service
@@ -100,12 +105,11 @@ check_tcp_udp_sockets_are_open $SERIVCE_PID 2
 # The client remotely shuts down the service if he has successfully transmitted
 # all the packets with different payloads. Therefore we can assume that everything
 # went well, even if we can only check the exit code of the service here.
-for job in $(jobs -p)
-do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
-    wait $job || ((FAIL+=1))
-done
+
+# Fail gets incremented if either client or service exit
+# with a non-zero exit code
+wait $SERIVCE_PID || ((FAIL+=1))
+
 
 # Check if server exited sucessfully
 if [ $FAIL -eq 0 ]

@@ -10,8 +10,25 @@
 
 namespace big_payload_test {
     constexpr std::uint32_t BIG_PAYLOAD_SIZE = 1024*600;
+    constexpr std::uint32_t BIG_PAYLOAD_SIZE_RANDOM = 1024*1024*10;
     constexpr vsomeip::byte_t DATA_SERVICE_TO_CLIENT = 0xAA;
     constexpr vsomeip::byte_t DATA_CLIENT_TO_SERVICE = 0xFF;
+
+    constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES = 10;
+    constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM = 50;
+
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED = 0x1235;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_RANDOM = 0x1236;
+
+    constexpr vsomeip::service_t TEST_SERVICE_INSTANCE_ID = 0x1;
+    constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
+
+    enum test_mode {
+        RANDOM,
+        LIMITED,
+        UNKNOWN
+    };
 }
 
 #endif /* BIG_PAYLOAD_TEST_GLOBALS_HPP_ */

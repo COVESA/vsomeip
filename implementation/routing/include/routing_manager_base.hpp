@@ -106,14 +106,16 @@ public:
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_message(const byte_t *_data, length_t _length,
         endpoint *_receiver, const boost::asio::ip::address &_destination
-            = boost::asio::ip::address(), client_t _bound_client = VSOMEIP_ROUTING_CLIENT) = 0;
+            = boost::asio::ip::address(), client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
+            const boost::asio::ip::address &_remote_address = boost::asio::ip::address(),
+            std::uint16_t _remote_port = 0) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
-            endpoint *_receiver) = 0;
+                          endpoint *_receiver,
+                          const boost::asio::ip::address &_remote_address,
+                          std::uint16_t _remote_port) = 0;
 #ifndef WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
 #endif
-
-    virtual void on_clientendpoint_error(client_t _client);
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
@@ -172,6 +174,14 @@ protected:
 
     void remove_pending_subscription(service_t _service, instance_t _instance);
 
+    void send_pending_notify_ones(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, client_t _client);
+
+private:
+    std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
+    std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
+
+protected:
     routing_manager_host *host_;
     boost::asio::io_service &io_;
     client_t client_;
@@ -227,6 +237,12 @@ private:
 
     std::map<client_t, std::shared_ptr<endpoint> > local_endpoints_;
     mutable std::mutex local_endpoint_mutex_;
+
+    std::map<service_t,
+        std::map<instance_t,
+            std::map<eventgroup_t,
+                std::shared_ptr<message> > > > pending_notify_ones_;
+    std::mutex pending_notify_ones_mutex_;
 };
 
 } // namespace vsomeip

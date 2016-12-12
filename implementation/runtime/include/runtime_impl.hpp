@@ -8,6 +8,7 @@
 
 #include <vsomeip/runtime.hpp>
 #include <map>
+#include <mutex>
 
 namespace vsomeip {
 
@@ -39,11 +40,16 @@ public:
     std::shared_ptr<application> get_application(
             const std::string &_name) const;
 
+    void remove_application( const std::string &_name);
+
 private:
     static std::shared_ptr<runtime> the_runtime_;
     static std::map<std::string, std::string> properties_;
 
     std::map<std::string, std::weak_ptr<application>> applications_;
+
+    mutable std::mutex applications_mutex_;
+    static uint32_t postfix_id;
 };
 
 } // namespace vsomeip

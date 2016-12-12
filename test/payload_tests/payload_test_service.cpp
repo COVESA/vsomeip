@@ -19,13 +19,13 @@ payload_test_service::payload_test_service(bool _use_tcp) :
 {
 }
 
-void payload_test_service::init()
+bool payload_test_service::init()
 {
     std::lock_guard<std::mutex> its_lock(mutex_);
 
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
     app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
@@ -41,6 +41,7 @@ void payload_test_service::init()
     app_->register_state_handler(
             std::bind(&payload_test_service::on_state, this,
                     std::placeholders::_1));
+    return true;
 }
 
 void payload_test_service::start()
@@ -101,25 +102,26 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
         VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
                 << std::setfill('0') << std::hex << _request->get_client() << "/"
                 << std::setw(4) << std::setfill('0') << std::hex
-                << _request->get_session() << "]";
+                << _request->get_session() << "] payload size [byte]:"
+                << std::dec << _request->get_payload()->get_length();
     }
 
-    ASSERT_EQ(_request->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
-    ASSERT_EQ(_request->get_method(), vsomeip_test::TEST_SERVICE_METHOD_ID);
+    ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
+    ASSERT_EQ(vsomeip_test::TEST_SERVICE_METHOD_ID, _request->get_method());
 
     // Check the protocol version this shall be set to 0x01 according to the spec.
     // TR_SOMEIP_00052
-    ASSERT_EQ(_request->get_protocol_version(), 0x01);
+    ASSERT_EQ(0x01, _request->get_protocol_version());
     // Check the message type this shall be 0xx (REQUEST) according to the spec.
     // TR_SOMEIP_00055
-    ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
+    ASSERT_EQ(vsomeip::message_type_e::MT_REQUEST, _request->get_message_type());
 
     if (check_payload) {
         std::shared_ptr<vsomeip::payload> pl = _request->get_payload();
         vsomeip::byte_t* pl_ptr = pl->get_data();
         for (vsomeip::length_t i = 0; i < pl->get_length(); i++)
         {
-            ASSERT_EQ(*(pl_ptr+i), vsomeip_test::PAYLOAD_TEST_DATA);
+            ASSERT_EQ(vsomeip_test::PAYLOAD_TEST_DATA, *(pl_ptr+i));
         }
     }
 
@@ -150,9 +152,10 @@ void payload_test_service::run()
 TEST(someip_payload_test, send_response_for_every_request)
 {
     payload_test_service test_service(use_tcp);
-    test_service.init();
-    test_service.start();
-    test_service.join_offer_thread();
+    if (test_service.init()) {
+        test_service.start();
+        test_service.join_offer_thread();
+    }
 }
 
 #ifndef WIN32

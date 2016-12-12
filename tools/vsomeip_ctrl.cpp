@@ -61,7 +61,10 @@ public:
 
         validate_message();
 
-        app_->init();
+        if (!app_->init()) {
+            VSOMEIP_ERROR << "Couldn't initialize application";
+            exit(EXIT_FAILURE);
+        }
         app_->register_state_handler(
                 std::bind(&vsomeip_sender::on_state, this,
                         std::placeholders::_1));
@@ -77,6 +80,8 @@ public:
     };
 
     void stop(int _exit_code) {
+        app_->clear_all_handler();
+        app_->release_service(service_id_, instance_);
         app_->stop();
         exit(_exit_code);
     }

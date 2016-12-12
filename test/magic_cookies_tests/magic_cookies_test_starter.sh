@@ -12,6 +12,13 @@
 
 # Display a message to show the user that he must now call the external service
 # to finish the test successfully
+
+FAIL=0
+
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting magic cookies test on slave LXC"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./magic_cookies_test_client_start.sh\"" &
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -26,10 +33,25 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # Start the client for magic-cookies test
 export VSOMEIP_APPLICATION_NAME=magic_cookies_test_service
 export VSOMEIP_CONFIGURATION=magic_cookies_test_service.json
-./magic_cookies_test_service  --tcp --static-routing
+./magic_cookies_test_service  --tcp --static-routing &
 
-exit $?
+# Wait until client and service are finished
+for job in $(jobs -p)
+do
+    # Fail gets incremented if either client or service exit
+    # with a non-zero exit code
+    wait $job || ((FAIL+=1))
+done
+
+# Check if client and server both exited successfully
+if [ $FAIL -eq 0 ]
+then
+    exit 0
+else
+    exit 1
+fi

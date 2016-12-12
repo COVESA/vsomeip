@@ -278,13 +278,16 @@ All tests should be marked as "passed".
 Big payload tests
 -----------------
 
-This test tests the possibility to increase the maximum allowed payload size for
-local and TCP messages via configuration file.
+This test tests the possibility to sent messages with bigger payloads
+for local and TCP communication.
 
 The test will send a messages with 600k payload from a client to a service.
 The service will reply with a response containing 600k payload as well.
 This is repeated 10 times.
 There is a version for local and for TCP communication available.
+Additionally there are test versions available which sent up to 10MiB big
+messages and a version which tests the limitiation of message sizes configurable
+via json file.
 
 Automatic start from the build directory:
 

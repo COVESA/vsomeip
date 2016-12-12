@@ -23,9 +23,11 @@ public:
                     _use_tcp) {
     }
 
-    void init() {
-        app_->init();
-
+    bool init() {
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
         std::cout << "Client settings [protocol="
                 << (use_tcp_ ? "TCP" : "UDP")
                 << "]"
@@ -53,6 +55,7 @@ public:
                 SAMPLE_EVENT_ID,
                 its_groups,
                 true);
+        return true;
     }
 
     void start() {
@@ -64,6 +67,10 @@ public:
      * Handle signal to shutdown
      */
     void stop() {
+        app_->clear_all_handler();
+        app_->unsubscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
+        app_->release_event(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID);
+        app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         app_->stop();
     }
 #endif
@@ -142,7 +149,6 @@ public:
 private:
     std::shared_ptr< vsomeip::application > app_;
     bool use_tcp_;
-    bool be_quiet_;
 };
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -176,7 +182,10 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    its_sample.init();
-    its_sample.start();
-    return 0;
+    if (its_sample.init()) {
+        its_sample.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

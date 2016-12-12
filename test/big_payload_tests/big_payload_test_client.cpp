@@ -6,24 +6,39 @@
 #include "big_payload_test_client.hpp"
 #include "big_payload_test_globals.hpp"
 
-big_payload_test_client::big_payload_test_client(bool _use_tcp) :
-                app_(vsomeip::runtime::get()->create_application()),
-                request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-                running_(true),
-                blocked_(false),
-                is_available_(false),
-                number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
-                number_of_sent_messages_(0),
-                number_of_acknowledged_messages_(0),
-                sender_(std::bind(&big_payload_test_client::run, this))
-{
+big_payload_test_client::big_payload_test_client(
+        bool _use_tcp, big_payload_test::test_mode _test_mode) :
+        app_(vsomeip::runtime::get()->create_application("big_payload_test_client")),
+        request_(vsomeip::runtime::get()->create_request(_use_tcp)),
+        running_(true),
+        blocked_(false),
+        is_available_(false),
+        test_mode_(_test_mode),
+        number_of_messages_to_send_(
+                test_mode_ == big_payload_test::test_mode::RANDOM ?
+                        big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM :
+                        big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES),
+        number_of_sent_messages_(0),
+        number_of_acknowledged_messages_(0),
+        sender_(std::bind(&big_payload_test_client::run, this)) {
+    switch (test_mode_) {
+        case big_payload_test::test_mode::RANDOM:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_RANDOM;
+            break;
+        case big_payload_test::test_mode::LIMITED:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_LIMITED;
+            break;
+        default:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
+            break;
+    }
 }
 
-void big_payload_test_client::init()
+bool big_payload_test_client::init()
 {
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
 
     app_->register_state_handler(
@@ -31,15 +46,16 @@ void big_payload_test_client::init()
                     std::placeholders::_1));
 
     app_->register_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
+            vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
             std::bind(&big_payload_test_client::on_message, this,
                     std::placeholders::_1));
 
-    app_->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+    app_->register_availability_handler(service_id_,
+            big_payload_test::TEST_SERVICE_INSTANCE_ID,
             std::bind(&big_payload_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
+    return true;
 }
 
 void big_payload_test_client::start()
@@ -51,27 +67,28 @@ void big_payload_test_client::start()
 void big_payload_test_client::stop()
 {
     VSOMEIP_INFO << "Stopping...";
-    app_->unregister_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app_->unregister_state_handler();
-    app_->unregister_message_handler(vsomeip::ANY_SERVICE,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD);
+    if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+    }
     app_->clear_all_handler();
     app_->stop();
 }
 
 void big_payload_test_client::join_sender_thread(){
     sender_.join();
-
-    ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
+    if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+        ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+    } else {
+        ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
+    }
 }
 
 void big_payload_test_client::on_state(vsomeip::state_type_e _state)
 {
-    if(_state == vsomeip::state_type_e::ST_REGISTERED)
-    {
-        app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                vsomeip_test::TEST_SERVICE_INSTANCE_ID, false);
+    if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+        app_->request_service(service_id_,
+                big_payload_test::TEST_SERVICE_INSTANCE_ID, false);
     }
 }
 
@@ -82,8 +99,8 @@ void big_payload_test_client::on_availability(vsomeip::service_t _service,
             << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
-    if(vsomeip_test::TEST_SERVICE_SERVICE_ID == _service
-            && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance)
+    if(service_id_ == _service
+            && big_payload_test::TEST_SERVICE_INSTANCE_ID == _instance)
     {
         if(is_available_ && !_is_available)
         {
@@ -107,8 +124,15 @@ void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>
             << _response->get_client() << "/" << std::setw(4)
             << std::setfill('0') << std::hex << _response->get_session()
             << "] size: " << std::dec << _response->get_payload()->get_length();
+    static vsomeip::session_t last_session(0);
+    ASSERT_GT(_response->get_session(), last_session);
+    last_session = _response->get_session();
 
-    ASSERT_EQ(_response->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
+    if(test_mode_ == big_payload_test::test_mode::RANDOM) {
+        ASSERT_LT(_response->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+    } else {
+        ASSERT_EQ(_response->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
+    }
 
     bool check(true);
     vsomeip::length_t len = _response->get_payload()->get_length();
@@ -120,7 +144,13 @@ void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>
         GTEST_FATAL_FAILURE_("wrong data transmitted");
     }
     number_of_acknowledged_messages_++;
-    send();
+    if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+        if (number_of_acknowledged_messages_ == number_of_messages_to_send_ / 4) {
+            send();
+        }
+    } else if ( number_of_acknowledged_messages_ == number_of_messages_to_send_) {
+        send();
+    }
 }
 
 void big_payload_test_client::send()
@@ -138,20 +168,37 @@ void big_payload_test_client::run()
         condition_.wait(its_lock);
     }
     blocked_ = false;
-    request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
-    request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 
-    std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
-    std::vector< vsomeip::byte_t > its_payload_data;
-    for (unsigned int i = 0; i < big_payload_test::BIG_PAYLOAD_SIZE; ++i) {
-        its_payload_data.push_back(big_payload_test::DATA_CLIENT_TO_SERVICE);
-    }
-    its_payload->set_data(its_payload_data);
-    request_->set_payload(its_payload);
+    request_->set_service(service_id_);
+    request_->set_instance(big_payload_test::TEST_SERVICE_INSTANCE_ID);
+    request_->set_method(big_payload_test::TEST_SERVICE_METHOD_ID);
+
+    std::srand(static_cast<unsigned int>(std::time(0)));
+
+    std::shared_ptr<vsomeip::payload> its_payload =
+            vsomeip::runtime::get()->create_payload();
+    std::vector<vsomeip::byte_t> its_payload_data;
 
     for (unsigned int i = 0; i < number_of_messages_to_send_; i++)
     {
+        if (test_mode_ == big_payload_test::test_mode::RANDOM) {
+            unsigned int datasize(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+            its_payload_data.assign(datasize, big_payload_test::DATA_CLIENT_TO_SERVICE);
+        } else if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+            if (i % 2) {
+                // try to sent a too big payload for half of the messages
+                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 3,
+                        big_payload_test::DATA_CLIENT_TO_SERVICE);
+            } else {
+                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                        big_payload_test::DATA_CLIENT_TO_SERVICE);
+            }
+        } else {
+            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                    big_payload_test::DATA_CLIENT_TO_SERVICE);
+        }
+        its_payload->set_data(its_payload_data);
+        request_->set_payload(its_payload);
         app_->send(request_, true);
         VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
                 << std::hex << request_->get_client() << "/" << std::setw(4)
@@ -159,30 +206,50 @@ void big_payload_test_client::run()
                 << "] sent a request to Service [" << std::setw(4)
                 << std::setfill('0') << std::hex << request_->get_service()
                 << "." << std::setw(4) << std::setfill('0') << std::hex
-                << request_->get_instance() << "]";
+                << request_->get_instance() << "] size: " << std::dec <<
+                request_->get_payload()->get_length();
         number_of_sent_messages_++;
-        while(!blocked_) {
-            condition_.wait(its_lock);
-        }
-        blocked_ = false;
     }
-    ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
+    while(!blocked_) {
+        if (std::cv_status::timeout
+                == condition_.wait_for(its_lock, std::chrono::seconds(120))) {
+            GTEST_FATAL_FAILURE_("Didn't receive all replies within time");
+        } else {
+            if (test_mode_ == big_payload_test::LIMITED) {
+                ASSERT_EQ(number_of_messages_to_send_ / 4,
+                        number_of_acknowledged_messages_);
+            } else {
+                ASSERT_EQ(number_of_sent_messages_,
+                        number_of_acknowledged_messages_);
+            }
+        }
+    }
     stop();
 }
+
+static big_payload_test::test_mode test_mode(big_payload_test::test_mode::UNKNOWN);
 
 TEST(someip_big_payload_test, send_ten_messages_to_service)
 {
     bool use_tcp = true;
-    big_payload_test_client test_client_(use_tcp);
-    test_client_.init();
-    test_client_.start();
-    test_client_.join_sender_thread();
+    big_payload_test_client test_client_(use_tcp, test_mode);
+    if (test_client_.init()) {
+        test_client_.start();
+        test_client_.join_sender_thread();
+    }
 }
 
 #ifndef WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+    if (argc > 1) {
+        if (std::string("RANDOM") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::RANDOM;
+        } else if (std::string("LIMITED") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::LIMITED;
+        }
+    }
     return RUN_ALL_TESTS();
 }
 #endif

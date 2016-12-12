@@ -10,6 +10,8 @@
 #include <sstream>
 #include <thread>
 
+#include <gtest/gtest.h>
+
 #include <vsomeip/vsomeip.hpp>
 
 #include "../someip_test_globals.hpp"
@@ -31,7 +33,7 @@ public:
         std::lock_guard<std::mutex> its_lock(mutex_);
 
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
+            ADD_FAILURE() << "Couldn't initialize application";
             exit(EXIT_FAILURE);
         }
         app_->register_message_handler(
@@ -112,7 +114,11 @@ public:
         if (use_static_routing_) {
             offer();
             while (!blocked_) {
-                condition_.wait(its_lock);
+                if(std::cv_status::timeout ==
+                        condition_.wait_for(its_lock, std::chrono::seconds(55))) {
+                    GTEST_NONFATAL_FAILURE_("Didn't receive all requests within time");
+                    break;
+                }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             app_->clear_all_handler();
@@ -140,20 +146,22 @@ private:
     std::thread offer_thread_;
 };
 
-int main(int argc, char **argv) {
-    bool use_static_routing(false);
+static bool use_static_routing = false;
 
+TEST(someip_magic_cookies_test, reply_to_good_messages)
+{
+    magic_cookies_test_service its_sample(use_static_routing);
+    its_sample.init();
+    its_sample.start();
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
     std::string static_routing_enable("--static-routing");
-
     for (int i = 1; i < argc; i++) {
         if (static_routing_enable == argv[i]) {
             use_static_routing = true;
         }
     }
-
-    magic_cookies_test_service its_sample(use_static_routing);
-    its_sample.init();
-    its_sample.start();
-
-    return 0;
+    return RUN_ALL_TESTS();
 }

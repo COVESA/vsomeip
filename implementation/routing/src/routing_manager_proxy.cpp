@@ -573,11 +573,11 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
             its_target = find_local(_client);
             if (its_target) {
 #ifdef USE_DLT
-                uint16_t its_data_size
+                const uint16_t its_data_size
                     = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
                 tc::trace_header its_header;
-                if (its_header.prepare(its_target, true))
+                if (its_header.prepare(nullptr, true))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                             _data, its_data_size);
 #endif
@@ -610,11 +610,11 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         }
 #ifdef USE_DLT
         else if (its_target != sender_) {
-            uint16_t its_data_size
+            const uint16_t its_data_size
                 = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
             tc::trace_header its_header;
-            if (its_header.prepare(its_target, true))
+            if (its_header.prepare(nullptr, true))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                         _data, its_data_size);
         }
@@ -680,7 +680,7 @@ void routing_manager_proxy::on_connect(std::shared_ptr<endpoint> _endpoint) {
     }
     is_connected_ = true;
     if (is_connected_ && is_started_) {
-        VSOMEIP_DEBUG << std::hex << "Client " << client_
+        VSOMEIP_INFO << std::hex << "Client " << client_
                 << " successfully connected to routing  ~> registering..";
         register_application();
     }
@@ -693,14 +693,18 @@ void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     }
 }
 
-void routing_manager_proxy::on_error(const byte_t *_data, length_t _length,
-        endpoint *_receiver) {
+void routing_manager_proxy::on_error(
+        const byte_t *_data, length_t _length, endpoint *_receiver,
+        const boost::asio::ip::address &_remote_address,
+        std::uint16_t _remote_port) {
 
     // Implement me when needed
 
     (void)(_data);
     (void)(_length);
     (void)(_receiver);
+    (void)(_remote_address);
+    (void)(_remote_port);
 }
 
 void routing_manager_proxy::release_port(uint16_t _port, bool _reliable) {
@@ -711,15 +715,19 @@ void routing_manager_proxy::release_port(uint16_t _port, bool _reliable) {
 
 void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
         endpoint *_receiver, const boost::asio::ip::address &_destination,
-        client_t _bound_client) {
+        client_t _bound_client,
+        const boost::asio::ip::address &_remote_address,
+        std::uint16_t _remote_port) {
     (void)_receiver;
     (void)_destination;
+    (void)_remote_address;
+    (void)_remote_port;
 #if 0
     std::stringstream msg;
     msg << "rmp::on_message: ";
     for (int i = 0; i < _size; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
     byte_t its_command;
     client_t its_client;
@@ -758,10 +766,14 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             bool its_reliable;
             std::memcpy(&its_reliable, &_data[_size - sizeof(bool)],
                             sizeof(its_reliable));
+            // reduce by size of instance, flush and reliable flag
+            const std::uint32_t its_message_size = its_length -
+                    static_cast<uint32_t>(sizeof(its_instance)
+                    + sizeof(bool) + sizeof(bool));
 
             auto a_deserializer = get_deserializer();
             a_deserializer->set_data(&_data[VSOMEIP_COMMAND_PAYLOAD_POS],
-                    its_length);
+                    its_message_size);
             std::shared_ptr<message> its_message(a_deserializer->deserialize_message());
             a_deserializer->reset();
             put_deserializer(a_deserializer);
@@ -800,7 +812,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                         return;
                     }
                 }
-                host_->on_message(its_message);
+                host_->on_message(std::move(its_message));
             } else {
                 VSOMEIP_ERROR << "Routing proxy: on_message: "
                               << "SomeIP-Header deserialization failed!";
@@ -866,6 +878,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     routing_manager_base::subscribe(its_client, its_service, its_instance,
                             its_eventgroup, its_major, subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
                     send_subscribe_ack(its_client, its_service, its_instance, its_eventgroup);
+                    send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client);
                 }
             } else {
                 // Local & not yet known subscriber ~> set pending until subscriber gets known!
@@ -874,8 +887,8 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                         subscription_type_e::SU_RELIABLE_AND_UNRELIABLE};
                 std::lock_guard<std::mutex> its_lock(pending_ingoing_subscripitons_mutex_);
                 pending_ingoing_subscripitons_[its_client].insert(subscription);
-            }            
-            VSOMEIP_DEBUG << "SUBSCRIBE("
+            }
+            VSOMEIP_INFO << "SUBSCRIBE("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -903,7 +916,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                             its_instance, its_eventgroup);
                 }
             }
-            VSOMEIP_DEBUG << "UNSUBSCRIBE("
+            VSOMEIP_INFO << "UNSUBSCRIBE("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -919,7 +932,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     sizeof(its_eventgroup));
 
             on_subscribe_nack(its_client, its_service, its_instance, its_eventgroup);
-            VSOMEIP_DEBUG << "SUBSCRIBE NACK("
+            VSOMEIP_INFO << "SUBSCRIBE NACK("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -935,7 +948,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     sizeof(its_eventgroup));
 
             on_subscribe_ack(its_client, its_service, its_instance, its_eventgroup);
-            VSOMEIP_DEBUG << "SUBSCRIBE ACK("
+            VSOMEIP_INFO << "SUBSCRIBE ACK("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -955,7 +968,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
     msg << "rmp::on_routing_info(" << std::hex << client_ << "): ";
     for (uint32_t i = 0; i < _size; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
     inner_state_type_e its_state(inner_state_type_e::ST_DEREGISTERED);
     bool restart_sender(_size == 1); // 1 indicates a routing master stop
@@ -1158,6 +1171,8 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                             subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
                     send_subscribe_ack(si.client_id_, si.service_id_,
                             si.instance_id_, si.eventgroup_id_);
+                    send_pending_notify_ones(si.service_id_,
+                            si.instance_id_, si.eventgroup_id_, si.client_id_);
                 }
                 pending_ingoing_subscripitons_.erase(si.client_id_);
             }
@@ -1422,6 +1437,7 @@ void routing_manager_proxy::on_stop_offer_service(service_t _service,
                                                   minor_version_t _minor) {
     (void) _major;
     (void) _minor;
+    std::map<event_t, std::shared_ptr<event> > events;
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         auto its_events_service = events_.find(_service);
@@ -1429,9 +1445,12 @@ void routing_manager_proxy::on_stop_offer_service(service_t _service,
             auto its_events_instance = its_events_service->second.find(_instance);
             if (its_events_instance != its_events_service->second.end()) {
                 for (auto &e : its_events_instance->second)
-                    e.second->unset_payload();
+                    events[e.first] = e.second;
             }
         }
+    }
+    for (auto &e : events) {
+        e.second->unset_payload();
     }
 }
 
@@ -1486,11 +1505,12 @@ void routing_manager_proxy::init_receiver() {
 #else
                 boost::asio::local::stream_protocol::endpoint(its_client.str()),
 #endif
-                io_, configuration_->get_max_message_size_local());
+                io_, configuration_->get_max_message_size_local(),
+                configuration_->get_buffer_shrink_threshold());
 #ifdef WIN32
-        VSOMEIP_DEBUG << "Listening at " << port;
+        VSOMEIP_INFO << "Listening at " << port;
 #else
-        VSOMEIP_DEBUG<< "Listening at " << its_client.str();
+        VSOMEIP_INFO << "Listening at " << its_client.str();
 #endif
     } catch (const std::exception &e) {
         host_->on_error(error_code_e::SERVER_ENDPOINT_CREATION_FAILED);

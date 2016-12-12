@@ -14,6 +14,7 @@ namespace vsomeip {
 
 std::map<std::string, std::string> runtime_impl::properties_;
 std::shared_ptr<runtime> runtime_impl::the_runtime_ = std::make_shared<runtime_impl>();
+uint32_t runtime_impl::postfix_id = 0;
 
 std::string runtime_impl::get_property(const std::string &_name) {
     auto found_property = properties_.find(_name);
@@ -35,8 +36,14 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
-    std::shared_ptr<application> application = std::make_shared<application_impl>(_name);
-    applications_[_name] = application;
+    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    std::string its_name_ = _name;
+    auto found_application = applications_.find(_name);
+    if( found_application != applications_.end()) {
+        its_name_ += "_" + std::to_string(postfix_id++);
+    }
+    std::shared_ptr<application> application = std::make_shared<application_impl>(its_name_);
+    applications_[its_name_] = application;
     return application;
 }
 
@@ -105,10 +112,20 @@ std::shared_ptr<payload> runtime_impl::create_payload(
 
 std::shared_ptr<application> runtime_impl::get_application(
         const std::string &_name) const {
+    std::lock_guard<std::mutex> its_lock(applications_mutex_);
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end())
         return found_application->second.lock();
     return nullptr;
+}
+
+void runtime_impl::remove_application(
+        const std::string &_name) {
+    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    auto found_application = applications_.find(_name);
+    if(found_application != applications_.end()) {
+        applications_.erase(_name);
+    }
 }
 
 } // namespace vsomeip

@@ -14,9 +14,13 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=cpu_load_test_client_master.json
 ./cpu_load_test_client --protocol UDP --calls 1000 &
-
+TEST_CLIENT_PID=$!
 sleep 1
 
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting cpu load test on slave LXC"
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./cpu_load_test_slave_starter.sh"' &
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -32,19 +36,18 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
-for job in $(jobs -p)
-do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
-    wait $job || FAIL=$(($FAIL+1))
-done
+# Fail gets incremented if either client or service exit
+# with a non-zero exit code
+wait $TEST_CLIENT_PID || FAIL=$(($FAIL+1))
+
 
 sleep 4
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
-** Now switching roles and running service on this host
+** Now switching roles and running service on this host (master)
 *******************************************************************************
 *******************************************************************************
 End-of-message
@@ -53,6 +56,7 @@ export VSOMEIP_CONFIGURATION=cpu_load_test_service_master.json
 ./cpu_load_test_service &
 sleep 1
 
+# now we can wait to all jobs to finish
 for job in $(jobs -p)
 do
     # Fail gets incremented if either client or service exit

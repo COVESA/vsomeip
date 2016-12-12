@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gtest/gtest.h>
+#include <future>
 
 #include <vsomeip/vsomeip.hpp>
 #include "../../implementation/logging/include/logger.hpp"
@@ -12,10 +13,17 @@ class application_test_daemon {
 public:
     application_test_daemon() :
             app_(vsomeip::runtime::get()->create_application("daemon")) {
-        app_->init();
+        if (!app_->init()) {
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
+        }
+        std::promise<bool> its_promise;
         application_thread_ = std::thread([&](){
+            its_promise.set_value(true);
             app_->start();
         });
+        EXPECT_TRUE(its_promise.get_future().get());
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         VSOMEIP_INFO << "Daemon starting";
     }
 

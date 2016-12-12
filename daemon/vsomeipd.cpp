@@ -29,7 +29,7 @@ void vsomeipd_stop(int _signal) {
     if (_signal == SIGINT || _signal == SIGTERM)
         its_application->stop();
     if (_signal == SIGABRT) {
-        VSOMEIP_DEBUG << "Suspending service discovery";
+        VSOMEIP_INFO << "Suspending service discovery";
         its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
         its_application->stop();
     }

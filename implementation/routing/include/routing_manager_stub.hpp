@@ -44,8 +44,12 @@ public:
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
             const boost::asio::ip::address &_destination,
-            client_t _bound_client);
-    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
+            client_t _bound_client,
+            const boost::asio::ip::address &_remote_address,
+            std::uint16_t _remote_port);
+    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver,
+                  const boost::asio::ip::address &_remote_address,
+                  std::uint16_t _remote_port);
     void release_port(uint16_t _port, bool _reliable);
 
     void on_offer_service(client_t _client, service_t _service,
@@ -75,6 +79,7 @@ public:
 
     void create_local_receiver();
     bool send_ping(client_t _client);
+    bool is_registered(client_t _client) const;
     void deregister_erroneous_client(client_t _client);
     client_t get_client() const;
 #ifndef WIN32
@@ -133,6 +138,7 @@ private:
         DEREGISTER_ERROR_CASE = 0x3
     };
     std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
+    const std::uint32_t max_local_message_size_;
     static const std::vector<byte_t> its_ping_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;

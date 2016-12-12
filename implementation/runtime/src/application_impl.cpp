@@ -43,7 +43,6 @@ application_impl::application_impl(const std::string &_name)
           catched_signal_(false),
 #endif
           is_dispatching_(false),
-          dispatcher_timer_(io_),
           max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
           max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME),
           logger_(logger::get()),
@@ -54,7 +53,7 @@ application_impl::application_impl(const std::string &_name)
 }
 
 application_impl::~application_impl() {
-
+    runtime_->remove_application(name_);
 }
 
 void application_impl::set_configuration(
@@ -182,7 +181,7 @@ bool application_impl::init() {
         its_trace_connector->set_sd_enabled(enable_sd_tracing);
 #endif
 
-        VSOMEIP_DEBUG << "Application(" << (name_ != "" ? name_ : "unnamed")
+        VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed")
                 << ", " << std::hex << client_ << ") is initialized ("
                 << std::dec << max_dispatchers_ << ", "
                 << std::dec << max_dispatch_time_ << ").";
@@ -217,6 +216,7 @@ bool application_impl::init() {
 }
 
 void application_impl::start() {
+    const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         if (io_.stopped()) {
@@ -240,7 +240,8 @@ void application_impl::start() {
         }
         stopped_ = false;
         stopped_called_ = false;
-        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\".";
+        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" using "
+                << std::dec << io_thread_count << " threads";
 
         is_dispatching_ = true;
 
@@ -258,7 +259,7 @@ void application_impl::start() {
         if (routing_)
             routing_->start();
 
-        for (int i = 0; i < 3; i++) {
+        for (size_t i = 0; i < io_thread_count - 1; i++) {
             std::shared_ptr<std::thread> its_thread
                 = std::make_shared<std::thread>([this, i] {
                       io_.run();
@@ -270,6 +271,8 @@ void application_impl::start() {
     app_counter_mutex__.lock();
     app_counter__++;
     app_counter_mutex__.unlock();
+
+    io_.run();
 
     if (stop_thread_.joinable()) {
         stop_thread_.join();
@@ -1012,7 +1015,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 }
 
-void application_impl::on_message(std::shared_ptr<message> _message) {
+void application_impl::on_message(const std::shared_ptr<message> &&_message) {
     service_t its_service = _message->get_service();
     instance_t its_instance = _message->get_instance();
     method_t its_method = _message->get_method();
@@ -1105,7 +1108,7 @@ void application_impl::on_message(std::shared_ptr<message> _message) {
                 auto handler = its_handler.handler_;
                 std::shared_ptr<sync_handler> its_sync_handler =
                         std::make_shared<sync_handler>([handler, _message]() {
-                            handler(_message);
+                            handler(std::move(_message));
                         });
                 handlers_.push_back(its_sync_handler);
             }
@@ -1143,6 +1146,13 @@ void application_impl::main_dispatch() {
                 its_lock.lock();
 
                 remove_elapsed_dispatchers();
+
+                if(!is_dispatching_) {
+                    its_lock.unlock();
+#ifdef WIN32
+                    return;
+#endif
+                }
             }
         }
     }
@@ -1179,10 +1189,11 @@ void application_impl::dispatch() {
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     std::thread::id its_id = std::this_thread::get_id();
 
-    dispatcher_timer_.expires_from_now(std::chrono::milliseconds(max_dispatch_time_));
-    dispatcher_timer_.async_wait([this, its_id](const boost::system::error_code &_error) {
+    boost::asio::steady_timer its_dispatcher_timer(io_);
+    its_dispatcher_timer.expires_from_now(std::chrono::milliseconds(max_dispatch_time_));
+    its_dispatcher_timer.async_wait([this, its_id](const boost::system::error_code &_error) {
         if (!_error) {
-            VSOMEIP_DEBUG << "Blocking call detected. Client=" << std::hex << get_client();
+            VSOMEIP_INFO << "Blocking call detected. Client=" << std::hex << get_client();
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             blocked_dispatchers_.insert(its_id);
 
@@ -1200,7 +1211,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     });
 
     _handler->handler_();
-    dispatcher_timer_.cancel();
+    its_dispatcher_timer.cancel();
     {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         blocked_dispatchers_.erase(its_id);
@@ -1325,7 +1336,7 @@ void application_impl::send_back_cached_event(service_t _service,
         its_message->set_instance(_instance);
         its_message->set_payload(its_event->get_payload());
         its_message->set_initial(true);
-        on_message(its_message);
+        on_message(std::move(its_message));
     }
 }
 
@@ -1342,7 +1353,7 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
             its_message->set_instance(_instance);
             its_message->set_payload(its_event->get_payload());
             its_message->set_initial(true);
-            on_message(its_message);
+            on_message(std::move(its_message));
         }
     }
 }

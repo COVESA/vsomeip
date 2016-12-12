@@ -37,9 +37,6 @@ public:
             const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);
 
-    bool get_remote_address(boost::asio::ip::address &_address) const;
-    unsigned short get_remote_port() const;
-
     void join(const std::string &_address);
     void leave(const std::string &_address);
 
@@ -69,7 +66,7 @@ private:
     std::map<service_t, endpoint_type> default_targets_;
     std::set<std::string> joined_;
 
-    receive_buffer_t recv_buffer_;
+    message_buffer_t recv_buffer_;
     std::mutex stop_mutex_;
 };
 

@@ -7,31 +7,48 @@
 
 #include "big_payload_test_globals.hpp"
 
-big_payload_test_service::big_payload_test_service() :
-                app_(vsomeip::runtime::get()->create_application()),
+big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _test_mode) :
+                app_(vsomeip::runtime::get()->create_application("big_payload_test_service")),
                 is_registered_(false),
                 blocked_(false),
+                test_mode_(_test_mode),
                 number_of_received_messages_(0),
                 offer_thread_(std::bind(&big_payload_test_service::run, this))
 {
+    switch (test_mode_) {
+        case big_payload_test::test_mode::RANDOM:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_RANDOM;
+            break;
+        case big_payload_test::test_mode::LIMITED:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES / 2;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_LIMITED;
+            break;
+        default:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
+            break;
+    }
 }
 
-void big_payload_test_service::init()
+bool big_payload_test_service::init()
 {
     std::lock_guard<std::mutex> its_lock(mutex_);
-
+    std::srand(static_cast<unsigned int>(std::time(0)));
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
-    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
+    app_->register_message_handler(vsomeip::ANY_SERVICE,
+            big_payload_test::TEST_SERVICE_INSTANCE_ID,
+            big_payload_test::TEST_SERVICE_METHOD_ID,
             std::bind(&big_payload_test_service::on_message, this,
                     std::placeholders::_1));
 
     app_->register_state_handler(
             std::bind(&big_payload_test_service::on_state, this,
                     std::placeholders::_1));
+    return true;
 }
 
 void big_payload_test_service::start()
@@ -43,6 +60,7 @@ void big_payload_test_service::start()
 void big_payload_test_service::stop()
 {
     VSOMEIP_INFO << "Stopping...";
+    stop_offer();
     app_->clear_all_handler();
     app_->stop();
 }
@@ -52,14 +70,14 @@ void big_payload_test_service::join_offer_thread()
     offer_thread_.join();
 }
 
-void big_payload_test_service::offer()
-{
-    app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+void big_payload_test_service::offer() {
+    app_->offer_service(service_id_,
+            big_payload_test::TEST_SERVICE_INSTANCE_ID);
 }
 
-void big_payload_test_service::stop_offer()
-{
-    app_->stop_offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+void big_payload_test_service::stop_offer() {
+    app_->stop_offer_service(service_id_,
+            big_payload_test::TEST_SERVICE_INSTANCE_ID);
 }
 
 void big_payload_test_service::on_state(vsomeip::state_type_e _state)
@@ -93,7 +111,14 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
             << _request->get_session() << "] size: " << std::dec
             << _request->get_payload()->get_length();
 
-    ASSERT_EQ(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
+    static vsomeip::session_t last_session(0);
+    ASSERT_GT(_request->get_session(), last_session);
+    last_session = _request->get_session();
+    if (test_mode_ == big_payload_test::test_mode::RANDOM) {
+        ASSERT_LT(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+    } else {
+        ASSERT_EQ(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
+    }
     bool check(true);
     vsomeip::length_t len = _request->get_payload()->get_length();
     vsomeip::byte_t* datap = _request->get_payload()->get_data();
@@ -113,16 +138,33 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
     std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()
     ->create_payload();
     std::vector<vsomeip::byte_t> its_payload_data;
-    for (unsigned int i = 0; i < big_payload_test::BIG_PAYLOAD_SIZE; ++i) {
-        its_payload_data.push_back(big_payload_test::DATA_SERVICE_TO_CLIENT);
+    if (test_mode_ == big_payload_test::test_mode::RANDOM) {
+        its_payload_data.assign(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM,
+                big_payload_test::DATA_SERVICE_TO_CLIENT);
+    } else if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+        if (number_of_received_messages_ % 2) {
+            // try to send to big response for half of the received messsages.
+            // this way the client will only get replies for a fourth of his sent
+            // requests as he tries to sent to big data for every second request
+            // as well
+            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 3,
+                    big_payload_test::DATA_SERVICE_TO_CLIENT);
+        } else {
+            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                    big_payload_test::DATA_SERVICE_TO_CLIENT);
+        }
+    } else {
+        its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                big_payload_test::DATA_SERVICE_TO_CLIENT);
     }
+
     its_payload->set_data(its_payload_data);
     its_response->set_payload(its_payload);
 
     app_->send(its_response, true);
 
-    if(number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND) {
-        ASSERT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND, number_of_received_messages_);
+    if(number_of_received_messages_ == expected_messages_) {
+        ASSERT_EQ(expected_messages_, number_of_received_messages_);
         std::lock_guard<std::mutex> its_lock(mutex_);
         blocked_ = true;
         condition_.notify_one();
@@ -131,34 +173,50 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
 
 void big_payload_test_service::run()
 {
-    std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_) {
-        condition_.wait(its_lock);
-    }
+    {
+        std::unique_lock<std::mutex> its_lock(mutex_);
+        while (!blocked_) {
+            condition_.wait(its_lock);
+        }
 
-    offer();
+        offer();
 
-    // wait for shutdown
-    blocked_ = false;
-    while (!blocked_) {
-        condition_.wait(its_lock);
+        // wait for shutdown
+        blocked_ = false;
+        while (!blocked_) {
+            condition_.wait(its_lock);
+        }
     }
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    app_->stop();
+    if (test_mode_ == big_payload_test::test_mode::LIMITED) {
+        ASSERT_EQ(number_of_received_messages_, expected_messages_);
+    }
+    stop();
 }
+
+static big_payload_test::test_mode test_mode(big_payload_test::test_mode::UNKNOWN);
+
 
 TEST(someip_big_payload_test, receive_ten_messages_and_send_reply)
 {
-    big_payload_test_service test_service;
-    test_service.init();
-    test_service.start();
-    test_service.join_offer_thread();
+    big_payload_test_service test_service(test_mode);
+    if (test_service.init()) {
+        test_service.start();
+        test_service.join_offer_thread();
+    }
 }
 
 #ifndef WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+    if (argc > 1) {
+        if (std::string("RANDOM") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::RANDOM;
+        } else if (std::string("LIMITED") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::LIMITED;
+        }
+    }
     return RUN_ALL_TESTS();
 }
 #endif

@@ -24,9 +24,12 @@ public:
     {
     }
 
-    void init(){
+    bool init(){
         // init the application
-        app_->init();
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
 
         // register a state handler to get called back after registration at the
         // runtime was successful
@@ -45,6 +48,7 @@ public:
                 std::bind(&hello_world_client::on_availability_cbk, this,
                         std::placeholders::_1, std::placeholders::_2,
                         std::placeholders::_3));
+        return true;
     }
 
     void start()
@@ -118,6 +122,10 @@ public:
         // unregister the message handler
         app_->unregister_message_handler(vsomeip::ANY_SERVICE,
                 service_instance_id, vsomeip::ANY_METHOD);
+        // alternatively unregister all registered handlers at once
+        app_->clear_all_handler();
+        // release the service
+        app_->release_service(service_id, service_instance_id);
         // shutdown the application
         app_->stop();
     }
@@ -144,7 +152,10 @@ int main(int argc, char **argv)
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    hw_cl.init();
-    hw_cl.start();
-    return 0;
+    if (hw_cl.init()) {
+        hw_cl.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

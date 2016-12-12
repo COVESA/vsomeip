@@ -35,8 +35,8 @@ public:
             wait_until_service_available_(true),
             offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&offer_test_service::on_state, this,

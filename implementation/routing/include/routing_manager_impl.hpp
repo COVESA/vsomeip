@@ -21,11 +21,12 @@
 
 #include "routing_manager_base.hpp"
 #include "routing_manager_stub_host.hpp"
+
+#include "../../endpoints/include/netlink_connector.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
 
 namespace vsomeip {
 
-class client_endpoint;
 class configuration;
 class deserializer;
 class eventgroupinfo;
@@ -130,6 +131,9 @@ public:
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
+    void on_availability(service_t _service, instance_t _instance,
+            bool _is_available, major_version_t _major, minor_version_t _minor);
+
     void on_pong(client_t _client);
 
     // interface "endpoint_host"
@@ -138,10 +142,14 @@ public:
             bool _reliable, client_t _client);
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
-    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
+    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver,
+                  const boost::asio::ip::address &_remote_address,
+                  std::uint16_t _remote_port);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
                     const boost::asio::ip::address &_destination,
-                    client_t _bound_client);
+                    client_t _bound_client,
+                    const boost::asio::ip::address &_remote_address,
+                    std::uint16_t _remote_port);
     void on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable);
     void on_notification(client_t _client, service_t _service,
@@ -244,10 +252,16 @@ private:
 
     void send_error(return_code_e _return_code, const byte_t *_data,
             length_t _size, instance_t _instance, bool _reliable,
-            endpoint *_receiver);
+            endpoint *_receiver,
+            const boost::asio::ip::address &_remote_address,
+            std::uint16_t _remote_port);
 
     void identify_for_subscribe(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major);
+            instance_t _instance, major_version_t _major,
+            subscription_type_e _subscription_type);
+    bool send_identify_message(client_t _client, service_t _service,
+                               instance_t _instance, major_version_t _major,
+                               bool _reliable);
 
     bool supports_selective(service_t _service, instance_t _instance);
 
@@ -276,6 +290,8 @@ private:
 
     void remove_identifying_client(service_t _service, instance_t _instance, client_t _client);
 
+    void unsubscribe_specific_client_at_sd(service_t _service, instance_t _instance, client_t _client);
+
     inline std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance) {
         return routing_manager_base::find_local(_service, _instance);
     }
@@ -283,6 +299,10 @@ private:
     void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, subscription_type_e _subscription_type);
+
+    void on_net_if_state_changed(std::string _if, bool _available);
+
+    void start_ip_routing();
 
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
@@ -329,6 +349,13 @@ private:
     std::mutex used_client_ports_mutex_;
 
     boost::asio::steady_timer version_log_timer_;
+
+    bool if_state_running_;
+    std::mutex pending_sd_offers_mutex_;
+    std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
+#ifndef WIN32
+    std::shared_ptr<netlink_connector> netlink_connector_;
+#endif
 
 #ifndef WITHOUT_SYSTEMD
     boost::asio::steady_timer watchdog_timer_;

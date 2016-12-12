@@ -186,6 +186,7 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
+        ${TEST_LINK_LIBRARIES}
     )
 
     set(TEST_MAGIC_COOKIES_SERVICE ${TEST_MAGIC_COOKIES_NAME}_service)
@@ -195,6 +196,7 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
+        ${TEST_LINK_LIBRARIES}
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -665,6 +667,15 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
         ${TEST_PAYLOAD_CLIENT}
     )
+
+    ##############################################################################
+    set(TEST_LOCAL_PAYLOAD_HUGE_NAME local_payload_test_huge_payload)
+    # Copy bashscript to start client and server $BUILDDIR/test
+    set(TEST_LOCAL_PAYLOAD_HUGE_STARTER ${TEST_LOCAL_PAYLOAD_HUGE_NAME}_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+        ${TEST_PAYLOAD_CLIENT}
+    )
 endif()
 
 ##############################################################################
@@ -700,6 +711,22 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy config file for client and service into $BUILDDIR/test
+    set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_random.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+        ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+        ${TEST_BIG_PAYLOAD_SERVICE}
+    )
+
+    # Copy config file for client and service into $BUILDDIR/test
+    set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_limited.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+        ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+        ${TEST_BIG_PAYLOAD_SERVICE}
+    )
+
+    # Copy config file for client and service into $BUILDDIR/test
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
@@ -723,6 +750,30 @@ if(NOT ${TESTS_BAT})
         ${TEST_BIG_PAYLOAD_SERVICE}
     )
 
+    # Copy config file for client and service into $BUILDDIR/test
+    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+        ${TEST_BIG_PAYLOAD_CLIENT}
+    )
+
+    # Copy config file for client and service into $BUILDDIR/test
+    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+        ${TEST_BIG_PAYLOAD_SERVICE}
+    )
+
     # Copy bashscript to start client local to $BUILDDIR/test
     set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
@@ -739,6 +790,8 @@ if(NOT ${TESTS_BAT})
 
     # Copy bashscript to start client and server $BUILDDIR/test
     set(TEST_LOCAL_BIG_PAYLOAD_NAME big_payload_test_local)
+    set(TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_random)
+    set(TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_limited)
     set(TEST_LOCAL_BIG_PAYLOAD_STARTER ${TEST_LOCAL_BIG_PAYLOAD_NAME}_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
@@ -747,6 +800,8 @@ if(NOT ${TESTS_BAT})
 
     # Copy bashscript to start client for external test into $BUILDDIR/test
     set(TEST_EXTERNAL_BIG_PAYLOAD_NAME big_payload_test_external)
+    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_external_random)
+    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_external_limited)
     set(TEST_EXTERNAL_BIG_PAYLOAD_STARTER ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
@@ -778,6 +833,18 @@ if(NOT ${TESTS_BAT})
     add_executable(${TEST_CLIENT_ID_SERVICE} client_id_tests/${TEST_CLIENT_ID_NAME}_service.cpp)
     target_link_libraries(${TEST_CLIENT_ID_SERVICE}
         vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_CLIENT_ID_UTILITY ${TEST_CLIENT_ID_NAME}_utility)
+    add_executable(${TEST_CLIENT_ID_UTILITY}
+        client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
+    target_link_libraries(${TEST_CLIENT_ID_UTILITY}
+        vsomeip
+        vsomeip-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -902,6 +969,13 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${TEST_CLIENT_ID_SERVICE}
+    )
+
+    set(TEST_CLIENT_ID_UTILITY_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}
+        ${TEST_CLIENT_ID_UTILITY}
     )
 
     # copy starter scripts into builddir
@@ -1569,6 +1643,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_BIG_PAYLOAD_SERVICE} gtest)
     add_dependencies(${TEST_BIG_PAYLOAD_CLIENT} gtest)
     add_dependencies(${TEST_CLIENT_ID_SERVICE} gtest)
+    add_dependencies(${TEST_CLIENT_ID_UTILITY} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE} gtest)
     add_dependencies(${TEST_CPU_LOAD_SERVICE} gtest)
@@ -1607,6 +1682,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_BIG_PAYLOAD_SERVICE})
     add_dependencies(build_tests ${TEST_BIG_PAYLOAD_CLIENT})
     add_dependencies(build_tests ${TEST_CLIENT_ID_SERVICE})
+    add_dependencies(build_tests ${TEST_CLIENT_ID_UTILITY})
     add_dependencies(build_tests ${TEST_SUBSCRIBE_NOTIFY_SERVICE})
     add_dependencies(build_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE})
     add_dependencies(build_tests ${TEST_CPU_LOAD_SERVICE})
@@ -1674,6 +1750,10 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_LOCAL_PAYLOAD_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_PAYLOAD_STARTER}
     )
+    add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+    )
+    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 240)
     add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
     )
@@ -1691,10 +1771,31 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
     )
     set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_STARTER} RANDOM
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_BIG_PAYLOAD_STARTER} LIMITED
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 60)
+
     add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
     )
     set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} RANDOM
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} LIMITED
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 60)
 
     # client id tests
     add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports
@@ -1708,6 +1809,13 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports PROPERTIES TIMEOUT 60)
+
+    add_test(NAME ${TEST_CLIENT_ID_UTILITY}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
+    set_property(TEST ${TEST_CLIENT_ID_UTILITY}
+        APPEND PROPERTY ENVIRONMENT
+        "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}")
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 60)
 
     # subscribe notify tests
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp

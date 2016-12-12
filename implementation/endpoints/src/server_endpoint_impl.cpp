@@ -5,6 +5,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <limits>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -55,7 +56,7 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
     msg << "sei::send ";
     for (uint32_t i = 0; i < _size; i++)
     msg << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
     endpoint_type its_target;
     bool is_valid_target(false);
@@ -107,6 +108,14 @@ bool server_endpoint_impl<Protocol>::send_intern(
     queue_iterator_type target_queue_iterator;
 
     if(endpoint_impl<Protocol>::sending_blocked_) {
+        return false;
+    }
+
+    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
+            && _size > endpoint_impl<Protocol>::max_message_size_) {
+        VSOMEIP_ERROR << "sei::send_intern: Dropping to big message (" << _size
+                << " Bytes). Maximum allowed message size is: "
+                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
         return false;
     }
 

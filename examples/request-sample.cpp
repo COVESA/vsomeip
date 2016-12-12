@@ -30,8 +30,11 @@ public:
           sender_(std::bind(&client_sample::run, this)) {
     }
 
-    void init() {
-        app_->init();
+    bool init() {
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
 
         std::cout << "Client settings [protocol="
                   << (use_tcp_ ? "TCP" : "UDP")
@@ -73,6 +76,7 @@ public:
                 std::bind(&client_sample::on_availability,
                           this,
                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        return true;
     }
 
     void start() {
@@ -86,6 +90,8 @@ public:
     void stop() {
         running_ = false;
         blocked_ = true;
+        app_->clear_all_handler();
+        app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         condition_.notify_one();
         sender_.join();
         app_->stop();
@@ -222,7 +228,10 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    its_sample.init();
-    its_sample.start();
-    return 0;
+    if (its_sample.init()) {
+        its_sample.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

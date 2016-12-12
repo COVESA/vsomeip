@@ -28,9 +28,13 @@ public:
     virtual void on_message(const byte_t *_data, length_t _length,
         endpoint *_receiver, const boost::asio::ip::address &_destination
             = boost::asio::ip::address(),
-            client_t _bound_client = VSOMEIP_ROUTING_CLIENT) = 0;
+            client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
+            const boost::asio::ip::address &_remote_address = boost::asio::ip::address(),
+            std::uint16_t _remote_port = 0) = 0;
     virtual void on_error(const byte_t *_data, length_t _length,
-            endpoint *_receiver) = 0;
+                          endpoint *_receiver,
+                          const boost::asio::ip::address &_remote_address,
+                          std::uint16_t _remote_port) = 0;
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
     virtual client_t get_client() const = 0;
 #ifndef WIN32

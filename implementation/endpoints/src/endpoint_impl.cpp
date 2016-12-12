@@ -20,9 +20,9 @@ namespace vsomeip {
 template<typename Protocol>
 endpoint_impl<Protocol>::endpoint_impl(
         std::shared_ptr<endpoint_host> _host,
-		endpoint_type _local,
-		boost::asio::io_service &_io,
-		std::uint32_t _max_message_size)
+        endpoint_type _local,
+        boost::asio::io_service &_io,
+        std::uint32_t _max_message_size)
     : service_(_io),
       host_(_host),
       is_supporting_magic_cookies_(false),
@@ -30,7 +30,7 @@ endpoint_impl<Protocol>::endpoint_impl(
       max_message_size_(_max_message_size),
       use_count_(0),
       sending_blocked_(false),
-	  local_(_local) {
+      local_(_local) {
 }
 
 template<typename Protocol>
@@ -40,11 +40,6 @@ endpoint_impl<Protocol>::~endpoint_impl() {
 template<typename Protocol>
 void endpoint_impl<Protocol>::enable_magic_cookies() {
     has_enabled_magic_cookies_ = is_supporting_magic_cookies_;
-}
-
-template<typename Protocol>
-bool endpoint_impl<Protocol>::is_magic_cookie() const {
-    return false;
 }
 
 template<typename Protocol>
@@ -114,19 +109,7 @@ void endpoint_impl<Protocol>::remove_default_target(service_t) {
 }
 
 template<typename Protocol>
-bool endpoint_impl<Protocol>::get_remote_address(
-        boost::asio::ip::address &_address) const {
-    (void)_address;
-    return false;
-}
-
-template<typename Protocol>
 unsigned short endpoint_impl<Protocol>::get_local_port() const {
-    return 0;
-}
-
-template<typename Protocol>
-unsigned short endpoint_impl<Protocol>::get_remote_port() const {
     return 0;
 }
 

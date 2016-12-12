@@ -20,6 +20,7 @@
 #include "ip_option_impl.hpp"
 #include "ipv4_option_impl.hpp"
 #include "ipv6_option_impl.hpp"
+#include "deserializer.hpp"
 
 namespace vsomeip {
 
@@ -71,6 +72,8 @@ public:
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
+    void unsubscribe_client(service_t _service, instance_t _instance,
+                            client_t _client);
 
     bool send(bool _is_announcing, bool _is_find);
 
@@ -100,7 +103,7 @@ private:
             const boost::asio::ip::address &_address, uint16_t _port,
             bool _is_reliable);
     void insert_find_entries(std::shared_ptr<message_impl> &_message,
-            requests_t &_requests, uint32_t _start, uint32_t &_size, bool &_done);
+            uint32_t _start, uint32_t &_size, bool &_done);
     void insert_offer_entries(std::shared_ptr<message_impl> &_message,
                               const services_t &_services, uint32_t &_start,
                               uint32_t _size, bool &_done, bool _ignore_phase);
@@ -172,7 +175,6 @@ private:
     std::chrono::milliseconds stop_ttl_timer();
 
     void check_ttl(const boost::system::error_code &_error);
-    boost::asio::ip::address get_current_remote_address() const;
 
     void start_subscription_expiration_timer();
     void stop_subscription_expiration_timer();
@@ -317,6 +319,10 @@ private:
     boost::asio::steady_timer main_phase_timer_;
 
     bool is_suspended_;
+
+    std::string sd_multicast_;
+
+    boost::asio::ip::address current_remote_address_;
 };
 
 }  // namespace sd

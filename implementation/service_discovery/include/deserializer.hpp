@@ -15,8 +15,9 @@ class message_impl;
 
 class deserializer: public vsomeip::deserializer {
 public:
-    deserializer();
-    deserializer(uint8_t *_data, std::size_t _length);
+    deserializer(std::uint32_t _shrink_buffer_threshold);
+    deserializer(uint8_t *_data, std::size_t _length,
+                 std::uint32_t _shrink_buffer_threshold);
     deserializer(const deserializer &_other);
     virtual ~deserializer();
 

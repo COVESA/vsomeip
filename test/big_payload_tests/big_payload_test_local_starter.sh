@@ -10,16 +10,28 @@
 # the testcase simply executes this script. This script then runs client
 # and service and checks that both exit successfully.
 
+if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" ]]
+then
+    echo "The only allowed parameter to this script is RANDOM or LIMITED."
+    echo "Like $0 RANDOM"
+    exit 1
+fi
+
+
 FAIL=0
 
 # Start the service
-export VSOMEIP_APPLICATION_NAME=big_payload_test_service
-export VSOMEIP_CONFIGURATION=big_payload_test_local.json
-./big_payload_test_service &
+if [[ $# -gt 0 && $1 == "RANDOM" ]]; then
+    export VSOMEIP_CONFIGURATION=big_payload_test_local_random.json
+elif [[ $# -gt 0 && $1 == "LIMITED" ]]; then
+    export VSOMEIP_CONFIGURATION=big_payload_test_local_limited.json
+else
+    export VSOMEIP_CONFIGURATION=big_payload_test_local.json
+fi
+./big_payload_test_service $1 &
 
 # Start the client
-export VSOMEIP_APPLICATION_NAME=big_payload_test_client
-./big_payload_test_client &
+./big_payload_test_client $1 &
 
 # Wait until client and service are finished
 for job in $(jobs -p)

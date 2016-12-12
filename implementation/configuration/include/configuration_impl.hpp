@@ -70,7 +70,7 @@ public:
     VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance, bool _reliable,
-			std::map<bool, std::set<uint16_t> > &_used, uint16_t &_port) const;
+            std::map<bool, std::set<uint16_t> > &_used, uint16_t &_port) const;
 
     VSOMEIP_EXPORT const std::string & get_routing_host() const;
 
@@ -79,6 +79,7 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
 
@@ -91,6 +92,7 @@ public:
     VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
     VSOMEIP_EXPORT std::uint32_t get_message_size_reliable(const std::string& _address,
                                            std::uint16_t _port) const;
+    VSOMEIP_EXPORT std::uint32_t get_buffer_shrink_threshold() const;
 
     VSOMEIP_EXPORT bool supports_selective_broadcasts(boost::asio::ip::address _address) const;
 
@@ -225,7 +227,7 @@ protected:
     std::string logfile_;
     boost::log::trivial::severity_level loglevel_;
 
-    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t>> applications_;
+    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t, size_t>> applications_;
     std::set<client_t> client_identifiers_;
 
     std::map<service_t,
@@ -233,8 +235,8 @@ protected:
             std::shared_ptr<service> > > services_;
 
     std::map<service_t,
-		std::map<instance_t,
-			std::shared_ptr<client> > > clients_;
+        std::map<instance_t,
+            std::shared_ptr<client> > > clients_;
 
     std::string routing_host_;
 
@@ -256,6 +258,8 @@ protected:
 
     std::map<std::string, std::map<std::uint16_t, std::uint32_t>> message_sizes_;
     std::uint32_t max_configured_message_size_;
+    std::uint32_t max_local_message_size_;
+    std::uint32_t buffer_shrink_threshold_;
 
     std::shared_ptr<trace> trace_;
 
@@ -271,27 +275,27 @@ protected:
     enum element_type_e {
         ET_UNICAST,
         ET_DIAGNOSIS,
-    	ET_LOGGING_CONSOLE,
-		ET_LOGGING_FILE,
-		ET_LOGGING_DLT,
-		ET_LOGGING_LEVEL,
-		ET_ROUTING,
-		ET_SERVICE_DISCOVERY_ENABLE,
-		ET_SERVICE_DISCOVERY_PROTOCOL,
-		ET_SERVICE_DISCOVERY_MULTICAST,
-		ET_SERVICE_DISCOVERY_PORT,
-		ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN,
-		ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX,
-		ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY,
-		ET_SERVICE_DISCOVERY_REPETITION_MAX,
-		ET_SERVICE_DISCOVERY_TTL,
-		ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY,
-		ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY,
-		ET_WATCHDOG_ENABLE,
-		ET_WATCHDOG_TIMEOUT,
-		ET_WATCHDOG_ALLOWED_MISSING_PONGS,
-		ET_TRACING_ENABLE,
-		ET_TRACING_SD_ENABLE,
+        ET_LOGGING_CONSOLE,
+        ET_LOGGING_FILE,
+        ET_LOGGING_DLT,
+        ET_LOGGING_LEVEL,
+        ET_ROUTING,
+        ET_SERVICE_DISCOVERY_ENABLE,
+        ET_SERVICE_DISCOVERY_PROTOCOL,
+        ET_SERVICE_DISCOVERY_MULTICAST,
+        ET_SERVICE_DISCOVERY_PORT,
+        ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN,
+        ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX,
+        ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY,
+        ET_SERVICE_DISCOVERY_REPETITION_MAX,
+        ET_SERVICE_DISCOVERY_TTL,
+        ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY,
+        ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY,
+        ET_WATCHDOG_ENABLE,
+        ET_WATCHDOG_TIMEOUT,
+        ET_WATCHDOG_ALLOWED_MISSING_PONGS,
+        ET_TRACING_ENABLE,
+        ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
         ET_MAX = 24
     };

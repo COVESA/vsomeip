@@ -26,17 +26,24 @@ FAIL=0
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_one
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 1 &
+CLIENT_ID_PIDS[1]=$!
 
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_two
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 2 &
+CLIENT_ID_PIDS[2]=$!
 
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_three
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 3 &
+CLIENT_ID_PIDS[3]=$!
 
 sleep 1
 
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting client id test on slave LXC"
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE\"" &
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -50,13 +57,16 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # Wait until client and service are finished
-for job in $(jobs -p)
+for client_pid in "${CLIENT_ID_PIDS[@]}"
 do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
-    wait $job || ((FAIL+=1))
+    if [ -n "$client_pid" ]; then
+        # Fail gets incremented if either client or service exit
+        # with a non-zero exit code
+        wait "$client_pid" || ((FAIL+=1))
+    fi
 done
 
 # Check if both exited successfully 

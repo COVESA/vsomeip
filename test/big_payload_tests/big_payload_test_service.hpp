@@ -14,13 +14,15 @@
 #include <condition_variable>
 #include <functional>
 
-#include "../someip_test_globals.hpp"
+#include "big_payload_test_globals.hpp"
+#include "../../implementation/logging/include/logger.hpp"
+
 
 class big_payload_test_service
 {
 public:
-    big_payload_test_service();
-    void init();
+    big_payload_test_service(big_payload_test::test_mode _test_mode);
+    bool init();
     void start();
     void stop();
     void offer();
@@ -36,8 +38,11 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
+    big_payload_test::test_mode test_mode_;
     std::uint32_t number_of_received_messages_;
     std::thread offer_thread_;
+    std::uint32_t expected_messages_;
+    vsomeip::service_t service_id_;
 };
 
 #endif /* BIGPAYLOADTESTSERVICE_HPP_ */

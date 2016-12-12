@@ -30,7 +30,7 @@ public:
     virtual void on_availability(service_t _service, instance_t _instance,
     bool _is_available, major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
     virtual void on_state(state_type_e _state) = 0;
-    virtual void on_message(std::shared_ptr<message> _message) = 0;
+    virtual void on_message(const std::shared_ptr<message> &&_message) = 0;
     virtual void on_error(error_code_e _error) = 0;
     virtual bool on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _subscribed) = 0;

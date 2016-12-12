@@ -69,7 +69,7 @@ void payload_impl::set_data(std::vector< byte_t > &&_data) {
 }
 
 bool payload_impl::serialize(serializer *_to) const {
-    return (0 != _to && _to->serialize(data_.data(), uint32_t(data_.size())));
+    return (0 != _to && _to->serialize(data_));
 }
 
 bool payload_impl::deserialize(deserializer *_from) {

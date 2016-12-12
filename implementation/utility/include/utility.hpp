@@ -104,6 +104,10 @@ public:
     }
 
     static uint16_t its_configuration_refs__;
+
+private:
+    static bool is_bigger_last_assigned_client_id(client_t _client);
+    static void set_client_id_lowbyte(client_t _client);
 };
 
 }  // namespace vsomeip

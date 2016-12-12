@@ -148,7 +148,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
         if (configuration_data_mutex) {
 
             if (GetLastError() == ERROR_ALREADY_EXISTS) {
-                VSOMEIP_DEBUG << "utility::auto_configuration_init: use existing shared memory";
+                VSOMEIP_INFO << "utility::auto_configuration_init: use existing shared memory";
 
                 // mapping already exists, wait for mutex release and map in
                 DWORD waitResult = WaitForSingleObject(configuration_data_mutex, INFINITE);
@@ -190,7 +190,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                 }
 
             } else {
-                VSOMEIP_DEBUG << "utility::auto_configuration_init: create new shared memory";
+                VSOMEIP_INFO << "utility::auto_configuration_init: create new shared memory";
 
                 // create and init new mapping
                 its_descriptor = CreateFileMapping(
@@ -360,11 +360,11 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         pthread_mutex_lock(&the_configuration_data__->mutex_);
                         its_configuration_refs__++;
                         pthread_mutex_unlock(&the_configuration_data__->mutex_);
+                    }
 
-                        if (-1 == ::close(its_descriptor)) {
-                            VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                                    "close failed: " << std::strerror(errno);
-                        }
+                    if (-1 == ::close(its_descriptor)) {
+                        VSOMEIP_ERROR << "utility::auto_configuration_init: "
+                                "close failed: " << std::strerror(errno);
                     }
                 }
             }
@@ -413,7 +413,7 @@ void utility::auto_configuration_exit(client_t _client) {
                 VSOMEIP_ERROR << "utility::auto_configuration_exit: "
                         "munmap failed: " << std::strerror(errno);
             } else {
-                VSOMEIP_DEBUG <<  "utility::auto_configuration_exit: "
+                VSOMEIP_INFO <<  "utility::auto_configuration_exit: "
                         "munmap succeeded.";
                 the_configuration_data__ = nullptr;
                 if (unlink_shm) {
@@ -430,10 +430,7 @@ bool utility::is_used_client_id(client_t _client) {
     for (int i = 0;
          i < the_configuration_data__->max_used_client_ids_index_;
          i++) {
-        if (the_configuration_data__->used_client_ids_[i] == _client
-                || _client
-                        < (the_configuration_data__->client_base_
-                           + the_configuration_data__->max_assigned_client_id_low_byte_)) {
+        if (the_configuration_data__->used_client_ids_[i] == _client) {
             return true;
         }
     }
@@ -477,7 +474,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 #else
                 pthread_mutex_unlock(&the_configuration_data__->mutex_);
 #endif
-                return VSOMEIP_DIAGNOSIS_ADDRESS;
+                return ILLEGAL_CLIENT;
             }
         } else if (its_name == "" && the_configuration_data__->routing_manager_host_ == 0x0000) {
             set_client_as_manager_host = true;
@@ -497,27 +494,63 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
             return ILLEGAL_CLIENT;
         }
 
-        bool configured_and_not_used(false);
-        if (_client != ILLEGAL_CLIENT && !is_used_client_id(_client)) {
-            configured_and_not_used = true;
-        }
-
-        if (_client == ILLEGAL_CLIENT || is_used_client_id(_client)) {
-            _client = the_configuration_data__->client_base_;
-        }
-
-        while (is_used_client_id(_client)) {
-            if ((_client & 0x00FF) + 1 > VSOMEIP_MAX_CLIENTS) {
-                _client = the_configuration_data__->client_base_;
-                the_configuration_data__->max_assigned_client_id_low_byte_ = 0;
-            } else {
-                _client++;
+        bool use_autoconfig = true;
+        if (_name != "" && _client != ILLEGAL_CLIENT) { // preconfigured client id
+            // check if application name has preconfigured client id in json
+            const client_t its_preconfigured_client_id = _config->get_id(_name);
+            if (its_preconfigured_client_id) {
+                // preconfigured client id for application name present in json
+                if (its_preconfigured_client_id == _client) {
+                    // preconfigured client id for application name present in json
+                    // and requested
+                    if (!is_used_client_id(_client)) {
+                        use_autoconfig = false;
+                    }
+                } else {
+                    // preconfigured client id for application name present in
+                    // json, but different client id requested
+                    if (!is_used_client_id(its_preconfigured_client_id)) {
+                        // assign preconfigured client id if not already used
+                        _client = its_preconfigured_client_id;
+                        use_autoconfig = false;
+                    } else if (!is_used_client_id(_client)) {
+                        // if preconfigured client id is already used and
+                        // requested is unused assign requested
+                        use_autoconfig = false;
+                    }
+                }
             }
         }
-        if (!configured_and_not_used) {
-            the_configuration_data__->max_assigned_client_id_low_byte_ =
-                    static_cast<unsigned char>((_client & 0x00FF)
-                            % VSOMEIP_MAX_CLIENTS);
+
+        if (use_autoconfig) {
+            if (_client == ILLEGAL_CLIENT || is_used_client_id(_client)) {
+                _client = the_configuration_data__->client_base_;
+            }
+            int increase_count = 0;
+            while (is_used_client_id(_client)
+                    || !is_bigger_last_assigned_client_id(_client)
+                    || _config->is_configured_client_id(_client)) {
+                if ((_client & 0xFF) + 1 > VSOMEIP_MAX_CLIENTS) {
+                    _client = the_configuration_data__->client_base_;
+                    the_configuration_data__->max_assigned_client_id_low_byte_ = 0;
+                } else {
+                    _client++;
+                    increase_count++;
+                    if (increase_count > VSOMEIP_MAX_CLIENTS) {
+                        VSOMEIP_ERROR << "Max amount of possible concurrent active"
+                                << " vsomeip applications reached.";
+#ifdef WIN32
+                        BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
+                        assert(releaseResult);
+                        (void)releaseResult;
+#else
+                        pthread_mutex_unlock(&the_configuration_data__->mutex_);
+#endif
+                        return ILLEGAL_CLIENT;
+                    }
+                }
+            }
+            set_client_id_lowbyte(_client);
         }
 
         if (set_client_as_manager_host) {
@@ -538,7 +571,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 #endif
         return _client;
     }
-    return VSOMEIP_DIAGNOSIS_ADDRESS;
+    return ILLEGAL_CLIENT;
 }
 
 void utility::release_client_id(client_t _client) {
@@ -550,12 +583,13 @@ void utility::release_client_id(client_t _client) {
         pthread_mutex_lock(&the_configuration_data__->mutex_);
 #endif
         int i = 0;
-        while (the_configuration_data__->used_client_ids_[i] != _client &&
-               i < the_configuration_data__->max_used_client_ids_index_) {
-            i++;
+        for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
+            if (the_configuration_data__->used_client_ids_[i] == _client) {
+                break;
+            }
         }
 
-        if (i <= the_configuration_data__->max_used_client_ids_index_) {
+        if (i < the_configuration_data__->max_used_client_ids_index_) {
             the_configuration_data__->max_used_client_ids_index_--;
             for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
                 the_configuration_data__->used_client_ids_[i]
@@ -612,6 +646,19 @@ void utility::set_routing_manager_host(client_t _client) {
 #else
     pthread_mutex_unlock(&the_configuration_data__->mutex_);
 #endif
+}
+
+bool utility::is_bigger_last_assigned_client_id(client_t _client) {
+    return _client
+            > ((the_configuration_data__->client_base_ & 0xFF00)
+                    + the_configuration_data__->max_assigned_client_id_low_byte_);
+}
+
+void utility::set_client_id_lowbyte(client_t _client) {
+    const unsigned char its_low_byte =
+            static_cast<unsigned char>(_client & 0xFF);
+    the_configuration_data__->max_assigned_client_id_low_byte_ = its_low_byte
+            % VSOMEIP_MAX_CLIENTS;
 }
 
 } // namespace vsomeip

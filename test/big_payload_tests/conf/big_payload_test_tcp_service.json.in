@@ -22,7 +22,25 @@
     [
         {
             "service":"0x1234",
-            "instance":"0x5678",
+            "instance":"0x01",
+            "reliable":
+            {
+                "port":"30509",
+                "enable-magic-cookies":"false"
+            }
+        },
+        {
+            "service":"0x1235",
+            "instance":"0x01",
+            "reliable":
+            {
+                "port":"30509",
+                "enable-magic-cookies":"false"
+            }
+        },
+        {
+            "service":"0x1236",
+            "instance":"0x01",
             "reliable":
             {
                 "port":"30509",

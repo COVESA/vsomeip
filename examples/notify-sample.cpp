@@ -30,10 +30,13 @@ public:
             notify_thread_(std::bind(&service_sample::notify, this)) {
     }
 
-    void init() {
+    bool init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
-        app_->init();
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
         app_->register_state_handler(
                 std::bind(&service_sample::on_state, this,
                         std::placeholders::_1));
@@ -64,6 +67,7 @@ public:
 
         blocked_ = true;
         condition_.notify_one();
+        return true;
     }
 
     void start() {
@@ -79,6 +83,8 @@ public:
         blocked_ = true;
         condition_.notify_one();
         notify_condition_.notify_one();
+        app_->clear_all_handler();
+        stop_offer();
         offer_thread_.join();
         notify_thread_.join();
         app_->stop();
@@ -245,8 +251,10 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    its_sample.init();
-    its_sample.start();
-
-    return 0;
+    if (its_sample.init()) {
+        its_sample.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

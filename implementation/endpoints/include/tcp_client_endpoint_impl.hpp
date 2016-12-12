@@ -21,9 +21,10 @@ class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
     tcp_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
-							 endpoint_type _remote,
+                             endpoint_type _remote,
                              boost::asio::io_service &_io,
-                             std::uint32_t _max_message_size);
+                             std::uint32_t _max_message_size,
+                             std::uint32_t buffer_shrink_threshold);
     virtual ~tcp_client_endpoint_impl();
 
     void start();
@@ -44,9 +45,14 @@ private:
 
     void connect();
     void receive();
+    void calculate_shrink_count();
 
-    receive_buffer_t recv_buffer_;
+    const std::uint32_t recv_buffer_size_initial_;
+    message_buffer_t recv_buffer_;
     size_t recv_buffer_size_;
+    std::uint32_t missing_capacity_;
+    std::uint32_t shrink_count_;
+    const std::uint32_t buffer_shrink_threshold_;
 };
 
 } // namespace vsomeip

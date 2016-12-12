@@ -118,7 +118,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
             }
         }
     } else {
-        VSOMEIP_DEBUG << "Can't set payload for event " << std::hex
+        VSOMEIP_INFO << "Can't set payload for event " << std::hex
                 << message_->get_method() << " as it isn't provided";
     }
 }
@@ -134,7 +134,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _clie
             }
         }
     } else {
-        VSOMEIP_DEBUG << "Can't set payload for event " << std::hex
+        VSOMEIP_INFO << "Can't set payload for event " << std::hex
                 << message_->get_method() << " as it isn't provided";
     }
 }
@@ -151,7 +151,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
             }
         }
     } else {
-        VSOMEIP_DEBUG << "Can't set payload for event " << std::hex
+        VSOMEIP_INFO << "Can't set payload for event " << std::hex
                 << message_->get_method() << " as it isn't provided";
     }
 }
@@ -221,7 +221,7 @@ void event::notify(bool _flush) {
     if (is_set_) {
         routing_->send(VSOMEIP_ROUTING_CLIENT, message_, _flush);
     } else {
-        VSOMEIP_DEBUG << "Notify event " << std::hex << message_->get_method()
+        VSOMEIP_INFO << "Notify event " << std::hex << message_->get_method()
                 << "failed. Event payload not set!";
     }
 }
@@ -230,7 +230,7 @@ void event::notify_one(const std::shared_ptr<endpoint_definition> &_target, bool
     if (is_set_) {
         routing_->send_to(_target, message_, _flush);
     } else {
-        VSOMEIP_DEBUG << "Notify one event " << std::hex << message_->get_method()
+        VSOMEIP_INFO << "Notify one event " << std::hex << message_->get_method()
                 << "failed. Event payload not set!";
     }
 }
@@ -239,7 +239,7 @@ void event::notify_one(client_t _client, bool _flush) {
     if (is_set_) {
         routing_->send(_client, message_, _flush);
     } else {
-        VSOMEIP_DEBUG << "Notify one event " << std::hex << message_->get_method()
+        VSOMEIP_INFO << "Notify one event " << std::hex << message_->get_method()
                 << " to client " << _client << " failed. Event payload not set!";
     }
 }
@@ -266,6 +266,7 @@ void event::reset_payload(const std::shared_ptr<payload> &_payload) {
 }
 
 void event::add_ref(client_t _client, bool _is_provided) {
+    std::lock_guard<std::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
     if (its_client == refs_.end()) {
         refs_[_client][_is_provided] = 1;
@@ -280,6 +281,7 @@ void event::add_ref(client_t _client, bool _is_provided) {
 }
 
 void event::remove_ref(client_t _client, bool _is_provided) {
+    std::lock_guard<std::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
     if (its_client != refs_.end()) {
         auto its_provided = its_client->second.find(_is_provided);
@@ -296,6 +298,7 @@ void event::remove_ref(client_t _client, bool _is_provided) {
 }
 
 bool event::has_ref() {
+    std::lock_guard<std::mutex> its_lock(refs_mutex_);
     return refs_.size() != 0;
 }
 

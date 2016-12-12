@@ -31,6 +31,8 @@ typedef client_endpoint_impl<
 
 class local_client_endpoint_impl: public local_client_endpoint_base_impl {
 public:
+    typedef std::function<void()> error_handler_t;
+
     local_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _remote,
                                boost::asio::io_service &_io,
@@ -42,6 +44,11 @@ public:
 
     bool is_local() const;
 
+    bool get_remote_address(boost::asio::ip::address &_address) const;
+    unsigned short get_remote_port() const;
+
+    void register_error_handler(error_handler_t _error_handler);
+
 private:
     void send_queued();
 
@@ -52,7 +59,9 @@ private:
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
 
-    receive_buffer_t recv_buffer_;
+    message_buffer_t recv_buffer_;
+
+    error_handler_t error_handler_;
 };
 
 } // namespace vsomeip

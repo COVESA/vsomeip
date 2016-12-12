@@ -38,8 +38,8 @@ public:
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_test_service::notify, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&subscribe_notify_test_service::on_state, this,
@@ -359,6 +359,16 @@ public:
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
+        for(const auto& i : service_infos_) {
+            if ((i.service_id == service_info_.service_id
+                    && i.instance_id == service_info_.instance_id)
+                    || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
+                continue;
+            }
+            app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
+            app_->release_event(i.service_id, i.instance_id, i.event_id);
+            app_->release_service(i.service_id, i.instance_id);
+        }
         app_->clear_all_handler();
         app_->stop();
     }

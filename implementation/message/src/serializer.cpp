@@ -3,29 +3,28 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <cstring>
+//#include <cstring>
 
 #ifdef VSOMEIP_DEBUGGING
 #include <iomanip>
 #include <sstream>
-
-#include "../../logging/include/logger.hpp"
 #endif
 
 #include <vsomeip/internal/serializable.hpp>
 
 #include "../include/serializer.hpp"
 #include "../../utility/include/byteorder.hpp"
+#include "../../logging/include/logger.hpp"
 
 namespace vsomeip {
 
-serializer::serializer()
-    : data_(0), capacity_(0), position_(0), remaining_(0) {
+serializer::serializer(std::uint32_t _buffer_shrink_threshold) :
+        data_(0),
+        shrink_count_(0),
+        buffer_shrink_threshold_(_buffer_shrink_threshold) {
 }
 
 serializer::~serializer() {
-    if (0 != data_)
-        delete [] data_;
 };
 
 bool serializer::serialize(const serializable *_from) {
@@ -33,104 +32,90 @@ bool serializer::serialize(const serializable *_from) {
 }
 
 bool serializer::serialize(const uint8_t _value) {
-    if (1 > remaining_)
-        return false;
-
-    *position_++ = _value;
-    remaining_--;
-
+    data_.push_back(_value);
     return true;
 }
 
 bool serializer::serialize(const uint16_t _value) {
-    if (2 > remaining_)
-        return false;
-
-    *position_++ = VSOMEIP_WORD_BYTE1(_value);
-    *position_++ = VSOMEIP_WORD_BYTE0(_value);
-    remaining_ -= 2;
-
+    data_.push_back(VSOMEIP_WORD_BYTE1(_value));
+    data_.push_back(VSOMEIP_WORD_BYTE0(_value));
     return true;
 }
 
 bool serializer::serialize(const uint32_t _value, bool _omit_last_byte) {
-    if (3 > remaining_ || (!_omit_last_byte && 4 > remaining_))
-        return false;
-
     if (!_omit_last_byte) {
-        *position_++ = VSOMEIP_LONG_BYTE3(_value);
-        remaining_--;
+        data_.push_back(VSOMEIP_LONG_BYTE3(_value));
     }
-    *position_++ = VSOMEIP_LONG_BYTE2(_value);
-    *position_++ = VSOMEIP_LONG_BYTE1(_value);
-    *position_++ = VSOMEIP_LONG_BYTE0(_value);
-    remaining_ -= 3;
-
+    data_.push_back(VSOMEIP_LONG_BYTE2(_value));
+    data_.push_back(VSOMEIP_LONG_BYTE1(_value));
+    data_.push_back(VSOMEIP_LONG_BYTE0(_value));
     return true;
 }
 
 bool serializer::serialize(const uint8_t *_data, uint32_t _length) {
-    if (_length > remaining_)
+    try {
+        data_.insert(data_.end(), _data, _data + _length);
+    } catch(const std::bad_alloc &e) {
+        VSOMEIP_ERROR << "Couldn't allocate memory in serializer::serialize(*_data, length)" << e.what();
         return false;
-
-    ::memcpy(position_, _data, _length);
-    position_ += _length;
-    remaining_ -= _length;
-
+    }
     return true;
 }
 
-byte_t * serializer::get_data() const {
-    return data_;
+bool serializer::serialize(const std::vector<byte_t> &_data) {
+    try {
+        data_.insert(data_.end(),_data.begin(), _data.end());
+    } catch(const std::bad_alloc &e) {
+        VSOMEIP_ERROR << "Couldn't allocate memory in serializer::serialize(vector)" << e.what();
+        return false;
+    }
+    return true;
+}
+
+const byte_t * serializer::get_data() const {
+    return data_.data();
 }
 
 uint32_t serializer::get_capacity() const {
-    return capacity_;
+    return static_cast<std::uint32_t>(data_.max_size());
 }
 
 uint32_t serializer::get_size() const {
-    return capacity_ - remaining_;
-}
-
-void serializer::create_data(uint32_t _capacity) {
-    if (0 != data_)
-        delete [] data_;
-
-    data_ = new byte_t[_capacity];
-    position_ = data_;
-    if (0 != data_) {
-        capacity_ = remaining_ = _capacity;
-    } else {
-        capacity_ = remaining_ = 0;
-    }
+    return static_cast<std::uint32_t>(data_.size());
 }
 
 void serializer::set_data(byte_t *_data, uint32_t _capacity) {
-    delete [] data_;
-
-    data_ = _data;
-    position_ = _data;
-
-    if (0 != data_) {
-        capacity_ = remaining_ = _capacity;
-    } else {
-        capacity_ = remaining_ = 0;
+    data_.clear();
+    try {
+        data_.insert(data_.end(), _data, _data + _capacity);
+    } catch(const std::bad_alloc &e) {
+        VSOMEIP_ERROR << "Couldn't allocate memory in serializer::set_data" << e.what();
     }
 }
 
 void serializer::reset() {
-    position_ = data_;
-    remaining_ = capacity_;
+    if (buffer_shrink_threshold_) {
+        if (data_.size() < (data_.capacity() >> 1)) {
+            shrink_count_++;
+        } else {
+            shrink_count_ = 0;
+        }
+    }
+    data_.clear();
+    if (buffer_shrink_threshold_ && shrink_count_ > buffer_shrink_threshold_) {
+        data_.shrink_to_fit();
+        shrink_count_ = 0;
+    }
 }
 
 #ifdef VSOMEIP_DEBUGGING
 void serializer::show() {
     std::stringstream its_data;
     its_data << "SERIALIZED: ";
-    for (int i = 0; i < position_ - data_; ++i)
+    for (const byte_t& e : data_)
         its_data << std::setw(2) << std::setfill('0')
-                 << std::hex << (int)data_[i];
-    VSOMEIP_DEBUG << its_data.str();
+                 << std::hex << (int)e;
+    VSOMEIP_INFO << its_data.str();
 }
 #endif
 

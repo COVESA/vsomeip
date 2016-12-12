@@ -17,19 +17,19 @@ namespace vsomeip {
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
-		endpoint_type _local,
-		endpoint_type _remote,
+        endpoint_type _local,
+        endpoint_type _remote,
         boost::asio::io_service &_io)
     : udp_client_endpoint_base_impl(_host, _local, _remote, _io,
-    		VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+            VSOMEIP_MAX_UDP_MESSAGE_SIZE),
       recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0) {
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
-	std::shared_ptr<endpoint_host> its_host = host_.lock();
-	if (its_host) {
-		its_host->release_port(local_.port(), false);
-	}
+    std::shared_ptr<endpoint_host> its_host = host_.lock();
+    if (its_host) {
+        its_host->release_port(local_.port(), false);
+    }
 }
 
 bool udp_client_endpoint_impl::is_local() const {
@@ -37,13 +37,18 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
-	// In case a client endpoint port was configured,
-	// bind to it before connecting
-	if (local_.port() != ILLEGAL_PORT) {
-		socket_.bind(local_);
-	}
+    // In case a client endpoint port was configured,
+    // bind to it before connecting
+    if (local_.port() != ILLEGAL_PORT) {
+        boost::system::error_code its_bind_error;
+        socket_.bind(local_, its_bind_error);
+        if(its_bind_error) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
+                    "Error binding socket: " << its_bind_error.message();
+        }
+    }
 
-	socket_.async_connect(
+    socket_.async_connect(
         remote_,
         std::bind(
             &udp_client_endpoint_base_impl::connect_cbk,
@@ -78,7 +83,7 @@ void udp_client_endpoint_impl::send_queued() {
     for (std::size_t i = 0; i < its_buffer->size(); i++)
         msg << std::hex << std::setw(2) << std::setfill('0')
             << (int)(*its_buffer)[i] << " ";
-    VSOMEIP_DEBUG << msg.str();
+    VSOMEIP_INFO << msg.str();
 #endif
     socket_.async_send(
         boost::asio::buffer(*its_buffer),
@@ -108,18 +113,28 @@ void udp_client_endpoint_impl::receive() {
 
 bool udp_client_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
-    _address = remote_.address();
+    const boost::asio::ip::address its_address = remote_.address();
+    if (its_address.is_unspecified()) {
+        return false;
+    }
+    _address = its_address;
     return true;
 }
 
 unsigned short udp_client_endpoint_impl::get_local_port() const {
     boost::system::error_code its_error;
-    return socket_.local_endpoint(its_error).port();
+    if (socket_.is_open()) {
+        return socket_.local_endpoint(its_error).port();
+    }
+    return 0;
 }
 
 unsigned short udp_client_endpoint_impl::get_remote_port() const {
     boost::system::error_code its_error;
-    return socket_.remote_endpoint(its_error).port();
+    if (socket_.is_open()) {
+        return socket_.remote_endpoint(its_error).port();
+    }
+    return 0;
 }
 
 void udp_client_endpoint_impl::receive_cbk(
@@ -137,10 +152,15 @@ void udp_client_endpoint_impl::receive_cbk(
         for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
             msg << std::hex << std::setw(2) << std::setfill('0')
                 << (int) recv_buffer_[i] << " ";
-        VSOMEIP_DEBUG << msg.str();
+        VSOMEIP_INFO << msg.str();
 #endif
         std::size_t remaining_bytes = _bytes;
         std::size_t i = 0;
+        boost::system::error_code its_error;
+        endpoint_type its_endpoint(socket_.remote_endpoint(its_error));
+        const boost::asio::ip::address its_remote_address(its_endpoint.address());
+        const std::uint16_t its_remote_port(its_endpoint.port());
+
         do {
             uint32_t current_message_size
                 = utility::get_message_size(&this->recv_buffer_[i],
@@ -149,11 +169,17 @@ void udp_client_endpoint_impl::receive_cbk(
                     current_message_size <= remaining_bytes) {
                 remaining_bytes -= current_message_size;
 
-	            its_host->on_message(&recv_buffer_[i], current_message_size, this);
-			} else {
-	            VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad length field";
-				remaining_bytes = 0;
-			}
+                its_host->on_message(&recv_buffer_[i], current_message_size,
+                        this, boost::asio::ip::address(),
+                        VSOMEIP_ROUTING_CLIENT, its_remote_address,
+                        its_remote_port);
+            } else {
+                VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad "
+                        "length field. Message size: " << current_message_size
+                        << " Bytes. From: " << remote_.address() << ":"
+                        << remote_.port() << ". Dropping message.";
+                remaining_bytes = 0;
+            }
             i += current_message_size;
         } while (remaining_bytes > 0);
     }

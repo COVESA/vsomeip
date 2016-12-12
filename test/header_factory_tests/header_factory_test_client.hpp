@@ -21,7 +21,7 @@ class header_factory_test_client
 {
 public:
     header_factory_test_client(bool _use_tcp);
-    void init();
+    bool init();
     void start();
     void stop();
     void join_sender_thread();

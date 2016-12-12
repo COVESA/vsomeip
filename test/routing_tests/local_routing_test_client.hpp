@@ -21,7 +21,7 @@ class local_routing_test_client
 {
 public:
     local_routing_test_client(bool _use_tcp);
-    void init();
+    bool init();
     void start();
     void stop();
     void join_sender_thread();

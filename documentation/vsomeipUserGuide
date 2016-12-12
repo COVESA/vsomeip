@@ -385,6 +385,11 @@ The maximum time that an application callback may consume before the callback is
 considered to be blocked (and an additional thread is used to execute pending
 callbacks if max_dispatchers is configured greater than 0).
 +
+** 'threads' (optional)
++
+The number of internal threads to process messages and events within an application.
+Valid values are 1-255. Default is 2.
++
 * `services` (array)
 +
 Contains the services of the service provider.
@@ -518,40 +523,62 @@ service instance.
 
 * `payload-sizes` (array)
 +
-Array to specify the maximum allowed payload sizes per IP and port. If not
-specified, or a smaller value than the default values is specified, the default
-values are used. The settings in this array only affect communication over TCP
-and local communication over UNIX domain sockets.
+Array to limit the maximum allowed payload sizes per IP and port. If not
+specified otherwise the allowed payload sizes are unlimited. The settings in
+this array only affect communication over TCP. To limit the local payload size
+`max-payload-size-local` can be used.
 
 ** `unicast`
 +
-On client side: the IP of the remote service to which the oversized messages
-should be sent.
-On service side: the IP of the offered service which should receive the
-oversized messages and is allowed to respond with oversized messages.
-If client and service only communicate locally, any IP can be entered here as
-for local communication only the maximum specified payload size is relevant.
+On client side: the IP of the remote service for which the payload size should
+be limited.
++
+On service side: the IP of the offered service for which the payload size for
+receiving and sending should be limited.
 
 ** `ports` (array)
 +
-Array which holds pairs of port and payload-size statements.
+Array which holds pairs of port and payload size statements.
 
 *** `port`
 +
-On client side: the port of the remote service to which the oversized messages
-should be sent.
-On service side: the port of the offered service which should receive the
-oversized messages and is allowed to respond with oversized messages.
-If client and service only communicate locally, any port number can be entered.
+On client side: the port of the remote service for which the payload size should
+be limited.
++
+On service side: the port of the offered service for which the payload size for
+receiving and sending should be limited.
 
 *** `max-payload-size`
 +
-On client side: the maximum payload size in bytes of a message sent to the
+On client side: the payload size limit in bytes of a message sent to the
 remote service hosted on beforehand specified IP and port.
-On service side: the maximum payload size in bytes of messages received by the
-service offered on previously specified IP and port. If multiple services are
-hosted on the same port all of them are allowed to receive oversized messages
-and send oversized responses.
++
+On service side: the payload size limit in bytes of messages received and sent
+by the service offered on previously specified IP and port.
++
+If multiple services are hosted on the same port all they share the limit
+specified.
+
+* `max-payload-size-local`
++
+The maximum allowed payload size for node internal communication in bytes. By
+default the payload size for node internal communication is unlimited. It can be
+limited via this setting.
+
+* `buffer-shrink-threshold`
++
+The number of processed messages which are half the size or smaller than the
+allocated buffer used to process them before the memory for the buffer is
+released and starts to grow dynamically again. This setting can be useful in
+scenarios where only a small number of the overall messages are a lot bigger
+then the rest and the memory allocated to process them should be released in a
+timely manner. If not specified via this setting the buffer sizes by default
+aren't reseted and are as big as the biggest processed message.
++
+Example: `buffer-shrink-threshold` is set to 50. A message with 500 bytes has to
+be processed and the buffers grow accordingly. After this message 50 consecutive
+messages smaller than 250 bytes have to be processed before the buffer size is
+reduced and starts to grow dynamically again.
 
 * `internal_services` (optional array)
 +

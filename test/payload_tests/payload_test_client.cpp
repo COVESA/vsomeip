@@ -40,11 +40,11 @@ payload_test_client::payload_test_client(
 {
 }
 
-void payload_test_client::init()
+bool payload_test_client::init()
 {
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
 
     app_->register_state_handler(
@@ -61,6 +61,7 @@ void payload_test_client::init()
             std::bind(&payload_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
+    return true;
 }
 
 void payload_test_client::start()
@@ -185,8 +186,8 @@ void payload_test_client::run()
 
     std::shared_ptr<vsomeip::payload> payload = vsomeip::runtime::get()->create_payload();
     std::vector<vsomeip::byte_t> payload_data;
-    bool lastrun = false;
-    while (current_payload_size_ <= max_allowed_payload)
+    bool reached_peak = false;
+    for(;;)
     {
         payload_data.assign(current_payload_size_ , vsomeip_test::PAYLOAD_TEST_DATA);
         payload->set_data(payload_data);
@@ -201,16 +202,19 @@ void payload_test_client::run()
         print_throughput();
 
         // Increase array size for next iteration
-        current_payload_size_ *= 2;
-
-        //special case to test the biggest payload possible as last test
-        // 16 Bytes are reserved for the SOME/IP header
-        if(current_payload_size_ > max_allowed_payload - 16 && !lastrun)
-        {
-            current_payload_size_ = max_allowed_payload - 16;
-            lastrun = true;
+        if(!reached_peak) {
+            current_payload_size_ *= 2;
+        } else {
+            current_payload_size_ /= 2;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        if(!reached_peak && current_payload_size_ > max_allowed_payload)
+        {
+            current_payload_size_ = max_allowed_payload;
+            reached_peak = true;
+        } else if(reached_peak && current_payload_size_ <= 1) {
+            break;
+        }
     }
     blocked_ = false;
 
@@ -229,13 +233,15 @@ std::uint32_t payload_test_client::get_max_allowed_payload()
     switch (max_payload_size)
     {
         case payloadsize::UDS:
-            payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
+            // TODO
+            payload = 1024 * 32 - 16;
             break;
         case payloadsize::TCP:
-            payload = VSOMEIP_MAX_TCP_MESSAGE_SIZE;
+            // TODO
+            payload = 4095 - 16;
             break;
         case payloadsize::UDP:
-            payload = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+            payload = VSOMEIP_MAX_UDP_MESSAGE_SIZE - 16;
             break;
         case payloadsize::USER_SPECIFIED:
             payload = user_defined_max_payload;
@@ -291,24 +297,25 @@ void payload_test_client::print_throughput()
     stop_watch::usec_t time_per_message = time_needed / number_of_sent_messages_;
     std::double_t calls_per_sec = number_of_sent_messages_
             * (usec_per_sec / static_cast<double>(time_needed));
-    std::double_t kbyte_per_sec = ((number_of_sent_messages_
+    std::double_t mbyte_per_sec = ((number_of_sent_messages_
             * current_payload_size_)
-            / (static_cast<double>(time_needed) / usec_per_sec)) / 1024;
+            / (static_cast<double>(time_needed) / usec_per_sec)) / (1024*1024);
 
     VSOMEIP_INFO<< "[ Payload Test ] : :"
-    << "Payload size [byte]: " << std::setw(8) << std::setfill('0') << current_payload_size_
-    << " Messages sent: " << std::setw(8) << std::setfill('0') << number_of_sent_messages_
-    << " Meantime/message [usec]: " << std::setw(8) << std::setfill('0') << time_per_message
-    << " Calls/sec: " << std::setw(8) << std::setfill('0') << calls_per_sec
-    << " KiB/sec: " << std::setw(8) << std::setfill('0') << kbyte_per_sec;
+    << "Payload size [byte]: " << std::dec << std::setw(8) << std::setfill('0') << current_payload_size_
+    << " Messages sent: " << std::dec << std::setw(8) << std::setfill('0') << number_of_sent_messages_
+    << " Meantime/message [usec]: " << std::dec << std::setw(8) << std::setfill('0') << time_per_message
+    << " Calls/sec: " << std::dec << std::setw(8) << std::setfill('0') << calls_per_sec
+    << " MiB/sec: " << std::dec << std::setw(8) << std::setfill('0') << mbyte_per_sec;
 }
 
 TEST(someip_payload_test, send_different_payloads)
 {
     payload_test_client test_client_(use_tcp, call_service_sync, sliding_window_size);
-    test_client_.init();
-    test_client_.start();
-    test_client_.join_sender_thread();
+    if (test_client_.init()) {
+        test_client_.start();
+        test_client_.join_sender_thread();
+    }
 }
 
 

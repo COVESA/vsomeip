@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <future>
 
 #include <gtest/gtest.h>
 
@@ -25,8 +26,8 @@ protected:
     void SetUp() {
         app_ = runtime::get()->create_application("application_test");
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
 
         app_->register_state_handler(
@@ -47,9 +48,12 @@ protected:
  */
 TEST_F(someip_application_test, start_stop_application)
 {
+    std::promise<bool> its_promise;
     std::thread t([&](){
+        its_promise.set_value(true);
         app_->start();
     });
+    EXPECT_TRUE(its_promise.get_future().get());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     app_->stop();
     t.join();
@@ -61,9 +65,12 @@ TEST_F(someip_application_test, start_stop_application)
 TEST_F(someip_application_test, start_stop_application_multiple)
 {
     for (int i = 0; i < 10; ++i) {
+        std::promise<bool> its_promise;
         std::thread t([&]() {
+            its_promise.set_value(true);
             app_->start();
         });
+        EXPECT_TRUE(its_promise.get_future().get());
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         app_->stop();
         t.join();
@@ -76,9 +83,12 @@ TEST_F(someip_application_test, start_stop_application_multiple)
 TEST_F(someip_application_test, start_stop_application_multiple_offer_service)
 {
     for (int i = 0; i < 10; ++i) {
+        std::promise<bool> its_promise;
         std::thread t([&]() {
+            its_promise.set_value(true);
             app_->start();
         });
+        EXPECT_TRUE(its_promise.get_future().get());
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -94,10 +104,13 @@ TEST_F(someip_application_test, start_stop_application_multiple_offer_service)
  */
 TEST_F(someip_application_test, restart_without_stopping)
 {
+    std::promise<bool> its_promise;
     std::thread t([&]() {
+        its_promise.set_value(true);
         app_->start();
 
     });
+    EXPECT_TRUE(its_promise.get_future().get());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     VSOMEIP_WARNING << "An error message should appear now";
     // should print error
@@ -111,10 +124,13 @@ TEST_F(someip_application_test, restart_without_stopping)
  */
 TEST_F(someip_application_test, stop_application_twice)
 {
+    std::promise<bool> its_promise;
     std::thread t([&]() {
+        its_promise.set_value(true);
         app_->start();
 
     });
+    EXPECT_TRUE(its_promise.get_future().get());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     app_->stop();
@@ -131,8 +147,8 @@ protected:
 
         app_ = runtime::get()->create_application("application_test");
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
 
         app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,

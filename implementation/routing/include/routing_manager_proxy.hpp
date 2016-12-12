@@ -83,8 +83,12 @@ public:
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
             const boost::asio::ip::address &_destination,
-            client_t _bound_client);
-    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver);
+            client_t _bound_client,
+            const boost::asio::ip::address &_remote_address,
+            std::uint16_t _remote_port);
+    void on_error(const byte_t *_data, length_t _length, endpoint *_receiver,
+                  const boost::asio::ip::address &_remote_address,
+                  std::uint16_t _remote_port);
     void release_port(uint16_t _port, bool _reliable);
 
     void on_routing_info(const byte_t *_data, uint32_t _size);

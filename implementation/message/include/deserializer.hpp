@@ -17,8 +17,9 @@ class message;
 
 class deserializer {
 public:
-    VSOMEIP_EXPORT deserializer();
-    VSOMEIP_EXPORT deserializer(byte_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT deserializer(std::uint32_t _buffer_shrink_threshold);
+    VSOMEIP_EXPORT deserializer(byte_t *_data, std::size_t _length,
+                                std::uint32_t _buffer_shrink_threshold);
     VSOMEIP_EXPORT deserializer(const deserializer& _other);
     VSOMEIP_EXPORT virtual ~deserializer();
 
@@ -55,6 +56,10 @@ protected:
     std::vector<byte_t> data_;
     std::vector<byte_t>::iterator position_;
     std::size_t remaining_;
+private:
+    const std::uint32_t buffer_shrink_threshold_;
+    std::uint32_t shrink_count_;
+
 };
 
 } // namespace vsomeip

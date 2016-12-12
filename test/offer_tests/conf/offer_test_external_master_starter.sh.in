@@ -28,12 +28,21 @@ PID_VSOMEIPD=$!
 # Start the services
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
+echo "SERVICE_TWO pid $PID_SERVICE_TWO"
 
 ./offer_test_client SUBSCRIBE &
 CLIENT_PIDS+=($!)
+echo "client pid ${CLIENT_PIDS[0]}"
 
 sleep 1
 
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "Waiting for 5s"
+    sleep 5
+    echo "starting offer test on slave LXC offer_test_external_slave_starter.sh"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./offer_test_external_slave_starter.sh\"" &
+    echo "remote ssh pid: $!"
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -47,12 +56,13 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
-
+fi
 
 # Wait until all clients and services are finished
 for job in ${CLIENT_PIDS[*]} $PID_SERVICE_TWO
 do
     # Fail gets incremented if a client exits with a non-zero exit code
+    echo "waiting for $job"
     wait $job || FAIL=$(($FAIL+1))
 done
 
@@ -60,6 +70,14 @@ done
 kill $PID_VSOMEIPD
 sleep 1
 
+# wait for slave to finish
+for job in $(jobs -p)
+do
+    # Fail gets incremented if either client or service exit
+    # with a non-zero exit code
+    echo "[Master] waiting for job $job"
+    wait $job || ((FAIL+=1))
+done
 
 # Rejecting remote offer for which there is already a local offer
 # * start application which offers service
@@ -78,9 +96,17 @@ PID_SERVICE_TWO=$!
 
 ./offer_test_client SUBSCRIBE &
 CLIENT_PIDS+=($!)
+echo "client pid ${CLIENT_PIDS[0]}"
 
 sleep 1
 
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "Waiting for 5s"
+    sleep 5
+    echo "starting offer test on slave LXC offer_test_external_sd_msg_sender"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./offer_test_external_sd_msg_sender $LXC_TEST_MASTER_IP\"" &
+    echo "remote ssh job id: $!"
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
@@ -92,11 +118,13 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # Wait until all clients and services are finished
 for job in ${CLIENT_PIDS[*]} $PID_SERVICE_TWO
 do
     # Fail gets incremented if a client exits with a non-zero exit code
+    echo "waiting for $job"
     wait $job || FAIL=$(($FAIL+1))
 done
 
@@ -104,6 +132,14 @@ done
 kill $PID_VSOMEIPD
 sleep 1
 
+# wait for slave to finish
+for job in $(jobs -p)
+do
+    # Fail gets incremented if either client or service exit
+    # with a non-zero exit code
+    echo "[Master] waiting for job $job"
+    wait $job || ((FAIL+=1))
+done
 
 # Check if everything went well
 if [ $FAIL -eq 0 ]

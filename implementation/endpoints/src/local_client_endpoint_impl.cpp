@@ -46,13 +46,6 @@ bool local_client_endpoint_impl::is_local() const {
 void local_client_endpoint_impl::start() {
     if (socket_.is_open()) {
         sending_blocked_ = false;
-        {
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
-            boost::system::error_code its_error;
-            socket_.cancel(its_error);
-            socket_.shutdown(socket_type::shutdown_both, its_error);
-            socket_.close(its_error);
-        }
         restart();
     } else {
         connect();
@@ -122,7 +115,7 @@ msg << "lce<" << this << ">::sq: ";
 for (std::size_t i = 0; i < its_buffer->size(); i++)
     msg << std::setw(2) << std::setfill('0') << std::hex
         << (int)(*its_buffer)[i] << " ";
-VSOMEIP_DEBUG << msg.str();
+VSOMEIP_INFO << msg.str();
 #endif
 
     bufs.push_back(boost::asio::buffer(its_start_tag));
@@ -149,20 +142,42 @@ void local_client_endpoint_impl::send_magic_cookie() {
 void local_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
-    if (_error == boost::asio::error::operation_aborted) {
-        // endpoint was stopped
-        shutdown_and_close_socket();
-    } else if (_error == boost::asio::error::connection_reset
-            || _error == boost::asio::error::eof
-            || _error != boost::asio::error::bad_descriptor) {
-        VSOMEIP_TRACE << "local_client_endpoint:"
-                " connection_reseted/EOF/bad_descriptor";
-    } else if (_error) {
-        VSOMEIP_ERROR << "Local endpoint received message ("
-                      << _error.message() << ")";
+    if (_error) {
+        if (_error == boost::asio::error::operation_aborted) {
+            // endpoint was stopped
+            shutdown_and_close_socket();
+        } else if (_error == boost::asio::error::connection_reset
+                || _error == boost::asio::error::eof
+                || _error == boost::asio::error::bad_descriptor) {
+            VSOMEIP_TRACE << "local_client_endpoint:"
+                    " connection_reseted/EOF/bad_descriptor";
+        } else if (_error) {
+            VSOMEIP_ERROR << "Local endpoint received message ("
+                          << _error.message() << ")";
+        }
+        // The error handler is set only if the endpoint is hosted by the
+        // routing manager. For the routing manager proxies, the corresponding
+        // client endpoint (that connect to the same client) are removed
+        // after the proxy has received the routing info.
+        if (error_handler_)
+            error_handler_();
     } else {
         receive();
     }
+}
+
+bool local_client_endpoint_impl::get_remote_address(
+        boost::asio::ip::address &_address) const {
+    (void)_address;
+    return false;
+}
+
+unsigned short local_client_endpoint_impl::get_remote_port() const {
+    return 0;
+}
+
+void local_client_endpoint_impl::register_error_handler(error_handler_t _error_handler) {
+    error_handler_ = _error_handler;
 }
 
 } // namespace vsomeip

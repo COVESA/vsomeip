@@ -9,6 +9,8 @@
 #include <memory>
 #include <thread>
 
+#include <gtest/gtest.h>
+
 #include <vsomeip/vsomeip.hpp>
 
 #include "../someip_test_globals.hpp"
@@ -21,13 +23,18 @@ public:
         : app_(new vsomeip::application_impl("")),
           is_available_(false),
           is_blocked_(false),
+          sent_messages_good_(8),
+          sent_messages_bad_(7),
+          received_responses_(0),
+          received_errors_(0),
+          wait_for_replies_(true),
           runner_(std::bind(&magic_cookies_test_client::run, this)) {
     }
 
     void init() {
         VSOMEIP_INFO << "Initializing...";
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
+            ADD_FAILURE() << "Couldn't initialize application";
             exit(EXIT_FAILURE);
         }
 
@@ -99,6 +106,7 @@ public:
                     << "/"
                     << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
                     << "]";
+            received_responses_++;
         } else if (_response->get_return_code() == vsomeip::return_code_e::E_MALFORMED_MESSAGE) {
             VSOMEIP_INFO << "Received an error message from Service ["
                     << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
@@ -109,6 +117,13 @@ public:
                     << "/"
                     << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
                     << "]";
+            received_errors_++;
+        }
+        if (received_errors_ == sent_messages_bad_
+                && received_responses_ == sent_messages_good_) {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            wait_for_replies_ = false;
+            condition_.notify_one();
         }
     }
 
@@ -118,7 +133,13 @@ public:
 
     void run() {
         std::unique_lock< std::mutex > its_lock(mutex_);
-        while (!is_blocked_) condition_.wait(its_lock);
+        while (!is_blocked_) {
+            if (std::cv_status::timeout ==
+                    condition_.wait_for(its_lock, std::chrono::milliseconds(5000))) {
+                GTEST_NONFATAL_FAILURE_("Service didn't become available within 5s.");
+                break;
+            }
+        }
         VSOMEIP_INFO << "Running...";
 
         vsomeip::routing_manager *its_routing = app_->get_routing_manager();
@@ -171,7 +192,15 @@ public:
         its_good_payload_data[11] = 0x0F;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        while (wait_for_replies_) {
+            if(std::cv_status::timeout ==
+                    condition_.wait_for(its_lock, std::chrono::milliseconds(5000))) {
+                GTEST_NONFATAL_FAILURE_("Didn't receive all replies/errors in time");
+                break;
+            }
+        }
+        EXPECT_EQ(sent_messages_good_, received_responses_);
+        EXPECT_EQ(sent_messages_bad_, received_errors_);
         stop();
     }
 
@@ -181,16 +210,25 @@ private:
     std::condition_variable condition_;
     bool is_available_;
     bool is_blocked_;
+    const std::uint32_t sent_messages_good_;
+    const std::uint32_t sent_messages_bad_;
+    std::atomic<std::uint32_t> received_responses_;
+    std::atomic<std::uint32_t> received_errors_;
+    bool wait_for_replies_;
     std::thread runner_;
 };
 
-
-int main() {
+TEST(someip_magic_cookies_test, send_good_and_bad_messages)
+{
     magic_cookies_test_client its_client;
     its_client.init();
     its_client.start();
     its_client.join();
-    return 0;
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 
 

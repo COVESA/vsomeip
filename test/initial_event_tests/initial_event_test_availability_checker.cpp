@@ -32,8 +32,8 @@ public:
             wait_for_stop_(true),
             stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&initial_event_test_availability_checker::on_state, this,

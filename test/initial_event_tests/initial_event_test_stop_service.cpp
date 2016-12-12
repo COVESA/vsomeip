@@ -34,8 +34,8 @@ public:
             stop_thread_(std::bind(&initial_event_test_stop_service::wait_for_stop, this)),
             called_other_node_(false) {
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
         }
         app_->register_state_handler(
                 std::bind(&initial_event_test_stop_service::on_state, this,

@@ -36,13 +36,13 @@ public:
     {
     }
 
-    void init()
+    bool init()
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
 
         if (!app_->init()) {
-            VSOMEIP_ERROR << "Couldn't initialize application";
-            EXPECT_TRUE(false);
+            ADD_FAILURE() << "Couldn't initialize application";
+            return false;
         }
         app_->register_message_handler(cpu_load_test::service_id,
                 cpu_load_test::instance_id, cpu_load_test::method_id,
@@ -64,6 +64,7 @@ public:
         app_->register_state_handler(
                 std::bind(&cpu_load_test_service::on_state, this,
                         std::placeholders::_1));
+        return true;
     }
 
     void start()
@@ -189,9 +190,10 @@ private:
 TEST(someip_payload_test, send_response_for_every_request)
 {
     cpu_load_test_service test_service;
-    test_service.init();
-    test_service.start();
-    test_service.join_offer_thread();
+    if (test_service.init()) {
+        test_service.start();
+        test_service.join_offer_thread();
+    }
 }
 
 #ifndef WIN32

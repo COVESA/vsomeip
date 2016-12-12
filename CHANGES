@@ -242,3 +242,21 @@ v2.5.0
   sending out the offers of the same service instance with a too high frequency.
   The default debounce time is set to 500ms. It can be changed via the new json
   file parameter service-discovery/offer_debounce_time.
+
+v2.5.1
+- Removed payload size limit. By default messages with an arbitrary length can
+  now be sent locally and via TCP. The payload-sizes configuration file array is
+  now used to limit the payload size for the specified endpoints instead of
+  increasing it. There are two new configuration file parameters:
+  - max-payload-size-local: limit maximum allowed payload size for node internal
+    communication.
+  - buffer-shrink-threshold: variable to control buffer memory deallocation
+    after big messages have been processed. For more information see the
+    vsomeipUserGuide.
+- Fixed cleanup of endpoints for subscriptions using an exclusive proxy
+  (selective) which unnecessarily increased the number of open file descriptors.
+- Fixed assignment of predefined application IDs via autoconfiguration.
+- Decouple start of routing manager from network availability.
+- Made number of internal threads per application configurable.
+- Postpone notify_one events sent from subscription handler to ensure correct
+  message order on receiver side.

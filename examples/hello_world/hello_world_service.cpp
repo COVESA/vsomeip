@@ -10,6 +10,7 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <iostream>
 
 static vsomeip::service_t service_id = 0x1111;
 static vsomeip::instance_t service_instance_id = 0x2222;
@@ -34,10 +35,13 @@ public:
         stop_thread_.join();
     }
 
-    void init()
+    bool init()
     {
         // init the application
-        app_->init();
+        if (!app_->init()) {
+            std::cerr << "Couldn't initialize application" << std::endl;
+            return false;
+        }
 
         // register a message handler callback for messages sent to our service
         app_->register_message_handler(service_id, service_instance_id,
@@ -50,6 +54,7 @@ public:
         app_->register_state_handler(
                 std::bind(&hello_world_service::on_state_cbk, this,
                         std::placeholders::_1));
+        return true;
     }
 
     void start()
@@ -141,7 +146,10 @@ int main(int argc, char **argv)
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 #endif
-    hw_srv.init();
-    hw_srv.start();
-    return 0;
+    if (hw_srv.init()) {
+        hw_srv.start();
+        return 0;
+    } else {
+        return 1;
+    }
 }

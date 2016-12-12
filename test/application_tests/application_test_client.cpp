@@ -11,6 +11,7 @@
 #include <thread>
 #include <map>
 #include <algorithm>
+#include <future>
 
 #include <gtest/gtest.h>
 
@@ -33,7 +34,10 @@ public:
             received_responses_(0),
             sent_requests_(0),
             stop_called_(false) {
-        app_->init();
+        if (!app_->init()) {
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
+        }
         app_->register_state_handler(
                 std::bind(&application_test_client::on_state, this,
                         std::placeholders::_1));
@@ -51,9 +55,13 @@ public:
                         std::placeholders::_3));
         app_->request_service(service_info_.service_id,
                 service_info_.instance_id);
+        std::promise<bool> its_promise;
         application_thread_ = std::thread([&](){
+            its_promise.set_value(true);
             app_->start();
         });
+        EXPECT_TRUE(its_promise.get_future().get());
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     ~application_test_client() {
@@ -155,9 +163,6 @@ public:
                 << " responses. Delta: " << sent_requests_ - received_responses_;
         std::uint32_t counter(0);
         if (check) {
-            if (sent_requests_ == 0 || received_responses_ == 0) {
-                EXPECT_EQ(0, 1);
-            }
             while(sent_requests_ < received_responses_) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 if(++counter > 50) {

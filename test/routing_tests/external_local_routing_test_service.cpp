@@ -16,13 +16,13 @@ external_local_routing_test_service::external_local_routing_test_service(bool _u
 {
 }
 
-void external_local_routing_test_service::init()
+bool external_local_routing_test_service::init()
 {
     std::lock_guard<std::mutex> its_lock(mutex_);
 
     if (!app_->init()) {
-        VSOMEIP_ERROR << "Couldn't initialize application";
-        EXPECT_TRUE(false);
+        ADD_FAILURE() << "Couldn't initialize application";
+        return false;
     }
     app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
@@ -39,6 +39,7 @@ void external_local_routing_test_service::init()
                     std::placeholders::_1));
 
     VSOMEIP_INFO << "Static routing " << (use_static_routing_ ? "ON" : "OFF");
+    return true;
 }
 
 void external_local_routing_test_service::start()
@@ -169,9 +170,10 @@ TEST(someip_external_local_routing_test, receive_ten_messages_over_local_and_ext
 {
     bool use_static_routing = true;
     external_local_routing_test_service test_service(use_static_routing);
-    test_service.init();
-    test_service.start();
-    test_service.join_offer_thread();
+    if (test_service.init()) {
+        test_service.start();
+        test_service.join_offer_thread();
+    }
 }
 
 #ifndef WIN32

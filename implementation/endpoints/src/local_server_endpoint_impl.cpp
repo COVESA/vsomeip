@@ -14,6 +14,8 @@
 #include "../include/local_server_endpoint_impl.hpp"
 
 #include "../../logging/include/logger.hpp"
+#include "../../utility/include/byteorder.hpp"
+#include "../../configuration/include/internal.hpp"
 #include "../../configuration/include/configuration.hpp"
 
 // Credentials
@@ -26,9 +28,12 @@ namespace vsomeip {
 local_server_endpoint_impl::local_server_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local, boost::asio::io_service &_io,
-        std::uint32_t _max_message_size)
+        std::uint32_t _max_message_size,
+        std::uint32_t _buffer_shrink_threshold)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
-      acceptor_(_io), current_(nullptr) {
+      acceptor_(_io),
+      current_(nullptr),
+      buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
 
     boost::system::error_code ec;
@@ -52,9 +57,12 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
-		int native_socket)
+        int native_socket,
+        std::uint32_t _buffer_shrink_threshold)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
-      acceptor_(_io), current_(nullptr) {
+      acceptor_(_io),
+      current_(nullptr),
+      buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
 
    boost::system::error_code ec;
@@ -79,7 +87,7 @@ void local_server_endpoint_impl::start() {
     if (acceptor_.is_open()) {
         current_ = connection::create(
                 std::dynamic_pointer_cast<local_server_endpoint_impl>(
-                        shared_from_this()), max_message_size_);
+                        shared_from_this()), buffer_shrink_threshold_);
 
         acceptor_.async_accept(
             current_->get_socket(),
@@ -161,8 +169,9 @@ void local_server_endpoint_impl::remove_connection(
 void local_server_endpoint_impl::accept_cbk(
         connection::ptr _connection, boost::system::error_code const &_error) {
 
-    if (_error != boost::asio::error::bad_descriptor &&
-            _error != boost::asio::error::operation_aborted) {
+    if (_error != boost::asio::error::bad_descriptor
+            && _error != boost::asio::error::operation_aborted
+            && _error != boost::asio::error::no_descriptors) {
         start();
     }
 
@@ -206,19 +215,28 @@ void local_server_endpoint_impl::accept_cbk(
 
 local_server_endpoint_impl::connection::connection(
         std::weak_ptr<local_server_endpoint_impl> _server,
-        std::uint32_t _max_message_size)
+        std::uint32_t _initial_recv_buffer_size,
+        std::uint32_t _buffer_shrink_threshold)
     : socket_(_server.lock()->service_),
       server_(_server),
-      max_message_size_(_max_message_size + 8),
-      recv_buffer_(max_message_size_, 0),
-      recv_buffer_size_(0), bound_client_(VSOMEIP_ROUTING_CLIENT) {
+      recv_buffer_size_initial_(_initial_recv_buffer_size + 8),
+      recv_buffer_(recv_buffer_size_initial_, 0),
+      recv_buffer_size_(0),
+      missing_capacity_(0),
+      shrink_count_(0),
+      buffer_shrink_threshold_(_buffer_shrink_threshold),
+      bound_client_(VSOMEIP_ROUTING_CLIENT) {
 }
 
 local_server_endpoint_impl::connection::ptr
 local_server_endpoint_impl::connection::create(
         std::weak_ptr<local_server_endpoint_impl> _server,
-        std::uint32_t _max_message_size) {
-    return ptr(new connection(_server, _max_message_size));
+        std::uint32_t _buffer_shrink_threshold) {
+    const std::uint32_t its_initial_buffer_size = VSOMEIP_COMMAND_HEADER_SIZE
+            + VSOMEIP_MAX_LOCAL_MESSAGE_SIZE + sizeof(instance_t) + sizeof(bool)
+            + sizeof(bool);
+    return ptr(new connection(_server, its_initial_buffer_size,
+            _buffer_shrink_threshold));
 }
 
 local_server_endpoint_impl::socket_type &
@@ -228,11 +246,24 @@ local_server_endpoint_impl::connection::get_socket() {
 
 void local_server_endpoint_impl::connection::start() {
     if (socket_.is_open()) {
-        if (recv_buffer_size_ == max_message_size_) {
-            // Overrun -> Reset buffer
-            recv_buffer_size_ = 0;
+        const std::size_t its_capacity(recv_buffer_.capacity());
+        size_t buffer_size = its_capacity - recv_buffer_size_;
+        if (missing_capacity_) {
+            const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
+            if (its_capacity < its_required_capacity) {
+                recv_buffer_.reserve(its_required_capacity);
+                recv_buffer_.resize(its_required_capacity, 0x0);
+            }
+            buffer_size = missing_capacity_;
+            missing_capacity_ = 0;
+        } else if (buffer_shrink_threshold_
+                && shrink_count_ > buffer_shrink_threshold_
+                && recv_buffer_size_ == 0) {
+            recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
+            recv_buffer_.shrink_to_fit();
+            buffer_size = recv_buffer_size_initial_;
+            shrink_count_ = 0;
         }
-        size_t buffer_size = max_message_size_ - recv_buffer_size_;
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
             std::bind(
@@ -273,7 +304,7 @@ void local_server_endpoint_impl::connection::send_queued(
         for (std::size_t i = 0; i < its_buffer->size(); i++)
             msg << std::setw(2) << std::setfill('0') << std::hex
                 << (int)(*its_buffer)[i] << " ";
-        VSOMEIP_DEBUG << msg.str();
+        VSOMEIP_INFO << msg.str();
 #endif
     boost::asio::async_write(
         socket_,
@@ -306,9 +337,10 @@ void local_server_endpoint_impl::connection::receive_cbk(
     }
     std::shared_ptr<endpoint_host> its_host = its_server->host_.lock();
     if (its_host) {
-        std::size_t its_start;
-        std::size_t its_end;
+        std::size_t its_start = 0;
+        std::size_t its_end = 0;
         std::size_t its_iteration_gap = 0;
+        std::uint32_t its_command_size = 0;
 
         if (!_error && 0 < _bytes) {
     #if 0
@@ -317,7 +349,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
             for (std::size_t i = 0; i < _bytes + recv_buffer_size_; i++)
                 msg << std::setw(2) << std::setfill('0') << std::hex
                     << (int) (recv_buffer_[i]) << " ";
-            VSOMEIP_DEBUG << msg.str();
+            VSOMEIP_INFO << msg.str();
     #endif
 
             recv_buffer_size_ += _bytes;
@@ -332,20 +364,54 @@ void local_server_endpoint_impl::connection::receive_cbk(
                     recv_buffer_[its_start+1] != 0x37 ||
                     recv_buffer_[its_start+2] != 0x6d ||
                     recv_buffer_[its_start+3] != 0x07)) {
-                    its_start ++;
+                    its_start++;
                 }
 
                 its_start = (its_start + 3 == recv_buffer_size_ + its_iteration_gap ?
                                  MESSAGE_IS_EMPTY : its_start+4);
 
                 if (its_start != MESSAGE_IS_EMPTY) {
-                    its_end = its_start;
+                    if (its_start + 6 < recv_buffer_size_ + its_iteration_gap) {
+                        its_command_size = VSOMEIP_BYTES_TO_LONG(
+                                        recv_buffer_[its_start + 6],
+                                        recv_buffer_[its_start + 5],
+                                        recv_buffer_[its_start + 4],
+                                        recv_buffer_[its_start + 3]);
+
+                        its_end = its_start + 6 + its_command_size;
+                    } else {
+                        its_end = its_start;
+                    }
                     while (its_end + 3 < recv_buffer_size_ + its_iteration_gap &&
                         (recv_buffer_[its_end] != 0x07 ||
                         recv_buffer_[its_end+1] != 0x6d ||
                         recv_buffer_[its_end+2] != 0x37 ||
                         recv_buffer_[its_end+3] != 0x67)) {
                         its_end ++;
+                    }
+                    // check if we received a full message
+                    if (recv_buffer_size_ + its_iteration_gap < its_end + 4
+                            || recv_buffer_[its_end] != 0x07
+                            || recv_buffer_[its_end+1] != 0x6d
+                            || recv_buffer_[its_end+2] != 0x37
+                            || recv_buffer_[its_end+3] != 0x67) {
+                        // start tag (4 Byte) + command (1 Byte) + client id (2 Byte)
+                        // + command size (4 Byte) + data itself + stop tag (4 byte)
+                        // = 15 Bytes not covered in command size.
+                        if (its_command_size && its_command_size + 15 > recv_buffer_size_) {
+                            missing_capacity_ = its_command_size + 15 - std::uint32_t(recv_buffer_size_);
+                        } else if (recv_buffer_size_ < 11) {
+                            // to little data to read out the command size
+                            // minimal amount of data needed to read out command size = 11
+                            missing_capacity_ = 11 - static_cast<std::uint32_t>(recv_buffer_size_);
+                        } else {
+                            VSOMEIP_ERROR << "lse::c<" << this
+                                    << ">rcb: recv_buffer_size is: " << std::dec
+                                    << recv_buffer_size_ << " but couldn't read "
+                                    "out command size. recv_buffer_capacity: "
+                                    << recv_buffer_.capacity()
+                                    << " its_iteration_gap: " << its_iteration_gap;
+                        }
                     }
                 }
 
@@ -361,10 +427,12 @@ void local_server_endpoint_impl::connection::receive_cbk(
                             for (std::size_t i = its_start; i < its_end; i++)
                                 local_msg << std::setw(2) << std::setfill('0') << std::hex
                                     << (int) recv_buffer_[i] << " ";
-                            VSOMEIP_DEBUG << local_msg.str();
+                            VSOMEIP_INFO << local_msg.str();
                     #endif
-
+                    calculate_shrink_count();
                     recv_buffer_size_ -= (its_end + 4 - its_iteration_gap);
+                    missing_capacity_ = 0;
+                    its_command_size = 0;
                     its_start = FOUND_MESSAGE;
                     its_iteration_gap = its_end + 4;
                 } else {
@@ -373,6 +441,11 @@ void local_server_endpoint_impl::connection::receive_cbk(
                         // Copy last part to front for consume in future receive_cbk call!
                         for (size_t i = 0; i < recv_buffer_size_; ++i) {
                             recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
+                        }
+                        // Still more capacity needed after shifting everything to front?
+                        if (missing_capacity_ &&
+                                missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
+                            missing_capacity_ = 0;
                         }
                     }
                 }
@@ -394,6 +467,18 @@ void local_server_endpoint_impl::connection::receive_cbk(
 
 void local_server_endpoint_impl::connection::set_bound_client(client_t _client) {
     bound_client_ = _client;
+}
+
+void local_server_endpoint_impl::connection::calculate_shrink_count() {
+    if (buffer_shrink_threshold_) {
+        if (recv_buffer_.capacity() != recv_buffer_size_initial_) {
+            if (recv_buffer_size_ < (recv_buffer_.capacity() >> 1)) {
+                shrink_count_++;
+            } else {
+                shrink_count_ = 0;
+            }
+        }
+    }
 }
 
 } // namespace vsomeip

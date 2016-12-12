@@ -20,7 +20,7 @@ class external_local_routing_test_service
 {
 public:
     external_local_routing_test_service(bool _use_static_routing);
-    void init();
+    bool init();
     void start();
     void stop();
     void offer();

@@ -10,6 +10,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 
+#include <boost/asio/ip/address_v4.hpp>
+
 #define VSOMEIP_TRACE_HEADER_SIZE 8
 
 namespace vsomeip {
@@ -28,6 +30,8 @@ enum class protocol_e : uint8_t {
 struct trace_header {
     bool prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_sending);
     bool prepare(const endpoint* _endpoint, bool _is_sending);
+    void prepare(const boost::asio::ip::address_v4 &_address,
+                 std::uint16_t _port, protocol_e _protocol, bool _is_sending);
 
     byte_t data_[VSOMEIP_TRACE_HEADER_SIZE];
 };

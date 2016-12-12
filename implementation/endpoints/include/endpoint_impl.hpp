@@ -20,7 +20,7 @@ namespace vsomeip {
 class endpoint_host;
 
 template<typename Protocol>
-class endpoint_impl: public endpoint {
+class endpoint_impl: public virtual endpoint {
 public:
     typedef typename Protocol::endpoint endpoint_type;
 
@@ -40,12 +40,9 @@ public:
     void add_default_target(service_t, const std::string &, uint16_t);
     void remove_default_target(service_t);
 
-    bool get_remote_address(boost::asio::ip::address &_address) const;
-
     // Dummy implementations as we only need these for server endpoints
     // TODO: redesign
     unsigned short get_local_port() const;
-    unsigned short get_remote_port() const;
     bool is_reliable() const;
 
     void increment_use_count();
@@ -59,7 +56,6 @@ public:
     virtual void restart() = 0;
 
 protected:
-    virtual bool is_magic_cookie() const;
     uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
 
 protected:

@@ -24,7 +24,7 @@ class payload_test_client
 {
 public:
     payload_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size);
-    void init();
+    bool init();
     void start();
     void stop();
     void join_sender_thread();

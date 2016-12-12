@@ -41,13 +41,15 @@ public:
     local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
                                boost::asio::io_service &_io,
-                               std::uint32_t _max_message_size);
+                               std::uint32_t _max_message_size,
+                               std::uint32_t _buffer_shrink_threshold);
 
     local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
                                boost::asio::io_service &_io,
                                std::uint32_t _max_message_size,
-							   int native_socket);
+                               int native_socket,
+                               std::uint32_t _buffer_shrink_threshold);
 
     virtual ~local_server_endpoint_impl();
 
@@ -74,7 +76,7 @@ private:
         typedef boost::shared_ptr<connection> ptr;
 
         static ptr create(std::weak_ptr<local_server_endpoint_impl> _server,
-                std::uint32_t _max_message_size);
+                          std::uint32_t _buffer_shrink_threshold);
         socket_type & get_socket();
 
         void start();
@@ -86,23 +88,28 @@ private:
 
     private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
-                   std::uint32_t _max_message_size);
+                   std::uint32_t _recv_buffer_size_initial,
+                   std::uint32_t _buffer_shrink_threshold);
 
         void send_magic_cookie();
 
         local_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<local_server_endpoint_impl> server_;
 
-        uint32_t max_message_size_;
+        const uint32_t recv_buffer_size_initial_;
 
-        receive_buffer_t recv_buffer_;
+        message_buffer_t recv_buffer_;
         size_t recv_buffer_size_;
+        std::uint32_t missing_capacity_;
+        std::uint32_t shrink_count_;
+        const std::uint32_t buffer_shrink_threshold_;
 
         client_t bound_client_;
 
     private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
+        void calculate_shrink_count();
     };
 
 #ifdef WIN32
@@ -114,6 +121,7 @@ private:
     std::mutex connections_mutex_;
     std::map<endpoint_type, connection::ptr> connections_;
     connection::ptr current_;
+    const std::uint32_t buffer_shrink_threshold_;
 
 private:
     void remove_connection(connection *_connection);

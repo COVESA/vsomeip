@@ -8,6 +8,7 @@
 #include <functional>
 #include <set>
 #include <sstream>
+#include <limits>
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -58,6 +59,8 @@ configuration_impl::configuration_impl()
       sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
       sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
       max_configured_message_size_(0),
+      max_local_message_size_(0),
+      buffer_shrink_threshold_(0),
       trace_(std::make_shared<trace>()),
       watchdog_(std::make_shared<watchdog>()),
       log_version_(true),
@@ -76,7 +79,9 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       is_loaded_(_other.is_loaded_),
       is_logging_loaded_(_other.is_logging_loaded_),
       mandatory_(_other.mandatory_),
-      max_configured_message_size_(0),
+      max_configured_message_size_(_other.max_configured_message_size_),
+      max_local_message_size_(_other.max_local_message_size_),
+      buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS) {
 
@@ -209,7 +214,7 @@ bool configuration_impl::load(const std::string &_name) {
     set_magic_cookies_unicast_address();
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    VSOMEIP_DEBUG << "Parsed vsomeip configuration in "
+    VSOMEIP_INFO << "Parsed vsomeip configuration in "
             << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
             << "ms";
 
@@ -435,6 +440,7 @@ void configuration_impl::load_application_data(
     client_t its_id(0);
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
+    std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -454,13 +460,24 @@ void configuration_impl::load_application_data(
         } else if (its_key == "max_dispatch_time") {
             its_converter << std::dec << its_value;
             its_converter >> its_max_dispatch_time;
+        } else if (its_key == "threads") {
+            its_converter << std::dec << its_value;
+            its_converter >> its_io_thread_count;
+            if (its_io_thread_count == 0) {
+                VSOMEIP_WARNING << "Min. number of threads per application is 1";
+                its_io_thread_count = 1;
+            } else if (its_io_thread_count > 255) {
+                VSOMEIP_WARNING << "Max. number of threads per application is 255";
+                its_io_thread_count = 255;
+            }
         }
     }
-    if (its_name != "" && its_id != 0) {
+    if (its_name != "") {
         if (applications_.find(its_name) == applications_.end()) {
             if (!is_configured_client_id(its_id)) {
                 applications_[its_name]
-                    = std::make_tuple(its_id, its_max_dispatchers, its_max_dispatch_time);
+                    = std::make_tuple(its_id, its_max_dispatchers,
+                            its_max_dispatch_time, its_io_thread_count);
                 client_identifiers_.insert(its_id);
             } else {
                 VSOMEIP_WARNING << "Multiple configurations for application "
@@ -1258,7 +1275,32 @@ void configuration_impl::load_watchdog(const element &_element) {
 
 void configuration_impl::load_payload_sizes(const element &_element) {
     const std::string payload_sizes("payload-sizes");
+    const std::string max_local_payload_size("max-payload-size-local");
+    const std::string buffer_shrink_threshold("buffer-shrink-threshold");
     try {
+        if (_element.tree_.get_child_optional(max_local_payload_size)) {
+            auto mpsl = _element.tree_.get_child(max_local_payload_size);
+            std::string s(mpsl.data());
+            try {
+                // add 16 Byte for the SOME/IP header
+                max_local_message_size_ = static_cast<std::uint32_t>(std::stoul(
+                        s.c_str(), NULL, 10) + 16);
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR<< __func__ << ": " << max_local_payload_size
+                        << " " << e.what();
+            }
+        }
+        if (_element.tree_.get_child_optional(buffer_shrink_threshold)) {
+            auto bst = _element.tree_.get_child(buffer_shrink_threshold);
+            std::string s(bst.data());
+            try {
+                buffer_shrink_threshold_ = static_cast<std::uint32_t>(
+                        std::stoul(s.c_str(), NULL, 10));
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR<< __func__ << ": " << buffer_shrink_threshold
+                << " " << e.what();
+            }
+        }
         if (_element.tree_.get_child_optional(payload_sizes)) {
             const std::string unicast("unicast");
             const std::string ports("ports");
@@ -1298,12 +1340,22 @@ void configuration_impl::load_payload_sizes(const element &_element) {
                     if (its_port == ILLEGAL_PORT || its_message_size == 0) {
                         continue;
                     }
-                    if(max_configured_message_size_ < its_message_size) {
+                    if (max_configured_message_size_ < its_message_size) {
                         max_configured_message_size_ = its_message_size;
                     }
 
                     message_sizes_[its_unicast][its_port] = its_message_size;
                 }
+            }
+            if (max_local_message_size_ != 0
+                    && max_configured_message_size_ != 0
+                    && max_configured_message_size_ > max_local_message_size_) {
+                VSOMEIP_WARNING << max_local_payload_size
+                        << " is configured smaller than the biggest payloadsize"
+                        << " for external communication. "
+                        << max_local_payload_size << " will be increased to "
+                        << max_configured_message_size_ - 16 << " to ensure "
+                        << "local message distribution.";
             }
         }
     } catch (...) {
@@ -1741,6 +1793,17 @@ bool configuration_impl::is_configured_client_id(client_t _id) const {
     return (client_identifiers_.find(_id) != client_identifiers_.end());
 }
 
+std::size_t configuration_impl::get_io_thread_count(const std::string &_name) const {
+    std::size_t its_io_thread_count = VSOMEIP_IO_THREAD_COUNT;
+
+    auto found_application = applications_.find(_name);
+    if (found_application != applications_.end()) {
+        its_io_thread_count = std::get<3>(found_application->second);
+    }
+
+    return its_io_thread_count;
+}
+
 std::size_t configuration_impl::get_max_dispatchers(
         const std::string &_name) const {
     std::size_t its_max_dispatchers = VSOMEIP_MAX_DISPATCHERS;
@@ -1906,14 +1969,22 @@ std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(
 }
 
 std::uint32_t configuration_impl::get_max_message_size_local() const {
-    uint32_t its_max_message_size = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
-    if (VSOMEIP_MAX_TCP_MESSAGE_SIZE > its_max_message_size) {
+    if (max_local_message_size_ == 0
+            && (VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0
+                    || VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0)) {
+        // no limit specified in configuration file and
+        // defines are set to unlimited
+        return MESSAGE_SIZE_UNLIMITED;
+    }
+
+    uint32_t its_max_message_size = max_local_message_size_;
+    if (VSOMEIP_MAX_TCP_MESSAGE_SIZE >= its_max_message_size) {
         its_max_message_size = VSOMEIP_MAX_TCP_MESSAGE_SIZE;
     }
     if (VSOMEIP_MAX_UDP_MESSAGE_SIZE > its_max_message_size) {
         its_max_message_size = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
     }
-    if(its_max_message_size < max_configured_message_size_) {
+    if (its_max_message_size < max_configured_message_size_) {
         its_max_message_size = max_configured_message_size_;
     }
 
@@ -1933,7 +2004,13 @@ std::uint32_t configuration_impl::get_message_size_reliable(
             return its_port->second;
         }
     }
-    return VSOMEIP_MAX_TCP_MESSAGE_SIZE;
+    return (VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ?
+            MESSAGE_SIZE_UNLIMITED :
+            VSOMEIP_MAX_TCP_MESSAGE_SIZE;
+}
+
+std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
+    return buffer_shrink_threshold_;
 }
 
 bool configuration_impl::supports_selective_broadcasts(boost::asio::ip::address _address) const {

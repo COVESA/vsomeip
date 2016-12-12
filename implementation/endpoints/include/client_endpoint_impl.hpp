@@ -19,6 +19,7 @@
 
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
+#include "client_endpoint.hpp"
 
 namespace vsomeip {
 
@@ -26,15 +27,15 @@ class endpoint;
 class endpoint_host;
 
 template<typename Protocol>
-class client_endpoint_impl: public endpoint_impl<Protocol>,
+class client_endpoint_impl: public endpoint_impl<Protocol>, public client_endpoint,
         public std::enable_shared_from_this<client_endpoint_impl<Protocol> > {
 public:
-	typedef typename Protocol::endpoint endpoint_type;
+    typedef typename Protocol::endpoint endpoint_type;
     typedef typename Protocol::socket socket_type;
 
     client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-    		endpoint_type _local, endpoint_type _remote,
-			boost::asio::io_service &_io,
+            endpoint_type _local, endpoint_type _remote,
+            boost::asio::io_service &_io,
             std::uint32_t _max_message_size);
     virtual ~client_endpoint_impl();
 
@@ -50,6 +51,9 @@ public:
 
     bool is_connected() const;
 
+    virtual bool get_remote_address(boost::asio::ip::address &_address) const;
+    virtual unsigned short get_remote_port() const;
+
 public:
     void connect_cbk(boost::system::error_code const &_error);
     void wait_connect_cbk(boost::system::error_code const &_error);
@@ -59,8 +63,6 @@ public:
 public:
     virtual void connect() = 0;
     virtual void receive() = 0;
-    typedef std::function<void()> endpoint_error_handler_t;
-    void register_error_callback(endpoint_error_handler_t _callback);
 
 protected:
     virtual void send_queued() = 0;
@@ -81,9 +83,6 @@ protected:
     std::mutex mutex_;
 
     bool was_not_connected_;
-
-    std::mutex error_handler_mutex_;
-    endpoint_error_handler_t error_handler_;
 
     std::mutex stop_mutex_;
 };

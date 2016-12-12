@@ -76,7 +76,12 @@ kill -0 $CLIENT_PID &> /dev/null
 CLIENT_STILL_THERE=$?
 if [ $CLIENT_STILL_THERE -ne 0 ]
 then
-cat <<End-of-message
+    if [ ! -z "$USE_LXC_TEST" ]; then
+        echo "starting external_local_routing_test_starter.sh on slave LXC"
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./external_local_routing_test_client_external_start.sh\"" &
+        echo "remote ssh job id: $!"
+    else
+        cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
@@ -89,6 +94,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+    fi
 fi
 
 # Wait until client and service are finished

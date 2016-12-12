@@ -10,18 +10,38 @@
 # the testcase simply executes this script. This script then runs client
 # and service and checks that both exit successfully.
 
+if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" ]]
+then
+    echo "The only allowed parameter to this script is RANDOM or LIMITED."
+    echo "Like $0 RANDOM"
+    exit 1
+fi
+
 FAIL=0
 
 # Start the client
-export VSOMEIP_CONFIGURATION=big_payload_test_tcp_client.json
-export VSOMEIP_APPLICATION_NAME=big_payload_test_client
-./big_payload_test_client &
+if [[ $# -gt 0 && $1 == "RANDOM" ]]
+then
+    export VSOMEIP_CONFIGURATION=big_payload_test_tcp_client_random.json
+else
+    export VSOMEIP_CONFIGURATION=big_payload_test_tcp_client.json
+fi
+./big_payload_test_client $1 &
+BIG_PAYLOAD_TEST_PID=$!
 
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting big payload test on slave LXC"
+    if [[ $# -gt 0 ]]; then
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./big_payload_test_service_external_start.sh $1\"" &
+    else
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./big_payload_test_service_external_start.sh"' &
+    fi
+else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** big_payload_test_service_external_start.sh
+** big_payload_test_service_external_start.sh $1
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in
@@ -30,6 +50,7 @@ cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 End-of-message
+fi
 
 # Wait until client and service are finished
 for job in $(jobs -p)

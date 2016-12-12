@@ -124,6 +124,7 @@ private:
     bool is_set_;
     bool is_provided_;
 
+    std::mutex refs_mutex_;
     std::map<client_t, std::map<bool, uint32_t>> refs_;
 
     bool is_shadow_;

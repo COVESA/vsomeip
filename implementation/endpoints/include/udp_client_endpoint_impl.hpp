@@ -47,7 +47,7 @@ private:
     void connect();
     void receive();
 
-    receive_buffer_t recv_buffer_;
+    message_buffer_t recv_buffer_;
 };
 
 } // namespace vsomeip

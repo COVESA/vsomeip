@@ -7,6 +7,7 @@
 #define VSOMEIP_INTERNAL_HPP
 
 #include <cstdint>
+#include <limits>
 
 #define VSOMEIP_ENV_APPLICATION_NAME            "VSOMEIP_APPLICATION_NAME"
 #define VSOMEIP_ENV_CONFIGURATION               "VSOMEIP_CONFIGURATION"
@@ -47,6 +48,8 @@
 
 #define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT        5000
 #define VSOMEIP_DEFAULT_MAX_MISSING_PONGS       3
+
+#define VSOMEIP_IO_THREAD_COUNT                 2
 
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
@@ -126,6 +129,14 @@ struct configuration_data_t {
 
     unsigned short routing_manager_host_;
 };
+
+#ifndef WIN32
+constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
+#elif _MSC_VER >= 1900
+constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+#else
+const std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+#endif
 
 } // namespace vsomeip
 
