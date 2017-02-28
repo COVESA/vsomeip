@@ -74,11 +74,11 @@ public:
             instance_t _instance);
 
     void subscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major,
+            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
             subscription_type_e _subscription_type);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup);
+            eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, std::shared_ptr<message> _message, bool _flush);
 
@@ -110,18 +110,15 @@ public:
             instance_t _instance, event_t _event,
             bool _is_provided);
 
-    void notify(service_t _service, instance_t _instance, event_t _event,
-            std::shared_ptr<payload> _payload, bool _force, bool _flush);
-
     void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
             client_t _client, bool _force, bool _flush);
 
     void on_subscribe_nack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup);
+                    instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void on_subscribe_ack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup);
+                    instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void on_identify_response(client_t _client, service_t _service, instance_t _instance,
             bool _reliable);
@@ -134,6 +131,7 @@ public:
             client_t _client) {
         return routing_manager_base::find_or_create_local(_client);
     }
+
     void remove_local(client_t _client);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
@@ -253,6 +251,8 @@ private:
     bool is_identifying(client_t _client, service_t _service,
                 instance_t _instance, bool _reliable);
 
+    std::set<eventgroup_t> get_subscribed_eventgroups(service_t _service,
+            instance_t _instance);
 private:
     return_code_e check_error(const byte_t *_data, length_t _size,
             instance_t _instance);
@@ -305,7 +305,8 @@ private:
 
     void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, subscription_type_e _subscription_type);
+            major_version_t _major, event_t _event,
+            subscription_type_e _subscription_type);
 
     void on_net_if_state_changed(std::string _if, bool _available);
 
@@ -316,6 +317,15 @@ private:
                        minor_version_t _minor);
     void requested_service_remove(client_t _client, service_t _service,
                        instance_t _instance);
+
+    void call_sd_reliable_endpoint_connected(service_t _service, instance_t _instance,
+                                             std::shared_ptr<endpoint> _endpoint);
+
+    bool create_placeholder_event_and_subscribe(service_t _service,
+                                                instance_t _instance,
+                                                eventgroup_t _eventgroup,
+                                                event_t _event,
+                                                client_t _client);
 
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;

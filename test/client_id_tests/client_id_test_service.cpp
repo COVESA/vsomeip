@@ -51,6 +51,7 @@ public:
                     || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
+            app_->request_service(i.service_id, i.instance_id);
             app_->register_availability_handler(i.service_id, i.instance_id,
                     std::bind(&client_id_test_service::on_availability, this,
                             std::placeholders::_1, std::placeholders::_2,

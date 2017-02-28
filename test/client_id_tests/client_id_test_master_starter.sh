@@ -42,7 +42,9 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting client id test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE\"" &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE\"" &
+elif [ ! -z "$USE_DOCKER" ]; then
+    docker run --name citms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE" &
 else
 cat <<End-of-message
 *******************************************************************************
@@ -68,6 +70,11 @@ do
         wait "$client_pid" || ((FAIL+=1))
     fi
 done
+
+if [ ! -z "$USE_DOCKER" ]; then
+    docker stop citms
+    docker rm citms
+fi
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]

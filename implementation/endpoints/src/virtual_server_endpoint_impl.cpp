@@ -109,4 +109,8 @@ uint32_t virtual_server_endpoint_impl::get_use_count() {
     return use_count_;
 }
 
+void virtual_server_endpoint_impl::restart() {
+
+}
+
 } // namespace vsomeip

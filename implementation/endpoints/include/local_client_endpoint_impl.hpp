@@ -49,6 +49,8 @@ public:
 
     void register_error_handler(error_handler_t _error_handler);
 
+    void restart();
+
 private:
     void send_queued();
 

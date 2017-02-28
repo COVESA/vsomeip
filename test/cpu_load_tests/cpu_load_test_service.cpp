@@ -36,6 +36,15 @@ public:
     {
     }
 
+    ~cpu_load_test_service() {
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            blocked_ = true;
+            condition_.notify_one();
+        }
+        offer_thread_.join();
+    }
+
     bool init()
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -79,11 +88,6 @@ public:
         app_->stop_offer_service(cpu_load_test::service_id, cpu_load_test::instance_id);
         app_->clear_all_handler();
         app_->stop();
-    }
-
-    void join_offer_thread()
-    {
-        offer_thread_.join();
     }
 
     void on_state(vsomeip::state_type_e _state)
@@ -192,7 +196,6 @@ TEST(someip_payload_test, send_response_for_every_request)
     cpu_load_test_service test_service;
     if (test_service.init()) {
         test_service.start();
-        test_service.join_offer_thread();
     }
 }
 

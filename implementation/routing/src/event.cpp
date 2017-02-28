@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
@@ -197,18 +198,38 @@ void event::set_epsilon_change_function(const epsilon_change_func_t &_epsilon_ch
     }
 }
 
-const std::set<eventgroup_t> & event::get_eventgroups() const {
-    return (eventgroups_);
+const std::set<eventgroup_t> event::get_eventgroups() const {
+    std::set<eventgroup_t> its_eventgroups;
+    {
+        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        for (const auto e : eventgroups_) {
+            its_eventgroups.insert(e.first);
+        }
+    }
+    return its_eventgroups;
+}
+
+std::set<eventgroup_t> event::get_eventgroups(client_t _client) const {
+    std::set<eventgroup_t> its_eventgroups;
+
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    for (auto e : eventgroups_) {
+        if (e.second.find(_client) != e.second.end())
+            its_eventgroups.insert(e.first);
+    }
+    return its_eventgroups;
 }
 
 void event::add_eventgroup(eventgroup_t _eventgroup) {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    eventgroups_.insert(_eventgroup);
+    if (eventgroups_.find(_eventgroup) == eventgroups_.end())
+        eventgroups_[_eventgroup] = std::set<client_t>();
 }
 
 void event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    eventgroups_ = _eventgroups;
+    for (auto e : _eventgroups)
+        eventgroups_[e] = std::set<client_t>();
 }
 
 void event::update_cbk(boost::system::error_code const &_error) {
@@ -308,6 +329,46 @@ bool event::has_ref() {
     return refs_.size() != 0;
 }
 
+bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    return eventgroups_[_eventgroup].insert(_client).second;
+}
+
+void event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    auto find_eventgroup = eventgroups_.find(_eventgroup);
+    if (find_eventgroup != eventgroups_.end())
+        find_eventgroup->second.erase(_client);
+}
+
+bool event::has_subscriber(eventgroup_t _eventgroup, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    auto find_eventgroup = eventgroups_.find(_eventgroup);
+    if (find_eventgroup != eventgroups_.end()) {
+        if (_client == ANY_CLIENT) {
+            return (find_eventgroup->second.size() > 0);
+        } else {
+            return (find_eventgroup->second.find(_client)
+                    != find_eventgroup->second.end());
+        }
+    }
+    return false;
+}
+
+std::set<client_t> event::get_subscribers() {
+    std::set<client_t> its_subscribers;
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    for (auto e : eventgroups_)
+        its_subscribers.insert(e.second.begin(), e.second.end());
+    return its_subscribers;
+}
+
+void event::clear_subscribers() {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    for (auto e : eventgroups_)
+        e.second.clear();
+}
+
 bool event::has_ref(client_t _client, bool _is_provided) {
     std::lock_guard<std::mutex> its_lock(refs_mutex_);
     auto its_client = refs_.find(_client);
@@ -368,6 +429,16 @@ bool event::compare(const std::shared_ptr<payload> &_lhs,
         }
     }
     return is_change;
+}
+
+std::set<client_t> event::get_subscribers(eventgroup_t _eventgroup) {
+    std::set<client_t> its_subscribers;
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    auto found_eventgroup = eventgroups_.find(_eventgroup);
+    if (found_eventgroup != eventgroups_.end()) {
+        its_subscribers = found_eventgroup->second;
+    }
+    return its_subscribers;
 }
 
 } // namespace vsomeip

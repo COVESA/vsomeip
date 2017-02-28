@@ -298,8 +298,8 @@ void tcp_server_endpoint_impl::connection::send_queued(
 
 void tcp_server_endpoint_impl::connection::send_magic_cookie(
         message_buffer_ptr_t &_buffer) {
-    if (recv_buffer_size_initial_ == MESSAGE_SIZE_UNLIMITED
-            || recv_buffer_size_initial_ - _buffer->size() >=
+    if (max_message_size_ == MESSAGE_SIZE_UNLIMITED
+            || max_message_size_ - _buffer->size() >=
     VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
         _buffer->insert(_buffer->begin(), SERVICE_COOKIE,
                 SERVICE_COOKIE + sizeof(SERVICE_COOKIE));

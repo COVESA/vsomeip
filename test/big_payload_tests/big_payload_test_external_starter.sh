@@ -32,9 +32,15 @@ BIG_PAYLOAD_TEST_PID=$!
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting big payload test on slave LXC"
     if [[ $# -gt 0 ]]; then
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./big_payload_test_service_external_start.sh $1\"" &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./big_payload_test_service_external_start.sh $1\"" &
     else
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./big_payload_test_service_external_start.sh"' &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip/test; ./big_payload_test_service_external_start.sh"' &
+    fi
+elif [ ! -z "$USE_DOCKER" ]; then
+    if [[ $# -gt 0 ]]; then
+       docker run --name bpts --cap-add=NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./big_payload_test_service_external_start.sh $1" &
+    else
+       docker run --name bpts --cap-add=NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./big_payload_test_service_external_start.sh" &
     fi
 else
 cat <<End-of-message
@@ -59,6 +65,11 @@ do
     # with a non-zero exit code
     wait $job || ((FAIL+=1))
 done
+
+if [ ! -z "$USE_DOCKER" ]; then
+    docker wait bpts
+    docker rm bpts
+fi
 
 # Check if client and server both exited successfully 
 if [ $FAIL -eq 0 ]

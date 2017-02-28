@@ -52,11 +52,11 @@ public:
 
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major,
+            major_version_t _major, event_t _event,
             subscription_type_e _subscription_type) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) = 0;
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message,
             bool _flush) = 0;
@@ -81,7 +81,7 @@ public:
     virtual void unregister_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event, bool _is_provided) = 0;
 
-    virtual std::shared_ptr<event> get_event(service_t _service,
+    virtual std::shared_ptr<event> find_event(service_t _service,
             instance_t _instance, event_t _event) const = 0;
 
     virtual std::set<std::shared_ptr<event>> find_events(service_t _service,
@@ -99,6 +99,8 @@ public:
             instance_t _instance, bool _reliable) = 0;
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
+
+
 };
 
 }  // namespace vsomeip

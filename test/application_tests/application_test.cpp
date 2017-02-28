@@ -211,6 +211,8 @@ protected:
             while(!is_registered_) {
                 cv_.wait(its_lock);
             }
+            app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                    vsomeip_test::TEST_SERVICE_INSTANCE_ID);
             app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                     vsomeip_test::TEST_SERVICE_INSTANCE_ID);
             while(!is_available_) {

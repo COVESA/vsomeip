@@ -70,6 +70,10 @@ check_tcp_udp_sockets_are_open  $SERIVCE_PID 2
 # therefore he shouldn't have any open TCP/UDP sockets
 check_tcp_udp_sockets_are_closed  $CLIENT_PID
 
+if [ ! -z "$USE_DOCKER" ]; then
+    FAIL=0
+fi
+
 # Wait until client and service are finished
 for job in $(jobs -p)
 do

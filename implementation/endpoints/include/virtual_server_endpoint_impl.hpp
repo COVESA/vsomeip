@@ -49,6 +49,8 @@ public:
     void decrement_use_count();
     uint32_t get_use_count();
 
+    void restart();
+
 private:
     std::string address_;
     uint16_t port_;

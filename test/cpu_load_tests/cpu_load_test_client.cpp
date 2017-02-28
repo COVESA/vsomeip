@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <numeric>
 #include <cmath> // for isfinite
+#include <atomic>
 
 #include "cpu_load_test_globals.hpp"
 #include "../../implementation/logging/include/logger.hpp"
@@ -51,12 +52,13 @@ public:
             number_of_acknowledged_messages_(0),
             payload_size_(_payload_size),
             wait_for_all_msg_acknowledged_(true),
+            initialized_(false),
             sender_(std::bind(&cpu_load_test_client::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-
+        initialized_ = true;
         app_->register_state_handler(
                 std::bind(&cpu_load_test_client::on_state, this,
                         std::placeholders::_1));
@@ -76,6 +78,16 @@ public:
     }
 
     ~cpu_load_test_client() {
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            wait_for_availability_ = false;
+            condition_.notify_one();
+        }
+        {
+            std::lock_guard<std::mutex> its_lock(all_msg_acknowledged_mutex_);
+            wait_for_all_msg_acknowledged_ = false;
+            all_msg_acknowledged_cv_.notify_one();
+        }
         sender_.join();
     }
 
@@ -193,7 +205,9 @@ private:
         wait_for_availability_ = true;
 
         stop();
-        app_->stop();
+        if (initialized_) {
+            app_->stop();
+        }
     }
 
 
@@ -287,6 +301,7 @@ private:
     std::mutex all_msg_acknowledged_mutex_;
     std::condition_variable all_msg_acknowledged_cv_;
     std::vector<double> results_;
+    std::atomic<bool> initialized_;
     std::thread sender_;
 };
 

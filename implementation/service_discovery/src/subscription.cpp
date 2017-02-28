@@ -12,15 +12,13 @@ subscription::subscription(major_version_t _major, ttl_t _ttl,
         std::shared_ptr<endpoint> _reliable,
         std::shared_ptr<endpoint> _unreliable,
         subscription_type_e _subscription_type,
-        uint8_t _counter,
-        std::chrono::steady_clock::time_point _expiration)
+        uint8_t _counter)
         : major_(_major), ttl_(_ttl),
           reliable_(_reliable), unreliable_(_unreliable),
           is_acknowledged_(true),
           tcp_connection_established_(false),
           subscription_type_(_subscription_type),
-          counter_(_counter),
-          expiration_(_expiration) {
+          counter_(_counter) {
 }
 
 subscription::~subscription() {
@@ -71,14 +69,6 @@ subscription_type_e subscription::get_subscription_type() const {
 
 uint8_t subscription::get_counter() const {
     return counter_;
-}
-
-std::chrono::steady_clock::time_point subscription::get_expiration() const {
-    return expiration_;
-}
-
-void subscription::set_expiration(std::chrono::steady_clock::time_point _expiration) {
-    expiration_ = _expiration;
 }
 
 } // namespace sd

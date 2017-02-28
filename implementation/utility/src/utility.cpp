@@ -279,6 +279,11 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         if (0 != ret) {
                             VSOMEIP_ERROR << "pthread_mutexattr_setpshared() failed " << ret;
                         }
+                        ret = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+                        if (0 != ret) {
+                            VSOMEIP_ERROR << "pthread_mutexattr_setrobust() failed " << ret;
+                        }
+
                     } else {
                         VSOMEIP_ERROR << "pthread_mutexattr_init() failed " << ret;
                     }
@@ -357,7 +362,13 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     } else {
                         the_configuration_data__ = configuration_data;
 
-                        pthread_mutex_lock(&the_configuration_data__->mutex_);
+                        if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+                            VSOMEIP_WARNING << "utility::auto_configuration_init EOWNERDEAD";
+                            check_client_id_consistency();
+                            if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+                                VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+                            }
+                        }
                         its_configuration_refs__++;
                         pthread_mutex_unlock(&the_configuration_data__->mutex_);
                     }
@@ -458,7 +469,13 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
         assert(waitResult == WAIT_OBJECT_0);
         (void)waitResult;
 #else
-        pthread_mutex_lock(&the_configuration_data__->mutex_);
+        if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+            VSOMEIP_WARNING << "utility::request_client_id EOWNERDEAD";
+            check_client_id_consistency();
+            if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+                VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+            }
+        }
 #endif
         const std::string its_name = _config->get_routing_host();
         bool set_client_as_manager_host(false);
@@ -580,7 +597,13 @@ void utility::release_client_id(client_t _client) {
 #ifdef _WIN32
         WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
-        pthread_mutex_lock(&the_configuration_data__->mutex_);
+        if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+            VSOMEIP_WARNING << "utility::release_client_id EOWNERDEAD";
+            check_client_id_consistency();
+            if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+                VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+            }
+        }
 #endif
         int i = 0;
         for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
@@ -590,11 +613,11 @@ void utility::release_client_id(client_t _client) {
         }
 
         if (i < the_configuration_data__->max_used_client_ids_index_) {
-            the_configuration_data__->max_used_client_ids_index_--;
-            for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
+            for (; i < (the_configuration_data__->max_used_client_ids_index_ - 1); i++) {
                 the_configuration_data__->used_client_ids_[i]
                     = the_configuration_data__->used_client_ids_[i+1];
             }
+            the_configuration_data__->max_used_client_ids_index_--;
         }
 #ifdef _WIN32
         ReleaseMutex(configuration_data_mutex);
@@ -613,7 +636,13 @@ bool utility::is_routing_manager_host(client_t _client) {
 #ifdef _WIN32
     WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
-    pthread_mutex_lock(&the_configuration_data__->mutex_);
+    if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+        VSOMEIP_WARNING << "utility::is_routing_manager_host EOWNERDEAD";
+        check_client_id_consistency();
+        if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+            VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+        }
+    }
 #endif
 
     bool is_routing_manager = (the_configuration_data__->routing_manager_host_ == _client);
@@ -636,7 +665,13 @@ void utility::set_routing_manager_host(client_t _client) {
 #ifdef _WIN32
     WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
-    pthread_mutex_lock(&the_configuration_data__->mutex_);
+    if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+        VSOMEIP_WARNING << "utility::set_routing_manager_host EOWNERDEAD";
+        check_client_id_consistency();
+        if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+            VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+        }
+    }
 #endif
 
     the_configuration_data__->routing_manager_host_ = _client;
@@ -659,6 +694,28 @@ void utility::set_client_id_lowbyte(client_t _client) {
             static_cast<unsigned char>(_client & 0xFF);
     the_configuration_data__->max_assigned_client_id_low_byte_ = its_low_byte
             % VSOMEIP_MAX_CLIENTS;
+}
+
+void utility::check_client_id_consistency() {
+    if (1 < the_configuration_data__->max_used_client_ids_index_) {
+        client_t prevID = the_configuration_data__->used_client_ids_[0];
+        int i = 1;
+        for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
+            const client_t currID = the_configuration_data__->used_client_ids_[i];
+            if (prevID == currID) {
+                break;
+            }
+            prevID = currID;
+        }
+
+        if (i < the_configuration_data__->max_used_client_ids_index_) {
+            for (; i < (the_configuration_data__->max_used_client_ids_index_ - 1); i++) {
+                the_configuration_data__->used_client_ids_[i]
+                    = the_configuration_data__->used_client_ids_[i+1];
+            }
+            the_configuration_data__->max_used_client_ids_index_--;
+        }
+    }
 }
 
 } // namespace vsomeip

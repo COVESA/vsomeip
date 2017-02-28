@@ -43,21 +43,16 @@ bool local_client_endpoint_impl::is_local() const {
     return true;
 }
 
-void local_client_endpoint_impl::start() {
-    bool is_open(false);
+void local_client_endpoint_impl::restart() {
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        is_open = socket_.is_open();
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        sending_blocked_ = false;
     }
-    if (is_open) {
-        {
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            sending_blocked_ = false;
-        }
-        restart();
-    } else {
-        connect();
-    }
+    client_endpoint_impl::restart();
+}
+
+void local_client_endpoint_impl::start() {
+    connect();
 }
 
 void local_client_endpoint_impl::connect() {
@@ -69,6 +64,10 @@ void local_client_endpoint_impl::connect() {
 
         if (!its_error || its_error == boost::asio::error::already_open) {
             socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "local_client_endpoint_impl::connect: "
+                        << "couldn't enable SO_REUSEADDR: " << its_error.message();
+            }
             socket_.connect(remote_, its_connect_error);
 
 // Credentials

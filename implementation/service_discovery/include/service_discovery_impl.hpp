@@ -76,7 +76,7 @@ public:
     void unsubscribe_client(service_t _service, instance_t _instance,
                             client_t _client);
 
-    bool send(bool _is_announcing, bool _is_find);
+    bool send(bool _is_announcing);
 
     void on_message(const byte_t *_data, length_t _length,
             const boost::asio::ip::address &_sender,
@@ -104,7 +104,8 @@ private:
             const boost::asio::ip::address &_address, uint16_t _port,
             bool _is_reliable);
     void insert_find_entries(std::shared_ptr<message_impl> &_message,
-            uint32_t _start, uint32_t &_size, bool &_done);
+                             const requests_t &_requests, uint32_t _start,
+                             uint32_t &_size, bool &_done);
     void insert_offer_entries(std::shared_ptr<message_impl> &_message,
                               const services_t &_services, uint32_t &_start,
                               uint32_t _size, bool &_done, bool _ignore_phase);
@@ -149,7 +150,8 @@ private:
             std::shared_ptr<eventgroupentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
             std::shared_ptr < message_impl > &its_message_response,
-            std::vector <accepted_subscriber_t> &accepted_subscribers);
+            std::vector <accepted_subscriber_t> &accepted_subscribers,
+            const boost::asio::ip::address &_destination);
     void handle_eventgroup_subscription(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
@@ -220,7 +222,16 @@ private:
     void start_offer_debounce_timer(bool _first_start);
     void on_offer_debounce_timer_expired(const boost::system::error_code &_error);
 
+
+    void start_find_debounce_timer(bool _first_start);
+    void on_find_debounce_timer_expired(const boost::system::error_code &_error);
+
+
     void on_repetition_phase_timer_expired(
+            const boost::system::error_code &_error,
+            std::shared_ptr<boost::asio::steady_timer> _timer,
+            std::uint8_t _repetition, std::uint32_t _last_delay);
+    void on_find_repetition_phase_timer_expired(
             const boost::system::error_code &_error,
             std::shared_ptr<boost::asio::steady_timer> _timer,
             std::uint8_t _repetition, std::uint32_t _last_delay);
@@ -232,6 +243,12 @@ private:
             std::shared_ptr<message_impl> _message,
             std::vector<std::shared_ptr<message_impl>> &_messages,
             const services_t &_offers, bool _ignore_phase);
+
+    void fill_message_with_find_entries(
+            std::shared_ptr<runtime> _runtime,
+            std::shared_ptr<message_impl> _message,
+            std::vector<std::shared_ptr<message_impl>> &_messages,
+            const requests_t &_requests);
 
     bool serialize_and_send_messages(
             const std::vector<std::shared_ptr<message_impl>> &_messages);
@@ -313,10 +330,20 @@ private:
     std::mutex collected_offers_mutex_;
     services_t collected_offers_;
 
+    std::chrono::milliseconds find_debounce_time_;
+    std::mutex find_debounce_timer_mutex_;
+    boost::asio::steady_timer find_debounce_timer_;
+    requests_t collected_finds_;
+
     // this map contains the offers and their timers currently in repetition phase
     std::mutex repetition_phase_timers_mutex_;
     std::map<std::shared_ptr<boost::asio::steady_timer>,
             services_t> repetition_phase_timers_;
+
+    // this map contains the finds and their timers currently in repetition phase
+    std::mutex find_repetition_phase_timers_mutex_;
+    std::map<std::shared_ptr<boost::asio::steady_timer>,
+            requests_t> find_repetition_phase_timers_;
 
     std::mutex main_phase_timer_mutex_;
     boost::asio::steady_timer main_phase_timer_;

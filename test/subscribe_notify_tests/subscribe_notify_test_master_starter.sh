@@ -65,8 +65,10 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $1 $CLIENT_JSON_FILE $3"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE $3\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE $3\"" &
     echo "remote ssh job id: $!"
+elif [ ! -z "$USE_DOCKER" ]; then
+    docker run --name sntms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./subscribe_notify_test_slave_starter.sh $1 $CLIENT_JSON_FILE $3" &
 else
     cat <<End-of-message
 *******************************************************************************
@@ -83,6 +85,10 @@ else
 End-of-message
 fi
 
+if [ ! -z "$USE_DOCKER" ]; then
+  FAIL=0
+fi
+
 # Wait until client and service are finished
 for job in $(jobs -p)
 do
@@ -90,6 +96,11 @@ do
     # with a non-zero exit code
     wait $job || ((FAIL+=1))
 done
+
+if [ ! -z "$USE_DOCKER" ]; then
+    docker stop sntms
+    docker rm sntms
+fi
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]

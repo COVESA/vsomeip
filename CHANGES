@@ -276,3 +276,12 @@ v2.5.3
 - Fixed initial events on unsubscription
 - Improved dispatcher handling for blocking calls
 - Crashed applications are now automatically unsubscribed
+
+v2.6.0
+- Fixed races and crashes
+- Fixed repetition phase timings for find service messages
+- Reworked internal event/field distribution to reduce CPU load
+- Reworked internal routing info distribution leading to fewer and smaller
+  messages and lower CPU load
+- Extend public application interface with second unsubscribe method with
+  additional event parameter

@@ -107,6 +107,15 @@ cmake -DENABLE_SIGNAL_HANDLING=1 ..
 In the default setting, the application has to take care of shutting
 down vsomeip in case these signals are received.
 
+Compilation with user defined "READY" message
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To compile vsomeip with a user defined message signal the IP routing
+to be ready to send/receive messages, call cmake like:
+[source,bash]
+----
+cmake -DROUTING_READY_MESSAGE=<YOUR MESSAGE> ..
+----
+
 Compilation of examples
 ^^^^^^^^^^^^^^^^^^^^^^^
 For compilation of the examples call:

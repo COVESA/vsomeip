@@ -73,19 +73,16 @@ public:
     virtual void unregister_event(client_t _client, service_t _service, instance_t _instance,
             event_t _event, bool _is_provided);
 
-    virtual std::shared_ptr<event> get_event(service_t _service,
-            instance_t _instance, event_t _event) const;
-
     virtual std::set<std::shared_ptr<event>> find_events(service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup) const;
 
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major,
+            major_version_t _major, event_t _event,
             subscription_type_e _subscription_type);
 
     virtual void unsubscribe(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     virtual void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
@@ -119,6 +116,9 @@ public:
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
+    virtual std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
+            event_t _event) const;
+
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<serviceinfo> create_service_info(service_t _service,
@@ -139,13 +139,8 @@ protected:
 
     std::unordered_set<client_t> get_connected_clients();
 
-    std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
-            event_t _event) const;
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
-
-    std::set<client_t> find_local_clients(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
 
     void remove_eventgroup_info(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
@@ -160,7 +155,7 @@ protected:
             bool _flush, bool _reliable, uint8_t _command) const;
 
     bool insert_subscription(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, client_t _client);
+            eventgroup_t _eventgroup, event_t _event, client_t _client);
 
     std::shared_ptr<deserializer> get_deserializer();
     void put_deserializer(std::shared_ptr<deserializer>);
@@ -170,9 +165,11 @@ protected:
 
     virtual void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, subscription_type_e _subscription_type) = 0;
+            major_version_t _major, event_t _event,
+            subscription_type_e _subscription_type) = 0;
 
-    void remove_pending_subscription(service_t _service, instance_t _instance);
+    void remove_pending_subscription(service_t _service, instance_t _instance,
+                                     eventgroup_t _eventgroup, event_t _event);
 
     void send_pending_notify_ones(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
@@ -181,6 +178,10 @@ protected:
     void unset_all_eventpayloads(service_t _service, instance_t _instance,
                                  eventgroup_t _eventgroup);
 
+    void notify_one_current_value(client_t _client, service_t _service,
+                                  instance_t _instance,
+                                  eventgroup_t _eventgroup, event_t _event);
+
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
@@ -188,6 +189,9 @@ private:
     std::set<std::tuple<service_t, instance_t, eventgroup_t>>
         get_subscriptions(const client_t _client);
 
+    virtual bool create_placeholder_event_and_subscribe(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            event_t _event, client_t _client) = 0;
 protected:
     routing_manager_host *host_;
     boost::asio::io_service &io_;
@@ -209,34 +213,37 @@ protected:
     std::map<service_t,
             std::map<instance_t,
                     std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
+    // Events (part of one or more eventgroups)
     mutable std::mutex events_mutex_;
     std::map<service_t,
             std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
-    std::mutex eventgroup_clients_mutex_;
-    std::map<service_t,
-            std::map<instance_t, std::map<eventgroup_t, std::set<client_t> > > > eventgroup_clients_;
 
 #ifdef USE_DLT
     std::shared_ptr<tc::trace_connector> tc_;
 #endif
 
-    struct eventgroup_data_t {
+    struct subscription_data_t {
         service_t service_;
         instance_t instance_;
         eventgroup_t eventgroup_;
         major_version_t major_;
+        event_t event_;
         subscription_type_e subscription_type_;
 
-        bool operator<(const eventgroup_data_t &_other) const {
+        bool operator<(const subscription_data_t &_other) const {
             return (service_ < _other.service_
                     || (service_ == _other.service_
                         && instance_ < _other.instance_)
                         || (service_ == _other.service_
                             && instance_ == _other.instance_
-                            && eventgroup_ < _other.eventgroup_));
+                            && eventgroup_ < _other.eventgroup_)
+                            || (service_ == _other.service_
+                                && instance_ == _other.instance_
+                                && eventgroup_ == _other.eventgroup_
+                                && event_ < _other.event_));
         }
     };
-    std::set<eventgroup_data_t> pending_subscriptions_;
+    std::set<subscription_data_t> pending_subscriptions_;
 
 private:
     services_t services_;

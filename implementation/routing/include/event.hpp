@@ -77,12 +77,19 @@ public:
     // SIP_RPC_359 (epsilon change)
     void set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func);
 
-    const std::set<eventgroup_t> & get_eventgroups() const;
+    const std::set<eventgroup_t> get_eventgroups() const;
+    std::set<eventgroup_t> get_eventgroups(client_t _client) const;
     void add_eventgroup(eventgroup_t _eventgroup);
     void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
 
     void notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush);
     void notify_one(client_t _client, bool _flush);
+
+    bool add_subscriber(eventgroup_t _eventgroup, client_t _client);
+    void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
+    bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
+    std::set<client_t> get_subscribers();
+    void clear_subscribers();
 
     void add_ref(client_t _client, bool _is_provided);
     void remove_ref(client_t _client, bool _is_provided);
@@ -95,6 +102,8 @@ public:
     void set_cache_placeholder(bool _is_cache_place_holder);
 
     bool has_ref(client_t _client, bool _is_provided);
+
+    std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
 
 private:
     void update_cbk(boost::system::error_code const &_error);
@@ -120,11 +129,10 @@ private:
     std::chrono::milliseconds cycle_;
 
     std::atomic<bool> change_resets_cycle_;
-
     std::atomic<bool> is_updating_on_change_;
 
-    std::mutex eventgroups_mutex_;
-    std::set<eventgroup_t> eventgroups_;
+    mutable std::mutex eventgroups_mutex_;
+    std::map<eventgroup_t, std::set<client_t>> eventgroups_;
 
     std::atomic<bool> is_set_;
     std::atomic<bool> is_provided_;
@@ -133,7 +141,6 @@ private:
     std::map<client_t, std::map<bool, uint32_t>> refs_;
 
     std::atomic<bool> is_shadow_;
-
     std::atomic<bool> is_cache_placeholder_;
 
     epsilon_change_func_t epsilon_change_func_;

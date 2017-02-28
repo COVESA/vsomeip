@@ -62,12 +62,19 @@ void tcp_client_endpoint_impl::connect() {
     if (!its_error || its_error == boost::asio::error::already_open) {
         // Nagle algorithm off
         socket_.set_option(ip::tcp::no_delay(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't disable "
+                    << "Nagle algorithm: " << its_error.message();
+        }
 
         // Enable SO_REUSEADDR to avoid bind problems with services going offline
         // and coming online again and the user has specified only a small number
         // of ports in the clients section for one service instance
         socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
-
+        if (its_error) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
+                    << "SO_REUSEADDR: " << its_error.message();
+        }
         // In case a client endpoint port was configured,
         // bind to it before connecting
         if (local_.port() != ILLEGAL_PORT) {
@@ -178,7 +185,13 @@ unsigned short tcp_client_endpoint_impl::get_local_port() const {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_.is_open()) {
-        return socket_.local_endpoint(its_error).port();
+        endpoint_type its_endpoint = socket_.local_endpoint(its_error);
+        if (!its_error) {
+            return its_endpoint.port();
+        } else {
+            VSOMEIP_WARNING << "tcp_client_endpoint_impl::get_local_port() "
+                    << " couldn't get local_endpoint: " << its_error.message();
+        }
     }
     return 0;
 }

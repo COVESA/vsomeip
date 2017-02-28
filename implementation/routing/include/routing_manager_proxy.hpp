@@ -9,6 +9,7 @@
 #include <map>
 #include <mutex>
 #include <atomic>
+#include <tuple>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -51,11 +52,11 @@ public:
             instance_t _instance);
 
     void subscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major,
+            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
             subscription_type_e _subscription_type);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup);
+            eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
             instance_t _instance, bool _flush = true, bool _reliable = false);
@@ -113,13 +114,14 @@ private:
             bool _is_field, bool _is_provided);
     void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, subscription_type_e _subscription_type);
+            major_version_t _major, event_t _event,
+            subscription_type_e _subscription_type);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void send_subscribe_ack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     bool is_field(service_t _service, instance_t _instance,
             event_t _event) const;
@@ -154,6 +156,12 @@ private:
     };
 
     bool is_client_known(client_t _client);
+
+    bool create_placeholder_event_and_subscribe(service_t _service,
+                                                instance_t _instance,
+                                                eventgroup_t _eventgroup,
+                                                event_t _event,
+                                                client_t _client);
 
 private:
     enum class inner_state_type_e : std::uint8_t {
@@ -197,42 +205,16 @@ private:
         std::set<eventgroup_t> eventgroups_;
 
         bool operator<(const event_data_t &_other) const {
-            if (service_ < _other.service_) {
-                return true;
-            }
-            if (service_ == _other.service_ && instance_ < _other.instance_) {
-                return true;
-            }
-            if (service_ == _other.service_ && instance_ == _other.instance_
-                    && event_ < _other.event_) {
-                return true;
-            }
-            if (service_ == _other.service_ && instance_ == _other.instance_
-                    && event_ == _other.event_
-                    && is_provided_ != _other.is_provided_) {
-                return true;
-            }
-            if (service_ == _other.service_
-                    && instance_ == _other.instance_
-                    && event_ == _other.event_
-                    && is_provided_ == _other.is_provided_
-                    && is_field_ != _other.is_field_) {
-                return true;
-            }
-            if (service_ == _other.service_
-                    && instance_ == _other.instance_
-                    && event_ == _other.event_
-                    && is_provided_ == _other.is_provided_
-                    && is_field_ == _other.is_field_
-                    && eventgroups_ < _other.eventgroups_) {
-                return true;
-            }
-            return false;
-    }
+            return std::tie(service_, instance_, event_, is_field_,
+                    is_provided_, eventgroups_)
+                    < std::tie(_other.service_, _other.instance_, _other.event_,
+                            _other.is_field_, _other.is_provided_,
+                            _other.eventgroups_);
+        }
     };
     std::set<event_data_t> pending_event_registrations_;
 
-    std::map<client_t, std::set<eventgroup_data_t>> pending_ingoing_subscripitons_;
+    std::map<client_t, std::set<subscription_data_t>> pending_ingoing_subscripitons_;
     std::mutex pending_ingoing_subscripitons_mutex_;
 
     std::mutex deserialize_mutex_;

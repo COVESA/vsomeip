@@ -71,7 +71,8 @@ public:
             const boost::asio::ip::address &_address, uint16_t _port) = 0;
 
     virtual void on_subscribe_ack(client_t _client,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            event_t _event) = 0;
 
     virtual std::shared_ptr<endpoint> find_or_create_remote_client(
             service_t _service, instance_t _instance,
@@ -85,7 +86,8 @@ public:
             const std::chrono::steady_clock::time_point &_expiration) = 0;
 
     virtual void on_subscribe_nack(client_t _client,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            event_t _event) = 0;
 
     virtual bool has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;

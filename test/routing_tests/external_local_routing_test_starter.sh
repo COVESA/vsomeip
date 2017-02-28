@@ -78,8 +78,10 @@ if [ $CLIENT_STILL_THERE -ne 0 ]
 then
     if [ ! -z "$USE_LXC_TEST" ]; then
         echo "starting external_local_routing_test_starter.sh on slave LXC"
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./external_local_routing_test_client_external_start.sh\"" &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./external_local_routing_test_client_external_start.sh\"" &
         echo "remote ssh job id: $!"
+    elif [ ! -z "$USE_DOCKER" ]; then
+        docker run --name elrts --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./external_local_routing_test_client_external_start.sh" &
     else
         cat <<End-of-message
 *******************************************************************************
@@ -97,6 +99,10 @@ End-of-message
     fi
 fi
 
+if [ ! -z "$USE_DOCKER" ]; then
+    FAIL=0
+fi
+
 # Wait until client and service are finished
 for job in $(jobs -p)
 do
@@ -104,6 +110,11 @@ do
     # with a non-zero exit code
     wait $job || ((FAIL+=1))
 done
+
+if [ ! -z "$USE_DOCKER" ]; then
+    docker stop elrts
+    docker rm elrts
+fi
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open 

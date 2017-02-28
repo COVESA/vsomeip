@@ -291,7 +291,7 @@ public:
      *
      * A user application must call this function to subscribe to an eventgroup.
      * Before calling subscribe it must register all events it interested in by
-     * calls to @ref register_event. The method additionally allows to specify
+     * calls to @ref request_event. The method additionally allows to specify
      * a specific event. If a specific event is specified, all other events of
      * the eventgroup are not received by the application.
      *
@@ -825,6 +825,20 @@ public:
      * \param _routing_state the current routing state
      */
     virtual  void set_routing_state(routing_state_e _routing_state) = 0;
+
+    /**
+     *
+     * \brief Unsubscribes from an eventgroup.
+     *
+     * \param _service Service identifier of the service that contains the
+     * eventgroup.
+     * \param _instance Instance identifier of the service that contains the
+     * eventgroup.
+     * \param _eventgroup Eventgroup identifier of the eventgroup.
+     * \param _event Event to unsubscribe (pass ANY_EVENT for all events of the eventgroup)
+     */
+    virtual void unsubscribe(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event) = 0;
 };
 
 /** @} */

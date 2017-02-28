@@ -58,20 +58,20 @@ public:
             instance_t _instance,  major_version_t _major, minor_version_t _minor);
 
     void send_subscribe(std::shared_ptr<vsomeip::endpoint> _target,
-            client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, bool _is_remote_subscriber);
+            client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, major_version_t _major,
+            event_t _event, bool _is_remote_subscriber);
 
     void send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
             client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            bool _is_remote_subscriber);
+            event_t _event, bool _is_remote_subscriber);
 
     void send_subscribe_nack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void send_subscribe_ack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     bool contained_in_routing_info(client_t _client, service_t _service,
                                    instance_t _instance, major_version_t _major,
@@ -82,6 +82,9 @@ public:
     bool is_registered(client_t _client) const;
     void deregister_erroneous_client(client_t _client);
     client_t get_client() const;
+    void on_request_service(client_t _client, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
 #ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
 #endif
@@ -91,9 +94,18 @@ private:
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
 
-    void broadcast_routing_info(bool _empty = false,
-            client_t _ignore = VSOMEIP_ROUTING_CLIENT);
-    void send_routing_info(client_t _client, bool _empty = false);
+    void broadcast_routing_stop();
+
+    void send_routing_info_delta(client_t _target, routing_info_entry_e _entry,
+                client_t _client, service_t _service = ANY_SERVICE,
+                instance_t _instance = ANY_INSTANCE,
+                major_version_t _major = ANY_MAJOR,
+                minor_version_t _minor = ANY_MINOR);
+
+    void inform_requesters(client_t _hoster, service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor, routing_info_entry_e _entry,
+            bool _inform_service);
 
     void broadcast_ping() const;
     void on_pong(client_t _client);
@@ -108,6 +120,8 @@ private:
     void set_routing_state(routing_state_e _routing_state) {
         (void)_routing_state;
     };
+
+    bool is_already_connected(client_t _source, client_t _sink);
 
 private:
     routing_manager_stub_host *host_;
@@ -145,6 +159,9 @@ private:
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
+
+    std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
+    std::map<client_t, std::set<client_t>> connection_matrix_;
 };
 
 } // namespace vsomeip

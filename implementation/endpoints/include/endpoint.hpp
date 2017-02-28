@@ -44,6 +44,8 @@ public:
     virtual void increment_use_count() = 0;
     virtual void decrement_use_count() = 0;
     virtual uint32_t get_use_count() = 0;
+
+    virtual void restart() = 0;
 };
 
 } // namespace vsomeip

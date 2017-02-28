@@ -85,6 +85,8 @@ public:
 
     VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup);
+    VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
 
     VSOMEIP_EXPORT bool is_available(service_t _service, instance_t _instance,
             major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) const;
@@ -213,7 +215,7 @@ private:
     void dispatch();
     void invoke_handler(std::shared_ptr<sync_handler> &_handler);
     bool has_active_dispatcher();
-    bool is_active_dispatcher(std::thread::id &_id);
+    bool is_active_dispatcher(const std::thread::id &_id);
     void remove_elapsed_dispatchers();
 
     void shutdown();
@@ -225,7 +227,9 @@ private:
                                       bool *_send_back_cached_event,
                                       bool *_send_back_cached_eventgroup);
     void remove_subscription(service_t _service, instance_t _instance,
-                             eventgroup_t _eventgroup);
+                             eventgroup_t _eventgroup, event_t _event);
+    bool check_for_active_subscription(service_t _service, instance_t _instance,
+                                       event_t _event);
     //
     // Attributes
     //
@@ -288,7 +292,7 @@ private:
     mutable std::mutex handlers_mutex_;
 
     // Dispatching
-    bool is_dispatching_;
+    std::atomic<bool> is_dispatching_;
     // Dispatcher threads
     std::map<std::thread::id, std::shared_ptr<std::thread>> dispatchers_;
     // Dispatcher threads that elapsed and can be removed
@@ -320,9 +324,9 @@ private:
     bool is_routing_manager_host_;
 
     // Event subscriptions
-    std::mutex event_subscriptions_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<event_t, bool>>> event_subscriptions_;
-    std::map<service_t, std::map<instance_t, std::set<eventgroup_t>>> eventgroup_subscriptions_;
+    std::mutex subscriptions_mutex_;
+    std::map<service_t, std::map<instance_t,
+            std::map<event_t, std::map<eventgroup_t, bool>>>> subscriptions_;
 
     std::thread::id stop_caller_id_;
     std::thread::id start_caller_id_;

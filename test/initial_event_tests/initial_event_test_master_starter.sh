@@ -24,7 +24,9 @@ fi
 
 PASSED_SUBSCRIPTION_TYPE=$1
 PASSED_JSON_FILE=$2
-PASSED_SAME_SERVICE_ID_FLAG=$3
+# Remove processed options from $@
+shift 2
+REMAINING_OPTIONS="$@"
 
 # Make sure only valid subscription types are passed to the script
 SUBSCRIPTION_TYPES="TCP_AND_UDP PREFER_UDP PREFER_TCP UDP TCP"
@@ -48,14 +50,16 @@ fi
 print_starter_message () {
 
 if [ ! -z "$USE_LXC_TEST" ]; then
-    echo "starting initial event test on slave LXC with params $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_ROOT_DIR/ctarget/vsomeip/test; ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG\"" &
+    echo "starting initial event test on slave LXC with params $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
+elif [ ! -z "$USE_DOCKER" ]; then
+    docker run --name ietms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
 else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $PASSED_SAME_SERVICE_ID_FLAG
+** initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in
@@ -78,15 +82,15 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=$PASSED_JSON_FILE
 
 export VSOMEIP_APPLICATION_NAME=initial_event_test_service_one
-./initial_event_test_service 1 $PASSED_SAME_SERVICE_ID_FLAG &
+./initial_event_test_service 1 $REMAINING_OPTIONS &
 PID_SERVICE_ONE=$!
 
 export VSOMEIP_APPLICATION_NAME=initial_event_test_service_two
-./initial_event_test_service 2 $PASSED_SAME_SERVICE_ID_FLAG &
+./initial_event_test_service 2 $REMAINING_OPTIONS &
 PID_SERVICE_TWO=$!
 
 export VSOMEIP_APPLICATION_NAME=initial_event_test_service_three
-./initial_event_test_service 3 $PASSED_SAME_SERVICE_ID_FLAG &
+./initial_event_test_service 3 $REMAINING_OPTIONS &
 PID_SERVICE_THREE=$!
 
 unset VSOMEIP_APPLICATION_NAME
@@ -94,55 +98,30 @@ unset VSOMEIP_APPLICATION_NAME
 # Array for client pids
 CLIENT_PIDS=()
 
-# Start some clients
-if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
-then
-    ./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-    FIRST_PID=$!
-    sleep 1
-    print_starter_message
-    wait $FIRST_PID || FAIL=$(($FAIL+1))
-else
-    for client_number in $(seq 9000 9009)
-    do
-        ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-        CLIENT_PIDS+=($!)
-    done
-fi
-
+# Start first client which subscribes remotely
+./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE DONT_EXIT $REMAINING_OPTIONS &
+FIRST_PID=$!
 
 # Start availability checker in order to wait until the services on the remote
 # were started as well
-./initial_event_test_availability_checker 1234 $PASSED_SAME_SERVICE_ID_FLAG &
+./initial_event_test_availability_checker 1234 $REMAINING_OPTIONS &
 PID_AVAILABILITY_CHECKER=$!
 
 sleep 1
 
-if [ $PASSED_SUBSCRIPTION_TYPE != "TCP_AND_UDP" ]
-then
-    print_starter_message
-fi
+print_starter_message
 
-# wait unti the services on the remote node were started as well
+
+# wait until the services on the remote node were started as well
 wait $PID_AVAILABILITY_CHECKER
 
-# sleep to make sure the following started clients will have to get
-# the cached event from the routing manager daemon
 sleep 2
 
-if [[ $PASSED_SUBSCRIPTION_TYPE == "TCP_AND_UDP" ]]
-then
-    ./initial_event_test_client 9010 $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-    FIRST_PID=$!
-    wait $FIRST_PID || FAIL=$(($FAIL+1))
-else
-    for client_number in $(seq 9010 9020)
-    do
-       ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE $PASSED_SAME_SERVICE_ID_FLAG &
-       CLIENT_PIDS+=($!)
-    done
-fi
-
+for client_number in $(seq 9001 9011)
+do
+   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE STRICT_CHECKING $REMAINING_OPTIONS &
+   CLIENT_PIDS+=($!)
+done
 
 # Wait until all clients are finished
 for job in ${CLIENT_PIDS[*]}
@@ -156,13 +135,22 @@ done
 PID_STOP_SERVICE=$!
 wait $PID_STOP_SERVICE
 
-# kill the services
+# shutdown the first client
+kill $FIRST_PID
+wait $FIRST_PID || FAIL=$(($FAIL+1))
+
+# shutdown the services
 kill $PID_SERVICE_THREE
 kill $PID_SERVICE_TWO
 kill $PID_SERVICE_ONE
 
 sleep 1
 echo ""
+
+if [ ! -z "$USE_DOCKER" ]; then
+    docker stop ietms
+    docker rm ietms
+fi
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]

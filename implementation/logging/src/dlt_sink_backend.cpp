@@ -37,9 +37,10 @@ BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", logging::trivial::severity_lev
 
 void dlt_sink_backend::consume(const logging::record_view &rec) {
 #ifdef USE_DLT
-    std::string message = *rec[expressions::smessage];
-    logging::trivial::severity_level severity_level = *rec[severity];
-    DLT_LOG_STRING(dlt_, level_as_dlt(severity_level), message.c_str());
+    auto message = rec[expressions::smessage];
+    auto severity_level = rec[severity];
+    DLT_LOG_STRING(dlt_, (severity_level)?level_as_dlt(*severity_level):DLT_LOG_WARN,
+                   (message)?message.get<std::string>().c_str():"consume() w/o message");
 #else
     (void)rec;
 #endif

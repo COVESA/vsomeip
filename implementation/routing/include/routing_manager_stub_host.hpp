@@ -40,17 +40,17 @@ public:
 
     virtual void subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major,
+            major_version_t _major, event_t _event,
             subscription_type_e _subscription_type) = 0;
 
     virtual void on_subscribe_nack(client_t _client, service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+                instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual void on_subscribe_ack(client_t _client, service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+                instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) = 0;
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual void on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable) = 0;

@@ -2,7 +2,7 @@
     "unicast":"@TEST_IP_SLAVE@",
     "logging":
     {
-        "level":"info",
+        "level":"warning",
         "console":"true",
         "file":
         {

@@ -6,7 +6,6 @@
 #ifndef VSOMEIP_SD_SUBSCRIPTION_HPP
 #define VSOMEIP_SD_SUBSCRIPTION_HPP
 
-#include <chrono>
 #include <memory>
 
 #include <vsomeip/primitive_types.hpp>
@@ -24,8 +23,7 @@ public:
             std::shared_ptr<endpoint> _reliable,
             std::shared_ptr<endpoint> _unreliable,
             subscription_type_e _subscription_type,
-            uint8_t _counter,
-            std::chrono::steady_clock::time_point _expiration);
+            uint8_t _counter);
     ~subscription();
 
     major_version_t get_major() const;
@@ -44,9 +42,6 @@ public:
 
     uint8_t get_counter() const;
 
-    std::chrono::steady_clock::time_point get_expiration() const;
-    void set_expiration(std::chrono::steady_clock::time_point _expiration);
-
 private:
     major_version_t major_;
     ttl_t ttl_;
@@ -60,8 +55,6 @@ private:
     subscription_type_e subscription_type_;
 
     uint8_t counter_;
-
-    std::chrono::steady_clock::time_point expiration_;
 };
 
 } // namespace sd

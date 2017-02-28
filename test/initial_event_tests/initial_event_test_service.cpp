@@ -22,10 +22,12 @@
 
 class initial_event_test_service {
 public:
-    initial_event_test_service(struct initial_event_test::service_info _service_info) :
+    initial_event_test_service(struct initial_event_test::service_info _service_info,
+                               std::uint32_t _events_to_offer) :
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
+            events_to_offer_(_events_to_offer),
             offer_thread_(std::bind(&initial_event_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -38,8 +40,10 @@ public:
         // offer field
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
-        app_->offer_event(service_info_.service_id, service_info_.instance_id,
-                service_info_.event_id, its_eventgroups, true);
+        for (std::uint16_t i = 0; i < events_to_offer_; i++) {
+            app_->offer_event(service_info_.service_id, service_info_.instance_id,
+                    static_cast<vsomeip::event_t>(service_info_.event_id + i), its_eventgroups, true);
+        }
 
         // set value to field
         std::shared_ptr<vsomeip::payload> its_payload =
@@ -47,8 +51,10 @@ public:
         vsomeip::byte_t its_data[2] = {static_cast<vsomeip::byte_t>((service_info_.service_id & 0xFF00) >> 8),
                 static_cast<vsomeip::byte_t>((service_info_.service_id & 0xFF))};
         its_payload->set_data(its_data, 2);
-        app_->notify(service_info_.service_id, service_info_.instance_id,
-                service_info_.event_id, its_payload);
+        for (std::uint16_t i = 0; i < events_to_offer_; i++) {
+            app_->notify(service_info_.service_id, service_info_.instance_id,
+                    static_cast<vsomeip::event_t>(service_info_.event_id + i), its_payload);
+        }
 
         app_->start();
     }
@@ -91,6 +97,7 @@ private:
     std::shared_ptr<vsomeip::application> app_;
 
     bool wait_until_registered_;
+    std::uint32_t events_to_offer_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;
@@ -98,15 +105,16 @@ private:
 
 static int service_number;
 static bool use_same_service_id;
+static std::uint32_t offer_multiple_events;
 
 TEST(someip_initial_event_test, set_field_once)
 {
     if(use_same_service_id) {
         initial_event_test_service its_sample(
-                initial_event_test::service_infos_same_service_id[service_number]);
+                initial_event_test::service_infos_same_service_id[service_number], offer_multiple_events);
     } else {
         initial_event_test_service its_sample(
-                initial_event_test::service_infos[service_number]);
+                initial_event_test::service_infos[service_number], offer_multiple_events);
     }
 }
 
@@ -117,16 +125,25 @@ int main(int argc, char** argv)
     if(argc < 2) {
         std::cerr << "Please specify a service number and subscription type, like: " << argv[0] << " 2 SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
-        std::cerr << "If SAME_SERVICE_ID is specified as third parameter the test is run w/ multiple instances of the same service" << std::endl;
+        std::cerr << "After the service number one/multiple of these flags can be specified:";
+        std::cerr << " - SAME_SERVICE_ID flag. If set the test is run w/ multiple instances of the same service, default false" << std::endl;
+        std::cerr << " - MULTIPLE_EVENTS flag. If set the test will offer to multiple events in the eventgroup, default false" << std::endl;
         return 1;
     }
 
     service_number = std::stoi(std::string(argv[1]), nullptr);
 
-    if (argc >= 3 && std::string("SAME_SERVICE_ID") == std::string(argv[2])) {
-        use_same_service_id = true;
-    } else {
-        use_same_service_id = false;
+    offer_multiple_events = 1;
+    use_same_service_id = false;
+
+    if (argc > 2) {
+        for (int i = 2; i < argc; i++) {
+            if (std::string("SAME_SERVICE_ID") == std::string(argv[i])) {
+                use_same_service_id = true;
+            } else if (std::string("MULTIPLE_EVENTS") == std::string(argv[i])) {
+                offer_multiple_events = 5;
+            }
+        }
     }
     return RUN_ALL_TESTS();
 }

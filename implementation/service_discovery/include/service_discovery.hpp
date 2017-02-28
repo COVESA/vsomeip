@@ -46,7 +46,7 @@ public:
     virtual void unsubscribe_client(service_t _service, instance_t _instance,
                                     client_t _client) = 0;
 
-    virtual bool send(bool _is_announcing, bool _is_find = false) = 0;
+    virtual bool send(bool _is_announcing) = 0;
 
     virtual void on_message(const byte_t *_data, length_t _length,
             const boost::asio::ip::address &_sender,
