@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -37,7 +37,7 @@ public:
                           std::uint16_t _remote_port) = 0;
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
     virtual client_t get_client() const = 0;
-#ifndef WIN32
+#ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid) = 0;
 #endif
 };

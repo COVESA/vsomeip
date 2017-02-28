@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/enable_shared_from_this.hpp>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <boost/asio/ip/tcp.hpp>
 #endif
 
@@ -25,7 +25,7 @@
 
 namespace vsomeip {
 
-#ifdef WIN32
+#ifdef _WIN32
 typedef server_endpoint_impl<
             boost::asio::ip::tcp
         > local_server_endpoint_base_impl;
@@ -78,6 +78,7 @@ private:
         static ptr create(std::weak_ptr<local_server_endpoint_impl> _server,
                           std::uint32_t _buffer_shrink_threshold);
         socket_type & get_socket();
+        std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
         void stop();
@@ -92,7 +93,11 @@ private:
                    std::uint32_t _buffer_shrink_threshold);
 
         void send_magic_cookie();
+        void receive_cbk(boost::system::error_code const &_error,
+                         std::size_t _bytes);
+        void calculate_shrink_count();
 
+        std::mutex socket_mutex_;
         local_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<local_server_endpoint_impl> server_;
 
@@ -106,13 +111,10 @@ private:
 
         client_t bound_client_;
 
-    private:
-        void receive_cbk(boost::system::error_code const &_error,
-                         std::size_t _bytes);
-        void calculate_shrink_count();
     };
 
-#ifdef WIN32
+    std::mutex acceptor_mutex_;
+#ifdef _WIN32
     boost::asio::ip::tcp::acceptor acceptor_;
 #else
     boost::asio::local::stream_protocol::acceptor acceptor_;

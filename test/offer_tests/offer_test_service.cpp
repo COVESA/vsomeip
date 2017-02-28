@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,6 +11,7 @@
 #include <thread>
 #include <map>
 #include <algorithm>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -33,8 +34,8 @@ public:
                                 "offer_test_service" + service_number)),
             counter_(0),
             wait_until_registered_(true),
-            offer_thread_(std::bind(&offer_test_service::run, this)),
-            shutdown_method_called_(false) {
+            shutdown_method_called_(false),
+            offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -143,9 +144,8 @@ private:
     bool wait_until_registered_;
     std::mutex mutex_;
     std::condition_variable condition_;
+    std::atomic<bool> shutdown_method_called_;
     std::thread offer_thread_;
-
-    bool shutdown_method_called_;
 };
 
 TEST(someip_offer_test, notify_increasing_counter)
@@ -154,7 +154,7 @@ TEST(someip_offer_test, notify_increasing_counter)
 }
 
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

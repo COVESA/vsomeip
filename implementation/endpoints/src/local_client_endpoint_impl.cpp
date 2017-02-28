@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,7 +17,7 @@
 #include "../../configuration/include/configuration.hpp"
 
 // Credentials
-#ifndef WIN32
+#ifndef _WIN32
 #include "../include/credentials.hpp"
 #endif
 
@@ -44,8 +44,16 @@ bool local_client_endpoint_impl::is_local() const {
 }
 
 void local_client_endpoint_impl::start() {
-    if (socket_.is_open()) {
-        sending_blocked_ = false;
+    bool is_open(false);
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        is_open = socket_.is_open();
+    }
+    if (is_open) {
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+        }
         restart();
     } else {
         connect();
@@ -53,47 +61,61 @@ void local_client_endpoint_impl::start() {
 }
 
 void local_client_endpoint_impl::connect() {
-    boost::system::error_code its_error;
-    socket_.open(remote_.protocol(), its_error);
+    boost::system::error_code its_connect_error;
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::system::error_code its_error;
+        socket_.open(remote_.protocol(), its_error);
 
-    if (!its_error || its_error == boost::asio::error::already_open) {
-        boost::system::error_code error;
-        socket_.set_option(boost::asio::socket_base::reuse_address(true), error);
-        error = socket_.connect(remote_, error);
+        if (!its_error || its_error == boost::asio::error::already_open) {
+            socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
+            socket_.connect(remote_, its_connect_error);
 
 // Credentials
-#ifndef WIN32
-        if (!error) {
-            auto its_host = host_.lock();
-            if (its_host) {
-                if (its_host->get_configuration()->is_security_enabled()) {
-                    credentials::send_credentials(socket_.native(),
-                            its_host->get_client());
+#ifndef _WIN32
+            if (!its_connect_error) {
+                auto its_host = host_.lock();
+                if (its_host) {
+                    if (its_host->get_configuration()->is_security_enabled()) {
+                        credentials::send_credentials(socket_.native(),
+                                its_host->get_client());
+                    }
                 }
             }
-        }
 #endif
 
-        connect_cbk(error);
-    } else {
-        VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
-                << its_error.message();
+        } else {
+            VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
+                    << its_error.message();
+            return;
+        }
+    }
+    // call connect_cbk asynchronously
+    try {
+        service_.post(
+                std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                        its_connect_error));
+    } catch (const std::exception &e) {
+        VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
     }
 }
 
 void local_client_endpoint_impl::receive() {
-#ifndef WIN32
-    socket_.async_receive(
-        boost::asio::buffer(recv_buffer_),
-        std::bind(
-            &local_client_endpoint_impl::receive_cbk,
-            std::dynamic_pointer_cast<
-                local_client_endpoint_impl
-            >(shared_from_this()),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+#ifndef _WIN32
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    if (socket_.is_open()) {
+        socket_.async_receive(
+            boost::asio::buffer(recv_buffer_),
+            std::bind(
+                &local_client_endpoint_impl::receive_cbk,
+                std::dynamic_pointer_cast<
+                    local_client_endpoint_impl
+                >(shared_from_this()),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 #endif
 }
 
@@ -122,18 +144,21 @@ VSOMEIP_INFO << msg.str();
     bufs.push_back(boost::asio::buffer(*its_buffer));
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
-    boost::asio::async_write(
-        socket_,
-        bufs,
-        std::bind(
-            &client_endpoint_impl::send_cbk,
-            std::dynamic_pointer_cast<
-                local_client_endpoint_impl
-            >(shared_from_this()),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::asio::async_write(
+            socket_,
+            bufs,
+            std::bind(
+                &client_endpoint_impl::send_cbk,
+                std::dynamic_pointer_cast<
+                    local_client_endpoint_impl
+                >(shared_from_this()),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 }
 
 void local_client_endpoint_impl::send_magic_cookie() {
@@ -145,7 +170,6 @@ void local_client_endpoint_impl::receive_cbk(
     if (_error) {
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
-            shutdown_and_close_socket();
             return;
         } else if (_error == boost::asio::error::connection_reset
                 || _error == boost::asio::error::eof

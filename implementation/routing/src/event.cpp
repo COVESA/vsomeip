@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -173,6 +173,7 @@ void event::unset_payload(bool _force) {
 
 void event::set_update_cycle(std::chrono::milliseconds &_cycle) {
     if (is_provided_) {
+        std::lock_guard<std::mutex> its_lock(mutex_);
         stop_cycle();
         cycle_ = _cycle;
         start_cycle();
@@ -190,8 +191,10 @@ void event::set_update_on_change(bool _is_active) {
 }
 
 void event::set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func) {
-    if (_epsilon_change_func)
+    if (_epsilon_change_func) {
+        std::lock_guard<std::mutex> its_lock(mutex_);
         epsilon_change_func_ = _epsilon_change_func;
+    }
 }
 
 const std::set<eventgroup_t> & event::get_eventgroups() const {
@@ -199,15 +202,18 @@ const std::set<eventgroup_t> & event::get_eventgroups() const {
 }
 
 void event::add_eventgroup(eventgroup_t _eventgroup) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
     eventgroups_.insert(_eventgroup);
 }
 
 void event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
     eventgroups_ = _eventgroups;
 }
 
 void event::update_cbk(boost::system::error_code const &_error) {
     if (!_error) {
+        std::lock_guard<std::mutex> its_lock(mutex_);
         cycle_timer_.expires_from_now(cycle_);
         notify(true);
         std::function<void(boost::system::error_code const &)> its_handler =
@@ -300,6 +306,20 @@ void event::remove_ref(client_t _client, bool _is_provided) {
 bool event::has_ref() {
     std::lock_guard<std::mutex> its_lock(refs_mutex_);
     return refs_.size() != 0;
+}
+
+bool event::has_ref(client_t _client, bool _is_provided) {
+    std::lock_guard<std::mutex> its_lock(refs_mutex_);
+    auto its_client = refs_.find(_client);
+    if (its_client != refs_.end()) {
+        auto its_provided = its_client->second.find(_is_provided);
+        if (its_provided != its_client->second.end()) {
+            if(its_provided->second > 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool event::is_shadow() const {

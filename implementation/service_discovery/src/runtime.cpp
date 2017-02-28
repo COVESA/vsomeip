@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,7 +6,7 @@
 #include "../include/runtime_impl.hpp"
 #include "../../configuration/include/internal.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 extern "C"
 {
     __declspec(dllexport) std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL;
@@ -15,7 +15,7 @@ extern "C"
 std::shared_ptr<vsomeip::sd::runtime> VSOMEIP_SD_RUNTIME_SYMBOL(vsomeip::sd::runtime::get());
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #define CCALL __cdecl
 #pragma section(".CRT$XCU",read)
 #define INITIALIZER(f) \

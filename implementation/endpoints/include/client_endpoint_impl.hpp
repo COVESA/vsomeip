@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,6 +10,7 @@
 #include <deque>
 #include <mutex>
 #include <vector>
+#include <atomic>
 
 #include <boost/array.hpp>
 #include <boost/asio/io_service.hpp>
@@ -68,13 +69,16 @@ protected:
     virtual void send_queued() = 0;
     void shutdown_and_close_socket();
 
+    mutable std::mutex socket_mutex_;
     socket_type socket_;
     endpoint_type remote_;
 
     boost::asio::steady_timer flush_timer_;
+
+    std::mutex connect_timer_mutex_;
     boost::asio::steady_timer connect_timer_;
-    uint32_t connect_timeout_;
-    bool is_connected_;
+    std::atomic<uint32_t> connect_timeout_;
+    std::atomic<bool> is_connected_;
 
     // send data
     message_buffer_ptr_t packetizer_;
@@ -84,7 +88,6 @@ protected:
 
     bool was_not_connected_;
 
-    std::mutex stop_mutex_;
 };
 
 } // namespace vsomeip

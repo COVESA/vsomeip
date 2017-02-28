@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <boost/asio/ip/tcp.hpp>
 #endif
 
@@ -19,7 +19,7 @@
 
 namespace vsomeip {
 
-#ifdef WIN32
+#ifdef _WIN32
 typedef client_endpoint_impl<
             boost::asio::ip::tcp
         > local_client_endpoint_base_impl;

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -197,12 +197,37 @@ private:
         std::set<eventgroup_t> eventgroups_;
 
         bool operator<(const event_data_t &_other) const {
-            return (service_ < _other.service_
-                    || (service_ == _other.service_
-                            && instance_ < _other.instance_)
-                            || (service_ == _other.service_
-                                    && instance_ == _other.instance_
-                                    && event_ < _other.event_));
+            if (service_ < _other.service_) {
+                return true;
+            }
+            if (service_ == _other.service_ && instance_ < _other.instance_) {
+                return true;
+            }
+            if (service_ == _other.service_ && instance_ == _other.instance_
+                    && event_ < _other.event_) {
+                return true;
+            }
+            if (service_ == _other.service_ && instance_ == _other.instance_
+                    && event_ == _other.event_
+                    && is_provided_ != _other.is_provided_) {
+                return true;
+            }
+            if (service_ == _other.service_
+                    && instance_ == _other.instance_
+                    && event_ == _other.event_
+                    && is_provided_ == _other.is_provided_
+                    && is_field_ != _other.is_field_) {
+                return true;
+            }
+            if (service_ == _other.service_
+                    && instance_ == _other.instance_
+                    && event_ == _other.event_
+                    && is_provided_ == _other.is_provided_
+                    && is_field_ == _other.is_field_
+                    && eventgroups_ < _other.eventgroups_) {
+                return true;
+            }
+            return false;
     }
     };
     std::set<event_data_t> pending_event_registrations_;
@@ -218,7 +243,7 @@ private:
     std::map<service_t,
                 std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
 
-    mutable std::recursive_mutex sender_mutex_;
+    mutable std::mutex sender_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
 

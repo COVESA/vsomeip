@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -28,7 +28,6 @@ payload_test_client::payload_test_client(
                 request_(vsomeip::runtime::get()->create_request(_use_tcp)),
                 call_service_sync_(_call_service_sync),
                 sliding_window_size_(_sliding_window_size),
-                sender_(std::bind(&payload_test_client::run, this)),
                 blocked_(false),
                 is_available_(false),
                 number_of_messages_to_send_(number_of_messages_to_send ? number_of_messages_to_send : vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS),
@@ -36,7 +35,8 @@ payload_test_client::payload_test_client(
                 number_of_sent_messages_total_(0),
                 number_of_acknowledged_messages_(0),
                 current_payload_size_(1),
-                all_msg_acknowledged_(false)
+                all_msg_acknowledged_(false),
+                sender_(std::bind(&payload_test_client::run, this))
 {
 }
 
@@ -319,7 +319,7 @@ TEST(someip_payload_test, send_different_payloads)
 }
 
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     std::string tcp_enable("--tcp");

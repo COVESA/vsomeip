@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include <iomanip>
 #include <forward_list>
 
-#ifndef WIN32
+#ifndef _WIN32
 // for umask
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -101,12 +101,15 @@ void routing_manager_stub::stop() {
         client_registration_thread_->join();
     }
 
-    watchdog_timer_.cancel();
+    {
+        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        watchdog_timer_.cancel();
+    }
 
     if( !is_socket_activated_) {
         endpoint_->stop();
         endpoint_ = nullptr;
-#ifdef WIN32
+#ifdef _WIN32
         ::_unlink(endpoint_path_.c_str());
 #else
         if (-1 == ::unlink(endpoint_path_.c_str())) {
@@ -119,7 +122,7 @@ void routing_manager_stub::stop() {
     if(local_receiver_) {
         local_receiver_->stop();
         local_receiver_ = nullptr;
-#ifdef WIN32
+#ifdef _WIN32
         ::_unlink(local_receiver_path_.c_str());
 #else
         if (-1 == ::unlink(local_receiver_path_.c_str())) {
@@ -206,6 +209,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         bool is_remote_subscriber(false);
         client_t its_client_from_header;
         client_t its_target_client;
+        client_t its_subscriber;
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
         std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
@@ -255,6 +259,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_OFFER_SERVICE:
+                if (_size != VSOMEIP_OFFER_SERVICE_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a OFFER_SERVICE command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance,
@@ -269,6 +277,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_STOP_OFFER_SERVICE:
+                if (_size != VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a STOP_OFFER_SERVICE command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance,
@@ -284,6 +296,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_SUBSCRIBE:
+                if (_size != VSOMEIP_SUBSCRIBE_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a SUBSCRIBE command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
@@ -309,6 +325,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_UNSUBSCRIBE:
+                if (_size != VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a UNSUBSCRIBE command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
@@ -320,13 +340,19 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_SUBSCRIBE_ACK:
+                if (_size != VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a SUBSCRIBE_ACK command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
                         sizeof(its_instance));
                 std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
                         sizeof(its_eventgroup));
-                host_->on_subscribe_ack(its_client, its_service, its_instance, its_eventgroup);
+                std::memcpy(&its_subscriber, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
+                        sizeof(its_subscriber));
+                host_->on_subscribe_ack(its_subscriber, its_service, its_instance, its_eventgroup);
                 VSOMEIP_INFO << "SUBSCRIBE ACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -335,13 +361,19 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
             case VSOMEIP_SUBSCRIBE_NACK:
+                if (_size != VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a SUBSCRIBE_NACK command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
                         sizeof(its_instance));
                 std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
                         sizeof(its_eventgroup));
-                host_->on_subscribe_nack(its_client, its_service, its_instance, its_eventgroup);
+                std::memcpy(&its_subscriber, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
+                        sizeof(its_subscriber));
+                host_->on_subscribe_nack(its_subscriber, its_service, its_instance, its_eventgroup);
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -420,6 +452,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
             }
             case VSOMEIP_REQUEST_SERVICE:
+                if (_size != VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a REQUEST_SERVICE command with wrong size ~> skip!";
+                    break;
+                }
                 std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(its_service));
                 std::memcpy(&its_instance,
@@ -443,6 +479,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
 
                 case VSOMEIP_RELEASE_SERVICE:
+                    if (_size != VSOMEIP_RELEASE_SERVICE_COMMAND_SIZE) {
+                        VSOMEIP_WARNING << "Received a RELEASE_SERVICE command with wrong size ~> skip!";
+                        break;
+                    }
                     std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(its_service));
                     std::memcpy(&its_instance,
@@ -452,6 +492,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     break;
 
                 case VSOMEIP_REGISTER_EVENT:
+                    if (_size < VSOMEIP_REGISTER_EVENT_COMMAND_SIZE) {
+                        VSOMEIP_WARNING << "Received a REGISTER_EVENT command with wrong size ~> skip!";
+                        break;
+                    }
                     std::memcpy(&its_service,
                             &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(its_service));
@@ -490,6 +534,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     break;
 
                 case VSOMEIP_UNREGISTER_EVENT:
+                    if (_size != VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE) {
+                        VSOMEIP_WARNING << "Received a UNREGISTER_EVENT command with wrong size ~> skip!";
+                        break;
+                    }
                     std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(its_service));
                     std::memcpy(&its_instance,
@@ -516,6 +564,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     break;
 
                 case VSOMEIP_ID_RESPONSE:
+                    if (_size != VSOMEIP_ID_RESPONSE_COMMAND_SIZE) {
+                        VSOMEIP_WARNING << "Received a ID_RESPONSE command with wrong size ~> skip!";
+                        break;
+                    }
                     std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(its_service));
                     std::memcpy(&its_instance,
@@ -602,15 +654,13 @@ void routing_manager_stub::client_registration_func(void) {
                 } else {
                     on_deregister_application(r.first);
                 }
-                {
-                    // Inform (de)registered client. All others will be informed after
-                    // the client acknowledged its registered state!
-                    // Don't inform client if we deregister because of an client
-                    // endpoint error to avoid writing in an already closed socket
+                // Inform (de)registered client. All others will be informed after
+                // the client acknowledged its registered state!
+                // Don't inform client if we deregister because of an client
+                // endpoint error to avoid writing in an already closed socket
+                if (b != registration_type_e::DEREGISTER_ERROR_CASE) {
                     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-                    if (b != registration_type_e::DEREGISTER_ERROR_CASE) {
-                        send_routing_info(r.first);
-                    }
+                    send_routing_info(r.first);
                 }
                 if (b != registration_type_e::REGISTER) {
                     {
@@ -649,7 +699,7 @@ void routing_manager_stub::init_routing_endpoint() {
     } else if (num_fd == 1) {
         native_socket_fd = SD_LISTEN_FDS_START + 0;
         VSOMEIP_INFO <<  "Using native socket created by systemd socket activation! fd: " << native_socket_fd;
-        #ifndef WIN32
+        #ifndef _WIN32
             try {
                 endpoint_ =
                         std::make_shared < local_server_endpoint_impl
@@ -666,7 +716,7 @@ void routing_manager_stub::init_routing_endpoint() {
         #endif
         is_socket_activated_ = true;
     } else {
-        #if WIN32
+        #if _WIN32
             ::_unlink(endpoint_path_.c_str());
             int port = VSOMEIP_INTERNAL_BASE_PORT;
             VSOMEIP_INFO << "Routing endpoint at " << port;
@@ -684,7 +734,7 @@ void routing_manager_stub::init_routing_endpoint() {
             endpoint_ =
                     std::make_shared < local_server_endpoint_impl
                             > (shared_from_this(),
-                            #ifdef WIN32
+                            #ifdef _WIN32
                                 boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
                             #else
                                 boost::asio::local::stream_protocol::endpoint(endpoint_path_),
@@ -697,7 +747,7 @@ void routing_manager_stub::init_routing_endpoint() {
             VSOMEIP_ERROR << "routing_manager_stub::init_routing_endpoint Client ID: "
                     << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
         }
-        #ifndef WIN32
+        #ifndef _WIN32
             ::umask(previous_mask);
         #endif
         is_socket_activated_ = false;
@@ -952,7 +1002,7 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
         client_t this_client = get_client();
         its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SUBSCRIBE_ACK;
         std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &this_client,
-                sizeof(_client));
+                sizeof(this_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
                 sizeof(its_size));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_service,
@@ -961,6 +1011,8 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
                 sizeof(_instance));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_eventgroup,
                 sizeof(_eventgroup));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6], &_client,
+                sizeof(_client));
 
         its_endpoint->send(&its_command[0], sizeof(its_command), true);
     }
@@ -978,7 +1030,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
         client_t this_client = get_client();
         its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_SUBSCRIBE_NACK;
         std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &this_client,
-                sizeof(_client));
+                sizeof(this_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
                 sizeof(its_size));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_service,
@@ -987,6 +1039,8 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
                 sizeof(_instance));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_eventgroup,
                 sizeof(_eventgroup));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6], &_client,
+                sizeof(_client));
 
         its_endpoint->send(&its_command[0], sizeof(its_command), true);
     }
@@ -1024,7 +1078,8 @@ void routing_manager_stub::on_pong(client_t _client) {
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
         } else {
-            VSOMEIP_ERROR << "Received PONG from unregistered application!";
+            VSOMEIP_ERROR << "Received PONG from unregistered application: "
+                    << std::hex << std::setw(4) << std::setfill('0') << _client;
         }
     }
     remove_from_pinged_clients(_client);
@@ -1032,17 +1087,21 @@ void routing_manager_stub::on_pong(client_t _client) {
 }
 
 void routing_manager_stub::start_watchdog() {
-    // Divide / 2 as start and check sleep each
-    watchdog_timer_.expires_from_now(
-            std::chrono::milliseconds(configuration_->get_watchdog_timeout() / 2));
 
     std::function<void(boost::system::error_code const &)> its_callback =
             [this](boost::system::error_code const &_error) {
                 if (!_error)
-                check_watchdog();
+                    check_watchdog();
             };
+    {
+        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        // Divide / 2 as start and check sleep each
+        watchdog_timer_.expires_from_now(
+                std::chrono::milliseconds(
+                        configuration_->get_watchdog_timeout() / 2));
 
-    watchdog_timer_.async_wait(its_callback);
+        watchdog_timer_.async_wait(its_callback);
+    }
 }
 
 void routing_manager_stub::check_watchdog() {
@@ -1054,8 +1113,6 @@ void routing_manager_stub::check_watchdog() {
     }
     broadcast_ping();
 
-    watchdog_timer_.expires_from_now(
-            std::chrono::milliseconds(configuration_->get_watchdog_timeout() / 2));
 
     std::function<void(boost::system::error_code const &)> its_callback =
             [this](boost::system::error_code const &_error) {
@@ -1077,8 +1134,13 @@ void routing_manager_stub::check_watchdog() {
                 }
                 start_watchdog();
             };
-
-    watchdog_timer_.async_wait(its_callback);
+    {
+        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        watchdog_timer_.expires_from_now(
+                std::chrono::milliseconds(
+                        configuration_->get_watchdog_timeout() / 2));
+        watchdog_timer_.async_wait(its_callback);
+    }
 }
 
 void routing_manager_stub::create_local_receiver() {
@@ -1088,7 +1150,7 @@ void routing_manager_stub::create_local_receiver() {
     std::stringstream its_local_receiver_path;
     its_local_receiver_path << VSOMEIP_BASE_PATH << std::hex << host_->get_client();
     local_receiver_path_ = its_local_receiver_path.str();
-#if WIN32
+#if _WIN32
     ::_unlink(local_receiver_path_.c_str());
     int port = VSOMEIP_INTERNAL_BASE_PORT;
 #else
@@ -1109,7 +1171,7 @@ void routing_manager_stub::create_local_receiver() {
         local_receiver_ =
                 std::make_shared < local_server_endpoint_impl
                         > (shared_from_this(),
-                        #ifdef WIN32
+                        #ifdef _WIN32
                             boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port + host_->get_client()),
                         #else
                             boost::asio::local::stream_protocol::endpoint(local_receiver_path_),
@@ -1122,7 +1184,7 @@ void routing_manager_stub::create_local_receiver() {
         VSOMEIP_ERROR << "routing_manager_stub::_local_receiver Client ID: "
                 << std::hex << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
     }
-#ifndef WIN32
+#ifndef _WIN32
     ::umask(previous_mask);
 #endif
     local_receiver_->start();
@@ -1293,7 +1355,7 @@ client_t routing_manager_stub::get_client() const {
     return host_->get_client();
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 bool routing_manager_stub::check_credentials(client_t _client, uid_t _uid, gid_t _gid) {
     return configuration_->check_credentials(_client, _uid, _gid);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -244,7 +244,7 @@ void configuration_impl::read_data(const std::set<std::string> &_input,
                     _elements.push_back({ i, its_tree });
                 }
                 catch (boost::property_tree::json_parser_error &e) {
-    #ifdef WIN32
+    #ifdef _WIN32
                     e; // silence MSVC warning C4101
     #endif
                     _failed.insert(i);
@@ -1410,7 +1410,7 @@ void configuration_impl::load_selective_broadcasts_support(const element &_eleme
 
 
 void configuration_impl::load_policies(const element &_element) {
-#ifdef WIN32
+#ifdef _WIN32
         return;
 #endif
     try {

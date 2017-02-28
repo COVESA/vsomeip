@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -38,13 +38,13 @@ private:
     bool use_tcp_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::thread sender_;
     bool running_;
     bool blocked_;
     bool is_available_;
     std::uint32_t number_of_messages_to_send_;
     std::uint32_t number_of_sent_messages_;
     std::uint32_t number_of_acknowledged_messages_;
+    std::thread sender_;
 };
 
 #endif /* HEADERFACTORYTESTCLIENT_HPP_ */

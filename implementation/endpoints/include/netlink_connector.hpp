@@ -1,18 +1,19 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef NETLINK_CONNECTOR_HPP_
-#define NETLINK_CONNECTOR_HPP_
+#ifndef VSOMEIP_NETLINK_CONNECTOR_HPP
+#define VSOMEIP_NETLINK_CONNECTOR_HPP
 
-#ifndef WIN32
+#ifndef _WIN32
 
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
 #include <map>
+#include <mutex>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/basic_raw_socket.hpp>
@@ -205,6 +206,7 @@ private:
 
     net_if_changed_handler_t handler_;
 
+    std::mutex socket_mutex_;
     boost::asio::basic_raw_socket<nl_protocol> socket_;
 
     const size_t recv_buffer_size = 16384;
@@ -215,6 +217,6 @@ private:
 
 }
 
-#endif // NOT WIN32
+#endif // NOT _WIN32
 
-#endif /* NETLINK_CONNECTOR_HPP_ */
+#endif // VSOMEIP_NETLINK_CONNECTOR_HPP

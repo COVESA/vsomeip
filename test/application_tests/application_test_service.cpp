@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,6 +12,7 @@
 #include <map>
 #include <algorithm>
 #include <future>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -30,8 +31,8 @@ public:
             app_(vsomeip::runtime::get()->create_application("service")),
             counter_(0),
             wait_until_registered_(true),
-            offer_thread_(std::bind(&application_test_service::run, this)),
-            stop_called_(false) {
+            stop_called_(false),
+            offer_thread_(std::bind(&application_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -65,7 +66,8 @@ public:
 
 
     void offer() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
+        app_->offer_service(service_info_.service_id, service_info_.instance_id,
+                service_info_.major_version, service_info_.minor_version);
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -90,8 +92,13 @@ public:
 
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
         (void)_message;
+        stop();
+    }
+
+    void stop() {
         stop_called_ = true;
-        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
+        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id,
+                service_info_.major_version, service_info_.minor_version);
         app_->clear_all_handler();
         app_->stop();
     }
@@ -117,7 +124,7 @@ private:
     bool wait_until_registered_;
     std::mutex mutex_;
     std::condition_variable condition_;
+    std::atomic<bool> stop_called_;
     std::thread offer_thread_;
     std::thread application_thread_;
-    bool stop_called_;
 };

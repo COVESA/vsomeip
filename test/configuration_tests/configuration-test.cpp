@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -122,7 +122,7 @@ void check_file(const std::string &_config_file,
     }
 
     // 2. Set environment variable to config file and load it
-#ifndef WIN32
+#ifndef _WIN32
     setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
 #else
     _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()

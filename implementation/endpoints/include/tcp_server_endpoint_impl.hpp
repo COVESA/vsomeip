@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -63,6 +63,7 @@ private:
                           std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold);
         socket_type & get_socket();
+        std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
         void stop();
@@ -72,13 +73,20 @@ private:
 
         void send_queued(queue_iterator_type _queue_iterator);
 
+        void set_remote_info(const endpoint_type &_remote);
+
     private:
         connection(std::weak_ptr<tcp_server_endpoint_impl> _server,
                    std::uint32_t _max_message_size,
                    std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _buffer_shrink_threshold);
         void send_magic_cookie(message_buffer_ptr_t &_buffer);
+        bool is_magic_cookie(size_t _offset) const;
+        void receive_cbk(boost::system::error_code const &_error,
+                         std::size_t _bytes);
+        void calculate_shrink_count();
 
+        std::mutex socket_mutex_;
         tcp_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<tcp_server_endpoint_impl> server_;
 
@@ -91,18 +99,17 @@ private:
         std::uint32_t shrink_count_;
         const std::uint32_t buffer_shrink_threshold_;
 
-    private:
-        bool is_magic_cookie(size_t _offset) const;
-        void receive_cbk(boost::system::error_code const &_error,
-                         std::size_t _bytes);
-        void calculate_shrink_count();
-        std::mutex stop_mutex_;
+        endpoint_type remote_;
+        boost::asio::ip::address remote_address_;
+        std::uint16_t remote_port_;
     };
 
+    std::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::mutex connections_mutex_;
     std::map<endpoint_type, connection::ptr> connections_;
     const std::uint32_t buffer_shrink_threshold_;
+    const std::uint16_t local_port_;
 
 private:
     void remove_connection(connection *_connection);

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,10 +14,12 @@ std::map<boost::asio::ip::address,
         std::map<bool, std::shared_ptr<endpoint_definition> > > >
 endpoint_definition::definitions_;
 
+std::mutex endpoint_definition::definitions_mutex_;
+
 std::shared_ptr<endpoint_definition>
 endpoint_definition::get(const boost::asio::ip::address &_address,
                          uint16_t _port, bool _is_reliable) {
-
+    std::lock_guard<std::mutex> its_lock(definitions_mutex_);
     std::shared_ptr<endpoint_definition> its_result;
 
     auto find_address = definitions_.find(_address);
@@ -50,25 +52,12 @@ const boost::asio::ip::address & endpoint_definition::get_address() const {
     return address_;
 }
 
-void endpoint_definition::set_address(
-        const boost::asio::ip::address &_address) {
-    address_ = _address;
-}
-
 uint16_t endpoint_definition::get_port() const {
     return port_;
 }
 
-void endpoint_definition::set_port(uint16_t _port) {
-    port_ = _port;
-}
-
 bool endpoint_definition::is_reliable() const {
     return is_reliable_;
-}
-
-void endpoint_definition::set_reliable(bool _is_reliable) {
-    is_reliable_ = _is_reliable;
 }
 
 uint16_t endpoint_definition::get_remote_port() const {

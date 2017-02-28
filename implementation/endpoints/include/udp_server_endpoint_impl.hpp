@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -63,11 +63,15 @@ private:
     socket_type socket_;
     endpoint_type remote_;
 
+    mutable std::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
+    mutable std::mutex joined_mutex_;
     std::set<std::string> joined_;
 
     message_buffer_t recv_buffer_;
-    std::mutex stop_mutex_;
+    std::mutex socket_mutex_;
+
+    const std::uint16_t local_port_;
 };
 
 } // namespace vsomeip

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -93,6 +93,13 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port);
+
+    void register_event(client_t _client, service_t _service,
+            instance_t _instance, event_t _event,
+            const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            epsilon_change_func_t _epsilon_change_func,
+            bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
 
     void register_shadow_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
@@ -304,6 +311,12 @@ private:
 
     void start_ip_routing();
 
+    void requested_service_add(client_t _client, service_t _service,
+                       instance_t _instance, major_version_t _major,
+                       minor_version_t _minor);
+    void requested_service_remove(client_t _client, service_t _service,
+                       instance_t _instance);
+
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
@@ -354,11 +367,12 @@ private:
     bool if_state_running_;
     std::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
-#ifndef WIN32
+#ifndef _WIN32
     std::shared_ptr<netlink_connector> netlink_connector_;
 #endif
 
 #ifndef WITHOUT_SYSTEMD
+    std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
     void watchdog_cbk(boost::system::error_code const &_error);
 #endif

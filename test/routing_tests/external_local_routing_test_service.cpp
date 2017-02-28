@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -176,7 +176,7 @@ TEST(someip_external_local_routing_test, receive_ten_messages_over_local_and_ext
     }
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

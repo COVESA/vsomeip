@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -49,7 +49,6 @@ private:
     std::uint32_t sliding_window_size_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::thread sender_;
     bool blocked_;
     bool is_available_;
     const std::uint32_t number_of_messages_to_send_;
@@ -64,6 +63,8 @@ private:
     bool all_msg_acknowledged_;
     std::mutex all_msg_acknowledged_mutex_;
     std::condition_variable all_msg_acknowledged_cv_;
+
+    std::thread sender_;
 
 };
 

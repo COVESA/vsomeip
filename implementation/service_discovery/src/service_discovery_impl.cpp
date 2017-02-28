@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -1274,6 +1274,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
                 if (0 < its_message->get_entries().size()) {
                     std::shared_ptr<endpoint_definition> its_target;
                     std::pair<session_t, bool> its_session;
+                    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
                     if (_reliable_port != ILLEGAL_PORT) {
                         its_target = endpoint_definition::get(
                                 _reliable_address, port_, reliable_);
@@ -1285,7 +1286,6 @@ void service_discovery_impl::process_offerservice_serviceentry(
                     }
 
                     if (its_target) {
-                        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
                         its_message->set_session(its_session.first);
                         its_message->set_reboot_flag(its_session.second);
                         serializer_->serialize(its_message.get());
@@ -1620,7 +1620,7 @@ void service_discovery_impl::process_eventgroupentry(
             try {
                 its_option = _options.at(its_index);
             } catch(const std::out_of_range& e) {
-#ifdef WIN32
+#ifdef _WIN32
                 e; // silence MSVC warining C4101
 #endif
                 VSOMEIP_ERROR << "Fewer options in SD message than "
@@ -2009,13 +2009,13 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
                 for (auto its_client : found_eventgroup->second) {
                     if (its_client.second->get_counter() == _counter) {
                         its_client.second->set_acknowledged(true);
+                        host_->on_subscribe_ack(its_client.first, _service,
+                                _instance, _eventgroup);
                     }
                     if (_address.is_multicast()) {
                         host_->on_subscribe_ack(_service, _instance, _address,
                                 _port);
                     }
-                    host_->on_subscribe_ack(its_client.first, _service,
-                            _instance, _eventgroup);
                 }
             }
         }

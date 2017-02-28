@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -206,13 +206,16 @@ protected:
     }
 
     void send_shutdown_message() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        while(!is_registered_) {
-            cv_.wait(its_lock);
-        }
-        app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-        while(!is_available_) {
-            cv_.wait(its_lock);
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while(!is_registered_) {
+                cv_.wait(its_lock);
+            }
+            app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                    vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+            while(!is_available_) {
+                cv_.wait(its_lock);
+            }
         }
 
         std::shared_ptr<message> r = runtime::get()->create_request();
@@ -237,7 +240,7 @@ TEST_F(someip_application_shutdown_test, stop_application_from_dispatcher_thread
 
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

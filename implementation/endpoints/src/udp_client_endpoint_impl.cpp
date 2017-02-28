@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +22,9 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
         boost::asio::io_service &_io)
     : udp_client_endpoint_base_impl(_host, _local, _remote, _io,
             VSOMEIP_MAX_UDP_MESSAGE_SIZE),
-      recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0) {
+      recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
+      remote_address_(_remote.address()),
+      remote_port_(_remote.port()) {
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
@@ -37,6 +39,7 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     // In case a client endpoint port was configured,
     // bind to it before connecting
     if (local_.port() != ILLEGAL_PORT) {
@@ -60,7 +63,10 @@ void udp_client_endpoint_impl::connect() {
 
 void udp_client_endpoint_impl::start() {
     boost::system::error_code its_error;
-    socket_.open(remote_.protocol(), its_error);
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        socket_.open(remote_.protocol(), its_error);
+    }
     if (!its_error || its_error == boost::asio::error::already_open) {
         connect();
     } else {
@@ -85,18 +91,25 @@ void udp_client_endpoint_impl::send_queued() {
             << (int)(*its_buffer)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    socket_.async_send(
-        boost::asio::buffer(*its_buffer),
-        std::bind(
-            &udp_client_endpoint_base_impl::send_cbk,
-            shared_from_this(),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        socket_.async_send(
+            boost::asio::buffer(*its_buffer),
+            std::bind(
+                &udp_client_endpoint_base_impl::send_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 }
 
 void udp_client_endpoint_impl::receive() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    if (!socket_.is_open()) {
+        return;
+    }
     socket_.async_receive_from(
         boost::asio::buffer(&recv_buffer_[0], max_message_size_),
         remote_,
@@ -113,15 +126,15 @@ void udp_client_endpoint_impl::receive() {
 
 bool udp_client_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
-    const boost::asio::ip::address its_address = remote_.address();
-    if (its_address.is_unspecified()) {
+    if (remote_address_.is_unspecified()) {
         return false;
     }
-    _address = its_address;
+    _address = remote_address_;
     return true;
 }
 
 unsigned short udp_client_endpoint_impl::get_local_port() const {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_.is_open()) {
         return socket_.local_endpoint(its_error).port();
@@ -130,18 +143,13 @@ unsigned short udp_client_endpoint_impl::get_local_port() const {
 }
 
 unsigned short udp_client_endpoint_impl::get_remote_port() const {
-    boost::system::error_code its_error;
-    if (socket_.is_open()) {
-        return socket_.remote_endpoint(its_error).port();
-    }
-    return 0;
+    return remote_port_;
 }
 
 void udp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
-        shutdown_and_close_socket();
         return;
     }
     std::shared_ptr<endpoint_host> its_host = host_.lock();
@@ -156,23 +164,28 @@ void udp_client_endpoint_impl::receive_cbk(
 #endif
         std::size_t remaining_bytes = _bytes;
         std::size_t i = 0;
-        boost::system::error_code its_error;
-        endpoint_type its_endpoint(socket_.remote_endpoint(its_error));
-        const boost::asio::ip::address its_remote_address(its_endpoint.address());
-        const std::uint16_t its_remote_port(its_endpoint.port());
 
         do {
-            uint32_t current_message_size
+            uint64_t read_message_size
                 = utility::get_message_size(&this->recv_buffer_[i],
-                        (uint32_t) remaining_bytes);
+                        remaining_bytes);
+            if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
+                VSOMEIP_ERROR << "Message size exceeds allowed maximum!";
+                return;
+            }
+            uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
             if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
                     current_message_size <= remaining_bytes) {
+                if (remaining_bytes - current_message_size > remaining_bytes) {
+                    VSOMEIP_ERROR << "buffer underflow in udp client endpoint ~> abort!";
+                    return;
+                }
                 remaining_bytes -= current_message_size;
 
                 its_host->on_message(&recv_buffer_[i], current_message_size,
                         this, boost::asio::ip::address(),
-                        VSOMEIP_ROUTING_CLIENT, its_remote_address,
-                        its_remote_port);
+                        VSOMEIP_ROUTING_CLIENT, remote_address_,
+                        remote_port_);
             } else {
                 VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad "
                         "length field. Message size: " << current_message_size
@@ -188,7 +201,7 @@ void udp_client_endpoint_impl::receive_cbk(
     } else {
         if (_error == boost::asio::error::connection_refused) {
             shutdown_and_close_socket();
-        } else if (socket_.is_open()) {
+        } else {
             receive();
         }
     }

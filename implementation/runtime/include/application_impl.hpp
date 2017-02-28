@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -212,6 +212,7 @@ private:
     void main_dispatch();
     void dispatch();
     void invoke_handler(std::shared_ptr<sync_handler> &_handler);
+    bool has_active_dispatcher();
     bool is_active_dispatcher(std::thread::id &_id);
     void remove_elapsed_dispatchers();
 
@@ -219,7 +220,12 @@ private:
 
     void send_back_cached_event(service_t _service, instance_t _instance, event_t _event);
     void send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
-
+    void check_send_back_cached_event(service_t _service, instance_t _instance,
+                                      event_t _event, eventgroup_t _eventgroup,
+                                      bool *_send_back_cached_event,
+                                      bool *_send_back_cached_eventgroup);
+    void remove_subscription(service_t _service, instance_t _instance,
+                             eventgroup_t _eventgroup);
     //
     // Attributes
     //
@@ -254,7 +260,9 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    std::map<service_t, std::map<instance_t, std::tuple<major_version_t, minor_version_t, availability_handler_t, bool>>> availability_;
+    typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_handler_t,
+            bool>>> availability_major_minor_t;
+    std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
     // Availability
@@ -314,11 +322,14 @@ private:
     // Event subscriptions
     std::mutex event_subscriptions_mutex_;
     std::map<service_t, std::map<instance_t, std::map<event_t, bool>>> event_subscriptions_;
+    std::map<service_t, std::map<instance_t, std::set<eventgroup_t>>> eventgroup_subscriptions_;
 
     std::thread::id stop_caller_id_;
     std::thread::id start_caller_id_;
 
     bool stopped_called_;
+
+
 };
 
 } // namespace vsomeip

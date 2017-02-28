@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,13 +8,13 @@
 header_factory_test_client::header_factory_test_client(bool _use_tcp) :
                 app_(vsomeip::runtime::get()->create_application()),
                 request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-                sender_(std::bind(&header_factory_test_client::run, this)),
                 running_(true),
                 blocked_(false),
                 is_available_(false),
                 number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
                 number_of_sent_messages_(0),
-                number_of_acknowledged_messages_(0)
+                number_of_acknowledged_messages_(0),
+                sender_(std::bind(&header_factory_test_client::run, this))
 {
 }
 
@@ -162,7 +162,7 @@ TEST(someip_header_factory_test, send_message_ten_times_test)
     }
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

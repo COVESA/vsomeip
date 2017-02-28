@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <atomic>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
@@ -93,6 +94,8 @@ public:
     bool is_cache_placeholder() const;
     void set_cache_placeholder(bool _is_cache_place_holder);
 
+    bool has_ref(client_t _client, bool _is_provided);
+
 private:
     void update_cbk(boost::system::error_code const &_error);
     void notify(bool _flush);
@@ -111,25 +114,27 @@ private:
     mutable std::mutex mutex_;
     std::shared_ptr<message> message_;
 
-    bool is_field_;
+    std::atomic<bool> is_field_;
 
     boost::asio::steady_timer cycle_timer_;
     std::chrono::milliseconds cycle_;
-    bool change_resets_cycle_;
 
-    bool is_updating_on_change_;
+    std::atomic<bool> change_resets_cycle_;
 
+    std::atomic<bool> is_updating_on_change_;
+
+    std::mutex eventgroups_mutex_;
     std::set<eventgroup_t> eventgroups_;
 
-    bool is_set_;
-    bool is_provided_;
+    std::atomic<bool> is_set_;
+    std::atomic<bool> is_provided_;
 
     std::mutex refs_mutex_;
     std::map<client_t, std::map<bool, uint32_t>> refs_;
 
-    bool is_shadow_;
+    std::atomic<bool> is_shadow_;
 
-    bool is_cache_placeholder_;
+    std::atomic<bool> is_cache_placeholder_;
 
     epsilon_change_func_t epsilon_change_func_;
 };

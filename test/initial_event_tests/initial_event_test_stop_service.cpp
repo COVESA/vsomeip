@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,6 +11,7 @@
 #include <thread>
 #include <map>
 #include <algorithm>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -154,18 +155,22 @@ public:
     void run() {
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Running";
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while (wait_until_registered_) {
+                condition_.wait(its_lock);
+            }
         }
 
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Offering";
         offer();
 
-        std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
-        while (wait_until_stop_service_other_node_available_) {
-            availability_condition_.wait(its_availability_lock);
+        {
+            std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
+            while (wait_until_stop_service_other_node_available_) {
+                availability_condition_.wait(its_availability_lock);
+            }
         }
 
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
@@ -184,9 +189,11 @@ public:
         }
         app_->send(msg);
         called_other_node_ = true;
-
-        while (wait_until_shutdown_method_called_) {
-            condition_.wait(its_lock);
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while (wait_until_shutdown_method_called_) {
+                condition_.wait(its_lock);
+            }
         }
     }
 
@@ -228,12 +235,12 @@ private:
     std::mutex availability_mutex_;
     std::condition_variable availability_condition_;
 
-    bool wait_for_stop_;
+    std::atomic<bool> wait_for_stop_;
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
     std::thread stop_thread_;
 
-    bool called_other_node_;
+    std::atomic<bool> called_other_node_;
 };
 
 static bool is_master = false;
@@ -247,7 +254,7 @@ TEST(someip_initial_event_test, wait_for_stop_method_to_be_called)
     }
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

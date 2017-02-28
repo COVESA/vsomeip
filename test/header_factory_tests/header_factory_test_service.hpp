@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -35,11 +35,11 @@ private:
     bool is_registered_;
     bool use_static_routing_;
 
-    std::thread offer_thread_;
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
     std::uint32_t number_of_received_messages_;
+    std::thread offer_thread_;
 };
 
 #endif /* HEADERFACTORYTESTSERVICE_HPP_ */

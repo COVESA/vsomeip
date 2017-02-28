@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,6 +8,8 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
+#include <atomic>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -66,7 +68,7 @@ protected:
     std::weak_ptr<endpoint_host> host_;
 
     bool is_supporting_magic_cookies_;
-    bool has_enabled_magic_cookies_;
+    std::atomic<bool> has_enabled_magic_cookies_;
 
     // Filter configuration
     std::map<service_t, uint8_t> opened_;
@@ -77,6 +79,7 @@ protected:
 
     bool sending_blocked_;
 
+    std::mutex local_mutex_;
     endpoint_type local_;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,6 +12,7 @@
 #include <map>
 #include <algorithm>
 #include <future>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -28,12 +29,12 @@ public:
             service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
-            send_thread_(std::bind(&application_test_client::send, this)),
             wait_for_stop_(true),
-            stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
             received_responses_(0),
             sent_requests_(0),
-            stop_called_(false) {
+            stop_called_(false),
+            stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
+            send_thread_(std::bind(&application_test_client::send, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -183,16 +184,16 @@ private:
     bool wait_until_service_available_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::thread send_thread_;
 
     bool wait_for_stop_;
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
+
+    std::atomic<std::uint32_t> received_responses_;
+    std::atomic<std::uint32_t> sent_requests_;
+    std::atomic<bool> stop_called_;
+
     std::thread stop_thread_;
-
-    std::uint32_t received_responses_;
-    std::uint32_t sent_requests_;
-
+    std::thread send_thread_;
     std::thread application_thread_;
-    bool stop_called_;
 };

@@ -266,3 +266,13 @@ v2.5.2
 - Prevent race of initial attributes
 - Allow incomplete application configurations
 - Unit test timeouts increased to avoid failures on (slow) build servers
+
+v2.5.3
+- Fixed races and crashes
+- The minor version of a service instance is considered again when reporting the
+  service instance's availability (this was removed with v2.4.2). If the minor
+  version should not be considered use ANY_MINOR or DEFAULT_MINOR when
+  registering availability handlers.
+- Fixed initial events on unsubscription
+- Improved dispatcher handling for blocking calls
+- Crashed applications are now automatically unsubscribed

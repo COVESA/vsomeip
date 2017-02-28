@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -61,10 +61,10 @@ public:
         return (_type == message_type_e::MT_NOTIFICATION);
     }
 
-    static uint32_t get_message_size(const byte_t *_data, uint32_t _size);
-    static inline uint32_t get_message_size(std::vector<byte_t> &_data) {
+    static uint64_t get_message_size(const byte_t *_data, size_t _size);
+    static inline uint64_t get_message_size(std::vector<byte_t> &_data) {
         if (_data.size() > 0) {
-            return (get_message_size(&_data[0], uint32_t(_data.size())));
+            return (get_message_size(&_data[0], _data.size()));
         }
         return 0;
     }

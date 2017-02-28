@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -36,6 +36,8 @@ server_endpoint_impl<Protocol>::~server_endpoint_impl() {
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::stop() {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    endpoint_impl<Protocol>::sending_blocked_ = true;
 }
 
 template<typename Protocol>
@@ -61,12 +63,12 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
     endpoint_type its_target;
     bool is_valid_target(false);
 
-    if(endpoint_impl<Protocol>::sending_blocked_) {
-        return false;
-    }
-
     if (VSOMEIP_SESSION_POS_MAX < _size) {
         std::lock_guard<std::mutex> its_lock(mutex_);
+
+        if(endpoint_impl<Protocol>::sending_blocked_) {
+            return false;
+        }
 
         service_t its_service;
         std::memcpy(&its_service, &_data[VSOMEIP_SERVICE_POS_MIN],
@@ -106,10 +108,6 @@ bool server_endpoint_impl<Protocol>::send_intern(
 
     message_buffer_ptr_t target_packetizer;
     queue_iterator_type target_queue_iterator;
-
-    if(endpoint_impl<Protocol>::sending_blocked_) {
-        return false;
-    }
 
     if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
             && _size > endpoint_impl<Protocol>::max_message_size_) {
@@ -213,7 +211,7 @@ void server_endpoint_impl<Protocol>::flush_cbk(
 }
 
 // Instantiate template
-#ifndef WIN32
+#ifndef _WIN32
 template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class server_endpoint_impl<boost::asio::ip::tcp>;

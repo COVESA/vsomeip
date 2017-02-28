@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -115,12 +115,21 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
     )
 
+    set(TEST_APPLICATION_AVAILABILITY_NAME ${TEST_APPLICATION}_availability)
+    add_executable(${TEST_APPLICATION_AVAILABILITY_NAME} application_tests/${TEST_APPLICATION_AVAILABILITY_NAME}.cpp)
+    target_link_libraries(${TEST_APPLICATION_AVAILABILITY_NAME}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
     set(TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE ${TEST_APPLICATION}_single_process.json)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
         ${TEST_APPLICATION}_single_process
     )
-    
+
     set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
@@ -171,6 +180,12 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
         ${TEST_APPLICATION}_single_process
+    )
+
+    set(TEST_APPLICATION_AVAILABILITY_STARTER ${TEST_APPLICATION_AVAILABILITY_NAME}_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_AVAILABILITY_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_AVAILABILITY_STARTER}
+        ${TEST_APPLICATION_SINGLE_PROCESS_NAME}
     )
 endif()
 ##############################################################################
@@ -1630,6 +1645,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_CONFIGURATION} gtest)
     add_dependencies(${TEST_APPLICATION} gtest)
     add_dependencies(${TEST_APPLICATION_SINGLE_PROCESS_NAME} gtest)
+    add_dependencies(${TEST_APPLICATION_AVAILABILITY_NAME} gtest)
     add_dependencies(${TEST_MAGIC_COOKIES_CLIENT} gtest)
     add_dependencies(${TEST_MAGIC_COOKIES_SERVICE} gtest)
     add_dependencies(${TEST_HEADER_FACTORY} gtest)
@@ -1669,6 +1685,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_CONFIGURATION})
     add_dependencies(build_tests ${TEST_APPLICATION})
     add_dependencies(build_tests ${TEST_APPLICATION_SINGLE_PROCESS_NAME})
+    add_dependencies(build_tests ${TEST_APPLICATION_AVAILABILITY_NAME})
     add_dependencies(build_tests ${TEST_MAGIC_COOKIES_CLIENT})
     add_dependencies(build_tests ${TEST_MAGIC_COOKIES_SERVICE})
     add_dependencies(build_tests ${TEST_HEADER_FACTORY})
@@ -1723,6 +1740,11 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
     )
     set_tests_properties(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_APPLICATION_AVAILABILITY_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_AVAILABILITY_STARTER}
+    )
+    set_tests_properties(${TEST_APPLICATION_AVAILABILITY_NAME} PROPERTIES TIMEOUT 120)
 
     # magic cookies test
     add_test(NAME ${TEST_MAGIC_COOKIES_NAME}

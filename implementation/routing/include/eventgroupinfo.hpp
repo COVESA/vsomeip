@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,6 +10,8 @@
 #include <list>
 #include <memory>
 #include <set>
+#include <mutex>
+#include <atomic>
 
 #include <boost/asio/ip/address.hpp>
 
@@ -73,17 +75,21 @@ public:
     VSOMEIP_EXPORT void set_threshold(uint8_t _threshold);
 
 private:
-    major_version_t major_;
-    ttl_t ttl_;
+    std::atomic<major_version_t> major_;
+    std::atomic<ttl_t> ttl_;
 
+    mutable std::mutex address_mutex_;
     boost::asio::ip::address address_;
     uint16_t port_;
 
+    mutable std::mutex events_mutex_;
     std::set<std::shared_ptr<event> > events_;
+    mutable std::mutex targets_mutex_;
     std::list<target_t> targets_;
+    mutable std::mutex multicast_targets_mutex_;
     std::list<target_t> multicast_targets_;
 
-    uint8_t threshold_;
+    std::atomic<uint8_t> threshold_;
 };
 
 } // namespace vsomeip

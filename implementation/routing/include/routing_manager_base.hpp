@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -113,7 +113,7 @@ public:
                           endpoint *_receiver,
                           const boost::asio::ip::address &_remote_address,
                           std::uint16_t _remote_port) = 0;
-#ifndef WIN32
+#ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
 #endif
 
@@ -177,9 +177,16 @@ protected:
     void send_pending_notify_ones(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
 
+    void unset_all_eventpayloads(service_t _service, instance_t _instance);
+    void unset_all_eventpayloads(service_t _service, instance_t _instance,
+                                 eventgroup_t _eventgroup);
+
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
+
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>>
+        get_subscriptions(const client_t _client);
 
 protected:
     routing_manager_host *host_;

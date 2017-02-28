@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,7 +7,7 @@
 #include <thread>
 #include <iomanip>
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <dlfcn.h>
 #endif
 
@@ -242,8 +242,10 @@ void application_impl::start() {
         stopped_called_ = false;
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" using "
                 << std::dec << io_thread_count << " threads";
-
-        is_dispatching_ = true;
+        {
+            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+            is_dispatching_ = true;
+        }
 
         start_caller_id_ = std::this_thread::get_id();
 
@@ -306,7 +308,7 @@ void application_impl::start() {
 }
 
 void application_impl::stop() {
-#ifndef WIN32 // Gives serious problems under Windows.
+#ifndef _WIN32 // Gives serious problems under Windows.
     VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\".";
 #endif
     bool block = true;
@@ -380,41 +382,14 @@ void application_impl::subscribe(service_t _service, instance_t _instance,
     if (routing_) {
         bool send_back_cached(false);
         bool send_back_cached_group(false);
-        {
-            std::lock_guard<std::mutex> its_lock(event_subscriptions_mutex_);
-            auto found_service = event_subscriptions_.find(_service);
-            if(found_service != event_subscriptions_.end()) {
-                auto found_instance = found_service->second.find(_instance);
-                if (found_instance != found_service->second.end()) {
-                    auto its_event = found_instance->second.find(_event);
-                    if (its_event == found_instance->second.end()) {
-                        // first subscription to this event
-                        event_subscriptions_[_service][_instance][_event] = false;
-                    } else {
-                        if(its_event->second) {
-                            // initial values for this event have already been sent,
-                            // send back cached value
-                            if(_event == ANY_EVENT) {
-                                send_back_cached_group = true;
-                            } else {
-                                send_back_cached = true;
-                            }
-                        }
-                    }
-                } else {
-                    // first subscription to this service instance
-                    event_subscriptions_[_service][_instance][_event] = false;
-                }
-            } else {
-                // first subscription to this service
-                event_subscriptions_[_service][_instance][_event] = false;
-            }
-        }
-        if(send_back_cached) {
+        check_send_back_cached_event(_service, _instance, _event, _eventgroup,
+                &send_back_cached, &send_back_cached_group);
+        if (send_back_cached) {
             send_back_cached_event(_service, _instance, _event);
         } else if(send_back_cached_group) {
             send_back_cached_eventgroup(_service, _instance, _event);
         }
+
         routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
                 _subscription_type);
     }
@@ -422,6 +397,7 @@ void application_impl::subscribe(service_t _service, instance_t _instance,
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance,
         eventgroup_t _eventgroup) {
+    remove_subscription(_service, _instance, _eventgroup);
     if (routing_)
         routing_->unsubscribe(client_, _service, _instance, _eventgroup);
 }
@@ -439,18 +415,62 @@ bool application_impl::is_available_unlocked(
 
     bool is_available(false);
 
-    auto found_available_service = available_.find(_service);
-    if (found_available_service != available_.end()) {
-        auto found_instance = found_available_service->second.find(_instance);
-        if( found_instance != found_available_service->second.end()) {
-            auto found_major = found_instance->second.find(_major);
-            if( found_major != found_instance->second.end() ){
-                if( _minor <= found_major->second) {
-                    is_available = true;
-                }
-            } else if(_major == DEFAULT_MAJOR &&
-                    _minor == DEFAULT_MINOR){
+    const std::function<void(const std::map<instance_t,
+            std::map<major_version_t, minor_version_t>>::const_iterator&)>
+        check_major_minor = [&](const std::map<instance_t,
+                std::map<major_version_t,
+                    minor_version_t >>::const_iterator &_found_instance) {
+        auto found_major = _found_instance->second.find(_major);
+        if (found_major != _found_instance->second.end()) {
+            if (_minor <= found_major->second || _minor == ANY_MINOR
+                    || _minor == DEFAULT_MINOR) {
                 is_available = true;
+            }
+        } else if ((_major == DEFAULT_MAJOR || _major == ANY_MAJOR)) {
+            for (const auto &found_major : _found_instance->second) {
+                if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
+                    is_available = true;
+                    break;
+                } else if (_minor <= found_major.second) {
+                    is_available = true;
+                    break;
+                }
+            }
+        }
+    };
+    auto found_service = available_.find(_service);
+    if (found_service != available_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            check_major_minor(found_instance);
+        } else if (_instance == ANY_INSTANCE) {
+            for (auto it = found_service->second.cbegin();
+                    it != found_service->second.cend(); it++) {
+                check_major_minor(it);
+                if (is_available) {
+                    break;
+                }
+            }
+        }
+    } else if (_service == ANY_SERVICE) {
+        for (const auto &found_service : available_) {
+            auto found_instance = found_service.second.find(_instance);
+            if (found_instance != found_service.second.end()) {
+                check_major_minor(found_instance);
+                if (is_available) {
+                    break;
+                }
+            } else if (_instance == ANY_INSTANCE) {
+                for (auto it = found_service.second.cbegin();
+                        it != found_service.second.cend(); it++) {
+                    check_major_minor(it);
+                    if (is_available) {
+                        break;
+                    }
+                }
+            }
+            if (is_available) {
+                break;
             }
         }
     }
@@ -555,15 +575,11 @@ bool application_impl::are_available_unlocked(available_t &_available,
                          //get available major version
                          auto found_available_major = found_available_instance->second.find(its_available_major_it->first);
                          if(found_available_major != found_available_instance->second.end()) {
-                             if(_minor == ANY_MINOR || _minor == DEFAULT_MINOR) {
+                             if(_minor == ANY_MINOR || _minor == DEFAULT_MINOR
+                                     || _minor <= found_available_major->second) {
                                  //add minor version
-                                 _available[its_available_services_it->first][its_available_instances_it->first][its_available_major_it->first] = _minor;
+                                 _available[its_available_services_it->first][its_available_instances_it->first][its_available_major_it->first] = found_available_major->second;
                                  found_minor = true;
-                             } else {
-                                 if(_minor == found_available_major->second) {
-                                     _available[its_available_services_it->first][its_available_instances_it->first][_major] = _minor;
-                                     found_minor = true;
-                                 }
                              }
                          }
                      }
@@ -660,8 +676,8 @@ void application_impl::register_availability_handler(service_t _service,
         do_register_availability_handler(_service, _instance,
                 _handler, _major, _minor);
     } else {
-        availability_[_service][_instance]
-            = std::make_tuple(_major, _minor, _handler, false);
+        availability_[_service][_instance][_major][_minor] = std::make_pair(
+                _handler, false);
     }
 }
 
@@ -670,7 +686,8 @@ void application_impl::do_register_availability_handler(service_t _service,
         major_version_t _major, minor_version_t _minor) {
         available_t available;
     bool are_available = are_available_unlocked(available, _service, _instance, _major, _minor);
-    availability_[_service][_instance] = std::make_tuple(_major, _minor, _handler, true);
+    availability_[_service][_instance][_major][_minor] = std::make_pair(
+            _handler, true);
 
     std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
 
@@ -692,12 +709,21 @@ void application_impl::unregister_availability_handler(service_t _service,
     if (found_service != availability_.end()) {
         auto found_instance = found_service->second.find(_instance);
         if (found_instance != found_service->second.end()) {
-            auto found_version = found_instance->second;
-            auto found_major = std::get<0>(found_version);
-            auto found_minor = std::get<1>(found_version);
-            if(found_major == _major) {
-                if(found_minor == _minor) {
-                    found_service->second.erase(_instance);
+            auto found_major = found_instance->second.find(_major);
+            if (found_major != found_instance->second.end()) {
+                auto found_minor = found_major->second.find(_minor);
+                if (found_minor != found_major->second.end()) {
+                    found_major->second.erase(_minor);
+
+                    if (!found_major->second.size()) {
+                        found_instance->second.erase(_major);
+                        if (!found_instance->second.size()) {
+                            found_service->second.erase(_instance);
+                            if (!found_service->second.size()) {
+                                availability_.erase(_service);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -888,14 +914,18 @@ void application_impl::on_state(state_type_e _state) {
         if (state_ != _state) {
             state_ = _state;
             if (state_ == state_type_e::ST_REGISTERED) {
-                for (auto &its_service : availability_) {
-                    for (auto &its_instance : its_service.second) {
-                        if (!std::get<3>(its_instance.second)) {
-                            do_register_availability_handler(
-                                    its_service.first, its_instance.first,
-                                    std::get<2>(its_instance.second),
-                                    std::get<0>(its_instance.second),
-                                    std::get<1>(its_instance.second));
+                for (const auto &its_service : availability_) {
+                    for (const auto &its_instance : its_service.second) {
+                        for (const auto &its_major : its_instance.second) {
+                            for (const auto &its_minor : its_major.second) {
+                                if (!its_minor.second.second) {
+                                    do_register_availability_handler(
+                                            its_service.first,
+                                            its_instance.first,
+                                            its_minor.second.first,
+                                            its_major.first, its_minor.first);
+                                }
+                            }
                         }
                     }
                 }
@@ -927,12 +957,7 @@ void application_impl::on_state(state_type_e _state) {
 void application_impl::on_availability(service_t _service, instance_t _instance,
         bool _is_available, major_version_t _major, minor_version_t _minor) {
 
-    std::map<minor_version_t, availability_handler_t>::const_iterator found_minor;
-    availability_handler_t its_handler;
-    std::map<minor_version_t, availability_handler_t>::const_iterator found_wildcard_minor;
-    availability_handler_t its_wildcard_handler;
-    bool has_handler(false);
-    bool has_wildcard_handler(false);
+    std::vector<availability_handler_t> its_handlers;
 
     {
         std::lock_guard<std::mutex> availability_lock(availability_mutex_);
@@ -956,53 +981,69 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
         }
 
+        const std::function<void(const availability_major_minor_t&)> find_matching_handler =
+                [&](const availability_major_minor_t& _av_ma_mi_it) {
+            auto found_major = _av_ma_mi_it.find(_major);
+            if (found_major != _av_ma_mi_it.end()) {
+                for (std::int32_t mi = _minor; mi >= 0; mi--) {
+                    const auto found_minor = found_major->second.find(mi);
+                    if (found_minor != found_major->second.end()) {
+                        its_handlers.push_back(found_minor->second.first);
+                    }
+                }
+                const auto found_any_minor = found_major->second.find(ANY_MINOR);
+                if (found_any_minor != found_major->second.end()) {
+                    its_handlers.push_back(found_any_minor->second.first);
+                }
+            }
+            found_major = _av_ma_mi_it.find(ANY_MAJOR);
+            if (found_major != _av_ma_mi_it.end()) {
+                for (std::int32_t mi = _minor; mi >= 0; mi--) {
+                    const auto found_minor = found_major->second.find(mi);
+                    if (found_minor != found_major->second.end()) {
+                        its_handlers.push_back(found_minor->second.first);
+                    }
+                }
+                const auto found_any_minor = found_major->second.find(ANY_MINOR);
+                if (found_any_minor != found_major->second.end()) {
+                    its_handlers.push_back(found_any_minor->second.first);
+                }
+            }
+        };
+
         auto found_service = availability_.find(_service);
         if (found_service != availability_.end()) {
-            //find specific instance
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                find_matching_handler(found_instance->second);
+            }
+            found_instance = found_service->second.find(ANY_INSTANCE);
+            if (found_instance != found_service->second.end()) {
+                find_matching_handler(found_instance->second);
+            }
+        }
+        found_service = availability_.find(ANY_SERVICE);
+        if (found_service != availability_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if( found_instance != found_service->second.end()) {
-                auto found_version = found_instance->second;
-                auto requested_major = std::get<0>(found_version);
-                if(requested_major == _major) {
-                   has_handler = true;
-                   its_handler = std::get<2>(found_version);
-                }
+                find_matching_handler(found_instance->second);
             }
-
-            //find wildcard instance major minor
             found_instance = found_service->second.find(ANY_INSTANCE);
             if( found_instance != found_service->second.end()) {
-                auto found_version = found_instance->second;
-                auto requested_major = std::get<0>(found_version);
-                if(requested_major == ANY_MAJOR) {
-                   has_wildcard_handler = true;
-                   its_wildcard_handler = std::get<2>(found_version);
-                }
+                find_matching_handler(found_instance->second);
             }
         }
-
-        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
-        if (has_handler) {
-
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>(
-                        [its_handler, _service, _instance, _is_available]() {
-                            its_handler(_service, _instance, _is_available);
-                        }
-                  );
-
-            handlers_.push_back(its_sync_handler);
-        }
-        if (has_wildcard_handler) {
-
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>(
-                        [its_wildcard_handler, _service, _instance, _is_available]() {
-                            its_wildcard_handler(_service, _instance, _is_available);
-                        }
-                  );
-
-            handlers_.push_back(its_sync_handler);
+        {
+            std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+            for (const auto &handler : its_handlers) {
+                std::shared_ptr<sync_handler> its_sync_handler =
+                        std::make_shared<sync_handler>(
+                                [handler, _service, _instance, _is_available]()
+                                {
+                                    handler(_service, _instance, _is_available);
+                                });
+                handlers_.push_back(its_sync_handler);
+            }
         }
     }
     if (!_is_available) {
@@ -1018,7 +1059,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
     }
 
-    if (has_handler || has_wildcard_handler) {
+    if (its_handlers.size()) {
         dispatcher_condition_.notify_one();
     }
 }
@@ -1048,11 +1089,11 @@ void application_impl::on_message(const std::shared_ptr<message> &&_message) {
                 }
             } else {
                 // received a event from a service instance which nobody yet subscribed to
-                event_subscriptions_[its_service][its_instance][its_method] = true;
+                return;
             }
         } else {
             // received a event from a service which nobody yet subscribed to
-            event_subscriptions_[its_service][its_instance][its_method] = true;
+            return;
         }
     }
 
@@ -1157,7 +1198,7 @@ void application_impl::main_dispatch() {
 
                 if(!is_dispatching_) {
                     its_lock.unlock();
-#ifdef WIN32
+#ifdef _WIN32
                     return;
 #endif
                 }
@@ -1170,7 +1211,7 @@ void application_impl::dispatch() {
     std::thread::id its_id = std::this_thread::get_id();
     while (is_active_dispatcher(its_id)) {
         std::unique_lock<std::mutex> its_lock(handlers_mutex_);
-        if (handlers_.empty()) {
+        if (is_dispatching_ && handlers_.empty()) {
              dispatcher_condition_.wait(its_lock);
              if (handlers_.empty()) { // Maybe woken up from main dispatcher
                  std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
@@ -1178,7 +1219,8 @@ void application_impl::dispatch() {
                  return;
              }
         } else {
-            while (!handlers_.empty() && is_active_dispatcher(its_id)) {
+            while (is_dispatching_ && !handlers_.empty()
+                    && is_active_dispatcher(its_id)) {
                 std::shared_ptr<sync_handler> its_handler = handlers_.front();
                 handlers_.pop_front();
                 its_lock.unlock();
@@ -1205,15 +1247,19 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             blocked_dispatchers_.insert(its_id);
 
-            // If possible, create a new dispatcher thread to unblock.
-            // If this is _not_ possible, dispatching is blocked until at least
-            // one of the active handler calls returns.
-            if (dispatchers_.size() < max_dispatchers_) {
-                auto its_dispatcher = std::make_shared<std::thread>(
-                        std::bind(&application_impl::dispatch, this));
-                dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
+            if (has_active_dispatcher()) {
+                dispatcher_condition_.notify_all();
             } else {
-                VSOMEIP_ERROR << "Maximum number of dispatchers exceeded.";
+                // If possible, create a new dispatcher thread to unblock.
+                // If this is _not_ possible, dispatching is blocked until at least
+                // one of the active handler calls returns.
+                if (dispatchers_.size() < max_dispatchers_) {
+                    auto its_dispatcher = std::make_shared<std::thread>(
+                            std::bind(&application_impl::dispatch, this));
+                    dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
+                } else {
+                    VSOMEIP_ERROR << "Maximum number of dispatchers exceeded.";
+                }
             }
         }
     });
@@ -1226,11 +1272,22 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     }
 }
 
+bool application_impl::has_active_dispatcher() {
+    for (auto d : dispatchers_) {
+        if (blocked_dispatchers_.find(d.first) == blocked_dispatchers_.end() &&
+            elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool application_impl::is_active_dispatcher(std::thread::id &_id) {
     std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
     for (auto d : dispatchers_) {
         if (d.first != _id &&
-            blocked_dispatchers_.find(d.first) == blocked_dispatchers_.end()) {
+            blocked_dispatchers_.find(d.first) == blocked_dispatchers_.end() &&
+            elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
             return false;
         }
     }
@@ -1277,7 +1334,7 @@ void application_impl::clear_all_handler() {
 }
 
 void application_impl::shutdown() {
-#ifndef WIN32
+#ifndef _WIN32
     boost::asio::detail::posix_signal_blocker blocker;
 #endif
 
@@ -1369,6 +1426,97 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
 void application_impl::set_routing_state(routing_state_e _routing_state) {
     if (routing_)
         routing_->set_routing_state(_routing_state);
+}
+
+void application_impl::check_send_back_cached_event(
+        service_t _service, instance_t _instance, event_t _event,
+        eventgroup_t _eventgroup, bool *_send_back_cached_event,
+        bool *_send_back_cached_eventgroup) {
+    std::lock_guard<std::mutex> its_lock(event_subscriptions_mutex_);
+
+    bool already_subscibed(false);
+    auto found_service = eventgroup_subscriptions_.find(_service);
+    if(found_service != eventgroup_subscriptions_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            auto found_eventgroup = found_instance->second.find(_eventgroup);
+            if (found_eventgroup != found_instance->second.end()) {
+                already_subscibed = true;
+            }
+        }
+    }
+
+    if (already_subscibed) {
+        auto found_service = event_subscriptions_.find(_service);
+        if(found_service != event_subscriptions_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_event = found_instance->second.find(_event);
+                if (found_event != found_instance->second.end()) {
+                    if(found_event->second) {
+                        // initial values for this event have already been sent,
+                        // send back cached value
+                        if(_event == ANY_EVENT) {
+                            *_send_back_cached_eventgroup = true;
+                        } else {
+                            *_send_back_cached_event = true;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    event_subscriptions_[_service][_instance][_event] = false;
+    eventgroup_subscriptions_[_service][_instance].insert(_eventgroup);
+}
+
+void application_impl::remove_subscription(service_t _service,
+                                           instance_t _instance,
+                                           eventgroup_t _eventgroup) {
+    std::lock_guard<std::mutex> its_lock(event_subscriptions_mutex_);
+
+    auto found_service1 = eventgroup_subscriptions_.find(_service);
+    if(found_service1 != eventgroup_subscriptions_.end()) {
+        auto found_instance = found_service1->second.find(_instance);
+        if (found_instance != found_service1->second.end()) {
+            auto found_eventgroup = found_instance->second.find(_eventgroup);
+            if (found_eventgroup != found_instance->second.end()) {
+                found_instance->second.erase(_eventgroup);
+                if (!found_instance->second.size()) {
+                    found_service1->second.erase(_instance);
+                    if (!found_service1->second.size()) {
+                        eventgroup_subscriptions_.erase(_service);
+                    }
+                }
+            }
+        }
+    }
+
+    auto found_service = event_subscriptions_.find(_service);
+    if (found_service != event_subscriptions_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            if (routing_) {
+                std::set<std::shared_ptr<event>> its_events =
+                        routing_->find_events(_service, _instance,
+                                _eventgroup);
+                for (const auto &e : its_events) {
+                    const event_t its_event(e->get_event());
+                    auto found_event = found_instance->second.find(its_event);
+                    if (found_event != found_instance->second.end()) {
+                        found_instance->second.erase(its_event);
+                    }
+                }
+                if (!found_instance->second.size()) {
+                    found_service->second.erase(_instance);
+                    if (!found_service->second.size()) {
+                        event_subscriptions_.erase(_service);
+                    }
+                }
+            }
+        }
+    }
 }
 
 } // namespace vsomeip

@@ -1,9 +1,9 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef WIN32
+#ifndef _WIN32
 
 #include <thread>
 
@@ -24,7 +24,9 @@ void netlink_connector::unregister_net_if_changes_handler() {
 }
 
 void netlink_connector::stop() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
+    socket_.shutdown(socket_.shutdown_both, its_error);
     socket_.close(its_error);
     if (its_error) {
         VSOMEIP_WARNING << "Error closing NETLINK socket!";
@@ -32,6 +34,7 @@ void netlink_connector::stop() {
 }
 
 void netlink_connector::start() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code ec;
     if (socket_.is_open()) {
         socket_.close(ec);
@@ -145,23 +148,33 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
             }
             nlh = NLMSG_NEXT(nlh, len);
         }
-        socket_.async_receive(
-            boost::asio::buffer(&recv_buffer_[0], recv_buffer_size),
-            std::bind(
-                &netlink_connector::receive_cbk,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        );
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            if (socket_.is_open()) {
+                socket_.async_receive(
+                    boost::asio::buffer(&recv_buffer_[0], recv_buffer_size),
+                    std::bind(
+                        &netlink_connector::receive_cbk,
+                        shared_from_this(),
+                        std::placeholders::_1,
+                        std::placeholders::_2
+                    )
+                );
+            }
+        }
     } else {
         if (_error != boost::asio::error::operation_aborted) {
             VSOMEIP_WARNING << "Error receive_cbk NETLINK socket!" << _error.message();
             boost::system::error_code its_error;
-            if (socket_.is_open()) {
-                socket_.close(its_error);
-                if (its_error) {
-                    VSOMEIP_WARNING << "Error closing NETLINK socket!" << its_error.message();
+            {
+                std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                if (socket_.is_open()) {
+                    socket_.shutdown(socket_.shutdown_both, its_error);
+                    socket_.close(its_error);
+                    if (its_error) {
+                        VSOMEIP_WARNING << "Error closing NETLINK socket!"
+                                << its_error.message();
+                    }
                 }
             }
             if (handler_) {
@@ -220,15 +233,18 @@ void netlink_connector::send_ifi_request() {
     get_link_msg.nlhdr.nlmsg_type = RTM_GETLINK;
     get_link_msg.infomsg.ifi_family = AF_UNSPEC;
 
-    socket_.async_send(
-        boost::asio::buffer(&get_link_msg, get_link_msg.nlhdr.nlmsg_len),
-        std::bind(
-            &netlink_connector::send_cbk,
-            shared_from_this(),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        socket_.async_send(
+            boost::asio::buffer(&get_link_msg, get_link_msg.nlhdr.nlmsg_len),
+            std::bind(
+                &netlink_connector::send_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 }
 
 bool netlink_connector::has_address(const struct ifaddrmsg * ifa_struct,

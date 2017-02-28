@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -33,7 +33,9 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(
       recv_buffer_size_(0),
       missing_capacity_(0),
       shrink_count_(0),
-      buffer_shrink_threshold_(_buffer_shrink_threshold) {
+      buffer_shrink_threshold_(_buffer_shrink_threshold),
+      remote_address_(_remote.address()),
+      remote_port_(_remote.port()) {
     is_supporting_magic_cookies_ = true;
 }
 
@@ -53,6 +55,7 @@ void tcp_client_endpoint_impl::start() {
 }
 
 void tcp_client_endpoint_impl::connect() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_.open(remote_.protocol(), its_error);
 
@@ -91,10 +94,15 @@ void tcp_client_endpoint_impl::connect() {
 }
 
 void tcp_client_endpoint_impl::receive() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if(socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         size_t buffer_size = its_capacity - recv_buffer_size_;
         if (missing_capacity_) {
+            if (missing_capacity_ > MESSAGE_SIZE_UNLIMITED) {
+                VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!";
+                return;
+            }
             const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
             if (its_capacity < its_required_capacity) {
                 recv_buffer_.reserve(its_required_capacity);
@@ -142,30 +150,32 @@ void tcp_client_endpoint_impl::send_queued() {
             << (int)(*its_buffer)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-
-    boost::asio::async_write(
-        socket_,
-        boost::asio::buffer(*its_buffer),
-        std::bind(
-            &tcp_client_endpoint_base_impl::send_cbk,
-            shared_from_this(),
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        boost::asio::async_write(
+            socket_,
+            boost::asio::buffer(*its_buffer),
+            std::bind(
+                &tcp_client_endpoint_base_impl::send_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
 }
 
 bool tcp_client_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
-    const boost::asio::ip::address its_address = remote_.address();
-    if (its_address.is_unspecified()) {
+    if (remote_address_.is_unspecified()) {
         return false;
     }
-    _address = its_address;
+    _address = remote_address_;
     return true;
 }
 
 unsigned short tcp_client_endpoint_impl::get_local_port() const {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_.is_open()) {
         return socket_.local_endpoint(its_error).port();
@@ -174,11 +184,7 @@ unsigned short tcp_client_endpoint_impl::get_local_port() const {
 }
 
 unsigned short tcp_client_endpoint_impl::get_remote_port() const {
-    boost::system::error_code its_error;
-    if (socket_.is_open()) {
-        return socket_.remote_endpoint(its_error).port();
-    }
-    return 0;
+    return remote_port_;
 }
 
 bool tcp_client_endpoint_impl::is_reliable() const {
@@ -207,7 +213,6 @@ void tcp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
-        shutdown_and_close_socket();
         return;
     }
 #if 0
@@ -221,19 +226,24 @@ void tcp_client_endpoint_impl::receive_cbk(
     std::shared_ptr<endpoint_host> its_host = host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
+            if (recv_buffer_size_ + _bytes < recv_buffer_size_) {
+                VSOMEIP_ERROR << "receive buffer overflow in tcp client endpoint ~> abort!";
+                return;
+            }
             recv_buffer_size_ += _bytes;
 
-            boost::system::error_code its_error;
-            endpoint_type its_endpoint(socket_.remote_endpoint(its_error));
-            const boost::asio::ip::address its_remote_address(its_endpoint.address());
-            const std::uint16_t its_remote_port(its_endpoint.port());
             size_t its_iteration_gap = 0;
             bool has_full_message;
             do {
-                uint32_t current_message_size
+                uint64_t read_message_size
                     = utility::get_message_size(&recv_buffer_[its_iteration_gap],
-                            (uint32_t) recv_buffer_size_);
-                has_full_message = (current_message_size > 0
+                            recv_buffer_size_);
+                if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
+                    VSOMEIP_ERROR << "Message size exceeds allowed maximum!";
+                    return;
+                }
+                uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
+                has_full_message = (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE
                                  && current_message_size <= recv_buffer_size_);
                 if (has_full_message) {
                     bool needs_forwarding(true);
@@ -256,8 +266,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                                                  current_message_size, this,
                                                  boost::asio::ip::address(),
                                                  VSOMEIP_ROUTING_CLIENT,
-                                                 its_remote_address,
-                                                 its_remote_port);
+                                                 remote_address_,
+                                                 remote_port_);
                         } else {
                             // Only call on_message without a magic cookie in front of the buffer!
                             if (!is_magic_cookie(its_iteration_gap)) {
@@ -265,8 +275,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                                                      current_message_size, this,
                                                      boost::asio::ip::address(),
                                                      VSOMEIP_ROUTING_CLIENT,
-                                                     its_remote_address,
-                                                     its_remote_port);
+                                                     remote_address_,
+                                                     remote_port_);
                             }
                         }
                     }
@@ -331,7 +341,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                     _error ==  boost::asio::error::eof) {
                 VSOMEIP_TRACE << "tcp_client_endpoint: connection_reseted/EOF ~> close socket!";
                 shutdown_and_close_socket();
-            } else if (socket_.is_open()) {
+            } else {
                 receive();
             }
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,7 +19,7 @@ message_header_impl::message_header_impl()
       type_(message_type_e::MT_UNKNOWN),
       code_(return_code_e::E_UNKNOWN),
       instance_(0x0), owner_(0x0) {
-};
+}
 
 message_header_impl::message_header_impl(const message_header_impl &_header)
     : service_(_header.service_), method_(_header.method_),
@@ -30,7 +30,7 @@ message_header_impl::message_header_impl(const message_header_impl &_header)
       type_(_header.type_),
       code_(_header.code_),
       instance_(_header.instance_), owner_(_header.owner_) {
-};
+}
 
 bool message_header_impl::serialize(serializer *_to) const {
     return (0 != _to
@@ -43,7 +43,7 @@ bool message_header_impl::serialize(serializer *_to) const {
             && _to->serialize(interface_version_)
             && _to->serialize(static_cast<uint8_t>(type_))
             && _to->serialize(static_cast<uint8_t>(code_)));
-};
+}
 
 bool message_header_impl::deserialize(deserializer *_from) {
     bool is_successful;
@@ -67,7 +67,7 @@ bool message_header_impl::deserialize(deserializer *_from) {
     }
 
     return is_successful;
-};
+}
 
 message_base * message_header_impl::get_owner() const {
     return owner_;

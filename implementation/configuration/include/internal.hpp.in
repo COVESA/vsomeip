@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -35,7 +35,7 @@
 #define VSOMEIP_ROUTING_CLIENT                  0
 #define VSOMEIP_ROUTING_INFO_SIZE_INIT			256
 
-#ifdef WIN32
+#ifdef _WIN32
 #define VSOMEIP_INTERNAL_BASE_PORT              51234
 #define __func__ __FUNCTION__
 #endif
@@ -43,7 +43,7 @@
 #define VSOMEIP_UNICAST_ADDRESS                 "@VSOMEIP_UNICAST_ADDRESS@"
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
-#define VSOMEIP_MAX_CONNECT_TIMEOUT             1000
+#define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
 
 #define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT        5000
@@ -95,13 +95,14 @@
 #define VSOMEIP_RELEASE_SERVICE_COMMAND_SIZE    11
 #define VSOMEIP_STOP_OFFER_SERVICE_COMMAND_SIZE 16
 #define VSOMEIP_SUBSCRIBE_COMMAND_SIZE          16
-#define VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE      13
-#define VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE     13
+#define VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE      15
+#define VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE     15
 #define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        14
 #define VSOMEIP_REGISTER_EVENT_COMMAND_SIZE     15
 #define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   14
+#define VSOMEIP_ID_RESPONSE_COMMAND_SIZE        12
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <pthread.h>
 #endif
 
@@ -117,7 +118,7 @@
 namespace vsomeip {
 
 struct configuration_data_t {
-#ifndef WIN32
+#ifndef _WIN32
     volatile char initialized_;
     pthread_mutex_t mutex_;
 #endif
@@ -130,7 +131,7 @@ struct configuration_data_t {
     unsigned short routing_manager_host_;
 };
 
-#ifndef WIN32
+#ifndef _WIN32
 constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
 #elif _MSC_VER >= 1900
 constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();

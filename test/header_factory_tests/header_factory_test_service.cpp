@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,9 +11,9 @@ header_factory_test_service::header_factory_test_service(bool _use_static_routin
                 app_(vsomeip::runtime::get()->create_application()),
                 is_registered_(false),
                 use_static_routing_(_use_static_routing),
-                offer_thread_(std::bind(&header_factory_test_service::run, this)),
                 blocked_(false),
-                number_of_received_messages_(0)
+                number_of_received_messages_(0),
+                offer_thread_(std::bind(&header_factory_test_service::run, this))
 {
 }
 
@@ -81,6 +81,7 @@ void header_factory_test_service::on_state(vsomeip::state_type_e _state)
         if(!is_registered_)
         {
             is_registered_ = true;
+            std::lock_guard<std::mutex> its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
@@ -160,7 +161,7 @@ TEST(someip_header_factory_test, reveice_message_ten_times_test)
     }
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

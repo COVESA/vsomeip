@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,6 +11,7 @@
 #include <thread>
 #include <map>
 #include <algorithm>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -34,12 +35,12 @@ public:
             service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
-            send_thread_(std::bind(&offer_test_client::send, this)),
             wait_for_stop_(true),
-            stop_thread_(std::bind(&offer_test_client::wait_for_stop, this)),
             last_received_counter_(0),
             last_received_response_(std::chrono::steady_clock::now()),
-            number_received_responses_(0) {
+            number_received_responses_(0),
+            stop_thread_(std::bind(&offer_test_client::wait_for_stop, this)),
+            send_thread_(std::bind(&offer_test_client::send, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -232,16 +233,16 @@ private:
     bool wait_until_service_available_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::thread send_thread_;
 
     bool wait_for_stop_;
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
-    std::thread stop_thread_;
 
     std::uint32_t last_received_counter_;
     std::chrono::steady_clock::time_point last_received_response_;
-    std::uint32_t number_received_responses_;
+    std::atomic<std::uint32_t> number_received_responses_;
+    std::thread stop_thread_;
+    std::thread send_thread_;
 };
 
 static operation_mode_e passed_mode = operation_mode_e::SUBSCRIBE;
@@ -251,7 +252,7 @@ TEST(someip_offer_test, subscribe_or_call_method_at_service)
     offer_test_client its_sample(offer_test::service, passed_mode);
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

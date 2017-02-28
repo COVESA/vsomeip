@@ -1,9 +1,9 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifdef WIN32
+#ifdef _WIN32
     #include <iostream>
 #else
     #include <dlfcn.h>
@@ -14,7 +14,7 @@
 
 #include <sys/stat.h>
 
-#ifndef WIN32
+#ifndef _WIN32
     #include <fcntl.h>
 #endif
 
@@ -27,7 +27,7 @@
 #include "../../configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
     #ifndef _WINSOCKAPI_
         #include <Windows.h>
     #endif
@@ -35,8 +35,8 @@
 
 namespace vsomeip {
 
-uint32_t utility::get_message_size(const byte_t *_data, uint32_t _size) {
-    uint32_t its_size(0);
+uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
+    uint64_t its_size(0);
     if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
         its_size = VSOMEIP_SOMEIP_HEADER_SIZE
                 + VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7]);
@@ -57,7 +57,7 @@ void * utility::load_library(const std::string &_path,
         const std::string &_symbol) {
     void * its_symbol = 0;
 
-#ifdef WIN32
+#ifdef _WIN32
     std::string path = _path.substr(0, _path.length() - 5).substr(3) + ".dll";
 
     HINSTANCE hDLL = LoadLibrary(path.c_str());
@@ -123,7 +123,7 @@ CriticalSection utility::its_local_configuration_mutex__;
 // number of times auto_configuration_init() has been called in this process
 uint16_t utility::its_configuration_refs__(0);
 
-#ifdef WIN32
+#ifdef _WIN32
 // global (inter-process) mutex
 static HANDLE configuration_data_mutex(INVALID_HANDLE_VALUE);
 // memory mapping handle
@@ -133,7 +133,7 @@ static HANDLE its_descriptor(INVALID_HANDLE_VALUE);
 bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
-#ifdef WIN32
+#ifdef _WIN32
     if (its_configuration_refs__ > 0) {
         assert(configuration_data_mutex != INVALID_HANDLE_VALUE);
         assert(its_descriptor != INVALID_HANDLE_VALUE);
@@ -377,7 +377,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 void utility::auto_configuration_exit(client_t _client) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     if (the_configuration_data__) {
-#ifdef WIN32
+#ifdef _WIN32
         // not manipulating data in shared memory, no need to take global mutex
 
         assert(configuration_data_mutex != INVALID_HANDLE_VALUE);
@@ -434,7 +434,7 @@ bool utility::is_used_client_id(client_t _client) {
             return true;
         }
     }
-#ifndef WIN32
+#ifndef _WIN32
     std::stringstream its_client;
     its_client << VSOMEIP_BASE_PATH << std::hex << _client;
     if (exists(its_client.str())) {
@@ -453,7 +453,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
-#ifdef WIN32
+#ifdef _WIN32
         DWORD waitResult = WaitForSingleObject(configuration_data_mutex, INFINITE);
         assert(waitResult == WAIT_OBJECT_0);
         (void)waitResult;
@@ -467,7 +467,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                 set_client_as_manager_host = true;
             } else {
                 VSOMEIP_ERROR << "Routing manager with id " << the_configuration_data__->routing_manager_host_ << " already exists.";
-#ifdef WIN32
+#ifdef _WIN32
                 BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
                 assert(releaseResult);
                 (void)releaseResult;
@@ -484,7 +484,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                 == VSOMEIP_MAX_CLIENTS) {
             VSOMEIP_ERROR << "Max amount of possible concurrent active"
                     << " vsomeip applications reached.";
-#ifdef WIN32
+#ifdef _WIN32
             BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
             assert(releaseResult);
             (void)releaseResult;
@@ -539,7 +539,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                     if (increase_count > VSOMEIP_MAX_CLIENTS) {
                         VSOMEIP_ERROR << "Max amount of possible concurrent active"
                                 << " vsomeip applications reached.";
-#ifdef WIN32
+#ifdef _WIN32
                         BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
                         assert(releaseResult);
                         (void)releaseResult;
@@ -562,7 +562,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
         the_configuration_data__->max_used_client_ids_index_++;
 
 
-#ifdef WIN32
+#ifdef _WIN32
         BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
         assert(releaseResult);
         (void)releaseResult;
@@ -577,7 +577,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 void utility::release_client_id(client_t _client) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     if (the_configuration_data__ != nullptr) {
-#ifdef WIN32
+#ifdef _WIN32
         WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
         pthread_mutex_lock(&the_configuration_data__->mutex_);
@@ -596,7 +596,7 @@ void utility::release_client_id(client_t _client) {
                     = the_configuration_data__->used_client_ids_[i+1];
             }
         }
-#ifdef WIN32
+#ifdef _WIN32
         ReleaseMutex(configuration_data_mutex);
 #else
         pthread_mutex_unlock(&the_configuration_data__->mutex_);
@@ -610,7 +610,7 @@ bool utility::is_routing_manager_host(client_t _client) {
         return false;
     }
 
-#ifdef WIN32
+#ifdef _WIN32
     WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
     pthread_mutex_lock(&the_configuration_data__->mutex_);
@@ -618,7 +618,7 @@ bool utility::is_routing_manager_host(client_t _client) {
 
     bool is_routing_manager = (the_configuration_data__->routing_manager_host_ == _client);
 
-#ifdef WIN32
+#ifdef _WIN32
     ReleaseMutex(configuration_data_mutex);
 #else
     pthread_mutex_unlock(&the_configuration_data__->mutex_);
@@ -633,7 +633,7 @@ void utility::set_routing_manager_host(client_t _client) {
         return;
     }
 
-#ifdef WIN32
+#ifdef _WIN32
     WaitForSingleObject(configuration_data_mutex, INFINITE);
 #else
     pthread_mutex_lock(&the_configuration_data__->mutex_);
@@ -641,7 +641,7 @@ void utility::set_routing_manager_host(client_t _client) {
 
     the_configuration_data__->routing_manager_host_ = _client;
 
-#ifdef WIN32
+#ifdef _WIN32
     ReleaseMutex(configuration_data_mutex);
 #else
     pthread_mutex_unlock(&the_configuration_data__->mutex_);

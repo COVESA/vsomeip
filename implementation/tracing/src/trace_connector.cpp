@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -40,7 +40,7 @@ void trace_connector::init() {
         for(auto it = channels_.begin(); it != channels_.end(); ++it) {
             DltContext *dlt_context = new DltContext();
             dlt_contexts_.insert(std::make_pair(it->first, dlt_context));
-            DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, it->first.c_str(), it->second.c_str(), DLT_LOG_DEBUG, DLT_TRACE_STATUS_ON);
+            DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, it->first.c_str(), it->second.c_str(), DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
         }
     }
 #endif
@@ -110,7 +110,7 @@ bool trace_connector::add_channel(const trace_channel_t &_id, const std::string 
     if(channel_inserted) {
         DltContext *dlt_context = new DltContext();
         dlt_context_registered = dlt_contexts_.insert(std::make_pair(_id, dlt_context)).second;
-        DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, _id.c_str(), _name.c_str(), DLT_LOG_DEBUG, DLT_TRACE_STATUS_ON);
+        DLT_REGISTER_CONTEXT_LL_TS(*dlt_context, _id.c_str(), _name.c_str(), DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
     }
 #endif
 

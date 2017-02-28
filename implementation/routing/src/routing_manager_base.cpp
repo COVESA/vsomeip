@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2016 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -116,7 +116,8 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
     auto its_info = find_service(_service, _instance);
     if (its_info) {
         if ((_major == its_info->get_major()
-                || DEFAULT_MAJOR == its_info->get_major())
+                || DEFAULT_MAJOR == its_info->get_major()
+                || ANY_MAJOR == _major)
                 && (_minor <= its_info->get_minor()
                     || DEFAULT_MINOR == its_info->get_minor()
                     || _minor == ANY_MINOR)) {
@@ -332,6 +333,15 @@ void routing_manager_base::unsubscribe(client_t _client, service_t _service,
             auto its_group = its_instance->second.find(_eventgroup);
             if (its_group != its_instance->second.end()) {
                 its_group->second.erase(_client);
+                if (!its_group->second.size()) {
+                    its_instance->second.erase(_eventgroup);
+                    if (!its_instance->second.size()) {
+                        its_service->second.erase(_instance);
+                        if (!its_service->second.size()) {
+                            eventgroup_clients_.erase(_service);
+                        }
+                    }
+                }
             }
         }
     }
@@ -428,6 +438,40 @@ void routing_manager_base::send_pending_notify_ones(service_t _service, instance
                 notify_one(_service, _instance, its_group->second->get_method(),
                         its_group->second->get_payload(), _client, false, true);
                 its_instance->second.erase(_eventgroup);
+            }
+        }
+    }
+}
+
+void routing_manager_base::unset_all_eventpayloads(service_t _service,
+                                                   instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    const auto found_service = eventgroups_.find(_service);
+    if (found_service != eventgroups_.end()) {
+        const auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            for (const auto &eventgroupinfo : found_instance->second) {
+                for (const auto &event : eventgroupinfo.second->get_events()) {
+                    event->unset_payload(true);
+                }
+            }
+        }
+    }
+}
+
+void routing_manager_base::unset_all_eventpayloads(service_t _service,
+                                                   instance_t _instance,
+                                                   eventgroup_t _eventgroup) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    const auto found_service = eventgroups_.find(_service);
+    if (found_service != eventgroups_.end()) {
+        const auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            const auto found_eventgroup = found_instance->second.find(_eventgroup);
+            if (found_eventgroup != found_instance->second.end()) {
+                for (const auto &event : found_eventgroup->second->get_events()) {
+                    event->unset_payload(true);
+                }
             }
         }
     }
@@ -543,7 +587,7 @@ std::shared_ptr<endpoint> routing_manager_base::create_local_unlocked(client_t _
     std::stringstream its_path;
     its_path << VSOMEIP_BASE_PATH << std::hex << _client;
 
-#ifdef WIN32
+#ifdef _WIN32
     boost::asio::ip::address address = boost::asio::ip::address::from_string("127.0.0.1");
     int port = VSOMEIP_INTERNAL_BASE_PORT + _client;
     VSOMEIP_INFO << "Connecting to ["
@@ -554,7 +598,7 @@ std::shared_ptr<endpoint> routing_manager_base::create_local_unlocked(client_t _
 #endif
     std::shared_ptr<local_client_endpoint_impl> its_endpoint = std::make_shared<
         local_client_endpoint_impl>(shared_from_this(),
-#ifdef WIN32
+#ifdef _WIN32
         boost::asio::ip::tcp::endpoint(address, port)
 #else
         boost::asio::local::stream_protocol::endpoint(its_path.str())
@@ -609,6 +653,14 @@ std::shared_ptr<endpoint> routing_manager_base::find_or_create_local(client_t _c
 }
 
 void routing_manager_base::remove_local(client_t _client) {
+    auto subscriptions = get_subscriptions(_client);
+    for (auto its_subscription : subscriptions) {
+        host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
+                std::get<2>(its_subscription), _client, false);
+        routing_manager_base::unsubscribe(_client, std::get<0>(its_subscription),
+                std::get<1>(its_subscription), std::get<2>(its_subscription));
+    }
+
     std::shared_ptr<endpoint> its_endpoint(find_local(_client));
     if (its_endpoint) {
         its_endpoint->stop();
@@ -632,40 +684,6 @@ void routing_manager_base::remove_local(client_t _client) {
             local_services_[si.first].erase(si.second);
             if (local_services_[si.first].size() == 0)
                 local_services_.erase(si.first);
-        }
-    }
-    // delete client's subscriptions if he didn't unsubscribe properly
-    {
-        std::lock_guard<std::mutex> its_lock(eventgroup_clients_mutex_);
-        for (auto service_it = eventgroup_clients_.begin();
-                service_it != eventgroup_clients_.end();) {
-            for (auto instance_it = service_it->second.begin();
-                    instance_it != service_it->second.end();) {
-                for (auto eventgroup_it = instance_it->second.begin();
-                        eventgroup_it != instance_it->second.end();) {
-                    if (eventgroup_it->second.erase(_client) > 0) {
-                        if (eventgroup_it->second.size() == 0) {
-                            eventgroup_it = instance_it->second.erase(eventgroup_it);
-                        } else {
-                            ++eventgroup_it;
-                        }
-                    } else {
-                        ++eventgroup_it;
-                    }
-                }
-
-                if (instance_it->second.size() == 0) {
-                    instance_it = service_it->second.erase(instance_it);
-                } else {
-                    ++instance_it;
-                }
-            }
-
-            if (service_it->second.size() == 0) {
-                service_it = eventgroup_clients_.erase(service_it);
-            } else {
-                ++service_it;
-            }
         }
     }
 }
@@ -904,7 +922,7 @@ void routing_manager_base::put_deserializer(std::shared_ptr<deserializer> _deser
     deserializer_condition_.notify_one();
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 bool routing_manager_base::check_credentials(client_t _client, uid_t _uid, gid_t _gid) {
     return configuration_->check_credentials(_client, _uid, _gid);
 }
@@ -932,6 +950,22 @@ void routing_manager_base::remove_pending_subscription(service_t _service,
         it++;
     }
     if (it != pending_subscriptions_.end()) pending_subscriptions_.erase(it);
+}
+
+std::set<std::tuple<service_t, instance_t, eventgroup_t>> routing_manager_base::get_subscriptions(const client_t _client) {
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> result;
+    std::lock_guard<std::mutex> its_lock(eventgroup_clients_mutex_);
+    for (auto its_service : eventgroup_clients_) {
+        for (auto its_instance : its_service.second) {
+            for (auto its_eventgroup : its_instance.second) {
+                auto its_client = its_eventgroup.second.find(_client);
+                if (its_client != its_eventgroup.second.end()) {
+                    result.insert(std::make_tuple(its_service.first, its_instance.first, its_eventgroup.first));
+                }
+            }
+        }
+    }
+    return result;
 }
 
 
