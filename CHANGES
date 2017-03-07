@@ -285,3 +285,6 @@ v2.6.0
   messages and lower CPU load
 - Extend public application interface with second unsubscribe method with
   additional event parameter
+
+v2.6.1
+- Fixed clearing of subscribers on stop offer service

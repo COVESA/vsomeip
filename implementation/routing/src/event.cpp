@@ -358,14 +358,14 @@ bool event::has_subscriber(eventgroup_t _eventgroup, client_t _client) {
 std::set<client_t> event::get_subscribers() {
     std::set<client_t> its_subscribers;
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    for (auto e : eventgroups_)
+    for (const auto &e : eventgroups_)
         its_subscribers.insert(e.second.begin(), e.second.end());
     return its_subscribers;
 }
 
 void event::clear_subscribers() {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    for (auto e : eventgroups_)
+    for (auto &e : eventgroups_)
         e.second.clear();
 }
 

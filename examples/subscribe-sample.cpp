@@ -55,6 +55,8 @@ public:
                 SAMPLE_EVENT_ID,
                 its_groups,
                 true);
+        app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
+
         return true;
     }
 
@@ -87,10 +89,6 @@ public:
                 << "] is "
                 << (_is_available ? "available." : "NOT available.")
                 << std::endl;
-
-        if (_is_available && SAMPLE_SERVICE_ID == _service && SAMPLE_INSTANCE_ID == _instance) {
-            app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
-        }
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_response) {
