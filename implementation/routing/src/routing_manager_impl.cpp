@@ -300,9 +300,12 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
 
     if (_client == get_client()) {
         stub_->create_local_receiver();
-    }
 
-    stub_->on_request_service(_client, _service, _instance, _major, _minor);
+        service_data_t request = { _service, _instance, _major, _minor, _use_exclusive_proxy };
+        std::set<service_data_t> requests;
+        requests.insert(request);
+        stub_->handle_requests(_client, requests);
+    }
 }
 
 void routing_manager_impl::release_service(client_t _client, service_t _service,
@@ -1775,44 +1778,13 @@ bool routing_manager_impl::is_field(service_t _service, instance_t _instance,
     return false;
 }
 
-std::chrono::milliseconds routing_manager_impl::add_routing_info(
+void routing_manager_impl::add_routing_info(
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor, ttl_t _ttl,
         const boost::asio::ip::address &_reliable_address,
         uint16_t _reliable_port,
         const boost::asio::ip::address &_unreliable_address,
         uint16_t _unreliable_port) {
-
-    std::chrono::seconds default_ttl(DEFAULT_TTL);
-    std::chrono::milliseconds its_smallest_ttl =
-               std::chrono::duration_cast<std::chrono::milliseconds>(default_ttl);
-    std::chrono::milliseconds its_ttl(std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::seconds(_ttl)));
-
-    bool offer_exists(false);
-    for (auto &s : get_services()) {
-        for (auto &i : s.second) {
-            if (i.second->is_local()) {
-                continue; //ignore local services
-            }
-            std::chrono::milliseconds its_found_ttl(i.second->get_precise_ttl());
-            if ( its_found_ttl < its_smallest_ttl ) {
-                its_smallest_ttl = its_found_ttl;
-                if( its_ttl < its_smallest_ttl ) {
-                    its_smallest_ttl = its_ttl;
-                }
-            }
-            offer_exists = true;
-        }
-    }
-    //if no remote service is in the list yet
-    if( !offer_exists ) {
-        if( its_ttl < its_smallest_ttl ) {
-            // set smallest TTL to TTL of first incoming remote offer
-            // this allows expiration of service if no further offer message is received which would trigger update_routing info
-            its_smallest_ttl = its_ttl;
-        }
-    }
 
     // Create/Update service info
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
@@ -1845,7 +1817,7 @@ std::chrono::milliseconds routing_manager_impl::add_routing_info(
             << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
             << std::dec << static_cast<std::uint32_t>(its_info->get_major())
             << "." << its_info->get_minor() << "]";
-        return its_smallest_ttl;
+        return;
     } else {
         its_info->set_ttl(_ttl);
     }
@@ -2007,8 +1979,6 @@ std::chrono::milliseconds routing_manager_impl::add_routing_info(
             stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
         }
     }
-
-    return its_smallest_ttl;
 }
 
 void routing_manager_impl::del_routing_info(service_t _service, instance_t _instance,
@@ -2847,22 +2817,14 @@ bool routing_manager_impl::send_identify_message(client_t _client,
         std::lock_guard<std::mutex> its_lock(identified_clients_mutex_);
         identifying_clients_[_service][_instance][_reliable].insert(_client);
     }
-    auto message = runtime::get()->create_message(_reliable);
-    message->set_service(_service);
-    message->set_instance(_instance);
-    message->set_client(_client);
-    message->set_method(ANY_METHOD - 1);
-    message->set_interface_version(_major);
-    message->set_message_type(message_type_e::MT_REQUEST);
-    {
-        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-        if (serializer_->serialize(message.get())) {
-            its_endpoint->send(serializer_->get_data(), serializer_->get_size());
-            serializer_->reset();
-        } else {
-            return false;
-        }
+
+    if (_client == get_client()) {
+        send_identify_request(_service, _instance, _major, _reliable);
+    } else {
+        stub_->send_identify_request_command(find_local(_client),
+                _service, _instance, _major, _reliable);
     }
+
     return true;
 }
 
@@ -3251,16 +3213,16 @@ void routing_manager_impl::on_pong(client_t _client) {
     }
 }
 
-void routing_manager_impl::on_clientendpoint_error(client_t _client) {
-    if (stub_->is_registered(_client)) {
-        VSOMEIP_WARNING << "Application/Client "
-            << std::hex << std::setw(4) << std::setfill('0')
-            << _client << " will be deregistered because of an client endpoint error.";
-        stub_->deregister_erroneous_client(_client);
-    }
+void routing_manager_impl::register_client_error_handler(client_t _client,
+        const std::shared_ptr<endpoint> &_endpoint) {
+    _endpoint->register_error_handler(
+        std::bind(&routing_manager_impl::handle_client_error, this, _client));
 }
 
-void routing_manager_impl::confirm_pending_offers(client_t _client) {
+void routing_manager_impl::handle_client_error(client_t _client) {
+    if (stub_)
+        stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR);
+
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t,
                                         minor_version_t>> its_offers;
     {
@@ -3650,5 +3612,20 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(
     }
     return is_inserted;
 }
+
+void routing_manager_impl::on_reboot(const boost::asio::ip::address &_address){
+    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+    for (auto its_port : server_endpoints_) {
+        for (auto its_endpoint : its_port.second) {
+            if (its_endpoint.first == true) {
+                std::shared_ptr<tcp_server_endpoint_impl> endpoint = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(its_endpoint.second);
+                if (endpoint) {
+                    endpoint->stop_all_connections(_address);
+                }
+            }
+        }
+    }
+}
+
 
 } // namespace vsomeip

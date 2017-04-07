@@ -36,6 +36,7 @@ public:
             client_t _client, bool _subscribed) = 0;
     virtual void on_subscription_error(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, uint16_t _error) = 0;
+    virtual void send(std::shared_ptr<message> _message, bool _flush) = 0;
 };
 
 } // namespace vsomeip

@@ -399,6 +399,14 @@ callbacks if max_dispatchers is configured greater than 0).
 The number of internal threads to process messages and events within an application.
 Valid values are 1-255. Default is 2.
 +
+** 'request_debounce_time' (optional)
++
+Specifies a debounce-time interval in ms in which request-service messages are sent to
+the routing manager. If an application requests many services in short same time
+the load of sent messages to the routing manager and furthermore the replies from the
+routing manager (which contains the routing info for the requested service if available)
+can be heavily reduced. The default value if not specified is 10ms.
++
 * `services` (array)
 +
 Contains the services of the service provider.

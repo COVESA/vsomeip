@@ -1039,6 +1039,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                 its_message->get_reboot_flag(), its_message->get_session())) {
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
+            host_->on_reboot(_sender);
         }
 
         std::chrono::milliseconds expired = stop_ttl_timer();
@@ -1214,10 +1215,14 @@ void service_discovery_impl::process_offerservice_serviceentry(
         its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
     }
 
-    smallest_ttl_ = host_->add_routing_info(_service, _instance,
+    host_->add_routing_info(_service, _instance,
                             _major, _minor, _ttl,
                             _reliable_address, _reliable_port,
                             _unreliable_address, _unreliable_port);
+    const std::chrono::milliseconds its_precise_ttl(_ttl * 1000);
+    if (its_precise_ttl < smallest_ttl_) {
+        smallest_ttl_ = its_precise_ttl;
+    }
 
     std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);

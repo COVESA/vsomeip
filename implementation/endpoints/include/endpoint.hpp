@@ -16,6 +16,8 @@ class endpoint_definition;
 
 class endpoint {
 public:
+    typedef std::function<void()> error_handler_t;
+
     virtual ~endpoint() {}
 
     virtual void start() = 0;
@@ -46,6 +48,8 @@ public:
     virtual uint32_t get_use_count() = 0;
 
     virtual void restart() = 0;
+
+    virtual void register_error_handler(error_handler_t _error) = 0;
 };
 
 } // namespace vsomeip

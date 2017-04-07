@@ -20,6 +20,7 @@
 
 #include "../../endpoints/include/endpoint_host.hpp"
 #include "../../configuration/include/internal.hpp"
+#include "types.hpp"
 
 namespace vsomeip {
 
@@ -80,14 +81,19 @@ public:
     void create_local_receiver();
     bool send_ping(client_t _client);
     bool is_registered(client_t _client) const;
-    void deregister_erroneous_client(client_t _client);
     client_t get_client() const;
-    void on_request_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
-            minor_version_t _minor);
+    void handle_requests(const client_t _client, std::set<service_data_t>& _requests);
+
+    void send_identify_request_command(std::shared_ptr<vsomeip::endpoint> _target,
+            service_t _service, instance_t _instance, major_version_t _major,
+            bool _reliable);
+
 #ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
 #endif
+
+    void update_registration(client_t _client, registration_type_e _type);
+
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
@@ -95,12 +101,6 @@ private:
     void on_deregister_application(client_t _client);
 
     void broadcast_routing_stop();
-
-    void send_routing_info_delta(client_t _target, routing_info_entry_e _entry,
-                client_t _client, service_t _service = ANY_SERVICE,
-                instance_t _instance = ANY_INSTANCE,
-                major_version_t _major = ANY_MAJOR,
-                minor_version_t _minor = ANY_MINOR);
 
     void inform_requesters(client_t _hoster, service_t _service,
             instance_t _instance, major_version_t _major,
@@ -122,12 +122,25 @@ private:
     };
 
     bool is_already_connected(client_t _source, client_t _sink);
+    void create_client_routing_info(const client_t _target);
+    void insert_client_routing_info(client_t _target, routing_info_entry_e _entry,
+            client_t _client, service_t _service = ANY_SERVICE,
+            instance_t _instance = ANY_INSTANCE,
+            major_version_t _major = ANY_MAJOR,
+            minor_version_t _minor = ANY_MINOR);
+    void send_client_routing_info(const client_t _target);
+
+    void on_client_id_timer_expired(boost::system::error_code const &_error);
 
 private:
     routing_manager_stub_host *host_;
     boost::asio::io_service &io_;
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
+
+    boost::asio::steady_timer client_id_timer_;
+    std::set<client_t> used_client_ids_;
+    std::mutex used_client_ids_mutex_;
 
     std::string endpoint_path_;
     std::string local_receiver_path_;
@@ -147,11 +160,6 @@ private:
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;
 
-    enum class registration_type_e : std::uint8_t {
-        REGISTER = 0x1,
-        DEREGISTER = 0x2,
-        DEREGISTER_ERROR_CASE = 0x3
-    };
     std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
     const std::uint32_t max_local_message_size_;
     static const std::vector<byte_t> its_ping_;
@@ -162,6 +170,8 @@ private:
 
     std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
     std::map<client_t, std::set<client_t>> connection_matrix_;
+
+    std::map<client_t, std::vector<byte_t>> client_routing_info_;
 };
 
 } // namespace vsomeip

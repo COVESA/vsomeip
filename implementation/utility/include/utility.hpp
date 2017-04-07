@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <vector>
+#include <set>
 
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
@@ -88,6 +89,7 @@ public:
     static client_t request_client_id(const std::shared_ptr<configuration> &_config,
             const std::string &_name, client_t _client);
     static void release_client_id(client_t _client);
+    static std::set<client_t> get_used_client_ids();
 
     static inline bool is_valid_message_type(message_type_e _type) {
         return (_type == message_type_e::MT_REQUEST

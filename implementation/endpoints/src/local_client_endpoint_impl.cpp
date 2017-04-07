@@ -183,8 +183,13 @@ void local_client_endpoint_impl::receive_cbk(
         // routing manager. For the routing manager proxies, the corresponding
         // client endpoint (that connect to the same client) are removed
         // after the proxy has received the routing info.
-        if (error_handler_)
-            error_handler_();
+        error_handler_t handler;
+        {
+            std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+            handler = error_handler_;
+        }
+        if (handler)
+            handler();
     } else {
         receive();
     }
@@ -198,10 +203,6 @@ bool local_client_endpoint_impl::get_remote_address(
 
 unsigned short local_client_endpoint_impl::get_remote_port() const {
     return 0;
-}
-
-void local_client_endpoint_impl::register_error_handler(error_handler_t _error_handler) {
-    error_handler_ = _error_handler;
 }
 
 } // namespace vsomeip

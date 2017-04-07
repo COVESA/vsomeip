@@ -13,7 +13,6 @@
 #include "../../logging/include/logger.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/local_server_endpoint_impl.hpp"
-#include "../include/routing_manager_impl.hpp"
 
 namespace vsomeip {
 
@@ -624,22 +623,16 @@ std::shared_ptr<endpoint> routing_manager_base::create_local_unlocked(client_t _
 #endif
     , io_, configuration_->get_max_message_size_local());
 
+    // Messages sent to the VSOMEIP_ROUTING_CLIENT are meant to be routed to
+    // external devices. Therefore, its local endpoint must not be found by
+    // a call to find_local. Thus it must not be inserted to the list of local
+    // clients.
     if (_client != VSOMEIP_ROUTING_CLIENT) {
-        // VSOMEIP_ROUTING_CLIENT must not be added here.
-        // The routing master should not get an end-point when calling find_local
-        // with VSOMEIP_ROUTING_CLIENT as parameter
-        // as it indicates remote communication!
-        local_endpoints_[_client] = std::static_pointer_cast<endpoint>(its_endpoint);
-
-        routing_manager_impl *its_manager = dynamic_cast<routing_manager_impl*>(this);
-        if (its_manager != nullptr) {
-            its_endpoint->register_error_handler(
-                    std::bind(&routing_manager_impl::on_clientendpoint_error,
-                              its_manager, _client));
-        }
+        local_endpoints_[_client] = its_endpoint;
     }
+    register_client_error_handler(_client, its_endpoint);
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> routing_manager_base::create_local(client_t _client) {
@@ -682,6 +675,7 @@ void routing_manager_base::remove_local(client_t _client) {
 
     std::shared_ptr<endpoint> its_endpoint(find_local(_client));
     if (its_endpoint) {
+        its_endpoint->register_error_handler(nullptr);
         its_endpoint->stop();
         VSOMEIP_INFO << "Client [" << std::hex << get_client() << "] is closing connection to ["
                       << std::hex << _client << "]";
@@ -1031,6 +1025,21 @@ routing_manager_base::get_subscriptions(const client_t _client) {
         }
     }
     return result;
+}
+
+void routing_manager_base::send_identify_request(service_t _service,
+        instance_t _instance, major_version_t _major, bool _reliable) {
+    auto message = runtime::get()->create_message(_reliable);
+    message->set_service(_service);
+    message->set_instance(_instance);
+    message->set_client(get_client());
+    message->set_method(ANY_METHOD - 1);
+    message->set_interface_version(_major);
+    message->set_message_type(message_type_e::MT_REQUEST);
+
+    // Initiate a request/response to the remote service
+    // Use host for sending to ensure correct session id is set
+    host_->send(message, true);
 }
 
 } // namespace vsomeip

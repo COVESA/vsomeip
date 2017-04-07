@@ -441,6 +441,7 @@ void configuration_impl::load_application_data(
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
     std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
+    std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -470,6 +471,13 @@ void configuration_impl::load_application_data(
                 VSOMEIP_WARNING << "Max. number of threads per application is 255";
                 its_io_thread_count = 255;
             }
+        } else if (its_key == "request_debounce_time") {
+            its_converter << std::dec << its_value;
+            its_converter >> its_request_debounce_time;
+            if (its_request_debounce_time > 10000) {
+                VSOMEIP_WARNING << "Max. request debounce time is 10.000ms";
+                its_request_debounce_time = 10000;
+            }
         }
     }
     if (its_name != "") {
@@ -487,7 +495,8 @@ void configuration_impl::load_application_data(
             }
             applications_[its_name]
                 = std::make_tuple(its_id, its_max_dispatchers,
-                        its_max_dispatch_time, its_io_thread_count);
+                        its_max_dispatch_time, its_io_thread_count,
+                        its_request_debounce_time);
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -1795,6 +1804,16 @@ client_t configuration_impl::get_id(const std::string &_name) const {
 
 bool configuration_impl::is_configured_client_id(client_t _id) const {
     return (client_identifiers_.find(_id) != client_identifiers_.end());
+}
+
+std::size_t configuration_impl::get_request_debouncing(const std::string &_name) const {
+    size_t debounce_time = VSOMEIP_REQUEST_DEBOUNCE_TIME;
+    auto found_application = applications_.find(_name);
+    if (found_application != applications_.end()) {
+        debounce_time = std::get<4>(found_application->second);
+    }
+
+    return debounce_time;
 }
 
 std::size_t configuration_impl::get_io_thread_count(const std::string &_name) const {

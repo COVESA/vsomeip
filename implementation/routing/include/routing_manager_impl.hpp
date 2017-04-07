@@ -171,7 +171,7 @@ public:
     std::shared_ptr<endpoint> create_service_discovery_endpoint(const std::string &_address,
             uint16_t _port, bool _reliable);
     void init_routing_info();
-    std::chrono::milliseconds add_routing_info(service_t _service, instance_t _instance,
+    void add_routing_info(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl,
             const boost::asio::ip::address &_reliable_address,
             uint16_t _reliable_port,
@@ -180,6 +180,8 @@ public:
     void del_routing_info(service_t _service, instance_t _instance,
             bool _has_reliable, bool _has_unreliable);
     std::chrono::milliseconds update_routing_info(std::chrono::milliseconds _elapsed);
+
+    void on_reboot(const boost::asio::ip::address &_address);
 
     void on_subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
@@ -204,8 +206,9 @@ public:
     bool has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable);
 
-    void on_clientendpoint_error(client_t _client);
-    void confirm_pending_offers(client_t _client);
+    void register_client_error_handler(client_t _client,
+            const std::shared_ptr<endpoint> &_endpoint);
+    void handle_client_error(client_t _client);
 
     void set_routing_state(routing_state_e _routing_state);
 

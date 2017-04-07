@@ -288,3 +288,11 @@ v2.6.0
 
 v2.6.1
 - Fixed clearing of subscribers on stop offer service
+
+v2.6.2
+- Service-Disovery performance improvements
+- Made Routing Manager restartable
+- Fixed file handle leak caused by remote ECU reboot
+- Activate TCP-Keep-Alive for TCP endpoints
+- Debouncing of request-service messages (routing info performance)
+- Fixed false session-id handling of identification request

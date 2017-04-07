@@ -85,6 +85,22 @@ void tcp_server_endpoint_impl::stop() {
     }
 }
 
+void tcp_server_endpoint_impl::stop_all_connections(const boost::asio::ip::address &_address) {
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    endpoint_type type;
+
+    for (const auto &c : connections_) {
+        if(c.first.address() == _address) {
+            VSOMEIP_INFO << "Stopping connections for " << _address.to_string()
+                    << " : " << std::dec << c.first.port();
+            c.second->stop();
+            type = c.first;
+        }
+    }
+    connections_.erase(type);
+}
+
+
 bool tcp_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
         const byte_t *_data,
@@ -162,6 +178,12 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
             _connection->set_remote_info(remote);
             // Nagle algorithm off
             new_connection_socket.set_option(ip::tcp::no_delay(true), its_error);
+
+            new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable "
+                        << "keep_alive: " << its_error.message();
+            }
         }
         if (!its_error) {
             {
@@ -485,7 +507,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
         }
     }
     if (_error == boost::asio::error::eof
-            || _error == boost::asio::error::connection_reset) {
+            || _error == boost::asio::error::connection_reset
+            || _error == boost::asio::error::timed_out) {
+        VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk error detected: " << _error.message();
         {
             std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
             stop();

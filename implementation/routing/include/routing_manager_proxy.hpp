@@ -95,17 +95,20 @@ public:
     void on_identify_response(client_t _client, service_t _service, instance_t _instance,
             bool _reliable);
 
+    void register_client_error_handler(client_t _client,
+            const std::shared_ptr<endpoint> &_endpoint);
+    void handle_client_error(client_t _client);
+
 private:
     void register_application();
     void deregister_application();
+
+    void reconnect(const std::unordered_set<client_t> &_clients);
 
     void send_pong() const;
     void send_offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
-    void send_request_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
-            minor_version_t _minor, bool _use_exclusive_proxy);
     void send_release_service(client_t _client, service_t _service,
             instance_t _instance);
     void send_register_event(client_t _client, service_t _service,
@@ -163,6 +166,10 @@ private:
                                                 event_t _event,
                                                 client_t _client);
 
+    void request_debounce_timeout_cbk(boost::system::error_code const &_error);
+
+    void send_request_services(std::set<service_data_t>& _requests);
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,
@@ -180,21 +187,9 @@ private:
     std::mutex known_clients_mutex_;
     std::unordered_set<client_t> known_clients_;
 
-    struct service_data_t {
-        service_t service_;
-        instance_t instance_;
-        major_version_t major_;
-        minor_version_t minor_;
-        bool use_exclusive_proxy_; // only used for requests!
-
-        bool operator<(const service_data_t &_other) const {
-            return (service_ < _other.service_
-                    || (service_ == _other.service_
-                        && instance_ < _other.instance_));
-        }
-    };
     std::set<service_data_t> pending_offers_;
-    std::set<service_data_t> pending_requests_;
+    std::set<service_data_t> requests_;
+    std::set<service_data_t> requests_to_debounce_;
 
     struct event_data_t {
         service_t service_;
@@ -230,6 +225,10 @@ private:
     boost::asio::steady_timer register_application_timer_;
 
     std::shared_ptr<logger> logger_;
+
+    std::mutex request_timer_mutex_;
+    boost::asio::steady_timer request_debounce_timer_;
+    bool request_debounce_timer_running_;
 };
 
 } // namespace vsomeip

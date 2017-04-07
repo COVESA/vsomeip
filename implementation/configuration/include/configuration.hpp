@@ -74,6 +74,7 @@ public:
     virtual std::size_t get_max_dispatchers(const std::string &_name) const = 0;
     virtual std::size_t get_max_dispatch_time(const std::string &_name) const = 0;
     virtual std::size_t get_io_thread_count(const std::string &_name) const = 0;
+    virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
     virtual std::uint32_t get_message_size_reliable(const std::string& _address,

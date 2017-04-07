@@ -7,6 +7,7 @@
     #include <iostream>
 #else
     #include <dlfcn.h>
+    #include <signal.h>
     #include <sys/mman.h>
     #include <thread>
     #include <sstream>
@@ -306,8 +307,6 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 
                     the_configuration_data__->routing_manager_host_ = 0x0000;
                     std::string its_name = _config->get_routing_host();
-                    if (its_name == "")
-                        the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
 
                     its_configuration_refs__++;
 
@@ -340,7 +339,6 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                 VSOMEIP_ERROR << "utility::auto_configuration_init: "
                     "ftruncate failed: " << std::strerror(errno);
             } else {
-
                 void *its_segment = mmap(0, sizeof(configuration_data_t),
                                          PROT_READ | PROT_WRITE, MAP_SHARED,
                                          its_descriptor, 0);
@@ -460,7 +458,9 @@ bool utility::is_used_client_id(client_t _client) {
     return false;
 }
 
-client_t utility::request_client_id(const std::shared_ptr<configuration> &_config, const std::string &_name, client_t _client) {
+std::set<client_t> utility::get_used_client_ids() {
+    std::set<client_t> clients;
+
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
@@ -477,6 +477,52 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
             }
         }
 #endif
+        for (int i = 0;
+             i < the_configuration_data__->max_used_client_ids_index_;
+             i++) {
+            clients.insert(the_configuration_data__->used_client_ids_[i]);
+        }
+
+#ifdef _WIN32
+        BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
+        assert(releaseResult);
+        (void)releaseResult;
+#else
+        pthread_mutex_unlock(&the_configuration_data__->mutex_);
+#endif
+    }
+
+    return clients;
+}
+
+client_t utility::request_client_id(const std::shared_ptr<configuration> &_config, const std::string &_name, client_t _client) {
+    std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+
+    if (the_configuration_data__ != nullptr) {
+#ifdef _WIN32
+        DWORD waitResult = WaitForSingleObject(configuration_data_mutex, INFINITE);
+        assert(waitResult == WAIT_OBJECT_0);
+        (void)waitResult;
+#else
+        if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+            VSOMEIP_WARNING << "utility::request_client_id EOWNERDEAD";
+            check_client_id_consistency();
+            if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+                VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+            }
+        }
+
+        pid_t pid = getpid();
+        if (the_configuration_data__->pid_ != 0) {
+            if (pid != the_configuration_data__->pid_) {
+                if (kill(the_configuration_data__->pid_, 0) == -1) {
+                    VSOMEIP_WARNING << "Routing Manager seems to be inactive. Taking over...";
+                    the_configuration_data__->routing_manager_host_ = 0x0000;
+                }
+            }
+        }
+#endif
+
         const std::string its_name = _config->get_routing_host();
         bool set_client_as_manager_host(false);
         if (its_name != "" && its_name == _name) {
@@ -572,6 +618,9 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 
         if (set_client_as_manager_host) {
             the_configuration_data__->routing_manager_host_ = _client;
+#ifndef _WIN32
+            the_configuration_data__->pid_ = pid;
+#endif
         }
 
         the_configuration_data__->used_client_ids_[

@@ -34,6 +34,8 @@ public:
     void start();
     void stop();
 
+    void stop_all_connections(const boost::asio::ip::address &_address);
+
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
                  const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);

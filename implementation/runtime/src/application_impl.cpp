@@ -973,9 +973,7 @@ void application_impl::on_state(state_type_e _state) {
 
 void application_impl::on_availability(service_t _service, instance_t _instance,
         bool _is_available, major_version_t _major, minor_version_t _minor) {
-
     std::vector<availability_handler_t> its_handlers;
-
     {
         std::lock_guard<std::mutex> availability_lock(availability_mutex_);
         if (_is_available == is_available_unlocked(_service, _instance, _major, _minor)) {

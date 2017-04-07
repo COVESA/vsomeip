@@ -514,6 +514,80 @@ else()
     )
 endif()
 ##############################################################################
+# restart_routing-test
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_RESTART_ROUTING_NAME restart_routing_test)
+
+    set(TEST_RESTART_ROUTING_SERVICE restart_routing_test_service)
+    add_executable(${TEST_RESTART_ROUTING_SERVICE} restart_routing_tests/${TEST_RESTART_ROUTING_SERVICE}.cpp)
+    target_link_libraries(${TEST_RESTART_ROUTING_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config file for service into $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_SERVICE_CONFIG_FILE ${TEST_RESTART_ROUTING_SERVICE}.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_SERVICE_CONFIG_FILE}
+        ${TEST_RESTART_ROUTING_SERVICE}
+    )
+
+    # Copy bashscript to start service into $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_SERVICE_START_SCRIPT ${TEST_RESTART_ROUTING_SERVICE}_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_SERVICE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_SERVICE_START_SCRIPT}
+        ${TEST_RESTART_ROUTING_SERVICE}
+    )
+
+    set(TEST_RESTART_ROUTING_CLIENT restart_routing_test_client)
+    add_executable(${TEST_RESTART_ROUTING_CLIENT}
+        restart_routing_tests/${TEST_RESTART_ROUTING_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_RESTART_ROUTING_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config file for client into $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_CLIENT_CONFIG_FILE ${TEST_RESTART_ROUTING_CLIENT}.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_CLIENT_CONFIG_FILE}
+        ${TEST_RESTART_ROUTING_CLIENT}
+    )
+
+    # Copy bashscript to start client into $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_CLIENT_START_SCRIPT ${TEST_RESTART_ROUTING_CLIENT}_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_CLIENT_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_CLIENT_START_SCRIPT}
+        ${TEST_RESTART_ROUTING_CLIENT}
+    )
+
+    # Copy bashscript to start client and server $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_STARTER restart_routing_test_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_STARTER}
+        ${TEST_RESTART_ROUTING_CLIENT}
+    )
+
+    # Copy config file for autoconfig into $BUILDDIR/test
+    set(TEST_RESTART_ROUTING_AUTO_CONFIG_FILE ${TEST_RESTART_ROUTING_NAME}_autoconfig.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/restart_routing_tests/${TEST_RESTART_ROUTING_AUTO_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_AUTO_CONFIG_FILE}
+        ${TEST_RESTART_ROUTING_CLIENT}
+    )
+endif()
+##############################################################################
 # payload-test
 ##############################################################################
 
@@ -1712,6 +1786,8 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_OFFER_CLIENT})
     add_dependencies(build_tests ${TEST_OFFER_SERVICE_EXTERNAL})
     add_dependencies(build_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
+    add_dependencies(build_tests ${TEST_RESTART_ROUTING_SERVICE})
+    add_dependencies(build_tests ${TEST_RESTART_ROUTING_CLIENT})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -2071,6 +2147,11 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_NAME}_external
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
+    
+    # Restart-Routing tests
+    add_test(NAME ${TEST_RESTART_ROUTING_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_STARTER}
+    )    
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

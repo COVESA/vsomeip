@@ -44,7 +44,7 @@ public:
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port) = 0;
 
-    virtual std::chrono::milliseconds add_routing_info(service_t _service, instance_t _instance,
+    virtual void add_routing_info(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl,
             const boost::asio::ip::address &_reliable_address,
             uint16_t _reliable_port,
@@ -80,6 +80,9 @@ public:
 
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
+
+    virtual void on_reboot(const boost::asio::ip::address &_address) = 0;
+
 
     virtual bool on_subscribe_accepted(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::shared_ptr<endpoint_definition> _target,

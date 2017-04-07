@@ -113,4 +113,9 @@ void virtual_server_endpoint_impl::restart() {
 
 }
 
+void virtual_server_endpoint_impl::register_error_handler(
+        error_handler_t _handler) {
+    (void)_handler;
+}
+
 } // namespace vsomeip

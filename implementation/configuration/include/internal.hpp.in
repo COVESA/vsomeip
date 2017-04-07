@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <vsomeip/primitive_types.hpp>
 
 #define VSOMEIP_ENV_APPLICATION_NAME            "VSOMEIP_APPLICATION_NAME"
 #define VSOMEIP_ENV_CONFIGURATION               "VSOMEIP_CONFIGURATION"
@@ -56,6 +57,8 @@
 
 #define VSOMEIP_MAX_DESERIALIZER                5
 
+#define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
+
 #define VSOMEIP_COMMAND_HEADER_SIZE             7
 
 #define VSOMEIP_COMMAND_TYPE_POS                0
@@ -89,6 +92,7 @@
 #define VSOMEIP_REGISTER_EVENT                  0x1B
 #define VSOMEIP_UNREGISTER_EVENT                0x1C
 #define VSOMEIP_ID_RESPONSE                     0x1D
+#define VSOMEIP_ID_REQUEST                      0x1E
 
 #define VSOMEIP_OFFER_SERVICE_COMMAND_SIZE      16
 #define VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE    17
@@ -101,6 +105,7 @@
 #define VSOMEIP_REGISTER_EVENT_COMMAND_SIZE     15
 #define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   14
 #define VSOMEIP_ID_RESPONSE_COMMAND_SIZE        12
+#define VSOMEIP_ID_REQUEST_COMMAND_SIZE         13
 
 #ifndef _WIN32
 #include <pthread.h>
@@ -126,10 +131,25 @@ typedef enum {
     RIE_DEL_CLIENT = 0x3,
 } routing_info_entry_e;
 
+struct service_data_t {
+    service_t service_;
+    instance_t instance_;
+    major_version_t major_;
+    minor_version_t minor_;
+    bool use_exclusive_proxy_; // only used for requests!
+
+    bool operator<(const service_data_t &_other) const {
+        return (service_ < _other.service_
+                || (service_ == _other.service_
+                    && instance_ < _other.instance_));
+    }
+};
+
 struct configuration_data_t {
 #ifndef _WIN32
     volatile char initialized_;
     pthread_mutex_t mutex_;
+    pid_t pid_;
 #endif
     unsigned short client_base_;
 

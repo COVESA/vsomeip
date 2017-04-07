@@ -51,6 +51,8 @@ public:
     void decrement_use_count();
     uint32_t get_use_count();
 
+    void register_error_handler(error_handler_t _error_handler);
+
 public:
     // required
     virtual bool is_client() const = 0;
@@ -81,6 +83,9 @@ protected:
 
     std::mutex local_mutex_;
     endpoint_type local_;
+
+    error_handler_t error_handler_;
+    std::mutex error_handler_mutex_;
 };
 
 } // namespace vsomeip

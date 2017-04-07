@@ -80,6 +80,7 @@ public:
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
 
@@ -227,7 +228,7 @@ protected:
     std::string logfile_;
     boost::log::trivial::severity_level loglevel_;
 
-    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t, size_t>> applications_;
+    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t, std::size_t, std::size_t>> applications_;
     std::set<client_t> client_identifiers_;
 
     std::map<service_t,

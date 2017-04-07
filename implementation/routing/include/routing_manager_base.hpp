@@ -110,6 +110,7 @@ public:
                           endpoint *_receiver,
                           const boost::asio::ip::address &_remote_address,
                           std::uint16_t _remote_port) = 0;
+
 #ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid);
 #endif
@@ -118,6 +119,9 @@ public:
 
     virtual std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
             event_t _event) const;
+
+    virtual void register_client_error_handler(client_t _client,
+            const std::shared_ptr<endpoint> &_endpoint) = 0;
 
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
@@ -181,6 +185,9 @@ protected:
     void notify_one_current_value(client_t _client, service_t _service,
                                   instance_t _instance,
                                   eventgroup_t _eventgroup, event_t _event);
+
+    void send_identify_request(service_t _service, instance_t _instance,
+            major_version_t _major, bool _reliable);
 
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);

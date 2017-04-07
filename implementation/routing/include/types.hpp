@@ -27,6 +27,12 @@ typedef std::map<service_t,
                                    std::shared_ptr<
                                        eventgroupinfo> > > > eventgroups_t;
 
+enum class registration_type_e : std::uint8_t {
+    REGISTER = 0x1,
+    DEREGISTER = 0x2,
+    DEREGISTER_ON_ERROR = 0x3
+};
+
 }
 // namespace vsomeip
 

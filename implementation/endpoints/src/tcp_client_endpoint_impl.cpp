@@ -67,6 +67,12 @@ void tcp_client_endpoint_impl::connect() {
                     << "Nagle algorithm: " << its_error.message();
         }
 
+        socket_.set_option(boost::asio::socket_base::keep_alive(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
+                    << "keep_alive: " << its_error.message();
+        }
+
         // Enable SO_REUSEADDR to avoid bind problems with services going offline
         // and coming online again and the user has specified only a small number
         // of ports in the clients section for one service instance
@@ -351,8 +357,9 @@ void tcp_client_endpoint_impl::receive_cbk(
             receive();
         } else {
             if (_error == boost::asio::error::connection_reset ||
-                    _error ==  boost::asio::error::eof) {
-                VSOMEIP_TRACE << "tcp_client_endpoint: connection_reseted/EOF ~> close socket!";
+                    _error ==  boost::asio::error::eof ||
+                    _error == boost::asio::error::timed_out) {
+                VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk error detected: " << _error.message();
                 shutdown_and_close_socket();
             } else {
                 receive();

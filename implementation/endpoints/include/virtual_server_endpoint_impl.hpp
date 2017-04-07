@@ -51,6 +51,8 @@ public:
 
     void restart();
 
+    void register_error_handler(error_handler_t _handler);
+
 private:
     std::string address_;
     uint16_t port_;

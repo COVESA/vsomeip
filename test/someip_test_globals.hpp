@@ -35,6 +35,8 @@ constexpr vsomeip::byte_t PAYLOAD_TEST_DATA = 0xDD;
 constexpr std::uint32_t MAX_PAYLOADSIZE = 1024*128;
 // TR_SOMEIP_00061
 constexpr std::uint32_t MAX_PAYLOADSIZE_UDP = 1400;
+
+constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS = 32;
 }
 
 #endif /* SOMEIP_TEST_GLOBALS_HPP_ */

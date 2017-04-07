@@ -46,6 +46,7 @@ routing_manager_stub::routing_manager_stub(
         host_(_host),
         io_(_host->get_io()),
         watchdog_timer_(_host->get_io()),
+        client_id_timer_(_host->get_io()),
         endpoint_(nullptr),
         local_receiver_(nullptr),
         configuration_(_configuration),
@@ -65,6 +66,20 @@ void routing_manager_stub::init() {
 }
 
 void routing_manager_stub::start() {
+    {
+        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        used_client_ids_ = utility::get_used_client_ids();
+        // Wait VSOMEIP_MAX_CONNECT_TIMEOUT * 2 and expect after that time
+        // that all client_ids are used have to be connected to the routing.
+        // Otherwise they can be marked as "erroneous client".
+        client_id_timer_.expires_from_now(std::chrono::milliseconds(VSOMEIP_MAX_CONNECT_TIMEOUT * 2));
+        client_id_timer_.async_wait(
+            std::bind(
+                    &routing_manager_stub::on_client_id_timer_expired,
+                    std::dynamic_pointer_cast<routing_manager_stub>(shared_from_this()),
+                    std::placeholders::_1));
+    }
+
     if(!endpoint_) {
         // application has been stopped and started again
         init_routing_endpoint();
@@ -107,6 +122,11 @@ void routing_manager_stub::stop() {
     {
         std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_timer_.cancel();
+    }
+
+    {
+        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        client_id_timer_.cancel();
     }
 
     if( !is_socket_activated_) {
@@ -207,7 +227,6 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         const byte_t *its_data;
         uint32_t its_size;
         bool its_reliable(false);
-        bool use_exclusive_proxy(false);
         subscription_type_e its_subscription_type;
         bool is_remote_subscriber(false);
         client_t its_client_from_header;
@@ -234,25 +253,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         if (its_size <= _size - VSOMEIP_COMMAND_HEADER_SIZE) {
             switch (its_command) {
             case VSOMEIP_REGISTER_APPLICATION:
-                {
-                    std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
-                    VSOMEIP_INFO << "Application/Client "
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << its_client << " is registering."; 
-                    pending_client_registrations_[its_client].push_back(registration_type_e::REGISTER);
-                    client_registration_condition_.notify_one();
-                }
+                update_registration(its_client, registration_type_e::REGISTER);
                 break;
 
             case VSOMEIP_DEREGISTER_APPLICATION:
-                {
-                    std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
-                    VSOMEIP_INFO << "Application/Client "
-                            << std::hex << std::setw(4) << std::setfill('0')
-                            << its_client << " is deregistering.";
-                    pending_client_registrations_[its_client].push_back(registration_type_e::DEREGISTER);
-                    client_registration_condition_.notify_one();
-                }
+                update_registration(its_client, registration_type_e::DEREGISTER);
                 break;
 
             case VSOMEIP_PONG:
@@ -468,31 +473,44 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 break;
             }
             case VSOMEIP_REQUEST_SERVICE:
-                if (_size != VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE) {
-                    VSOMEIP_WARNING << "Received a REQUEST_SERVICE command with wrong size ~> skip!";
+                {
+                    uint32_t entry_size = (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t)
+                                + sizeof(minor_version_t) + sizeof(bool));
+                    uint32_t request_count(its_size / entry_size);
+                    std::set<service_data_t> requests;
+                    for (uint32_t i = 0; i < request_count; ++i) {
+                        service_t its_service;
+                        instance_t its_instance;
+                        major_version_t its_major;
+                        minor_version_t its_minor;
+                        bool use_exclusive_proxy;
+                        std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + (i * entry_size)],
+                                sizeof(its_service));
+                        std::memcpy(&its_instance,
+                                &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2 + (i * entry_size)],
+                                sizeof(its_instance));
+                        std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4 + (i * entry_size)],
+                                sizeof(its_major));
+                        std::memcpy(&its_minor, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 5 + (i * entry_size)],
+                                sizeof(its_minor));
+                        std::memcpy(&use_exclusive_proxy, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9 + (i * entry_size)],
+                                                sizeof(use_exclusive_proxy));
+                        if (configuration_->is_client_allowed(its_client, its_service, its_instance)) {
+                            host_->request_service(its_client, its_service, its_instance,
+                                    its_major, its_minor, use_exclusive_proxy);
+                            service_data_t request = { its_service, its_instance,
+                                    its_major, its_minor, use_exclusive_proxy };
+                            requests.insert(request);
+                        } else {
+                            VSOMEIP_WARNING << "Security: Client " << std::hex
+                                    << its_client << " requests service/instance "
+                                    << its_service << "/" << its_instance
+                                    << " which violates the security policy ~> Skip request!";
+                        }
+                    }
+                    handle_requests(its_client, requests);
                     break;
                 }
-                std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
-                        sizeof(its_service));
-                std::memcpy(&its_instance,
-                        &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
-                        sizeof(its_instance));
-                std::memcpy(&its_major, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
-                        sizeof(its_major));
-                std::memcpy(&its_minor, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 5],
-                        sizeof(its_minor));
-                std::memcpy(&use_exclusive_proxy, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
-                                        sizeof(use_exclusive_proxy));
-                if (configuration_->is_client_allowed(its_client, its_service, its_instance)) {
-                    host_->request_service(its_client, its_service, its_instance,
-                            its_major, its_minor, use_exclusive_proxy);
-                } else {
-                    VSOMEIP_WARNING << "Security: Client " << std::hex
-                            << its_client << " requests service/instance "
-                            << its_service << "/" << its_instance
-                            << " which violates the security policy ~> Skip request!";
-                }
-                break;
 
                 case VSOMEIP_RELEASE_SERVICE:
                     if (_size != VSOMEIP_RELEASE_SERVICE_COMMAND_SIZE) {
@@ -594,7 +612,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
                             sizeof(its_reliable));
                     host_->on_identify_response(its_client, its_service, its_instance, its_reliable);
-                    VSOMEIP_TRACE << "ID RESPONSE("
+                    VSOMEIP_INFO << "ID RESPONSE("
                         << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                         << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                         << std::hex << std::setw(4) << std::setfill('0') << its_instance
@@ -673,13 +691,15 @@ void routing_manager_stub::client_registration_func(void) {
                 // the client acknowledged its registered state!
                 // Don't inform client if we deregister because of an client
                 // endpoint error to avoid writing in an already closed socket
-                if (b != registration_type_e::DEREGISTER_ERROR_CASE) {
+                if (b != registration_type_e::DEREGISTER_ON_ERROR) {
                     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-                    send_routing_info_delta(r.first,
+                    create_client_routing_info(r.first);
+                    insert_client_routing_info(r.first,
                             b == registration_type_e::REGISTER ?
                             routing_info_entry_e::RIE_ADD_CLIENT :
                             routing_info_entry_e::RIE_DEL_CLIENT,
                             r.first);
+                    send_client_routing_info(r.first);
                 }
                 if (b != registration_type_e::REGISTER) {
                     {
@@ -689,8 +709,10 @@ void routing_manager_stub::client_registration_func(void) {
                             for (auto its_client : its_connection->second) {
                                 if (its_client != r.first &&
                                         its_client != VSOMEIP_ROUTING_CLIENT) {
-                                    send_routing_info_delta(its_client,
+                                    create_client_routing_info(its_client);
+                                    insert_client_routing_info(its_client,
                                             routing_info_entry_e::RIE_DEL_CLIENT, r.first);
+                                    send_client_routing_info(its_client);
                                 }
                             }
                             connection_matrix_.erase(r.first);
@@ -701,10 +723,9 @@ void routing_manager_stub::client_registration_func(void) {
                         service_requests_.erase(r.first);
                     }
                     host_->remove_local(r.first);
-                }
-                if (b == registration_type_e::DEREGISTER_ERROR_CASE) {
-                    utility::release_client_id(r.first);
-                    host_->confirm_pending_offers(r.first);
+                    if (b == registration_type_e::DEREGISTER_ON_ERROR) {
+                        utility::release_client_id(r.first);
+                    }
                 }
             }
         }
@@ -837,85 +858,33 @@ void routing_manager_stub::on_stop_offer_service(client_t _client,
     }
 }
 
-void routing_manager_stub::send_routing_info_delta(client_t _target,
-        routing_info_entry_e _entry,
-        client_t _client, service_t _service, instance_t _instance,
-        major_version_t _major, minor_version_t _minor) {
+void routing_manager_stub::create_client_routing_info(const client_t _target) {
+    std::vector<byte_t> its_command;
+    its_command.push_back(VSOMEIP_ROUTING_INFO);
+
+    // Sender client
+    client_t client = get_client();
+    for (uint32_t i = 0; i < sizeof(client_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&client)[i]);
+    }
+
+    // Overall size placeholder
+    byte_t size_placeholder = 0x0;
+    for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
+        its_command.push_back(size_placeholder);
+    }
+
+    client_routing_info_[_target] = its_command;
+}
+
+void routing_manager_stub::send_client_routing_info(const client_t _target) {
+    if (client_routing_info_.find(_target) == client_routing_info_.end()) {
+        return;
+    }
     std::shared_ptr<endpoint> its_endpoint = host_->find_local(_target);
     if (its_endpoint) {
-        connection_matrix_[_target].insert(_client);
-
-        std::vector<byte_t> its_command;
-
-        // Routing command
-        its_command.push_back(VSOMEIP_ROUTING_INFO);
-
-        // Sender client
-        client_t client = get_client();
-        for (uint32_t i = 0; i < sizeof(client_t); ++i) {
-            its_command.push_back(
-                    reinterpret_cast<const byte_t*>(&client)[i]);
-        }
-
-        // Overall size placeholder
-        byte_t size_placeholder = 0x0;
-        for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
-            its_command.push_back(size_placeholder);
-        }
-
-        // Routing Info State Change
-        for (uint32_t i = 0; i < sizeof(routing_info_entry_e); ++i) {
-            its_command.push_back(
-                    reinterpret_cast<const byte_t*>(&_entry)[i]);
-        }
-
-        std::size_t its_size_pos = its_command.size();
-        std::size_t its_entry_size = its_command.size();
-
-        // Client size placeholder
-        byte_t placeholder = 0x0;
-        for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
-            its_command.push_back(placeholder);
-        }
-        // Client
-        for (uint32_t i = 0; i < sizeof(client_t); ++i) {
-             its_command.push_back(
-                     reinterpret_cast<const byte_t*>(&_client)[i]);
-        }
-
-        if (_entry == routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE ||
-                _entry == routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE) {
-            //Service
-            uint32_t its_service_entry_size = uint32_t(sizeof(service_t)
-                    + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t));
-            for (uint32_t i = 0; i < sizeof(its_service_entry_size); ++i) {
-                its_command.push_back(
-                        reinterpret_cast<const byte_t*>(&its_service_entry_size)[i]);
-            }
-            for (uint32_t i = 0; i < sizeof(service_t); ++i) {
-                its_command.push_back(
-                        reinterpret_cast<const byte_t*>(&_service)[i]);
-            }
-            // Instance
-            for (uint32_t i = 0; i < sizeof(instance_t); ++i) {
-                its_command.push_back(
-                        reinterpret_cast<const byte_t*>(&_instance)[i]);
-            }
-            // Major version
-            for (uint32_t i = 0; i < sizeof(major_version_t); ++i) {
-                its_command.push_back(
-                        reinterpret_cast<const byte_t*>(&_major)[i]);
-            }
-            // Minor version
-            for (uint32_t i = 0; i < sizeof(minor_version_t); ++i) {
-                its_command.push_back(
-                        reinterpret_cast<const byte_t*>(&_minor)[i]);
-            }
-        }
-
-        // File client size
-        its_entry_size = its_command.size() - its_entry_size - uint32_t(sizeof(uint32_t));
-        std::memcpy(&its_command[its_size_pos], &its_entry_size, sizeof(uint32_t));
+        auto its_command = client_routing_info_[_target];
 
         // File overall size
         std::size_t its_size = its_command.size() - VSOMEIP_COMMAND_PAYLOAD_POS;
@@ -937,7 +906,81 @@ void routing_manager_stub::send_routing_info_delta(client_t _target,
         } else {
             VSOMEIP_ERROR << "Routing info exceeds maximum message size: Can't send!";
         }
+
+        client_routing_info_.erase(_target);
     }
+}
+
+void routing_manager_stub::insert_client_routing_info(client_t _target,
+        routing_info_entry_e _entry,
+        client_t _client, service_t _service,
+        instance_t _instance,
+        major_version_t _major,
+        minor_version_t _minor) {
+
+    if (client_routing_info_.find(_target) == client_routing_info_.end()) {
+        return;
+    }
+
+    connection_matrix_[_target].insert(_client);
+
+    auto its_command = client_routing_info_[_target];
+
+    // Routing Info State Change
+    for (uint32_t i = 0; i < sizeof(routing_info_entry_e); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_entry)[i]);
+    }
+
+    std::size_t its_size_pos = its_command.size();
+    std::size_t its_entry_size = its_command.size();
+
+    // Client size placeholder
+    byte_t placeholder = 0x0;
+    for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
+        its_command.push_back(placeholder);
+    }
+    // Client
+    for (uint32_t i = 0; i < sizeof(client_t); ++i) {
+         its_command.push_back(
+                 reinterpret_cast<const byte_t*>(&_client)[i]);
+    }
+
+    if (_entry == routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE ||
+            _entry == routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE) {
+        //Service
+        uint32_t its_service_entry_size = uint32_t(sizeof(service_t)
+                + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t));
+        for (uint32_t i = 0; i < sizeof(its_service_entry_size); ++i) {
+            its_command.push_back(
+                    reinterpret_cast<const byte_t*>(&its_service_entry_size)[i]);
+        }
+        for (uint32_t i = 0; i < sizeof(service_t); ++i) {
+            its_command.push_back(
+                    reinterpret_cast<const byte_t*>(&_service)[i]);
+        }
+        // Instance
+        for (uint32_t i = 0; i < sizeof(instance_t); ++i) {
+            its_command.push_back(
+                    reinterpret_cast<const byte_t*>(&_instance)[i]);
+        }
+        // Major version
+        for (uint32_t i = 0; i < sizeof(major_version_t); ++i) {
+            its_command.push_back(
+                    reinterpret_cast<const byte_t*>(&_major)[i]);
+        }
+        // Minor version
+        for (uint32_t i = 0; i < sizeof(minor_version_t); ++i) {
+            its_command.push_back(
+                    reinterpret_cast<const byte_t*>(&_minor)[i]);
+        }
+    }
+
+    // File client size
+    its_entry_size = its_command.size() - its_entry_size - uint32_t(sizeof(uint32_t));
+    std::memcpy(&its_command[its_size_pos], &its_entry_size, sizeof(uint32_t));
+
+    client_routing_info_[_target] = its_command;
 }
 
 void routing_manager_stub::inform_requesters(client_t _hoster, service_t _service,
@@ -958,14 +1001,18 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                     if (_hoster != VSOMEIP_ROUTING_CLIENT &&
                             _hoster != host_->get_client()) {
                         if (!is_already_connected(_hoster, its_client.first)) {
-                            send_routing_info_delta(_hoster,
+                            create_client_routing_info(_hoster);
+                            insert_client_routing_info(_hoster,
                                     routing_info_entry_e::RIE_ADD_CLIENT,
                                     its_client.first);
+                            send_client_routing_info(_hoster);
                         }
                     }
                 }
-                send_routing_info_delta(its_client.first, _entry, _hoster,
+                create_client_routing_info(its_client.first);
+                insert_client_routing_info(its_client.first, _entry, _hoster,
                         _service, _instance, _major, _minor);
+                send_client_routing_info(its_client.first);
             }
         }
     }
@@ -1223,7 +1270,7 @@ void routing_manager_stub::check_watchdog() {
                     }
                 }
                 for (auto i : lost) {
-                    deregister_erroneous_client(i);
+                    host_->handle_client_error(i);
                 }
                 start_watchdog();
             };
@@ -1373,10 +1420,10 @@ void routing_manager_stub::on_ping_timer_expired(
     }
 
     for (const client_t client : timed_out_clients) {
-        // client did not respond to ping. Report client_endpoint_error
-        // in order to accept pending offers trying to replace the offers of
-        // the now not responding client
-        host_->on_clientendpoint_error(client);
+        // Client did not respond to ping. Report client_error in order to
+        // accept pending offers trying to replace the offers of the client
+        // that seems to be gone.
+        host_->handle_client_error(client);
     }
     if (pinged_clients_remaining) {
         boost::system::error_code ec;
@@ -1435,72 +1482,98 @@ bool routing_manager_stub::is_registered(client_t _client) const {
     return (routing_info_.find(_client) != routing_info_.end());
 }
 
-void routing_manager_stub::deregister_erroneous_client(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
+void routing_manager_stub::update_registration(client_t _client,
+        registration_type_e _type) {
+
     VSOMEIP_INFO << "Application/Client "
-        << std::hex << std::setw(4) << std::setfill('0')
-        << _client << " is deregistering.";
-    pending_client_registrations_[_client].push_back(registration_type_e::DEREGISTER_ERROR_CASE);
+        << std::hex << std::setw(4) << std::setfill('0') << _client
+        << " is "
+        << (_type == registration_type_e::REGISTER ?
+                "registering." : "deregistering.");
+
+    std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
+    pending_client_registrations_[_client].push_back(_type);
     client_registration_condition_.notify_one();
+
+    if (_type != registration_type_e::REGISTER) {
+        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        used_client_ids_.erase(_client);
+    }
 }
 
 client_t routing_manager_stub::get_client() const {
     return host_->get_client();
 }
 
-void routing_manager_stub::on_request_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
-            minor_version_t _minor) {
-
+void routing_manager_stub::handle_requests(const client_t _client, std::set<service_data_t>& _requests) {
+    if (!_requests.size()) {
+        return;
+    }
     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-    service_requests_[_client][_service][_instance] = std::make_pair(_major, _minor);
-
-    for (auto found_client : routing_info_) {
-        auto found_service = found_client.second.second.find(_service);
-        if (found_service != found_client.second.second.end()) {
-            if (_instance == ANY_INSTANCE) {
-                if (found_client.first != VSOMEIP_ROUTING_CLIENT &&
-                        found_client.first != host_->get_client()) {
-                    if (!is_already_connected(found_client.first, _client)) {
-                        send_routing_info_delta(found_client.first,
-                                routing_info_entry_e::RIE_ADD_CLIENT, _client);
-                    }
-                }
-                if (_client != VSOMEIP_ROUTING_CLIENT &&
-                        _client != host_->get_client()) {
-                    for (auto instance : found_service->second) {
-                        send_routing_info_delta(_client,
-                                routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
-                                found_client.first, _service, instance.first,
-                                instance.second.first, instance.second.second);
-                    }
-                }
-
-                break;
-            } else {
-                auto found_instance = found_service->second.find(_instance);
-                if (found_instance != found_service->second.end()) {
+    create_client_routing_info(_client);
+    for (auto request : _requests) {
+        service_requests_[_client][request.service_][request.instance_]
+                                                     = std::make_pair(request.major_, request.minor_);
+        for (auto found_client : routing_info_) {
+            auto found_service = found_client.second.second.find(request.service_);
+            if (found_service != found_client.second.second.end()) {
+                if (request.instance_ == ANY_INSTANCE) {
                     if (found_client.first != VSOMEIP_ROUTING_CLIENT &&
                             found_client.first != host_->get_client()) {
                         if (!is_already_connected(found_client.first, _client)) {
-                            send_routing_info_delta(found_client.first,
+                            if (_client == found_client.first) {
+                                insert_client_routing_info(found_client.first,
                                     routing_info_entry_e::RIE_ADD_CLIENT, _client);
+                            } else {
+                                create_client_routing_info(found_client.first);
+                                insert_client_routing_info(found_client.first,
+                                        routing_info_entry_e::RIE_ADD_CLIENT, _client);
+                                send_client_routing_info(found_client.first);
+                            }
                         }
                     }
                     if (_client != VSOMEIP_ROUTING_CLIENT &&
                             _client != host_->get_client()) {
-                        send_routing_info_delta(_client,
-                                routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
-                                found_client.first, _service, _instance,
-                                found_instance->second.first,
-                                found_instance->second.second);
+                        for (auto instance : found_service->second) {
+                            insert_client_routing_info(_client,
+                                    routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
+                                    found_client.first, request.service_, instance.first,
+                                    instance.second.first, instance.second.second);
+                        }
                     }
-
                     break;
+                } else {
+                    auto found_instance = found_service->second.find(request.instance_);
+                    if (found_instance != found_service->second.end()) {
+                        if (found_client.first != VSOMEIP_ROUTING_CLIENT &&
+                                found_client.first != host_->get_client()) {
+                            if (!is_already_connected(found_client.first, _client)) {
+                                if (_client == found_client.first) {
+                                    insert_client_routing_info(found_client.first,
+                                        routing_info_entry_e::RIE_ADD_CLIENT, _client);
+                                } else {
+                                    create_client_routing_info(found_client.first);
+                                    insert_client_routing_info(found_client.first,
+                                        routing_info_entry_e::RIE_ADD_CLIENT, _client);
+                                    send_client_routing_info(found_client.first);
+                                }
+                            }
+                        }
+                        if (_client != VSOMEIP_ROUTING_CLIENT &&
+                                _client != host_->get_client()) {
+                            insert_client_routing_info(_client,
+                                    routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
+                                    found_client.first, request.service_, request.instance_,
+                                    found_instance->second.first,
+                                    found_instance->second.second);
+                        }
+                        break;
+                    }
                 }
             }
         }
     }
+    send_client_routing_info(_client);
 }
 
 #ifndef _WIN32
@@ -1508,5 +1581,56 @@ bool routing_manager_stub::check_credentials(client_t _client, uid_t _uid, gid_t
     return configuration_->check_credentials(_client, _uid, _gid);
 }
 #endif
+
+void routing_manager_stub::send_identify_request_command(std::shared_ptr<vsomeip::endpoint> _target,
+        service_t _service, instance_t _instance, major_version_t _major, bool _reliable) {
+    if (_target) {
+        byte_t its_command[VSOMEIP_ID_REQUEST_COMMAND_SIZE];
+        uint32_t its_size = VSOMEIP_ID_REQUEST_COMMAND_SIZE
+                - VSOMEIP_COMMAND_HEADER_SIZE;
+        its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_ID_REQUEST;
+        client_t client = get_client();
+        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client,
+                sizeof(client));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+                sizeof(its_size));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_service,
+                sizeof(_service));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 2], &_instance,
+                sizeof(_instance));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_major,
+                sizeof(_major));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 5], &_reliable,
+                sizeof(_reliable));
+
+        _target->send(its_command, sizeof(its_command));
+    }
+}
+
+void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code const &_error) {
+    std::set<client_t> used_client_ids;
+    {
+        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        used_client_ids = used_client_ids_;
+        used_client_ids_.clear();
+    }
+
+    std::set<client_t> erroneous_clients;
+    if (!_error) {
+        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        for (auto client : used_client_ids) {
+            if (client != VSOMEIP_ROUTING_CLIENT && client != get_client()) {
+                if (routing_info_.find(client) == routing_info_.end()) {
+                    erroneous_clients.insert(client);
+                }
+            }
+        }
+    }
+    for (auto client : erroneous_clients) {
+        VSOMEIP_WARNING << "Routinger Manager 0x" << std::hex << get_client()
+                        << " : Release died Client 0x" << std::hex << client;
+        host_->handle_client_error(client);
+    }
+}
 
 } // namespace vsomeip
