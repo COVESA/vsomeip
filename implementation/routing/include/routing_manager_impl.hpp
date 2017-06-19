@@ -400,6 +400,9 @@ private:
                             client_t, client_t>>> pending_offers_;
 
     std::mutex pending_subscription_mutex_;
+
+    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::protector>> custom_protectors;
+    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::checker>> custom_checkers;
 };
 
 }  // namespace vsomeip

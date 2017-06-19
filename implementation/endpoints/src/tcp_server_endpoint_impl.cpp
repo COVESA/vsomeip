@@ -259,25 +259,31 @@ void tcp_server_endpoint_impl::connection::receive() {
     if(socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         size_t buffer_size = its_capacity - recv_buffer_size_;
-        if (missing_capacity_) {
-            if (missing_capacity_ > MESSAGE_SIZE_UNLIMITED) {
-                VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!";
-                return;
+        try {
+            if (missing_capacity_) {
+                if (missing_capacity_ > MESSAGE_SIZE_UNLIMITED) {
+                    VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!";
+                    return;
+                }
+                const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
+                if (its_capacity < its_required_capacity) {
+                    recv_buffer_.reserve(its_required_capacity);
+                    recv_buffer_.resize(its_required_capacity, 0x0);
+                }
+                buffer_size = missing_capacity_;
+                missing_capacity_ = 0;
+            } else if (buffer_shrink_threshold_
+                    && shrink_count_ > buffer_shrink_threshold_
+                    && recv_buffer_size_ == 0) {
+                recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
+                recv_buffer_.shrink_to_fit();
+                buffer_size = recv_buffer_size_initial_;
+                shrink_count_ = 0;
             }
-            const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
-            if (its_capacity < its_required_capacity) {
-                recv_buffer_.reserve(its_required_capacity);
-                recv_buffer_.resize(its_required_capacity, 0x0);
-            }
-            buffer_size = missing_capacity_;
-            missing_capacity_ = 0;
-        } else if (buffer_shrink_threshold_
-                && shrink_count_ > buffer_shrink_threshold_
-                && recv_buffer_size_ == 0) {
-            recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
-            recv_buffer_.shrink_to_fit();
-            buffer_size = recv_buffer_size_initial_;
-            shrink_count_ = 0;
+        } catch (const std::exception &e) {
+            handle_recv_buffer_exception(e);
+            // don't start receiving again
+            return;
         }
         socket_.async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
                 std::bind(&tcp_server_endpoint_impl::connection::receive_cbk,
@@ -453,42 +459,51 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     remote_address_, remote_port_);
                         }
                     }
-                } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED
-                        && current_message_size > max_message_size_) {
-                    if (its_server->has_enabled_magic_cookies_) {
-                        VSOMEIP_ERROR << "Received a TCP message which exceeds "
-                                      << "maximum message size ("
-                                      << std::dec << current_message_size
-                                      << " > " << std::dec << max_message_size_
-                                      << "). Magic Cookies are enabled: "
-                                      << "Resetting receiver.";
-                        recv_buffer_size_ = 0;
-                    } else {
-                        VSOMEIP_ERROR << "Received a TCP message which exceeds "
-                                      << "maximum message size ("
-                                      << std::dec << current_message_size
-                                      << " > " << std::dec << max_message_size_
-                                      << ") Magic cookies are disabled: "
-                                      << "Connection will be disabled!";
-                        recv_buffer_size_ = 0;
-                        return;
-                    }
                 }
 
                 if (!has_full_message) {
-                    if (current_message_size > recv_buffer_size_) {
+                    if (max_message_size_ != MESSAGE_SIZE_UNLIMITED
+                            && current_message_size > max_message_size_) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                        recv_buffer_size_ = 0;
+                        recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
+                        recv_buffer_.shrink_to_fit();
+                        if (its_server->has_enabled_magic_cookies_) {
+                            VSOMEIP_ERROR << "Received a TCP message which exceeds "
+                                          << "maximum message size ("
+                                          << std::dec << current_message_size
+                                          << " > " << std::dec << max_message_size_
+                                          << "). Magic Cookies are enabled: "
+                                          << "Resetting receiver. local: "
+                                          << get_address_port_local() << " remote: "
+                                          << get_address_port_remote();
+                        } else {
+                            VSOMEIP_ERROR << "Received a TCP message which exceeds "
+                                          << "maximum message size ("
+                                          << std::dec << current_message_size
+                                          << " > " << std::dec << max_message_size_
+                                          << ") Magic cookies are disabled: "
+                                          << "Connection will be disabled! local: "
+                                          << get_address_port_local() << " remote: "
+                                          << get_address_port_remote();
+                            return;
+                        }
+                    } else if (current_message_size > recv_buffer_size_) {
                         missing_capacity_ = current_message_size
                                 - static_cast<std::uint32_t>(recv_buffer_size_);
                     } else if (VSOMEIP_SOMEIP_HEADER_SIZE > recv_buffer_size_) {
                         missing_capacity_ = VSOMEIP_SOMEIP_HEADER_SIZE
                                 - static_cast<std::uint32_t>(recv_buffer_size_);
                     } else {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
                         VSOMEIP_ERROR << "tse::c<" << this
                                 << ">rcb: recv_buffer_size is: " << std::dec
                                 << recv_buffer_size_ << " but couldn't read "
                                 "out message_size. recv_buffer_capacity: "
                                 << recv_buffer_.capacity()
-                                << " its_iteration_gap: " << its_iteration_gap;
+                                << " its_iteration_gap: " << its_iteration_gap
+                                << "local: " << get_address_port_local()
+                                << " remote: " << get_address_port_remote();
                     }
                 }
             } while (has_full_message && recv_buffer_size_);
@@ -568,6 +583,62 @@ void tcp_server_endpoint_impl::connection::set_remote_info(
     remote_ = _remote;
     remote_address_ = _remote.address();
     remote_port_ = _remote.port();
+}
+
+const std::string tcp_server_endpoint_impl::connection::get_address_port_remote() const {
+    std::string its_address_port;
+    its_address_port.reserve(21);
+    boost::system::error_code ec;
+    its_address_port += remote_address_.to_string(ec);
+    its_address_port += ":";
+    its_address_port += std::to_string(remote_port_);
+    return its_address_port;
+}
+
+const std::string tcp_server_endpoint_impl::connection::get_address_port_local() const {
+    std::string its_address_port;
+    its_address_port.reserve(21);
+    boost::system::error_code ec;
+    if (socket_.is_open()) {
+        endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
+        if (!ec) {
+            its_address_port += its_local_endpoint.address().to_string(ec);
+            its_address_port += ":";
+            its_address_port += std::to_string(its_local_endpoint.port());
+        }
+    }
+    return its_address_port;
+}
+
+void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
+        const std::exception &_e) {
+    std::stringstream its_message;
+    its_message <<"tcp_server_endpoint_impl::connection catched exception"
+            << _e.what() << " local: " << get_address_port_local()
+            << " remote: " << get_address_port_remote()
+            << " shutting down connection. Start of buffer: ";
+
+    for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
+        its_message << std::setw(2) << std::setfill('0') << std::hex
+            << (int) (recv_buffer_[i]) << " ";
+    }
+
+    its_message << " Last 16 Bytes captured: ";
+    for (int i = 15; recv_buffer_size_ > 15 && i >= 0; i--) {
+        its_message << std::setw(2) << std::setfill('0') << std::hex
+            << (int) (recv_buffer_[i]) << " ";
+    }
+    VSOMEIP_ERROR << its_message.str();
+    recv_buffer_.clear();
+    if (socket_.is_open()) {
+        boost::system::error_code its_error;
+        socket_.shutdown(socket_.shutdown_both, its_error);
+        socket_.close(its_error);
+    }
+    std::shared_ptr<tcp_server_endpoint_impl> its_server = server_.lock();
+    if (its_server) {
+        its_server->remove_connection(this);
+    }
 }
 
 // Dummies

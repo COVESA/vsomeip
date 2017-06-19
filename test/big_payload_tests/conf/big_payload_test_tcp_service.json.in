@@ -46,6 +46,15 @@
                 "port":"30509",
                 "enable-magic-cookies":"false"
             }
+        },
+        {
+            "service":"0x1237",
+            "instance":"0x01",
+            "reliable":
+            {
+                "port":"30509",
+                "enable-magic-cookies":"false"
+            }
         }
     ],
     "payload-sizes":

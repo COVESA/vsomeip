@@ -296,3 +296,9 @@ v2.6.2
 - Activate TCP-Keep-Alive for TCP endpoints
 - Debouncing of request-service messages (routing info performance)
 - Fixed false session-id handling of identification request
+
+v2.6.3
+- Improve reboot detection of other nodes
+- Introduce 'max-payload-size-reliable' json file parameter which can be used to
+  globally limit the maximum allowed payload size for TCP communication
+- Added CRC checksum calculation for bit optimized messages

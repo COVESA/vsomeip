@@ -586,39 +586,56 @@ bool service_discovery_impl::is_reboot(
         bool _reboot_flag, session_t _session) {
     bool result(false);
 
-    auto its_last_session = sessions_received_.find(_sender);
+    auto its_received = sessions_received_.find(_sender);
     bool is_multicast = _destination.is_multicast();
 
-    session_t its_unicast_id = (is_multicast ? 0 : _session);
-    session_t its_multicast_id = (is_multicast ? _session : 0);
+    session_t its_multicast_session(0), its_unicast_session(0);
+    bool its_multicast_reboot_flag(true), its_unicast_reboot_flag(true);
 
-    if (its_last_session == sessions_received_.end()) {
+    if (is_multicast) {
+        its_multicast_session = _session;
+        its_multicast_reboot_flag = _reboot_flag;
+    } else {
+        its_unicast_session = _session;
+        its_unicast_reboot_flag = _reboot_flag;
+    }
+
+    if (its_received == sessions_received_.end()) {
         sessions_received_[_sender]
-            = std::make_tuple(its_multicast_id, its_unicast_id, _reboot_flag);
+            = std::make_tuple(its_multicast_session, its_unicast_session,
+            		its_multicast_reboot_flag, its_unicast_reboot_flag);
     } else {
         // Reboot detection: Either the flag has changed from false to true,
         // or the session identifier overrun while the flag is true
-        if (its_last_session != sessions_received_.end()) {
-            if (!std::get<2>(its_last_session->second) && _reboot_flag) {
-                result = true;
-            } else {
-                session_t its_last_id = (is_multicast ?
-                                         std::get<0>(its_last_session->second) :
-                                         std::get<1>(its_last_session->second));
+		if ((is_multicast && !std::get<2>(its_received->second) && _reboot_flag)
+				|| (!is_multicast && !std::get<3>(its_received->second) && _reboot_flag)) {
+			result = true;
+		} else {
+			session_t its_old_session;
+			bool its_old_reboot_flag;
 
-                if (std::get<2>(its_last_session->second) && _reboot_flag &&
-                        its_last_id >= _session) {
-                    result = true;
-                }
-            }
-        }
+			if (is_multicast) {
+				its_old_session = std::get<0>(its_received->second);
+				its_old_reboot_flag = std::get<2>(its_received->second);
+			} else {
+				its_old_session = std::get<1>(its_received->second);
+				its_old_reboot_flag = std::get<3>(its_received->second);
+			}
+
+			if (its_old_reboot_flag && _reboot_flag
+					&& its_old_session >= _session) {
+				result = true;
+			}
+		}
 
         if (result == false) {
-            // no reboot -> update session
+            // no reboot -> update session/flag
             if (is_multicast) {
-                std::get<0>(its_last_session->second) = its_multicast_id;
+                std::get<0>(its_received->second) = its_multicast_session;
+                std::get<2>(its_received->second) = its_multicast_reboot_flag;
             } else {
-                std::get<1>(its_last_session->second) = its_unicast_id;
+                std::get<1>(its_received->second) = its_unicast_session;
+                std::get<3>(its_received->second) = its_multicast_reboot_flag;
             }
         } else {
             // reboot -> reset the session
@@ -1037,6 +1054,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
         // Expire all subscriptions / services in case of reboot
         if (is_reboot(_sender, _destination,
                 its_message->get_reboot_flag(), its_message->get_session())) {
+            VSOMEIP_INFO << "Reboot detected: IP=" << _sender.to_string();
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
             host_->on_reboot(_sender);

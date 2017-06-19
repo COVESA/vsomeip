@@ -8,7 +8,7 @@ project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
 set (VSOMEIP_MINOR_VERSION 6)
-set (VSOMEIP_PATCH_VERSION 2)
+set (VSOMEIP_PATCH_VERSION 3)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -123,7 +123,13 @@ file(GLOB vsomeip_SRC
     "implementation/runtime/src/*.cpp"
     "implementation/utility/src/*.cpp"
 )
+
+file(GLOB_RECURSE vsomeip_e2e_SRC
+    "implementation/e2e_protection/src/*.cpp"
+)
+
 list(SORT vsomeip_SRC)
+list(SORT vsomeip_e2e_SRC)
 
 add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
 
@@ -142,7 +148,7 @@ else()
     set(USE_RT "rt")
 endif()
 
-add_library(vsomeip SHARED ${vsomeip_SRC})
+add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
 set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 # PRIVATE means the listed libraries won't be included in the "link interface",
 # meaning the exported vsomeipTargets.cmake targets won't try to link against

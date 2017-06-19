@@ -46,6 +46,10 @@ private:
     void connect();
     void receive();
     void calculate_shrink_count();
+    const std::string get_address_port_remote() const;
+    const std::string get_address_port_local() const;
+    void handle_recv_buffer_exception(const std::exception &_e);
+
 
     const std::uint32_t recv_buffer_size_initial_;
     message_buffer_t recv_buffer_;

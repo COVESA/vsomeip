@@ -21,6 +21,9 @@
 #include "internal.hpp"
 #include "trace.hpp"
 
+#include "../../e2e_protection/include/e2exf/config.hpp"
+#include "e2e.hpp"
+
 namespace vsomeip {
 
 class event;
@@ -77,7 +80,7 @@ public:
     virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
-    virtual std::uint32_t get_message_size_reliable(const std::string& _address,
+    virtual std::uint32_t get_max_message_size_reliable(const std::string& _address,
                                                     std::uint16_t _port) const = 0;
     virtual std::uint32_t get_buffer_shrink_threshold() const = 0;
 
@@ -125,6 +128,10 @@ public:
     virtual bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const = 0;
     virtual bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
+
+    //E2E
+    virtual std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const = 0;
+    virtual bool is_e2e_enabled() const = 0;
 };
 
 } // namespace vsomeip

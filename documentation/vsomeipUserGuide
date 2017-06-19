@@ -582,6 +582,12 @@ The maximum allowed payload size for node internal communication in bytes. By
 default the payload size for node internal communication is unlimited. It can be
 limited via this setting.
 
+* `max-payload-size-reliable`
++
+The maximum allowed payload size for TCP communication in
+bytes. By default the payload size for TCP communication is
+unlimited. It can be limited via this setting.
+
 * `buffer-shrink-threshold`
 +
 The number of processed messages which are half the size or smaller than the

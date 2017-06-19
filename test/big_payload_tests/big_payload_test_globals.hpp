@@ -20,6 +20,7 @@ namespace big_payload_test {
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED = 0x1235;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_RANDOM = 0x1236;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED_GENERAL = 0x1237;
 
     constexpr vsomeip::service_t TEST_SERVICE_INSTANCE_ID = 0x1;
     constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
@@ -27,6 +28,7 @@ namespace big_payload_test {
     enum test_mode {
         RANDOM,
         LIMITED,
+        LIMITED_GENERAL,
         UNKNOWN
     };
 }

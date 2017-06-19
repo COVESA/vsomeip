@@ -76,6 +76,7 @@ private:
         typedef boost::shared_ptr<connection> ptr;
 
         static ptr create(std::weak_ptr<local_server_endpoint_impl> _server,
+                          std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold);
         socket_type & get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
@@ -90,18 +91,23 @@ private:
     private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
                    std::uint32_t _recv_buffer_size_initial,
+                   std::uint32_t _max_message_size,
                    std::uint32_t _buffer_shrink_threshold);
 
         void send_magic_cookie();
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
         void calculate_shrink_count();
+        const std::string get_path_local() const;
+        const std::string get_path_remote() const;
+        void handle_recv_buffer_exception(const std::exception &_e);
 
         std::mutex socket_mutex_;
         local_server_endpoint_impl::socket_type socket_;
         std::weak_ptr<local_server_endpoint_impl> server_;
 
-        const uint32_t recv_buffer_size_initial_;
+        const std::uint32_t recv_buffer_size_initial_;
+        const std::uint32_t max_message_size_;
 
         message_buffer_t recv_buffer_;
         size_t recv_buffer_size_;

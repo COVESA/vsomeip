@@ -60,6 +60,7 @@ configuration_impl::configuration_impl()
       sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
       max_configured_message_size_(0),
       max_local_message_size_(0),
+      max_reliable_message_size_(0),
       buffer_shrink_threshold_(0),
       trace_(std::make_shared<trace>()),
       watchdog_(std::make_shared<watchdog>()),
@@ -68,7 +69,8 @@ configuration_impl::configuration_impl()
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS),
       policy_enabled_(false),
-      check_credentials_(false) {
+      check_credentials_(false),
+      e2e_enabled_(false) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
@@ -81,6 +83,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       mandatory_(_other.mandatory_),
       max_configured_message_size_(_other.max_configured_message_size_),
       max_local_message_size_(_other.max_local_message_size_),
+      max_reliable_message_size_(_other.max_reliable_message_size_),
       buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS) {
@@ -126,6 +129,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     policy_enabled_ = _other.policy_enabled_;
     check_credentials_ = _other.check_credentials_;
+    e2e_enabled_ = _other.e2e_enabled_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -315,6 +319,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
             load_clients(e);
             load_watchdog(e);
             load_selective_broadcasts_support(e);
+            load_e2e(e);
         }
     }
 
@@ -1290,6 +1295,7 @@ void configuration_impl::load_payload_sizes(const element &_element) {
     const std::string payload_sizes("payload-sizes");
     const std::string max_local_payload_size("max-payload-size-local");
     const std::string buffer_shrink_threshold("buffer-shrink-threshold");
+    const std::string max_reliable_payload_size("max-payload-size-reliable");
     try {
         if (_element.tree_.get_child_optional(max_local_payload_size)) {
             auto mpsl = _element.tree_.get_child(max_local_payload_size);
@@ -1300,6 +1306,18 @@ void configuration_impl::load_payload_sizes(const element &_element) {
                         s.c_str(), NULL, 10) + 16);
             } catch (const std::exception &e) {
                 VSOMEIP_ERROR<< __func__ << ": " << max_local_payload_size
+                        << " " << e.what();
+            }
+        }
+        if (_element.tree_.get_child_optional(max_reliable_payload_size)) {
+            auto mpsl = _element.tree_.get_child(max_reliable_payload_size);
+            std::string s(mpsl.data());
+            try {
+                // add 16 Byte for the SOME/IP header
+                max_reliable_message_size_ = static_cast<std::uint32_t>(std::stoul(
+                        s.c_str(), NULL, 10) + 16);
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR<< __func__ << ": " << max_reliable_payload_size
                         << " " << e.what();
             }
         }
@@ -1369,6 +1387,19 @@ void configuration_impl::load_payload_sizes(const element &_element) {
                         << max_local_payload_size << " will be increased to "
                         << max_configured_message_size_ - 16 << " to ensure "
                         << "local message distribution.";
+                max_local_message_size_ = max_configured_message_size_;
+            }
+            if (max_local_message_size_ != 0
+                    && max_reliable_message_size_ != 0
+                    && max_reliable_message_size_ > max_local_message_size_) {
+                VSOMEIP_WARNING << max_local_payload_size << " ("
+                        << max_local_message_size_ - 16 << ") is configured"
+                        << " smaller than " << max_reliable_payload_size << " ("
+                        << max_reliable_message_size_ - 16 << "). "
+                        << max_local_payload_size << " will be increased to "
+                        << max_reliable_message_size_ - 16 << " to ensure "
+                        << "local message distribution.";
+                max_local_message_size_ = max_reliable_message_size_;
             }
         }
     } catch (...) {
@@ -2018,18 +2049,18 @@ std::uint32_t configuration_impl::get_max_message_size_local() const {
             + sizeof(bool) + sizeof(bool) + sizeof(client_t));
 }
 
-std::uint32_t configuration_impl::get_message_size_reliable(
+std::uint32_t configuration_impl::get_max_message_size_reliable(
         const std::string& _address, std::uint16_t _port) const {
-    auto its_address = message_sizes_.find(_address);
+    const auto its_address = message_sizes_.find(_address);
     if(its_address != message_sizes_.end()) {
-        auto its_port = its_address->second.find(_port);
+        const auto its_port = its_address->second.find(_port);
         if(its_port != its_address->second.end()) {
             return its_port->second;
         }
     }
-    return (VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ?
-            MESSAGE_SIZE_UNLIMITED :
-            VSOMEIP_MAX_TCP_MESSAGE_SIZE;
+    return (max_reliable_message_size_ == 0) ?
+            ((VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ? MESSAGE_SIZE_UNLIMITED :
+                    VSOMEIP_MAX_TCP_MESSAGE_SIZE) : max_reliable_message_size_;
 }
 
 std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
@@ -2210,6 +2241,117 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     }
 
     return !check_credentials_;
+}
+
+bool configuration_impl::is_e2e_enabled() const {
+    return e2e_enabled_;
+}
+
+void configuration_impl::load_e2e(const element &_element) {
+#ifdef _WIN32
+        return;
+#endif
+    try {
+        auto optional = _element.tree_.get_child_optional("e2e");
+        if (!optional) {
+            return;
+        }
+        auto found_e2e = _element.tree_.get_child("e2e");
+        for (auto its_e2e = found_e2e.begin();
+                its_e2e != found_e2e.end(); ++its_e2e) {
+            if (its_e2e->first == "e2e_enabled") {
+                if (its_e2e->second.data() == "true") {
+                    e2e_enabled_ = true;
+                }
+            }
+            if (its_e2e->first == "protected") {
+                for (auto its_protected = its_e2e->second.begin();
+                        its_protected != its_e2e->second.end(); ++its_protected) {
+                    load_e2e_protected(its_protected->second);
+                }
+            }
+        }
+    } catch (...) {
+    }
+}
+
+void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_tree) {
+
+    uint16_t data_id(0);
+    std::string variant("");
+    std::string profile("");
+    uint16_t service_id(0);
+    uint16_t event_id(0);
+
+    uint16_t crc_offset(0);
+    uint8_t  data_id_mode(0);
+    uint16_t data_length(0);
+
+    for (auto l = _tree.begin(); l != _tree.end(); ++l) {
+        std::stringstream its_converter;
+        uint16_t tmp;
+        if (l->first == "data_id" && data_id == 0) {
+            std::string value = l->second.data();
+            if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
+                its_converter << std::hex << value;
+            } else {
+                its_converter << std::dec << value;
+            }
+            its_converter >> data_id;
+        } else if (l->first == "service_id") {
+            std::string value = l->second.data();
+            if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
+                its_converter << std::hex << value;
+            } else {
+                its_converter << std::dec << value;
+            }
+            its_converter >> service_id;
+        } else if (l->first == "event_id") {
+            std::string value = l->second.data();
+            if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
+                its_converter << std::hex << value;
+            } else {
+                its_converter << std::dec << value;
+            }
+            its_converter >> event_id;
+        } else if (l->first == "variant") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> variant;
+        } else if (l->first == "profile") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> profile;
+        } else if (l->first == "crc_offset") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> crc_offset;
+        } else if (l->first == "data_id_mode") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> tmp;
+            data_id_mode = static_cast<uint8_t>(tmp);
+        } else if (l->first == "data_length") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> data_length;
+        }
+    }
+    e2exf::data_identifier its_data_identifier = {service_id, event_id};
+    e2e_configuration_[its_data_identifier] = std::make_shared<cfg::e2e>(
+        data_id,
+        variant,
+        profile,
+        service_id,
+        event_id,
+        crc_offset,
+        data_id_mode,
+        data_length
+    );
+}
+
+std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> configuration_impl::get_e2e_configuration() const {
+    return e2e_configuration_;
 }
 
 }  // namespace config

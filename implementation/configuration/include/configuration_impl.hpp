@@ -19,6 +19,8 @@
 #include "watchdog.hpp"
 #include "service_instance_range.hpp"
 #include "policy.hpp"
+#include "../../e2e_protection/include/e2exf/config.hpp"
+#include "e2e.hpp"
 
 namespace vsomeip {
 namespace cfg {
@@ -91,7 +93,7 @@ public:
             eventgroup_t _eventgroup) const;
 
     VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
-    VSOMEIP_EXPORT std::uint32_t get_message_size_reliable(const std::string& _address,
+    VSOMEIP_EXPORT std::uint32_t get_max_message_size_reliable(const std::string& _address,
                                            std::uint16_t _port) const;
     VSOMEIP_EXPORT std::uint32_t get_buffer_shrink_threshold() const;
 
@@ -137,6 +139,10 @@ public:
     VSOMEIP_EXPORT bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const;
     VSOMEIP_EXPORT bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const;
+    
+    //E2E
+    VSOMEIP_EXPORT std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const;
+    VSOMEIP_EXPORT bool is_e2e_enabled() const;
 
 private:
     void read_data(const std::set<std::string> &_input,
@@ -209,6 +215,9 @@ private:
     void set_mandatory(const std::string &_input);
     void trim(std::string &_s);
 
+    void load_e2e(const element &_element);
+    void load_e2e_protected(const boost::property_tree::ptree &_tree);
+
 private:
     std::mutex mutex_;
 
@@ -260,6 +269,7 @@ protected:
     std::map<std::string, std::map<std::uint16_t, std::uint32_t>> message_sizes_;
     std::uint32_t max_configured_message_size_;
     std::uint32_t max_local_message_size_;
+    std::uint32_t max_reliable_message_size_;
     std::uint32_t buffer_shrink_threshold_;
 
     std::shared_ptr<trace> trace_;
@@ -308,6 +318,9 @@ protected:
     std::map<client_t, std::shared_ptr<policy>> policies_;
     bool policy_enabled_;
     bool check_credentials_;
+
+    bool e2e_enabled_;
+    std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> e2e_configuration_;
 };
 
 } // namespace cfg

@@ -14,6 +14,8 @@
 /test/big_payload_tests/big_payload_test_tcp_service.json
 /test/big_payload_tests/big_payload_test_tcp_client_random.json
 /test/big_payload_tests/big_payload_test_tcp_service_random.json
+/test/big_payload_tests/big_payload_test_tcp_client_limited_general.json
+/test/big_payload_tests/big_payload_test_tcp_service_limited_general.json
 /test/magic_cookies_tests/magic_cookies_test_client.json
 /test/magic_cookies_tests/magic_cookies_test_service.json
 /test/payload_tests/external_local_payload_test_client_external.json

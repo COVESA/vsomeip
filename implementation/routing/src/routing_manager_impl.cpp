@@ -43,6 +43,17 @@
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
 
+#include "../../e2e_protection/include/buffer/buffer.hpp"
+#include "../../e2e_protection/include/e2exf/config.hpp"
+
+#include "../../e2e_protection/include/e2e/profile/profile01/profile_01.hpp"
+#include "../../e2e_protection/include/e2e/profile/profile01/protector.hpp"
+#include "../../e2e_protection/include/e2e/profile/profile01/checker.hpp"
+
+#include "../../e2e_protection/include/e2e/profile/profile_custom/profile_custom.hpp"
+#include "../../e2e_protection/include/e2e/profile/profile_custom/protector.hpp"
+#include "../../e2e_protection/include/e2e/profile/profile_custom/checker.hpp"
+
 namespace vsomeip {
 
 routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
@@ -87,6 +98,35 @@ void routing_manager_impl::init() {
             VSOMEIP_INFO << "Service Discovery module loaded.";
             discovery_ = (*its_runtime)->create_service_discovery(this);
             discovery_->init();
+        }
+    }
+
+    if( configuration_->is_e2e_enabled()) {
+        VSOMEIP_INFO << "E2E protection enabled.";
+        std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> its_e2e_configuration = configuration_->get_e2e_configuration();
+        for (auto &identifier : its_e2e_configuration) {
+            auto its_cfg = identifier.second;
+            if(its_cfg->profile == "CRC8") {
+                e2exf::data_identifier its_data_identifier = {its_cfg->service_id, its_cfg->event_id};
+                e2e::profile::profile01::Config its_profile_config = e2e::profile::profile01::Config(its_cfg->crc_offset, its_cfg->data_id,
+                    (e2e::profile::profile01::p01_data_id_mode) its_cfg->data_id_mode, its_cfg->data_length);
+                if ((its_cfg->variant == "protector") || (its_cfg->variant == "both")) {
+                    custom_protectors[its_data_identifier] = std::make_shared<e2e::profile::profile01::protector>(its_profile_config);
+                }
+                if ((its_cfg->variant == "checker") || (its_cfg->variant == "both")) {
+                    custom_checkers[its_data_identifier] = std::make_shared<e2e::profile::profile01::profile_01_checker>(its_profile_config);
+                }
+            } else if(its_cfg->profile == "CRC32") {
+                e2exf::data_identifier its_data_identifier = {its_cfg->service_id, its_cfg->event_id};
+                e2e::profile::profile_custom::Config its_profile_config = e2e::profile::profile_custom::Config(its_cfg->crc_offset);
+
+                if ((its_cfg->variant == "protector") || (its_cfg->variant == "both")) {
+                    custom_protectors[its_data_identifier] = std::make_shared<e2e::profile::profile_custom::protector>(its_profile_config);
+                }
+                if ((its_cfg->variant == "checker") || (its_cfg->variant == "both")) {
+                    custom_checkers[its_data_identifier]   = std::make_shared<e2e::profile::profile_custom::profile_custom_checker>(its_profile_config);
+                }
+            }
         }
     }
 }
@@ -567,6 +607,23 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                 // TODO: find out how to handle session id here
                 is_sent = deliver_message(_data, _size, _instance, _reliable);
             } else {
+                buffer::e2e_buffer outputBuffer;
+                if( configuration_->is_e2e_enabled()) {
+                    if ( !is_service_discovery) {
+                        service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+                        method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+                        if( custom_protectors.count({its_service, its_method})) {
+                            outputBuffer.assign(_data, _data + VSOMEIP_PAYLOAD_POS);
+                            buffer::e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data +_size);
+                            custom_protectors[{its_service, its_method}]->protect( inputBuffer);
+                            outputBuffer.resize(inputBuffer.size() + VSOMEIP_PAYLOAD_POS);
+                            std::copy(inputBuffer.begin(), inputBuffer.end(), outputBuffer.begin() + VSOMEIP_PAYLOAD_POS);
+                            _data = outputBuffer.data();
+                       }
+                    }
+                }
                 if (is_request) {
                     client_t client = VSOMEIP_ROUTING_CLIENT;
                     {
@@ -694,8 +751,24 @@ bool routing_manager_impl::send_to(
     bool is_sent(false);
     std::lock_guard<std::mutex> its_lock(serialize_mutex_);
     if (serializer_->serialize(_message.get())) {
-        is_sent = send_to(_target,
-                serializer_->get_data(), serializer_->get_size(), _flush);
+        const byte_t *_data = serializer_->get_data();
+        length_t _size = serializer_->get_size();
+        buffer::e2e_buffer outputBuffer;
+        if( configuration_->is_e2e_enabled()) {
+            service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                    _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+            method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                    _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+            if( custom_protectors.count({its_service, its_method})) {
+                outputBuffer.assign(_data, _data + VSOMEIP_PAYLOAD_POS);
+                buffer::e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data +_size);
+                custom_protectors[{its_service, its_method}]->protect( inputBuffer);
+                outputBuffer.resize(inputBuffer.size() + VSOMEIP_PAYLOAD_POS);
+                std::copy(inputBuffer.begin(), inputBuffer.end(), outputBuffer.begin() + VSOMEIP_PAYLOAD_POS);
+                _data = outputBuffer.data();
+           }
+        }
+        is_sent = send_to(_target, _data, _size, _flush);
         serializer_->reset();
     } else {
         VSOMEIP_ERROR<< "routing_manager_impl::send_to: serialization failed.";
@@ -942,7 +1015,20 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                     }
                 }
             }
+            if( configuration_->is_e2e_enabled()) {
+                its_method = VSOMEIP_BYTES_TO_WORD(
+                           _data[VSOMEIP_METHOD_POS_MIN],
+                           _data[VSOMEIP_METHOD_POS_MAX]);
+                if( custom_checkers.count({its_service, its_method})) {
+                    buffer::e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data + _size);
+                    e2e::profile::profile_interface::generic_check_status check_status;
+                    custom_checkers[{its_service, its_method}]->check( inputBuffer, check_status);
 
+                    if ( check_status != e2e::profile::profile_interface::generic_check_status::E2E_OK ) {
+                        VSOMEIP_INFO << std::hex << "E2E protection: CRC check failed for service: " << its_service << " method: " << its_method;
+                    }
+                }
+            }
             if (!deliver_specific_endpoint_message(
                     its_service, its_instance, _data, _size, _receiver)) {
                 // set client ID to zero for all messages
@@ -1499,7 +1585,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
                             _local_port),
                     boost::asio::ip::tcp::endpoint(_address, _remote_port),
                     io_,
-                    configuration_->get_message_size_reliable(
+                    configuration_->get_max_message_size_reliable(
                             _address.to_string(), _remote_port),
                     configuration_->get_buffer_shrink_threshold());
 
@@ -1538,7 +1624,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
                 its_endpoint = std::make_shared<tcp_server_endpoint_impl>(
                         shared_from_this(),
                         boost::asio::ip::tcp::endpoint(its_unicast, _port), io_,
-                        configuration_->get_message_size_reliable(
+                        configuration_->get_max_message_size_reliable(
                                 its_unicast.to_string(), _port),
                         configuration_->get_buffer_shrink_threshold());
                 if (configuration_->has_enabled_magic_cookies(

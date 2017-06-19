@@ -236,6 +236,19 @@ void check_file(const std::string &_config_file,
             _expected_unreliable_port_4466_0321,
             "UNRELIABLE_PORT_4466_0321");
 
+    // payload sizes
+    // use 17000 instead of 1500 as configured max-local-payload size will be
+    // increased to bigger max-reliable-payload-size
+    std::uint32_t max_local_message_size(
+            17000u + 16u + + VSOMEIP_COMMAND_HEADER_SIZE
+                    + sizeof(vsomeip::instance_t) + sizeof(bool) + sizeof(bool)
+                    + sizeof(vsomeip::client_t));
+    check<std::uint32_t>(max_local_message_size, its_configuration->get_max_message_size_local(), "max-local-message-size");
+    check<std::uint32_t>(11u, its_configuration->get_buffer_shrink_threshold(), "buffer shrink threshold");
+    check<std::uint32_t>(14999u + 16u, its_configuration->get_max_message_size_reliable("10.10.10.10", 7777), "max-message-size-reliable1");
+    check<std::uint32_t>(17000u + 16, its_configuration->get_max_message_size_reliable("11.11.11.11", 4711), "max-message-size-reliable2");
+    check<std::uint32_t>(15001u + 16, its_configuration->get_max_message_size_reliable("10.10.10.11", 7778), "max-message-size-reliable3");
+
     // 6. Service discovery
     bool enabled = its_configuration->is_sd_enabled();
     std::string protocol = its_configuration->get_sd_protocol();

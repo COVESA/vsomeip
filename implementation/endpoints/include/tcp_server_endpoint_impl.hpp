@@ -87,6 +87,10 @@ private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
         void calculate_shrink_count();
+        const std::string get_address_port_remote() const;
+        const std::string get_address_port_local() const;
+        void handle_recv_buffer_exception(const std::exception &_e);
+
 
         std::mutex socket_mutex_;
         tcp_server_endpoint_impl::socket_type socket_;

@@ -122,6 +122,32 @@
             ]
         }
     ],
+    "max-payload-size-local" : "15000",
+    "max-payload-size-reliable" : "17000",
+    "buffer-shrink-threshold" : "11",
+    "payload-sizes":
+    [
+        {
+            "unicast":"10.10.10.10",
+            "ports":
+            [
+                {
+                    "port":"7777",
+                    "max-payload-size":"14999"
+                }
+            ]
+        },
+        {
+            "unicast":"10.10.10.11",
+            "ports":
+            [
+                {
+                    "port":"7778",
+                    "max-payload-size":"15001"
+                }
+            ]
+        }
+    ],
     "routing" : "my_application",
     "service-discovery" :
     {
