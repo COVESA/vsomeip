@@ -306,7 +306,8 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
             }
         }
     }
-    if(has_address && 0 < its_message->get_entries().size()) {
+    if (has_address && its_message->get_entries().size()
+            && its_message->get_options().size()) {
         serialize_and_send(its_message, its_address);
     }
 }
@@ -471,7 +472,8 @@ void service_discovery_impl::unsubscribe(service_t _service,
             }
         }
     }
-    if (has_address && 0 < its_message->get_entries().size()) {
+    if (has_address && its_message->get_entries().size()
+            && its_message->get_options().size()) {
         serialize_and_send(its_message, its_address);
     }
 }
@@ -552,7 +554,8 @@ void service_discovery_impl::unsubscribe_client(service_t _service,
             }
         }
     }
-    if (has_address && 0 < its_message->get_entries().size()) {
+    if (has_address && its_message->get_entries().size()
+            && its_message->get_options().size()) {
         serialize_and_send(its_message, its_address);
     }
 }
@@ -589,7 +592,13 @@ bool service_discovery_impl::is_reboot(
     auto its_received = sessions_received_.find(_sender);
     bool is_multicast = _destination.is_multicast();
 
+    // Initialize both sessions with 0. Thus, the session identifier
+    // for the session not being received from the network is stored
+    // as 0 and will never trigger the reboot detection.
     session_t its_multicast_session(0), its_unicast_session(0);
+
+    // Initialize both flags with true. Thus, the flag not being
+    // received from the network will never trigger the reboot detection.
     bool its_multicast_reboot_flag(true), its_unicast_reboot_flag(true);
 
     if (is_multicast) {
@@ -603,30 +612,31 @@ bool service_discovery_impl::is_reboot(
     if (its_received == sessions_received_.end()) {
         sessions_received_[_sender]
             = std::make_tuple(its_multicast_session, its_unicast_session,
-            		its_multicast_reboot_flag, its_unicast_reboot_flag);
+                    its_multicast_reboot_flag, its_unicast_reboot_flag);
     } else {
         // Reboot detection: Either the flag has changed from false to true,
-        // or the session identifier overrun while the flag is true
-		if ((is_multicast && !std::get<2>(its_received->second) && _reboot_flag)
-				|| (!is_multicast && !std::get<3>(its_received->second) && _reboot_flag)) {
-			result = true;
-		} else {
-			session_t its_old_session;
-			bool its_old_reboot_flag;
+        // or the session identifier overrun while the flag is true.
+        if (_reboot_flag
+            && ((is_multicast && !std::get<2>(its_received->second))
+                || (!is_multicast && !std::get<3>(its_received->second)))) {
+            result = true;
+        } else {
+            session_t its_old_session;
+            bool its_old_reboot_flag;
 
-			if (is_multicast) {
-				its_old_session = std::get<0>(its_received->second);
-				its_old_reboot_flag = std::get<2>(its_received->second);
-			} else {
-				its_old_session = std::get<1>(its_received->second);
-				its_old_reboot_flag = std::get<3>(its_received->second);
-			}
+            if (is_multicast) {
+                its_old_session = std::get<0>(its_received->second);
+                its_old_reboot_flag = std::get<2>(its_received->second);
+            } else {
+                its_old_session = std::get<1>(its_received->second);
+                its_old_reboot_flag = std::get<3>(its_received->second);
+            }
 
-			if (its_old_reboot_flag && _reboot_flag
-					&& its_old_session >= _session) {
-				result = true;
-			}
-		}
+            if (its_old_reboot_flag && _reboot_flag
+                    && its_old_session >= _session) {
+                result = true;
+            }
+        }
 
         if (result == false) {
             // no reboot -> update session/flag
@@ -635,10 +645,10 @@ bool service_discovery_impl::is_reboot(
                 std::get<2>(its_received->second) = its_multicast_reboot_flag;
             } else {
                 std::get<1>(its_received->second) = its_unicast_session;
-                std::get<3>(its_received->second) = its_multicast_reboot_flag;
+                std::get<3>(its_received->second) = its_unicast_reboot_flag;
             }
         } else {
-            // reboot -> reset the session
+            // reboot -> reset the sender data
             sessions_received_.erase(_sender);
         }
     }
@@ -882,16 +892,20 @@ void service_discovery_impl::insert_subscription(
     std::shared_ptr < endpoint > its_endpoint;
     if (_insert_reliable) {
         its_endpoint = _subscription->get_endpoint(true);
-        if (its_endpoint && its_endpoint->get_local_port()) {
-            insert_option(_message, its_entry, unicast_,
-                    its_endpoint->get_local_port(), true);
+        if (its_endpoint) {
+            const std::uint16_t its_port = its_endpoint->get_local_port();
+            if (its_port) {
+                insert_option(_message, its_entry, unicast_, its_port, true);
+            }
         }
     }
     if (_insert_unreliable) {
         its_endpoint = _subscription->get_endpoint(false);
         if (its_endpoint && its_endpoint->get_local_port()) {
-            insert_option(_message, its_entry, unicast_,
-                    its_endpoint->get_local_port(), false);
+            const std::uint16_t its_port = its_endpoint->get_local_port();
+            if (its_port) {
+                insert_option(_message, its_entry, unicast_, its_port, false);
+            }
         }
     }
 }
@@ -928,17 +942,19 @@ void service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared
     std::shared_ptr < endpoint > its_endpoint;
     its_endpoint = _subscription->get_endpoint(true);
     if (its_endpoint && its_endpoint->is_connected()) {
-        insert_option(_message, its_stop_entry, unicast_,
-                its_endpoint->get_local_port(), true);
-        insert_option(_message, its_entry, unicast_,
-                its_endpoint->get_local_port(), true);
+        const std::uint16_t its_port = its_endpoint->get_local_port();
+        if (its_port) {
+            insert_option(_message, its_stop_entry, unicast_, its_port, true);
+            insert_option(_message, its_entry, unicast_, its_port, true);
+        }
     }
     its_endpoint = _subscription->get_endpoint(false);
     if (its_endpoint) {
-        insert_option(_message, its_stop_entry, unicast_,
-                its_endpoint->get_local_port(), false);
-        insert_option(_message, its_entry, unicast_,
-                its_endpoint->get_local_port(), false);
+        const std::uint16_t its_port = its_endpoint->get_local_port();
+        if (its_port) {
+            insert_option(_message, its_stop_entry, unicast_, its_port, false);
+            insert_option(_message, its_entry, unicast_, its_port, false);
+        }
     }
 }
 
@@ -1302,7 +1318,8 @@ void service_discovery_impl::process_offerservice_serviceentry(
                     }
                 }
 
-                if (0 < its_message->get_entries().size()) {
+                if (its_message->get_entries().size()
+                        && its_message->get_options().size()) {
                     std::shared_ptr<endpoint_definition> its_target;
                     std::pair<session_t, bool> its_session;
                     std::lock_guard<std::mutex> its_lock(serialize_mutex_);
@@ -1480,7 +1497,8 @@ void service_discovery_impl::on_reliable_endpoint_connected(
             }
         }
     }
-    if (has_address && 0 < its_message->get_entries().size()) {
+    if (has_address && its_message->get_entries().size()
+            && its_message->get_options().size()) {
         serialize_and_send(its_message, its_address);
     }
 }
@@ -2239,7 +2257,8 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                                         _instance, found_eventgroup.first,
                                         found_client->second, _reliable, !_reliable);
                             }
-                            if(0 < its_message->get_entries().size()) {
+                            if (its_message->get_entries().size()
+                                    && its_message->get_options().size()) {
                                 subscription_messages.push_front({its_message, its_address});
                                 found_client->second->set_acknowledged(false);
                             }

@@ -44,14 +44,14 @@ void udp_client_endpoint_impl::connect() {
     // bind to it before connecting
     if (local_.port() != ILLEGAL_PORT) {
         boost::system::error_code its_bind_error;
-        socket_.bind(local_, its_bind_error);
+        socket_->bind(local_, its_bind_error);
         if(its_bind_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
                     "Error binding socket: " << its_bind_error.message();
         }
     }
 
-    socket_.async_connect(
+    socket_->async_connect(
         remote_,
         std::bind(
             &udp_client_endpoint_base_impl::connect_cbk,
@@ -65,7 +65,7 @@ void udp_client_endpoint_impl::start() {
     boost::system::error_code its_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        socket_.open(remote_.protocol(), its_error);
+        socket_->open(remote_.protocol(), its_error);
     }
     if (!its_error || its_error == boost::asio::error::already_open) {
         connect();
@@ -73,6 +73,16 @@ void udp_client_endpoint_impl::start() {
         VSOMEIP_WARNING << "udp_client_endpoint::connect: Error opening socket: "
                 << its_error.message();
     }
+}
+
+void udp_client_endpoint_impl::restart() {
+    is_connected_ = false;
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        queue_.clear();
+    }
+    shutdown_and_close_socket();
+    start_connect_timer();
 }
 
 void udp_client_endpoint_impl::send_queued() {
@@ -93,7 +103,7 @@ void udp_client_endpoint_impl::send_queued() {
 #endif
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        socket_.async_send(
+        socket_->async_send(
             boost::asio::buffer(*its_buffer),
             std::bind(
                 &udp_client_endpoint_base_impl::send_cbk,
@@ -107,10 +117,10 @@ void udp_client_endpoint_impl::send_queued() {
 
 void udp_client_endpoint_impl::receive() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if (!socket_.is_open()) {
+    if (!socket_->is_open()) {
         return;
     }
-    socket_.async_receive_from(
+    socket_->async_receive_from(
         boost::asio::buffer(&recv_buffer_[0], max_message_size_),
         remote_,
         std::bind(
@@ -136,8 +146,8 @@ bool udp_client_endpoint_impl::get_remote_address(
 unsigned short udp_client_endpoint_impl::get_local_port() const {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
-    if (socket_.is_open()) {
-        endpoint_type its_endpoint = socket_.local_endpoint(its_error);
+    if (socket_->is_open()) {
+        endpoint_type its_endpoint = socket_->local_endpoint(its_error);
         if (!its_error) {
             return its_endpoint.port();
         } else {

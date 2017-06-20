@@ -54,20 +54,37 @@ void tcp_client_endpoint_impl::start() {
     connect();
 }
 
+void tcp_client_endpoint_impl::restart() {
+    is_connected_ = false;
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        shutdown_and_close_socket_unlocked();
+        recv_buffer_size_ = 0;
+        recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
+        recv_buffer_.shrink_to_fit();
+        socket_.reset(new socket_type(service_));
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        queue_.clear();
+    }
+    start_connect_timer();
+}
+
 void tcp_client_endpoint_impl::connect() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
-    socket_.open(remote_.protocol(), its_error);
+    socket_->open(remote_.protocol(), its_error);
 
     if (!its_error || its_error == boost::asio::error::already_open) {
         // Nagle algorithm off
-        socket_.set_option(ip::tcp::no_delay(true), its_error);
+        socket_->set_option(ip::tcp::no_delay(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't disable "
                     << "Nagle algorithm: " << its_error.message();
         }
 
-        socket_.set_option(boost::asio::socket_base::keep_alive(true), its_error);
+        socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
                     << "keep_alive: " << its_error.message();
@@ -76,7 +93,7 @@ void tcp_client_endpoint_impl::connect() {
         // Enable SO_REUSEADDR to avoid bind problems with services going offline
         // and coming online again and the user has specified only a small number
         // of ports in the clients section for one service instance
-        socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
+        socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
                     << "SO_REUSEADDR: " << its_error.message();
@@ -85,14 +102,14 @@ void tcp_client_endpoint_impl::connect() {
         // bind to it before connecting
         if (local_.port() != ILLEGAL_PORT) {
             boost::system::error_code its_bind_error;
-            socket_.bind(local_, its_bind_error);
+            socket_->bind(local_, its_bind_error);
             if(its_bind_error) {
                 VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
                         "Error binding socket: " << its_bind_error.message();
             }
         }
 
-        socket_.async_connect(
+        socket_->async_connect(
             remote_,
             std::bind(
                 &tcp_client_endpoint_base_impl::connect_cbk,
@@ -108,7 +125,7 @@ void tcp_client_endpoint_impl::connect() {
 
 void tcp_client_endpoint_impl::receive() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if(socket_.is_open()) {
+    if(socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         size_t buffer_size = its_capacity - recv_buffer_size_;
         try {
@@ -137,7 +154,7 @@ void tcp_client_endpoint_impl::receive() {
             // don't start receiving again
             return;
         }
-        socket_.async_receive(
+        socket_->async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
             std::bind(
                 &tcp_client_endpoint_impl::receive_cbk,
@@ -172,7 +189,7 @@ void tcp_client_endpoint_impl::send_queued() {
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(
-            socket_,
+            *socket_,
             boost::asio::buffer(*its_buffer),
             std::bind(
                 &tcp_client_endpoint_base_impl::send_cbk,
@@ -196,8 +213,8 @@ bool tcp_client_endpoint_impl::get_remote_address(
 unsigned short tcp_client_endpoint_impl::get_local_port() const {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
-    if (socket_.is_open()) {
-        endpoint_type its_endpoint = socket_.local_endpoint(its_error);
+    if (socket_->is_open()) {
+        endpoint_type its_endpoint = socket_->local_endpoint(its_error);
         if (!its_error) {
             return its_endpoint.port();
         } else {
@@ -248,6 +265,10 @@ void tcp_client_endpoint_impl::receive_cbk(
             << (int) recv_buffer_[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
+    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    if (!is_connected_) {
+        return;
+    }
     std::shared_ptr<endpoint_host> its_host = host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
@@ -369,14 +390,16 @@ void tcp_client_endpoint_impl::receive_cbk(
                     missing_capacity_ = 0;
                 }
             }
+            its_lock.unlock();
             receive();
         } else {
             if (_error == boost::asio::error::connection_reset ||
                     _error ==  boost::asio::error::eof ||
                     _error == boost::asio::error::timed_out) {
                 VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk error detected: " << _error.message();
-                shutdown_and_close_socket();
+                shutdown_and_close_socket_unlocked();
             } else {
+                its_lock.unlock();
                 receive();
             }
         }
@@ -413,8 +436,8 @@ const std::string tcp_client_endpoint_impl::get_address_port_local() const {
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;
-    if (socket_.is_open()) {
-        endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
+    if (socket_->is_open()) {
+        endpoint_type its_local_endpoint = socket_->local_endpoint(ec);
         if (!ec) {
             its_address_port += its_local_endpoint.address().to_string(ec);
             its_address_port += ":";
@@ -455,10 +478,10 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
         boost::system::error_code ec;
         connect_timer_.cancel(ec);
     }
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_.shutdown(socket_type::shutdown_both, its_error);
-        socket_.close(its_error);
+        socket_->shutdown(socket_type::shutdown_both, its_error);
+        socket_->close(its_error);
     }
 }
 

@@ -46,7 +46,7 @@ public:
     bool flush();
 
     void stop();
-    void restart();
+    virtual void restart() = 0;
 
     bool is_client() const;
 
@@ -68,9 +68,11 @@ public:
 protected:
     virtual void send_queued() = 0;
     void shutdown_and_close_socket();
+    void shutdown_and_close_socket_unlocked();
+    void start_connect_timer();
 
     mutable std::mutex socket_mutex_;
-    socket_type socket_;
+    std::unique_ptr<socket_type> socket_;
     endpoint_type remote_;
 
     boost::asio::steady_timer flush_timer_;

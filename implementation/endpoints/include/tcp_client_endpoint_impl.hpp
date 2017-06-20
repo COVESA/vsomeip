@@ -28,6 +28,7 @@ public:
     virtual ~tcp_client_endpoint_impl();
 
     void start();
+    void restart();
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     unsigned short get_local_port() const;

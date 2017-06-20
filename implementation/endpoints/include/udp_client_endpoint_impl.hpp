@@ -33,6 +33,7 @@ public:
     virtual ~udp_client_endpoint_impl();
 
     void start();
+    void restart();
 
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);

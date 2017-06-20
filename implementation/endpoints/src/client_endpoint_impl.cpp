@@ -32,7 +32,7 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
         boost::asio::io_service &_io,
         std::uint32_t _max_message_size)
         : endpoint_impl<Protocol>(_host, _local, _io, _max_message_size),
-          socket_(_io), remote_(_remote),
+          socket_(new socket_type(_io)), remote_(_remote),
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           is_connected_(false),
@@ -70,7 +70,7 @@ void client_endpoint_impl<Protocol>::stop() {
     bool is_open(false);
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        is_open = socket_.is_open();
+        is_open = socket_->is_open();
     }
     if (is_open) {
         bool send_queue_empty(false);
@@ -89,24 +89,6 @@ void client_endpoint_impl<Protocol>::stop() {
         }
     }
     shutdown_and_close_socket();
-}
-
-template<typename Protocol>
-void client_endpoint_impl<Protocol>::restart() {
-    {
-        std::lock_guard<std::mutex> its_lock(mutex_);
-        queue_.clear();
-    }
-    shutdown_and_close_socket();
-    is_connected_ = false;
-    {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
-        connect_timer_.expires_from_now(
-                std::chrono::milliseconds(connect_timeout_));
-        connect_timer_.async_wait(
-                std::bind(&client_endpoint_impl<Protocol>::wait_connect_cbk,
-                          this->shared_from_this(), std::placeholders::_1));
-    }
 }
 
 template<typename Protocol>
@@ -212,14 +194,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
             shutdown_and_close_socket();
-            {
-                std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
-                connect_timer_.expires_from_now(
-                        std::chrono::milliseconds(connect_timeout_));
-                connect_timer_.async_wait(
-                        std::bind(&client_endpoint_impl<Protocol>::wait_connect_cbk,
-                                  this->shared_from_this(), std::placeholders::_1));
-            }
+            start_connect_timer();
             // Double the timeout as long as the maximum allowed is larger
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
                 connect_timeout_ = (connect_timeout_ << 1);
@@ -302,10 +277,15 @@ void client_endpoint_impl<Protocol>::flush_cbk(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if (socket_.is_open()) {
+    shutdown_and_close_socket_unlocked();
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked() {
+    if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_.shutdown(Protocol::socket::shutdown_both, its_error);
-        socket_.close(its_error);
+        socket_->shutdown(Protocol::socket::shutdown_both, its_error);
+        socket_->close(its_error);
     }
 }
 
@@ -319,6 +299,16 @@ bool client_endpoint_impl<Protocol>::get_remote_address(
 template<typename Protocol>
 unsigned short client_endpoint_impl<Protocol>::get_remote_port() const {
     return 0;
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::start_connect_timer() {
+    std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+    connect_timer_.expires_from_now(
+            std::chrono::milliseconds(connect_timeout_));
+    connect_timer_.async_wait(
+            std::bind(&client_endpoint_impl<Protocol>::wait_connect_cbk,
+                      this->shared_from_this(), std::placeholders::_1));
 }
 
 // Instantiate template

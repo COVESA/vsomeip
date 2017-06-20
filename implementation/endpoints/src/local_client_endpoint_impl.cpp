@@ -44,11 +44,18 @@ bool local_client_endpoint_impl::is_local() const {
 }
 
 void local_client_endpoint_impl::restart() {
+    is_connected_ = false;
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         sending_blocked_ = false;
+        queue_.clear();
     }
-    client_endpoint_impl::restart();
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        shutdown_and_close_socket_unlocked();
+        socket_.reset(new socket_type(service_));
+    }
+    start_connect_timer();
 }
 
 void local_client_endpoint_impl::start() {
@@ -60,15 +67,15 @@ void local_client_endpoint_impl::connect() {
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         boost::system::error_code its_error;
-        socket_.open(remote_.protocol(), its_error);
+        socket_->open(remote_.protocol(), its_error);
 
         if (!its_error || its_error == boost::asio::error::already_open) {
-            socket_.set_option(boost::asio::socket_base::reuse_address(true), its_error);
+            socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
             if (its_error) {
                 VSOMEIP_WARNING << "local_client_endpoint_impl::connect: "
                         << "couldn't enable SO_REUSEADDR: " << its_error.message();
             }
-            socket_.connect(remote_, its_connect_error);
+            socket_->connect(remote_, its_connect_error);
 
 // Credentials
 #ifndef _WIN32
@@ -76,7 +83,7 @@ void local_client_endpoint_impl::connect() {
                 auto its_host = host_.lock();
                 if (its_host) {
                     if (its_host->get_configuration()->is_security_enabled()) {
-                        credentials::send_credentials(socket_.native(),
+                        credentials::send_credentials(socket_->native(),
                                 its_host->get_client());
                     }
                 }
@@ -102,8 +109,8 @@ void local_client_endpoint_impl::connect() {
 void local_client_endpoint_impl::receive() {
 #ifndef _WIN32
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if (socket_.is_open()) {
-        socket_.async_receive(
+    if (socket_->is_open()) {
+        socket_->async_receive(
             boost::asio::buffer(recv_buffer_),
             std::bind(
                 &local_client_endpoint_impl::receive_cbk,
@@ -146,7 +153,7 @@ VSOMEIP_INFO << msg.str();
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(
-            socket_,
+            *socket_,
             bufs,
             std::bind(
                 &client_endpoint_impl::send_cbk,
