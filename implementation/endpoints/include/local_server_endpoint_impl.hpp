@@ -9,10 +9,10 @@
 #include <map>
 #include <thread>
 #include <condition_variable>
+#include <memory>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
-#include <boost/enable_shared_from_this.hpp>
 
 #ifdef _WIN32
 #include <boost/asio/ip/tcp.hpp>
@@ -56,7 +56,6 @@ public:
     void start();
     void stop();
 
-    void restart();
     void receive();
 
     bool send_to(const std::shared_ptr<endpoint_definition>,
@@ -70,14 +69,15 @@ public:
     void accept_client_func();
 
 private:
-    class connection: public boost::enable_shared_from_this<connection> {
+    class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        typedef boost::shared_ptr<connection> ptr;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(std::weak_ptr<local_server_endpoint_impl> _server,
                           std::uint32_t _max_message_size,
-                          std::uint32_t _buffer_shrink_threshold);
+                          std::uint32_t _buffer_shrink_threshold,
+                          boost::asio::io_service &_io_service);
         socket_type & get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
@@ -92,7 +92,8 @@ private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
                    std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _max_message_size,
-                   std::uint32_t _buffer_shrink_threshold);
+                   std::uint32_t _buffer_shrink_threshold,
+                   boost::asio::io_service &_io_service);
 
         void send_magic_cookie();
         void receive_cbk(boost::system::error_code const &_error,
@@ -128,7 +129,6 @@ private:
 
     std::mutex connections_mutex_;
     std::map<endpoint_type, connection::ptr> connections_;
-    connection::ptr current_;
     const std::uint32_t buffer_shrink_threshold_;
 
 private:

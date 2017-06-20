@@ -53,7 +53,7 @@ public:
             instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual void on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable) = 0;
+            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true) = 0;
 
     virtual void on_notification(client_t _client,
             service_t _service, instance_t _instance,

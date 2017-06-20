@@ -33,6 +33,7 @@
 #include "../../message/include/serializer.hpp"
 #include "../../routing/include/eventgroupinfo.hpp"
 #include "../../routing/include/serviceinfo.hpp"
+#include "../../plugin/include/plugin_manager.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -62,7 +63,8 @@ service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
           find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
           find_debounce_timer_(_host->get_io()),
           main_phase_timer_(_host->get_io()),
-          is_suspended_(true) {
+          is_suspended_(false),
+          is_diagnosis_(false) {
     std::chrono::seconds smallest_ttl(DEFAULT_TTL);
     smallest_ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(smallest_ttl);
 
@@ -82,7 +84,7 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
-    runtime_ = runtime::get();
+    runtime_ = std::dynamic_pointer_cast<sd::runtime>(plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN));
 
     std::shared_ptr < configuration > its_configuration =
             host_->get_configuration();
@@ -151,33 +153,7 @@ void service_discovery_impl::start() {
 }
 
 void service_discovery_impl::stop() {
-    boost::system::error_code ec;
     is_suspended_ = true;
-    {
-        std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
-        main_phase_timer_.cancel(ec);
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
-        offer_debounce_timer_.cancel(ec);
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(find_debounce_timer_mutex_);
-        find_debounce_timer_.cancel(ec);
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
-        for(const auto &t : repetition_phase_timers_) {
-            t.first->cancel(ec);
-        }
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(find_repetition_phase_timers_mutex_);
-        for(const auto &t : find_repetition_phase_timers_) {
-            t.first->cancel(ec);
-        }
-    }
-
 }
 
 void service_discovery_impl::request_service(service_t _service,
@@ -849,20 +825,23 @@ void service_discovery_impl::insert_offer_entries(
     uint32_t its_size(_size);
     for (const auto its_service : _services) {
         for (const auto its_instance : its_service.second) {
-            // Only insert services with configured endpoint(s)
-            if ((_ignore_phase || its_instance.second->is_in_mainphase())
-                    && (its_instance.second->get_endpoint(false)
-                            || its_instance.second->get_endpoint(true))) {
-                if (i >= _start) {
-                    if (!insert_offer_service(_message, its_service.first,
-                            its_instance.first, its_instance.second, its_size)) {
-                        _start = i;
-                        _done = false;
-                        return;
+            if ((!is_suspended_)
+                    && ((!is_diagnosis_) || (is_diagnosis_ && !host_->get_configuration()->is_someip(its_service.first, its_instance.first)))) {
+                // Only insert services with configured endpoint(s)
+                if ((_ignore_phase || its_instance.second->is_in_mainphase())
+                        && (its_instance.second->get_endpoint(false)
+                                || its_instance.second->get_endpoint(true))) {
+                    if (i >= _start) {
+                        if (!insert_offer_service(_message, its_service.first,
+                                its_instance.first, its_instance.second, its_size)) {
+                            _start = i;
+                            _done = false;
+                            return;
+                        }
                     }
                 }
+                i++;
             }
-            i++;
         }
     }
     _start = i;
@@ -1073,7 +1052,6 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
             VSOMEIP_INFO << "Reboot detected: IP=" << _sender.to_string();
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
-            host_->on_reboot(_sender);
         }
 
         std::chrono::milliseconds expired = stop_ttl_timer();
@@ -1226,9 +1204,11 @@ void service_discovery_impl::process_serviceentry(
             its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
         }
         unsubscribe_all(its_service, its_instance);
-        host_->del_routing_info(its_service, its_instance,
-                                (its_reliable_port != ILLEGAL_PORT),
-                                (its_unreliable_port != ILLEGAL_PORT));
+        if (!is_diagnosis_ && !is_suspended_) {
+            host_->del_routing_info(its_service, its_instance,
+                                    (its_reliable_port != ILLEGAL_PORT),
+                                    (its_unreliable_port != ILLEGAL_PORT));
+        }
     }
 }
 
@@ -1567,7 +1547,8 @@ bool service_discovery_impl::insert_offer_service(
             if (its_reliable) {
                 insert_option(_message, its_entry, unicast_,
                         its_reliable->get_local_port(), true);
-                if (0 == _info->get_ttl()) {
+                if ((0 == _info->get_ttl() && !is_diagnosis_)
+                        && (0 == _info->get_ttl() && !is_suspended_)) {
                     host_->del_routing_info(_service,
                             _instance, true, false);
                 }
@@ -1576,7 +1557,8 @@ bool service_discovery_impl::insert_offer_service(
             if (its_unreliable) {
                 insert_option(_message, its_entry, unicast_,
                         its_unreliable->get_local_port(), false);
-                if (0 == _info->get_ttl()) {
+                if ((0 == _info->get_ttl() && !is_diagnosis_)
+                        && (0 == _info->get_ttl() && !is_suspended_)) {
                     host_->del_routing_info(_service,
                             _instance, false, true);
                 }
@@ -1833,8 +1815,6 @@ void service_discovery_impl::process_eventgroupentry(
                 }
                 break;
             case option_type_e::CONFIGURATION: {
-                if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type) {
-                }
                 break;
             }
             case option_type_e::UNKNOWN:
@@ -1944,7 +1924,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                 } else if (_is_second_reliable) { // tcp unicast
                     its_second_target = its_second_subscriber;
                     // check if TCP connection is established by client
-                    if( !is_tcp_connected(_service, _instance, its_second_target) && _ttl > 0) {
+                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_second_target)) {
                         insert_subscription_nack(its_message, _service, _instance,
                             _eventgroup, _counter, _major, _reserved);
                         VSOMEIP_ERROR << "TCP connection to target2 : [" << its_second_target->get_address().to_string()
@@ -2465,10 +2445,28 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
     services_t repetition_phase_offers;
     bool new_offers(false);
     {
+        std::vector<services_t::iterator> non_someip_services;
         std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
         if (collected_offers_.size()) {
-            repetition_phase_offers = collected_offers_;
-            collected_offers_.clear();
+            if (is_diagnosis_) {
+                for (services_t::iterator its_service = collected_offers_.begin();
+                        its_service != collected_offers_.end(); its_service++) {
+                    for (auto its_instance : its_service->second) {
+                        if (!host_->get_configuration()->is_someip(
+                                its_service->first, its_instance.first)) {
+                            non_someip_services.push_back(its_service);
+                        }
+                    }
+                }
+                for (auto its_service : non_someip_services) {
+                    repetition_phase_offers.insert(*its_service);
+                    collected_offers_.erase(its_service);
+                }
+            } else {
+                repetition_phase_offers = collected_offers_;
+                collected_offers_.clear();
+            }
+
             new_offers = true;
         }
     }
@@ -2875,6 +2873,10 @@ bool service_discovery_impl::check_source_address(
        }
    }
    return is_valid;
+}
+
+void service_discovery_impl::set_diagnosis_mode(const bool _activate) {
+    is_diagnosis_ = _activate;
 }
 
 }  // namespace sd

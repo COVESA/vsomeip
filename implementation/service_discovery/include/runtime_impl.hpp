@@ -6,14 +6,17 @@
 #ifndef VSOMEIP_SD_RUNTIME_IMPL_HPP
 #define VSOMEIP_SD_RUNTIME_IMPL_HPP
 
+#include <vsomeip/plugin.hpp>
 #include "runtime.hpp"
 
 namespace vsomeip {
 namespace sd {
 
-class runtime_impl: public runtime {
+class runtime_impl
+        : public runtime,
+          public plugin_impl<runtime_impl> {
 public:
-    static std::shared_ptr<runtime> get();
+    runtime_impl();
     virtual ~runtime_impl();
 
     std::shared_ptr<service_discovery> create_service_discovery(

@@ -13,6 +13,8 @@
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/plugins/application_plugin.hpp>
+#include <vsomeip/plugins/pre_configuration_plugin.hpp>
 
 #include "../include/application_impl.hpp"
 #include "../../configuration/include/configuration.hpp"
@@ -24,6 +26,7 @@
 #include "../../utility/include/utility.hpp"
 #include "../../tracing/include/trace_connector.hpp"
 #include "../../tracing/include/enumeration_types.hpp"
+#include "../../plugin/include/plugin_manager.hpp"
 
 namespace vsomeip {
 
@@ -75,19 +78,27 @@ bool application_impl::init() {
         }
     }
 
+    std::string configuration_path;
+    plugin_manager::get()->load_plugins();
+    auto its_pre_config_plugin = plugin_manager::get()->get_plugin(plugin_type_e::PRE_CONFIGURATION_PLUGIN);
+    if (its_pre_config_plugin) {
+        configuration_path = std::dynamic_pointer_cast<pre_configuration_plugin>(its_pre_config_plugin)->
+                get_configuration_path();
+    }
+
     // load configuration from module
     std::string config_module = "";
     const char *its_config_module = getenv(VSOMEIP_ENV_CONFIGURATION_MODULE);
     if (nullptr != its_config_module) {
         // TODO: Add loading of custom configuration module
     } else { // load default module
-        std::shared_ptr<configuration> *its_configuration =
-                static_cast<std::shared_ptr<configuration> *>(utility::load_library(
-                        VSOMEIP_CFG_LIBRARY,
-                        VSOMEIP_CFG_RUNTIME_SYMBOL_STRING));
-
-        if (its_configuration && (*its_configuration)) {
-            configuration_ = (*its_configuration);
+        auto its_plugin = plugin_manager::get()->get_plugin(
+                plugin_type_e::CONFIGURATION_PLUGIN);
+        if (its_plugin) {
+            configuration_ = std::dynamic_pointer_cast<configuration>(its_plugin);
+            if (configuration_path.length()) {
+                configuration_->set_configuration_path(configuration_path);
+            }
             configuration_->load(name_);
             VSOMEIP_INFO << "Default configuration module loaded.";
         } else {
@@ -212,6 +223,24 @@ bool application_impl::init() {
         signals_.async_wait(its_signal_handler);
     }
 #endif
+
+    auto its_plugins = configuration_->get_plugins(name_);
+    auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+    if (its_app_plugin_info != its_plugins.end()) {
+        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
+        if (!its_application_plugin) {
+            VSOMEIP_INFO << std::hex << "Client 0x" << get_client()
+                    << " : loading application plugin: " << its_app_plugin_info->second;
+            its_application_plugin = plugin_manager::get()->load_plugin(
+                    its_app_plugin_info->second, plugin_type_e::APPLICATION_PLUGIN,
+                    VSOMEIP_APPLICATION_PLUGIN_VERSION);
+        }
+        if (its_application_plugin) {
+            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                    on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
+        }
+    }
+
     return is_initialized_;
 }
 
@@ -227,7 +256,7 @@ void application_impl::start() {
         }
         if (stopped_) {
             utility::release_client_id(client_);
-            utility::auto_configuration_exit(client_);
+            utility::auto_configuration_exit(client_, configuration_);
 
             {
                 std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
@@ -275,6 +304,16 @@ void application_impl::start() {
         }
     }
 
+    auto its_plugins = configuration_->get_plugins(name_);
+    auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+    if (its_app_plugin_info != its_plugins.end()) {
+        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_application_plugin) {
+            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                    on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
+        }
+    }
+
     app_counter_mutex__.lock();
     app_counter__++;
     app_counter_mutex__.unlock();
@@ -290,7 +329,7 @@ void application_impl::start() {
     }
 
     utility::release_client_id(client_);
-    utility::auto_configuration_exit(client_);
+    utility::auto_configuration_exit(client_, configuration_);
 
     {
         std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
@@ -338,6 +377,16 @@ void application_impl::stop() {
             block = false;
         }
     }
+    auto its_plugins = configuration_->get_plugins(name_);
+    auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+    if (its_app_plugin_info != its_plugins.end()) {
+        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_application_plugin) {
+            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                    on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+        }
+    }
+
     stop_cv_.notify_one();
 
     if (block) {
@@ -400,8 +449,10 @@ void application_impl::subscribe(service_t _service, instance_t _instance,
             send_back_cached_eventgroup(_service, _instance, _eventgroup);
         }
 
-        routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
-                _event, _subscription_type);
+        if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
+            routing_->subscribe(client_, _service, _instance, _eventgroup, _major,
+                    _event, _subscription_type);
+        }
     }
 }
 
@@ -793,6 +844,133 @@ void application_impl::unregister_subscription_handler(service_t _service,
     unregister_message_handler(_service, _instance, ANY_METHOD - 1);
 }
 
+void application_impl::on_subscription_status(service_t _service,
+        instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+        uint16_t _error) {
+    bool entry_found(false);
+    {
+        auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, _event);
+        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        auto its_subscription_state = subscription_state_.find(its_tuple);
+        if (its_subscription_state == subscription_state_.end()) {
+            its_tuple = std::make_tuple(_service, _instance, _eventgroup, ANY_EVENT);
+            auto its_any_subscription_state = subscription_state_.find(its_tuple);
+            if (its_any_subscription_state == subscription_state_.end()) {
+                VSOMEIP_TRACE << std::hex << get_client( )
+                        << " application_impl::on_subscription_status: "
+                        << "Received a subscription status without subscribe for "
+                        << std::hex << _service << "/" << _instance << "/"
+                        << _eventgroup << "/" << _event << "/error=" << _error;
+            } else {
+                entry_found = true;
+            }
+        } else {
+            entry_found = true;
+        }
+        if (entry_found) {
+            if (_error) {
+                subscription_state_[its_tuple] =
+                        subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
+            } else {
+                subscription_state_[its_tuple] =
+                        subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED;
+            }
+        }
+    }
+
+    if (entry_found) {
+        deliver_subscription_state(_service, _instance, _eventgroup, _event, _error);
+    }
+}
+
+void application_impl::deliver_subscription_state(service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, event_t _event, uint16_t _error) {
+    std::vector<subscription_status_handler_t> handlers;
+    {
+        std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
+        auto found_service = subscription_status_handlers_.find(_service);
+        if (found_service != subscription_status_handlers_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    auto found_event = found_eventgroup->second.find(_event);
+                    if (found_event != found_eventgroup->second.end()) {
+                        handlers.push_back(found_event->second);
+                    } else {
+                        auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
+                        if (its_any_event != found_eventgroup->second.end()) {
+                            handlers.push_back(its_any_event->second);
+                        }
+                    }
+                }
+            }
+            found_instance = found_service->second.find(ANY_INSTANCE);
+            if (found_instance != found_service->second.end()) {
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    auto found_event = found_eventgroup->second.find(_event);
+                    if (found_event != found_eventgroup->second.end()) {
+                        handlers.push_back(found_event->second);
+                    } else {
+                        auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
+                        if (its_any_event != found_eventgroup->second.end()) {
+                            handlers.push_back(its_any_event->second);
+                        }
+                    }
+                }
+            }
+        }
+        found_service = subscription_status_handlers_.find(ANY_SERVICE);
+        if (found_service != subscription_status_handlers_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    auto found_event = found_eventgroup->second.find(_event);
+                    if (found_event != found_eventgroup->second.end()) {
+                        handlers.push_back(found_event->second);
+                    } else {
+                        auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
+                        if (its_any_event != found_eventgroup->second.end()) {
+                            handlers.push_back(its_any_event->second);
+                        }
+                    }
+                }
+            }
+            found_instance = found_service->second.find(ANY_INSTANCE);
+            if (found_instance != found_service->second.end()) {
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    auto found_event = found_eventgroup->second.find(_event);
+                    if (found_event != found_eventgroup->second.end()) {
+                        handlers.push_back(found_event->second);
+                    } else {
+                        auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
+                        if (its_any_event != found_eventgroup->second.end()) {
+                            handlers.push_back(its_any_event->second);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (auto &handler : handlers) {
+        std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
+        std::shared_ptr<sync_handler> its_sync_handler
+            = std::make_shared<sync_handler>([handler, _service,
+                                              _instance, _eventgroup,
+                                              _event, _error]() {
+                            handler(_service, _instance,
+                                    _eventgroup, _event, _error);
+                                             });
+        handlers_.push_back(its_sync_handler);
+    }
+    if (handlers.size()) {
+        dispatcher_condition_.notify_all();
+    }
+}
+
 void application_impl::on_subscription_error(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, uint16_t _error) {
     error_handler_t handler = nullptr;
@@ -821,6 +999,35 @@ void application_impl::on_subscription_error(service_t _service,
             handlers_.push_back(its_sync_handler);
         }
         dispatcher_condition_.notify_all();
+    }
+}
+
+void application_impl::register_subscription_status_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            subscription_status_handler_t _handler) {
+    std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
+    if (_handler) {
+        subscription_status_handlers_[_service][_instance][_eventgroup][_event] = _handler;
+    } else {
+        auto its_service = subscription_status_handlers_.find(_service);
+        if (its_service != subscription_status_handlers_.end()) {
+            auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                auto its_eventgroup = its_instance->second.find(_eventgroup);
+                if (its_eventgroup != its_instance->second.end()) {
+                    its_eventgroup->second.erase(_event);
+                    if (its_eventgroup->second.size() == 0) {
+                        its_instance->second.erase(_eventgroup);
+                        if (its_instance->second.size() == 0) {
+                            its_service->second.erase(_instance);
+                            if (its_service->second.size() == 0) {
+                                subscription_status_handlers_.erase(_service);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1062,15 +1269,27 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
     }
     if (!_is_available) {
-        std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
-        auto found_service = subscriptions_.find(_service);
-        if (found_service != subscriptions_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (auto &event : found_instance->second) {
-                    for (auto &eventgroup : event.second) {
-                        eventgroup.second = false;
+        {
+            std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+            auto found_service = subscriptions_.find(_service);
+            if (found_service != subscriptions_.end()) {
+                auto found_instance = found_service->second.find(_instance);
+                if (found_instance != found_service->second.end()) {
+                    for (auto &event : found_instance->second) {
+                        for (auto &eventgroup : event.second) {
+                            eventgroup.second = false;
+                        }
                     }
+                }
+            }
+        }
+        {
+            std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+            for (auto &its_subscription_state : subscription_state_) {
+                if (std::get<0>(its_subscription_state.first) == _service &&
+                        std::get<1>(its_subscription_state.first) == _instance) {
+                    its_subscription_state.second =
+                            subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
                 }
             }
         }
@@ -1494,6 +1713,13 @@ void application_impl::remove_subscription(service_t _service,
                                            instance_t _instance,
                                            eventgroup_t _eventgroup,
                                            event_t _event) {
+
+    {
+        auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, _event);
+        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        subscription_state_.erase(its_tuple);
+    }
+
     std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
 
     auto found_service = subscriptions_.find(_service);
@@ -1566,6 +1792,38 @@ bool application_impl::check_for_active_subscription(service_t _service,
     // - a service instance and nobody yet subscribed to one of the event's
     //   eventgroups
     return false;
+}
+
+bool application_impl::check_subscription_state(service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, event_t _event) {
+    bool is_acknowledged(false);
+    bool should_subscribe(true);
+    {
+        auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, _event);
+        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        auto its_subscription_state = subscription_state_.find(its_tuple);
+        if (its_subscription_state != subscription_state_.end()) {
+            if (its_subscription_state->second !=
+                    subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
+                // only return true if subscription is NACK
+                // as only then we need to subscribe!
+                should_subscribe = false;
+                if (its_subscription_state->second ==
+                        subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
+                    is_acknowledged = true;
+                }
+            }
+        } else {
+            subscription_state_[its_tuple] = subscription_state_e::IS_SUBSCRIBING;
+        }
+    }
+
+    if (!should_subscribe && is_acknowledged) {
+        // Deliver subscription state only if ACK has already received
+        deliver_subscription_state(_service, _instance, _eventgroup, _event, 0 /* OK */);
+    }
+
+    return should_subscribe;
 }
 
 } // namespace vsomeip

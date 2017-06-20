@@ -37,7 +37,7 @@ private:
 
 #ifdef USE_DLT
     DltLogLevelType level_as_dlt(logging::trivial::severity_level _level);
-    DLT_DECLARE_CONTEXT(dlt_);
+    DLT_DECLARE_CONTEXT(dlt_)
 #endif
 };
 

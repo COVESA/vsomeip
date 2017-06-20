@@ -99,7 +99,10 @@ uint8_t profile_01::compute_crc(const Config &_config, const buffer::e2e_buffer 
 
 /** @req [SWS_E2E_00356] */
 bool profile_01::is_buffer_length_valid(const Config &_config, const buffer::e2e_buffer &_buffer) {
-    return (((_config.data_length / 8) + 1U <= _buffer.size()) && _config.crc_offset <= _buffer.size());
+    return (((_config.data_length / 8) + 1U <= _buffer.size())
+            && _config.crc_offset <= _buffer.size()
+            && _config.counter_offset / 8 <= _buffer.size()
+            && _config.data_id_nibble_offset / 8 <= _buffer.size());
 }
 }
 }

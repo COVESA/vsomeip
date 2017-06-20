@@ -154,11 +154,6 @@ void routing_manager_stub::stop() {
         }
 #endif
     }
-
-    {
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
-        broadcast_routing_stop();
-    }
 }
 
 const std::shared_ptr<configuration> routing_manager_stub::get_configuration() const {
@@ -232,6 +227,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         client_t its_client_from_header;
         client_t its_target_client;
         client_t its_subscriber;
+        bool its_is_valid_crc(true);
+
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
         std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
@@ -411,8 +408,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         its_data[VSOMEIP_CLIENT_POS_MIN],
                         its_data[VSOMEIP_CLIENT_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
-                                                  - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                std::memcpy(&its_reliable, &_data[_size - sizeof(bool)], sizeof(its_reliable));
+                                                  - sizeof(bool) - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
+                std::memcpy(&its_reliable, &_data[_size - sizeof(bool) - sizeof(bool)], sizeof(its_reliable));
+
+                std::memcpy(&its_is_valid_crc, &_data[_size - sizeof(bool)], sizeof(its_is_valid_crc));
+
                 if (utility::is_request(its_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                     if (!configuration_->is_client_allowed(its_client_from_header,
                             its_service, its_instance)) {
@@ -434,11 +434,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         return;
                     }
                 }
-                // reduce by size of instance, flush and reliable flag
+                // reduce by size of instance, flush, reliable and is_valid_crc flag
                 const std::uint32_t its_message_size = its_size -
                         static_cast<std::uint32_t>(sizeof(its_instance)
-                        + sizeof(bool) + sizeof(bool));
-                host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable);
+                        + sizeof(bool) + sizeof(bool) + sizeof(bool));
+                host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable, its_is_valid_crc);
                 break;
             }
             case VSOMEIP_NOTIFY: {
@@ -447,8 +447,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
-                                                  - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                // reduce by size of instance, flush and reliable flag
+                                                  - sizeof(bool) - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
+                // reduce by size of instance, flush, reliable and is_valid_crc flag
                 const std::uint32_t its_message_size = its_size -
                         static_cast<uint32_t>(sizeof(its_instance)
                         + sizeof(bool) + sizeof(bool));
@@ -461,10 +461,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
                 std::memcpy(&its_instance, &_data[_size - sizeof(instance_t) -
-                                                 sizeof(bool) - sizeof(bool) - sizeof(client_t)],
+                                                 sizeof(bool) - sizeof(bool) - sizeof(bool) - sizeof(client_t)],
                                                 sizeof(its_instance));
                 std::memcpy(&its_target_client, &_data[_size - sizeof(client_t)], sizeof(client_t));
-                // reduce by size of instance, flush, reliable flag and target client
+                // reduce by size of instance, flush, reliable flag, is_valid_crc and target client
                 const std::uint32_t its_message_size = its_size -
                         static_cast<uint32_t>(sizeof(its_instance)
                         + sizeof(bool) + sizeof(bool) + sizeof(client_t));
@@ -708,7 +708,8 @@ void routing_manager_stub::client_registration_func(void) {
                         if (its_connection != connection_matrix_.end()) {
                             for (auto its_client : its_connection->second) {
                                 if (its_client != r.first &&
-                                        its_client != VSOMEIP_ROUTING_CLIENT) {
+                                        its_client != VSOMEIP_ROUTING_CLIENT &&
+                                        its_client != get_client()) {
                                     create_client_routing_info(its_client);
                                     insert_client_routing_info(its_client,
                                             routing_info_entry_e::RIE_DEL_CLIENT, r.first);
@@ -735,7 +736,7 @@ void routing_manager_stub::client_registration_func(void) {
 
 void routing_manager_stub::init_routing_endpoint() {
     std::stringstream its_endpoint_path;
-    its_endpoint_path << VSOMEIP_BASE_PATH << VSOMEIP_ROUTING_CLIENT;
+    its_endpoint_path << utility::get_base_path(configuration_) << VSOMEIP_ROUTING_CLIENT;
     endpoint_path_ = its_endpoint_path.str();
     client_t routing_host_id = configuration_->get_id(configuration_->get_routing_host());
     if (configuration_->is_security_enabled() && get_client() != routing_host_id) {
@@ -893,7 +894,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target) {
 
 #if 0
         std::stringstream msg;
-        msg << "rms::send_routing_info ";
+        msg << "rms::send_routing_info to (" << std::hex << _target << "): ";
         for (uint32_t i = 0; i < its_size; ++i)
             msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
         VSOMEIP_INFO << msg.str();
@@ -908,6 +909,9 @@ void routing_manager_stub::send_client_routing_info(const client_t _target) {
         }
 
         client_routing_info_.erase(_target);
+    } else {
+        VSOMEIP_ERROR << "Send routing info to client 0x" << std::hex << _target
+                << " failed: No valid endpoint!";
     }
 }
 
@@ -1009,10 +1013,13 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                         }
                     }
                 }
-                create_client_routing_info(its_client.first);
-                insert_client_routing_info(its_client.first, _entry, _hoster,
-                        _service, _instance, _major, _minor);
-                send_client_routing_info(its_client.first);
+                if (its_client.first != VSOMEIP_ROUTING_CLIENT &&
+                        its_client.first != get_client()) {
+                    create_client_routing_info(its_client.first);
+                    insert_client_routing_info(its_client.first, _entry, _hoster,
+                            _service, _instance, _major, _minor);
+                    send_client_routing_info(its_client.first);
+                }
             }
         }
     }
@@ -1020,39 +1027,6 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
 
 bool routing_manager_stub::is_already_connected(client_t _source, client_t _sink) {
     return connection_matrix_[_source].find(_sink) != connection_matrix_[_source].end();
-}
-
-void routing_manager_stub::broadcast_routing_stop() {
-    std::vector<byte_t> its_command;
-
-    // Routing command
-    its_command.push_back(VSOMEIP_ROUTING_INFO);
-
-    // Sender client
-    client_t client = get_client();
-    for (uint32_t i = 0; i < sizeof(client_t); ++i) {
-        its_command.push_back(
-                reinterpret_cast<const byte_t*>(&client)[i]);
-    }
-
-    // Overall size ~> 1 indicates routing stop
-    uint32_t size = 0x1;
-    for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
-        its_command.push_back(
-                reinterpret_cast<const byte_t*>(&size)[i]);
-    }
-
-    // Stop Placeholder
-    its_command.push_back(0x0);
-
-    for (auto& info : routing_info_) {
-        if (info.first != VSOMEIP_ROUTING_CLIENT && info.first != host_->get_client()) {
-            std::shared_ptr<endpoint> its_endpoint = host_->find_local(info.first);
-            if (its_endpoint) {
-                its_endpoint->send(&its_command[0], uint32_t(its_command.size()), true);
-            }
-        }
-    }
 }
 
 void routing_manager_stub::broadcast(const std::vector<byte_t> &_command) const {
@@ -1288,7 +1262,7 @@ void routing_manager_stub::create_local_receiver() {
         return;
     }
     std::stringstream its_local_receiver_path;
-    its_local_receiver_path << VSOMEIP_BASE_PATH << std::hex << host_->get_client();
+    its_local_receiver_path << utility::get_base_path(configuration_) << std::hex << host_->get_client();
     local_receiver_path_ = its_local_receiver_path.str();
 #if _WIN32
     ::_unlink(local_receiver_path_.c_str());
@@ -1491,6 +1465,27 @@ void routing_manager_stub::update_registration(client_t _client,
         << (_type == registration_type_e::REGISTER ?
                 "registering." : "deregistering.");
 
+    if (_type == registration_type_e::DEREGISTER) {
+        // If we receive a DEREGISTER client command
+        // the endpoint error handler is not longer needed
+        // as the client is going down anyways.
+
+        // Normally the handler is removed in "remove_local"
+        // anyways, but as some time takes place until
+        // the client DEREGISTER command is consumed
+        // and therefore "remove_local" is finally called
+        // it was possible the same client registers itself
+        // again in very short time and then could "overtake"
+        // the occurring error in the endpoint and was then
+        // erroneously unregistered even that error has
+        // nothing to do with the newly registered client.
+
+        auto its_endpoint = host_->find_local(_client);
+        if (its_endpoint) {
+            its_endpoint->register_error_handler(nullptr);
+        }
+    }
+
     std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
     pending_client_registrations_[_client].push_back(_type);
     client_registration_condition_.notify_one();
@@ -1509,6 +1504,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
     if (!_requests.size()) {
         return;
     }
+    bool service_available(false);
     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
     create_client_routing_info(_client);
     for (auto request : _requests) {
@@ -1522,6 +1518,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
                             found_client.first != host_->get_client()) {
                         if (!is_already_connected(found_client.first, _client)) {
                             if (_client == found_client.first) {
+                                service_available = true;
                                 insert_client_routing_info(found_client.first,
                                     routing_info_entry_e::RIE_ADD_CLIENT, _client);
                             } else {
@@ -1535,6 +1532,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
                     if (_client != VSOMEIP_ROUTING_CLIENT &&
                             _client != host_->get_client()) {
                         for (auto instance : found_service->second) {
+                            service_available = true;
                             insert_client_routing_info(_client,
                                     routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
                                     found_client.first, request.service_, instance.first,
@@ -1549,6 +1547,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
                                 found_client.first != host_->get_client()) {
                             if (!is_already_connected(found_client.first, _client)) {
                                 if (_client == found_client.first) {
+                                    service_available = true;
                                     insert_client_routing_info(found_client.first,
                                         routing_info_entry_e::RIE_ADD_CLIENT, _client);
                                 } else {
@@ -1561,6 +1560,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
                         }
                         if (_client != VSOMEIP_ROUTING_CLIENT &&
                                 _client != host_->get_client()) {
+                            service_available = true;
                             insert_client_routing_info(_client,
                                     routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
                                     found_client.first, request.service_, request.instance_,
@@ -1573,7 +1573,9 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<serv
             }
         }
     }
-    send_client_routing_info(_client);
+    if (service_available) {
+        send_client_routing_info(_client);
+    }
 }
 
 #ifndef _WIN32
@@ -1627,8 +1629,10 @@ void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code 
         }
     }
     for (auto client : erroneous_clients) {
-        VSOMEIP_WARNING << "Routinger Manager 0x" << std::hex << get_client()
-                        << " : Release died Client 0x" << std::hex << client;
+        VSOMEIP_WARNING << "Expected client 0x" << std::hex
+                << client << " hasn't reconnected to the routing manager. "
+                << "Release identifier as client went offline while no"
+                << "routing manager was running.";
         host_->handle_client_error(client);
     }
 }

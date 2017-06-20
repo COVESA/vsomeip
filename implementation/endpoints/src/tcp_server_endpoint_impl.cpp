@@ -54,7 +54,8 @@ void tcp_server_endpoint_impl::start() {
         connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
                         shared_from_this()), max_message_size_,
-                        buffer_shrink_threshold_);
+                        buffer_shrink_threshold_, has_enabled_magic_cookies_,
+                        service_);
 
         {
             std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
@@ -84,22 +85,6 @@ void tcp_server_endpoint_impl::stop() {
         connections_.clear();
     }
 }
-
-void tcp_server_endpoint_impl::stop_all_connections(const boost::asio::ip::address &_address) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    endpoint_type type;
-
-    for (const auto &c : connections_) {
-        if(c.first.address() == _address) {
-            VSOMEIP_INFO << "Stopping connections for " << _address.to_string()
-                    << " : " << std::dec << c.first.port();
-            c.second->stop();
-            type = c.first;
-        }
-    }
-    connections_.erase(type);
-}
-
 
 bool tcp_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
@@ -215,8 +200,10 @@ tcp_server_endpoint_impl::connection::connection(
         std::weak_ptr<tcp_server_endpoint_impl> _server,
         std::uint32_t _max_message_size,
         std::uint32_t _initial_recv_buffer_size,
-        std::uint32_t _buffer_shrink_threshold) :
-        socket_(_server.lock()->service_),
+        std::uint32_t _buffer_shrink_threshold,
+        bool _magic_cookies_enabled,
+        boost::asio::io_service &_io_service) :
+        socket_(_io_service),
         server_(_server),
         max_message_size_(_max_message_size),
         recv_buffer_size_initial_(_initial_recv_buffer_size),
@@ -225,19 +212,24 @@ tcp_server_endpoint_impl::connection::connection(
         missing_capacity_(0),
         shrink_count_(0),
         buffer_shrink_threshold_(_buffer_shrink_threshold),
-        remote_port_(0) {
+        remote_port_(0),
+        magic_cookies_enabled_(_magic_cookies_enabled) {
 }
 
 tcp_server_endpoint_impl::connection::ptr
 tcp_server_endpoint_impl::connection::create(
         std::weak_ptr<tcp_server_endpoint_impl> _server,
-        std::uint32_t _max_message_size, std::uint32_t _buffer_shrink_threshold) {
+        std::uint32_t _max_message_size,
+        std::uint32_t _buffer_shrink_threshold,
+        bool _magic_cookies_enabled,
+        boost::asio::io_service & _io_service) {
     const std::uint32_t its_initial_receveive_buffer_size =
             VSOMEIP_SOMEIP_HEADER_SIZE + 8 + MAGIC_COOKIE_SIZE + 8
                     + VSOMEIP_MAX_TCP_MESSAGE_SIZE;
     return ptr(new connection(_server, _max_message_size,
                     its_initial_receveive_buffer_size,
-                    _buffer_shrink_threshold));
+                    _buffer_shrink_threshold, _magic_cookies_enabled,
+                    _io_service));
 }
 
 tcp_server_endpoint_impl::socket_type &
@@ -310,7 +302,7 @@ void tcp_server_endpoint_impl::connection::send_queued(
         return;
     }
     message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
-    if (its_server->has_enabled_magic_cookies_) {
+    if (magic_cookies_enabled_) {
         send_magic_cookie(its_buffer);
     }
 
@@ -384,9 +376,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                 if (has_full_message) {
                     bool needs_forwarding(true);
                     if (is_magic_cookie(its_iteration_gap)) {
-                        its_server->has_enabled_magic_cookies_ = true;
+                        magic_cookies_enabled_ = true;
                     } else {
-                        if (its_server->has_enabled_magic_cookies_) {
+                        if (magic_cookies_enabled_) {
                             uint32_t its_offset
                                 = its_server->find_magic_cookie(&recv_buffer_[its_iteration_gap],
                                         recv_buffer_size_);
@@ -416,9 +408,10 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                 sizeof(session_t));
                             its_server->clients_mutex_.lock();
                             its_server->clients_[its_client][its_session] = remote_;
+                            its_server->clients_to_endpoint_[its_client] = remote_;
                             its_server->clients_mutex_.unlock();
                         }
-                        if (!its_server->has_enabled_magic_cookies_) {
+                        if (!magic_cookies_enabled_) {
                             its_host->on_message(&recv_buffer_[its_iteration_gap],
                                     current_message_size, its_server.get(),
                                     boost::asio::ip::address(),
@@ -439,7 +432,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                     missing_capacity_ = 0;
                     recv_buffer_size_ -= current_message_size;
                     its_iteration_gap += current_message_size;
-                } else if (its_server->has_enabled_magic_cookies_ && recv_buffer_size_ > 0){
+                } else if (magic_cookies_enabled_ && recv_buffer_size_ > 0) {
                     uint32_t its_offset =
                             its_server->find_magic_cookie(&recv_buffer_[its_iteration_gap],
                                     recv_buffer_size_);
@@ -468,7 +461,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
-                        if (its_server->has_enabled_magic_cookies_) {
+                        if (magic_cookies_enabled_) {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds "
                                           << "maximum message size ("
                                           << std::dec << current_message_size
@@ -524,7 +517,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
     if (_error == boost::asio::error::eof
             || _error == boost::asio::error::connection_reset
             || _error == boost::asio::error::timed_out) {
-        VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk error detected: " << _error.message();
+        if(_error == boost::asio::error::timed_out) {
+            VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk: " << _error.message();
+        }
         {
             std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
             stop();
@@ -546,33 +541,13 @@ void tcp_server_endpoint_impl::connection::calculate_shrink_count() {
 }
 
 client_t tcp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definition> _endpoint) {
-    endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
-    {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        auto its_remote = connections_.find(endpoint);
-        if (its_remote != connections_.end()) {
-            return its_remote->second->get_client(endpoint);
-        }
-    }
-    return 0;
-}
-
-client_t tcp_server_endpoint_impl::connection::get_client(endpoint_type _endpoint_type) {
-    std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
-    if (!its_server) {
-        VSOMEIP_TRACE << "tcp_server_endpoint_impl::connection::get_client "
-                " couldn't lock server_";
-        return 0;
-    }
-    std::lock_guard<std::mutex> its_lock(its_server->clients_mutex_);
-    for (const auto its_client : its_server->clients_) {
-        for (const auto its_session : its_server->clients_[its_client.first]) {
-            auto endpoint = its_session.second;
-            if (endpoint == _endpoint_type) {
-                // TODO: Check system byte order before convert!
-                client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
-                return client;
-            }
+    const endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    for (const auto its_client : clients_to_endpoint_) {
+        if (its_client.second == endpoint) {
+            // TODO: Check system byte order before convert!
+            client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
+            return client;
         }
     }
     return 0;
@@ -643,10 +618,6 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
 
 // Dummies
 void tcp_server_endpoint_impl::receive() {
-    // intentionally left empty
-}
-
-void tcp_server_endpoint_impl::restart() {
     // intentionally left empty
 }
 

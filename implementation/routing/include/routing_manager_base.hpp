@@ -96,7 +96,7 @@ public:
             bool _flush);
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable) = 0;
+            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true) = 0;
 
     // Endpoint host ~> will be implemented by routing_manager_impl/_proxy/
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
@@ -151,15 +151,16 @@ protected:
 
     bool send_local_notification(client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush = true, bool _reliable = false);
+            bool _flush = true, bool _reliable = false, bool _is_valid_crc = true);
 
     bool send_local(
             std::shared_ptr<endpoint> &_target, client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush, bool _reliable, uint8_t _command) const;
+            bool _flush, bool _reliable, uint8_t _command, bool _is_valid_crc = true) const;
 
     bool insert_subscription(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, event_t _event, client_t _client);
+            eventgroup_t _eventgroup, event_t _event, client_t _client,
+            std::set<event_t> *_already_subscribed_events);
 
     std::shared_ptr<deserializer> get_deserializer();
     void put_deserializer(std::shared_ptr<deserializer>);
@@ -184,7 +185,8 @@ protected:
 
     void notify_one_current_value(client_t _client, service_t _service,
                                   instance_t _instance,
-                                  eventgroup_t _eventgroup, event_t _event);
+                                  eventgroup_t _eventgroup, event_t _event,
+                                  const std::set<event_t> &_events_to_exclude);
 
     void send_identify_request(service_t _service, instance_t _instance,
             major_version_t _major, bool _reliable);

@@ -43,6 +43,13 @@ static constexpr std::array<service_info, 7> service_infos_same_service_id = {{
 }};
 
 static constexpr int notifications_to_send = 10;
+
+// one_event_two_eventgroups globals
+static constexpr struct service_info service_info_subscriber_based_notification =
+        { 0xCAFE, 0x1, 0x8888, 0x8111, 0x1};
+static constexpr vsomeip::method_t shutdown_method_id = 0x6666;
+static constexpr vsomeip::method_t set_method_id = 0x7777;
+
 }
 
 #endif /* SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_ */

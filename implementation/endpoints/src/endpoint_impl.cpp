@@ -47,46 +47,45 @@ uint32_t endpoint_impl<Protocol>::find_magic_cookie(
         byte_t *_buffer, size_t _size) {
     bool is_found(false);
     uint32_t its_offset = 0xFFFFFFFF;
-    if (has_enabled_magic_cookies_) {
-        uint8_t its_cookie_identifier, its_cookie_type;
 
-        if (is_client()) {
-            its_cookie_identifier =
-                    static_cast<uint8_t>(MAGIC_COOKIE_SERVICE_MESSAGE);
-            its_cookie_type =
-                    static_cast<uint8_t>(MAGIC_COOKIE_SERVICE_MESSAGE_TYPE);
+    uint8_t its_cookie_identifier, its_cookie_type;
+
+    if (is_client()) {
+        its_cookie_identifier =
+                static_cast<uint8_t>(MAGIC_COOKIE_SERVICE_MESSAGE);
+        its_cookie_type =
+                static_cast<uint8_t>(MAGIC_COOKIE_SERVICE_MESSAGE_TYPE);
+    } else {
+        its_cookie_identifier =
+                static_cast<uint8_t>(MAGIC_COOKIE_CLIENT_MESSAGE);
+        its_cookie_type =
+                static_cast<uint8_t>(MAGIC_COOKIE_CLIENT_MESSAGE_TYPE);
+    }
+
+    do {
+        its_offset++; // --> first loop has "its_offset = 0"
+        if (_size > its_offset + 16) {
+            is_found = (_buffer[its_offset] == 0xFF
+                     && _buffer[its_offset + 1] == 0xFF
+                     && _buffer[its_offset + 2] == its_cookie_identifier
+                     && _buffer[its_offset + 3] == 0x00
+                     && _buffer[its_offset + 4] == 0x00
+                     && _buffer[its_offset + 5] == 0x00
+                     && _buffer[its_offset + 6] == 0x00
+                     && _buffer[its_offset + 7] == 0x08
+                     && _buffer[its_offset + 8] == 0xDE
+                     && _buffer[its_offset + 9] == 0xAD
+                     && _buffer[its_offset + 10] == 0xBE
+                     && _buffer[its_offset + 11] == 0xEF
+                     && _buffer[its_offset + 12] == 0x01
+                     && _buffer[its_offset + 13] == 0x01
+                     && _buffer[its_offset + 14] == its_cookie_type
+                     && _buffer[its_offset + 15] == 0x00);
         } else {
-            its_cookie_identifier =
-                    static_cast<uint8_t>(MAGIC_COOKIE_CLIENT_MESSAGE);
-            its_cookie_type =
-                    static_cast<uint8_t>(MAGIC_COOKIE_CLIENT_MESSAGE_TYPE);
+            break;
         }
 
-        do {
-            its_offset++; // --> first loop has "its_offset = 0"
-            if (_size > its_offset + 16) {
-                is_found = (_buffer[its_offset] == 0xFF
-                         && _buffer[its_offset + 1] == 0xFF
-                         && _buffer[its_offset + 2] == its_cookie_identifier
-                         && _buffer[its_offset + 3] == 0x00
-                         && _buffer[its_offset + 4] == 0x00
-                         && _buffer[its_offset + 5] == 0x00
-                         && _buffer[its_offset + 6] == 0x00
-                         && _buffer[its_offset + 7] == 0x08
-                         && _buffer[its_offset + 8] == 0xDE
-                         && _buffer[its_offset + 9] == 0xAD
-                         && _buffer[its_offset + 10] == 0xBE
-                         && _buffer[its_offset + 11] == 0xEF
-                         && _buffer[its_offset + 12] == 0x01
-                         && _buffer[its_offset + 13] == 0x01
-                         && _buffer[its_offset + 14] == its_cookie_type
-                         && _buffer[its_offset + 15] == 0x00);
-            } else {
-                break;
-            }
-
-        } while (!is_found);
-    }
+    } while (!is_found);
 
     return (is_found ? its_offset : 0xFFFFFFFF);
 }

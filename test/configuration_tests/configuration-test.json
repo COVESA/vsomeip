@@ -1,21 +1,88 @@
 {
     "unicast" : "10.0.2.15",
+    "diagnosis" : "0x55",
     "logging" :
     {
         "level" : "debug",
         "console" : "true",
         "file" : { "enable" : "true", "path" : "/home/someip/another-file.log" },
-        "dlt" : "false"
+        "dlt" : "false",
+        "version" : {
+            "enable" : "false",
+            "interval" : "15"
+        }
+    },
+    "watchdog" :
+    {
+        "enable" : "true",
+        "timeout" : "1234",
+        "allowed_missing_pongs" : "7"
+    },
+    "file-permissions" :
+    {
+        "permissions-shm" : "0444",
+        "umask" : "0222"
+    },
+    "supports_selective_broadcasts" :
+    {
+       "address" : "160.160.160.160"
+    },
+    "tracing" :
+    {
+        "enable" : "true",
+        "sd_enable" : "true",
+        "channels" :
+        [
+            {
+                "name" : "testname",
+                "id" : "testid"
+            },
+            {
+                "name" : "testname2",
+                "id" : "testid2"
+            }
+        ],
+        "filters" :
+        [
+            {
+               "channel" : "testname",
+               "services" : ["0x1111",2222],
+               "methods" : ["0x1111",2222],
+               "clients" : ["0x1111",2222]
+            },
+            {
+               "channel" : "testname2",
+               "services" : ["0x3333",4444],
+               "methods" : ["0x3333",4444],
+               "clients" : ["0x3333",4444]
+            }
+        ]
     },
     "applications" :
     [
         {
             "name" : "my_application",
-            "id" : "0x7788"
+            "id" : "0x7788",
+            "max_dispatchers" : "25",
+            "max_dispatch_time" : "1234",
+            "threads" : "12",
+            "request_debounce_time" : "5000",
+            "plugins" :
+            [
+                {
+                    "application_plugin" : "testlibraryname"
+                },
+                {
+                    "intentionally_wrong_plugin" : "wrong"
+                }
+            ]
         },
         {
             "name" : "other_application",
-            "id" : "0x9933"
+            "id" : "0x9933",
+            "threads" : "0",
+            "threads" : "256",
+            "request_debounce_time" : "10001"
         }
     ],
     "services" :
@@ -24,7 +91,7 @@
             "service" : "0x1234",
             "instance" : "0x0022",
             "unicast" : "local",
-            "reliable" : { "port" : "30506", "magic_cookies" : "false" },
+            "reliable" : { "port" : "30506", "enable-magic-cookies" : "true" },
             "unreliable" : "31000",
             "events" :
             [
@@ -83,6 +150,65 @@
             "unicast" : "10.0.2.23",
             "reliable" : "30506",
             "unreliable" : "30444"
+        },
+        {
+            "service" : "0x3333",
+            "instance" : "0x1"
+        },
+        {
+            "service" : "0x7809",
+            "instance" : "0x1",
+            "multicast" :
+            {
+                "address" : "224.212.244.225",
+                "port" : "1234"
+            },
+            "eventgroups" :
+            [
+                {
+                    "eventgroup" : "0x1111",
+                    "threshold" : "8",
+                    "is_multicast" : "true",
+                    "events" : [ "0x778", "0x77A" ]
+                }
+            ]
+        },
+        {
+            "service" : "0x3555",
+            "instance" : "0x1",
+            "protocol" : "other"
+        }
+    ],
+    "internal_services" :
+    [
+        {
+            "first" : "0xF100",
+            "last" : "0xF109"
+        },
+        {
+            "first" : {
+                "service" : "0xF300",
+                "instance" : "0x1"
+            },
+            "last" : {
+                "service" : "0xF300",
+                "instance" : "0x10"
+            }
+        }
+    ],
+    "clients" :
+    [
+        {
+            "service" : "0x8888",
+            "instance" : "0x1",
+            "unreliable" : [ "0x11", "0x10" ],
+            "reliable" : [ "0x11", "0x10" ]
+        },
+        {
+            "service" : "8888",
+            "instance" : "1",
+            "unreliable" : [ 40000, 40001 ],
+            "reliable" : [ 40000, 40001 ]
         }
     ],
     "max-payload-size-local" : "15000",
@@ -111,6 +237,68 @@
             ]
         }
     ],
+    "security" :
+    {
+        "check_credentials" : "true",
+        "policies" :
+        [
+            {
+                "client" : "0x1277",
+                "credentials" : { "uid" : "1000", "gid" : "1000" },
+                "allow" :
+                {
+                    "offers":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instance" : "0x5678"
+                        },
+                        {
+                            "service"  : "0x1235",
+                            "instance" : "0x5678"
+                        }
+                    ]
+                }
+            },
+            {
+                "client" : { "first" : "0x1343", "last" : "0x1346" },
+                "allow" :
+                {
+                    "requests":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instance" : "0x5678"
+                        }
+                    ]
+                }
+            },
+            {
+                "client" : { "first" : "0x1443", "last" : "0x1446" },
+                "deny" :
+                {
+                    "requests":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instance" : "0x5678"
+                        }
+                    ],
+                    "offers":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instance" : "0x5678"
+                        },
+                        {
+                            "service"  : "0x1235",
+                            "instance" : "0x5678"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
     "routing" : "my_application",
     "service-discovery" :
     {
@@ -124,6 +312,7 @@
         "repetitions_max" : "4",
         "ttl" : "13",
         "cyclic_offer_delay" : "2132",
-        "request_response_delay" : "1111"
+        "request_response_delay" : "1111",
+        "offer_debounce_time" : "1000"
     }
 }

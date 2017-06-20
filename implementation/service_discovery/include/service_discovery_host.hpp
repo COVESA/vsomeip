@@ -81,9 +81,6 @@ public:
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
 
-    virtual void on_reboot(const boost::asio::ip::address &_address) = 0;
-
-
     virtual bool on_subscribe_accepted(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::shared_ptr<endpoint_definition> _target,
             const std::chrono::steady_clock::time_point &_expiration) = 0;

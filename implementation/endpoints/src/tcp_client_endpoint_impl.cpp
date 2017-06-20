@@ -396,7 +396,9 @@ void tcp_client_endpoint_impl::receive_cbk(
             if (_error == boost::asio::error::connection_reset ||
                     _error ==  boost::asio::error::eof ||
                     _error == boost::asio::error::timed_out) {
-                VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk error detected: " << _error.message();
+                if(_error == boost::asio::error::timed_out) {
+                    VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk: " << _error.message();
+                }
                 shutdown_and_close_socket_unlocked();
             } else {
                 its_lock.unlock();

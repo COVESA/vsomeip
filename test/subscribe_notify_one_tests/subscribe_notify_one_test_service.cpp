@@ -12,6 +12,7 @@
 #include <map>
 #include <algorithm>
 #include <unordered_set>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -35,7 +36,9 @@ public:
             wait_for_stop_(true),
             stop_thread_(std::bind(&subscribe_notify_one_test_service::wait_for_stop, this)),
             wait_for_notify_(true),
-            notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)) {
+            notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)),
+            subscription_state_handler_called_(0),
+            subscription_error_occured_(false) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -79,6 +82,14 @@ public:
                             std::placeholders::_3));
 
             app_->request_service(i.service_id, i.instance_id, vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR, true);
+
+            auto handler = std::bind(&subscribe_notify_one_test_service::on_subscription_state_change, this,
+                    std::placeholders::_1, std::placeholders::_2,
+                    std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+            app_->register_subscription_status_handler(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
+            app_->register_subscription_status_handler(vsomeip::ANY_SERVICE, i.instance_id, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
+            app_->register_subscription_status_handler(i.service_id, vsomeip::ANY_INSTANCE, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
+            app_->register_subscription_status_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
 
             std::set<vsomeip::eventgroup_t> its_eventgroups;
             its_eventgroups.insert(i.eventgroup_id);
@@ -140,6 +151,22 @@ public:
                 wait_until_other_services_available_ = false;
                 condition_.notify_one();
             }
+        }
+    }
+
+    void on_subscription_state_change(const vsomeip::service_t _service, const vsomeip::instance_t _instance,
+            const vsomeip::eventgroup_t _eventgroup, const vsomeip::event_t _event, const uint16_t _error) {
+        (void)_service;
+        (void)_instance;
+        (void)_eventgroup;
+        (void)_event;
+        if (!_error) {
+            subscription_state_handler_called_++;
+        } else {
+            subscription_error_occured_ = true;
+            VSOMEIP_WARNING << std::hex << app_->get_client()
+                    << " : on_subscription_state_change: for service " << std::hex
+                    << _service << " received a subscription error!";
         }
     }
 
@@ -285,6 +312,7 @@ public:
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] Subscribing";
         // subscribe to events of other services
+        uint32_t subscribe_count = 0;
         for(const subscribe_notify_one_test::service_info& i: subscribe_notify_one_test::service_infos) {
             if ((i.service_id == service_info_.service_id
                             && i.instance_id == service_info_.instance_id)
@@ -292,6 +320,7 @@ public:
                 continue;
             }
 
+            ++subscribe_count;
             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
                             vsomeip::DEFAULT_MAJOR, subscription_type_);
 
@@ -305,6 +334,19 @@ public:
 
         while (wait_until_notified_from_other_services_) {
             condition_.wait(its_lock);
+        }
+
+        // It is possible that we run in the case a subscription is NACKED
+        // due to TCP endpoint not completely connected when subscription
+        // is processed in the server - due to resubscribing the error handler
+        // count may differ from expected value, but its not a real but as
+        // the subscription takes places anyways and all events will be received.
+        if (!subscription_error_occured_) {
+            // 4 * subscribe count cause we installed three additional wild-card handlers
+            ASSERT_EQ(subscribe_count * 4, subscription_state_handler_called_);
+        } else {
+            VSOMEIP_WARNING << "Subscription state handler check skipped: CallCount="
+                    << std::dec << subscription_state_handler_called_;
         }
     }
 
@@ -363,12 +405,32 @@ public:
             wait_until_notified_from_other_services_ = false;
             condition_.notify_one();
         }
+
+        stop_offer();
+
+        // ensure that the service which hosts the routing doesn't exit to early
+        if (app_->is_routing()) {
+            for (const auto& i : subscribe_notify_one_test::service_infos) {
+                if ((i.service_id == service_info_.service_id
+                                && i.instance_id == service_info_.instance_id)
+                        || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
+                    continue;
+                }
+                while (app_->is_available(i.service_id, i.instance_id,
+                        vsomeip::ANY_MAJOR, vsomeip::ANY_MINOR)) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            }
+        }
+
         for(const auto& i : subscribe_notify_one_test::service_infos) {
             if ((i.service_id == service_info_.service_id
                     && i.instance_id == service_info_.instance_id)
                     || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
+            app_->register_subscription_status_handler(i.service_id, i.instance_id,
+                    i.eventgroup_id, vsomeip::ANY_EVENT, nullptr);
             app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
             app_->release_event(i.service_id, i.instance_id, i.event_id);
             app_->release_service(i.service_id, i.instance_id);
@@ -403,6 +465,8 @@ private:
     std::thread notify_thread_;
 
     std::unordered_set<vsomeip::client_t> subscribers_;
+    std::atomic<uint32_t> subscription_state_handler_called_;
+    std::atomic<bool> subscription_error_occured_;
 };
 
 static int service_number;

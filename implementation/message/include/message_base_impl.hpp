@@ -62,10 +62,14 @@ public:
     VSOMEIP_EXPORT message * get_owner() const;
     VSOMEIP_EXPORT void set_owner(message *_owner);
 
+    VSOMEIP_EXPORT bool is_valid_crc() const;
+    VSOMEIP_EXPORT void set_is_valid_crc(bool _is_valid_crc);
+
 protected: // members
     message_header_impl header_;
     bool is_reliable_;
     bool is_initial_;
+    bool is_valid_crc_;
 };
 
 } // namespace vsomeip

@@ -73,7 +73,7 @@ public:
     /// Get the underlying endpoint in the native type.
     const data_type* data() const
     {
-        return (struct sockaddr*)&sockaddr;
+        return reinterpret_cast<const struct sockaddr*>(&sockaddr);
     }
 
     /// Get the underlying size of the endpoint in the native type.
@@ -192,7 +192,7 @@ public:
     void stop();
 
 private:
-    bool has_address(const struct ifaddrmsg * ifa_struct,
+    bool has_address(struct ifaddrmsg * ifa_struct,
             size_t length,
             const unsigned int address);
     void send_ifa_request();

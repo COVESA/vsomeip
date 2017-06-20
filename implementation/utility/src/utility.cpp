@@ -15,10 +15,6 @@
 
 #include <sys/stat.h>
 
-#ifndef _WIN32
-    #include <fcntl.h>
-#endif
-
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 
@@ -54,46 +50,6 @@ uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
     return (its_size);
 }
 
-void * utility::load_library(const std::string &_path,
-        const std::string &_symbol) {
-    void * its_symbol = 0;
-
-#ifdef _WIN32
-    std::string path = _path.substr(0, _path.length() - 5).substr(3) + ".dll";
-
-    HINSTANCE hDLL = LoadLibrary(path.c_str());
-    if (hDLL != NULL) {
-        //loadedLibraries_.insert(itsLibrary);
-        std::cout << "Loading interface library \"" << path << "\" succeeded." << std::endl;
-
-        typedef UINT(CALLBACK* LPFNDLLFUNC1)(DWORD, UINT);
-
-        LPFNDLLFUNC1 lpfnDllFunc1 = (LPFNDLLFUNC1)GetProcAddress(hDLL, _symbol.c_str());
-        if (!lpfnDllFunc1)
-        {
-            FreeLibrary(hDLL);
-            std::cerr << "Loading symbol \"" << _symbol << "\" failed (" << GetLastError() << ")" << std::endl;
-        }
-        else
-        {
-            its_symbol = lpfnDllFunc1;
-        }
-
-    }
-    else {
-        std::cerr << "Loading interface library \"" << path << "\" failed (" << GetLastError() << ")" << std::endl;
-    }
-#else
-    void *handle = dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-    if (0 != handle) {
-        its_symbol = dlsym(handle, _symbol.c_str());
-    } else {
-        VSOMEIP_ERROR << "Loading failed: (" << dlerror() << ")";
-    }
-#endif
-    return (its_symbol);
-}
-
 bool utility::exists(const std::string &_path) {
     struct stat its_stat;
     return (stat(_path.c_str(), &its_stat) == 0);
@@ -115,6 +71,16 @@ bool utility::is_folder(const std::string &_path) {
             return true;
     }
     return false;
+}
+
+const std::string utility::get_base_path(
+        const std::shared_ptr<configuration> &_config) {
+    return std::string(VSOMEIP_BASE_PATH + _config->get_network() + "-");
+}
+
+const std::string utility::get_shm_name(
+        const std::shared_ptr<configuration> &_config) {
+    return std::string("/" + _config->get_network());
 }
 
 // pointer to shared memory
@@ -161,7 +127,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         PAGE_READWRITE,                 // read/write access
                         0,                              // maximum object size (high-order DWORD)
                         sizeof(configuration_data_t),   // maximum object size (low-order DWORD)
-                        VSOMEIP_SHM_NAME);              // name of mapping object
+                        utility::get_shm_name(_config).c_str());// name of mapping object
 
                     if (its_descriptor && GetLastError() == ERROR_ALREADY_EXISTS) {
 
@@ -200,7 +166,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     PAGE_READWRITE,                 // read/write access
                     0,                              // maximum object size (high-order DWORD)
                     sizeof(configuration_data_t),   // maximum object size (low-order DWORD)
-                    VSOMEIP_SHM_NAME);              // name of mapping object
+                    utility::get_shm_name(_config).c_str());// name of mapping object
 
                 if (its_descriptor) {
                     void *its_segment = (LPTSTR)MapViewOfFile(its_descriptor,   // handle to map object
@@ -254,7 +220,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
     }
 #else
     const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
-    int its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR | O_CREAT | O_EXCL,
+    int its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR | O_CREAT | O_EXCL,
             static_cast<mode_t>(_config->get_permissions_shm()));
     ::umask(previous_mask);
     if (its_descriptor > -1) {
@@ -326,7 +292,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
         }
     } else if (errno == EEXIST) {
         const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
-        its_descriptor = shm_open(VSOMEIP_SHM_NAME, O_RDWR,
+        its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
                 static_cast<mode_t>(_config->get_permissions_shm()));
         ::umask(previous_mask);
         if (-1 == its_descriptor) {
@@ -383,7 +349,8 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
     return (the_configuration_data__ != nullptr);
 }
 
-void utility::auto_configuration_exit(client_t _client) {
+void utility::auto_configuration_exit(client_t _client,
+        const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
     if (the_configuration_data__) {
 #ifdef _WIN32
@@ -426,7 +393,7 @@ void utility::auto_configuration_exit(client_t _client) {
                         "munmap succeeded.";
                 the_configuration_data__ = nullptr;
                 if (unlink_shm) {
-                    shm_unlink(VSOMEIP_SHM_NAME);
+                    shm_unlink(utility::get_shm_name(_config).c_str());
                 }
             }
 
@@ -435,7 +402,8 @@ void utility::auto_configuration_exit(client_t _client) {
     }
 }
 
-bool utility::is_used_client_id(client_t _client) {
+bool utility::is_used_client_id(client_t _client,
+        const std::shared_ptr<configuration> &_config) {
     for (int i = 0;
          i < the_configuration_data__->max_used_client_ids_index_;
          i++) {
@@ -445,7 +413,7 @@ bool utility::is_used_client_id(client_t _client) {
     }
 #ifndef _WIN32
     std::stringstream its_client;
-    its_client << VSOMEIP_BASE_PATH << std::hex << _client;
+    its_client << utility::get_base_path(_config) << std::hex << _client;
     if (exists(its_client.str())) {
         if (-1 == ::unlink(its_client.str().c_str())) {
             VSOMEIP_WARNING << "unlink failed for " << its_client.str() << ". Client identifier 0x"
@@ -477,7 +445,7 @@ std::set<client_t> utility::get_used_client_ids() {
             }
         }
 #endif
-        for (int i = 0;
+        for (int i = 1;
              i < the_configuration_data__->max_used_client_ids_index_;
              i++) {
             clients.insert(the_configuration_data__->used_client_ids_[i]);
@@ -499,6 +467,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
     if (the_configuration_data__ != nullptr) {
+        const std::string its_name = _config->get_routing_host();
 #ifdef _WIN32
         DWORD waitResult = WaitForSingleObject(configuration_data_mutex, INFINITE);
         assert(waitResult == WAIT_OBJECT_0);
@@ -513,17 +482,18 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
         }
 
         pid_t pid = getpid();
-        if (the_configuration_data__->pid_ != 0) {
-            if (pid != the_configuration_data__->pid_) {
-                if (kill(the_configuration_data__->pid_, 0) == -1) {
-                    VSOMEIP_WARNING << "Routing Manager seems to be inactive. Taking over...";
-                    the_configuration_data__->routing_manager_host_ = 0x0000;
+        if (its_name == "" || _name == its_name) {
+            if (the_configuration_data__->pid_ != 0) {
+                if (pid != the_configuration_data__->pid_) {
+                    if (kill(the_configuration_data__->pid_, 0) == -1) {
+                        VSOMEIP_WARNING << "Routing Manager seems to be inactive. Taking over...";
+                        the_configuration_data__->routing_manager_host_ = 0x0000;
+                    }
                 }
             }
         }
 #endif
 
-        const std::string its_name = _config->get_routing_host();
         bool set_client_as_manager_host(false);
         if (its_name != "" && its_name == _name) {
             if (the_configuration_data__->routing_manager_host_ == 0x0000) {
@@ -566,17 +536,17 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                 if (its_preconfigured_client_id == _client) {
                     // preconfigured client id for application name present in json
                     // and requested
-                    if (!is_used_client_id(_client)) {
+                    if (!is_used_client_id(_client, _config)) {
                         use_autoconfig = false;
                     }
                 } else {
                     // preconfigured client id for application name present in
                     // json, but different client id requested
-                    if (!is_used_client_id(its_preconfigured_client_id)) {
+                    if (!is_used_client_id(its_preconfigured_client_id, _config)) {
                         // assign preconfigured client id if not already used
                         _client = its_preconfigured_client_id;
                         use_autoconfig = false;
-                    } else if (!is_used_client_id(_client)) {
+                    } else if (!is_used_client_id(_client, _config)) {
                         // if preconfigured client id is already used and
                         // requested is unused assign requested
                         use_autoconfig = false;
@@ -586,11 +556,11 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
         }
 
         if (use_autoconfig) {
-            if (_client == ILLEGAL_CLIENT || is_used_client_id(_client)) {
+            if (_client == ILLEGAL_CLIENT || is_used_client_id(_client, _config)) {
                 _client = the_configuration_data__->client_base_;
             }
             int increase_count = 0;
-            while (is_used_client_id(_client)
+            while (is_used_client_id(_client, _config)
                     || !is_bigger_last_assigned_client_id(_client)
                     || _config->is_configured_client_id(_client)) {
                 if ((_client & 0xFF) + 1 > VSOMEIP_MAX_CLIENTS) {

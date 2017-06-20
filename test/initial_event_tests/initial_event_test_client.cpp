@@ -197,8 +197,12 @@ public:
                 case vsomeip::subscription_type_e::SU_RELIABLE:
                 case vsomeip::subscription_type_e::SU_PREFER_UNRELIABLE:
                 case vsomeip::subscription_type_e::SU_PREFER_RELIABLE:
-                case vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
                     if (all_notifications_received()) {
+                        notify = true;
+                    }
+                    break;
+                case vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
+                    if (all_notifications_received_tcp_and_udp()) {
                         notify = true;
                     }
                     break;
@@ -222,24 +226,30 @@ public:
                     if (v.second == initial_event_test::notifications_to_send) {
                         return true;
                     } else {
-                        if (initial_event_strict_checking_) {
-                            return false;
-                        } else {
-                            if (v.second >= initial_event_test::notifications_to_send) {
-                                VSOMEIP_WARNING
-                                        << "[" << std::setw(4) << std::setfill('0') << std::hex
-                                            << client_number_ << "] "
-                                        << " Received multiple initial events from service/instance: "
-                                        << std::setw(4) << std::setfill('0') << std::hex << v.first.first
-                                        << "."
-                                        << std::setw(4) << std::setfill('0') << std::hex << v.first.second
-                                        << " number of received events: " << v.second
-                                        << ". This is caused by StopSubscribe/Subscribe messages and/or"
-                                        << " service offered via UDP and TCP";
-                                return true;
-                            } else {
-                                return false;
+                        if (v.second >= initial_event_test::notifications_to_send) {
+                            VSOMEIP_WARNING
+                                    << "[" << std::setw(4) << std::setfill('0') << std::hex
+                                        << client_number_ << "] "
+                                    << " Received multiple initial events from service/instance: "
+                                    << std::setw(4) << std::setfill('0') << std::hex << v.first.first
+                                    << "."
+                                    << std::setw(4) << std::setfill('0') << std::hex << v.first.second
+                                    << " number of received events: " << v.second
+                                    << ". This is caused by StopSubscribe/Subscribe messages and/or"
+                                    << " service offered via UDP and TCP";
+                            if (initial_event_strict_checking_) {
+                                ADD_FAILURE() << "[" << std::setw(4) << std::setfill('0') << std::hex
+                                    << client_number_ << "] "
+                                    << " Received multiple initial events from service/instance: "
+                                    << std::setw(4) << std::setfill('0') << std::hex << v.first.first
+                                    << "."
+                                    << std::setw(4) << std::setfill('0') << std::hex << v.first.second
+                                    << " number of received events: " << v.second;
                             }
+                            return initial_event_strict_checking_ ? false : true;
+
+                        } else {
+                            return false;
                         }
                     }
                 }
@@ -262,6 +272,15 @@ public:
                         << ". This is caused by StopSubscribe/Subscribe messages and/or"
                         << " service offered via UDP and TCP";
                 received_twice++;
+            } else if (initial_event_strict_checking_ &&
+                    v.second > initial_event_test::notifications_to_send * 2) {
+                ADD_FAILURE() << "[" << std::setw(4) << std::setfill('0') << std::hex
+                    << client_number_ << "] "
+                    << " Received multiple initial events from service/instance: "
+                    << std::setw(4) << std::setfill('0') << std::hex << v.first.first
+                    << "."
+                    << std::setw(4) << std::setfill('0') << std::hex << v.first.second
+                    << " number of received events: " << v.second;
             } else if (v.second == initial_event_test::notifications_to_send * 2) {
                 received_twice++;
             } else if(v.second == initial_event_test::notifications_to_send) {
@@ -280,6 +299,11 @@ public:
                         << " Normal: " << received_normal
                         << " Twice: " << received_twice;
             return true;
+        } else if (initial_event_strict_checking_ && (
+                received_twice > ((service_infos_.size() - 1) * events_to_subscribe_)/ 2)) {
+            ADD_FAILURE() << "[" << std::setw(4) << std::setfill('0') << std::hex
+                << client_number_ << "] "
+                << " Received too much initial events twice: " << received_twice;
         }
         return false;
     }

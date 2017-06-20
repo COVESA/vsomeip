@@ -20,6 +20,8 @@ typedef std::function< void (const std::shared_ptr< message > &) > message_handl
 typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
 typedef std::function< bool (client_t, bool) > subscription_handler_t;
 typedef std::function< void (const uint16_t) > error_handler_t;
+typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
+                             const event_t, const uint16_t) > subscription_status_handler_t;
 
 } // namespace vsomeip
 

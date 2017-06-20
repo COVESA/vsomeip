@@ -100,8 +100,6 @@ private:
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
 
-    void broadcast_routing_stop();
-
     void inform_requesters(client_t _hoster, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor, routing_info_entry_e _entry,

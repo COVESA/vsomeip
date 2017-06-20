@@ -32,7 +32,6 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         std::uint32_t _buffer_shrink_threshold)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
       acceptor_(_io),
-      current_(nullptr),
       buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
 
@@ -61,7 +60,6 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         std::uint32_t _buffer_shrink_threshold)
     : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
       acceptor_(_io),
-      current_(nullptr),
       buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
 
@@ -86,21 +84,22 @@ bool local_server_endpoint_impl::is_local() const {
 void local_server_endpoint_impl::start() {
     std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
     if (acceptor_.is_open()) {
-        current_ = connection::create(
+        connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<local_server_endpoint_impl>(
                         shared_from_this()), max_message_size_,
-                        buffer_shrink_threshold_);
+                        buffer_shrink_threshold_,
+                        service_);
 
         {
-            std::unique_lock<std::mutex> its_lock(current_->get_socket_lock());
+            std::unique_lock<std::mutex> its_lock(new_connection->get_socket_lock());
             acceptor_.async_accept(
-                current_->get_socket(),
+                new_connection->get_socket(),
                 std::bind(
                     &local_server_endpoint_impl::accept_cbk,
                     std::dynamic_pointer_cast<
                         local_server_endpoint_impl
                     >(shared_from_this()),
-                    current_,
+                    new_connection,
                     std::placeholders::_1
                 )
             );
@@ -148,10 +147,6 @@ void local_server_endpoint_impl::receive() {
     // intentionally left empty
 }
 
-void local_server_endpoint_impl::restart() {
-    current_->start();
-}
-
 bool local_server_endpoint_impl::get_default_target(
         service_t,
         local_server_endpoint_impl::endpoint_type &) const {
@@ -187,8 +182,8 @@ void local_server_endpoint_impl::accept_cbk(
             if (its_host->get_configuration()->is_security_enabled()) {
                 std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
                 socket_type &new_connection_socket = _connection->get_socket();
-                uid_t uid;
-                gid_t gid;
+                uid_t uid(0);
+                gid_t gid(0);
                 client_t client = credentials::receive_credentials(
                      new_connection_socket.native(), uid, gid);
                 if (!its_host->check_credentials(client, uid, gid)) {
@@ -232,8 +227,9 @@ local_server_endpoint_impl::connection::connection(
         std::weak_ptr<local_server_endpoint_impl> _server,
         std::uint32_t _max_message_size,
         std::uint32_t _initial_recv_buffer_size,
-        std::uint32_t _buffer_shrink_threshold)
-    : socket_(_server.lock()->service_),
+        std::uint32_t _buffer_shrink_threshold,
+        boost::asio::io_service &_io_service)
+    : socket_(_io_service),
       server_(_server),
       recv_buffer_size_initial_(_initial_recv_buffer_size + 8),
       max_message_size_(_max_message_size),
@@ -249,13 +245,14 @@ local_server_endpoint_impl::connection::ptr
 local_server_endpoint_impl::connection::create(
         std::weak_ptr<local_server_endpoint_impl> _server,
         std::uint32_t _max_message_size,
-        std::uint32_t _buffer_shrink_threshold) {
+        std::uint32_t _buffer_shrink_threshold,
+        boost::asio::io_service &_io_service) {
     const std::uint32_t its_initial_buffer_size = VSOMEIP_COMMAND_HEADER_SIZE
             + VSOMEIP_MAX_LOCAL_MESSAGE_SIZE
             + static_cast<std::uint32_t>(sizeof(instance_t) + sizeof(bool)
                     + sizeof(bool));
     return ptr(new connection(_server, _max_message_size, its_initial_buffer_size,
-            _buffer_shrink_threshold));
+            _buffer_shrink_threshold, _io_service));
 }
 
 local_server_endpoint_impl::socket_type &
@@ -281,8 +278,8 @@ void local_server_endpoint_impl::connection::start() {
                 }
                 const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
                 if (its_capacity < its_required_capacity) {
-                        recv_buffer_.reserve(its_required_capacity);
-                        recv_buffer_.resize(its_required_capacity, 0x0);
+                    recv_buffer_.reserve(its_required_capacity);
+                    recv_buffer_.resize(its_required_capacity, 0x0);
                 }
                 buffer_size = missing_capacity_;
                 missing_capacity_ = 0;

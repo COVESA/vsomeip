@@ -23,6 +23,7 @@
 #include <vsomeip/application.hpp>
 
 #include "../../routing/include/routing_manager_host.hpp"
+#include "../../configuration/include/internal.hpp"
 
 namespace vsomeip {
 
@@ -154,6 +155,11 @@ public:
             eventgroup_t _eventgroup, client_t _client, bool _subscribed);
     VSOMEIP_EXPORT void on_subscription_error(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, uint16_t _error);
+    VSOMEIP_EXPORT void on_subscription_status(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event, uint16_t _error);
+    VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            subscription_status_handler_t _handler);
 
     // service_discovery_host
     VSOMEIP_EXPORT routing_manager * get_routing_manager() const;
@@ -230,6 +236,12 @@ private:
                              eventgroup_t _eventgroup, event_t _event);
     bool check_for_active_subscription(service_t _service, instance_t _instance,
                                        event_t _event);
+
+    void deliver_subscription_state(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event, uint16_t _error);
+
+    bool check_subscription_state(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
     //
     // Attributes
     //
@@ -333,6 +345,13 @@ private:
 
     bool stopped_called_;
 
+    std::map<service_t, std::map<instance_t, std::map<eventgroup_t,
+            std::map<event_t, subscription_status_handler_t > > > > subscription_status_handlers_;
+    std::mutex subscription_status_handlers_mutex_;
+
+    std::mutex subscriptions_state_mutex_;
+    std::map<std::tuple<service_t, instance_t, eventgroup_t, event_t>,
+        subscription_state_e> subscription_state_;
 
 };
 

@@ -285,6 +285,14 @@ The netmask to specify the subnet of the host system.
 +
 The diagnosis address (byte) that will be used to build client identifiers.
 +
+* 'network'
++
+Network identifier used to support multiple routing managers on one host. This
+setting changes the name of the shared memory segment in `/dev/shm` and the name
+of the unix domain sockets in `/tmp/`. Defaults to `vsomeip` meaning the shared
+memory will be named `/dev/shm/vsomeip` and the unix domain sockets will be
+named `/tmp/vsomeip-$CLIENTID`
++
 //Logging
 * 'logging'
 +
@@ -311,6 +319,19 @@ The absolute path of the log file.
 +
 Specifies whether Diagnostic Log and Trace (DLT) is enabled (valid values:
 _true, false_).
++
+** 'version'
++
+Configures logging of the vSomeIP version
++
+*** 'enable'
++
+Enable or disable cyclic logging of vSomeIP version, defaults to true (valid
+values: _true, false_)
++
+*** 'interval'
++
+Configures interval in seconds to log the vSomeIP version. Default value is 10.
 +
 //Tracing
 * anchor:config-tracing[]'tracing' (optional)

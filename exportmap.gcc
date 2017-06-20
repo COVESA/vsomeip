@@ -38,9 +38,10 @@ global:
         vsomeip::sd::runtime::*;
         *vsomeip::utility;
         vsomeip::utility::is*;
+        *vsomeip::plugin_manager;
+        vsomeip::plugin_manager::*;
     }; 
-    VSOMEIP_CFG_RUNTIME;
-    VSOMEIP_SD_RUNTIME;
+    vsomeip_plugin_init;
 local:
     *;
 };

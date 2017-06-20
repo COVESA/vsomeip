@@ -36,6 +36,7 @@ public:
     virtual ~server_endpoint_impl();
 
     bool is_client() const;
+    void restart();
     bool is_connected() const;
 
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
@@ -64,6 +65,7 @@ protected:
 
     std::mutex clients_mutex_;
     std::map<client_t, std::map<session_t, endpoint_type> > clients_;
+    std::map<client_t, endpoint_type> clients_to_endpoint_;
 
     boost::asio::steady_timer flush_timer_;
 

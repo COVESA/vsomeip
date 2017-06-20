@@ -12,13 +12,13 @@
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
 
+VSOMEIP_PLUGIN(vsomeip::sd::runtime_impl)
+
 namespace vsomeip {
 namespace sd {
 
-std::shared_ptr<runtime> runtime_impl::get() {
-    static std::shared_ptr<runtime> the_runtime =
-            std::make_shared<runtime_impl>();
-    return the_runtime;
+runtime_impl::runtime_impl()
+    : plugin_impl("vsomeip SD plug-in", 1, plugin_type_e::SD_RUNTIME_PLUGIN) {
 }
 
 runtime_impl::~runtime_impl() {

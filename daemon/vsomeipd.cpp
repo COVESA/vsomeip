@@ -26,12 +26,21 @@ static std::shared_ptr<vsomeip::application> its_application;
  * Handle signal to stop the daemon
  */
 void vsomeipd_stop(int _signal) {
-    if (_signal == SIGINT || _signal == SIGTERM)
+    if (_signal == SIGINT || _signal == SIGTERM) {
         its_application->stop();
+    }
     if (_signal == SIGABRT) {
-        VSOMEIP_INFO << "Suspending service discovery";
+        VSOMEIP_INFO << "Stopping service discovery";
         its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
         its_application->stop();
+    }
+    if (_signal == SIGUSR1) {
+        VSOMEIP_INFO << "Suspending service discovery";
+        its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    }
+    if (_signal == SIGUSR2) {
+        VSOMEIP_INFO << "Resuming service discovery";
+        its_application->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
     }
 }
 #endif
@@ -61,6 +70,8 @@ int vsomeipd_process(bool _is_quiet) {
     signal(SIGINT, vsomeipd_stop);
     signal(SIGTERM, vsomeipd_stop);
     signal(SIGABRT, vsomeipd_stop);
+    signal(SIGUSR1, vsomeipd_stop);
+    signal(SIGUSR2, vsomeipd_stop);
 #endif
     if (its_application->init()) {
         if (its_application->is_routing()) {

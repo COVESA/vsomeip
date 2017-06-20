@@ -46,6 +46,11 @@ bool server_endpoint_impl<Protocol>::is_client() const {
 }
 
 template<typename Protocol>
+void server_endpoint_impl<Protocol>::restart() {
+    // intentionally left blank
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_connected() const {
     return true;
 }
@@ -88,6 +93,11 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
             if (found_session != found_client->second.end()) {
                 its_target = found_session->second;
                 is_valid_target = true;
+                found_client->second.erase(its_session);
+            } else {
+                VSOMEIP_WARNING << "server_endpoint::send: session_id 0x"
+                        << std::hex << its_session
+                        << " not found for client 0x" << its_client;
             }
         } else {
             is_valid_target = get_default_target(its_service, its_target);

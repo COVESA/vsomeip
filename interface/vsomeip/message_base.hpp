@@ -192,6 +192,17 @@ public:
      * \brief Set whether or not the message is an initial event.
      */
     VSOMEIP_EXPORT virtual void set_initial(bool _is_initial) = 0;
+
+    /**
+     * \brief Return whether or not the CRC value received is valid.
+     */
+    VSOMEIP_EXPORT virtual bool is_valid_crc() const = 0;
+
+    /**
+     * \brief Set whether or not the CRC value received is valid.
+     */
+    VSOMEIP_EXPORT virtual void set_is_valid_crc(bool _is_valid_crc) = 0;
+
 };
 
 /** @} */

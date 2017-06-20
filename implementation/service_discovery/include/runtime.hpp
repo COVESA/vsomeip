@@ -18,7 +18,6 @@ class service_discovery_host;
 
 class runtime {
 public:
-    static std::shared_ptr<runtime> get();
     virtual ~runtime() {
     }
 

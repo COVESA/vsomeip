@@ -8,10 +8,11 @@
 #include <unistd.h> // for access()
 #include <sstream>
 
-#include "../../implementation/utility/include/utility.hpp"
-#include "../../implementation/configuration/include/configuration.hpp"
 #include <vsomeip/constants.hpp>
 
+#include "../../implementation/utility/include/utility.hpp"
+#include "../../implementation/configuration/include/configuration.hpp"
+#include "../../implementation/plugin/include/plugin_manager.hpp"
 
 using namespace vsomeip;
 
@@ -31,22 +32,26 @@ static const vsomeip::client_t APPLICATION_OUT_LOW_CLIENT_ID = 0x6011;
 static const std::string APPLICATION_OUT_HIGH_NAME = "client_id_test_utility_service_out_high";
 static const vsomeip::client_t APPLICATION_OUT_HIGH_CLIENT_ID = 0x6411;
 
-
-
 class client_id_utility_test: public ::testing::Test {
 public:
     client_id_utility_test() :
-            configuration_(vsomeip::configuration::get()),
             client_id_routing_manager_(0x0) {
+
+        std::shared_ptr<vsomeip::configuration> its_configuration;
+        auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(
+                vsomeip::plugin_type_e::CONFIGURATION_PLUGIN);
+        if (its_plugin) {
+            configuration_ = std::dynamic_pointer_cast<vsomeip::configuration>(its_plugin);
+        }
     }
 protected:
     virtual void SetUp() {
-        ASSERT_FALSE(file_exist(std::string("/dev/shm").append(VSOMEIP_SHM_NAME)));
+        ASSERT_FALSE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
         ASSERT_TRUE(static_cast<bool>(configuration_));
         configuration_->load(APPLICATION_NAME_ROUTING_MANAGER);
 
         utility::auto_configuration_init(configuration_);
-        EXPECT_TRUE(file_exist(std::string("/dev/shm").append(VSOMEIP_SHM_NAME)));
+        EXPECT_TRUE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
 
         client_id_routing_manager_ = utility::request_client_id(
                 configuration_, APPLICATION_NAME_ROUTING_MANAGER, 0x0);
@@ -55,8 +60,8 @@ protected:
     }
 
     virtual void TearDown() {
-        utility::auto_configuration_exit(client_id_routing_manager_);
-        EXPECT_FALSE(file_exist(std::string("/dev/shm").append(VSOMEIP_SHM_NAME)));
+        utility::auto_configuration_exit(client_id_routing_manager_, configuration_);
+        EXPECT_FALSE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
     }
 
     bool file_exist(const std::string &_path) {

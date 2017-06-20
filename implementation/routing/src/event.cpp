@@ -441,4 +441,14 @@ std::set<client_t> event::get_subscribers(eventgroup_t _eventgroup) {
     return its_subscribers;
 }
 
+bool event::is_subscribed(client_t _client) {
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    for (const auto &egp : eventgroups_) {
+        if (egp.second.find(_client) != egp.second.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace vsomeip

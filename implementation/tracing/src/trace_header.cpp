@@ -13,11 +13,13 @@
 namespace vsomeip {
 namespace tc {
 
-bool trace_header::prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_sending) {
-    return prepare(_endpoint.get(), _is_sending);
+bool trace_header::prepare(const std::shared_ptr<endpoint> &_endpoint,
+        bool _is_sending, instance_t _instance) {
+    return prepare(_endpoint.get(), _is_sending, _instance);
 }
 
-bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending) {
+bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending,
+        instance_t _instance) {
     if (_endpoint) {
         const client_endpoint* its_client_endpoint =
                 dynamic_cast<const client_endpoint*>(_endpoint);
@@ -40,7 +42,8 @@ bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending) {
                     its_protocol = protocol_e::udp;
                 }
             }
-            prepare(its_address.to_v4(), its_port, its_protocol, _is_sending);
+            prepare(its_address.to_v4(), its_port, its_protocol, _is_sending,
+                    _instance);
             return true;
         }
     }
@@ -50,7 +53,7 @@ bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending) {
 
 void trace_header::prepare(const boost::asio::ip::address_v4 &_address,
                            std::uint16_t _port, protocol_e _protocol,
-                           bool _is_sending) {
+                           bool _is_sending, instance_t _instance) {
     unsigned long its_address_as_long = _address.to_ulong();
     data_[0] = VSOMEIP_LONG_BYTE0(its_address_as_long);
     data_[1] = VSOMEIP_LONG_BYTE1(its_address_as_long);
@@ -60,6 +63,8 @@ void trace_header::prepare(const boost::asio::ip::address_v4 &_address,
     data_[5] = VSOMEIP_WORD_BYTE1(_port);
     data_[6] = static_cast<byte_t>(_protocol);
     data_[7] = static_cast<byte_t>(_is_sending);
+    data_[8] = VSOMEIP_WORD_BYTE0(_instance);
+    data_[9] = VSOMEIP_WORD_BYTE1(_instance);
 }
 
 } // namespace tc

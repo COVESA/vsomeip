@@ -49,7 +49,7 @@ bool ipv6_option_impl::serialize(vsomeip::serializer *_to) const {
 bool ipv6_option_impl::deserialize(vsomeip::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from)
                             && length_ == VSOMEIP_SD_IPV6_OPTION_LENGTH;;
-    uint8_t its_reserved;
+    uint8_t its_reserved(static_cast<std::uint8_t>(layer_four_protocol_e::UNKNOWN));
     _from->deserialize(address_.data(), 16);
     _from->deserialize(its_reserved);
     _from->deserialize(its_reserved);

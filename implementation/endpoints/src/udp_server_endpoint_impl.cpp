@@ -110,10 +110,6 @@ void udp_server_endpoint_impl::receive() {
     }
 }
 
-void udp_server_endpoint_impl::restart() {
-    receive();
-}
-
 bool udp_server_endpoint_impl::send_to(
     const std::shared_ptr<endpoint_definition> _target,
     const byte_t *_data, uint32_t _size, bool _flush) {
@@ -313,6 +309,7 @@ void udp_server_endpoint_impl::receive_cbk(
                             sizeof(session_t));
                         clients_mutex_.lock();
                         clients_[its_client][its_session] = remote_;
+                        clients_to_endpoint_[its_client] = remote_;
                         clients_mutex_.unlock();
                     }
                     service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_SERVICE_POS_MIN],
@@ -341,7 +338,7 @@ void udp_server_endpoint_impl::receive_cbk(
                     remaining_bytes = 0;
                 }
             } while (remaining_bytes > 0);
-            restart();
+            receive();
         } else {
             receive();
         }
@@ -349,15 +346,13 @@ void udp_server_endpoint_impl::receive_cbk(
 }
 
 client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definition> _endpoint) {
-    endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
+    const endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
-    for (auto its_client : clients_) {
-        for (auto its_session : clients_[its_client.first]) {
-            if (endpoint == its_session.second) {
-                // TODO: Check system byte order before convert!
-                client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
-                return client;
-            }
+    for (const auto its_client : clients_to_endpoint_) {
+        if (its_client.second == endpoint) {
+            // TODO: Check system byte order before convert!
+            client_t client = client_t(its_client.first << 8 | its_client.first >> 8);
+            return client;
         }
     }
     return 0;

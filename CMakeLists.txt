@@ -7,8 +7,8 @@ cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 6)
-set (VSOMEIP_PATCH_VERSION 4)
+set (VSOMEIP_MINOR_VERSION 7)
+set (VSOMEIP_PATCH_VERSION 0)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -122,6 +122,7 @@ file(GLOB vsomeip_SRC
     "implementation/routing/src/*.cpp"
     "implementation/runtime/src/*.cpp"
     "implementation/utility/src/*.cpp"
+    "implementation/plugin/src/*.cpp"
 )
 
 file(GLOB_RECURSE vsomeip_e2e_SRC
@@ -167,6 +168,7 @@ add_library(vsomeip-cfg SHARED ${vsomeip-cfg_SRC})
 set_target_properties (vsomeip-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(vsomeip-cfg vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
+# Service-Discovery library
 file(GLOB vsomeip-sd_SRC
     "implementation/service_discovery/src/*.cpp"
 )
@@ -177,8 +179,8 @@ set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSIO
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 if (MSVC)
-    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_CONFIG")
-    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
 endif()
 
@@ -377,6 +379,16 @@ add_subdirectory( tools )
 # build examples
 add_custom_target( examples )
 add_subdirectory( examples EXCLUDE_FROM_ALL )
+
+# build plugins located directly in the build tree
+# (Non-Windows only)
+if (NOT MSVC)
+    if(EXISTS "${PROJECT_SOURCE_DIR}/plugins/CMakeLists.txt")
+       # build plugins if available
+       message("Plugins CMakeList.txt found: Build plugins")
+       add_subdirectory( plugins )
+    endif()
+endif()
 
 
 ##############################################################################

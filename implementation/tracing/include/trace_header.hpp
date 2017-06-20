@@ -12,7 +12,7 @@
 
 #include <boost/asio/ip/address_v4.hpp>
 
-#define VSOMEIP_TRACE_HEADER_SIZE 8
+#define VSOMEIP_TRACE_HEADER_SIZE 10
 
 namespace vsomeip {
 
@@ -28,10 +28,13 @@ enum class protocol_e : uint8_t {
 };
 
 struct trace_header {
-    bool prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_sending);
-    bool prepare(const endpoint* _endpoint, bool _is_sending);
+    bool prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_sending,
+            instance_t _instance);
+    bool prepare(const endpoint* _endpoint, bool _is_sending,
+            instance_t _instance);
     void prepare(const boost::asio::ip::address_v4 &_address,
-                 std::uint16_t _port, protocol_e _protocol, bool _is_sending);
+                 std::uint16_t _port, protocol_e _protocol, bool _is_sending,
+                 instance_t _instance);
 
     byte_t data_[VSOMEIP_TRACE_HEADER_SIZE];
 };

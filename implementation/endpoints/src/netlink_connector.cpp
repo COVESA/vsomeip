@@ -85,7 +85,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
     if (!_error) {
         size_t len = _bytes;
 
-        unsigned int address;
+        unsigned int address(0);
         if (address_.is_v4()) {
             inet_pton(AF_INET, address_.to_string().c_str(), &address);
         } else {
@@ -247,12 +247,12 @@ void netlink_connector::send_ifi_request() {
     }
 }
 
-bool netlink_connector::has_address(const struct ifaddrmsg * ifa_struct,
+bool netlink_connector::has_address(struct ifaddrmsg * ifa_struct,
         size_t length,
         const unsigned int address) {
 
     struct rtattr *retrta;
-    retrta = (struct rtattr *)IFA_RTA(ifa_struct);
+    retrta = static_cast<struct rtattr *>(IFA_RTA(ifa_struct));
     while RTA_OK(retrta, length) {
         if (retrta->rta_type == IFA_ADDRESS) {
             char pradd[128];

@@ -16,6 +16,7 @@
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/defines.hpp>
+#include <vsomeip/plugin.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 #include "internal.hpp"
@@ -24,16 +25,19 @@
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "e2e.hpp"
 
+#define VSOMEIP_CONFIG_PLUGIN_VERSION              1
+
 namespace vsomeip {
 
 class event;
 
-class VSOMEIP_IMPORT_EXPORT_CONFIG configuration {
+class configuration {
 public:
-    static std::shared_ptr<configuration> get();
     virtual ~configuration() {}
 
     virtual bool load(const std::string &_name) = 0;
+
+    virtual const std::string &get_network() const = 0;
 
     virtual const boost::asio::ip::address & get_unicast_address() const = 0;
     virtual unsigned short get_diagnosis_address() const = 0;
@@ -128,6 +132,12 @@ public:
     virtual bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const = 0;
     virtual bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
+
+    // Plugins
+    virtual std::map<plugin_type_e, std::string> get_plugins(
+            const std::string &_name) const = 0;
+
+    virtual void set_configuration_path(const std::string &_path) = 0;
 
     //E2E
     virtual std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const = 0;

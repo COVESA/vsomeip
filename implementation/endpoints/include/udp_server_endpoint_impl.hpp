@@ -30,7 +30,6 @@ public:
     void start();
     void stop();
 
-    void restart();
     void receive();
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,

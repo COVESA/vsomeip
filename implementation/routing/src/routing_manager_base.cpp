@@ -71,6 +71,19 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service,
         its_info = create_service_info(_service, _instance, _major, _minor,
                 DEFAULT_TTL, true);
     }
+    {
+        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        // Set major version for all registered events of this service and instance
+        const auto found_service = events_.find(_service);
+        if (found_service != events_.end()) {
+            const auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                for (const auto &j : found_instance->second) {
+                    j.second->set_version(_major);
+                }
+            }
+        }
+    }
     return true;
 }
 
@@ -315,10 +328,12 @@ void routing_manager_base::subscribe(client_t _client, service_t _service,
 
     (void) _major;
     (void) _subscription_type;
-
-    bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _client);
+    std::set<event_t> its_already_subscribed_events;
+    bool inserted = insert_subscription(_service, _instance, _eventgroup,
+            _event, _client, &its_already_subscribed_events);
     if (inserted) {
-        notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
+        notify_one_current_value(_client, _service, _instance, _eventgroup,
+                _event, its_already_subscribed_events);
     }
 }
 
@@ -468,11 +483,10 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service,
     }
 }
 
-void routing_manager_base::notify_one_current_value(client_t _client,
-                                                    service_t _service,
-                                                    instance_t _instance,
-                                                    eventgroup_t _eventgroup,
-                                                    event_t _event) {
+void routing_manager_base::notify_one_current_value(
+        client_t _client, service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, event_t _event,
+        const std::set<event_t> &_events_to_exclude) {
     if (_event != ANY_EVENT) {
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event && its_event->is_field())
@@ -482,8 +496,11 @@ void routing_manager_base::notify_one_current_value(client_t _client,
         if (its_eventgroup) {
             std::set<std::shared_ptr<event> > its_events = its_eventgroup->get_events();
             for (auto e : its_events) {
-                if (e->is_field())
+                if (e->is_field()
+                        && _events_to_exclude.find(e->get_event())
+                                == _events_to_exclude.end()) {
                     e->notify_one(_client, true); // TODO: use _flush to send all events together!
+                }
             }
         }
     }
@@ -603,7 +620,7 @@ client_t routing_manager_base::find_local_client(service_t _service, instance_t 
 
 std::shared_ptr<endpoint> routing_manager_base::create_local_unlocked(client_t _client) {
     std::stringstream its_path;
-    its_path << VSOMEIP_BASE_PATH << std::hex << _client;
+    its_path << utility::get_base_path(configuration_) << std::hex << _client;
 
 #ifdef _WIN32
     boost::asio::ip::address address = boost::asio::ip::address::from_string("127.0.0.1");
@@ -795,7 +812,7 @@ void routing_manager_base::remove_eventgroup_info(service_t _service,
 
 bool routing_manager_base::send_local_notification(client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
-        bool _flush, bool _reliable) {
+        bool _flush, bool _reliable, bool _is_valid_crc) {
 #ifdef USE_DLT
     bool has_local(false);
 #endif
@@ -822,7 +839,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
             std::shared_ptr<endpoint> its_local_target = find_local(its_client);
             if (its_local_target) {
                 send_local(its_local_target, _client, _data, _size,
-                           _instance, _flush, _reliable, VSOMEIP_SEND);
+                           _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
             }
         }
     }
@@ -833,7 +850,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
             = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
         tc::trace_header its_header;
-        if (its_header.prepare(nullptr, true))
+        if (its_header.prepare(nullptr, true, _instance))
             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                     _data, its_data_size);
     }
@@ -844,9 +861,9 @@ bool routing_manager_base::send_local_notification(client_t _client,
 bool routing_manager_base::send_local(
         std::shared_ptr<endpoint>& _target, client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
-        bool _flush, bool _reliable, uint8_t _command) const {
+        bool _flush, bool _reliable, uint8_t _command, bool _is_valid_crc) const {
     std::size_t its_complete_size = _size + sizeof(instance_t)
-            + sizeof(bool) + sizeof(bool);
+            + sizeof(bool) + sizeof(bool) + sizeof(bool);
     client_t sender = get_client();
     if (_command == VSOMEIP_NOTIFY_ONE) {
         its_complete_size +=sizeof(client_t);
@@ -866,10 +883,12 @@ bool routing_manager_base::send_local(
             + sizeof(instance_t)], &_flush, sizeof(bool));
     std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
             + sizeof(instance_t) + sizeof(bool)], &_reliable, sizeof(bool));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
+            + sizeof(instance_t) + sizeof(bool) + sizeof(bool)], &_is_valid_crc, sizeof(bool));
     if (_command == VSOMEIP_NOTIFY_ONE) {
         // Add target client
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-                + sizeof(instance_t) + sizeof(bool) + sizeof(bool)], &_client, sizeof(client_t));
+                + sizeof(instance_t) + sizeof(bool) + sizeof(bool) + sizeof(bool)], &_client, sizeof(client_t));
     }
 
     return _target->send(&its_command[0], uint32_t(its_command.size()));
@@ -877,7 +896,7 @@ bool routing_manager_base::send_local(
 
 bool routing_manager_base::insert_subscription(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        event_t _event, client_t _client) {
+        event_t _event, client_t _client, std::set<event_t> *_already_subscribed_events) {
     bool is_inserted(false);
     if (_event != ANY_EVENT) { // subscribe to specific event
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
@@ -905,7 +924,13 @@ bool routing_manager_base::insert_subscription(
             if (!its_events.size()) {
                 create_place_holder = true;
             } else {
-                for (auto e : its_events) {
+                for (const auto &e : its_events) {
+                    if (e->is_subscribed(_client)) {
+                        // client is already subscribed to event from eventgroup
+                        // this can happen if events are members of multiple
+                        // eventgroups
+                        _already_subscribed_events->insert(e->get_event());
+                    }
                     is_inserted = e->add_subscriber(_eventgroup, _client) || is_inserted;
                 }
             }

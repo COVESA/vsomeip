@@ -189,4 +189,8 @@ void eventgroupinfo::set_threshold(uint8_t _threshold) {
     threshold_ = _threshold;
 }
 
+std::unique_lock<std::mutex> eventgroupinfo::get_subscription_lock() {
+    return std::unique_lock<std::mutex>(subscription_mutex_);
+}
+
 }  // namespace vsomeip

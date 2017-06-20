@@ -375,8 +375,10 @@ int main(int argc, char** argv) {
             for (unsigned int i = 0; i < message.length(); i += 2) {
                 vsomeip::byte_t its_byte;
                 try {
-                    its_byte = static_cast<vsomeip::byte_t>(std::stoul(
-                            message.substr(i, 2), 0, 16));
+                    std::uint64_t tmp = std::stoul(message.substr(i, 2), 0, 16);
+                    tmp = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
+                            (std::numeric_limits<std::uint8_t>::max)() : tmp;
+                    its_byte = static_cast<vsomeip::byte_t>(tmp);
                 } catch (std::invalid_argument &e) {
                     std::cerr << e.what() << ": Couldn't convert '"
                             << message.substr(i, 2) << "' to hex, exiting: "
@@ -404,8 +406,11 @@ int main(int argc, char** argv) {
             for (unsigned int i = 0; i < instance_str.length(); i += 2) {
                 vsomeip::byte_t its_byte;
                 try {
-                    its_byte = static_cast<vsomeip::byte_t>(std::stoul(
-                            instance_str.substr(i, 2), 0, 16));
+                    std::uint64_t tmp = std::stoul(instance_str.substr(i, 2), 0, 16);
+                    tmp = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
+                            (std::numeric_limits<std::uint8_t>::max)() : tmp;
+                    its_byte = static_cast<vsomeip::byte_t>(tmp);
+                    its_byte = static_cast<vsomeip::byte_t>(tmp);
                 } catch (std::invalid_argument &e) {
                     std::cerr << e.what() << ": Couldn't convert '"
                             << instance_str.substr(i, 2) << "' to hex, exiting: "
@@ -433,4 +438,5 @@ int main(int argc, char** argv) {
     }
 
     vsomeip_ctrl::vsomeip_sender sender(use_tcp, user_message, instance);
+    return EXIT_SUCCESS;
 }

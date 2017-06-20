@@ -139,7 +139,7 @@ void routing_manager_proxy::stop() {
     }
 
     std::stringstream its_client;
-    its_client << VSOMEIP_BASE_PATH << std::hex << client_;
+    its_client << utility::get_base_path(configuration_) << std::hex << client_;
 #ifdef _WIN32
     ::_unlink(its_client.str().c_str());
 #else
@@ -593,7 +593,8 @@ void routing_manager_proxy::unsubscribe(client_t _client, service_t _service,
 bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         length_t _size, instance_t _instance,
         bool _flush,
-        bool _reliable) {
+        bool _reliable,
+        bool _is_valid_crc) {
     (void)_client;
     bool is_sent(false);
     bool has_remote_subscribers(false);
@@ -630,7 +631,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                 _client == VSOMEIP_ROUTING_CLIENT) {
             // notify
             has_remote_subscribers = send_local_notification(get_client(), _data, _size,
-                    _instance, _flush, _reliable);
+                    _instance, _flush, _reliable, _is_valid_crc);
         } else if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]) &&
                 _client != VSOMEIP_ROUTING_CLIENT) {
             // notify_one
@@ -641,12 +642,12 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                     = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
                 tc::trace_header its_header;
-                if (its_header.prepare(nullptr, true))
+                if (its_header.prepare(nullptr, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                             _data, its_data_size);
 #endif
                 return send_local(its_target, get_client(), _data, _size,
-                        _instance, _flush, _reliable, VSOMEIP_SEND);
+                        _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
             }
         }
         // If no direct endpoint could be found
@@ -685,7 +686,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                 = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
             tc::trace_header its_header;
-            if (its_header.prepare(nullptr, true))
+            if (its_header.prepare(nullptr, true, _instance))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                         _data, its_data_size);
         }
@@ -693,7 +694,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         if (send) {
             is_sent = send_local(its_target,
                     (command == VSOMEIP_NOTIFY_ONE ? _client : get_client()),
-                    _data, _size, _instance, _flush, _reliable, command);
+                    _data, _size, _instance, _flush, _reliable, command, _is_valid_crc);
         }
     }
     return (is_sent);
@@ -711,11 +712,12 @@ bool routing_manager_proxy::send_to(
 
 bool routing_manager_proxy::send_to(
         const std::shared_ptr<endpoint_definition> &_target,
-        const byte_t *_data, uint32_t _size,
+        const byte_t *_data, uint32_t _size, instance_t _instance,
         bool _flush) {
     (void)_target;
     (void)_data;
     (void)_size;
+    (void)_instance;
     (void)_flush;
     return (false);
 }
@@ -817,14 +819,18 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             instance_t its_instance;
             std::memcpy(&its_instance,
                     &_data[_size - sizeof(instance_t) - sizeof(bool)
-                            - sizeof(bool)], sizeof(instance_t));
+                            - sizeof(bool) - sizeof(bool)], sizeof(instance_t));
             bool its_reliable;
-            std::memcpy(&its_reliable, &_data[_size - sizeof(bool)],
+            std::memcpy(&its_reliable, &_data[_size - sizeof(bool) - sizeof(bool)],
                             sizeof(its_reliable));
-            // reduce by size of instance, flush and reliable flag
+            bool its_is_vslid_crc;
+            std::memcpy(&its_is_vslid_crc, &_data[_size - sizeof(bool)],
+                            sizeof(its_is_vslid_crc));
+
+            // reduce by size of instance, flush, reliable and is_valid_crc flag
             const std::uint32_t its_message_size = its_length -
                     static_cast<uint32_t>(sizeof(its_instance)
-                    + sizeof(bool) + sizeof(bool));
+                    + sizeof(bool) + sizeof(bool) + sizeof(bool));
 
             auto a_deserializer = get_deserializer();
             a_deserializer->set_data(&_data[VSOMEIP_COMMAND_PAYLOAD_POS],
@@ -836,6 +842,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             if (its_message) {
                 its_message->set_instance(its_instance);
                 its_message->set_reliable(its_reliable);
+                its_message->set_is_valid_crc(its_is_vslid_crc);
                 if (utility::is_notification(its_message->get_message_type())) {
                     if (!configuration_->is_client_allowed(get_client(), its_message->get_service(),
                             its_message->get_instance())) {
@@ -909,48 +916,54 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             std::memcpy(&is_remote_subscriber, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
                     sizeof(is_remote_subscriber));
 
-            if (is_remote_subscriber) {
-                // Remote subscriber: Notify routing manager initially + count subscribes
-                (void)host_->on_subscription(its_service, its_instance,
-                        its_eventgroup, its_client, true);
-                bool inserted = insert_subscription(its_service, its_instance, its_eventgroup,
-                        its_event, VSOMEIP_ROUTING_CLIENT);
-                if (inserted) {
-                    notify_remote_initally(its_service, its_instance, its_eventgroup);
-                }
-                (void)get_remote_subscriber_count(its_service, its_instance, its_eventgroup, true);
-            } else if (is_client_known(its_client)) {
-                if (!configuration_->is_client_allowed(its_client,
-                                        its_service, its_instance)) {
-                    VSOMEIP_WARNING << "Security: Client " << std::hex
-                            << its_client << " subscribes to service/instance "
-                            << its_service << "/" << its_instance
-                            << " which violates the security policy ~> Skip subscribe!";
-                    return;
-                }
+            {
+                std::unique_lock<std::mutex> its_lock(incoming_subscripitons_mutex_);
+                if (is_remote_subscriber) {
+                    its_lock.unlock();
+                    // Remote subscriber: Notify routing manager initially + count subscribes
+                    (void)host_->on_subscription(its_service, its_instance,
+                            its_eventgroup, its_client, true);
+                    std::set<event_t> its_already_subscribed_events;
+                    bool inserted = insert_subscription(its_service, its_instance, its_eventgroup,
+                            its_event, VSOMEIP_ROUTING_CLIENT, &its_already_subscribed_events);
+                    if (inserted) {
+                        notify_remote_initially(its_service, its_instance, its_eventgroup,
+                                its_already_subscribed_events);
+                    }
+                    (void)get_remote_subscriber_count(its_service, its_instance, its_eventgroup, true);
+                } else if (is_client_known(its_client)) {
+                    its_lock.unlock();
+                    if (!configuration_->is_client_allowed(its_client,
+                                            its_service, its_instance)) {
+                        VSOMEIP_WARNING << "Security: Client " << std::hex
+                                << its_client << " subscribes to service/instance "
+                                << its_service << "/" << its_instance
+                                << " which violates the security policy ~> Skip subscribe!";
+                        return;
+                    }
 
-                // Local & already known subscriber: create endpoint + send (N)ACK + insert subscription
-                (void) find_or_create_local(its_client);
-                bool subscription_accepted = host_->on_subscription(its_service, its_instance,
-                        its_eventgroup, its_client, true);
-                if (!subscription_accepted) {
-                    send_subscribe_nack(its_client, its_service,
-                                        its_instance, its_eventgroup, its_event);
+                    // Local & already known subscriber: create endpoint + send (N)ACK + insert subscription
+                    (void) find_or_create_local(its_client);
+                    bool subscription_accepted = host_->on_subscription(its_service, its_instance,
+                            its_eventgroup, its_client, true);
+                    if (!subscription_accepted) {
+                        send_subscribe_nack(its_client, its_service,
+                                            its_instance, its_eventgroup, its_event);
+                    } else {
+                        send_subscribe_ack(its_client, its_service, its_instance,
+                                           its_eventgroup, its_event);
+                        routing_manager_base::subscribe(its_client, its_service, its_instance,
+                                its_eventgroup, its_major, its_event,
+                                subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
+                        send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client);
+                    }
                 } else {
-                    send_subscribe_ack(its_client, its_service, its_instance,
-                                       its_eventgroup, its_event);
-                    routing_manager_base::subscribe(its_client, its_service, its_instance,
+                    // Local & not yet known subscriber ~> set pending until subscriber gets known!
+                    subscription_data_t subscription = { its_service, its_instance,
                             its_eventgroup, its_major, its_event,
-                            subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
-                    send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client);
+                            subscription_type_e::SU_RELIABLE_AND_UNRELIABLE};
+                    pending_incoming_subscripitons_[its_client].insert(subscription);
                 }
-            } else {
-                // Local & not yet known subscriber ~> set pending until subscriber gets known!
-                subscription_data_t subscription = { its_service, its_instance,
-                        its_eventgroup, its_major, its_event,
-                        subscription_type_e::SU_RELIABLE_AND_UNRELIABLE};
-                std::lock_guard<std::mutex> its_lock(pending_ingoing_subscripitons_mutex_);
-                pending_ingoing_subscripitons_[its_client].insert(subscription);
             }
             VSOMEIP_INFO << "SUBSCRIBE("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
@@ -1011,7 +1024,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
                                 sizeof(its_event));
 
-            on_subscribe_nack(its_subscriber, its_service, its_instance, its_eventgroup);
+            on_subscribe_nack(its_subscriber, its_service, its_instance, its_eventgroup, its_event);
             VSOMEIP_INFO << "SUBSCRIBE NACK("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -1036,7 +1049,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
                     sizeof(its_event));
 
-            on_subscribe_ack(its_subscriber, its_service, its_instance, its_eventgroup);
+            on_subscribe_ack(its_subscriber, its_service, its_instance, its_eventgroup, its_event);
             VSOMEIP_INFO << "SUBSCRIBE ACK("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -1078,25 +1091,6 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
         msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-
-    bool restart_sender(_size == 1);
-    if (restart_sender && is_started_) {
-        // Handle restart to routing manager!
-        std::unordered_set<client_t> clients_to_delete;
-        {
-            std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
-            for (auto its_client : known_clients_) {
-                if (its_client != get_client()) {
-                    clients_to_delete.insert(its_client);
-                }
-            }
-        }
-
-        reconnect(clients_to_delete);
-
-        // Abort due to routing manager has stopped
-        return;
-    }
 
     uint32_t i = 0;
     while (i + sizeof(uint32_t) + sizeof(routing_info_entry_e) <= _size) {
@@ -1233,14 +1227,14 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
             major_version_t major_;
             event_t event_;
         };
-        std::lock_guard<std::mutex> its_lock(pending_ingoing_subscripitons_mutex_);
+        std::lock_guard<std::mutex> its_lock(incoming_subscripitons_mutex_);
         std::forward_list<struct subscription_info> subscription_actions;
-        if (pending_ingoing_subscripitons_.size()) {
+        if (pending_incoming_subscripitons_.size()) {
             {
                 std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
                 for (const client_t client : known_clients_) {
-                    auto its_client = pending_ingoing_subscripitons_.find(client);
-                    if (its_client != pending_ingoing_subscripitons_.end()) {
+                    auto its_client = pending_incoming_subscripitons_.find(client);
+                    if (its_client != pending_incoming_subscripitons_.end()) {
                         for (const auto subscription : its_client->second) {
                             subscription_actions.push_front(
                                 { subscription.service_, subscription.instance_,
@@ -1268,7 +1262,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     send_pending_notify_ones(si.service_id_,
                             si.instance_id_, si.eventgroup_id_, si.client_id_);
                 }
-                pending_ingoing_subscripitons_.erase(si.client_id_);
+                pending_incoming_subscripitons_.erase(si.client_id_);
             }
         }
     }
@@ -1307,8 +1301,6 @@ void routing_manager_proxy::register_application() {
 
     std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client_,
             sizeof(client_));
-    std::memset(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], 0,
-            sizeof(uint32_t));
 
     if (is_connected_) {
         std::lock_guard<std::mutex> its_state_lock(state_mutex_);
@@ -1367,8 +1359,13 @@ void routing_manager_proxy::send_request_services(std::set<service_data_t>& _req
     if (!_requests.size()) {
         return;
     }
-    uint32_t its_size = (VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE)
-            * (uint32_t)_requests.size();
+    size_t its_size = (VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE
+            - VSOMEIP_COMMAND_HEADER_SIZE) * _requests.size();
+    if (its_size > (std::numeric_limits<std::uint32_t>::max)()) {
+        VSOMEIP_ERROR<< "routing_manager_proxy::send_request_services too many"
+                << " requests (" << std::dec << its_size << "), returning.";
+        return;
+    }
 
     std::vector<byte_t> its_command(its_size + VSOMEIP_COMMAND_HEADER_SIZE);
     its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_REQUEST_SERVICE;
@@ -1397,7 +1394,7 @@ void routing_manager_proxy::send_request_services(std::set<service_data_t>& _req
     {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
-            sender_->send(&its_command[0], its_size + VSOMEIP_COMMAND_HEADER_SIZE);
+            sender_->send(&its_command[0], static_cast<std::uint32_t>(its_size + VSOMEIP_COMMAND_HEADER_SIZE));
         }
     }
 }
@@ -1432,11 +1429,16 @@ void routing_manager_proxy::send_register_event(client_t _client,
         event_t _event, const std::set<eventgroup_t> &_eventgroups,
         bool _is_field, bool _is_provided) {
 
-    uint32_t its_eventgroups_size = uint32_t(_eventgroups.size() * sizeof(eventgroup_t));
-    byte_t *its_command = new byte_t[VSOMEIP_REGISTER_EVENT_COMMAND_SIZE + its_eventgroups_size];
-    uint32_t its_size = VSOMEIP_REGISTER_EVENT_COMMAND_SIZE
-                        + its_eventgroups_size
-                        - VSOMEIP_COMMAND_HEADER_SIZE;
+    std::size_t its_eventgroups_size = (_eventgroups.size() * sizeof(eventgroup_t)) +
+            VSOMEIP_REGISTER_EVENT_COMMAND_SIZE;
+    if (its_eventgroups_size > (std::numeric_limits<std::uint32_t>::max)()) {
+        VSOMEIP_ERROR<< "routing_manager_proxy::send_register_event too many"
+                << " eventgroups (" << std::dec << its_eventgroups_size << "), returning.";
+        return;
+    }
+    byte_t *its_command = new byte_t[its_eventgroups_size];
+    uint32_t its_size = static_cast<std::uint32_t>(its_eventgroups_size)
+            - VSOMEIP_COMMAND_HEADER_SIZE;
 
     its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_REGISTER_EVENT;
     std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client_,
@@ -1464,9 +1466,7 @@ void routing_manager_proxy::send_register_event(client_t _client,
     {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
-            sender_->send(its_command,
-                          uint32_t(VSOMEIP_REGISTER_EVENT_COMMAND_SIZE
-                                   + its_eventgroups_size));
+            sender_->send(its_command, static_cast<std::uint32_t>(its_eventgroups_size));
         }
     }
 
@@ -1474,15 +1474,37 @@ void routing_manager_proxy::send_register_event(client_t _client,
 }
 
 void routing_manager_proxy::on_subscribe_ack(client_t _client,
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
     (void)_client;
-    host_->on_subscription_error(_service, _instance, _eventgroup, 0x0 /*OK*/);
+    if (_event == ANY_EVENT) {
+        auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+        if (its_eventgroup) {
+            for (auto its_event : its_eventgroup->get_events()) {
+                host_->on_subscription_error(_service, _instance, _eventgroup, 0x0 /*OK*/);
+                host_->on_subscription_status(_service, _instance, _eventgroup, its_event->get_event(), 0x0 /*OK*/);
+            }
+        }
+    } else {
+        host_->on_subscription_error(_service, _instance, _eventgroup, 0x0 /*OK*/);
+        host_->on_subscription_status(_service, _instance, _eventgroup, _event, 0x0 /*OK*/);
+    }
 }
 
 void routing_manager_proxy::on_subscribe_nack(client_t _client,
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
     (void)_client;
-    host_->on_subscription_error(_service, _instance, _eventgroup, 0x7 /*Rejected*/);
+    if (_event == ANY_EVENT) {
+        auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+        if (its_eventgroup) {
+            for (auto its_event : its_eventgroup->get_events()) {
+                host_->on_subscription_error(_service, _instance, _eventgroup, 0x7 /*Rejected*/);
+                host_->on_subscription_status(_service, _instance, _eventgroup, its_event->get_event(), 0x7 /*Rejected*/);
+            }
+        }
+    } else {
+        host_->on_subscription_error(_service, _instance, _eventgroup, 0x7 /*Rejected*/);
+        host_->on_subscription_status(_service, _instance, _eventgroup, _event, 0x7 /*Rejected*/);
+    }
 }
 
 void routing_manager_proxy::on_identify_response(client_t _client, service_t _service,
@@ -1575,7 +1597,7 @@ void routing_manager_proxy::send_pending_commands() {
 
 void routing_manager_proxy::init_receiver() {
     std::stringstream its_client;
-    its_client << VSOMEIP_BASE_PATH << std::hex << client_;
+    its_client << utility::get_base_path(configuration_) << std::hex << client_;
 #ifdef _WIN32
     ::_unlink(its_client.str().c_str());
     int port = VSOMEIP_INTERNAL_BASE_PORT + client_;
@@ -1615,21 +1637,21 @@ void routing_manager_proxy::init_receiver() {
 #endif
 }
 
-void routing_manager_proxy::notify_remote_initally(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup) {
+void routing_manager_proxy::notify_remote_initially(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, const std::set<event_t> &_events_to_exclude) {
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
-        std::set<std::shared_ptr<event> > its_events
-            = its_eventgroup->get_events();
-        for (auto e : its_events) {
-            if (e->is_field() && e->is_set()) {
+        auto service_info = find_service(_service, _instance);
+        for (const auto &e : its_eventgroup->get_events()) {
+            if (e->is_field() && e->is_set()
+                    && _events_to_exclude.find(e->get_event())
+                            == _events_to_exclude.end()) {
                 std::shared_ptr<message> its_notification
                     = runtime::get()->create_notification();
                 its_notification->set_service(_service);
                 its_notification->set_instance(_instance);
                 its_notification->set_method(e->get_event());
                 its_notification->set_payload(e->get_payload());
-                auto service_info = find_service(_service, _instance);
                 if (service_info) {
                     its_notification->set_interface_version(service_info->get_major());
                 }
@@ -1706,13 +1728,11 @@ void routing_manager_proxy::register_application_timeout_cbk(
 }
 
 void routing_manager_proxy::send_registered_ack() {
-    byte_t its_command[VSOMEIP_COMMAND_HEADER_SIZE];
-    its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_REGISTERED_ACK;
+    byte_t its_command[VSOMEIP_COMMAND_HEADER_SIZE] = {
+            VSOMEIP_REGISTERED_ACK, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     client_t client = get_client();
     std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &client,
             sizeof(client));
-    std::memset(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], 0,
-            sizeof(uint32_t));
     {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {

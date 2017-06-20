@@ -74,6 +74,8 @@ public:
     VSOMEIP_EXPORT uint8_t get_threshold() const;
     VSOMEIP_EXPORT void set_threshold(uint8_t _threshold);
 
+    VSOMEIP_EXPORT std::unique_lock<std::mutex> get_subscription_lock();
+
 private:
     std::atomic<major_version_t> major_;
     std::atomic<ttl_t> ttl_;
@@ -90,6 +92,7 @@ private:
     std::list<target_t> multicast_targets_;
 
     std::atomic<uint8_t> threshold_;
+    std::mutex subscription_mutex_;
 };
 
 } // namespace vsomeip

@@ -41,15 +41,20 @@ struct element {
     }
 };
 
-class configuration_impl: public configuration, public std::enable_shared_from_this<configuration_impl> {
+class configuration_impl:
+        public configuration,
+        public plugin_impl<configuration_impl>,
+        public std::enable_shared_from_this<configuration_impl> {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<configuration> get();
-
     VSOMEIP_EXPORT configuration_impl();
     VSOMEIP_EXPORT configuration_impl(const configuration_impl &_cfg);
     VSOMEIP_EXPORT virtual ~configuration_impl();
 
     VSOMEIP_EXPORT bool load(const std::string &_name);
+
+    VSOMEIP_EXPORT const std::string &get_network() const;
+
+    VSOMEIP_EXPORT void set_configuration_path(const std::string &_path);
 
     VSOMEIP_EXPORT const boost::asio::ip::address & get_unicast_address() const;
     VSOMEIP_EXPORT unsigned short get_diagnosis_address() const;
@@ -139,8 +144,10 @@ public:
     VSOMEIP_EXPORT bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const;
     VSOMEIP_EXPORT bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const;
-    
-    //E2E
+
+    VSOMEIP_EXPORT std::map<plugin_type_e, std::string> get_plugins(
+            const std::string &_name) const;
+    // E2E
     VSOMEIP_EXPORT std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const;
     VSOMEIP_EXPORT bool is_e2e_enabled() const;
 
@@ -170,6 +177,8 @@ private:
             const boost::property_tree::ptree &_tree,
             std::string &_criteria,
             std::shared_ptr<trace_filter_rule> &_filter_rule);
+
+    void load_network(const element &_element);
 
     void load_unicast_address(const element &_element);
     void load_diagnosis_address(const element &_element);
@@ -237,7 +246,8 @@ protected:
     std::string logfile_;
     boost::log::trivial::severity_level loglevel_;
 
-    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t, std::size_t, std::size_t>> applications_;
+    std::map<std::string, std::tuple<client_t, std::size_t, std::size_t,
+                size_t, size_t, std::map<plugin_type_e, std::string>>> applications_;
     std::set<client_t> client_identifiers_;
 
     std::map<service_t,
@@ -284,6 +294,7 @@ protected:
     uint32_t log_version_interval_;
 
     enum element_type_e {
+        ET_NETWORK,
         ET_UNICAST,
         ET_DIAGNOSIS,
         ET_LOGGING_CONSOLE,
@@ -308,7 +319,7 @@ protected:
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
-        ET_MAX = 24
+        ET_MAX = 25
     };
 
     bool is_configured_[ET_MAX];
@@ -318,6 +329,9 @@ protected:
     std::map<client_t, std::shared_ptr<policy>> policies_;
     bool policy_enabled_;
     bool check_credentials_;
+
+    std::string network_;
+    std::string configuration_path_;
 
     bool e2e_enabled_;
     std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> e2e_configuration_;

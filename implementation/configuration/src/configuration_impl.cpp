@@ -18,6 +18,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <vsomeip/constants.hpp>
+#include <vsomeip/plugins/application_plugin.hpp>
 
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
@@ -30,15 +31,14 @@
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
 
+VSOMEIP_PLUGIN(vsomeip::cfg::configuration_impl)
+
 namespace vsomeip {
 namespace cfg {
 
-std::shared_ptr<configuration> configuration_impl::get() {
-    return std::make_shared<configuration_impl>();
-}
-
 configuration_impl::configuration_impl()
-    : is_loaded_(false),
+    : plugin_impl("vsomeip cfg plugin", 1, plugin_type_e::CONFIGURATION_PLUGIN),
+      is_loaded_(false),
       is_logging_loaded_(false),
       diagnosis_(VSOMEIP_DIAGNOSIS_ADDRESS),
       has_console_log_(true),
@@ -70,6 +70,7 @@ configuration_impl::configuration_impl()
       umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS),
       policy_enabled_(false),
       check_credentials_(false),
+      network_("vsomeip"),
       e2e_enabled_(false) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     for (auto i = 0; i < ET_MAX; i++)
@@ -77,7 +78,8 @@ configuration_impl::configuration_impl()
 }
 
 configuration_impl::configuration_impl(const configuration_impl &_other)
-    : std::enable_shared_from_this<configuration_impl>(_other),
+    : plugin_impl("vsomeip cfg plugin", 1, plugin_type_e::CONFIGURATION_PLUGIN),
+      std::enable_shared_from_this<configuration_impl>(_other),
       is_loaded_(_other.is_loaded_),
       is_logging_loaded_(_other.is_logging_loaded_),
       mandatory_(_other.mandatory_),
@@ -129,6 +131,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     policy_enabled_ = _other.policy_enabled_;
     check_credentials_ = _other.check_credentials_;
+    network_ = _other.network_;
     e2e_enabled_ = _other.e2e_enabled_;
 }
 
@@ -155,7 +158,7 @@ bool configuration_impl::load(const std::string &_name) {
         its_folder = its_local_folder;
     }
 
-    // Finally, override with path from environment (if existing)
+    // Override with path from environment (if existing)
     const char *its_env = getenv(VSOMEIP_ENV_CONFIGURATION);
     if (nullptr != its_env) {
         if (utility::is_file(its_env)) {
@@ -163,6 +166,17 @@ bool configuration_impl::load(const std::string &_name) {
             its_folder = "";
         } else if (utility::is_folder(its_env)) {
             its_folder = its_env;
+            its_file = "";
+        }
+    }
+
+    // Finally, pverride with path from set config path (if existing)
+    if (configuration_path_.length()) {
+        if (utility::is_file(configuration_path_)) {
+            its_file = configuration_path_;
+            its_folder = "";
+        } else if (utility::is_folder(configuration_path_)) {
+            its_folder = configuration_path_;
             its_file = "";
         }
     }
@@ -302,6 +316,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
         for (auto e : _elements) {
             has_routing = load_routing(e) || has_routing;
             has_applications = load_applications(e) || has_applications;
+            load_network(e);
             load_diagnosis_address(e);
             load_payload_sizes(e);
             load_permissions(e);
@@ -447,6 +462,7 @@ void configuration_impl::load_application_data(
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
     std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
+    std::map<plugin_type_e, std::string> plugins;
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -483,6 +499,32 @@ void configuration_impl::load_application_data(
                 VSOMEIP_WARNING << "Max. request debounce time is 10.000ms";
                 its_request_debounce_time = 10000;
             }
+        } else if (its_key == "plugins") {
+            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
+                for (auto n = l->second.begin(); n != l->second.end(); ++n) {
+                    std::string its_inner_key(n->first);
+                    std::string its_inner_value(n->second.data());
+    #ifdef _WIN32
+                    std::string library(its_inner_value);
+                    library += ".dll";
+    #else
+                    std::string library("lib");
+                    library += its_inner_value;
+                    library += ".so";
+    #endif
+                    if (its_inner_key == "application_plugin") {
+    #ifndef _WIN32
+                        library += ".";
+                        library += (VSOMEIP_APPLICATION_PLUGIN_VERSION + '0');
+    #endif
+                        plugins[plugin_type_e::APPLICATION_PLUGIN] = library;
+                    } else {
+                        VSOMEIP_WARNING << "Unknown plug-in type ("
+                                << its_inner_key << ") configured for client: "
+                                << its_name;
+                    }
+                }
+            }
         }
     }
     if (its_name != "") {
@@ -501,7 +543,7 @@ void configuration_impl::load_application_data(
             applications_[its_name]
                 = std::make_tuple(its_id, its_max_dispatchers,
                         its_max_dispatch_time, its_io_thread_count,
-                        its_request_debounce_time);
+                        its_request_debounce_time, plugins);
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -654,6 +696,21 @@ void configuration_impl::load_unicast_address(const element &_element) {
     }
 }
 
+void configuration_impl::load_network(const element &_element) {
+    try {
+        std::string its_value(_element.tree_.get<std::string>("network"));
+        if (is_configured_[ET_NETWORK]) {
+            VSOMEIP_WARNING << "Multiple definitions for network."
+                    "Ignoring definition from " << _element.name_;
+        } else {
+            network_ = its_value;
+            is_configured_[ET_NETWORK] = true;
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
 void configuration_impl::load_diagnosis_address(const element &_element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("diagnosis");
@@ -757,7 +814,9 @@ void configuration_impl::load_service_discovery(
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    sd_repetitions_max_ = (uint8_t)tmp;
+                    sd_repetitions_max_ = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
+                                    (std::numeric_limits<std::uint8_t>::max)() :
+                                    static_cast<std::uint8_t>(tmp);
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX] = true;
                 }
             } else if (its_key == "ttl") {
@@ -820,7 +879,11 @@ void configuration_impl::load_delays(
                 int tmp_repetition_max;
                 its_converter << std::dec << i->second.data();
                 its_converter >> tmp_repetition_max;
-                sd_repetitions_max_ = uint8_t(tmp_repetition_max);
+                sd_repetitions_max_ =
+                        (tmp_repetition_max
+                                > (std::numeric_limits<std::uint8_t>::max)()) ?
+                                        (std::numeric_limits<std::uint8_t>::max)() :
+                                        static_cast<std::uint8_t>(tmp_repetition_max);
             } else if (its_key == "cyclic-offer") {
                 its_converter << std::dec << i->second.data();
                 its_converter >> sd_cyclic_offer_delay_;
@@ -1061,7 +1124,10 @@ void configuration_impl::load_eventgroup(
                 std::stringstream its_converter;
                 its_converter << std::dec << its_value;
                 its_converter >> std::dec >> its_threshold;
-                its_eventgroup->threshold_ = static_cast<uint8_t>(its_threshold);
+                its_eventgroup->threshold_ =
+                        (its_threshold > (std::numeric_limits<std::uint8_t>::max)()) ?
+                                (std::numeric_limits<std::uint8_t>::max)() :
+                                static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
                     std::stringstream its_converter;
@@ -1488,7 +1554,8 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
         if (i->first == "client") {
             std::string value = i->second.data();
             if (value == "") {
-                client_t firstClient, lastClient;
+                client_t firstClient(ILLEGAL_CLIENT);
+                client_t lastClient(ILLEGAL_CLIENT);
                 for (auto n = i->second.begin();
                         n != i->second.end(); ++n) {
                     if (n->first == "first") {
@@ -1700,6 +1767,10 @@ bool configuration_impl::is_internal_service(service_t _service,
 ///////////////////////////////////////////////////////////////////////////////
 // Public interface
 ///////////////////////////////////////////////////////////////////////////////
+const std::string &configuration_impl::get_network() const {
+    return network_;
+}
+
 const boost::asio::ip::address & configuration_impl::get_unicast_address() const {
     return unicast_;
 }
@@ -2243,6 +2314,22 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     return !check_credentials_;
 }
 
+std::map<plugin_type_e, std::string> configuration_impl::get_plugins(
+            const std::string &_name) const {
+    std::map<plugin_type_e, std::string> result;
+
+    auto found_application = applications_.find(_name);
+    if (found_application != applications_.end()) {
+        result = std::get<5>(found_application->second);
+    }
+
+    return result;
+}
+
+void configuration_impl::set_configuration_path(const std::string &_path) {
+    configuration_path_ = _path;
+}
+
 bool configuration_impl::is_e2e_enabled() const {
     return e2e_enabled_;
 }
@@ -2286,6 +2373,8 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
     uint16_t crc_offset(0);
     uint8_t  data_id_mode(0);
     uint16_t data_length(0);
+    uint16_t data_id_nibble_offset(12); // data id nibble behind 4 bit counter value
+    uint16_t counter_offset(8); // counter field behind CRC8
 
     for (auto l = _tree.begin(); l != _tree.end(); ++l) {
         std::stringstream its_converter;
@@ -2326,12 +2415,21 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
             std::string value = l->second.data();
             its_converter << value;
             its_converter >> crc_offset;
+        }  else if (l->first == "counter_offset") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> counter_offset;
         } else if (l->first == "data_id_mode") {
             std::string value = l->second.data();
             its_converter << value;
             its_converter >> tmp;
             data_id_mode = static_cast<uint8_t>(tmp);
-        } else if (l->first == "data_length") {
+        } else if (l->first == "data_id_nibble_offset") {
+            std::string value = l->second.data();
+            its_converter << value;
+            its_converter >> data_id_nibble_offset;
+        }
+        else if (l->first == "data_length") {
             std::string value = l->second.data();
             its_converter << value;
             its_converter >> data_length;
@@ -2346,7 +2444,9 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
         event_id,
         crc_offset,
         data_id_mode,
-        data_length
+        data_length,
+        data_id_nibble_offset,
+        counter_offset
     );
 }
 

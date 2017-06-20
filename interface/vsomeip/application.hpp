@@ -312,7 +312,7 @@ public:
      */
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
+            subscription_type_e _subscription_type = subscription_type_e::SU_PREFER_RELIABLE,
             event_t _event = ANY_EVENT) = 0;
 
     /**
@@ -839,6 +839,28 @@ public:
      */
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event) = 0;
+
+
+    /**
+     *
+     * \brief Registers a subscription status listener.
+     *
+     * When registered such a handler it will be called for
+     * every application::subscribe call.
+     *
+     * This method is intended to replace the application::
+     * register_subscription_error_handler call in future releases.
+     *
+     * \param _service Service identifier of the service that is subscribed to.
+     * \param _instance Instance identifier of the service that is subscribed to.
+     * \param _eventgroup Eventgroup identifier of the eventgroup is subscribed to.
+     * \param _event Event indentifier of the event is subscribed to.
+     * \param _handler A subscription status handler which will be called by vSomeIP
+     * as a follow of application::subscribe.
+     */
+    virtual void register_subscription_status_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            subscription_status_handler_t _handler) = 0;
 };
 
 /** @} */

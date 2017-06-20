@@ -59,13 +59,13 @@ public:
             eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush = true, bool _reliable = false);
+            instance_t _instance, bool _flush = true, bool _reliable = false, bool _is_valid_crc= true);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size, bool _flush);
+            const byte_t *_data, uint32_t _size, instance_t _instance, bool _flush);
 
     void register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
@@ -130,10 +130,10 @@ private:
             event_t _event) const;
 
     void on_subscribe_nack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void on_subscribe_ack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void cache_event_payload(const std::shared_ptr<message> &_message);
 
@@ -144,8 +144,8 @@ private:
 
     void init_receiver();
 
-    void notify_remote_initally(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup);
+    void notify_remote_initially(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, const std::set<event_t> &_events_to_exclude);
 
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, bool _increment);
@@ -209,8 +209,8 @@ private:
     };
     std::set<event_data_t> pending_event_registrations_;
 
-    std::map<client_t, std::set<subscription_data_t>> pending_ingoing_subscripitons_;
-    std::mutex pending_ingoing_subscripitons_mutex_;
+    std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscripitons_;
+    std::mutex incoming_subscripitons_mutex_;
 
     std::mutex deserialize_mutex_;
 

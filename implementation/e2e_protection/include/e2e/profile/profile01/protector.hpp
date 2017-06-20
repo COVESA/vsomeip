@@ -18,16 +18,24 @@ class protector final : public e2e::profile::profile_interface::protector {
   public:
     protector(void) = delete;
 
-    explicit protector(const Config &_config) : config(_config){};
+    explicit protector(const Config &_config) : config(_config), counter(0){};
 
     void protect(buffer::e2e_buffer &_buffer) override final;
 
   private:
 
+    void write_counter(buffer::e2e_buffer &_buffer);
+
+    void write_data_id(buffer::e2e_buffer &_buffer);
+
     void write_crc(buffer::e2e_buffer &_buffer, uint8_t _computed_crc);
+
+    void increment_counter(void);
+
 
   private:
     Config config;
+    uint8_t counter;
     std::mutex protect_mutex;
 };
 }

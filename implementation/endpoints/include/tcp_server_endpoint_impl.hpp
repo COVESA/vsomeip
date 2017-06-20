@@ -7,9 +7,9 @@
 #define VSOMEIP_TCP_SERVER_ENDPOINT_IMPL_HPP
 
 #include <map>
+#include <memory>
 
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/enable_shared_from_this.hpp>
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/export.hpp>
@@ -34,8 +34,6 @@ public:
     void start();
     void stop();
 
-    void stop_all_connections(const boost::asio::ip::address &_address);
-
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
                  const byte_t *_data, uint32_t _size, bool _flush);
     void send_queued(queue_iterator_type _queue_iterator);
@@ -53,25 +51,24 @@ public:
     // dummies to implement endpoint_impl interface
     // TODO: think about a better design!
     void receive();
-    void restart();
 
 private:
-    class connection: public boost::enable_shared_from_this<connection> {
+    class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        typedef boost::shared_ptr<connection> ptr;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(std::weak_ptr<tcp_server_endpoint_impl> _server,
                           std::uint32_t _max_message_size,
-                          std::uint32_t _buffer_shrink_threshold);
+                          std::uint32_t _buffer_shrink_threshold,
+                          bool _magic_cookies_enabled,
+                          boost::asio::io_service & _io_service);
         socket_type & get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
         void stop();
         void receive();
-
-        client_t get_client(endpoint_type _endpoint_type);
 
         void send_queued(queue_iterator_type _queue_iterator);
 
@@ -81,7 +78,9 @@ private:
         connection(std::weak_ptr<tcp_server_endpoint_impl> _server,
                    std::uint32_t _max_message_size,
                    std::uint32_t _recv_buffer_size_initial,
-                   std::uint32_t _buffer_shrink_threshold);
+                   std::uint32_t _buffer_shrink_threshold,
+                   bool _magic_cookies_enabled,
+                   boost::asio::io_service & _io_service);
         void send_magic_cookie(message_buffer_ptr_t &_buffer);
         bool is_magic_cookie(size_t _offset) const;
         void receive_cbk(boost::system::error_code const &_error,
@@ -108,6 +107,7 @@ private:
         endpoint_type remote_;
         boost::asio::ip::address remote_address_;
         std::uint16_t remote_port_;
+        std::atomic<bool> magic_cookies_enabled_;
     };
 
     std::mutex acceptor_mutex_;

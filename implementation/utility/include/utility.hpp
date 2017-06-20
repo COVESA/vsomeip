@@ -20,9 +20,6 @@ class configuration;
 
 class utility {
 public:
-    static void * load_library(const std::string &_path,
-            const std::string &_symbol);
-
     static inline bool is_request(std::shared_ptr<message> _message) {
         return (_message ? is_request(_message->get_message_type()) : false);
     }
@@ -76,16 +73,21 @@ public:
     static bool VSOMEIP_IMPORT_EXPORT is_file(const std::string &_path);
     static bool VSOMEIP_IMPORT_EXPORT is_folder(const std::string &_path);
 
+    static const std::string get_base_path(const std::shared_ptr<configuration> &_config);
+    static const std::string get_shm_name(const std::shared_ptr<configuration> &_config);
+
     static CriticalSection its_local_configuration_mutex__;
 
     static struct configuration_data_t *the_configuration_data__;
     static bool auto_configuration_init(const std::shared_ptr<configuration> &_config);
-    static void auto_configuration_exit(client_t _client);
+    static void auto_configuration_exit(client_t _client,
+            const std::shared_ptr<configuration> &_config);
 
     static bool is_routing_manager_host(client_t _client);
     static void set_routing_manager_host(client_t _client);
 
-    static bool is_used_client_id(client_t _client);
+    static bool is_used_client_id(client_t _client,
+            const std::shared_ptr<configuration> &_config);
     static client_t request_client_id(const std::shared_ptr<configuration> &_config,
             const std::string &_name, client_t _client);
     static void release_client_id(client_t _client);

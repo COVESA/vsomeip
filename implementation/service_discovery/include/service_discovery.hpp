@@ -63,6 +63,8 @@ public:
                                std::shared_ptr<serviceinfo> _info) = 0;
     virtual void stop_offer_service(service_t _service, instance_t _instance,
                                     std::shared_ptr<serviceinfo> _info) = 0;
+
+    virtual void set_diagnosis_mode(const bool _activate) = 0;
 };
 
 } // namespace sd

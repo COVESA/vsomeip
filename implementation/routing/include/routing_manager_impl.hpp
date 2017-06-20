@@ -15,6 +15,7 @@
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/handler.hpp>
@@ -83,13 +84,14 @@ public:
     bool send(client_t _client, std::shared_ptr<message> _message, bool _flush);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable);
+            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size, bool _flush);
+            const byte_t *_data, uint32_t _size,
+            instance_t _instance, bool _flush);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port);
@@ -156,7 +158,7 @@ public:
                     const boost::asio::ip::address &_remote_address,
                     std::uint16_t _remote_port);
     void on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable);
+            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true);
     void on_notification(client_t _client, service_t _service,
             instance_t _instance, const byte_t *_data, length_t _size,
             bool _notify_one);
@@ -180,8 +182,6 @@ public:
     void del_routing_info(service_t _service, instance_t _instance,
             bool _has_reliable, bool _has_unreliable);
     std::chrono::milliseconds update_routing_info(std::chrono::milliseconds _elapsed);
-
-    void on_reboot(const boost::asio::ip::address &_address);
 
     void on_subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
@@ -214,9 +214,9 @@ public:
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
-            instance_t _instance, bool _reliable);
+            instance_t _instance, bool _reliable, bool _is_valid_crc = true);
     bool deliver_notification(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _length, bool _reliable);
+            const byte_t *_data, length_t _length, bool _reliable, bool _is_valid_crc = true);
 
     instance_t find_instance(service_t _service, endpoint *_endpoint);
 
@@ -321,14 +321,24 @@ private:
     void requested_service_remove(client_t _client, service_t _service,
                        instance_t _instance);
 
-    void call_sd_reliable_endpoint_connected(service_t _service, instance_t _instance,
-                                             std::shared_ptr<endpoint> _endpoint);
+    void call_sd_reliable_endpoint_connected(const boost::system::error_code& _error,
+                                             service_t _service, instance_t _instance,
+                                             std::shared_ptr<endpoint> _endpoint,
+                                             std::shared_ptr<boost::asio::steady_timer> _timer);
 
     bool create_placeholder_event_and_subscribe(service_t _service,
                                                 instance_t _instance,
                                                 eventgroup_t _eventgroup,
                                                 event_t _event,
                                                 client_t _client);
+
+    void handle_subscription_state(client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
+
+    client_t is_specific_endpoint_client(client_t _client, service_t _service, instance_t _instance);
+    std::unordered_set<client_t> get_specific_endpoint_clients(service_t _service, instance_t _instance);
+
+    bool remote_service_offered_via_tcp_and_udp(service_t _service, instance_t _instance) const;
 
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
@@ -400,6 +410,10 @@ private:
                             client_t, client_t>>> pending_offers_;
 
     std::mutex pending_subscription_mutex_;
+
+    std::mutex remote_subscription_state_mutex_;
+    std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
+        subscription_state_e> remote_subscription_state_;
 
     std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::protector>> custom_protectors;
     std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::checker>> custom_checkers;

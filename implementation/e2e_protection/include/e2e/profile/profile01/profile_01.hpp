@@ -31,16 +31,18 @@ struct Config {
     uint16_t data_id;
     p01_data_id_mode data_id_mode;
     uint16_t data_length;
+    uint16_t counter_offset;
+    uint16_t data_id_nibble_offset;
 
 #ifndef E2E_DEVELOPMENT
     Config() = delete;
 #else
     Config() = default;
 #endif
-    Config(uint16_t _crc_offset, uint16_t _data_id, p01_data_id_mode _data_id_mode, uint16_t _data_length)
+    Config(uint16_t _crc_offset, uint16_t _data_id, p01_data_id_mode _data_id_mode, uint16_t _data_length, uint16_t _counter_offset, uint16_t _data_id_nibble_offset)
 
         : crc_offset(_crc_offset), data_id(_data_id),
-          data_id_mode(_data_id_mode), data_length(_data_length) {
+          data_id_mode(_data_id_mode), data_length(_data_length), counter_offset(_counter_offset), data_id_nibble_offset(_data_id_nibble_offset) {
     }
     Config(const Config &_config) = default;
     Config &operator=(const Config &_config) = default;

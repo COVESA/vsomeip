@@ -105,6 +105,8 @@ public:
 
     std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
 
+    bool is_subscribed(client_t _client);
+
 private:
     void update_cbk(boost::system::error_code const &_error);
     void notify(bool _flush);

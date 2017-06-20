@@ -91,6 +91,8 @@ public:
     void stop_offer_service(service_t _service, instance_t _instance,
                             std::shared_ptr<serviceinfo> _info);
 
+    void set_diagnosis_mode(const bool _activate);
+
 private:
     std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
@@ -353,6 +355,8 @@ private:
     std::string sd_multicast_;
 
     boost::asio::ip::address current_remote_address_;
+
+    std::atomic<bool> is_diagnosis_;
 };
 
 }  // namespace sd

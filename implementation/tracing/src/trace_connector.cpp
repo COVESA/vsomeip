@@ -244,8 +244,8 @@ void trace_connector::trace(const byte_t *_header, uint16_t _header_size,
                 DltContext *dlt_context = it->second;
                 DLT_TRACE_NETWORK_SEGMENTED(*dlt_context,
                                             DLT_NW_TRACE_IPC,
-                                            _header_size, (void * )_header,
-                                            _data_size, (void * )_data);
+                                            _header_size, static_cast<void *>(const_cast<byte_t *>(_header)),
+                                            _data_size, static_cast<void *>(const_cast<byte_t *>(_data)));
             }
         }
     }

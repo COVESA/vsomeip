@@ -306,3 +306,26 @@ v2.6.3
 v2.6.4
 - Fix bug in reboot detection of other nodes
 - Improve restarting of TCP connections
+
+v2.7.0
+- Add possibility to register a subscription status handler via
+  application interface. The handler will be called if a subscription
+  is acknowledged / not acknowledged by the application hosting the
+  target service instance of the subscription
+- The default subscription type of application::subscribe method was
+  changed from RELIABLE_AND_UNRELIABLE to PREFER_RELIABLE to harmonize
+  initial event behaviour
+- Add generic plug-in concept
+- Fix bug which caused sending out subscription messages containing
+  endpoint options with port set to zero
+- Make magic cookie detection TCP connection based
+- Avoid sending unneeded SIGKILLs to current routing manager
+- Forward service's instance IDs to DLT
+- Fixed performance loss on "client ID" lookup needed for ingoing
+  remote subscriptions
+- Add signal handling for starting stopping the service discovery to
+  vsomeipd
+- The message object can now be asked for CRC check state:
+  is_valid_crc()
+- Incoming remote responses where the CRC check fails will trigger:
+  set_is_valid_crc(false)

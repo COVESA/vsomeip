@@ -107,7 +107,6 @@ void local_client_endpoint_impl::connect() {
 }
 
 void local_client_endpoint_impl::receive() {
-#ifndef _WIN32
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_->is_open()) {
         socket_->async_receive(
@@ -122,7 +121,6 @@ void local_client_endpoint_impl::receive() {
             )
         );
     }
-#endif
 }
 
 void local_client_endpoint_impl::send_queued() {

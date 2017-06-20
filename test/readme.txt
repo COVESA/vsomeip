@@ -374,6 +374,12 @@ There are multiple versions of this test which differ in the used subscription
 method and port setup (use ctest -N to see all). For manual start the desired
 description method has to be passed to the starter script as first parameter.
 
+The subscribe_notify_test_one_event_two_eventgroups_* tests are testing the
+requirement that for events which are member of multiple eventgroups initial
+events shall be sent per eventgroup. However normal updates of the event should
+be sent only once even if a remote subscriber is subscribed to multiple of the
+event's eventgroups (TR_SOMEIP_00570).
+
 
 CPU load test
 -------------
