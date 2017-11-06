@@ -1505,6 +1505,10 @@ client_t routing_manager_stub::get_client() const {
     return host_->get_client();
 }
 
+instance_t routing_manager_stub::get_instance(service_t /*_service*/, endpoint */*_endpoint*/) {
+    return 0xFFFF;
+}
+
 void routing_manager_stub::handle_requests(const client_t _client, std::set<service_data_t>& _requests) {
     if (!_requests.size()) {
         return;

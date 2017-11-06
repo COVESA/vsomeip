@@ -65,7 +65,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
 include_directories(
-    "interface" 
+    "interface"
 )
 
 # Threads
@@ -88,10 +88,24 @@ else()
   MESSAGE( STATUS "Boost was not found!")
 endif()
 
+# lib-secoc
+find_library(ARA_SECOC_LIBRARY ara_secoc)
+if (NOT ARA_SECOC_LIBRARY)
+    message(STATUS "ara_secoc library not found")
+endif()
+
+# mbedTLS
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+find_package(mbedtls REQUIRED MODULE)
+IF (MBEDTLS_FOUND)
+    include_directories(${MBEDTLS_INCLUDE_DIRS})
+    link_directories(${MBEDTLS_LIBRARY_DIRS})
+ENDIF(MBEDTLS_FOUND)
+
 # DLT
 find_package(PkgConfig)
 pkg_check_modules(DLT "automotive-dlt >= 2.11")
-IF(DLT_FOUND) 
+IF(DLT_FOUND)
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
 ENDIF(DLT_FOUND)
 
@@ -138,7 +152,7 @@ if (MSVC)
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++0x ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DUSE_VSOMEIP_STATISTICS -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++14 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
 
@@ -149,7 +163,8 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(vsomeip LINK_PUBLIC ${MBEDTLS_LIBRARIES})
+target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ARA_SECOC_LIBRARY})
 
 # Configuration library
 file(GLOB vsomeip-cfg_SRC
@@ -221,7 +236,7 @@ foreach ( file ${vsomeip_INCLUDE} )
 endforeach()
 
 install (
-    TARGETS vsomeip 
+    TARGETS vsomeip
     # IMPORTANT: Add the vsomeip library to the "export-set"
     EXPORT vsomeipTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT

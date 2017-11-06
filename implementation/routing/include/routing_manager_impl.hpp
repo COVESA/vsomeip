@@ -53,6 +53,7 @@ public:
 
     boost::asio::io_service & get_io();
     client_t get_client() const;
+    instance_t get_instance(service_t _service, endpoint *_endpoint);
     const std::shared_ptr<configuration> get_configuration() const;
 
     void init();
@@ -226,14 +227,14 @@ private:
     std::shared_ptr<endpoint> create_client_endpoint(
             const boost::asio::ip::address &_address,
             uint16_t _local_port, uint16_t _remote_port,
-            bool _reliable, client_t _client, bool _start);
+            bool _reliable, client_t _client, bool _start, secure_channel_t _secure_channel);
 
     std::shared_ptr<endpoint> create_server_endpoint(uint16_t _port,
-            bool _reliable, bool _start);
+            bool _reliable, bool _start, secure_channel_t _secure_channel);
     std::shared_ptr<endpoint> find_server_endpoint(uint16_t _port,
             bool _reliable) const;
     std::shared_ptr<endpoint> find_or_create_server_endpoint(uint16_t _port,
-            bool _reliable, bool _start);
+            bool _reliable, bool _start, secure_channel_t _secure_channel);
 
     bool is_field(service_t _service, instance_t _instance,
             event_t _event) const;
