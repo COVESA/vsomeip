@@ -30,8 +30,12 @@
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
+#include "../../endpoints/include/tls_client_endpoint_impl.hpp"
+#include "../../endpoints/include/tls_server_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_client_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_server_endpoint_impl.hpp"
+#include "../../endpoints/include/dtls_client_endpoint_impl.hpp"
+#include "../../endpoints/include/dtls_server_endpoint_impl.hpp"
 #include "../../endpoints/include/virtual_server_endpoint_impl.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../message/include/deserializer.hpp"
@@ -64,6 +68,10 @@ boost::asio::io_service & routing_manager_impl::get_io() {
 
 client_t routing_manager_impl::get_client() const {
     return routing_manager_base::get_client();
+}
+
+instance_t routing_manager_impl::get_instance(service_t _service, endpoint *_endpoint) {
+    return find_instance(_service, _endpoint);
 }
 
 void routing_manager_impl::init() {
@@ -1373,7 +1381,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_service_discovery_endpoin
     if (!its_service_endpoint) {
         try {
             its_service_endpoint = create_server_endpoint(_port, _reliable,
-                    true);
+                    true, ILLEGAL_CHANNEL);
 
             if (its_service_endpoint) {
                 sd_info_ = std::make_shared<serviceinfo>(ANY_MAJOR, ANY_MINOR,
@@ -1447,7 +1455,8 @@ void routing_manager_impl::init_service_info(
         if (_is_local_service) {
             if (ILLEGAL_PORT != its_reliable_port) {
                 its_reliable_endpoint = find_or_create_server_endpoint(
-                        its_reliable_port, true, is_someip);
+                        its_reliable_port, true, is_someip,
+                        configuration_->get_secure_channel_id(_service, _instance));
                 if (its_reliable_endpoint) {
                     its_info->set_endpoint(its_reliable_endpoint, true);
                     its_reliable_endpoint->increment_use_count();
@@ -1459,7 +1468,8 @@ void routing_manager_impl::init_service_info(
 
             if (ILLEGAL_PORT != its_unreliable_port) {
                 its_unreliable_endpoint = find_or_create_server_endpoint(
-                        its_unreliable_port, false, is_someip);
+                        its_unreliable_port, false, is_someip,
+                        configuration_->get_secure_channel_id(_service, _instance));
                 if (its_unreliable_endpoint) {
                     its_info->set_endpoint(its_unreliable_endpoint, false);
                     its_unreliable_endpoint->increment_use_count();
@@ -1484,31 +1494,69 @@ void routing_manager_impl::init_service_info(
 std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
         const boost::asio::ip::address &_address,
         uint16_t _local_port, uint16_t _remote_port,
-        bool _reliable, client_t _client, bool _start) {
+        bool _reliable, client_t _client, bool _start, secure_channel_t _secure_channel) {
     (void)_client;
 
     std::shared_ptr<endpoint> its_endpoint;
     try {
         if (_reliable) {
-            its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
-                    shared_from_this(),
-                    boost::asio::ip::tcp::endpoint(
-                            (_address.is_v4() ?
-                                    boost::asio::ip::tcp::v4() :
-                                    boost::asio::ip::tcp::v6()),
-                            _local_port),
-                    boost::asio::ip::tcp::endpoint(_address, _remote_port),
-                    io_,
-                    configuration_->get_message_size_reliable(
-                            _address.to_string(), _remote_port),
-                    configuration_->get_buffer_shrink_threshold());
+            if (_secure_channel != ILLEGAL_CHANNEL && configuration_->is_authentic(_secure_channel)) {
+                its_endpoint = std::make_shared<tls_client_endpoint_impl>(
+                        shared_from_this(),
+                        boost::asio::ip::tcp::endpoint(
+                                (_address.is_v4() ?
+                                        boost::asio::ip::tcp::v4() :
+                                        boost::asio::ip::tcp::v6()),
+                                _local_port),
+                        boost::asio::ip::tcp::endpoint(_address, _remote_port),
+                        io_,
+                        configuration_->get_message_size_reliable(
+                                _address.to_string(), _remote_port),
+                        configuration_->get_buffer_shrink_threshold(),
+                        configuration_->is_confidential(_secure_channel),
+                        configuration_->get_psk(_secure_channel),
+                        configuration_->get_pskid(_secure_channel));
 
-            if (configuration_->has_enabled_magic_cookies(_address.to_string(),
-                    _remote_port)) {
-                its_endpoint->enable_magic_cookies();
+                if (configuration_->has_enabled_magic_cookies(_address.to_string(),
+                        _remote_port)) {
+                    its_endpoint->enable_magic_cookies();
+                }
+            } else {
+                its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
+                        shared_from_this(),
+                        boost::asio::ip::tcp::endpoint(
+                                (_address.is_v4() ?
+                                        boost::asio::ip::tcp::v4() :
+                                        boost::asio::ip::tcp::v6()),
+                                _local_port),
+                        boost::asio::ip::tcp::endpoint(_address, _remote_port),
+                        io_,
+                        configuration_->get_message_size_reliable(
+                                _address.to_string(), _remote_port),
+                        configuration_->get_buffer_shrink_threshold());
+
+                if (configuration_->has_enabled_magic_cookies(_address.to_string(),
+                        _remote_port)) {
+                    its_endpoint->enable_magic_cookies();
+                }
             }
+
         } else {
-            its_endpoint = std::make_shared<udp_client_endpoint_impl>(
+            if (_secure_channel != ILLEGAL_CHANNEL && configuration_->is_authentic(_secure_channel)) {
+                its_endpoint = std::make_shared<dtls_client_endpoint_impl>(
+                    shared_from_this(),
+                    boost::asio::ip::udp::endpoint(
+                            (_address.is_v4() ?
+                                boost::asio::ip::udp::v4() :
+                                boost::asio::ip::udp::v6()),
+                            _local_port),
+                    boost::asio::ip::udp::endpoint(_address, _remote_port),
+                    io_,
+                    configuration_->is_confidential(_secure_channel),
+                    configuration_->get_psk(_secure_channel),
+                    configuration_->get_pskid(_secure_channel));
+            } else {
+                its_endpoint = std::make_shared<udp_client_endpoint_impl>(
                     shared_from_this(),
                     boost::asio::ip::udp::endpoint(
                             (_address.is_v4() ?
@@ -1517,6 +1565,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
                             _local_port),
                     boost::asio::ip::udp::endpoint(_address, _remote_port),
                     io_);
+            }
         }
         if (_start)
             its_endpoint->start();
@@ -1528,24 +1577,42 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
-        uint16_t _port, bool _reliable, bool _start) {
+        uint16_t _port, bool _reliable, bool _start, secure_channel_t _secure_channel) {
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     std::shared_ptr<endpoint> its_endpoint;
     try {
         boost::asio::ip::address its_unicast = configuration_->get_unicast_address();
         if (_start) {
             if (_reliable) {
-                its_endpoint = std::make_shared<tcp_server_endpoint_impl>(
-                        shared_from_this(),
-                        boost::asio::ip::tcp::endpoint(its_unicast, _port), io_,
-                        configuration_->get_message_size_reliable(
-                                its_unicast.to_string(), _port),
-                        configuration_->get_buffer_shrink_threshold());
-                if (configuration_->has_enabled_magic_cookies(
-                        its_unicast.to_string(), _port) ||
-                        configuration_->has_enabled_magic_cookies(
-                                "local", _port)) {
-                    its_endpoint->enable_magic_cookies();
+                if (_secure_channel != ILLEGAL_CHANNEL && configuration_->is_authentic(_secure_channel)) {
+                    its_endpoint = std::make_shared<tls_server_endpoint_impl>(
+                            shared_from_this(),
+                            boost::asio::ip::tcp::endpoint(its_unicast, _port), io_,
+                            configuration_->get_message_size_reliable(
+                                    its_unicast.to_string(), _port),
+                            configuration_->get_buffer_shrink_threshold(),
+                            configuration_->is_confidential(_secure_channel),
+                            configuration_->get_psk(_secure_channel),
+                            configuration_->get_pskid(_secure_channel));
+                    if (configuration_->has_enabled_magic_cookies(
+                            its_unicast.to_string(), _port) ||
+                            configuration_->has_enabled_magic_cookies(
+                                    "local", _port)) {
+                        its_endpoint->enable_magic_cookies();
+                    }
+                } else {
+                    its_endpoint = std::make_shared<tcp_server_endpoint_impl>(
+                            shared_from_this(),
+                            boost::asio::ip::tcp::endpoint(its_unicast, _port), io_,
+                            configuration_->get_message_size_reliable(
+                                    its_unicast.to_string(), _port),
+                            configuration_->get_buffer_shrink_threshold());
+                    if (configuration_->has_enabled_magic_cookies(
+                            its_unicast.to_string(), _port) ||
+                            configuration_->has_enabled_magic_cookies(
+                                    "local", _port)) {
+                        its_endpoint->enable_magic_cookies();
+                    }
                 }
             } else {
 #ifndef _WIN32
@@ -1556,9 +1623,17 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
                 }
 #endif
                 boost::asio::ip::udp::endpoint ep(its_unicast, _port);
-                its_endpoint = std::make_shared<udp_server_endpoint_impl>(
-                        shared_from_this(),
-                        ep, io_);
+                if (_secure_channel != ILLEGAL_CHANNEL && configuration_->is_authentic(_secure_channel) &&
+                                !configuration_->is_multicast_channel(_secure_channel)) {
+                    its_endpoint = std::make_shared<dtls_server_endpoint_impl>(
+                            shared_from_this(),
+                            ep, io_,
+                            configuration_->is_confidential(_secure_channel),
+                            configuration_->get_psk(_secure_channel),
+                            configuration_->get_pskid(_secure_channel));
+                } else {
+                    its_endpoint = std::make_shared<udp_server_endpoint_impl>(shared_from_this(), ep, io_);
+                }
             }
 
         } else {
@@ -1594,11 +1669,11 @@ std::shared_ptr<endpoint> routing_manager_impl::find_server_endpoint(
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
-        uint16_t _port, bool _reliable, bool _start) {
+        uint16_t _port, bool _reliable, bool _start, secure_channel_t _secure_channel) {
     std::shared_ptr<endpoint> its_endpoint = find_server_endpoint(_port,
             _reliable);
     if (!its_endpoint) {
-        its_endpoint = create_server_endpoint(_port, _reliable, _start);
+        its_endpoint = create_server_endpoint(_port, _reliable, _start, _secure_channel);
     }
     return (its_endpoint);
 }
@@ -1659,7 +1734,8 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
                             its_local_port,
                             its_endpoint_def->get_port(),
                             _reliable, _client,
-                            configuration_->is_someip(_service, _instance)
+                            configuration_->is_someip(_service, _instance),
+                            configuration_->get_secure_channel_id(_service, _instance)
                     );
                 }
             }
@@ -1748,14 +1824,14 @@ client_t routing_manager_impl::find_client(
              uint16_t unreliable_port = configuration_->get_unreliable_port(_service, _instance);
              auto endpoint = find_server_endpoint(unreliable_port, false);
              if (endpoint) {
-                 its_client = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)->
+                 its_client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::udp_ext> >(endpoint)->
                          get_client(_target);
              }
          } else {
              uint16_t reliable_port = configuration_->get_reliable_port(_service, _instance);
              auto endpoint = find_server_endpoint(reliable_port, true);
              if (endpoint) {
-                 its_client = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint)->
+                 its_client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::tcp> >(endpoint)->
                                  get_client(_target);
              }
          }
@@ -2209,7 +2285,7 @@ bool routing_manager_impl::on_subscribe_accepted(service_t _service, instance_t 
                 _target->set_remote_port(unreliable_port);
                 auto endpoint = find_server_endpoint(unreliable_port, false);
                 if (endpoint) {
-                    client = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)->
+                    client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::udp_ext> >(endpoint)->
                             get_client(_target);
                 }
             }
@@ -2219,7 +2295,7 @@ bool routing_manager_impl::on_subscribe_accepted(service_t _service, instance_t 
             _target->set_remote_port(reliable_port);
             auto endpoint = find_server_endpoint(reliable_port, true);
             if (endpoint) {
-                client = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint)->
+                client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::tcp> >(endpoint)->
                         get_client(_target);
             }
         }
@@ -2295,7 +2371,7 @@ void routing_manager_impl::on_subscribe(
                     uint16_t unreliable_port = configuration_->get_unreliable_port(_service, _instance);
                     auto endpoint = find_server_endpoint(unreliable_port, false);
                     if (endpoint) {
-                        client = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)->
+                        client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::udp_ext> >(endpoint)->
                                 get_client(_subscriber);
                     }
                 }
@@ -2303,7 +2379,7 @@ void routing_manager_impl::on_subscribe(
                 uint16_t reliable_port = configuration_->get_reliable_port(_service, _instance);
                 auto endpoint = find_server_endpoint(reliable_port, true);
                 if (endpoint) {
-                    client = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint)->
+                    client = std::dynamic_pointer_cast<server_endpoint_impl<boost::asio::ip::tcp> >(endpoint)->
                             get_client(_subscriber);
                 }
             }
@@ -2389,8 +2465,10 @@ void routing_manager_impl::on_subscribe_ack(service_t _service,
     bool is_someip = configuration_->is_someip(_service, _instance);
 
     // Create multicast endpoint & join multicase group
+    // multicast endpoint cannot be secured via TLS
     std::shared_ptr<endpoint> its_endpoint
-        = find_or_create_server_endpoint(_port, false, is_someip);
+        = find_or_create_server_endpoint(_port, false, is_someip,
+                                         ILLEGAL_CHANNEL);
     if (its_endpoint) {
         {
             std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);

@@ -47,6 +47,7 @@ public:
 
     virtual boost::asio::io_service & get_io();
     virtual client_t get_client() const;
+    virtual instance_t get_instance(service_t _service, endpoint *_endpoint);
 
     virtual void init();
 

@@ -210,6 +210,11 @@ void server_endpoint_impl<Protocol>::flush_cbk(
     }
 }
 
+template<typename Protocol>
+client_t server_endpoint_impl<Protocol>::get_client(std::shared_ptr<endpoint_definition> /*_endpoint*/) {
+    return 0;
+}
+
 // Instantiate template
 #ifndef _WIN32
 template class server_endpoint_impl<boost::asio::local::stream_protocol>;

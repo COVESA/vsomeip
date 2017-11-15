@@ -29,6 +29,7 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+struct secure_channel;
 
 struct element {
     std::string name_;
@@ -66,6 +67,15 @@ public:
     VSOMEIP_EXPORT bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
     VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service,
             instance_t _instance) const;
+
+    VSOMEIP_EXPORT secure_channel_t get_secure_channel_id(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT std::vector<std::tuple<service_t, instance_t, event_t>> get_secured_multicast_events(
+                    uint16_t _port) const;
+    VSOMEIP_EXPORT bool is_multicast_channel(secure_channel_t _channel) const;
+    VSOMEIP_EXPORT bool is_authentic(secure_channel_t _channel) const;
+    VSOMEIP_EXPORT bool is_confidential(secure_channel_t _channel) const;
+    VSOMEIP_EXPORT const std::vector<std::uint8_t> get_psk(secure_channel_t _channel) const;
+    VSOMEIP_EXPORT const std::string get_pskid(secure_channel_t _channel) const;
 
     VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 
@@ -165,6 +175,10 @@ private:
             std::string &_criteria,
             std::shared_ptr<trace_filter_rule> &_filter_rule);
 
+    void load_secure_channels(const element &_element);
+    void load_secure_channel_data(const boost::property_tree::ptree &_tree,
+                                  const std::string &_name);
+
     void load_unicast_address(const element &_element);
     void load_diagnosis_address(const element &_element);
 
@@ -200,6 +214,8 @@ private:
     std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
 
+    std::shared_ptr<const secure_channel> get_secure_channel(secure_channel_t _channel) const;
+
     void set_magic_cookies_unicast_address();
 
     bool is_mandatory(const std::string &_name) const;
@@ -231,6 +247,8 @@ protected:
     std::map<std::string, std::tuple<client_t, std::size_t, std::size_t, std::size_t, std::size_t>> applications_;
     std::set<client_t> client_identifiers_;
 
+    std::map<secure_channel_t, std::shared_ptr<const secure_channel>> secure_channels_;
+
     std::map<service_t,
         std::map<instance_t,
             std::shared_ptr<service> > > services_;
@@ -254,6 +272,7 @@ protected:
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
     std::uint32_t sd_offer_debounce_time_;
+    secure_channel_t sd_secure_channel_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -292,13 +311,14 @@ protected:
         ET_SERVICE_DISCOVERY_TTL,
         ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY,
         ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY,
+        ET_SERVICE_DISCOVERY_SECURE_CHANNEL,
         ET_WATCHDOG_ENABLE,
         ET_WATCHDOG_TIMEOUT,
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
-        ET_MAX = 24
+        ET_MAX = 25
     };
 
     bool is_configured_[ET_MAX];

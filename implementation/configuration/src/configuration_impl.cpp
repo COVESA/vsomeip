@@ -13,6 +13,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include <boost/algorithm/string.hpp>
+#include <boost/algorithm/hex.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -23,6 +24,7 @@
 #include "../include/configuration_impl.hpp"
 #include "../include/event.hpp"
 #include "../include/eventgroup.hpp"
+#include "../include/secure_channel.hpp"
 #include "../include/service.hpp"
 #include "../include/internal.hpp"
 #include "../../logging/include/logger_impl.hpp"
@@ -58,6 +60,7 @@ configuration_impl::configuration_impl()
       sd_cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
       sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
       sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+      sd_secure_channel_(ILLEGAL_CHANNEL),
       max_configured_message_size_(0),
       max_local_message_size_(0),
       buffer_shrink_threshold_(0),
@@ -87,6 +90,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
     services_.insert(_other.services_.begin(), _other.services_.end());
+    secure_channels_.insert(_other.secure_channels_.begin(), _other.secure_channels_.end());
 
     unicast_ = _other.unicast_;
     diagnosis_ = _other.diagnosis_;
@@ -113,6 +117,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_cyclic_offer_delay_= _other.sd_cyclic_offer_delay_;
     sd_request_response_delay_= _other.sd_request_response_delay_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
+    sd_secure_channel_ = _other.sd_secure_channel_;
 
     trace_ = std::make_shared<trace>(*_other.trace_.get());
     watchdog_ = std::make_shared<watchdog>(*_other.watchdog_.get());
@@ -308,6 +313,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
 
     if (_load_optional) {
         for (auto e : _elements) {
+            load_secure_channels(e);
             load_unicast_address(e);
             load_service_discovery(e);
             load_services(e);
@@ -634,6 +640,81 @@ void configuration_impl::load_trace_filter_expressions(
     }
 }
 
+void configuration_impl::load_secure_channels(const element &_element) {
+    try {
+        auto its_secure_channels = _element.tree_.get_child("secure_channels");
+        for (auto i = its_secure_channels.begin();
+                i != its_secure_channels.end(); ++i) {
+            load_secure_channel_data(i->second, _element.name_);
+        }
+    } catch (...) {
+        // intentionally left empty!
+    }
+}
+
+void configuration_impl::load_secure_channel_data(
+        const boost::property_tree::ptree &_tree,
+        const std::string &_file_name) {
+    try {
+        std::shared_ptr<secure_channel> its_channel(std::make_shared<secure_channel>());
+
+        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+            std::stringstream its_converter;
+
+            if (its_key == "id") {
+                if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+                its_converter >> its_channel->id_;
+            } else if (its_key == "psk") {
+                if (its_value.size() == 0) {
+                    VSOMEIP_WARNING << "Empty PSK given!";
+                } else {
+                    its_channel->psk_.reserve(its_value.size() / 2);
+                    boost::algorithm::unhex(its_value.begin(), its_value.end(),
+                                            std::back_inserter(its_channel->psk_));
+                }
+            } else if (its_key == "pskid") {
+                its_channel->pskid_ = its_value;
+            } else if (its_key == "level") {
+                if (its_value == "plain") {
+                    its_channel->level_ = secure_channel::security_level_e::PLAIN;
+                } else if (its_value == "authentic") {
+                    its_channel->level_ = secure_channel::security_level_e::AUTHENTIC;
+                } else if (its_value == "confidential") {
+                    its_channel->level_ = secure_channel::security_level_e::CONFIDENTIAL;
+                } else {
+                    VSOMEIP_WARNING << "Unknown security level [" << its_value
+                    << "] given for channel id " << its_channel->id_
+                    << " in file " << _file_name
+                    << ". Valid levels are: plain, authentic, "
+                    "confidential. Falling back to confidential!";
+
+                    its_channel->level_ = secure_channel::security_level_e::CONFIDENTIAL;
+                }
+            } else if (its_key == "is_multicast") {
+                its_channel->is_multicast_ = (its_value == "true");
+            }
+        }
+        if (secure_channels_.find(its_channel->id_)
+                == secure_channels_.end()) {
+            secure_channels_[its_channel->id_] = its_channel;
+        } else {
+            VSOMEIP_WARNING << "Multiple configurations for secure channel id "
+            << its_channel->id_
+            << ". Ignoring a configuration from " << _file_name;
+        }
+    } catch (boost::algorithm::hex_decode_error &de) {
+        VSOMEIP_ERROR << "Failed to decode secure channel PSK.";
+    } catch (...) {
+        // intentionally left empty!
+    }
+}
+
 void configuration_impl::load_unicast_address(const element &_element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("unicast");
@@ -793,6 +874,19 @@ void configuration_impl::load_service_discovery(
                     its_converter >> sd_offer_debounce_time_;
                     is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME] = true;
                 }
+            } else if (its_key == "secure_channel") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_SECURE_CHANNEL]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.secure_channel."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                        its_converter << std::hex << its_value;
+                    } else {
+                        its_converter << std::dec << its_value;
+                    }
+                    its_converter >> sd_secure_channel_;
+                    is_configured_[ET_SERVICE_DISCOVERY_SECURE_CHANNEL] = true;
+                }
             }
         }
     } catch (...) {
@@ -889,6 +983,7 @@ void configuration_impl::load_service(
         its_service->multicast_address_ = "";
         its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
+        its_service->secure_channel_ = ILLEGAL_CHANNEL;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -937,6 +1032,13 @@ void configuration_impl::load_service(
                 load_event(its_service, i->second);
             } else if (its_key == "eventgroups") {
                 load_eventgroup(its_service, i->second);
+            } else if (its_key == "secure_channel") {
+                if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+                its_converter >> its_service->secure_channel_;
             } else {
                 // Trim "its_value"
                 if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
@@ -982,14 +1084,15 @@ void configuration_impl::load_event(
         const boost::property_tree::ptree &_tree) {
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         event_t its_event_id(0);
+        secure_channel_t its_secure_channel(ILLEGAL_CHANNEL);
         bool its_is_field(false);
         bool its_is_reliable(false);
 
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
+            std::stringstream its_converter;
             std::string its_key(j->first);
             std::string its_value(j->second.data());
             if (its_key == "event") {
-                std::stringstream its_converter;
                 if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
                     its_converter << std::hex << its_value;
                 } else {
@@ -1000,19 +1103,32 @@ void configuration_impl::load_event(
                 its_is_field = (its_value == "true");
             } else if (its_key == "is_reliable") {
                 its_is_reliable = (its_value == "true");
+            } else if (its_key == "secure_channel") {
+                if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+                its_converter >> its_secure_channel;
             }
         }
 
         if (its_event_id > 0) {
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
+                // set the values to what is actually configured instead of defaults created by load_eventgroup
+                // otherwise the config would not contain the correct values if the eventgroups appear before the events
+                found_event->second->is_field_ = its_is_field;
+                found_event->second->is_reliable_ = its_is_reliable;
+                found_event->second->secure_channel_ = its_secure_channel;
+
                 VSOMEIP_ERROR << "Multiple configurations for event ["
                         << std::hex << _service->service_ << "."
                         << _service->instance_ << "."
                         << its_event_id << "]";
             } else {
                 std::shared_ptr<event> its_event = std::make_shared<event>(
-                        its_event_id, its_is_field, its_is_reliable);
+                        its_event_id, its_is_field, its_is_reliable, its_secure_channel);
                 _service->events_[its_event_id] = its_event;
             }
         }
@@ -1737,6 +1853,92 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service,
         its_unreliable = its_service->unreliable_;
 
     return its_unreliable;
+}
+
+std::shared_ptr<const secure_channel> configuration_impl::get_secure_channel(secure_channel_t _channel) const {
+    auto iter = secure_channels_.find(_channel);
+    if (iter != secure_channels_.end())
+        return iter->second;
+
+    return nullptr;
+}
+
+secure_channel_t configuration_impl::get_secure_channel_id(service_t _service, instance_t _instance) const {
+    auto its_service = find_service(_service, _instance);
+    secure_channel_t result = ILLEGAL_CHANNEL;
+    if (its_service) {
+        result = its_service->secure_channel_;
+    } else if (_service == VSOMEIP_SD_SERVICE && _instance == VSOMEIP_SD_INSTANCE) {
+        result = sd_secure_channel_;
+    }
+    return result;
+}
+
+std::vector<std::tuple<service_t, instance_t, event_t>> configuration_impl::get_secured_multicast_events(uint16_t _port) const {
+    std::vector<std::tuple<service_t, instance_t, event_t>> events;
+    if (_port == sd_port_ && is_multicast_channel(sd_secure_channel_) && is_authentic(sd_secure_channel_)) {
+        events.push_back(std::make_tuple(VSOMEIP_SD_SERVICE, VSOMEIP_SD_INSTANCE, VSOMEIP_SD_METHOD));
+    } else {
+        for (const auto& service : services_) {
+            for (const auto& instance : service.second) {
+                for (const auto& eventgroup : instance.second->eventgroups_) {
+                    if (!eventgroup.second->multicast_address_.empty() &&
+                        (eventgroup.second->multicast_port_ == _port || instance.second->unreliable_ == _port)) {
+                        for (const auto& event : eventgroup.second->events_) {
+                            if (event->secure_channel_ != ILLEGAL_CHANNEL && is_multicast_channel(event->secure_channel_)
+                                && is_authentic(event->secure_channel_)) {
+                                events.push_back(std::make_tuple(service.first, instance.first, event->id_));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return events;
+}
+
+bool configuration_impl::is_multicast_channel(secure_channel_t _channel) const {
+    auto its_secure_channel = get_secure_channel(_channel);
+    if (its_secure_channel) {
+        return its_secure_channel->is_multicast_;
+    }
+
+    return false;
+}
+
+bool configuration_impl::is_authentic(secure_channel_t _channel) const {
+    auto its_secure_channel = get_secure_channel(_channel);
+    if (its_secure_channel) {
+        return its_secure_channel->level_ != secure_channel::security_level_e::PLAIN;
+    }
+
+    return false;
+}
+
+bool configuration_impl::is_confidential(secure_channel_t _channel) const {
+    auto its_secure_channel = get_secure_channel(_channel);
+    if (its_secure_channel)
+        return its_secure_channel->level_ == secure_channel::security_level_e::CONFIDENTIAL;
+
+    return false;
+}
+
+const std::vector<std::uint8_t> configuration_impl::get_psk(secure_channel_t _channel) const {
+    auto its_secure_channel = get_secure_channel(_channel);
+    if (its_secure_channel)
+        return its_secure_channel->psk_;
+
+    return {};
+}
+
+const std::string configuration_impl::get_pskid(secure_channel_t _channel) const {
+    auto its_secure_channel = get_secure_channel(_channel);
+    if (its_secure_channel)
+        return its_secure_channel->pskid_;
+
+    return {};
 }
 
 bool configuration_impl::is_someip(service_t _service,

@@ -58,6 +58,7 @@ public:
     virtual bool get_default_target(service_t _service,
             endpoint_type &_target) const = 0;
 
+    virtual client_t get_client(std::shared_ptr<endpoint_definition> /*_endpoint*/);
 protected:
     std::map<endpoint_type, message_buffer_ptr_t> packetizer_;
     queue_type queues_;

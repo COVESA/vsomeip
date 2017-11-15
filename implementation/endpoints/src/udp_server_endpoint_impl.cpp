@@ -27,6 +27,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
         boost::asio::io_service &_io)
     : server_endpoint_impl<ip::udp_ext>(
             _host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+      secoc_endpoint_base(_local.port(), _host->get_configuration()),
       socket_(_io, _local.protocol()),
       recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
       local_port_(_local.port()) {
@@ -114,11 +115,37 @@ void udp_server_endpoint_impl::restart() {
     receive();
 }
 
+bool udp_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size, bool _flush) {
+    if (VSOMEIP_SESSION_POS_MAX < _size) {
+        message_buffer_t buffer;
+        service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+        instance_t its_instance = get_instance(its_service);
+        if (secoc_endpoint_base::is_secured(its_service, its_instance, its_method)) {
+            secoc_endpoint_base::authenticate(_data, _size, its_service, its_instance, its_method, buffer);
+            return udp_server_endpoint_base_impl::send(buffer.data(), static_cast<uint32_t>(buffer.size()), _flush);
+        }
+    }
+
+    return udp_server_endpoint_base_impl::send(_data, _size, _flush);
+}
+
 bool udp_server_endpoint_impl::send_to(
     const std::shared_ptr<endpoint_definition> _target,
     const byte_t *_data, uint32_t _size, bool _flush) {
+
+    message_buffer_t buffer;
+    service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+    method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+    instance_t its_instance = get_instance(its_service);
+
     std::lock_guard<std::mutex> its_lock(mutex_);
     endpoint_type its_target(_target->get_address(), _target->get_port());
+    if (secoc_endpoint_base::is_secured(its_service, its_instance, its_method)) {
+        secoc_endpoint_base::authenticate(_data, _size, its_service, its_instance, its_method, buffer);
+        return send_intern(its_target, buffer.data(), static_cast<uint32_t>(buffer.size()), _flush);
+    }
+
     return send_intern(its_target, _data, _size, _flush);
 }
 
@@ -294,41 +321,61 @@ void udp_server_endpoint_impl::receive_cbk(
                     return;
                 }
                 uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
+                uint32_t current_frame_size = current_message_size;
                 if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
                         current_message_size <= remaining_bytes) {
                     if (remaining_bytes - current_message_size > remaining_bytes) {
                         VSOMEIP_ERROR << "buffer underflow in udp client endpoint ~> abort!";
                         return;
                     }
-                    remaining_bytes -= current_message_size;
-                    if (utility::is_request(
-                            recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])) {
-                        client_t its_client;
-                        std::memcpy(&its_client,
-                            &recv_buffer_[i + VSOMEIP_CLIENT_POS_MIN],
-                            sizeof(client_t));
-                        session_t its_session;
-                        std::memcpy(&its_session,
-                            &recv_buffer_[i + VSOMEIP_SESSION_POS_MIN],
-                            sizeof(session_t));
-                        clients_mutex_.lock();
-                        clients_[its_client][its_session] = remote_;
-                        clients_mutex_.unlock();
-                    }
                     service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_SERVICE_POS_MIN],
-                            recv_buffer_[i + VSOMEIP_SERVICE_POS_MAX]);
-                    if (its_service != VSOMEIP_SD_SERVICE ||
-                        (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
-                                current_message_size >= remaining_bytes)) {
-                        its_host->on_message(&recv_buffer_[i],
-                                current_message_size, this, _destination,
-                                VSOMEIP_ROUTING_CLIENT, its_remote_address,
-                                its_remote_port);
-                    } else {
-                        //ignore messages for service discovery with shorter SomeIP length
-                        VSOMEIP_ERROR << "Received an unreliable vSomeIP SD message with too short length field";
+                                                                  recv_buffer_[i + VSOMEIP_SERVICE_POS_MAX]);
+                    method_t its_method = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_METHOD_POS_MIN],
+                                                                recv_buffer_[i + VSOMEIP_METHOD_POS_MAX]);
+                    instance_t its_instance = get_instance(its_service);
+
+                    bool is_verified{true};
+                    if (secoc_endpoint_base::is_secured(its_service, its_instance, its_method)) {
+                        current_frame_size += trailer_size;
+                        if (current_frame_size > remaining_bytes) {
+                            VSOMEIP_ERROR << "Incomplete SecOC message!";
+                            return;
+                        }
+
+                        message_buffer_t buffer;
+                        is_verified = secoc_endpoint_base::verify(&recv_buffer_[i], current_frame_size, its_service,
+                                                               its_instance, its_method, buffer);
                     }
-                    i += current_message_size;
+                    remaining_bytes -= current_frame_size;
+                    if (is_verified) {
+                        if (utility::is_request(
+                                recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])) {
+                            client_t its_client;
+                            std::memcpy(&its_client,
+                                &recv_buffer_[i + VSOMEIP_CLIENT_POS_MIN],
+                                sizeof(client_t));
+                            session_t its_session;
+                            std::memcpy(&its_session,
+                                &recv_buffer_[i + VSOMEIP_SESSION_POS_MIN],
+                                sizeof(session_t));
+                            clients_mutex_.lock();
+                            clients_[its_client][its_session] = remote_;
+                            clients_mutex_.unlock();
+                        }
+
+                        if (its_service != VSOMEIP_SD_SERVICE ||
+                            (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
+                                    current_message_size >= remaining_bytes)) {
+                            its_host->on_message(&recv_buffer_[i],
+                                    current_message_size, this, _destination,
+                                    VSOMEIP_ROUTING_CLIENT, its_remote_address,
+                                    its_remote_port);
+                        } else {
+                            //ignore messages for service discovery with shorter SomeIP length
+                            VSOMEIP_ERROR << "Received an unreliable vSomeIP SD message with too short length field";
+                        }
+                    }
+                    i += current_frame_size;
                 } else {
                     VSOMEIP_ERROR << "Received an unreliable vSomeIP message with bad length field";
                     service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[VSOMEIP_SERVICE_POS_MIN],
@@ -362,5 +409,16 @@ client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definitio
     }
     return 0;
 }
+
+instance_t udp_server_endpoint_impl::get_instance(service_t _service) const {
+    auto host = host_.lock();
+    if (_service == VSOMEIP_SD_SERVICE)  {
+        return VSOMEIP_SD_INSTANCE;
+    }
+
+    return host->get_instance(_service, const_cast<udp_server_endpoint_impl*>(this));
+}
+
+
 
 } // namespace vsomeip

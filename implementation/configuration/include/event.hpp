@@ -17,13 +17,14 @@ namespace cfg {
 struct eventgroup;
 
 struct event {
-    event(event_t _id, bool _is_field, bool _is_reliable)
-        : id_(_id), is_field_(_is_field), is_reliable_(_is_reliable) {
+    event(event_t _id, bool _is_field, bool _is_reliable, secure_channel_t _secure_channel = ILLEGAL_CHANNEL)
+        : id_(_id), is_field_(_is_field), is_reliable_(_is_reliable), secure_channel_(_secure_channel) {
     }
 
     event_t id_;
     bool is_field_;
     bool is_reliable_;
+    secure_channel_t secure_channel_;
     std::vector<std::weak_ptr<eventgroup> > groups_;
 };
 

@@ -62,6 +62,15 @@ public:
 
     virtual std::set<std::pair<service_t, instance_t> > get_remote_services() const = 0;
 
+    virtual secure_channel_t get_secure_channel_id(service_t _service, instance_t _instance) const = 0;
+    virtual std::vector<std::tuple<service_t, instance_t, event_t>> get_secured_multicast_events(
+                    uint16_t _port) const = 0;
+    virtual bool is_multicast_channel(secure_channel_t _channel) const = 0;
+    virtual bool is_authentic(secure_channel_t _channel) const = 0;
+    virtual bool is_confidential(secure_channel_t _channel) const = 0;
+    virtual const std::vector<std::uint8_t> get_psk(secure_channel_t _channel) const = 0;
+    virtual const std::string get_pskid(secure_channel_t _channel) const = 0;
+
     virtual bool get_multicast(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const = 0;
 

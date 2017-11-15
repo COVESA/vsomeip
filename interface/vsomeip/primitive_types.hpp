@@ -13,6 +13,7 @@ namespace vsomeip {
 
 typedef uint32_t message_t;
 typedef uint16_t service_t;
+typedef uint16_t secure_channel_t;
 typedef uint16_t method_t;
 typedef uint16_t event_t;
 

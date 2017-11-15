@@ -47,6 +47,10 @@ client_t routing_manager_base::get_client() const {
     return client_;
 }
 
+instance_t routing_manager_base::get_instance(service_t /*_service*/, endpoint */*_endpoint*/) {
+    return 0xFFFF;
+}
+
 void routing_manager_base::init() {
 }
 
