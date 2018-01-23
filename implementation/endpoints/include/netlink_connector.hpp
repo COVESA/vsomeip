@@ -20,6 +20,22 @@
 
 #include "../../endpoints/include/buffer.hpp"
 
+inline bool operator<(const sockaddr_nl &rhs, const sockaddr_nl &lhs)
+{
+    return (rhs.nl_family < lhs.nl_family ||
+            rhs.nl_pad < lhs.nl_pad ||
+            rhs.nl_pid < lhs.nl_pid ||
+            rhs.nl_groups < lhs.nl_groups);
+}
+
+inline bool operator==(const sockaddr_nl &rhs, const sockaddr_nl &lhs)
+{
+    return (rhs.nl_family == lhs.nl_family &&
+            rhs.nl_pad == lhs.nl_pad &&
+            rhs.nl_pid == lhs.nl_pid &&
+            rhs.nl_groups == lhs.nl_groups);
+}
+
 namespace vsomeip {
 
 template <typename Protocol>
