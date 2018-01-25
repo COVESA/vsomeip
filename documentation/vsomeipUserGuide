@@ -392,6 +392,14 @@ Contains the method ids. The messages that relates to the specified methods will
 Contains the client ids. The messages that relates to the specified clients will
 be filtered.
 +
+*** 'type' (optional)
++
+Specifies the filter type (valid values: "positive", "negative"). When a positive
+filter is used and a message matches one of the filter rules, the message will be
+traced/forwarded to DLT. With a negative filter messages can be excluded. So when a
+message matches one of the filter rules, the message will not be traced/forwarded to
+DLT. Default value is "positive".
++
 //Applications
 * 'applications (array)'
 +
@@ -1217,6 +1225,7 @@ Example 2 (Using Filters)
                 "services" : [ "0x1234" ],
                 "methods" : [ "0x80e8" ],
                 "clients" : [ "0x1343" ],
+                "type" : "positive"
             }
         ]
     },
@@ -1233,9 +1242,14 @@ You can apply filters to the messages. In this example only the messages that
 * relates to the client with the id _0x1234_
 
 
-will be traced/forwarded to DLT. The messages will be forwarded over the channel
-with the id _MC_. If just one filter is used, then the definition of a channel is
-optional. But if multiple filters are used, each filter needs an own channel! +
+will be traced/forwarded to DLT. This is a kind of positive filtering. To
+exclude messages from tracing/forwarding to DLT, the filter type can be
+set to "negative". This would suppress the messages that relate to the
+specified service, method and client ids. The default filter type is
+psoitive. +
+The messages will be forwarded over the channel with the id _MC_. If
+just one filter is used, then the definition of a channel is optional.
+But if multiple filters are used, each filter needs an own channel! +
 In this example each criteria has only one expression/value but it's also possible
 to define multiple values to get a more fine-grained filter. +
 The ids of the filter criterias can be found in the appropriate _.fdepl_ files
@@ -1273,9 +1287,6 @@ Example:
 
     // enable trace connector
     its_trace_connector->set_enabled(true);
-
-    //forward a message to DLT
-    its_trace_connector->forward_to_dlt(MESSAGE_TO_FORWARD);
 ----
 
 Tools

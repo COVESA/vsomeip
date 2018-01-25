@@ -41,6 +41,8 @@ typedef std::array<byte_t, 16> ipv6_address_t;
 
 typedef std::string trace_channel_t;
 
+typedef std::string trace_filter_type_t;
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_PRIMITIVE_TYPES_HPP

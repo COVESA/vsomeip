@@ -175,10 +175,20 @@ bool application_impl::init() {
         for (auto it = its_filter_rules_cfg.begin(); it != its_filter_rules_cfg.end(); ++it) {
             std::shared_ptr<cfg::trace_filter_rule> its_filter_rule_cfg = *it;
             tc::trace_connector::filter_rule_t its_filter_rule;
+            tc::filter_type_e its_filter_type;
 
-            its_filter_rule[tc::filter_criteria_e::SERVICES] = its_filter_rule_cfg->services_;
-            its_filter_rule[tc::filter_criteria_e::METHODS] = its_filter_rule_cfg->methods_;
-            its_filter_rule[tc::filter_criteria_e::CLIENTS] = its_filter_rule_cfg->clients_;
+            if(its_filter_rule_cfg->type_ == "negative") {
+                its_filter_type = tc::filter_type_e::NEGATIVE;
+            } else {
+                its_filter_type = tc::filter_type_e::POSITIVE;
+            }
+
+            tc::trace_connector::filter_rule_map_t its_filter_rule_map;
+            its_filter_rule_map[tc::filter_criteria_e::SERVICES] = its_filter_rule_cfg->services_;
+            its_filter_rule_map[tc::filter_criteria_e::METHODS] = its_filter_rule_cfg->methods_;
+            its_filter_rule_map[tc::filter_criteria_e::CLIENTS] = its_filter_rule_cfg->clients_;
+
+            its_filter_rule = std::make_pair(its_filter_type, its_filter_rule_map);
 
             its_trace_connector->add_filter_rule(it->get()->channel_, its_filter_rule);
         }

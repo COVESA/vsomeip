@@ -8,5 +8,6 @@
 
 #define VSOMEIP_TC_DEFAULT_CHANNEL_NAME             "Trace Connector Network Logging"
 #define VSOMEIP_TC_DEFAULT_CHANNEL_ID               "TC"
+#define VSOMEIP_TC_DEFAULT_FILTER_TYPE              "positive"
 
 #endif /* TRACING_INCLUDE_DEFINES_HPP_ */

@@ -635,6 +635,8 @@ void configuration_impl::load_trace_filter(
         std::string its_value = i->second.data();
         if(its_key == "channel") {
             its_filter_rule->channel_ = its_value;
+        } else if(its_key == "type") {
+            its_filter_rule->type_ = its_value;
         } else {
             load_trace_filter_expressions(i->second, its_key, its_filter_rule);
         }

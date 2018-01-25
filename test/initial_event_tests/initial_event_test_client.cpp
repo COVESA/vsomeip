@@ -92,7 +92,9 @@ public:
             }
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
-            other_services_received_notification_[std::make_pair(i.service_id, i.method_id)] = 0;
+            for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
+                other_services_received_notification_[std::make_pair(i.service_id, i.method_id+j)] = 0;
+            }
             if (!subscribe_on_available_) {
                 if (events_to_subscribe_ == 1 ) {
                     app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,

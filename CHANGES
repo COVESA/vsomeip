@@ -1,6 +1,9 @@
 Changes
 =======
 
+v2.8.1
+- Support negative filter in trace connector
+
 v2.8.0
 - Change behaviour of register_subscription_status_handler method of
   the application interface: Registered handlers will only be called

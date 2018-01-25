@@ -30,7 +30,8 @@ class trace_connector {
 public:
     typedef uint16_t filter_expression_t;
     typedef std::vector<filter_expression_t> filter_expressions_t;
-    typedef std::map<filter_criteria_e, std::vector<filter_expression_t>> filter_rule_t;
+    typedef std::map<filter_criteria_e, filter_expressions_t> filter_rule_map_t;
+    typedef std::pair<filter_type_e, filter_rule_map_t> filter_rule_t;
 
     typedef std::map<trace_channel_t, std::string> channels_t;
     typedef std::map<trace_channel_t, filter_rule_t> filter_rules_t;

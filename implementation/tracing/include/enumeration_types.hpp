@@ -15,6 +15,11 @@ enum class filter_criteria_e : uint8_t {
     CLIENTS = 0x02,
 };
 
+enum class filter_type_e : uint8_t {
+	NEGATIVE = 0x00,
+	POSITIVE = 0x01
+};
+
 } // namespace tc
 } // namespace vsomeip
 

@@ -34,7 +34,8 @@ struct trace_filter_rule {
         channel_(VSOMEIP_TC_DEFAULT_CHANNEL_ID),
         services_(),
         methods_(),
-        clients_() {
+        clients_(),
+        type_(VSOMEIP_TC_DEFAULT_FILTER_TYPE) {
 
     }
 
@@ -42,6 +43,7 @@ struct trace_filter_rule {
     std::vector<service_t> services_;
     std::vector<method_t> methods_;
     std::vector<client_t> clients_;
+    trace_filter_type_t type_;
 };
 
 struct trace {
