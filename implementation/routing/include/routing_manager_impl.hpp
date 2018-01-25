@@ -22,6 +22,7 @@
 
 #include "routing_manager_base.hpp"
 #include "routing_manager_stub_host.hpp"
+#include "types.hpp"
 
 #include "../../endpoints/include/netlink_connector.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
@@ -117,10 +118,12 @@ public:
             client_t _client, bool _force, bool _flush);
 
     void on_subscribe_nack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+                    instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                    pending_subscription_id_t _subscription_id);
 
     void on_subscribe_ack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+                    instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                    pending_subscription_id_t _subscription_id);
 
     void on_identify_response(client_t _client, service_t _service, instance_t _instance,
             bool _reliable);
@@ -188,15 +191,12 @@ public:
             bool _has_reliable, bool _has_unreliable);
     std::chrono::milliseconds update_routing_info(std::chrono::milliseconds _elapsed);
 
-    void on_subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup,
-            std::shared_ptr<endpoint_definition> _subscriber,
-            std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::steady_clock::time_point &_expiration);
-    bool on_subscribe_accepted(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup,
-            std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::steady_clock::time_point &_expiration);
+    remote_subscription_state_e on_remote_subscription(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<endpoint_definition> &_subscriber,
+            const std::shared_ptr<endpoint_definition> &_target,
+            ttl_t _ttl, client_t *_client,
+            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id);
     void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
             std::shared_ptr<endpoint_definition> _target);
@@ -221,6 +221,10 @@ public:
         (void) _client;
         (void) _offer_type;
     }
+
+    void send_initial_events(service_t _service, instance_t _instance,
+                    eventgroup_t _eventgroup,
+                    const std::shared_ptr<endpoint_definition> &_subscriber);
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
@@ -347,8 +351,6 @@ private:
     client_t is_specific_endpoint_client(client_t _client, service_t _service, instance_t _instance);
     std::unordered_set<client_t> get_specific_endpoint_clients(service_t _service, instance_t _instance);
 
-    bool remote_service_offered_via_tcp_and_udp(service_t _service, instance_t _instance) const;
-
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
@@ -424,8 +426,8 @@ private:
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
         subscription_state_e> remote_subscription_state_;
 
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::protector>> custom_protectors;
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile::profile_interface::checker>> custom_checkers;
+    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::protector>> custom_protectors;
+    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::checker>> custom_checkers;
 };
 
 }  // namespace vsomeip

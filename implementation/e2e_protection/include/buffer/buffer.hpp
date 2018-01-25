@@ -3,45 +3,46 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef BUFFER_BUFFER_HPP
-#define BUFFER_BUFFER_HPP
+#ifndef VSOMEIP_E2E_BUFFER_HPP
+#define VSOMEIP_E2E_BUFFER_HPP
 
 #include <stdexcept>
 #include <cstdint>
 #include <ostream>
 #include <vector>
 
-namespace buffer {
+namespace vsomeip {
 
 using e2e_buffer = std::vector<uint8_t>;
 
 class buffer_view {
   public:
-    buffer_view(const uint8_t *_data_ptr, size_t _data_length) : data_ptr(_data_ptr), data_length(_data_length) {
-
+    buffer_view(const uint8_t *_data_ptr, size_t _data_length)
+        : data_ptr_(_data_ptr), data_length_(_data_length) {
     }
 
-    buffer_view(const buffer::e2e_buffer &_buffer) : data_ptr(_buffer.data()), data_length(_buffer.size()) {}
+    buffer_view(const e2e_buffer &_buffer)
+        : data_ptr_(_buffer.data()), data_length_(_buffer.size()) {}
 
-    buffer_view(const buffer::e2e_buffer &_buffer, size_t _length) : data_ptr(_buffer.data()), data_length(_length) {
-
+    buffer_view(const e2e_buffer &_buffer, size_t _length)
+        : data_ptr_(_buffer.data()), data_length_(_length) {
     }
 
-     buffer_view(const buffer::e2e_buffer &_buffer, size_t _begin, size_t _end)
-        : data_ptr(_buffer.data() + _begin), data_length(_end - _begin) {
-
+     buffer_view(const e2e_buffer &_buffer, size_t _begin, size_t _end)
+        : data_ptr_(_buffer.data() + _begin), data_length_(_end - _begin) {
     }
 
-    const uint8_t *begin(void) const { return data_ptr; }
+    const uint8_t *begin(void) const { return data_ptr_; }
 
-    const uint8_t *end(void) const { return data_ptr + data_length; }
+    const uint8_t *end(void) const { return data_ptr_ + data_length_; }
 
 private:
-    const uint8_t *data_ptr;
-    size_t data_length;
+    const uint8_t *data_ptr_;
+    size_t data_length_;
 };
-}
 
-std::ostream &operator<<(std::ostream &_os, const buffer::e2e_buffer &_buffer);
+std::ostream &operator<<(std::ostream &_os, const e2e_buffer &_buffer);
 
-#endif
+} // namespace vsomeip
+
+#endif // VSOMEIP_E2E_BUFFER_HPP

@@ -61,7 +61,7 @@ public:
     void send_subscribe(std::shared_ptr<vsomeip::endpoint> _target,
             client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, bool _is_remote_subscriber);
+            event_t _event, pending_subscription_id_t _subscription_id);
 
     void send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
             client_t _client, service_t _service,

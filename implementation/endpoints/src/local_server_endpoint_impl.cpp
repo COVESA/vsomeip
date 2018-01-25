@@ -136,11 +136,29 @@ bool local_server_endpoint_impl::send_to(
 }
 
 void local_server_endpoint_impl::send_queued(
-        queue_iterator_type _queue_iterator) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    auto connection_iterator = connections_.find(_queue_iterator->first);
-    if (connection_iterator != connections_.end())
-        connection_iterator->second->send_queued(_queue_iterator);
+        const queue_iterator_type _queue_iterator) {
+    connection::ptr its_connection;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        auto connection_iterator = connections_.find(_queue_iterator->first);
+        if (connection_iterator != connections_.end()) {
+            connection_iterator->second->send_queued(_queue_iterator);
+        } else {
+            VSOMEIP_INFO << "Didn't find connection: "
+#ifdef _WIN32
+                    << _queue_iterator->first.address().to_string() << ":" << std::dec
+                    << static_cast<std::uint16_t>(_queue_iterator->first.port())
+#else
+                    << _queue_iterator->first.path()
+#endif
+                    << " dropping outstanding messages (" << std::dec
+                    << _queue_iterator->second.size() << ").";
+            _queue_iterator->second.clear();
+        }
+    }
+    if (its_connection) {
+        its_connection->send_queued(_queue_iterator);
+    }
 }
 
 void local_server_endpoint_impl::receive() {
@@ -155,13 +173,25 @@ bool local_server_endpoint_impl::get_default_target(
 
 void local_server_endpoint_impl::remove_connection(
         local_server_endpoint_impl::connection *_connection) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    for (auto it = connections_.begin(); it != connections_.end();) {
-        if (it->second.get() == _connection) {
-            it = connections_.erase(it);
-            break;
-        } else {
-            ++it;
+    endpoint_type its_target;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        for (auto it = connections_.begin(); it != connections_.end();) {
+            if (it->second.get() == _connection) {
+                its_target = it->first;
+                it = connections_.erase(it);
+                break;
+            } else {
+                ++it;
+            }
+        }
+    }
+    {
+        // delete outstanding responses for this connection as well
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        const auto found_target = queues_.find(its_target);
+        if (found_target != queues_.end()) {
+            found_target->second.clear();
         }
     }
 }
@@ -318,7 +348,7 @@ void local_server_endpoint_impl::connection::stop() {
 }
 
 void local_server_endpoint_impl::connection::send_queued(
-        queue_iterator_type _queue_iterator) {
+        const queue_iterator_type _queue_iterator) {
 
     // TODO: We currently do _not_ use the send method of the local server
     // endpoints. If we ever need it, we need to add the "start tag", "data",
@@ -353,9 +383,6 @@ void local_server_endpoint_impl::connection::send_queued(
             )
         );
     }
-}
-
-void local_server_endpoint_impl::connection::send_magic_cookie() {
 }
 
 void local_server_endpoint_impl::connection::receive_cbk(

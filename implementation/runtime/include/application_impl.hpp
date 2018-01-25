@@ -151,8 +151,8 @@ public:
             bool _is_available, major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void on_message(const std::shared_ptr<message> &&_message);
     VSOMEIP_EXPORT void on_error(error_code_e _error);
-    VSOMEIP_EXPORT bool on_subscription(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, client_t _client, bool _subscribed);
+    VSOMEIP_EXPORT void on_subscription(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, client_t _client, bool _subscribed, std::function<void(bool)> _accepted_cb);
     VSOMEIP_EXPORT void on_subscription_error(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, uint16_t _error);
     VSOMEIP_EXPORT void on_subscription_status(service_t _service, instance_t _instance,
@@ -180,6 +180,9 @@ public:
     VSOMEIP_EXPORT void on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services);
 
     VSOMEIP_EXPORT void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval);
+
+    VSOMEIP_EXPORT void register_async_subscription_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, async_subscription_handler_t _handler);
 
 private:
     //
@@ -339,8 +342,10 @@ private:
     mutable available_t available_;
 
     // Subscription handlers
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, subscription_handler_t>>>
-        subscription_;
+    std::map<service_t,
+            std::map<instance_t,
+                    std::map<eventgroup_t,
+                            std::pair<subscription_handler_t, async_subscription_handler_t>>>> subscription_;
     mutable std::mutex subscription_mutex_;
     std::map<service_t,
         std::map<instance_t, std::map<eventgroup_t,
@@ -411,6 +416,8 @@ private:
     boost::asio::steady_timer watchdog_timer_;
     watchdog_handler_t watchdog_handler_;
     std::chrono::seconds watchdog_interval_;
+
+    bool client_side_logging_;
 };
 
 } // namespace vsomeip

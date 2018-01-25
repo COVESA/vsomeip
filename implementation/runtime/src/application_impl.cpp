@@ -54,7 +54,8 @@ application_impl::application_impl(const std::string &_name)
           block_stopping_(false),
           is_routing_manager_host_(false),
           stopped_called_(false),
-          watchdog_timer_(io_) {
+          watchdog_timer_(io_),
+          client_side_logging_(false) {
 }
 
 application_impl::~application_impl() {
@@ -108,6 +109,13 @@ bool application_impl::init() {
         }
     }
 
+    const char *client_side_logging = getenv(VSOMEIP_ENV_CLIENTSIDELOGGING);
+    if (client_side_logging != nullptr) {
+        client_side_logging_ = true;
+        VSOMEIP_INFO << "Client side logging for application: " << name_
+                << " is enabled";
+    }
+
     std::shared_ptr<configuration> its_configuration = get_configuration();
     if (its_configuration) {
         VSOMEIP_INFO << "Initializing vsomeip application \"" << name_ << "\".";
@@ -155,7 +163,7 @@ bool application_impl::init() {
             routing_ = std::make_shared<routing_manager_impl>(this);
         } else {
             VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
-            routing_ = std::make_shared<routing_manager_proxy>(this);
+            routing_ = std::make_shared<routing_manager_proxy>(this, client_side_logging_);
         }
 
         routing_->init();
@@ -304,6 +312,10 @@ void application_impl::start() {
         for (size_t i = 0; i < io_thread_count - 1; i++) {
             std::shared_ptr<std::thread> its_thread
                 = std::make_shared<std::thread>([this, i] {
+                    VSOMEIP_INFO << "io thread id from application: "
+                            << std::hex << std::setw(4) << std::setfill('0')
+                            << client_ << " (" << name_ << ") is: " << std::hex
+                            << std::this_thread::get_id();
                     try {
                       io_.run();
                     } catch (const std::exception &e) {
@@ -329,6 +341,9 @@ void application_impl::start() {
     app_counter_mutex__.lock();
     app_counter__++;
     app_counter_mutex__.unlock();
+    VSOMEIP_INFO << "io thread id from application: "
+            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << name_ << ") is: " << std::hex << std::this_thread::get_id();
     try {
         io_.run();
     } catch (const std::exception &e) {
@@ -681,9 +696,22 @@ bool application_impl::are_available_unlocked(available_t &_available,
 
 void application_impl::send(std::shared_ptr<message> _message, bool _flush) {
     std::lock_guard<std::mutex> its_lock(session_mutex_);
+    bool is_request = utility::is_request(_message);
+    if (client_side_logging_) {
+        VSOMEIP_INFO << "application_impl::send: ("
+            << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
+            << std::hex << std::setw(4) << std::setfill('0') << _message->get_service() << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _message->get_instance() << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _message->get_method() << ":"
+            << std::hex << std::setw(4) << std::setfill('0')
+            << ((is_request) ? session_ : _message->get_session()) << ":"
+            << std::hex << std::setw(4) << std::setfill('0')
+                                << ((is_request) ? client_ : _message->get_client()) << "] "
+            << "type=" << std::hex << static_cast<std::uint32_t>(_message->get_message_type())
+            << " thread=" << std::hex << std::this_thread::get_id();
+    }
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
-        bool is_request = utility::is_request(_message);
         if (is_request) {
             _message->set_client(client_);
             _message->set_session(session_);
@@ -813,21 +841,36 @@ void application_impl::unregister_availability_handler(service_t _service,
     }
 }
 
-bool application_impl::on_subscription(service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, client_t _client, bool _subscribed) {
-
-    std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    auto found_service = subscription_.find(_service);
-    if (found_service != subscription_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                return found_eventgroup->second(_client, _subscribed);
+void application_impl::on_subscription(service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, client_t _client, bool _subscribed, std::function<void(bool)> _accepted_cb) {
+    bool handler_found = false;
+    std::pair<subscription_handler_t, async_subscription_handler_t> its_handlers;
+    {
+        std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+        auto found_service = subscription_.find(_service);
+        if (found_service != subscription_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    its_handlers = found_eventgroup->second;
+                    handler_found = true;
+                }
             }
         }
     }
-    return true;
+
+    if(handler_found) {
+        if(auto its_handler = its_handlers.first) {
+            // "normal" subscription handler exists
+            _accepted_cb(its_handler(_client, _subscribed));
+        } else if(auto its_handler = its_handlers.second) {
+            // async subscription handler exists
+            its_handler(_client, _subscribed, _accepted_cb);
+        }
+    } else {
+        _accepted_cb(true);
+    }
 }
 
 void application_impl::register_subscription_handler(service_t _service,
@@ -835,7 +878,7 @@ void application_impl::register_subscription_handler(service_t _service,
         subscription_handler_t _handler) {
 
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = _handler;
+    subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
 
     message_handler_t handler([&](const std::shared_ptr<message>& request) {
         send(runtime_->create_response(request), true);
@@ -1456,6 +1499,9 @@ routing_manager * application_impl::get_routing_manager() const {
 
 void application_impl::main_dispatch() {
     const std::thread::id its_id = std::this_thread::get_id();
+    VSOMEIP_INFO << "main dispatch thread id from application: "
+            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << name_ << ") is: " << std::hex << its_id;
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
@@ -1489,6 +1535,9 @@ void application_impl::main_dispatch() {
 
 void application_impl::dispatch() {
     const std::thread::id its_id = std::this_thread::get_id();
+    VSOMEIP_INFO << "dispatch thread id from application: "
+            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << name_ << ") is: " << std::hex << its_id;
     while (is_active_dispatcher(its_id)) {
         std::unique_lock<std::mutex> its_lock(handlers_mutex_);
         if (is_dispatching_ && handlers_.empty()) {
@@ -1514,14 +1563,12 @@ void application_impl::dispatch() {
             }
         }
     }
-    {
-        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-        dispatcher_condition_.notify_all();
-    }
+    std::lock_guard<std::mutex> its_lock(handlers_mutex_);
     if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         elapsed_dispatchers_.insert(its_id);
     }
+    dispatcher_condition_.notify_all();
 }
 
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
@@ -1539,7 +1586,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
         if (!_error) {
             print_blocking_call(its_sync_handler);
             bool active_dispatcher_available(false);
-            {
+            if (is_dispatching_) {
                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
                 blocked_dispatchers_.insert(its_id);
                 active_dispatcher_available = has_active_dispatcher();
@@ -1565,7 +1612,16 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             }
         }
     });
-
+    if (client_side_logging_) {
+        VSOMEIP_INFO << "Invoking handler: ("
+            << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
+            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->service_id_ << "."
+            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->instance_id_ << "."
+            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->method_id_ << ":"
+            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->session_id_ << "] "
+            << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
+            << " thread=" << std::hex << its_id;
+    }
     _handler->handler_();
     its_dispatcher_timer.cancel();
     if (is_dispatching_) {
@@ -1645,6 +1701,9 @@ void application_impl::clear_all_handler() {
 }
 
 void application_impl::shutdown() {
+    VSOMEIP_INFO << "shutdown thread id from application: "
+            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << name_ << ") is: " << std::hex << std::this_thread::get_id();
 #ifndef _WIN32
     boost::asio::detail::posix_signal_blocker blocker;
 #endif
@@ -2059,6 +2118,19 @@ void application_impl::set_watchdog_handler(watchdog_handler_t _handler,
         watchdog_handler_ = nullptr;
         watchdog_interval_ = std::chrono::seconds::zero();
     }
+}
+
+void application_impl::register_async_subscription_handler(service_t _service,
+    instance_t _instance, eventgroup_t _eventgroup,
+    async_subscription_handler_t _handler) {
+
+    std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+    subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);;
+
+    message_handler_t handler([&](const std::shared_ptr<message>& request) {
+        send(runtime_->create_response(request), true);
+    });
+    register_message_handler(_service, _instance, ANY_METHOD - 1, handler);
 }
 
 } // namespace vsomeip

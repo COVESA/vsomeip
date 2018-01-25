@@ -18,6 +18,8 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
+#include "types.hpp"
+
 namespace vsomeip {
 
 class endpoint_definition;
@@ -77,6 +79,13 @@ public:
 
     VSOMEIP_EXPORT std::unique_lock<std::mutex> get_subscription_lock();
 
+    VSOMEIP_EXPORT pending_subscription_id_t add_pending_subscription(
+            pending_subscription_t _pending_subscription);
+
+    VSOMEIP_EXPORT pending_subscription_t remove_pending_subscription(
+            pending_subscription_id_t _subscription_id);
+
+    VSOMEIP_EXPORT void clear_pending_subscriptions();
 private:
     std::atomic<major_version_t> major_;
     std::atomic<ttl_t> ttl_;
@@ -97,6 +106,10 @@ private:
 
     std::atomic<bool> has_reliable_;
     std::atomic<bool> has_unreliable_;
+
+    std::mutex pending_subscriptions_mutex_;
+    std::map<pending_subscription_id_t, pending_subscription_t> pending_subscriptions_;
+    pending_subscription_id_t subscription_id_;
 };
 
 } // namespace vsomeip

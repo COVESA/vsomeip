@@ -32,8 +32,8 @@ public:
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(const std::shared_ptr<message> &&_message) = 0;
     virtual void on_error(error_code_e _error) = 0;
-    virtual bool on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            client_t _client, bool _subscribed) = 0;
+    virtual void on_subscription(service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, client_t _client, bool _subscribed, std::function<void(bool)> _accepted_cb) = 0;
     virtual void on_subscription_error(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, uint16_t _error) = 0;
     virtual void on_subscription_status(service_t _service, instance_t _instance,

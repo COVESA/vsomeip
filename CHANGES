@@ -1,6 +1,13 @@
 Changes
 =======
 
+v2.10.0
+- Add register_async_subscription_handler to application interface
+- Ensure faster stopping of UDP and TCP endpoints
+- StopSubscribe eventgroup entries of StopSubscribe/Subscribe
+  eventgroup entry sequences in incoming SD messages are now
+  completely handled in the service discovery module
+
 v2.9.5
 - Change magic cookie behaviour to only send a magic cookie every 10
   seconds instead of in front of every SOME/IP message

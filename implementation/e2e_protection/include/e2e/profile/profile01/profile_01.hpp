@@ -3,52 +3,54 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef E2E_PROFILE_PROFILE01_PROFILE01_HPP
-#define E2E_PROFILE_PROFILE01_PROFILE01_HPP
+#ifndef VSOMEIP_E2E_PROFILE01_PROFILE01_HPP
+#define VSOMEIP_E2E_PROFILE01_PROFILE01_HPP
 
 #include <cstdint>
 #include "../../../buffer/buffer.hpp"
 
+namespace vsomeip {
 namespace e2e {
-namespace profile {
 namespace profile01 {
 
-struct Config;
+struct profile_config;
 
 class profile_01 {
   public:
-    static uint8_t compute_crc(const Config &_config, const buffer::e2e_buffer &_buffer);
+    static uint8_t compute_crc(const profile_config &_config, const e2e_buffer &_buffer);
 
-    static bool is_buffer_length_valid(const Config &_config, const buffer::e2e_buffer &_buffer);
+    static bool is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer);
 };
 
 // [SWS_E2E_00200]
-enum class p01_data_id_mode : uint8_t { E2E_P01_DATAID_BOTH, E2E_P01_DATAID_ALT, E2E_P01_DATAID_LOW, E2E_P01_DATAID_NIBBLE};
+enum class p01_data_id_mode : uint8_t {E2E_P01_DATAID_BOTH, E2E_P01_DATAID_ALT, E2E_P01_DATAID_LOW, E2E_P01_DATAID_NIBBLE};
 
-struct Config {
+struct profile_config {
     // [SWS_E2E_00018]
-    uint16_t crc_offset;
-    uint16_t data_id;
-    p01_data_id_mode data_id_mode;
-    uint16_t data_length;
-    uint16_t counter_offset;
-    uint16_t data_id_nibble_offset;
+    uint16_t crc_offset_;
+    uint16_t data_id_;
+    p01_data_id_mode data_id_mode_;
+    uint16_t data_length_;
+    uint16_t counter_offset_;
+    uint16_t data_id_nibble_offset_;
 
-#ifndef E2E_DEVELOPMENT
-    Config() = delete;
-#else
-    Config() = default;
-#endif
-    Config(uint16_t _crc_offset, uint16_t _data_id, p01_data_id_mode _data_id_mode, uint16_t _data_length, uint16_t _counter_offset, uint16_t _data_id_nibble_offset)
+    profile_config() = delete;
 
-        : crc_offset(_crc_offset), data_id(_data_id),
-          data_id_mode(_data_id_mode), data_length(_data_length), counter_offset(_counter_offset), data_id_nibble_offset(_data_id_nibble_offset) {
+    profile_config(uint16_t _crc_offset, uint16_t _data_id,
+                   p01_data_id_mode _data_id_mode, uint16_t _data_length,
+                   uint16_t _counter_offset, uint16_t _data_id_nibble_offset)
+
+        : crc_offset_(_crc_offset), data_id_(_data_id),
+          data_id_mode_(_data_id_mode), data_length_(_data_length),
+          counter_offset_(_counter_offset),
+          data_id_nibble_offset_(_data_id_nibble_offset) {
     }
-    Config(const Config &_config) = default;
-    Config &operator=(const Config &_config) = default;
+    profile_config(const profile_config &_config) = default;
+    profile_config &operator=(const profile_config &_config) = default;
 };
-}
-}
-}
 
-#endif
+} // namespace profile01
+} // namespace e2e
+} // namespace vsomeip
+
+#endif // VSOMEIP_E2E_PROFILE01_PROFILE01_HPP

@@ -424,17 +424,41 @@ void check_file(const std::string &_config_file,
     used_ports[true].insert(0x11);
     used_ports[false].insert(0x10);
     std::uint16_t port_to_use(0x0);
-    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, true, used_ports, port_to_use));
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, true, used_ports, port_to_use));
     EXPECT_EQ(0x10, port_to_use);
-    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, false, used_ports, port_to_use));
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, false, used_ports, port_to_use));
     EXPECT_EQ(0x11, port_to_use);
 
     used_ports[true].insert(0x10);
     used_ports[false].insert(0x11);
-    EXPECT_FALSE(its_configuration->get_client_port(0x8888, 0x1, true, used_ports, port_to_use));
+    EXPECT_FALSE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, true, used_ports, port_to_use));
     EXPECT_EQ(vsomeip::ILLEGAL_PORT, port_to_use);
-    EXPECT_FALSE(its_configuration->get_client_port(0x8888, 0x1, false, used_ports, port_to_use));
+    EXPECT_FALSE(its_configuration->get_client_port(0x8888, 0x1, vsomeip::ILLEGAL_PORT, false, used_ports, port_to_use));
     EXPECT_EQ(vsomeip::ILLEGAL_PORT, port_to_use);
+
+
+    //check for correct client port assignment if service / instance was not configured but a remote port range
+    used_ports.clear();
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7725, true, used_ports, port_to_use));
+    EXPECT_EQ(0x771B, port_to_use);
+    used_ports[true].insert(0x771B);
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7725, true, used_ports, port_to_use));
+    EXPECT_EQ(0x771C, port_to_use);
+    used_ports[true].insert(0x771C);
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7B0D, true, used_ports, port_to_use));
+    EXPECT_EQ(0x7B03, port_to_use);
+    used_ports[true].insert(0x7B03);
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7B0D, true, used_ports, port_to_use));
+    EXPECT_EQ(0x7B04, port_to_use);
+    used_ports[true].insert(0x7B04);
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7EF4, true, used_ports, port_to_use));
+    EXPECT_EQ(0x7EEB, port_to_use);
+    used_ports[true].insert(0x7EEB);
+    EXPECT_TRUE(its_configuration->get_client_port(0x8888, 0x12, 0x7EF4, true, used_ports, port_to_use));
+    EXPECT_EQ(0x7EEC, port_to_use);
+    used_ports[true].insert(0x7EEC);
+    used_ports.clear();
+
 
     // payload sizes
     // use 17000 instead of 1500 as configured max-local-payload size will be

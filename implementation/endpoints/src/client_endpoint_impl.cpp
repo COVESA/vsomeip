@@ -60,6 +60,8 @@ void client_endpoint_impl<Protocol>::stop() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
+        // delete unsent messages
+        queue_.clear();
     }
     {
         std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
@@ -67,28 +69,6 @@ void client_endpoint_impl<Protocol>::stop() {
         connect_timer_.cancel(ec);
     }
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
-
-    bool is_open(false);
-    {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        is_open = socket_->is_open();
-    }
-    if (is_open) {
-        bool send_queue_empty(false);
-        std::uint32_t times_slept(0);
-
-        while (times_slept <= 50) {
-            mutex_.lock();
-            send_queue_empty = (queue_.size() == 0);
-            mutex_.unlock();
-            if (send_queue_empty) {
-                break;
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                times_slept++;
-            }
-        }
-    }
     shutdown_and_close_socket();
 }
 
@@ -253,6 +233,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
             std::lock_guard<std::mutex> its_lock(mutex_);
             if (endpoint_impl<Protocol>::sending_blocked_) {
                 queue_.clear();
+            } else {
+                VSOMEIP_WARNING << "cei::send_cbk received error: "
+                        << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << std::dec << queue_.size();
             }
         }
         shutdown_and_close_socket();
@@ -264,6 +248,9 @@ void client_endpoint_impl<Protocol>::send_cbk(
     } else if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
         shutdown_and_close_socket();
+    } else {
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
+                << " (" << std::dec << _error.value() << ")" ;
     }
 }
 

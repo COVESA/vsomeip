@@ -63,9 +63,9 @@ public:
 
     virtual bool is_someip(service_t _service, instance_t _instance) const = 0;
 
-    virtual bool get_client_port(
-            service_t _service, instance_t _instance, bool _reliable,
-            std::map<bool, std::set<uint16_t> > &_used, uint16_t &_port) const = 0;
+    virtual bool get_client_port(service_t _service, instance_t _instance,
+            uint16_t _remote_port, bool _reliable,
+            std::map<bool, std::set<uint16_t> > &_used_client_ports, uint16_t &_client_port) const = 0;
 
     virtual std::set<std::pair<service_t, instance_t> > get_remote_services() const = 0;
 

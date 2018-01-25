@@ -236,6 +236,24 @@
     "clients" :
     [
         {
+            "reliable_remote_ports"   : { "first" : "30500", "last" : "30599" },
+            "unreliable_remote_ports" : { "first" : "30500", "last" : "30599" },
+            "reliable_client_ports"   : { "first" : "30491", "last" : "30499" },
+            "unreliable_client_ports" : { "first" : "30491", "last" : "30499" }
+        },
+        {
+            "reliable_remote_ports"   : { "first" : "31500", "last" : "31599" },
+            "unreliable_remote_ports" : { "first" : "31500", "last" : "31599" },
+            "reliable_client_ports"   : { "first" : "31491", "last" : "31499" },
+            "unreliable_client_ports" : { "first" : "31491", "last" : "31499" }
+        },
+        {
+            "reliable_remote_ports"   : { "first" : "32500", "last" : "32599" },
+            "unreliable_remote_ports" : { "first" : "32500", "last" : "32599" },
+            "reliable_client_ports"   : { "first" : "32491", "last" : "32499" },
+            "unreliable_client_ports" : { "first" : "32491", "last" : "32499" }
+        },
+        {
             "service" : "0x8888",
             "instance" : "0x1",
             "unreliable" : [ "0x11", "0x10" ],

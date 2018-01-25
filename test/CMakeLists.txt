@@ -67,7 +67,7 @@ endfunction()
 ##############################################################################
 # configuration-test
 ##############################################################################
-if(NOT ${TESTS_BAT})
+if(NOT ${TESTS_BAT})    
     set(TEST_CONFIGURATION configuration-test)
 
     add_executable(${TEST_CONFIGURATION} configuration_tests/configuration-test.cpp)
@@ -588,6 +588,57 @@ if(NOT ${TESTS_BAT})
         ${TEST_RESTART_ROUTING_CLIENT}
     )
 endif()
+
+##############################################################################
+# security test
+##############################################################################
+
+if (${TEST_SECURITY})
+    if(NOT ${TESTS_BAT})
+        set(TEST_SECURITY_NAME security_test)
+    
+        set(TEST_SECURITY_SERVICE security_test_service)
+        add_executable(${TEST_SECURITY_SERVICE} security_tests/${TEST_SECURITY_SERVICE}.cpp)
+        target_link_libraries(${TEST_SECURITY_SERVICE}
+            vsomeip
+            ${Boost_LIBRARIES}
+            ${DL_LIBRARY}
+            ${TEST_LINK_LIBRARIES}
+        )
+    
+        # Copy config file for service into $BUILDDIR/test
+        set(TEST_SECURITY_SERVICE_CONFIG_FILE ${TEST_SECURITY_NAME}_config.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            @ONLY)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            ${TEST_SECURITY_SERVICE}
+        )
+    
+        # Copy bashscript to start service into $BUILDDIR/test
+        set(TEST_SECURITY_SERVICE_START_SCRIPT ${TEST_SECURITY_NAME}_start.sh)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_START_SCRIPT}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_START_SCRIPT}
+            ${TEST_SECURITY_SERVICE}
+        )
+    
+        set(TEST_SECURITY_CLIENT security_test_client)
+        add_executable(${TEST_SECURITY_CLIENT}
+            security_tests/${TEST_SECURITY_CLIENT}.cpp
+        )
+        target_link_libraries(${TEST_SECURITY_CLIENT}
+            vsomeip
+            ${Boost_LIBRARIES}
+            ${DL_LIBRARY}
+            ${TEST_LINK_LIBRARIES}
+        )
+    endif()
+endif()
+
 ##############################################################################
 # payload-test
 ##############################################################################
@@ -2052,6 +2103,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_CLIENT})
+    if (${TEST_SECURITY})
+        add_dependencies(build_tests ${TEST_SECURITY_SERVICE})
+        add_dependencies(build_tests ${TEST_SECURITY_CLIENT})
+    endif()
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_CLIENT})
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
 else()
@@ -2432,7 +2487,13 @@ if(NOT ${TESTS_BAT})
     # Restart-Routing tests
     add_test(NAME ${TEST_RESTART_ROUTING_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_STARTER}
-    )    
+    )
+    if (${TEST_SECURITY})
+        # Security tests
+        add_test(NAME ${TEST_SECURITY_NAME}
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_START_SCRIPT}
+        )
+    endif()
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

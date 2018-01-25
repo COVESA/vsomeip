@@ -8,7 +8,7 @@
 #include <string>
 #include <iomanip>
 
-namespace crc {
+namespace vsomeip {
 
 /**
  * Calculates the crc over the provided range.
@@ -27,16 +27,16 @@ namespace crc {
  * - ReflectOut   = false
  * - Algorithm    = table-driven
  */
-uint8_t e2e_crc::calculate_profile_01(buffer::buffer_view _buffer_view, const uint8_t _start_value) {
+uint8_t e2e_crc::calculate_profile_01(buffer_view _buffer_view, const uint8_t _start_value) {
     uint8_t crc = _start_value ^ 0xFFU;
     for (uint8_t byte : _buffer_view) {
-        crc = static_cast<uint8_t>(lookup_table_profile_01[static_cast<uint8_t>((byte) ^ crc)] ^ (crc >> 8U));
+        crc = static_cast<uint8_t>(lookup_table_profile_01_[static_cast<uint8_t>((byte) ^ crc)] ^ (crc >> 8U));
     }
     crc = crc ^ 0xFFU;
     return crc;
 }
 
-const uint8_t e2e_crc::lookup_table_profile_01[256] = {
+const uint8_t e2e_crc::lookup_table_profile_01_[256] = {
     0x00U, 0x1DU, 0x3AU, 0x27U, 0x74U, 0x69U, 0x4EU, 0x53U, 0xE8U, 0xF5U, 0xD2U, 0xCFU, 0x9CU, 0x81U, 0xA6U, 0xBBU,
     0xCDU, 0xD0U, 0xF7U, 0xEAU, 0xB9U, 0xA4U, 0x83U, 0x9EU, 0x25U, 0x38U, 0x1FU, 0x02U, 0x51U, 0x4CU, 0x6BU, 0x76U,
     0x87U, 0x9AU, 0xBDU, 0xA0U, 0xF3U, 0xEEU, 0xC9U, 0xD4U, 0x6FU, 0x72U, 0x55U, 0x48U, 0x1BU, 0x06U, 0x21U, 0x3CU,
@@ -71,10 +71,10 @@ const uint8_t e2e_crc::lookup_table_profile_01[256] = {
 * - XorOut       = 0xFFFFFFFF
 * - ReflectOut   = true
 */
-uint32_t e2e_crc::calculate_profile_04(buffer::buffer_view _buffer_view, const uint32_t _start_value) {
+uint32_t e2e_crc::calculate_profile_04(buffer_view _buffer_view, const uint32_t _start_value) {
     uint32_t crc = _start_value ^ 0xFFFFFFFFU;
     for (uint8_t byte : _buffer_view) {
-        crc = lookup_table_profile_04[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
+        crc = lookup_table_profile_04_[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
     }
 
     crc = crc ^ 0xFFFFFFFFU;
@@ -82,7 +82,7 @@ uint32_t e2e_crc::calculate_profile_04(buffer::buffer_view _buffer_view, const u
     return crc;
 }
 
-const uint32_t e2e_crc::lookup_table_profile_04[256] = {
+const uint32_t e2e_crc::lookup_table_profile_04_[256] = {
     0x00000000U, 0x30850FF5U, 0x610A1FEAU, 0x518F101FU, 0xC2143FD4U, 0xF2913021U, 0xA31E203EU, 0x939B2FCBU, 0x159615F7U,
     0x25131A02U, 0x749C0A1DU, 0x441905E8U, 0xD7822A23U, 0xE70725D6U, 0xB68835C9U, 0x860D3A3CU, 0x2B2C2BEEU, 0x1BA9241BU,
     0x4A263404U, 0x7AA33BF1U, 0xE938143AU, 0xD9BD1BCFU, 0x88320BD0U, 0xB8B70425U, 0x3EBA3E19U, 0x0E3F31ECU, 0x5FB021F3U,
@@ -114,9 +114,6 @@ const uint32_t e2e_crc::lookup_table_profile_04[256] = {
     0xCE99CC86U, 0xFE1CC373U, 0xAF93D36CU, 0x9F16DC99U
 };
 
-
-
-
 /**
 * Calculates the CRC over the provided range.
 *
@@ -133,12 +130,12 @@ const uint32_t e2e_crc::lookup_table_profile_04[256] = {
 * - XorOut       = 0xFFFFFFFF
 * - ReflectOut   = true
 */
-uint32_t e2e_crc::calculate_profile_custom(buffer::buffer_view _buffer_view) {
+uint32_t e2e_crc::calculate_profile_custom(buffer_view _buffer_view) {
     // InitValue
     uint32_t crc = 0xFFFFFFFFU;
 
     for (uint8_t byte : _buffer_view) {
-        crc = lookup_table_profile_custom[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
+        crc = lookup_table_profile_custom_[static_cast<uint8_t>(byte ^ crc)] ^ (crc >> 8U);
     }
 
     // XorOut
@@ -146,8 +143,7 @@ uint32_t e2e_crc::calculate_profile_custom(buffer::buffer_view _buffer_view) {
     return crc;
 }
 
-
-const uint32_t e2e_crc::lookup_table_profile_custom[256] = {
+const uint32_t e2e_crc::lookup_table_profile_custom_[256] = {
         0x00000000U, 0x77073096U, 0xEE0E612CU, 0x990951BAU, 0x076DC419U, 0x706AF48FU, 0xE963A535U, 0x9E6495A3U,
         0x0EDB8832U, 0x79DCB8A4U, 0xE0D5E91EU, 0x97D2D988U, 0x09B64C2BU, 0x7EB17CBDU, 0xE7B82D07U, 0x90BF1D91U,
         0x1DB71064U, 0x6AB020F2U, 0xF3B97148U, 0x84BE41DEU, 0x1ADAD47DU, 0x6DDDE4EBU, 0xF4D4B551U, 0x83D385C7U,
@@ -182,5 +178,5 @@ const uint32_t e2e_crc::lookup_table_profile_custom[256] = {
         0xB3667A2EU, 0xC4614AB8U, 0x5D681B02U, 0x2A6F2B94U, 0xB40BBE37U, 0xC30C8EA1U, 0x5A05DF1BU, 0x2D02EF8DU
 };
 
-}
+} // namespace vsomeip
 

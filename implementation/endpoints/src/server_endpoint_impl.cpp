@@ -199,16 +199,20 @@ void server_endpoint_impl<Protocol>::connect_cbk(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::send_cbk(
-        queue_iterator_type _queue_iterator, boost::system::error_code const &_error,
-        std::size_t _bytes) {
+        const queue_iterator_type _queue_iterator,
+        boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
 
+    std::lock_guard<std::mutex> its_lock(mutex_);
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
         _queue_iterator->second.pop_front();
         if (_queue_iterator->second.size() > 0) {
             send_queued(_queue_iterator);
         }
+    } else {
+        // error: sending of outstanding responses isn't started again
+        // delete remaining outstanding responses
+        _queue_iterator->second.clear();
     }
 }
 

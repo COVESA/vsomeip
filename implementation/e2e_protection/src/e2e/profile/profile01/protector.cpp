@@ -11,16 +11,15 @@
 #include <string>
 #include <iomanip>
 
-
+namespace vsomeip {
 namespace e2e {
-namespace profile {
 namespace profile01 {
 
 /** @req [SWS_E2E_00195] */
-void protector::protect(buffer::e2e_buffer &_buffer) {
-    std::lock_guard<std::mutex> lock(protect_mutex);
+void protector::protect(e2e_buffer &_buffer) {
+    std::lock_guard<std::mutex> lock(protect_mutex_);
 
-    if(profile_01::is_buffer_length_valid(config, _buffer)) {
+    if (profile_01::is_buffer_length_valid(config_, _buffer)) {
         // write the current Counter value in Data
         write_counter(_buffer);
 
@@ -28,7 +27,7 @@ void protector::protect(buffer::e2e_buffer &_buffer) {
         write_data_id(_buffer);
 
         // compute the CRC over DataID and Data
-        uint8_t computed_crc = profile_01::compute_crc(config, _buffer);
+        uint8_t computed_crc = profile_01::compute_crc(config_, _buffer);
         // write CRC in Data
         write_crc(_buffer, computed_crc);
 
@@ -38,40 +37,43 @@ void protector::protect(buffer::e2e_buffer &_buffer) {
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_counter(buffer::e2e_buffer &_buffer) {
-    if(config.counter_offset % 8 == 0) {
+void protector::write_counter(e2e_buffer &_buffer) {
+    if (config_.counter_offset_ % 8 == 0) {
         // write write counter value into low nibble
-        _buffer[config.counter_offset / 8] = static_cast<uint8_t>((_buffer[config.counter_offset / 8] & 0xF0) | (counter & 0x0F));
+        _buffer[config_.counter_offset_ / 8] =
+                static_cast<uint8_t>((_buffer[config_.counter_offset_ / 8] & 0xF0) | (counter_ & 0x0F));
     } else {
         // write counter into high nibble
-        _buffer[config.counter_offset / 8] = static_cast<uint8_t>((_buffer[config.counter_offset / 8] & 0x0F) | ((counter << 4) & 0xF0));
+        _buffer[config_.counter_offset_ / 8] =
+                static_cast<uint8_t>((_buffer[config_.counter_offset_ / 8] & 0x0F) | ((counter_ << 4) & 0xF0));
     }
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_data_id(buffer::e2e_buffer &_buffer) {
-    if(config.data_id_mode == p01_data_id_mode::E2E_P01_DATAID_NIBBLE) {
-        if(config.data_id_nibble_offset % 8 == 0) {
+void protector::write_data_id(e2e_buffer &_buffer) {
+    if (config_.data_id_mode_ == p01_data_id_mode::E2E_P01_DATAID_NIBBLE) {
+        if (config_.data_id_nibble_offset_ % 8 == 0) {
             // write low nibble of high byte of Data ID
-            _buffer[config.data_id_nibble_offset / 8] = static_cast<uint8_t>((_buffer[config.data_id_nibble_offset / 8] & 0xF0) | ((config.data_id >> 8) & 0x0F));
+            _buffer[config_.data_id_nibble_offset_ / 8] =
+                    static_cast<uint8_t>((_buffer[config_.data_id_nibble_offset_ / 8] & 0xF0) | ((config_.data_id_ >> 8) & 0x0F));
         } else {
             // write low nibble of high byte of Data ID
-            _buffer[config.data_id_nibble_offset / 8] = static_cast<uint8_t>((_buffer[config.data_id_nibble_offset / 8] & 0x0F) | ((config.data_id >> 4) & 0xF0));
+            _buffer[config_.data_id_nibble_offset_ / 8] =
+                    static_cast<uint8_t>((_buffer[config_.data_id_nibble_offset_ / 8] & 0x0F) | ((config_.data_id_ >> 4) & 0xF0));
         }
     }
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_crc(buffer::e2e_buffer &_buffer, uint8_t _computed_crc) {
-    _buffer[config.crc_offset] = _computed_crc;
+void protector::write_crc(e2e_buffer &_buffer, uint8_t _computed_crc) {
+    _buffer[config_.crc_offset_] = _computed_crc;
 }
 
 /** @req [SWS_E2E_00075] */
 void protector::increment_counter(void) {
-    counter = static_cast<uint8_t>((counter + 1U) % 15);
+    counter_ = static_cast<uint8_t>((counter_ + 1U) % 15);
 }
 
-
-}
-}
-}
+} // namespace profile01
+} // namespace e2e
+} // namespace vsomeip

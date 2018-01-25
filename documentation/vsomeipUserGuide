@@ -572,6 +572,36 @@ service instance.
 The list of client ports to be used for unreliable (UDP) communication to the given
 service instance. 
 
++
+Additionally there is the possibility to configure mappings between ranges of client
+ports and ranges of remote service ports.
+(If a client port is configured for a specific service / instance, the port range mapping is ignored)
+
+** `reliable_remote_ports`
++
+Specifies a range of reliable remote service ports
+
+** `unreliable_remote_ports`
++
+Specifies a range of unreliable remote service ports
+
+** `reliable_client_ports`
++
+Specifies the range of reliable client ports to be mapped to the reliable_remote_ports range
+
+** `unreliable_client_ports`
++
+Specifies the range of unreliable client ports to be mapped to the unreliable_remote_ports range
+
+
+** `first`
++
+Specifies the lower bound of a port range
+
+** `last`
++
+Specifies the upper bound of a port range
+
 * `payload-sizes` (array)
 +
 Array to limit the maximum allowed payload sizes per IP and port. If not

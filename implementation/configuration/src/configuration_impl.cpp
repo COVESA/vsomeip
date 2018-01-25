@@ -245,6 +245,9 @@ bool configuration_impl::load(const std::string &_name) {
     if (policy_enabled_ && check_credentials_)
         VSOMEIP_INFO << "Security configuration is active.";
 
+    if (policy_enabled_ && !check_credentials_)
+        VSOMEIP_INFO << "Security configuration is active but in audit mode (allow all)";
+
     is_loaded_ = true;
 
     return is_loaded_;
@@ -1249,16 +1252,26 @@ void configuration_impl::load_clients(const element &_element) {
 
 void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
     try {
-        bool is_loaded(true);
-
         std::shared_ptr<client> its_client(std::make_shared<client>());
+        its_client->remote_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
+        its_client->remote_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
+        its_client->client_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
+        its_client->client_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
             std::string its_value(i->second.data());
             std::stringstream its_converter;
 
-            if (its_key == "reliable") {
+            if (its_key == "reliable_remote_ports") {
+                its_client->remote_ports_[true] = load_client_port_range(i->second);
+            } else if (its_key == "unreliable_remote_ports") {
+                its_client->remote_ports_[false] = load_client_port_range(i->second);
+            } else if (its_key == "reliable_client_ports") {
+                its_client->client_ports_[true] = load_client_port_range(i->second);
+            } else if (its_key == "unreliable_client_ports") {
+                its_client->client_ports_[false] = load_client_port_range(i->second);
+            } else if (its_key == "reliable") {
                 its_client->ports_[true] = load_client_ports(i->second);
             } else if (its_key == "unreliable") {
                 its_client->ports_[false] = load_client_ports(i->second);
@@ -1277,22 +1290,7 @@ void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
                 }
             }
         }
-
-        auto found_service = clients_.find(its_client->service_);
-        if (found_service != clients_.end()) {
-            auto found_instance = found_service->second.find(
-                    its_client->instance_);
-            if (found_instance != found_service->second.end()) {
-                VSOMEIP_ERROR << "Multiple client configurations for service ["
-                        << std::hex << its_client->service_ << "."
-                        << its_client->instance_ << "]";
-                is_loaded = false;
-            }
-        }
-
-        if (is_loaded) {
-            clients_[its_client->service_][its_client->instance_] = its_client;
-        }
+        clients_.push_back(its_client);
     } catch (...) {
     }
 }
@@ -1314,6 +1312,40 @@ std::set<uint16_t> configuration_impl::load_client_ports(
         its_ports.insert(its_port_value);
     }
     return its_ports;
+}
+
+std::pair<uint16_t,uint16_t> configuration_impl::load_client_port_range(
+        const boost::property_tree::ptree &_tree) {
+    std::pair<uint16_t,uint16_t> its_port_range;
+    uint16_t its_first_port = ILLEGAL_PORT;
+    uint16_t its_last_port = ILLEGAL_PORT;
+
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        std::string its_key(i->first);
+        std::string its_value(i->second.data());
+        std::stringstream its_converter;
+
+        if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+            its_converter << std::hex << its_value;
+        } else {
+            its_converter << std::dec << its_value;
+        }
+
+        if (its_key == "first") {
+            its_converter >> its_first_port;
+        } else if (its_key == "last") {
+            its_converter >> its_last_port;
+        }
+    }
+
+    if (its_last_port < its_first_port) {
+        VSOMEIP_WARNING << "Port range invalid: first: " << std::dec << its_first_port << " last: " << its_last_port;
+        its_port_range = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
+    } else {
+        its_port_range = std::make_pair(its_first_port, its_last_port);
+    }
+
+    return its_port_range;
 }
 
 void configuration_impl::load_watchdog(const element &_element) {
@@ -1763,6 +1795,16 @@ bool configuration_impl::is_internal_service(service_t _service,
     return false;
 }
 
+bool configuration_impl::is_in_port_range(uint16_t _port,
+      std::pair<uint16_t, uint16_t> _port_range) const {
+
+    if (_port >= _port_range.first &&
+            _port <= _port_range.second ) {
+        return true;
+    }
+    return false;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Public interface
 ///////////////////////////////////////////////////////////////////////////////
@@ -1850,27 +1892,51 @@ bool configuration_impl::is_someip(service_t _service,
 }
 
 bool configuration_impl::get_client_port(
-        service_t _service, instance_t _instance, bool _reliable,
-        std::map<bool, std::set<uint16_t> > &_used,
-        uint16_t &_port) const {
-    _port = ILLEGAL_PORT;
-    auto its_client = find_client(_service, _instance);
+        service_t _service, instance_t _instance,
+        uint16_t _remote_port, bool _reliable,
+        std::map<bool, std::set<uint16_t> > &_used_client_ports,
+        uint16_t &_client_port) const {
+
+    _client_port = ILLEGAL_PORT;
+    auto its_client = find_client(_service, _instance, _remote_port, _reliable);
 
     // If no client ports are configured, return true
-    if (!its_client || its_client->ports_[_reliable].empty()) {
+    if (!its_client ||
+            (its_client->ports_[_reliable].empty()
+                    && its_client->client_ports_[_reliable].first == ILLEGAL_PORT)) {
         return true;
     }
 
-    for (auto its_port : its_client->ports_[_reliable]) {
-        // Found free configured port
-        if (_used[_reliable].find(its_port) == _used[_reliable].end()) {
-            _port = its_port;
-            return true;
+    // specific ports to service / instance are prioritized
+    if (!its_client->ports_[_reliable].empty()) {
+        for (auto its_port : its_client->ports_[_reliable]) {
+            // Found free configured port
+            if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                _client_port = its_port;
+                return true;
+            }
+        }
+    }
+
+    // If no client port ranges are configured use auto port assignment
+    if (its_client->client_ports_[_reliable].first != ILLEGAL_PORT
+            && its_client->client_ports_[_reliable].second != ILLEGAL_PORT) {
+        // look for free port in configured client range
+        for (uint16_t its_port = its_client->client_ports_[_reliable].first;
+                its_port <= its_client->client_ports_[_reliable].second;  its_port++ ) {
+            if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                _client_port = its_port;
+                return true;
+            }
         }
     }
 
     // Configured ports do exist, but they are all in use
-    VSOMEIP_ERROR << "Cannot find free client port!";
+    VSOMEIP_ERROR << "Cannot find free client port for communication to service: "
+            << _service << " instance: "
+            << _instance << " remote_port: "
+            << _remote_port << " reliable: "
+            << _reliable;
     return false;
 }
 
@@ -2053,13 +2119,19 @@ uint8_t configuration_impl::get_threshold(service_t _service,
 }
 
 std::shared_ptr<client> configuration_impl::find_client(service_t _service,
-        instance_t _instance) const {
+        instance_t _instance, uint16_t _remote_port, bool _reliable) const {
     std::shared_ptr<client> its_client;
-    auto find_service = clients_.find(_service);
-    if (find_service != clients_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            its_client = find_instance->second;
+    std::list<std::shared_ptr<client>>::const_iterator it;
+
+    for (it = clients_.begin(); it != clients_.end(); ++it){
+        // client was configured for specific service / instance
+        if ((*it)->service_ == _service
+                && (*it)->instance_ == _instance) {
+            its_client = *it;
+            break;
+        } else if (is_in_port_range(_remote_port, (*it)->remote_ports_[_reliable])) {
+            its_client = *it;
+            break;
         }
     }
     return its_client;
@@ -2274,6 +2346,13 @@ bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
             return true;
         }
     }
+
+    if (!check_credentials_) {
+        VSOMEIP_INFO << "vSomeIP Security: Check credentials failed for client 0x"
+                << std::hex << _client << " with UID/GID=" << std::dec << _uid
+                << "/" << _gid << " but will be allowed due to audit mode is active!";
+    }
+
     return !check_credentials_;
 }
 
@@ -2284,6 +2363,12 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
     }
     auto its_client = policies_.find(_client);
     if (its_client == policies_.end()) {
+        if (!check_credentials_) {
+            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
+                    << " isn't allowed to communicate with service/instance "
+                    << _service << "/" << _instance
+                    << " but will be allowed due to audit mode is active!";
+        }
         return !check_credentials_;
     }
 
@@ -2301,6 +2386,13 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
         }
     }
 
+    if (!check_credentials_) {
+        VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
+                << " isn't allowed to communicate with service/instance "
+                << _service << "/" << _instance
+                << " but will be allowed due to audit mode is active!";
+    }
+
     return !check_credentials_;
 }
 
@@ -2311,6 +2403,12 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     }
     auto its_client = policies_.find(_client);
     if (its_client == policies_.end()) {
+        if (!check_credentials_) {
+            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
+                    << " isn't allowed to offer service/instance "
+                    << _service << "/" << _instance
+                    << " but will be allowed due to audit mode is active!";
+        }
         return !check_credentials_;
     }
 
@@ -2326,6 +2424,13 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
         if (its_allowed_service != its_client->second->allowed_offers_.end()) {
             return true;
         }
+    }
+
+    if (!check_credentials_) {
+        VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
+                << " isn't allowed to offer service/instance "
+                << _service << "/" << _instance
+                << " but will be allowed due to audit mode is active!";
     }
 
     return !check_credentials_;

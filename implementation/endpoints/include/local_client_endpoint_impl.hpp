@@ -39,6 +39,7 @@ public:
     virtual ~local_client_endpoint_impl();
 
     void start();
+    void stop();
 
     bool is_local() const;
 

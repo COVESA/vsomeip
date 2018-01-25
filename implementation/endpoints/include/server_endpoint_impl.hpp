@@ -46,7 +46,7 @@ public:
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(queue_iterator_type _queue_iterator,
+    void send_cbk(const queue_iterator_type _queue_iterator,
                   boost::system::error_code const &_error, std::size_t _bytes);
     void flush_cbk(endpoint_type _target,
                    const boost::system::error_code &_error);
@@ -54,7 +54,7 @@ public:
 public:
     virtual bool send_intern(endpoint_type _target, const byte_t *_data,
                              uint32_t _port, bool _flush);
-    virtual void send_queued(queue_iterator_type _queue_iterator) = 0;
+    virtual void send_queued(const queue_iterator_type _queue_iterator) = 0;
 
     virtual bool get_default_target(service_t _service,
             endpoint_type &_target) const = 0;

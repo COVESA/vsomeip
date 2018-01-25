@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef CONFIGURATION_INCLUDE_E2E_HPP_
-#define CONFIGURATION_INCLUDE_E2E_HPP_
+#ifndef VSOMEIP_CFG_E2E_HPP_
+#define VSOMEIP_CFG_E2E_HPP_
 
 #include <string>
 #include <vector>
@@ -13,7 +13,6 @@
 
 namespace vsomeip {
 namespace cfg {
-
 
 struct e2e {
 
@@ -64,8 +63,7 @@ struct e2e {
     uint16_t counter_offset;
 };
 
+} // namespace cfg
+} // namespace vsomeip
 
-
-}
-}
-#endif /* CONFIGURATION_INCLUDE_E2E_HPP_ */
+#endif // VSOMEIP_CFG_E2E_HPP_

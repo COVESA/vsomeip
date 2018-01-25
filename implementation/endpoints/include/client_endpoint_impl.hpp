@@ -45,7 +45,7 @@ public:
                  const byte_t *_data, uint32_t _size, bool _flush = true);
     bool flush();
 
-    void stop();
+    virtual void stop();
     virtual void restart() = 0;
 
     bool is_client() const;

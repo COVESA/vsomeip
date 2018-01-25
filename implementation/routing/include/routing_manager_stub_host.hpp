@@ -9,6 +9,8 @@
 #include <boost/asio/io_service.hpp>
 #include <vsomeip/handler.hpp>
 
+#include "types.hpp"
+
 namespace vsomeip {
 
 class routing_manager_stub_host {
@@ -44,10 +46,12 @@ public:
             subscription_type_e _subscription_type) = 0;
 
     virtual void on_subscribe_nack(client_t _client, service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+                instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                pending_subscription_id_t _subscription_id) = 0;
 
     virtual void on_subscribe_ack(client_t _client, service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+                instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                pending_subscription_id_t _subscription_id) = 0;
 
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;

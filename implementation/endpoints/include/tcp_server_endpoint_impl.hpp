@@ -38,7 +38,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
                  const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(queue_iterator_type _queue_iterator);
+    void send_queued(const queue_iterator_type _queue_iterator);
 
     VSOMEIP_EXPORT bool is_established(std::shared_ptr<endpoint_definition> _endpoint);
 
@@ -72,7 +72,7 @@ private:
         void stop();
         void receive();
 
-        void send_queued(queue_iterator_type _queue_iterator);
+        void send_queued(const queue_iterator_type _queue_iterator);
 
         void set_remote_info(const endpoint_type &_remote);
 

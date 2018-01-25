@@ -15,6 +15,8 @@
 
 #include "../../routing/include/types.hpp"
 
+#include <vsomeip/message.hpp>
+
 namespace vsomeip {
 
 class configuration;
@@ -57,12 +59,6 @@ public:
     virtual std::chrono::milliseconds update_routing_info(
             std::chrono::milliseconds _elapsed) = 0;
 
-    virtual void on_subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup,
-            std::shared_ptr<endpoint_definition> _subscriber,
-            std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::steady_clock::time_point &_expiration) = 0;
-
     virtual void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
             std::shared_ptr<endpoint_definition> _target) = 0;
@@ -72,7 +68,7 @@ public:
 
     virtual void on_subscribe_ack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event) = 0;
+            event_t _event, pending_subscription_id_t _subscription_id) = 0;
 
     virtual std::shared_ptr<endpoint> find_or_create_remote_client(
             service_t _service, instance_t _instance,
@@ -81,13 +77,16 @@ public:
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
 
-    virtual bool on_subscribe_accepted(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, std::shared_ptr<endpoint_definition> _target,
-            const std::chrono::steady_clock::time_point &_expiration) = 0;
+    virtual remote_subscription_state_e on_remote_subscription(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<endpoint_definition> &_subscriber,
+            const std::shared_ptr<endpoint_definition> &_target,
+            ttl_t _ttl, client_t *_client,
+            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) = 0;
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event) = 0;
+            event_t _event, pending_subscription_id_t _subscription_id) = 0;
 
     virtual bool has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;
@@ -98,6 +97,10 @@ public:
             service_t _service, instance_t _instance) const = 0;
     virtual std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(
             service_t _service) const = 0;
+
+    virtual void send_initial_events(service_t _service, instance_t _instance,
+                eventgroup_t _eventgroup,
+                const std::shared_ptr<endpoint_definition>& _subscriber) = 0;
 };
 
 }  // namespace sd

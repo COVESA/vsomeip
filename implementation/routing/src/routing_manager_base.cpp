@@ -65,6 +65,14 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service,
             its_info->set_ttl(DEFAULT_TTL);
         } else {
             host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
+            VSOMEIP_ERROR << "rm_base::offer_service service property mismatch ("
+                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << ":"
+                    << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << ":"
+                    << std::dec << its_info->get_minor() << "] passed: "
+                    << std::dec << static_cast<std::uint32_t>(_major) << ":"
+                    << std::dec << _minor;
             return false;
         }
     } else {
@@ -127,6 +135,14 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
             its_info->add_client(_client);
         } else {
             host_->on_error(error_code_e::SERVICE_PROPERTY_MISMATCH);
+            VSOMEIP_ERROR << "rm_base::request_service service property mismatch ("
+                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << ":"
+                    << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << ":"
+                    << std::dec << its_info->get_minor() << "] passed: "
+                    << std::dec << static_cast<std::uint32_t>(_major) << ":"
+                    << std::dec << _minor;
         }
     }
 }
@@ -701,7 +717,7 @@ void routing_manager_base::remove_local(client_t _client) {
     auto subscriptions = get_subscriptions(_client);
     for (auto its_subscription : subscriptions) {
         host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
-                std::get<2>(its_subscription), _client, false);
+                std::get<2>(its_subscription), _client, false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
         routing_manager_base::unsubscribe(_client, std::get<0>(its_subscription),
                 std::get<1>(its_subscription), std::get<2>(its_subscription), ANY_EVENT);
     }

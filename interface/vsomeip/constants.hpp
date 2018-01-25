@@ -54,6 +54,8 @@ const byte_t SERVICE_COOKIE[] = { 0xFF, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x00,
 const event_t ANY_EVENT = 0xFFFF;
 const client_t ANY_CLIENT = 0xFFFF;
 
+const pending_subscription_id_t DEFAULT_SUBSCRIPTION = 0x0;
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_CONSTANTS_HPP

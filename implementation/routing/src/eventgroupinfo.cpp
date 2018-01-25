@@ -11,17 +11,29 @@
 #include "../include/eventgroupinfo.hpp"
 #include "../include/event.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
+#include "../../logging/include/logger.hpp"
+#include "../../configuration/include/internal.hpp"
 
 namespace vsomeip {
 
-eventgroupinfo::eventgroupinfo()
-        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL), port_(ILLEGAL_PORT), threshold_(0),
-          has_reliable_(false), has_unreliable_(false) {
+eventgroupinfo::eventgroupinfo() :
+        major_(DEFAULT_MAJOR),
+        ttl_(DEFAULT_TTL),
+        port_(ILLEGAL_PORT),
+        threshold_(0),
+        has_reliable_(false),
+        has_unreliable_(false),
+        subscription_id_(DEFAULT_SUBSCRIPTION) {
 }
 
-eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl)
-        : major_(_major), ttl_(_ttl), port_(ILLEGAL_PORT), threshold_(0),
-          has_reliable_(false), has_unreliable_(false) {
+eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl) :
+        major_(_major),
+        ttl_(_ttl),
+        port_(ILLEGAL_PORT),
+        threshold_(0),
+        has_reliable_(false),
+        has_unreliable_(false),
+        subscription_id_(DEFAULT_SUBSCRIPTION) {
 }
 
 eventgroupinfo::~eventgroupinfo() {
@@ -200,6 +212,37 @@ void eventgroupinfo::set_threshold(uint8_t _threshold) {
 
 std::unique_lock<std::mutex> eventgroupinfo::get_subscription_lock() {
     return std::unique_lock<std::mutex>(subscription_mutex_);
+}
+
+pending_subscription_id_t eventgroupinfo::add_pending_subscription(
+        pending_subscription_t _pending_subscription) {
+    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    if (++subscription_id_ == DEFAULT_SUBSCRIPTION) {
+        subscription_id_++;
+    }
+    pending_subscriptions_[subscription_id_] = _pending_subscription;
+    return subscription_id_;
+}
+
+pending_subscription_t eventgroupinfo::remove_pending_subscription(
+        pending_subscription_id_t _subscription_id) {
+    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    pending_subscription_t its_pending_subscription;
+    const auto found_pending_subscription = pending_subscriptions_.find(
+            _subscription_id);
+    if (found_pending_subscription != pending_subscriptions_.end()) {
+        its_pending_subscription = found_pending_subscription->second;
+        pending_subscriptions_.erase(found_pending_subscription);
+    } else {
+        VSOMEIP_ERROR << __func__ << " didn't find pending_subscription: "
+                << _subscription_id;;
+    }
+    return its_pending_subscription;
+}
+
+void eventgroupinfo::clear_pending_subscriptions() {
+    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
+    pending_subscriptions_.clear();
 }
 
 }  // namespace vsomeip

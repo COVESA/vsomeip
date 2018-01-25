@@ -3,15 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef PROJECT_CONFIG_CPP_HPP
-#define PROJECT_CONFIG_CPP_HPP
-
 #include <ostream>
 #include "../../../e2e_protection/include/e2exf/config.hpp"
+
+namespace vsomeip {
 
 std::ostream &operator<<(std::ostream &_os, const e2exf::data_identifier &_data_identifier) {
     _os << _data_identifier.first << _data_identifier.second;
     return _os;
 }
 
-#endif  // PROJECT_CONFIG_CPP_HPP
+} // namespace vsomeip

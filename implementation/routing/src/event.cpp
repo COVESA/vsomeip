@@ -30,7 +30,9 @@ event::event(routing_manager *_routing, bool _is_shadow) :
         is_shadow_(_is_shadow),
         is_cache_placeholder_(false),
         epsilon_change_func_(std::bind(&event::compare, this,
-                std::placeholders::_1, std::placeholders::_2)) {
+                std::placeholders::_1, std::placeholders::_2)),
+        is_reliable_(false),
+        remote_notification_pending_(false) {
 }
 
 service_t event::get_service() const {
@@ -457,6 +459,14 @@ bool event::is_reliable() const {
 
 void event::set_reliable(bool _is_reliable) {
     is_reliable_ = _is_reliable;
+}
+
+bool event::get_remote_notification_pending() {
+    return remote_notification_pending_;
+}
+
+void event::set_remote_notification_pending(bool _value) {
+    remote_notification_pending_ = _value;
 }
 
 } // namespace vsomeip

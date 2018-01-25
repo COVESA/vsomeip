@@ -110,6 +110,9 @@ public:
     bool is_reliable() const;
     void set_reliable(bool _is_reliable);
 
+    bool get_remote_notification_pending();
+    void set_remote_notification_pending(bool _value);
+
 private:
     void update_cbk(boost::system::error_code const &_error);
     void notify(bool _flush);
@@ -151,6 +154,8 @@ private:
     epsilon_change_func_t epsilon_change_func_;
 
     std::atomic<bool> is_reliable_;
+
+    std::atomic<bool> remote_notification_pending_;
 };
 
 }  // namespace vsomeip

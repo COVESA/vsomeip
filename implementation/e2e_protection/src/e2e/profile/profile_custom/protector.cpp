@@ -13,29 +13,28 @@
 #include <iostream>
 #include <sstream>
 
-
+namespace vsomeip {
 namespace e2e {
-namespace profile {
 namespace profile_custom {
 
-void protector::protect(buffer::e2e_buffer &_buffer) {
-    std::lock_guard<std::mutex> lock(protect_mutex);
+void protector::protect(e2e_buffer &_buffer) {
+    std::lock_guard<std::mutex> lock(protect_mutex_);
 
-    if(profile_custom::is_buffer_length_valid(config, _buffer)) {
+    if (profile_custom::is_buffer_length_valid(config_, _buffer)) {
         // compute the CRC over DataID and Data
-        uint32_t computed_crc = profile_custom::compute_crc(config, _buffer);
+        uint32_t computed_crc = profile_custom::compute_crc(config_, _buffer);
         // write CRC in Data
         write_crc(_buffer, computed_crc);
     }
 }
 
-void protector::write_crc(buffer::e2e_buffer &_buffer, uint32_t _computed_crc) {
-    _buffer[config.crc_offset] = static_cast<uint8_t>(_computed_crc >> 24U);
-    _buffer[config.crc_offset + 1U] = static_cast<uint8_t>(_computed_crc >> 16U);
-    _buffer[config.crc_offset + 2U] = static_cast<uint8_t>(_computed_crc >> 8U);
-    _buffer[config.crc_offset + 3U] = static_cast<uint8_t>(_computed_crc);
+void protector::write_crc(e2e_buffer &_buffer, uint32_t _computed_crc) {
+    _buffer[config_.crc_offset_] = static_cast<uint8_t>(_computed_crc >> 24U);
+    _buffer[config_.crc_offset_ + 1U] = static_cast<uint8_t>(_computed_crc >> 16U);
+    _buffer[config_.crc_offset_ + 2U] = static_cast<uint8_t>(_computed_crc >> 8U);
+    _buffer[config_.crc_offset_ + 3U] = static_cast<uint8_t>(_computed_crc);
 }
 
-}
-}
-}
+} // namespace profile_custom
+} // namespace e2e
+} // namespace vsomeip

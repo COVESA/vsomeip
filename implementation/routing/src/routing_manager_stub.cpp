@@ -223,11 +223,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         uint32_t its_size;
         bool its_reliable(false);
         subscription_type_e its_subscription_type;
-        bool is_remote_subscriber(false);
         client_t its_client_from_header;
         client_t its_target_client;
         client_t its_subscriber;
         bool its_is_valid_crc(true);
+        std::uint16_t its_subscription_id(DEFAULT_SUBSCRIPTION);
         offer_type_e its_offer_type;
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
@@ -315,9 +315,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         sizeof(its_major));
                 std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 7],
                         sizeof(its_event));
-                std::memcpy(&is_remote_subscriber, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
-                            sizeof(is_remote_subscriber));
-                std::memcpy(&its_subscription_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                std::memcpy(&its_subscription_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 9],
                             sizeof(its_subscription_type));
                 if (configuration_->is_client_allowed(its_client,
                         its_service, its_instance)) {
@@ -364,8 +362,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         sizeof(its_subscriber));
                 std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
                         sizeof(its_event));
+                std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                        sizeof(its_subscription_id));
                 host_->on_subscribe_ack(its_subscriber, its_service,
-                        its_instance, its_eventgroup, its_event);
+                        its_instance, its_eventgroup, its_event, its_subscription_id);
                 VSOMEIP_INFO << "SUBSCRIBE ACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -389,8 +389,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         sizeof(its_subscriber));
                 std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
                         sizeof(its_event));
+                std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                        sizeof(its_subscription_id));
                 host_->on_subscribe_nack(its_subscriber, its_service,
-                        its_instance, its_eventgroup, its_event);
+                        its_instance, its_eventgroup, its_event, its_subscription_id);
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -1204,7 +1206,7 @@ void routing_manager_stub::broadcast(const std::vector<byte_t> &_command) const 
 void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _target,
         client_t _client, service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, bool _is_remote_subscriber) {
+        event_t _event, pending_subscription_id_t _subscription_id) {
     if (_target) {
         byte_t its_command[VSOMEIP_SUBSCRIBE_COMMAND_SIZE];
         uint32_t its_size = VSOMEIP_SUBSCRIBE_COMMAND_SIZE
@@ -1223,10 +1225,11 @@ void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _ta
         its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6] = _major;
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 7], &_event,
                 sizeof(_event));
-        its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 9] = _is_remote_subscriber;
         // set byte for subscription_type to zero. It's only used
         // in subscribe messages sent from rm_proxies to rm_stub.
-        its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 10] = 0x0;
+        its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 9] = 0x0;
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                &_subscription_id, sizeof(_subscription_id));
 
         _target->send(its_command, sizeof(its_command));
     }

@@ -926,6 +926,25 @@ public:
      */
     virtual void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval) = 0;
 
+   /**
+     *
+     * \brief Registers a subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called.
+     *
+     */
+    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup, async_subscription_handler_t _handler) = 0;
 };
 
 /** @} */

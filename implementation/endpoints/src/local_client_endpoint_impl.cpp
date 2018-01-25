@@ -62,6 +62,42 @@ void local_client_endpoint_impl::start() {
     connect();
 }
 
+void local_client_endpoint_impl::stop() {
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        sending_blocked_ = true;
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        boost::system::error_code ec;
+        connect_timer_.cancel(ec);
+    }
+    connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
+
+    bool is_open(false);
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        is_open = socket_->is_open();
+    }
+    if (is_open) {
+        bool send_queue_empty(false);
+        std::uint32_t times_slept(0);
+
+        while (times_slept <= 50) {
+            mutex_.lock();
+            send_queue_empty = (queue_.size() == 0);
+            mutex_.unlock();
+            if (send_queue_empty) {
+                break;
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                times_slept++;
+            }
+        }
+    }
+    shutdown_and_close_socket();
+}
+
 void local_client_endpoint_impl::connect() {
     boost::system::error_code its_connect_error;
     {
@@ -87,6 +123,11 @@ void local_client_endpoint_impl::connect() {
                                 its_host->get_client());
                     }
                 }
+            } else {
+                VSOMEIP_WARNING << "local_client_endpoint::connect: Couldn't "
+                        << "connect to: " << remote_.path() << " ("
+                        << its_connect_error.message() << " / " << std::dec
+                        << its_connect_error.value() << ")";
             }
 #endif
 

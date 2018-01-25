@@ -23,6 +23,8 @@ entry_impl::entry_impl() {
     ttl_ = 0x0;
     num_options_[0] = 0;
     num_options_[1] = 0;
+    index1_ = 0;
+    index2_ = 0;
 }
 
 entry_impl::entry_impl(const entry_impl &_entry) {
@@ -33,6 +35,8 @@ entry_impl::entry_impl(const entry_impl &_entry) {
     ttl_ = _entry.ttl_;
     num_options_[0] = _entry.num_options_[0];
     num_options_[1] = _entry.num_options_[1];
+    index1_ = _entry.index1_;
+    index2_ = _entry.index2_;
 }
 
 entry_impl::~entry_impl() {
@@ -139,11 +143,9 @@ bool entry_impl::deserialize(vsomeip::deserializer *_from) {
     is_successful = is_successful && _from->deserialize(its_type);
     type_ = static_cast<entry_type_e>(its_type);
 
-    uint8_t its_index1(0);
-    is_successful = is_successful && _from->deserialize(its_index1);
+    is_successful = is_successful && _from->deserialize(index1_);
 
-    uint8_t its_index2(0);
-    is_successful = is_successful && _from->deserialize(its_index2);
+    is_successful = is_successful && _from->deserialize(index2_);
 
     uint8_t its_numbers(0);
     is_successful = is_successful && _from->deserialize(its_numbers);
@@ -151,10 +153,10 @@ bool entry_impl::deserialize(vsomeip::deserializer *_from) {
     num_options_[0] = uint8_t(its_numbers >> 4);
     num_options_[1] = uint8_t(its_numbers & 0xF);
 
-    for (uint16_t i = its_index1; i < its_index1 + num_options_[0]; ++i)
+    for (uint16_t i = index1_; i < index1_ + num_options_[0]; ++i)
         options_[0].push_back((uint8_t)(i));
 
-    for (uint16_t i = its_index2; i < its_index2 + num_options_[1]; ++i)
+    for (uint16_t i = index2_; i < index2_ + num_options_[1]; ++i)
         options_[1].push_back((uint8_t)(i));
 
     uint16_t its_id(0);

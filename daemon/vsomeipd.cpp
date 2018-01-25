@@ -22,11 +22,14 @@
 #endif
 
 static std::shared_ptr<vsomeip::application> its_application;
+
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 static vsomeip::routing_state_e routing_state = vsomeip::routing_state_e::RS_RUNNING;
 static bool stop_application = false;
 static bool stop_sighandler = false;
 static std::condition_variable_any sighandler_condition;
 static std::recursive_mutex sighandler_mutex;
+#endif
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 /*

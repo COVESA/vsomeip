@@ -15,6 +15,7 @@
 #include <boost/asio/steady_timer.hpp>
 
 #include "routing_manager_base.hpp"
+#include "types.hpp"
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/handler.hpp>
 
@@ -28,7 +29,7 @@ class logger;
 
 class routing_manager_proxy: public routing_manager_base {
 public:
-    routing_manager_proxy(routing_manager_host *_host);
+    routing_manager_proxy(routing_manager_host *_host, bool _client_side_logging);
     virtual ~routing_manager_proxy();
 
     void init();
@@ -125,10 +126,12 @@ private:
             subscription_type_e _subscription_type);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            pending_subscription_id_t _subscription_id);
 
     void send_subscribe_ack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            pending_subscription_id_t _subscription_id);
 
     bool is_field(service_t _service, instance_t _instance,
             event_t _event) const;
@@ -232,7 +235,7 @@ private:
     boost::asio::steady_timer request_debounce_timer_;
     bool request_debounce_timer_running_;
 
-    bool client_side_logging_;
+    const bool client_side_logging_;
 };
 
 } // namespace vsomeip

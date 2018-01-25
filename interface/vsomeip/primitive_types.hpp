@@ -43,6 +43,7 @@ typedef std::string trace_channel_t;
 
 typedef std::string trace_filter_type_t;
 
+typedef std::uint16_t pending_subscription_id_t;
 } // namespace vsomeip
 
 #endif // VSOMEIP_PRIMITIVE_TYPES_HPP

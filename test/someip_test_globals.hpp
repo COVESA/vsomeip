@@ -37,6 +37,8 @@ constexpr std::uint32_t MAX_PAYLOADSIZE = 1024*128;
 constexpr std::uint32_t MAX_PAYLOADSIZE_UDP = 1400;
 
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS = 32;
+
+constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS = 32;
 }
 
 #endif /* SOMEIP_TEST_GLOBALS_HPP_ */

@@ -12,6 +12,7 @@
 #include <set>
 #include <forward_list>
 #include <atomic>
+#include <tuple>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -35,19 +36,20 @@ class eventgroupentry_impl;
 class option_impl;
 class request;
 class serviceentry_impl;
-class service_discovery_fsm;
 class service_discovery_host;
 class subscription;
 
 typedef std::map<service_t, std::map<instance_t, std::shared_ptr<request> > > requests_t;
 
-struct accepted_subscriber_t {
-    std::shared_ptr < endpoint_definition > subscriber;
-    std::shared_ptr < endpoint_definition > target;
-    std::chrono::steady_clock::time_point its_expiration;
-    vsomeip::service_t service_id;
-    vsomeip::instance_t instance_id;
-    vsomeip::eventgroup_t eventgroup_;
+struct subscriber_t {
+    std::shared_ptr<endpoint_definition> subscriber;
+    std::shared_ptr<endpoint_definition> target;
+    std::shared_ptr<sd_message_identifier_t> response_message_id_;
+    std::shared_ptr<eventgroupinfo> eventgroupinfo_;
+    vsomeip::ttl_t ttl_;
+    vsomeip::major_version_t major_;
+    std::uint16_t reserved_;
+    std::uint8_t counter_;
 };
 
 class service_discovery_impl: public service_discovery,
@@ -93,6 +95,10 @@ public:
 
     void set_diagnosis_mode(const bool _activate);
 
+    void remote_subscription_acknowledge(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            client_t _client, bool _acknowledged,
+            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id);
 private:
     std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
@@ -123,7 +129,9 @@ private:
             std::shared_ptr<subscription> &_subscription);
     void insert_subscription_ack(std::shared_ptr<message_impl> &_message,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl, uint8_t _counter, major_version_t _major, uint16_t _reserved);
+            const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
+            uint8_t _counter, major_version_t _major, uint16_t _reserved,
+            const std::shared_ptr<endpoint_definition> &_target = nullptr);
     void insert_subscription_nack(std::shared_ptr<message_impl> &_message, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             uint8_t _counter, major_version_t _major, uint16_t _reserved);
@@ -152,8 +160,10 @@ private:
             std::shared_ptr<eventgroupentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
             std::shared_ptr < message_impl > &its_message_response,
-            std::vector <accepted_subscriber_t> &accepted_subscribers,
-            const boost::asio::ip::address &_destination);
+            const boost::asio::ip::address &_destination,
+            const std::shared_ptr<sd_message_identifier_t> &_message_id,
+            bool _is_stop_subscribe_subscribe,
+            bool _force_initial_events);
     void handle_eventgroup_subscription(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
@@ -162,7 +172,9 @@ private:
             const boost::asio::ip::address &_second_address, uint16_t _second_port,
             bool _is_second_reliable,
             std::shared_ptr < message_impl > &its_message,
-            std::vector <accepted_subscriber_t> &accepted_subscribers);
+            const std::shared_ptr<sd_message_identifier_t> &_message_id,
+            bool _is_stop_subscribe_subscribe,
+            bool _force_initial_events);
     void handle_eventgroup_subscription_ack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter,
@@ -182,7 +194,9 @@ private:
     void check_ttl(const boost::system::error_code &_error);
 
     void start_subscription_expiration_timer();
+    void start_subscription_expiration_timer_unlocked();
     void stop_subscription_expiration_timer();
+    void stop_subscription_expiration_timer_unlocked();
     void expire_subscriptions(const boost::system::error_code &_error);
 
     bool check_ipv4_address(boost::asio::ip::address its_address);
@@ -279,6 +293,27 @@ private:
 
     bool check_source_address(const boost::asio::ip::address &its_source_address) const;
 
+    void update_subscription_expiration_timer(const std::shared_ptr<message_impl> &_message);
+
+    void remote_subscription_acknowledge_subscriber(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged);
+
+    void remote_subscription_not_acknowledge_subscriber(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged);
+
+    void remote_subscription_not_acknowledge_all(service_t _service, instance_t _instance);
+
+    void remote_subscription_not_acknowledge_all();
+
+    void remote_subscription_remove(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<endpoint_definition> &_subscriber);
+
+    bool check_stop_subscribe_subscribe(message_impl::entries_t::const_iterator _iter,
+                                        message_impl::entries_t::const_iterator _end) const;
+
 private:
     boost::asio::io_service &io_;
     service_discovery_host *host_;
@@ -317,6 +352,7 @@ private:
     ttl_t ttl_;
 
     // TTL handling for subscriptions done by other hosts
+    std::mutex subscription_expiration_timer_mutex_;
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
@@ -358,6 +394,13 @@ private:
     boost::asio::ip::address current_remote_address_;
 
     std::atomic<bool> is_diagnosis_;
+
+    std::mutex pending_remote_subscriptions_mutex_;
+    std::map<service_t,
+            std::map<instance_t,
+                    std::map<eventgroup_t,
+                            std::map<client_t, std::vector<std::shared_ptr<subscriber_t>>>>>> pending_remote_subscriptions_;
+    std::mutex response_mutex_;
 };
 
 }  // namespace sd

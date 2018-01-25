@@ -26,12 +26,14 @@
 namespace vsomeip {
 namespace sd {
 
-message_impl::message_impl() {
+message_impl::message_impl() :
+    flags_(0x0),
+    options_length_(0x0),
+    number_required_acks_(0x0),
+    number_contained_acks_(0x0) {
     header_.service_ = 0xFFFF;
     header_.method_ = 0x8100;
     header_.protocol_version_ = 0x01;
-    flags_ = 0x00;
-    options_length_ = 0x0000;
 }
 
 message_impl::~message_impl() {
@@ -149,11 +151,11 @@ std::shared_ptr<protection_option_impl> message_impl::create_protection_option()
     return its_option;
 }
 
-const std::vector<std::shared_ptr<entry_impl> > & message_impl::get_entries() const {
+const message_impl::entries_t & message_impl::get_entries() const {
     return entries_;
 }
 
-const std::vector<std::shared_ptr<option_impl> > & message_impl::get_options() const {
+const message_impl::options_t & message_impl::get_options() const {
     return options_;
 }
 
@@ -236,7 +238,31 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
     while (is_successful && _from->get_remaining()) {
         std::shared_ptr < entry_impl > its_entry(deserialize_entry(_from));
         if (its_entry) {
-            entries_.push_back(its_entry);
+            if (its_entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP) {
+                bool is_unique(true);
+                for (const auto& e : entries_) {
+                    if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP &&
+                        *(static_cast<eventgroupentry_impl*>(e.get())) ==
+                        *(static_cast<eventgroupentry_impl*>(its_entry.get()))) {
+                        is_unique = false;
+                        break;
+                    }
+                }
+                if (is_unique) {
+                    entries_.push_back(its_entry);
+                    if (its_entry->get_ttl() > 0) {
+                        const std::uint8_t num_options =
+                                static_cast<std::uint8_t>(
+                                        its_entry->get_num_options(1) +
+                                        its_entry->get_num_options(2));
+                        number_required_acks_ =
+                                static_cast<std::uint8_t>(number_required_acks_
+                                        + num_options);
+                    }
+                }
+            } else {
+                entries_.push_back(its_entry);
+            }
         } else {
             is_successful = false;
         }
@@ -364,6 +390,49 @@ option_impl * message_impl::deserialize_option(vsomeip::deserializer *_from) {
 
 length_t message_impl::get_someip_length() const {
     return header_.length_;
+}
+
+std::uint8_t message_impl::get_number_required_acks() const {
+    return number_required_acks_;
+}
+
+std::uint8_t message_impl::get_number_contained_acks() const {
+    return number_contained_acks_;
+}
+
+void message_impl::set_number_required_acks(std::uint8_t _required_acks) {
+    number_required_acks_ = _required_acks;
+}
+
+void message_impl::increase_number_required_acks(std::uint8_t _amount) {
+    number_required_acks_ += _amount;
+}
+
+void message_impl::decrease_number_required_acks(std::uint8_t _amount) {
+    number_required_acks_ -= _amount;
+}
+
+void message_impl::increase_number_contained_acks() {
+    number_contained_acks_++;
+}
+
+bool message_impl::all_required_acks_contained() const {
+    return number_contained_acks_ == number_required_acks_;
+}
+
+std::unique_lock<std::mutex> message_impl::get_message_lock() {
+    return std::unique_lock<std::mutex>(message_mutex_);
+}
+
+void message_impl::forced_initial_events_add(forced_initial_events_t _entry) {
+    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
+    forced_initial_events_info_.push_back(_entry);
+}
+
+const std::vector<message_impl::forced_initial_events_t>
+message_impl::forced_initial_events_get() {
+    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
+    return forced_initial_events_info_;
 }
 
 } // namespace sd

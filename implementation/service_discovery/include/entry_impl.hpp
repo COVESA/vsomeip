@@ -68,6 +68,8 @@ protected:
     std::vector<uint8_t> options_[VSOMEIP_MAX_OPTION_RUN];
 
     uint8_t num_options_[VSOMEIP_MAX_OPTION_RUN];
+    std::uint8_t index1_;
+    std::uint8_t index2_;
 
     entry_impl();
     entry_impl(const entry_impl &entry_);

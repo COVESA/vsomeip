@@ -7,8 +7,8 @@ cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 9)
-set (VSOMEIP_PATCH_VERSION 5)
+set (VSOMEIP_MINOR_VERSION 10)
+set (VSOMEIP_PATCH_VERSION 0)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -445,6 +445,25 @@ if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
                     "Only local tests will be runnable "
                     "Please specify them via for example "
                     "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125")
+endif()
+
+SET(TEST_UID_DEFAULT_VALUE "123456789")
+SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING
+    "The User ID of the user running the test: Needed for security")
+SET(TEST_GID_DEFAULT_VALUE "123456789")
+SET(TEST_GID "${TEST_GID_DEFAULT_VALUE}" CACHE STRING
+    "The Group ID of the user running the test: Needed for security")
+
+SET(TEST_SECURITY "ON" CACHE BOOL
+    "Controls whether security tests should run or not")
+
+if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
+   (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}))
+    message(WARNING "TEST_UID and/or TEST_GID isn't set. "
+                    "Security Tests are not runnable "
+                    "Please specify them for example "
+                    "-DTEST_UID=1000 -DTEST_GID=1000")
+    SET(TEST_SECURITY "OFF")
 endif()
 
 add_custom_target(build_tests)

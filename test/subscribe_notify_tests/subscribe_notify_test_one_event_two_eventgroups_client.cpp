@@ -32,7 +32,6 @@ public:
             wait_availability_(true),
             wait_set_value_(true),
             wait_shutdown_response_(true),
-            wait_events_(true),
             run_thread_(std::bind(&subscribe_notify_test_one_event_two_eventgroups_client::run, this)) {
     }
     ~subscribe_notify_test_one_event_two_eventgroups_client() {
@@ -185,9 +184,12 @@ public:
         app_->send(its_request);
     }
 
-    void wait_on_condition(std::unique_lock<std::mutex>&& _lock, bool *_predicate, std::condition_variable&& _condition) {
+    void wait_on_condition(std::unique_lock<std::mutex>&& _lock, bool *_predicate, std::condition_variable&& _condition, std::uint32_t _timeout) {
         while (*_predicate) {
-            _condition.wait(_lock);
+            if (std::cv_status::timeout == _condition.wait_for(_lock, std::chrono::seconds(_timeout))) {
+                ADD_FAILURE() << "Condition variable wasn't notified within time ("
+                        << _timeout << "sec)";
+            }
         }
         *_predicate = true;
     }
@@ -206,9 +208,15 @@ public:
     void wait_for_events(std::unique_lock<std::mutex>&& _lock,
                          std::uint32_t _expected_number_received_events,
                          std::condition_variable&& _condition) {
-        while (wait_events_ &&
-                received_events_.size() != _expected_number_received_events) {
-            _condition.wait(_lock);
+        std::cv_status its_status(std::cv_status::no_timeout);
+        while (received_events_.size() != _expected_number_received_events
+                && its_status != std::cv_status::timeout) {
+            its_status = _condition.wait_for(_lock, std::chrono::seconds(15));
+            if (std::cv_status::timeout == its_status) {
+                ADD_FAILURE() << "Didn't receive expected number of events: "
+                        << _expected_number_received_events
+                        << " within time. Instead received: " << received_events_.size();
+            }
         }
         ASSERT_EQ(size_t(_expected_number_received_events), received_events_.size());
     }
@@ -232,14 +240,14 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
-        wait_on_condition(std::move(its_availability_lock), &wait_availability_, std::move(availability_condition_));
+        wait_on_condition(std::move(its_availability_lock), &wait_availability_, std::move(availability_condition_), 300);
         // service is available now
 
         for (int i = 0; i < 3; i++) {
             // set value
             set_field_at_service(0x1);
             std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_));
+            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
 
             // subscribe
             std::unique_lock<std::mutex> its_events_lock(events_mutex_);
@@ -258,7 +266,7 @@ public:
 
             // set value again
             set_field_at_service(0x2);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_));
+            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
 
             wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
             check_received_events_payload(0x2);
@@ -272,7 +280,7 @@ public:
 
             // set value again
             set_field_at_service(0x3);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_));
+            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
             wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
             check_received_events_payload(0x3);
             its_expected.insert({info_.event_id, 1});
@@ -288,7 +296,7 @@ public:
         }
         std::unique_lock<std::mutex> its_shutdown_lock(shutdown_response_mutex_);
         call_method_at_service(subscribe_notify_test::shutdown_method_id);
-        wait_on_condition(std::move(its_shutdown_lock), &wait_shutdown_response_, std::move(shutdown_response_condition_));
+        wait_on_condition(std::move(its_shutdown_lock), &wait_shutdown_response_, std::move(shutdown_response_condition_), 30);
         stop();
     }
 
@@ -309,7 +317,6 @@ private:
     std::mutex shutdown_response_mutex_;
     std::condition_variable shutdown_response_condition_;
 
-    bool wait_events_;
     std::mutex events_mutex_;
     std::condition_variable events_condition_;
 

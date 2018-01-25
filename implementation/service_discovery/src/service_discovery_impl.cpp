@@ -1000,8 +1000,11 @@ void service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared
 void service_discovery_impl::insert_subscription_ack(
         std::shared_ptr<message_impl> &_message, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
-        std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl, uint8_t _counter, major_version_t _major, uint16_t _reserved) {
-
+        const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
+        uint8_t _counter, major_version_t _major, uint16_t _reserved,
+        const std::shared_ptr<endpoint_definition> &_target) {
+    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
+    _message->increase_number_contained_acks();
     for (auto its_entry : _message->get_entries()) {
         if (its_entry->is_eventgroup_entry()) {
             std::shared_ptr < eventgroupentry_impl > its_eventgroup_entry =
@@ -1015,6 +1018,17 @@ void service_discovery_impl::insert_subscription_ack(
                     && its_eventgroup_entry->get_reserved() == _reserved
                     && its_eventgroup_entry->get_counter() == _counter
                     && its_eventgroup_entry->get_ttl() == _ttl) {
+                if (_target) {
+                    if (_target->is_reliable()) {
+                        if (!its_eventgroup_entry->get_target(true)) {
+                            its_eventgroup_entry->add_target(_target);
+                        }
+                    } else {
+                        if (!its_eventgroup_entry->get_target(false)) {
+                            its_eventgroup_entry->add_target(_target);
+                        }
+                    }
+                }
                 return;
             }
         }
@@ -1031,6 +1045,9 @@ void service_discovery_impl::insert_subscription_ack(
     its_entry->set_counter(_counter);
     // SWS_SD_00315
     its_entry->set_ttl(_ttl);
+    if (_target) {
+        its_entry->add_target(_target);
+    }
 
     boost::asio::ip::address its_address;
     uint16_t its_port;
@@ -1043,6 +1060,7 @@ void service_discovery_impl::insert_subscription_nack(
         std::shared_ptr<message_impl> &_message, service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup,
                 uint8_t _counter, major_version_t _major, uint16_t _reserved) {
+    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
     std::shared_ptr < eventgroupentry_impl > its_entry =
             _message->create_eventgroup_entry();
     // SWS_SD_00316 and SWS_SD_00385
@@ -1055,6 +1073,7 @@ void service_discovery_impl::insert_subscription_nack(
     its_entry->set_counter(_counter);
     // SWS_SD_00432
     its_entry->set_ttl(0x0);
+    _message->increase_number_contained_acks();
 }
 
 bool service_discovery_impl::send(bool _is_announcing) {
@@ -1064,6 +1083,7 @@ bool service_discovery_impl::send(bool _is_announcing) {
         std::shared_ptr < message_impl > its_message;
 
         if(_is_announcing) {
+            remote_subscription_not_acknowledge_all();
             its_message = its_runtime->create_message();
             its_messages.push_back(its_message);
 
@@ -1127,32 +1147,62 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
 
         std::shared_ptr < message_impl > its_message_response
             = its_runtime->create_message();
-        std::vector <accepted_subscriber_t> accepted_subscribers;
 
-        for (auto its_entry : its_message->get_entries()) {
-            if (its_entry->is_service_entry()) {
+        const std::uint8_t its_required_acks =
+                its_message->get_number_required_acks();
+        its_message_response->set_number_required_acks(its_required_acks);
+        std::shared_ptr<sd_message_identifier_t> its_message_id =
+                std::make_shared<sd_message_identifier_t>(
+                        its_message->get_session(), _sender, _destination,
+                        its_message_response);
+
+        const message_impl::entries_t& its_entries = its_message->get_entries();
+        const message_impl::entries_t::const_iterator its_end = its_entries.end();
+        bool is_stop_subscribe_subscribe(false);
+
+        for (auto iter = its_entries.begin(); iter != its_end; iter++) {
+            if ((*iter)->is_service_entry()) {
                 std::shared_ptr < serviceentry_impl > its_service_entry =
                         std::dynamic_pointer_cast < serviceentry_impl
-                                > (its_entry);
+                                > (*iter);
                 bool its_unicast_flag = its_message->get_unicast_flag();
                 process_serviceentry(its_service_entry, its_options, its_unicast_flag );
             } else {
                 std::shared_ptr < eventgroupentry_impl > its_eventgroup_entry =
                         std::dynamic_pointer_cast < eventgroupentry_impl
-                                > (its_entry);
-                process_eventgroupentry( its_eventgroup_entry, its_options, its_message_response, accepted_subscribers, _destination);
+                                > (*iter);
+                bool force_initial_events(false);
+                if (is_stop_subscribe_subscribe) {
+                    is_stop_subscribe_subscribe = false;
+                    force_initial_events = true;
+                }
+                is_stop_subscribe_subscribe = check_stop_subscribe_subscribe(iter, its_end);
+                process_eventgroupentry(its_eventgroup_entry, its_options,
+                        its_message_response, _destination,
+                        its_message_id, is_stop_subscribe_subscribe, force_initial_events);
             }
         }
 
-        //send ACK / NACK if present
-        if( 0 < its_message_response->get_entries().size() && its_message_response ) {
-            serialize_and_send(its_message_response, _sender);
+        // send answer directly if SubscribeEventgroup entries were (n)acked
+        if (its_required_acks || its_message_response->get_number_required_acks() > 0) {
+            bool sent(false);
+            {
+                std::lock_guard<std::mutex> its_lock(response_mutex_);
+                if (its_message_response->all_required_acks_contained()) {
+                    update_subscription_expiration_timer(its_message_response);
+                    serialize_and_send(its_message_response, _sender);
+                    // set required acks to zero to mark message as sent
+                    its_message_response->set_number_required_acks(0);
+                    sent = true;
+                }
+            }
+            if (sent) {
+                for (const auto &fie : its_message_response->forced_initial_events_get()) {
+                    host_->send_initial_events(fie.service_, fie.instance_,
+                            fie.eventgroup_, fie.target_);
+                }
+            }
         }
-
-        for( const auto &a : accepted_subscribers) {
-            host_->on_subscribe(a.service_id, a.instance_id, a.eventgroup_, a.subscriber, a.target, a.its_expiration);
-        }
-        accepted_subscribers.clear();
         start_ttl_timer();
     } else {
         VSOMEIP_ERROR << "service_discovery_impl::on_message: deserialization error.";
@@ -1658,8 +1708,10 @@ void service_discovery_impl::process_eventgroupentry(
         std::shared_ptr<eventgroupentry_impl> &_entry,
         const std::vector<std::shared_ptr<option_impl> > &_options,
         std::shared_ptr < message_impl > &its_message_response,
-        std::vector <accepted_subscriber_t> &accepted_subscribers,
-        const boost::asio::ip::address &_destination) {
+        const boost::asio::ip::address &_destination,
+        const std::shared_ptr<sd_message_identifier_t> &_message_id,
+        bool _is_stop_subscribe_subscribe,
+        bool _force_initial_events) {
     service_t its_service = _entry->get_service();
     instance_t its_instance = _entry->get_instance();
     eventgroup_t its_eventgroup = _entry->get_eventgroup();
@@ -1691,6 +1743,9 @@ void service_discovery_impl::process_eventgroupentry(
                 && _entry->get_num_options(2) == 0) {
             VSOMEIP_ERROR << "Invalid number of options in SubscribeEventGroup entry";
             if(its_ttl > 0) {
+                // increase number of required acks by one as number required acks
+                // is calculated based on the number of referenced options
+                its_message_response->increase_number_required_acks();
                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                          its_eventgroup, its_counter, its_major, its_reserved);
             }
@@ -1712,6 +1767,14 @@ void service_discovery_impl::process_eventgroupentry(
             VSOMEIP_ERROR << "Fewer options in SD message than "
                              "referenced in EventGroup entry or malformed option received";
             if(its_ttl > 0) {
+                const std::uint8_t num_overreferenced_options =
+                static_cast<std::uint8_t>(_entry->get_num_options(1) +
+                        _entry->get_num_options(2) - _options.size());
+                if (its_message_response->get_number_required_acks() -
+                        num_overreferenced_options > 0) {
+                    its_message_response->decrease_number_required_acks(
+                            num_overreferenced_options);
+                }
                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                          its_eventgroup, its_counter, its_major, its_reserved);
             }
@@ -1895,12 +1958,14 @@ void service_discovery_impl::process_eventgroupentry(
                 }
                 break;
             case option_type_e::CONFIGURATION: {
+                its_message_response->decrease_number_required_acks();
                 break;
             }
             case option_type_e::UNKNOWN:
             default:
                 VSOMEIP_WARNING << "Unsupported eventgroup option";
                 if(its_ttl > 0) {
+                    its_message_response->decrease_number_required_acks();
                     insert_subscription_nack(its_message_response, its_service, its_instance,
                                              its_eventgroup, its_counter, its_major, its_reserved);
                     return;
@@ -1914,7 +1979,8 @@ void service_discovery_impl::process_eventgroupentry(
         handle_eventgroup_subscription(its_service, its_instance,
                 its_eventgroup, its_major, its_ttl, its_counter, its_reserved,
                 its_first_address, its_first_port, is_first_reliable,
-                its_second_address, its_second_port, is_second_reliable, its_message_response, accepted_subscribers);
+                its_second_address, its_second_port, is_second_reliable, its_message_response,
+                _message_id, _is_stop_subscribe_subscribe, _force_initial_events);
     } else {
         if( entry_type_e::SUBSCRIBE_EVENTGROUP_ACK == its_type) { //this type is used for ACK and NACK messages
             if(its_ttl > 0) {
@@ -1934,7 +2000,8 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
         const boost::asio::ip::address &_first_address, uint16_t _first_port, bool _is_first_reliable,
         const boost::asio::ip::address &_second_address, uint16_t _second_port, bool _is_second_reliable,
         std::shared_ptr < message_impl > &its_message,
-        std::vector <accepted_subscriber_t> &accepted_subscribers) {
+        const std::shared_ptr<sd_message_identifier_t> &_message_id,
+        bool _is_stop_subscribe_subscribe, bool _force_initial_events) {
 
     if (its_message) {
         bool has_reliable_events(false);
@@ -1966,30 +2033,38 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
         if (reliablility_nack && _ttl > 0) {
             insert_subscription_nack(its_message, _service, _instance,
                 _eventgroup, _counter, _major, _reserved);
-            VSOMEIP_WARNING << "Subscription for service/instance "
-                    << std::hex << _service << "/" << _instance
-                    << " not valid: Event configuration does not match the provided endpoint options";
+            boost::system::error_code ec;
+            VSOMEIP_WARNING << "Subscription for ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                    << " not valid: Event configuration does not match the provided "
+                    << "endpoint options: "
+                    << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
+                    << _second_address.to_string(ec) << ":" << std::dec << _second_port;
             return;
         }
 
         std::shared_ptr < eventgroupinfo > its_info = host_->find_eventgroup(
                 _service, _instance, _eventgroup);
 
-        bool is_nack(false);
-        std::shared_ptr < endpoint_definition > its_first_subscriber,
-            its_second_subscriber;
-        std::shared_ptr < endpoint_definition > its_first_target,
-            its_second_target;
+        struct subscriber_target_t {
+            std::shared_ptr<endpoint_definition> subscriber_;
+            std::shared_ptr<endpoint_definition> target_;
+        };
+        std::array<subscriber_target_t, 2> its_targets =
+            { subscriber_target_t(), subscriber_target_t() };
 
         // Could not find eventgroup or wrong version
         if (!its_info || _major != its_info->get_major()) {
             // Create a temporary info object with TTL=0 --> send NACK
             if( its_info && (_major != its_info->get_major())) {
                 VSOMEIP_ERROR << "Requested major version:[" << (uint32_t) _major
-                        << "] in subscription to service:[" << _service
-                        << "] instance:[" << _instance
-                        << "] eventgroup:[" << _eventgroup
-                        << "], does not match with services major version:[" << (uint32_t) its_info->get_major()
+                        << "] in subscription to service: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                        << " does not match with services major version:[" << (uint32_t) its_info->get_major()
                         << "]";
             } else {
                 VSOMEIP_ERROR << "Requested eventgroup:[" << _eventgroup
@@ -2006,117 +2081,125 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             boost::asio::ip::address its_first_address, its_second_address;
             uint16_t its_first_port, its_second_port;
             if (ILLEGAL_PORT != _first_port) {
-                its_first_subscriber = endpoint_definition::get(
+                its_targets[0].subscriber_ = endpoint_definition::get(
                         _first_address, _first_port, _is_first_reliable, _service, _instance);
                 if (!_is_first_reliable &&
                     its_info->get_multicast(its_first_address, its_first_port)) { // udp multicast
-                    its_first_target = endpoint_definition::get(
+                    its_targets[0].target_ = endpoint_definition::get(
                         its_first_address, its_first_port, false, _service, _instance);
                 } else if(_is_first_reliable) { // tcp unicast
-                    its_first_target = its_first_subscriber;
+                    its_targets[0].target_ = its_targets[0].subscriber_;
                     // check if TCP connection is established by client
-                    if( !is_tcp_connected(_service, _instance, its_first_target) && _ttl > 0) {
+                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_targets[0].target_)) {
                         insert_subscription_nack(its_message, _service, _instance,
                             _eventgroup, _counter, _major, _reserved);
-                        VSOMEIP_ERROR << "TCP connection to target1: [" << its_first_target->get_address().to_string()
-                                << ":" << its_first_target->get_port()
-                                << "] not established for subscription to service:[" << _service
-                                << "] instance:[" << _instance
-                                << "] eventgroup:[" << _eventgroup << "]";
+                        VSOMEIP_ERROR << "TCP connection to target1: ["
+                                << its_targets[0].target_->get_address().to_string()
+                                << ":" << its_targets[0].target_->get_port()
+                                << "] not established for subscription to: ["
+                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                        if (ILLEGAL_PORT != _second_port) {
+                            its_message->decrease_number_required_acks();
+                        }
                         return;
                     }
                 } else { // udp unicast
-                    its_first_target = its_first_subscriber;
+                    its_targets[0].target_ = its_targets[0].subscriber_;
                 }
             }
             if (ILLEGAL_PORT != _second_port) {
-                its_second_subscriber = endpoint_definition::get(
+                its_targets[1].subscriber_ = endpoint_definition::get(
                         _second_address, _second_port, _is_second_reliable, _service, _instance);
                 if (!_is_second_reliable &&
                     its_info->get_multicast(its_second_address, its_second_port)) { // udp multicast
-                    its_second_target = endpoint_definition::get(
+                    its_targets[1].target_ = endpoint_definition::get(
                         its_second_address, its_second_port, false, _service, _instance);
                 } else if (_is_second_reliable) { // tcp unicast
-                    its_second_target = its_second_subscriber;
+                    its_targets[1].target_ = its_targets[1].subscriber_;
                     // check if TCP connection is established by client
-                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_second_target)) {
+                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_targets[1].target_)) {
                         insert_subscription_nack(its_message, _service, _instance,
                             _eventgroup, _counter, _major, _reserved);
-                        VSOMEIP_ERROR << "TCP connection to target2 : [" << its_second_target->get_address().to_string()
-                                << ":" << its_second_target->get_port()
-                                << "] not established for subscription to service:[" << _service
-                                << "] instance:[" << _instance
-                                << "] eventgroup:[" << _eventgroup << "]";
+                        VSOMEIP_ERROR << "TCP connection to target2 : ["
+                                << its_targets[1].target_->get_address().to_string()
+                                << ":" << its_targets[1].target_->get_port()
+                                << "] not established for subscription to: ["
+                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                        if (ILLEGAL_PORT != _first_port) {
+                            its_message->decrease_number_required_acks();
+                        }
                         return;
                     }
                 } else { // udp unicast
-                    its_second_target = its_second_subscriber;
+                    its_targets[1].target_ = its_targets[1].subscriber_;
                 }
             }
         }
 
         if (_ttl == 0) { // --> unsubscribe
-            if (its_first_subscriber) {
-                host_->on_unsubscribe(_service, _instance, _eventgroup, its_first_subscriber);
-            }
-            if (its_second_subscriber) {
-                host_->on_unsubscribe(_service, _instance, _eventgroup, its_second_subscriber);
+            for (const auto &target : its_targets) {
+                if (target.subscriber_) {
+                    remote_subscription_remove(_service, _instance, _eventgroup, target.subscriber_);
+                    if (!_is_stop_subscribe_subscribe) {
+                        host_->on_unsubscribe(_service, _instance, _eventgroup, target.subscriber_);
+                    }
+                }
             }
             return;
         }
 
-       std::chrono::steady_clock::time_point its_expiration
-            = std::chrono::steady_clock::now() + std::chrono::seconds(_ttl);
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        for (const auto &target : its_targets) {
+            if (target.target_) {
+                client_t its_subscribing_remote_client = VSOMEIP_ROUTING_CLIENT;
+                switch (host_->on_remote_subscription(_service, _instance,
+                        _eventgroup, target.subscriber_, target.target_,
+                        _ttl, &its_subscribing_remote_client,
+                        _message_id)) {
+                    case remote_subscription_state_e::SUBSCRIPTION_ACKED:
+                        insert_subscription_ack(its_message, _service,
+                                _instance, _eventgroup, its_info, _ttl,
+                                _counter, _major, _reserved);
+                        if (_force_initial_events) {
+                            // processing subscription of StopSubscribe/Subscribe
+                            // sequence
+                            its_message->forced_initial_events_add(
+                                    message_impl::forced_initial_events_t(
+                                        { target.subscriber_, _service, _instance,
+                                                _eventgroup }));
+                        }
+                        break;
+                    case remote_subscription_state_e::SUBSCRIPTION_NACKED:
+                    case remote_subscription_state_e::SUBSCRIPTION_ERROR:
+                        insert_subscription_nack(its_message, _service,
+                                _instance, _eventgroup, _counter, _major,
+                                _reserved);
+                        break;
+                    case remote_subscription_state_e::SUBSCRIPTION_PENDING:
+                        if (target.target_ && target.subscriber_) {
+                            std::shared_ptr<subscriber_t> subscriber_ =
+                                    std::make_shared<subscriber_t>();
+                            subscriber_->subscriber = target.subscriber_;
+                            subscriber_->target = target.target_;
+                            subscriber_->response_message_id_ = _message_id;
+                            subscriber_->eventgroupinfo_ = its_info;
+                            subscriber_->ttl_ = _ttl;
+                            subscriber_->major_ = _major;
+                            subscriber_->reserved_ = _reserved;
+                            subscriber_->counter_ = _counter;
 
-        if (its_first_target) {
-            if(!host_->on_subscribe_accepted(_service, _instance, _eventgroup,
-                    its_first_subscriber, its_expiration)) {
-                is_nack = true;
-                insert_subscription_nack(its_message, _service, _instance, _eventgroup,
-                        _counter, _major, _reserved);
-            }
-        }
-        if (its_second_subscriber) {
-            if(!host_->on_subscribe_accepted(_service, _instance, _eventgroup,
-                    its_second_subscriber, its_expiration)) {
-                is_nack = true;
-                insert_subscription_nack(its_message, _service, _instance, _eventgroup,
-                        _counter, _major, _reserved);
-            }
-        }
-
-        if (!is_nack)
-        {
-            insert_subscription_ack(its_message, _service, _instance, _eventgroup,
-                    its_info, _ttl, _counter, _major, _reserved);
-
-            if (its_expiration < next_subscription_expiration_) {
-                stop_subscription_expiration_timer();
-                next_subscription_expiration_ = its_expiration;
-                start_subscription_expiration_timer();
-            }
-
-            if (its_first_target && its_first_subscriber) {
-                accepted_subscriber_t subscriber_;
-                subscriber_.service_id = _service;
-                subscriber_.instance_id = _instance;
-                subscriber_.eventgroup_ = _eventgroup;
-                subscriber_.subscriber = its_first_subscriber;
-                subscriber_.target = its_first_target;
-                subscriber_.its_expiration = its_expiration;
-
-                accepted_subscribers.push_back(subscriber_);
-            }
-            if (its_second_target && its_second_subscriber) {
-                accepted_subscriber_t subscriber_;
-                subscriber_.service_id = _service;
-                subscriber_.instance_id = _instance;
-                subscriber_.eventgroup_ = _eventgroup;
-                subscriber_.subscriber = its_second_subscriber;
-                subscriber_.target = its_second_target;
-                subscriber_.its_expiration = its_expiration;
-
-                accepted_subscribers.push_back(subscriber_);
+                            pending_remote_subscriptions_[_service]
+                                                         [_instance]
+                                                         [_eventgroup]
+                                                         [its_subscribing_remote_client].push_back(subscriber_);
+                        }
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -2137,7 +2220,7 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
                         // Deliver nack
                         nackedClient = client.first;
                         host_->on_subscribe_nack(client.first, _service,
-                                _instance, _eventgroup, ANY_EVENT);
+                                _instance, _eventgroup, ANY_EVENT, DEFAULT_SUBSCRIPTION);
                         break;
                     }
                 }
@@ -2179,7 +2262,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
                     if (its_client.second->get_counter() == _counter) {
                         its_client.second->set_acknowledged(true);
                         host_->on_subscribe_ack(its_client.first, _service,
-                                _instance, _eventgroup, ANY_EVENT);
+                                _instance, _eventgroup, ANY_EVENT, DEFAULT_SUBSCRIPTION);
                     }
                     if (_address.is_multicast()) {
                         host_->on_subscribe_ack(_service, _instance, _address,
@@ -2389,6 +2472,11 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
 }
 
 void service_discovery_impl::start_subscription_expiration_timer() {
+    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    start_subscription_expiration_timer_unlocked();
+}
+
+void service_discovery_impl::start_subscription_expiration_timer_unlocked() {
     subscription_expiration_timer_.expires_at(next_subscription_expiration_);
         subscription_expiration_timer_.async_wait(
                 std::bind(&service_discovery_impl::expire_subscriptions,
@@ -2397,6 +2485,11 @@ void service_discovery_impl::start_subscription_expiration_timer() {
 }
 
 void service_discovery_impl::stop_subscription_expiration_timer() {
+    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    stop_subscription_expiration_timer_unlocked();
+}
+
+void service_discovery_impl::stop_subscription_expiration_timer_unlocked() {
     subscription_expiration_timer_.cancel();
 }
 
@@ -2913,6 +3006,8 @@ void service_discovery_impl::stop_offer_service(
     if(_info->is_in_mainphase() || stop_offer_required) {
         send_stop_offer(_service, _instance, _info);
     }
+    // sent out NACKs for all pending subscriptions
+    remote_subscription_not_acknowledge_all(_service, _instance);
 }
 
 bool service_discovery_impl::send_stop_offer(
@@ -3012,6 +3107,262 @@ bool service_discovery_impl::check_source_address(
 
 void service_discovery_impl::set_diagnosis_mode(const bool _activate) {
     is_diagnosis_ = _activate;
+}
+
+void service_discovery_impl::remote_subscription_acknowledge(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        client_t _client, bool _acknowledged,
+        const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) {
+    std::shared_ptr<subscriber_t> its_subscriber;
+    {
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        const auto its_service = pending_remote_subscriptions_.find(_service);
+        if (its_service != pending_remote_subscriptions_.end()) {
+            const auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                const auto its_eventgroup = its_instance->second.find(_eventgroup);
+                if (its_eventgroup != its_instance->second.end()) {
+                    const auto its_client = its_eventgroup->second.find(_client);
+                    if (its_client != its_eventgroup->second.end()) {
+                        for (auto iter = its_client->second.begin();
+                                iter != its_client->second.end();) {
+                            if ((*iter)->response_message_id_ == _sd_message_id) {
+                                its_subscriber = *iter;
+                                iter = its_client->second.erase(iter);
+                                break;
+                            } else {
+                                iter++;
+                            }
+                        }
+
+                        // delete if necessary
+                        if (!its_client->second.size()) {
+                            its_eventgroup->second.erase(its_client);
+                            if (!its_eventgroup->second.size()) {
+                                its_instance->second.erase(its_eventgroup);
+                                if (!its_instance->second.size()) {
+                                    its_service->second.erase(its_instance);
+                                    if (!its_service->second.size()) {
+                                        pending_remote_subscriptions_.erase(
+                                                its_service);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (its_subscriber) {
+        remote_subscription_acknowledge_subscriber(_service, _instance,
+                _eventgroup, its_subscriber, _acknowledged);
+    }
+}
+
+void service_discovery_impl::update_subscription_expiration_timer(
+        const std::shared_ptr<message_impl> &_message) {
+    std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
+    const std::chrono::steady_clock::time_point now =
+            std::chrono::steady_clock::now();
+    stop_subscription_expiration_timer_unlocked();
+    for (const auto &entry : _message->get_entries()) {
+        if (entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
+                && entry->get_ttl()) {
+            const std::chrono::steady_clock::time_point its_expiration = now
+                    + std::chrono::seconds(entry->get_ttl());
+            if (its_expiration < next_subscription_expiration_) {
+                next_subscription_expiration_ = its_expiration;
+            }
+        }
+    }
+    start_subscription_expiration_timer_unlocked();
+}
+
+void service_discovery_impl::remote_subscription_acknowledge_subscriber(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged) {
+    std::shared_ptr<message_impl> its_response = _subscriber->response_message_id_->response_;
+    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
+            std::shared_ptr<endpoint_definition>>> its_acks;
+    bool sent(false);
+    {
+        std::lock_guard<std::mutex> its_lock(response_mutex_);
+        if (_acknowledged) {
+            insert_subscription_ack(its_response, _service, _instance,
+                    _eventgroup, _subscriber->eventgroupinfo_,
+                    _subscriber->ttl_, _subscriber->counter_,
+                    _subscriber->major_, _subscriber->reserved_, _subscriber->subscriber);
+        } else {
+            insert_subscription_nack(its_response, _service, _instance,
+                    _eventgroup, _subscriber->counter_,
+                    _subscriber->major_, _subscriber->reserved_);
+        }
+
+        if (its_response->all_required_acks_contained()) {
+            update_subscription_expiration_timer(its_response);
+            serialize_and_send(its_response, _subscriber->response_message_id_->sender_);
+            // set required acks to zero to mark message as sent
+            its_response->set_number_required_acks(0);
+            sent = true;
+        }
+    }
+    if (sent) {
+        for (const auto &e : its_response->get_entries()) {
+            if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
+                    && e->get_ttl() > 0) {
+                const std::shared_ptr<eventgroupentry_impl> casted_e =
+                        std::static_pointer_cast<eventgroupentry_impl>(e);
+                const std::shared_ptr<endpoint_definition> its_reliable =
+                        casted_e->get_target(true);
+                if (its_reliable) {
+                    its_acks.push_back(
+                            std::make_tuple(e->get_service(), e->get_instance(),
+                                    casted_e->get_eventgroup(), its_reliable));
+                }
+                const std::shared_ptr<endpoint_definition> its_unreliable =
+                        casted_e->get_target(false);
+                if (its_unreliable) {
+                    its_acks.push_back(
+                            std::make_tuple(e->get_service(), e->get_instance(),
+                                    casted_e->get_eventgroup(),
+                                    its_unreliable));
+                }
+            }
+        }
+        for (const auto& ack_tuple : its_acks) {
+            host_->send_initial_events(std::get<0>(ack_tuple),
+                    std::get<1>(ack_tuple), std::get<2>(ack_tuple),
+                    std::get<3>(ack_tuple));
+        }
+        for (const auto &fie : its_response->forced_initial_events_get()) {
+            host_->send_initial_events(fie.service_, fie.instance_,
+                    fie.eventgroup_, fie.target_);
+        }
+    }
+}
+
+void service_discovery_impl::remote_subscription_not_acknowledge_all(
+        service_t _service, instance_t _instance) {
+    std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>its_pending_subscriptions;
+    {
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        const auto its_service = pending_remote_subscriptions_.find(_service);
+        if (its_service != pending_remote_subscriptions_.end()) {
+            const auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                for (const auto &its_eventgroup : its_instance->second) {
+                    for (const auto &its_client : its_eventgroup.second) {
+                        its_pending_subscriptions[its_eventgroup.first].insert(
+                                its_pending_subscriptions[its_eventgroup.first].end(),
+                                its_client.second.begin(),
+                                its_client.second.end());
+                    }
+                }
+                // delete everything from this service instance
+                its_service->second.erase(its_instance);
+                if (!its_service->second.size()) {
+                    pending_remote_subscriptions_.erase(its_service);
+                }
+            }
+        }
+    }
+    for (const auto &eg : its_pending_subscriptions) {
+        for (const auto &its_subscriber : eg.second) {
+            remote_subscription_acknowledge_subscriber(_service, _instance,
+                    eg.first, its_subscriber, false);
+        }
+    }
+}
+
+void service_discovery_impl::remote_subscription_not_acknowledge_all() {
+    std::map<service_t,
+        std::map<instance_t,
+            std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>>> to_be_nacked;
+    {
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        for (const auto &its_service : pending_remote_subscriptions_) {
+            for (const auto &its_instance : its_service.second) {
+                for (const auto &its_eventgroup : its_instance.second) {
+                    for (const auto &its_client : its_eventgroup.second) {
+                        to_be_nacked[its_service.first]
+                                    [its_instance.first]
+                                    [its_eventgroup.first].insert(
+                                                    to_be_nacked[its_service.first][its_instance.first][its_eventgroup.first].end(),
+                                                    its_client.second.begin(),
+                                                    its_client.second.end());
+                    }
+                }
+            }
+        }
+        pending_remote_subscriptions_.clear();
+    }
+    for (const auto &s : to_be_nacked) {
+        for (const auto &i : s.second) {
+            for (const auto &eg : i.second) {
+                for (const auto &sub : eg.second) {
+                    remote_subscription_acknowledge_subscriber(s.first, i.first,
+                            eg.first, sub, false);
+                }
+            }
+        }
+    }
+}
+
+void service_discovery_impl::remote_subscription_remove(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        const std::shared_ptr<endpoint_definition> &_subscriber) {
+    std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+    const auto its_service = pending_remote_subscriptions_.find(_service);
+    if (its_service != pending_remote_subscriptions_.end()) {
+        const auto its_instance = its_service->second.find(_instance);
+        if (its_instance != its_service->second.end()) {
+            const auto its_eventgroup = its_instance->second.find(_eventgroup);
+            if (its_eventgroup != its_instance->second.end()) {
+                for (auto client_iter = its_eventgroup->second.begin();
+                        client_iter != its_eventgroup->second.end(); ) {
+                    for (auto subscriber_iter = client_iter->second.begin();
+                            subscriber_iter != client_iter->second.end();) {
+                        if ((*subscriber_iter)->subscriber == _subscriber) {
+                            (*subscriber_iter)->response_message_id_->response_->decrease_number_required_acks();
+                            subscriber_iter = client_iter->second.erase(
+                                    subscriber_iter);
+                        } else {
+                            ++subscriber_iter;
+                        }
+                    }
+                    if (!client_iter->second.size()) {
+                        client_iter = its_eventgroup->second.erase(client_iter);
+                    } else {
+                        ++client_iter;
+                    }
+                }
+                if (!its_eventgroup->second.size()) {
+                    its_instance->second.erase(its_eventgroup);
+                    if (!its_service->second.size()) {
+                        its_service->second.erase(its_instance);
+                        if (!its_service->second.size()) {
+                            pending_remote_subscriptions_.erase(its_service);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool service_discovery_impl::check_stop_subscribe_subscribe(
+        message_impl::entries_t::const_iterator _iter,
+        message_impl::entries_t::const_iterator _end) const {
+    const message_impl::entries_t::const_iterator its_next = std::next(_iter);
+    if ((*_iter)->get_type() != entry_type_e::SUBSCRIBE_EVENTGROUP
+            || its_next == _end
+            || (*its_next)->get_type() != entry_type_e::STOP_SUBSCRIBE_EVENTGROUP) {
+        return false;
+    }
+
+    return (*static_cast<eventgroupentry_impl*>(_iter->get())).is_matching_subscribe(
+            *(static_cast<eventgroupentry_impl*>(its_next->get())));
 }
 
 }  // namespace sd

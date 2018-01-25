@@ -3,42 +3,44 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef E2E_PROFILE_PROFILE01_PROTECTOR_HPP
-#define E2E_PROFILE_PROFILE01_PROTECTOR_HPP
+#ifndef VSOMEIP_E2E_PROFILE01_PROTECTOR_HPP
+#define VSOMEIP_E2E_PROFILE01_PROTECTOR_HPP
 
 #include <mutex>
 #include "../profile01/profile_01.hpp"
 #include "../profile_interface/protector.hpp"
 
+namespace vsomeip {
 namespace e2e {
-namespace profile {
 namespace profile01 {
 
-class protector final : public e2e::profile::profile_interface::protector {
+class protector final : public e2e::profile_interface::protector {
   public:
     protector(void) = delete;
 
-    explicit protector(const Config &_config) : config(_config), counter(0){};
+    explicit protector(const profile_config &_config) : config_(_config), counter_(0){};
 
-    void protect(buffer::e2e_buffer &_buffer) override final;
+    void protect(e2e_buffer &_buffer) override final;
 
   private:
 
-    void write_counter(buffer::e2e_buffer &_buffer);
+    void write_counter(e2e_buffer &_buffer);
 
-    void write_data_id(buffer::e2e_buffer &_buffer);
+    void write_data_id(e2e_buffer &_buffer);
 
-    void write_crc(buffer::e2e_buffer &_buffer, uint8_t _computed_crc);
+    void write_crc(e2e_buffer &_buffer, uint8_t _computed_crc);
 
     void increment_counter(void);
 
 
   private:
-    Config config;
-    uint8_t counter;
-    std::mutex protect_mutex;
+    profile_config config_;
+    uint8_t counter_;
+    std::mutex protect_mutex_;
 };
-}
-}
-}
-#endif
+
+} // namespace profile01
+} // namespace e2e
+} // namespace vsomeip
+
+#endif // VSOMEIP_E2E_PROFILE01_PROTECTOR_HPP

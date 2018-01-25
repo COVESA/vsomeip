@@ -35,7 +35,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
             const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(queue_iterator_type _queue_iterator);
+    void send_queued(const queue_iterator_type _queue_iterator);
 
     void join(const std::string &_address);
     void leave(const std::string &_address);

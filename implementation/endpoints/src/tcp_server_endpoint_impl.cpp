@@ -95,7 +95,7 @@ bool tcp_server_endpoint_impl::send_to(
     return send_intern(its_target, _data, _size, _flush);
 }
 
-void tcp_server_endpoint_impl::send_queued(queue_iterator_type _queue_iterator) {
+void tcp_server_endpoint_impl::send_queued(const queue_iterator_type _queue_iterator) {
     connection::ptr its_connection;
     {
         std::lock_guard<std::mutex> its_lock(connections_mutex_);
@@ -106,8 +106,9 @@ void tcp_server_endpoint_impl::send_queued(queue_iterator_type _queue_iterator) 
             VSOMEIP_INFO << "Didn't find connection: "
                     << _queue_iterator->first.address().to_string() << ":" << std::dec
                     << static_cast<std::uint16_t>(_queue_iterator->first.port())
-                    << " dropping message.";
-            _queue_iterator->second.pop_front();
+                    << " dropping outstanding messages (" << std::dec
+                    << _queue_iterator->second.size() << ").";
+            _queue_iterator->second.clear();
         }
     }
     if (its_connection) {
@@ -139,13 +140,25 @@ bool tcp_server_endpoint_impl::get_default_target(service_t,
 
 void tcp_server_endpoint_impl::remove_connection(
         tcp_server_endpoint_impl::connection *_connection) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    for (auto it = connections_.begin(); it != connections_.end();) {
-        if (it->second.get() == _connection) {
-            it = connections_.erase(it);
-            break;
-        } else {
-            ++it;
+    endpoint_type its_target;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        for (auto it = connections_.begin(); it != connections_.end();) {
+            if (it->second.get() == _connection) {
+                its_target = it->first;
+                it = connections_.erase(it);
+                break;
+            } else {
+                ++it;
+            }
+        }
+    }
+    {
+        // delete outstanding responses for this connection as well
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        const auto found_target = queues_.find(its_target);
+        if (found_target != queues_.end()) {
+            found_target->second.clear();
         }
     }
 }
@@ -295,7 +308,7 @@ void tcp_server_endpoint_impl::connection::stop() {
 }
 
 void tcp_server_endpoint_impl::connection::send_queued(
-        queue_iterator_type _queue_iterator) {
+        const queue_iterator_type _queue_iterator) {
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_TRACE << "tcp_server_endpoint_impl::connection::send_queued "
@@ -318,7 +331,8 @@ void tcp_server_endpoint_impl::connection::send_queued(
         boost::asio::async_write(socket_, boost::asio::buffer(*its_buffer),
                 std::bind(&tcp_server_endpoint_base_impl::send_cbk,
                           its_server,
-                          _queue_iterator, std::placeholders::_1,
+                          _queue_iterator,
+                          std::placeholders::_1,
                           std::placeholders::_2));
     }
 }

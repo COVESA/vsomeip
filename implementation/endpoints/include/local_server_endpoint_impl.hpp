@@ -60,7 +60,7 @@ public:
 
     bool send_to(const std::shared_ptr<endpoint_definition>,
                  const byte_t *_data, uint32_t _size, bool _flush);
-    void send_queued(queue_iterator_type _queue_iterator);
+    void send_queued(const queue_iterator_type _queue_iterator);
 
     bool get_default_target(service_t, endpoint_type &) const;
 
@@ -84,7 +84,7 @@ private:
         void start();
         void stop();
 
-        void send_queued(queue_iterator_type _queue_iterator);
+        void send_queued(const queue_iterator_type _queue_iterator);
 
         void set_bound_client(client_t _client);
 
@@ -95,7 +95,6 @@ private:
                    std::uint32_t _buffer_shrink_threshold,
                    boost::asio::io_service &_io_service);
 
-        void send_magic_cookie();
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
         void calculate_shrink_count();

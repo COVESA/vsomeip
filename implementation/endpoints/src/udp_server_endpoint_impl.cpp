@@ -120,7 +120,7 @@ bool udp_server_endpoint_impl::send_to(
 }
 
 void udp_server_endpoint_impl::send_queued(
-        queue_iterator_type _queue_iterator) {
+        const queue_iterator_type _queue_iterator) {
     message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
 #if 0
         std::stringstream msg;

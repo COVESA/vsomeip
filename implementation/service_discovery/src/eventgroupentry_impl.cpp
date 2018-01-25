@@ -115,5 +115,34 @@ bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
     return is_successful;
 }
 
+bool eventgroupentry_impl::is_matching_subscribe(
+        const eventgroupentry_impl& _other) const {
+    return !(ttl_ != 0
+            || _other.ttl_ == 0
+            || service_ != _other.service_
+            || instance_ != _other.instance_
+            || eventgroup_ != _other.eventgroup_
+            || index1_ != _other.index1_
+            || index2_ != _other.index2_
+            || num_options_[0] != _other.num_options_[0]
+            || num_options_[1] != _other.num_options_[1]
+            || major_version_ != _other.major_version_
+            || counter_ != _other.counter_);
+}
+
+void eventgroupentry_impl::add_target(
+        const std::shared_ptr<endpoint_definition> &_target) {
+    if (_target->is_reliable()) {
+        target_reliable_ = _target;
+    } else {
+        target_unreliable_ = _target;
+    }
+}
+
+std::shared_ptr<endpoint_definition> eventgroupentry_impl::get_target(
+        bool _reliable) const {
+    return _reliable ? target_reliable_ : target_unreliable_;
+}
+
 } // namespace sd
 } // namespace vsomeip

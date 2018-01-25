@@ -11,6 +11,7 @@
 #include <mutex>
 #include <vector>
 #include <unordered_set>
+#include <list>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -76,8 +77,9 @@ public:
 
     VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance, bool _reliable,
-            std::map<bool, std::set<uint16_t> > &_used, uint16_t &_port) const;
+    VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance,
+            uint16_t _remote_port, bool _reliable,
+            std::map<bool, std::set<uint16_t> > &_used_client_ports, uint16_t &_client_port) const;
 
     VSOMEIP_EXPORT const std::string & get_routing_host() const;
 
@@ -201,7 +203,9 @@ private:
 
     void load_clients(const element &_element);
     void load_client(const boost::property_tree::ptree &_tree);
+
     std::set<uint16_t> load_client_ports(const boost::property_tree::ptree &_tree);
+    std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree &_tree);
 
     void load_watchdog(const element &_element);
 
@@ -212,7 +216,8 @@ private:
     void load_policy(const boost::property_tree::ptree &_tree);
 
     servicegroup *find_servicegroup(const std::string &_name) const;
-    std::shared_ptr<client> find_client(service_t _service, instance_t _instance) const;
+    std::shared_ptr<client> find_client(service_t _service,
+            instance_t _instance, uint16_t _remote_port, bool _reliable) const;
     std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
@@ -222,6 +227,7 @@ private:
     bool is_mandatory(const std::string &_name) const;
     bool is_remote(std::shared_ptr<service> _service) const;
     bool is_internal_service(service_t _service, instance_t _instance) const;
+    bool is_in_port_range(uint16_t _port, std::pair<uint16_t, uint16_t> _port_range) const;
 
     void set_mandatory(const std::string &_input);
     void trim(std::string &_s);
@@ -256,9 +262,7 @@ protected:
         std::map<instance_t,
             std::shared_ptr<service> > > services_;
 
-    std::map<service_t,
-        std::map<instance_t,
-            std::shared_ptr<client> > > clients_;
+    std::list< std::shared_ptr<client> > clients_;
 
     std::string routing_host_;
 

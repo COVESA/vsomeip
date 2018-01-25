@@ -11,32 +11,32 @@
 #include <iomanip>
 #include <algorithm>
 
+namespace vsomeip {
 namespace e2e {
-namespace profile {
 namespace profile01 {
 
 // [SWS_E2E_00196]
-void profile_01_checker::check(const buffer::e2e_buffer &_buffer,
-                               e2e::profile::profile_interface::generic_check_status &_generic_check_status) {
-    std::lock_guard<std::mutex> lock(check_mutex);
-    _generic_check_status = e2e::profile::profile_interface::generic_check_status::E2E_ERROR;
+void profile_01_checker::check(const e2e_buffer &_buffer,
+                               e2e::profile_interface::generic_check_status &_generic_check_status) {
+    std::lock_guard<std::mutex> lock(check_mutex_);
+    _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
-
-    if(profile_01::is_buffer_length_valid(config, _buffer)) {
+    if (profile_01::is_buffer_length_valid(config_, _buffer)) {
         uint8_t received_crc(0);
         uint8_t calculated_crc(0);
-        received_crc = _buffer[config.crc_offset];
-        calculated_crc = profile_01::compute_crc(config, _buffer);
-        if(received_crc == calculated_crc) {
-            _generic_check_status = e2e::profile::profile_interface::generic_check_status::E2E_OK;
+        received_crc = _buffer[config_.crc_offset_];
+        calculated_crc = profile_01::compute_crc(config_, _buffer);
+        if (received_crc == calculated_crc) {
+            _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
         } else {
-            _generic_check_status = e2e::profile::profile_interface::generic_check_status::E2E_WRONG_CRC;
-            VSOMEIP_INFO << std::hex << "E2E protection: CRC8 does not match: calculated CRC: " << (uint32_t) calculated_crc << " received CRC: " << (uint32_t) received_crc;
+            _generic_check_status = e2e::profile_interface::generic_check_status::E2E_WRONG_CRC;
+            VSOMEIP_INFO << std::hex << "E2E protection: CRC8 does not match: calculated CRC: "
+                    << (uint32_t) calculated_crc << " received CRC: " << (uint32_t) received_crc;
         }
     }
     return;
 }
 
-}
-}
-}
+} // namespace profile01
+} // namespace e2e
+} // namespace vsomeip
