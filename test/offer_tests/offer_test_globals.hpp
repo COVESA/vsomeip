@@ -20,6 +20,10 @@ struct service_info {
 struct service_info service = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404 };
 
 static constexpr int number_of_messages_to_send = 150;
+
+static constexpr std::uint16_t big_msg_number_services = 300;
+static constexpr vsomeip::event_t big_msg_event_id = 0x8000;
+static constexpr vsomeip::eventgroup_t big_msg_eventgroup_id = 0x1;
 }
 
 #endif /* OFFER_TEST_GLOBALS_HPP_ */

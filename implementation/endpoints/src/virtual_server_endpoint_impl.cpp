@@ -28,6 +28,10 @@ bool virtual_server_endpoint_impl::is_connected() const {
     return false;
 }
 
+void virtual_server_endpoint_impl::set_connected(bool _connected) {
+    (void) _connected;
+}
+
 bool virtual_server_endpoint_impl::send(const byte_t *_data, uint32_t _size,
         bool _flush) {
     (void)_data;

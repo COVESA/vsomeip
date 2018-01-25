@@ -153,6 +153,9 @@ public:
                 && _response->get_method() <= static_cast<vsomeip::event_t>(info_.event_id + 3)) {
             std::lock_guard<std::mutex> its_lock(events_mutex_);
             received_events_.push_back(_response->get_payload());
+            if (received_events_.size() > 4) {
+                ADD_FAILURE() << "Received too much events";
+            }
             number_received_events_[_response->get_method()]++;
             events_condition_.notify_one();
         } else {

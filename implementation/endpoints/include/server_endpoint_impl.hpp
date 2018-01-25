@@ -39,7 +39,7 @@ public:
     bool is_client() const;
     void restart();
     bool is_connected() const;
-
+    void set_connected(bool _connected);
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
 
     virtual void stop();
@@ -73,6 +73,10 @@ protected:
     boost::asio::steady_timer flush_timer_;
 
     std::mutex mutex_;
+
+private:
+    virtual std::string get_remote_information(
+            const queue_iterator_type _queue_iterator) const = 0;
 };
 
 } // namespace vsomeip

@@ -60,6 +60,7 @@ private:
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
     void set_local_port();
+    std::string get_remote_information() const;
 
     message_buffer_t recv_buffer_;
 };

@@ -139,14 +139,14 @@ private:
 
     void process_serviceentry(std::shared_ptr<serviceentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
-            bool _unicast_flag);
+            bool _unicast_flag, std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes);
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl,
             const boost::asio::ip::address &_reliable_address,
             uint16_t _reliable_port,
             const boost::asio::ip::address &_unreliable_address,
-            uint16_t _unreliable_port);
+            uint16_t _unreliable_port, std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes);
     void send_offer_service(
             const std::shared_ptr<const serviceinfo> &_info, service_t _service,
             instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -319,6 +319,8 @@ private:
     configuration::ttl_factor_t get_ttl_factor(
             service_t _service, instance_t _instance,
             const configuration::ttl_map_t& _ttl_map) const;
+    void on_last_msg_received_timer_expired(const boost::system::error_code &_error);
+    void stop_last_msg_received_timer();
 
 private:
     boost::asio::io_service &io_;
@@ -411,6 +413,10 @@ private:
 
     configuration::ttl_map_t ttl_factor_offers_;
     configuration::ttl_map_t ttl_factor_subscriptions_;
+
+    std::mutex last_msg_received_timer_mutex_;
+    boost::asio::steady_timer last_msg_received_timer_;
+    std::chrono::milliseconds last_msg_received_timer_timeout_;
 };
 
 }  // namespace sd

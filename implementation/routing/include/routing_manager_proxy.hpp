@@ -218,7 +218,7 @@ private:
     std::set<event_data_t> pending_event_registrations_;
 
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscripitons_;
-    std::mutex incoming_subscriptions_mutex_;
+    std::recursive_mutex incoming_subscriptions_mutex_;
 
     std::mutex state_mutex_;
     std::condition_variable state_condition_;

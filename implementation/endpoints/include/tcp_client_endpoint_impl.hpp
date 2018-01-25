@@ -59,7 +59,7 @@ private:
             std::size_t _bytes_transferred, std::size_t _bytes_to_send,
             service_t _service, method_t _method, client_t _client, session_t _session,
             std::chrono::steady_clock::time_point _start);
-
+    std::string get_remote_information() const;
 
     const std::uint32_t recv_buffer_size_initial_;
     message_buffer_t recv_buffer_;

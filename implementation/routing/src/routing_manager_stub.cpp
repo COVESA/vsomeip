@@ -161,7 +161,7 @@ const std::shared_ptr<configuration> routing_manager_stub::get_configuration() c
 }
 
 void routing_manager_stub::on_connect(std::shared_ptr<endpoint> _endpoint) {
-    (void)_endpoint;
+    _endpoint->set_connected(true);
 }
 
 void routing_manager_stub::on_disconnect(std::shared_ptr<endpoint> _endpoint) {

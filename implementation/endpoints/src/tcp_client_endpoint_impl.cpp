@@ -371,9 +371,6 @@ void tcp_client_endpoint_impl::receive_cbk(
     VSOMEIP_INFO << msg.str();
 #endif
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
-    if (!is_connected_) {
-        return;
-    }
     std::shared_ptr<endpoint_host> its_host = host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
@@ -612,6 +609,12 @@ void tcp_client_endpoint_impl::print_status() {
             << " queue: " << std::dec << its_queue_size
             << " data: " << std::dec << its_data_size
             << " recv_buffer: " << std::dec << its_receive_buffer_capacity;
+}
+
+std::string tcp_client_endpoint_impl::get_remote_information() const {
+    boost::system::error_code ec;
+    return remote_.address().to_string(ec) + ":"
+            + std::to_string(remote_.port());
 }
 
 } // namespace vsomeip

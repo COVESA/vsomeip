@@ -52,7 +52,7 @@ public:
     bool is_client() const;
 
     bool is_connected() const;
-
+    void set_connected(bool _connected);
     virtual bool get_remote_address(boost::asio::ip::address &_address) const;
     virtual std::uint16_t get_remote_port() const;
 
@@ -99,6 +99,7 @@ protected:
 
 private:
     virtual void set_local_port() = 0;
+    virtual std::string get_remote_information() const = 0;
 };
 
 } // namespace vsomeip

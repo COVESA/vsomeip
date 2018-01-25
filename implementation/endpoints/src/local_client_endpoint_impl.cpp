@@ -275,4 +275,14 @@ void local_client_endpoint_impl::print_status() {
             << its_queue_size << " data: " << its_data_size;
 }
 
+std::string local_client_endpoint_impl::get_remote_information() const {
+#ifdef _WIN32
+    boost::system::error_code ec;
+    return remote_.address().to_string(ec) + ":"
+            + std::to_string(remote_.port());
+#else
+    return remote_.path();
+#endif
+}
+
 } // namespace vsomeip

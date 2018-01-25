@@ -61,6 +61,8 @@ private:
     void set_broadcast();
     bool is_joined(const std::string &_address) const;
     bool is_joined(const std::string &_address, bool* _received) const;
+    std::string get_remote_information(
+            const queue_iterator_type _queue_iterator) const;
 
 private:
     socket_type socket_;

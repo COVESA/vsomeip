@@ -1283,6 +1283,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
                             if (found_endpoint->second.get() == _endpoint.get()) {
                                 std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
                                 if (!its_info) {
+                                    _endpoint->set_connected(true);
                                     return;
                                 }
                                 services_to_report_.push_front(
@@ -1290,7 +1291,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
                                                     its_instance.first,
                                                     its_info->get_major(),
                                                     its_info->get_minor(),
-                                                    false, nullptr });
+                                                    false, _endpoint });
                             }
                         }
                         found_endpoint = its_client.second.find(true);
@@ -1298,6 +1299,7 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
                             if (found_endpoint->second.get() == _endpoint.get()) {
                                 std::shared_ptr<serviceinfo> its_info(find_service(its_service.first, its_instance.first));
                                 if (!its_info) {
+                                    _endpoint->set_connected(true);
                                     return;
                                 }
                                 services_to_report_.push_front(
@@ -1334,6 +1336,9 @@ void routing_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
         } else {
             VSOMEIP_ERROR<< "routing_manager_impl::on_connect: " << ec.message();
         }
+    }
+    if (services_to_report_.empty()) {
+        _endpoint->set_connected(true);
     }
 }
 
@@ -2437,6 +2442,16 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
                     clear_remote_subscriber(its_service.first,
                             its_instance.first, its_client, its_endpoint);
 
+                    if (its_eventgroup.second->get_targets().size() == 0) {
+                        std::set<std::shared_ptr<event> > its_events
+                            = its_eventgroup.second->get_events();
+                        for (auto e : its_events) {
+                            if (e->is_shadow()) {
+                                e->unset_payload();
+                            }
+                        }
+                    }
+
                     if (target) {
                         stub_->send_unsubscribe(target, its_client, its_service.first,
                                 its_instance.first, its_eventgroup.first, ANY_EVENT, true);
@@ -3350,6 +3365,16 @@ routing_manager_impl::expire_subscriptions() {
                     clear_remote_subscriber(its_service.first, its_instance.first,
                             its_client, its_endpoint);
 
+                    if (its_eventgroup.second->get_targets().size() == 0) {
+                        std::set<std::shared_ptr<event> > its_events
+                            = its_eventgroup.second->get_events();
+                        for (auto e : its_events) {
+                            if (e->is_shadow()) {
+                                e->unset_payload();
+                            }
+                        }
+                    }
+
                     if (target) {
                         stub_->send_unsubscribe(target, its_client, its_service.first,
                                 its_instance.first, its_eventgroup.first, ANY_EVENT, true);
@@ -3931,16 +3956,12 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 }
 
 void routing_manager_impl::on_net_if_state_changed(std::string _if, bool _available) {
-    if (_available != if_state_running_) {
-        if (_available) {
-            VSOMEIP_INFO << "Network interface \"" << _if << "\" is up and running.";
-            start_ip_routing();
-#ifndef _WIN32
-            if (netlink_connector_) {
-                netlink_connector_->unregister_net_if_changes_handler();
-            }
-#endif
-        }
+    if (!if_state_running_ && _available) {
+        VSOMEIP_INFO << "Network interface \"" << _if << "\" is up and running.";
+        start_ip_routing();
+    } else {
+        VSOMEIP_WARNING << "Network interface \"" << _if << "\" state changed: "
+                << std::string((_available) ? "up" : "down");
     }
 }
 
@@ -4026,6 +4047,7 @@ void routing_manager_impl::call_sd_endpoint_connected(
     if (_error) {
         return;
     }
+    _endpoint->set_connected(true);
     if (discovery_) {
         discovery_->on_endpoint_connected(_service, _instance,
                 _endpoint);

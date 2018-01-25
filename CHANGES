@@ -1,6 +1,12 @@
 Changes
 =======
 
+v2.10.6
+- Fix concurrency issue leading to a crash when asynchronous
+  subscription handlers were used.
+- Improved packing of subscriptions sent out as answer to incoming
+  offer service messages.
+
 v2.10.5
 - Fix possible deadlock on application shutdown
 - Try to reestablish TCP connection on resubscription if the remote

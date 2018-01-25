@@ -50,6 +50,7 @@ private:
     void set_local_port();
     const std::string get_address_port_remote() const;
     const std::string get_address_port_local() const;
+    std::string get_remote_information() const;
 
     message_buffer_t recv_buffer_;
 

@@ -271,4 +271,10 @@ void udp_client_endpoint_impl::print_status() {
             << " data: " << std::dec << its_data_size;
 }
 
+std::string udp_client_endpoint_impl::get_remote_information() const {
+    boost::system::error_code ec;
+    return remote_.address().to_string(ec) + ":"
+            + std::to_string(remote_.port());
+}
+
 } // namespace vsomeip

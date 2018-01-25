@@ -429,7 +429,10 @@ The name of the application.
 +
 ** 'id'
 +
-The id of the application.
+The id of the application. Usually its high byte is equal to the diagnosis address. In this
+case the low byte must be different from zero. Thus, if the diagnosis address is 0x63, valid
+values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte 
+different from the diagnosis address. 
 +
 ** 'max_dispatchers'
 +
@@ -981,8 +984,10 @@ In general clients can be configured to be allowed/denied to request (means comm
 Every incoming vSomeIP message (request/response/notifcation) as well as offer service requests or local subscriptions are then checked against the policy.
 If an incoming vSomeIP message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.
 
-Furthermore if an application receives a routing table (information about other clients/services in the system) it must be received from the authenticated routing manager which means the routing manager must be a configured application if security is active.
-This should avoid malicious applications faking the routing manager and therfore could wrongly inform other clients about services running on the system.
+Furthermore if an application receives informations about other clients/services in the system, it must be received from the authenticated routing manager. 
+This is to avoid malicious applications faking the routing manager and therefore being able to wrongly inform other clients about services running on the system.
+Therefore, whenever the "security" tag is specified, the routing manager (e.g. vsomeipd) must be a configured application with a fixed client identifier. 
+See chapter "Configuration File Structure" on how to configure an application to use a specific client identifier.
 
 Credential passing is only possible via Unix-Domain-Sockets and therefore only available for local communication.
 However if security is activated method calls from remote clients to local services are checked as well which means remote clients needs to be explicitly allowed.
@@ -993,7 +998,7 @@ It follows the available configuration switches for the security feature includi
 // Security
 * anchor:config-policy[]'security' (optional)
 +
-If specified the credential passing mechanism is activated. However no credential or security checks are done as long as _check_credentials_ isn't set to _true_.
+If specified the credential passing mechanism is activated. However no credential or security checks are done as long as _check_credentials_ isn't set to _true_, but the routing manager client ID must be configured if security tag is specified and shall not be set to 0x6300.
 
 ** 'check_credentials (optional)'
 +

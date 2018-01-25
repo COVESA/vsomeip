@@ -1985,6 +1985,26 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
     )
 
+    # client and service for offer test big sd msg
+    set(TEST_OFFER_BIG_NAME offer_test_big_sd_msg)
+    set(TEST_OFFER_BIG_SERVICE ${TEST_OFFER_BIG_NAME}_service)
+    add_executable(${TEST_OFFER_BIG_SERVICE} offer_tests/${TEST_OFFER_BIG_NAME}_service.cpp)
+    target_link_libraries(${TEST_OFFER_BIG_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_OFFER_BIG_CLIENT ${TEST_OFFER_BIG_NAME}_client)
+    add_executable(${TEST_OFFER_BIG_CLIENT} offer_tests/${TEST_OFFER_BIG_NAME}_client.cpp)
+    target_link_libraries(${TEST_OFFER_BIG_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
     # copy starter scripts into builddir
     set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_LOCAL_STARTER}
@@ -2023,6 +2043,29 @@ if(NOT ${TESTS_BAT})
         ${TEST_OFFER_SERVICE}
     )
 
+    # generate and copy json files into builddir for big SD message test
+    set(TEST_OFFER_BIG_SLAVE_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
+        ${TEST_OFFER_BIG_SERVICE}
+    )
+
+    set(TEST_OFFER_BIG_MASTER_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
+        ${TEST_OFFER_BIG_SERVICE}
+    )
+
     # Copy starter scripts for external test to $BUILDDIR/test
     set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
     configure_file(
@@ -2037,6 +2080,23 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
         ${TEST_OFFER_SERVICE}
+    )
+
+    # Copy starter scripts for external test to $BUILDDIR/test
+    set(TEST_OFFER_BIG_MASTER_STARTER ${TEST_OFFER_BIG_NAME}_master_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_MASTER_STARTER}.in
+        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_MASTER_STARTER}
+        ${TEST_OFFER_BIG_SERVICE}
+    )
+    # Copy starter scripts for external test to $BUILDDIR/test
+    set(TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER ${TEST_OFFER_BIG_NAME}_slave_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER}
+        ${TEST_OFFER_BIG_SERVICE}
     )
 endif()
 
@@ -2160,6 +2220,8 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_OFFER_CLIENT})
     add_dependencies(build_tests ${TEST_OFFER_SERVICE_EXTERNAL})
     add_dependencies(build_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
+    add_dependencies(build_tests ${TEST_OFFER_BIG_SERVICE})
+    add_dependencies(build_tests ${TEST_OFFER_BIG_CLIENT})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_CLIENT})
     if (${TEST_SECURITY})
@@ -2552,6 +2614,9 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_NAME}_external
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
+    add_test(NAME ${TEST_OFFER_BIG_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_MASTER_STARTER})
+    set_tests_properties(${TEST_OFFER_BIG_NAME} PROPERTIES TIMEOUT 360)
     
     # offered services info tets
     add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local

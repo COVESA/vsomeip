@@ -678,5 +678,15 @@ void local_server_endpoint_impl::print_status() {
                 << " recv_buffer: " << std::dec << its_recv_size;
     }
 }
+std::string local_server_endpoint_impl::get_remote_information(
+        const queue_iterator_type _queue_iterator) const {
+#ifdef _WIN32
+    boost::system::error_code ec;
+    return _queue_iterator->first.address().to_string(ec) + ":"
+            + std::to_string(_queue_iterator->first.port());
+#else
+    return _queue_iterator->first.path();
+#endif
+}
 
 } // namespace vsomeip

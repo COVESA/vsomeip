@@ -25,6 +25,7 @@ public:
     void stop();
 
     bool is_connected() const;
+    void set_connected(bool _connected);
 
     bool send(const byte_t *_data, uint32_t _size, bool _flush);
     bool send_to(const std::shared_ptr<endpoint_definition> _target,

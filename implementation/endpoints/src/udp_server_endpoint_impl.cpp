@@ -418,4 +418,11 @@ void udp_server_endpoint_impl::print_status() {
     }
 }
 
+std::string udp_server_endpoint_impl::get_remote_information(
+        const queue_iterator_type _queue_iterator) const {
+    boost::system::error_code ec;
+    return _queue_iterator->first.address().to_string(ec) + ":"
+            + std::to_string(_queue_iterator->first.port());
+}
+
 } // namespace vsomeip

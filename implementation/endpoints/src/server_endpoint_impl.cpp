@@ -58,7 +58,8 @@ bool server_endpoint_impl<Protocol>::is_connected() const {
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
+void server_endpoint_impl<Protocol>::set_connected(bool _connected) {    (void) _connected;}
+template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
         uint32_t _size, bool _flush) {
 #if 0
     std::stringstream msg;
@@ -254,8 +255,39 @@ void server_endpoint_impl<Protocol>::send_cbk(
             send_queued(_queue_iterator);
         }
     } else {
+        message_buffer_ptr_t its_buffer;
+        if (_queue_iterator->second.second.size()) {
+            its_buffer = _queue_iterator->second.second.front();
+        }
+        service_t its_service(0);
+        method_t its_method(0);
+        client_t its_client(0);
+        session_t its_session(0);
+        if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
+            its_service = VSOMEIP_BYTES_TO_WORD(
+                    (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
+                    (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
+            its_method = VSOMEIP_BYTES_TO_WORD(
+                    (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
+                    (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
+            its_client = VSOMEIP_BYTES_TO_WORD(
+                    (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
+                    (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
+            its_session = VSOMEIP_BYTES_TO_WORD(
+                    (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
+                    (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
+        }
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
+        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message()
+                << " (" << std::dec << _error.value() << ") "
+                << get_remote_information(_queue_iterator) << " "
+                << std::dec << _queue_iterator->second.second.size() << " "
+                << std::dec << _queue_iterator->second.first << " ("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
         queues_.erase(_queue_iterator);
     }
 }
