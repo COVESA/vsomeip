@@ -12,6 +12,7 @@
 #include <mutex>
 
 #include <boost/asio/ip/address.hpp>
+#include <vsomeip/primitive_types.hpp>
 
 #include <vsomeip/export.hpp>
 
@@ -21,7 +22,7 @@ class endpoint_definition {
 public:
     VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(
             const boost::asio::ip::address &_address,
-            uint16_t _port, bool _is_reliable);
+            uint16_t _port, bool _is_reliable, service_t _service, instance_t _instance);
 
     VSOMEIP_EXPORT const boost::asio::ip::address &get_address() const;
 
@@ -42,10 +43,12 @@ private:
     bool is_reliable_;
 
     static std::mutex definitions_mutex_;
-    static std::map<boost::asio::ip::address,
-        std::map<uint16_t,
-            std::map<bool,
-                     std::shared_ptr<endpoint_definition> > > > definitions_;
+    static std::map<service_t,
+              std::map<instance_t,
+                  std::map<boost::asio::ip::address,
+                      std::map<uint16_t,
+                          std::map<bool,
+                              std::shared_ptr<endpoint_definition> > > > > > definitions_;
 };
 
 } // namespace vsomeip

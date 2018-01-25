@@ -208,6 +208,18 @@ private:
                     eventgroup_id_(0),
                     handler_type_(handler_type_e::UNKNOWN) { }
 
+        sync_handler(service_t _service_id, instance_t _instance_id,
+                     method_t _method_id, session_t _session_id,
+                     eventgroup_t _eventgroup_id, handler_type_e _handler_type) :
+                    handler_(nullptr),
+                    is_dispatching_(false),
+                    service_id_(_service_id),
+                    instance_id_(_instance_id),
+                    method_id_(_method_id),
+                    session_id_(_session_id),
+                    eventgroup_id_(_eventgroup_id),
+                    handler_type_(_handler_type) { }
+
         std::function<void()> handler_;
         bool is_dispatching_;
         service_t service_id_;

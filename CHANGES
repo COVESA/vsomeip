@@ -1,5 +1,13 @@
 Changes
 =======
+v2.9.3
+- Fixed race condition on application shutdown
+- Fixed bug that application object was not destroyed
+- Enabled client side logging of received messages
+  to DLT if environment variable VSOMEIP_CLIENTSIDELOGGING
+  is set to empty string or another arbitrary value.
+- Ensure that the correct source port is used for sending events
+
 v2.9.2
 - fix handling of received response messages for unknown
   clients.

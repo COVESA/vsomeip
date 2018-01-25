@@ -1360,11 +1360,11 @@ void service_discovery_impl::process_offerservice_serviceentry(
                     std::lock_guard<std::mutex> its_lock(serialize_mutex_);
                     if (_reliable_port != ILLEGAL_PORT) {
                         its_target = endpoint_definition::get(
-                                _reliable_address, port_, reliable_);
+                                _reliable_address, port_, reliable_, _service, _instance);
                         its_session = get_session(_reliable_address);
                     } else if (_unreliable_port != ILLEGAL_PORT) {
                         its_target = endpoint_definition::get(
-                                _unreliable_address, port_, reliable_);
+                                _unreliable_address, port_, reliable_, _service, _instance);
                         its_session = get_session(_unreliable_address);
                     }
 
@@ -2002,11 +2002,11 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             uint16_t its_first_port, its_second_port;
             if (ILLEGAL_PORT != _first_port) {
                 its_first_subscriber = endpoint_definition::get(
-                        _first_address, _first_port, _is_first_reliable);
+                        _first_address, _first_port, _is_first_reliable, _service, _instance);
                 if (!_is_first_reliable &&
                     its_info->get_multicast(its_first_address, its_first_port)) { // udp multicast
                     its_first_target = endpoint_definition::get(
-                        its_first_address, its_first_port, false);
+                        its_first_address, its_first_port, false, _service, _instance);
                 } else if(_is_first_reliable) { // tcp unicast
                     its_first_target = its_first_subscriber;
                     // check if TCP connection is established by client
@@ -2026,11 +2026,11 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             }
             if (ILLEGAL_PORT != _second_port) {
                 its_second_subscriber = endpoint_definition::get(
-                        _second_address, _second_port, _is_second_reliable);
+                        _second_address, _second_port, _is_second_reliable, _service, _instance);
                 if (!_is_second_reliable &&
                     its_info->get_multicast(its_second_address, its_second_port)) { // udp multicast
                     its_second_target = endpoint_definition::get(
-                        its_second_address, its_second_port, false);
+                        its_second_address, its_second_port, false, _service, _instance);
                 } else if (_is_second_reliable) { // tcp unicast
                     its_second_target = its_second_subscriber;
                     // check if TCP connection is established by client
@@ -2215,7 +2215,7 @@ void service_discovery_impl::serialize_and_send(
         VSOMEIP_ERROR << "service_discovery_impl::serialize_and_send: serialization error.";
         return;
     }
-    if (host_->send_to(endpoint_definition::get(_address, port_, reliable_),
+    if (host_->send_to(endpoint_definition::get(_address, port_, reliable_, _message->get_service(), _message->get_instance()),
             serializer_->get_data(), serializer_->get_size(), port_)) {
         increment_session(_address);
     }

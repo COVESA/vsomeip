@@ -231,6 +231,8 @@ private:
     std::mutex request_timer_mutex_;
     boost::asio::steady_timer request_debounce_timer_;
     bool request_debounce_timer_running_;
+
+    bool client_side_logging_;
 };
 
 } // namespace vsomeip

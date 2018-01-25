@@ -2051,10 +2051,10 @@ void routing_manager_impl::add_routing_info(
     // Add endpoint(s) if necessary
     if (_reliable_port != ILLEGAL_PORT && !is_reliable_known) {
         std::shared_ptr<endpoint_definition> endpoint_def_tcp
-            = endpoint_definition::get(_reliable_address, _reliable_port, true);
+            = endpoint_definition::get(_reliable_address, _reliable_port, true, _service, _instance);
         if (_unreliable_port != ILLEGAL_PORT && !is_unreliable_known) {
             std::shared_ptr<endpoint_definition> endpoint_def_udp
-                = endpoint_definition::get(_unreliable_address, _unreliable_port, false);
+                = endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             {
                 std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
                 remote_service_info_[_service][_instance][false] = endpoint_def_udp;
@@ -2142,7 +2142,7 @@ void routing_manager_impl::add_routing_info(
     if (_unreliable_port != ILLEGAL_PORT && !is_unreliable_known) {
         if (!udp_inserted) {
             std::shared_ptr<endpoint_definition> endpoint_def
-                = endpoint_definition::get(_unreliable_address, _unreliable_port, false);
+                = endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             {
                 std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
                 remote_service_info_[_service][_instance][false] = endpoint_def;
@@ -2599,7 +2599,7 @@ void routing_manager_impl::on_subscribe_ack(service_t _service,
             // Save multicast info to be able to delete the endpoint
             // as soon as the instance stops offering its service
             std::shared_ptr<endpoint_definition> endpoint_def =
-                    endpoint_definition::get(_address, _port, false);
+                    endpoint_definition::get(_address, _port, false, _service, _instance);
             multicast_info[_service][_instance] = endpoint_def;
         }
     }

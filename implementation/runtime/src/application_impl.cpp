@@ -1484,12 +1484,6 @@ void application_impl::main_dispatch() {
             }
         }
     }
-    // application was stopped
-    {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        dispatchers_.erase(its_id);
-    }
-    remove_elapsed_dispatchers();
     its_lock.unlock();
 }
 
@@ -1500,6 +1494,9 @@ void application_impl::dispatch() {
         if (is_dispatching_ && handlers_.empty()) {
              dispatcher_condition_.wait(its_lock);
              if (handlers_.empty()) { // Maybe woken up from main dispatcher
+                 if (!is_dispatching_) {
+                     return;
+                 }
                  std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
                  elapsed_dispatchers_.insert(its_id);
                  return;
@@ -1521,7 +1518,7 @@ void application_impl::dispatch() {
         std::lock_guard<std::mutex> its_lock(handlers_mutex_);
         dispatcher_condition_.notify_all();
     }
-    {
+    if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         elapsed_dispatchers_.insert(its_id);
     }
@@ -1530,11 +1527,17 @@ void application_impl::dispatch() {
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     const std::thread::id its_id = std::this_thread::get_id();
 
+    std::shared_ptr<sync_handler> its_sync_handler
+        = std::make_shared<sync_handler>(_handler->service_id_,
+            _handler->instance_id_, _handler->method_id_,
+            _handler->eventgroup_id_, _handler->session_id_,
+            _handler->handler_type_);
+
     boost::asio::steady_timer its_dispatcher_timer(io_);
     its_dispatcher_timer.expires_from_now(std::chrono::milliseconds(max_dispatch_time_));
-    its_dispatcher_timer.async_wait([this, its_id, _handler](const boost::system::error_code &_error) {
+    its_dispatcher_timer.async_wait([this, its_id, its_sync_handler](const boost::system::error_code &_error) {
         if (!_error) {
-            print_blocking_call(_handler);
+            print_blocking_call(its_sync_handler);
             bool active_dispatcher_available(false);
             {
                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
@@ -1549,7 +1552,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
                 // If this is _not_ possible, dispatching is blocked until
                 // at least one of the active handler calls returns.
                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-                if (dispatchers_.size() < max_dispatchers_) {
+                if (dispatchers_.size() < max_dispatchers_  && is_dispatching_) {
                     auto its_dispatcher = std::make_shared<std::thread>(
                         std::bind(&application_impl::dispatch, shared_from_this()));
                     dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
@@ -1565,7 +1568,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
 
     _handler->handler_();
     its_dispatcher_timer.cancel();
-    {
+    if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         blocked_dispatchers_.erase(its_id);
     }
@@ -1582,6 +1585,9 @@ bool application_impl::has_active_dispatcher() {
 }
 
 bool application_impl::is_active_dispatcher(const std::thread::id &_id) {
+    if (!is_dispatching_) {
+        return is_dispatching_;
+    }
     std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
     for (const auto &d : dispatchers_) {
         if (d.first != _id &&
@@ -1594,14 +1600,16 @@ bool application_impl::is_active_dispatcher(const std::thread::id &_id) {
 }
 
 void application_impl::remove_elapsed_dispatchers() {
-    std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-    for (auto id : elapsed_dispatchers_) {
-        auto its_dispatcher = dispatchers_.find(id);
-        if (its_dispatcher->second->joinable())
-            its_dispatcher->second->join();
-        dispatchers_.erase(id);
+    if (is_dispatching_) {
+        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        for (auto id : elapsed_dispatchers_) {
+            auto its_dispatcher = dispatchers_.find(id);
+            if (its_dispatcher->second->joinable())
+                its_dispatcher->second->join();
+            dispatchers_.erase(id);
+        }
+        elapsed_dispatchers_.clear();
     }
-    elapsed_dispatchers_.clear();
 }
 
 void application_impl::clear_all_handler() {
@@ -1647,35 +1655,36 @@ void application_impl::shutdown() {
             stop_cv_.wait(its_lock);
         }
     }
-    std::map<std::thread::id, std::shared_ptr<std::thread>> its_dispatchers;
-    {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        its_dispatchers = dispatchers_;
-    }
     {
         std::lock_guard<std::mutex> its_handler_lock(handlers_mutex_);
         is_dispatching_ = false;
         dispatcher_condition_.notify_all();
     }
-    for (auto its_dispatcher : its_dispatchers) {
-        if (its_dispatcher.second->get_id() != stop_caller_id_) {
-            if (its_dispatcher.second->joinable()) {
-                its_dispatcher.second->join();
+    {
+        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        for (auto its_dispatcher : dispatchers_) {
+            if (its_dispatcher.second->get_id() != stop_caller_id_) {
+                if (its_dispatcher.second->joinable()) {
+                    its_dispatcher.second->join();
+                }
+            } else {
+                // If the caller of stop() is one of our dispatchers
+                // it can happen the shutdown mechanism will block
+                // as that thread probably can't be joined. The reason
+                // is the caller of stop() probably wants to join the
+                // thread once call start (which got to the IO-Thread)
+                // and which is expected to return after stop() has been
+                // called.
+                // Therefore detach this thread instead of joining because
+                // after it will return to "main_dispatch" it will be
+                // properly shutdown anyways because "is_dispatching_"
+                // was set to "false" here.
+                its_dispatcher.second->detach();
             }
-        } else {
-            // If the caller of stop() is one of our dispatchers
-            // it can happen the shutdown mechanism will block
-            // as that thread probably can't be joined. The reason
-            // is the caller of stop() probably wants to join the
-            // thread once call start (which got to the IO-Thread)
-            // and which is expected to return after stop() has been
-            // called.
-            // Therefore detach this thread instead of joining because
-            // after it will return to "main_dispatch" it will be
-            // properly shutdown anyways because "is_dispatching_"
-            // was set to "false" here.
-            its_dispatcher.second->detach();
         }
+        blocked_dispatchers_.clear();
+        elapsed_dispatchers_.clear();
+        dispatchers_.clear();
     }
 
     if (routing_)

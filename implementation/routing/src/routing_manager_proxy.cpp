@@ -45,7 +45,8 @@ routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host) :
         register_application_timer_(io_),
         logger_(logger::get()),
         request_debounce_timer_ (io_),
-        request_debounce_timer_running_(false)
+        request_debounce_timer_running_(false),
+        client_side_logging_(false)
 {
 }
 
@@ -54,7 +55,11 @@ routing_manager_proxy::~routing_manager_proxy() {
 
 void routing_manager_proxy::init() {
     routing_manager_base::init();
-
+    const char *client_side_logging = getenv(VSOMEIP_ENV_CLIENTSIDELOGGING);
+    if (client_side_logging != nullptr) {
+        client_side_logging_ = true;
+        VSOMEIP_INFO << "Client side logging is enabled";
+    }
     {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         sender_ = create_local(VSOMEIP_ROUTING_CLIENT);
@@ -877,6 +882,15 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                         return;
                     }
                 }
+#ifdef USE_DLT
+                if (client_side_logging_) {
+                    tc::trace_header its_header;
+                    if (its_header.prepare(nullptr, false, its_instance))
+                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
+                                &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+                                static_cast<std::uint16_t>(its_message_size));
+                }
+#endif
                 host_->on_message(std::move(its_message));
             } else {
                 VSOMEIP_ERROR << "Routing proxy: on_message: "

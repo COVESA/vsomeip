@@ -231,6 +231,11 @@ On startup the following environment variables are read out:
    applications, all other configuration files are only read by the application that is 
    responsible for connections to external devices. If this configuration variable is not set,
    the default mandatory files vsomeip_std.json, vsomeip_app.json and vsomeip_plc.json are used.
+* `VSOMEIP_CLIENTSIDELOGGING`: Set this variable to an empty string or an arbitrary
+   value to enable logging of received messages to DLT in all applications
+   acting as routing manager proxies. For example add the following line to the
+   application's systemd service file:  
+   `Environment=VSOMEIP_CLIENTSIDELOGGING=""`
 
 NOTE: If the file/folder that is configured by `VSOMEIP_CONFIGURATION` does _not_ exist,
 the default configuration locations will be used.
