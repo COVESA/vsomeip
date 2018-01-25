@@ -1455,17 +1455,18 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
+    const std::thread::id its_id = std::this_thread::get_id();
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_dispatching_) {
-        if (handlers_.empty()) {
+        if (handlers_.empty() || !is_active_dispatcher(its_id)) {
             // Cancel other waiting dispatcher
             dispatcher_condition_.notify_all();
             // Wait for new handlers to execute
-            while (handlers_.empty() && is_dispatching_) {
+            while (is_dispatching_ && (handlers_.empty() || !is_active_dispatcher(its_id))) {
                 dispatcher_condition_.wait(its_lock);
             }
         } else {
-            while (is_dispatching_ && !handlers_.empty()) {
+            while (is_dispatching_ && !handlers_.empty() && is_active_dispatcher(its_id)) {
                 std::shared_ptr<sync_handler> its_handler = handlers_.front();
                 handlers_.pop_front();
                 its_lock.unlock();
@@ -1483,6 +1484,12 @@ void application_impl::main_dispatch() {
             }
         }
     }
+    // application was stopped
+    {
+        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        dispatchers_.erase(its_id);
+    }
+    remove_elapsed_dispatchers();
     its_lock.unlock();
 }
 
@@ -1509,6 +1516,10 @@ void application_impl::dispatch() {
                 remove_elapsed_dispatchers();
             }
         }
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        dispatcher_condition_.notify_all();
     }
     {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);

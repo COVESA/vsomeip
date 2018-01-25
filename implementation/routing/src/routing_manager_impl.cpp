@@ -2130,6 +2130,31 @@ void routing_manager_impl::add_routing_info(
                 std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
                 remote_service_info_[_service][_instance][false] = endpoint_def;
             }
+            // check if service was requested and increase requester count if necessary
+            {
+                std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+                for (const auto &client_id : requested_services_) {
+                    const auto found_service = client_id.second.find(_service);
+                    if (found_service != client_id.second.end()) {
+                        const auto found_instance = found_service->second.find(
+                                _instance);
+                        if (found_instance != found_service->second.end()) {
+                            for (const auto &major_minor_pair : found_instance->second) {
+                                if ((major_minor_pair.first == _major
+                                        || _major == DEFAULT_MAJOR
+                                        || major_minor_pair.first == ANY_MAJOR)
+                                        && (major_minor_pair.second <= _minor
+                                                || _minor == DEFAULT_MINOR
+                                                || major_minor_pair.second
+                                                        == ANY_MINOR)) {
+                                    its_info->add_client(client_id.first);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         if (!is_reliable_known) {
             on_availability(_service, _instance, true, _major, _minor);

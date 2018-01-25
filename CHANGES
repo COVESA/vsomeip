@@ -1,6 +1,13 @@
 Changes
 =======
 
+v2.9.1
+- Don't ignore service requests for UDP-only remote services done
+  before corresponding OfferService message was received.
+- Ensure that main dispatcher thread waits until newly started
+  dispatcher threads are finished with their call into the user code
+  before starting to dispatch again after a blocking call occurred.
+
 v2.9.0
 - Added get_offered_services_async method to application interface to
   read the currently offered services
@@ -12,6 +19,9 @@ v2.9.0
   are now done always with both endpoint options.
 - Incoming subscriptions are now not acknowledged if not all events of
   the eventgroup can be served with the given endpoint options.
+
+v2.8.1
+- Support negative filter in trace connector
 
 v2.8.0
 - Change behaviour of register_subscription_status_handler method of

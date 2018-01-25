@@ -116,7 +116,7 @@ public:
 
         // Send the response back
         app_->send(resp, true);
-        // we're finished stop now
+        // we have finished
         terminate();
     }
 

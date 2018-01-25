@@ -216,8 +216,6 @@ private:
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscripitons_;
     std::mutex incoming_subscripitons_mutex_;
 
-    std::mutex deserialize_mutex_;
-
     std::mutex state_mutex_;
     std::condition_variable state_condition_;
 
