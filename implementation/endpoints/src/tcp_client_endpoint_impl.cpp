@@ -332,7 +332,6 @@ void tcp_client_endpoint_impl::receive_cbk(
                     missing_capacity_ = 0;
                 } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED &&
                         current_message_size > max_message_size_) {
-                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
                     recv_buffer_size_ = 0;
                     recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                     recv_buffer_.shrink_to_fit();
@@ -368,7 +367,6 @@ void tcp_client_endpoint_impl::receive_cbk(
                         has_full_message = true; // trigger next loop
                     }
                 } else {
-                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
                     VSOMEIP_ERROR << "tce::c<" << this
                             << ">rcb: recv_buffer_size is: " << std::dec
                             << recv_buffer_size_ << " but couldn't read "
