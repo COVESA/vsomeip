@@ -1001,10 +1001,8 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 }
 
 void routing_manager_base::put_deserializer(std::shared_ptr<deserializer> _deserializer) {
-    {
-        std::lock_guard<std::mutex> its_lock(deserializer_mutex_);
-        deserializers_.push(_deserializer);
-    }
+    std::lock_guard<std::mutex> its_lock(deserializer_mutex_);
+    deserializers_.push(_deserializer);
     deserializer_condition_.notify_one();
 }
 

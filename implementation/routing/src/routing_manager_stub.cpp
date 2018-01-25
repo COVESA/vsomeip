@@ -1287,6 +1287,8 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
                 sizeof(_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_event,
                 sizeof(_event));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                &DEFAULT_SUBSCRIPTION, sizeof(DEFAULT_SUBSCRIPTION));
 
         its_endpoint->send(&its_command[0], sizeof(its_command), true);
     }
@@ -1317,6 +1319,8 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
                 sizeof(_client));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_event,
                 sizeof(_event));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
+                &DEFAULT_SUBSCRIPTION, sizeof(DEFAULT_SUBSCRIPTION));
 
         its_endpoint->send(&its_command[0], sizeof(its_command), true);
     }
@@ -1420,6 +1424,8 @@ void routing_manager_stub::check_watchdog() {
 }
 
 void routing_manager_stub::create_local_receiver() {
+    std::lock_guard<std::mutex> its_lock(local_receiver_mutex_);
+
     if (local_receiver_) {
         return;
     }
@@ -1791,9 +1797,9 @@ void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code 
         }
     }
     for (auto client : erroneous_clients) {
-        VSOMEIP_WARNING << "Expected client 0x" << std::hex
-                << client << " hasn't reconnected to the routing manager. "
-                << "Release identifier as client went offline while no"
+        VSOMEIP_WARNING << "Releasing client identifier "
+                << std::hex << std::setw(4) << std::setfill('0') << client << ". "
+                << "Its corresponding application went offline while no "
                 << "routing manager was running.";
         host_->handle_client_error(client);
     }

@@ -30,7 +30,8 @@ public:
                              endpoint_type _local,
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size,
-                             std::uint32_t _buffer_shrink_threshold);
+                             std::uint32_t _buffer_shrink_threshold,
+                             std::chrono::milliseconds _send_timeout);
     virtual ~tcp_server_endpoint_impl();
 
     void start();
@@ -64,7 +65,8 @@ private:
                           std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold,
                           bool _magic_cookies_enabled,
-                          boost::asio::io_service & _io_service);
+                          boost::asio::io_service & _io_service,
+                          std::chrono::milliseconds _send_timeout);
         socket_type & get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
@@ -84,7 +86,8 @@ private:
                    std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _buffer_shrink_threshold,
                    bool _magic_cookies_enabled,
-                   boost::asio::io_service & _io_service);
+                   boost::asio::io_service & _io_service,
+                   std::chrono::milliseconds _send_timeout);
         void send_magic_cookie(message_buffer_ptr_t &_buffer);
         bool is_magic_cookie(size_t _offset) const;
         void receive_cbk(boost::system::error_code const &_error,
@@ -92,7 +95,12 @@ private:
         void calculate_shrink_count();
         const std::string get_address_port_local() const;
         void handle_recv_buffer_exception(const std::exception &_e);
-
+        std::size_t write_completion_condition(
+                const boost::system::error_code& _error,
+                std::size_t _bytes_transferred, std::size_t _bytes_to_send,
+                service_t _service, method_t _method, client_t _client, session_t _session,
+                std::chrono::steady_clock::time_point _start);
+        void stop_and_remove_connection();
 
         std::mutex socket_mutex_;
         tcp_server_endpoint_impl::socket_type socket_;
@@ -112,6 +120,8 @@ private:
         std::uint16_t remote_port_;
         std::atomic<bool> magic_cookies_enabled_;
         std::chrono::steady_clock::time_point last_cookie_sent_;
+        const std::chrono::milliseconds send_timeout_;
+        const std::chrono::milliseconds send_timeout_warning_;
     };
 
     std::mutex acceptor_mutex_;
@@ -121,6 +131,7 @@ private:
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
     const std::uint16_t local_port_;
+    const std::chrono::milliseconds send_timeout_;
 
 private:
     void remove_connection(connection *_connection);

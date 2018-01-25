@@ -29,7 +29,8 @@ class logger;
 
 class routing_manager_proxy: public routing_manager_base {
 public:
-    routing_manager_proxy(routing_manager_host *_host, bool _client_side_logging);
+    routing_manager_proxy(routing_manager_host *_host, bool _client_side_logging,
+        const std::set<std::tuple<service_t, instance_t> > & _client_side_logging_filter);
     virtual ~routing_manager_proxy();
 
     void init();
@@ -217,13 +218,14 @@ private:
     std::set<event_data_t> pending_event_registrations_;
 
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscripitons_;
-    std::mutex incoming_subscripitons_mutex_;
+    std::mutex incoming_subscriptions_mutex_;
 
     std::mutex state_mutex_;
     std::condition_variable state_condition_;
 
     std::map<service_t,
                 std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
+    std::mutex remote_subscriber_count_mutex_;
 
     mutable std::mutex sender_mutex_;
 
@@ -236,6 +238,7 @@ private:
     bool request_debounce_timer_running_;
 
     const bool client_side_logging_;
+    const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 };
 
 } // namespace vsomeip

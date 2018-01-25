@@ -1,6 +1,15 @@
 Changes
 =======
 
+v2.10.4
+- Extended diagnosis plugin to handle requests for
+  "disableRxAndEnableTx" and "disableRxAndTx".
+- Catch unhandled user code exceptions thrown from called handlers.
+- Don't send SubscribeEventGroupNACK for pending subscriptions on next
+  offer to reduce the amount of StopSubscribe/Subscribe messages.
+- Added possibility to apply filter for client side logging
+  using VSOMEIP_CLIENTSIDELOGGING environment variable.
+
 v2.10.3
 - Interpret all incoming TTLs five times longer in service discovery
   to prevent inadvertent expiration of remote offers during high load

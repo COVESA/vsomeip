@@ -368,8 +368,8 @@ private:
     std::map<std::thread::id, std::shared_ptr<std::thread>> dispatchers_;
     // Dispatcher threads that elapsed and can be removed
     std::set<std::thread::id> elapsed_dispatchers_;
-    // Dispatcher threads that blocked
-    std::set<std::thread::id> blocked_dispatchers_;
+    // Dispatcher threads that are running
+    std::set<std::thread::id> running_dispatchers_;
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
     std::mutex dispatcher_mutex_;
     // Condition to wakeup the dispatcher thread
@@ -418,6 +418,7 @@ private:
     std::chrono::seconds watchdog_interval_;
 
     bool client_side_logging_;
+    std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 };
 
 } // namespace vsomeip

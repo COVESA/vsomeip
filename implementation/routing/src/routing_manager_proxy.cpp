@@ -36,7 +36,8 @@
 namespace vsomeip {
 
 routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host,
-                                             bool _client_side_logging) :
+            bool _client_side_logging,
+            const std::set<std::tuple<service_t, instance_t> > & _client_side_logging_filter) :
         routing_manager_base(_host),
         is_connected_(false),
         is_started_(false),
@@ -47,7 +48,8 @@ routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host,
         logger_(logger::get()),
         request_debounce_timer_ (io_),
         request_debounce_timer_running_(false),
-        client_side_logging_(_client_side_logging)
+        client_side_logging_(_client_side_logging),
+        client_side_logging_filter_(_client_side_logging_filter)
 {
 }
 
@@ -625,24 +627,28 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
             service_t its_service = VSOMEIP_BYTES_TO_WORD(
                     _data[VSOMEIP_SERVICE_POS_MIN],
                     _data[VSOMEIP_SERVICE_POS_MAX]);
-            method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
-            session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SESSION_POS_MIN],
-                    _data[VSOMEIP_SESSION_POS_MAX]);
-            client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_CLIENT_POS_MIN],
-                    _data[VSOMEIP_CLIENT_POS_MAX]);
-            VSOMEIP_INFO << "routing_manager_proxy::send: ("
-                << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << ":"
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << ":"
-                << std::hex << std::setw(4) << std::setfill('0') << its_client << "] "
-                << "type=" << std::hex << static_cast<std::uint32_t>(_data[VSOMEIP_MESSAGE_TYPE_POS])
-                << " thread=" << std::hex << std::this_thread::get_id();
+            if (client_side_logging_filter_.empty()
+                || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, ANY_INSTANCE)))
+                || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, _instance)))) {
+                method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_METHOD_POS_MIN],
+                        _data[VSOMEIP_METHOD_POS_MAX]);
+                session_t its_session = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_SESSION_POS_MIN],
+                        _data[VSOMEIP_SESSION_POS_MAX]);
+                client_t its_client = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_CLIENT_POS_MIN],
+                        _data[VSOMEIP_CLIENT_POS_MAX]);
+                VSOMEIP_INFO << "routing_manager_proxy::send: ("
+                    << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_method << ":"
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session << ":"
+                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "] "
+                    << "type=" << std::hex << static_cast<std::uint32_t>(_data[VSOMEIP_MESSAGE_TYPE_POS])
+                    << " thread=" << std::hex << std::this_thread::get_id();
+            }
         } else {
             VSOMEIP_ERROR << "routing_manager_proxy::send: ("
                 << std::hex << std::setw(4) << std::setfill('0') << client_
@@ -924,7 +930,10 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     }
                 }
 #ifdef USE_DLT
-                if (client_side_logging_) {
+                if (client_side_logging_
+                    && (client_side_logging_filter_.empty()
+                        || (1 == client_side_logging_filter_.count(std::make_tuple(its_message->get_service(), ANY_INSTANCE)))
+                        || (1 == client_side_logging_filter_.count(std::make_tuple(its_message->get_service(), its_message->get_instance()))))) {
                     tc::trace_header its_header;
                     if (its_header.prepare(nullptr, false, its_instance))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -974,7 +983,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
                     sizeof(its_subscription_id));
             {
-                std::unique_lock<std::mutex> its_lock(incoming_subscripitons_mutex_);
+                std::unique_lock<std::mutex> its_lock(incoming_subscriptions_mutex_);
                 if (its_subscription_id != DEFAULT_SUBSCRIPTION) {
                     its_lock.unlock();
                     // Remote subscriber: Notify routing manager initially + count subscribes
@@ -1216,10 +1225,9 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                         send_registered_ack();
                         send_pending_commands();
                         state_ = inner_state_type_e::ST_REGISTERED;
+                        // Notify stop() call about clean deregistration
+                        state_condition_.notify_one();
                     }
-
-                    // Notify stop() call about clean deregistration
-                    state_condition_.notify_one();
                 }
             } else if (routing_info_entry == routing_info_entry_e::RIE_DEL_CLIENT) {
                 {
@@ -1236,10 +1244,9 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     {
                         std::lock_guard<std::mutex> its_lock(state_mutex_);
                         state_ = inner_state_type_e::ST_DEREGISTERED;
+                        // Notify stop() call about clean deregistration
+                        state_condition_.notify_one();
                     }
-
-                    // Notify stop() call about clean deregistration
-                    state_condition_.notify_one();
                 } else if (its_client != VSOMEIP_ROUTING_CLIENT) {
                     remove_local(its_client);
                 }
@@ -1327,7 +1334,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
             major_version_t major_;
             event_t event_;
         };
-        std::lock_guard<std::mutex> its_lock(incoming_subscripitons_mutex_);
+        std::lock_guard<std::mutex> its_lock(incoming_subscriptions_mutex_);
         std::forward_list<struct subscription_info> subscription_actions;
         if (pending_incoming_subscripitons_.size()) {
             {
@@ -1429,10 +1436,10 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
     {
         std::lock_guard<std::mutex> its_lock(state_mutex_);
         state_ = inner_state_type_e::ST_DEREGISTERED;
+        // Notify stop() call about clean deregistration
+        state_condition_.notify_one();
     }
 
-    // Notify stop() call about clean deregistration
-    state_condition_.notify_one();
 
     // Remove all local connections/endpoints
     for (const auto its_client : _clients) {
@@ -1830,6 +1837,7 @@ void routing_manager_proxy::notify_remote_initially(service_t _service, instance
 
 uint32_t routing_manager_proxy::get_remote_subscriber_count(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, bool _increment) {
+    std::lock_guard<std::mutex> its_lock(remote_subscriber_count_mutex_);
     uint32_t count (0);
     bool found(false);
     auto found_service = remote_subscriber_count_.find(_service);

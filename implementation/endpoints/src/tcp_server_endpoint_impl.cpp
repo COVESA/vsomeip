@@ -14,6 +14,7 @@
 #include "../include/tcp_server_endpoint_impl.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../utility/include/byteorder.hpp"
 #include "../../configuration/include/internal.hpp"
 
 namespace ip = boost::asio::ip;
@@ -23,11 +24,13 @@ namespace vsomeip {
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(
         std::shared_ptr<endpoint_host> _host, endpoint_type _local,
         boost::asio::io_service &_io, std::uint32_t _max_message_size,
-        std::uint32_t _buffer_shrink_threshold)
+        std::uint32_t _buffer_shrink_threshold,
+        std::chrono::milliseconds _send_timeout)
     : tcp_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
         acceptor_(_io),
         buffer_shrink_threshold_(_buffer_shrink_threshold),
-        local_port_(_local.port()) {
+        local_port_(_local.port()),
+        send_timeout_(_send_timeout) {
     is_supporting_magic_cookies_ = true;
 
     boost::system::error_code ec;
@@ -55,7 +58,7 @@ void tcp_server_endpoint_impl::start() {
                 std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
                         shared_from_this()), max_message_size_,
                         buffer_shrink_threshold_, has_enabled_magic_cookies_,
-                        service_);
+                        service_, send_timeout_);
 
         {
             std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
@@ -203,7 +206,8 @@ tcp_server_endpoint_impl::connection::connection(
         std::uint32_t _initial_recv_buffer_size,
         std::uint32_t _buffer_shrink_threshold,
         bool _magic_cookies_enabled,
-        boost::asio::io_service &_io_service) :
+        boost::asio::io_service &_io_service,
+        std::chrono::milliseconds _send_timeout) :
         socket_(_io_service),
         server_(_server),
         max_message_size_(_max_message_size),
@@ -215,7 +219,9 @@ tcp_server_endpoint_impl::connection::connection(
         buffer_shrink_threshold_(_buffer_shrink_threshold),
         remote_port_(0),
         magic_cookies_enabled_(_magic_cookies_enabled),
-        last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)) {
+        last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
+        send_timeout_(_send_timeout),
+        send_timeout_warning_(_send_timeout / 2) {
 }
 
 tcp_server_endpoint_impl::connection::ptr
@@ -224,14 +230,15 @@ tcp_server_endpoint_impl::connection::create(
         std::uint32_t _max_message_size,
         std::uint32_t _buffer_shrink_threshold,
         bool _magic_cookies_enabled,
-        boost::asio::io_service & _io_service) {
+        boost::asio::io_service & _io_service,
+        std::chrono::milliseconds _send_timeout) {
     const std::uint32_t its_initial_receveive_buffer_size =
             VSOMEIP_SOMEIP_HEADER_SIZE + 8 + MAGIC_COOKIE_SIZE + 8
                     + VSOMEIP_MAX_TCP_MESSAGE_SIZE;
     return ptr(new connection(_server, _max_message_size,
                     its_initial_receveive_buffer_size,
                     _buffer_shrink_threshold, _magic_cookies_enabled,
-                    _io_service));
+                    _io_service, _send_timeout));
 }
 
 tcp_server_endpoint_impl::socket_type &
@@ -304,6 +311,18 @@ void tcp_server_endpoint_impl::connection::send_queued(
         return;
     }
     message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
+    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+            (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
+            (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
+    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+            (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
+            (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
+    const client_t its_client = VSOMEIP_BYTES_TO_WORD(
+            (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
+            (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
+    const session_t its_session = VSOMEIP_BYTES_TO_WORD(
+            (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
+            (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
     if (magic_cookies_enabled_) {
         const std::chrono::steady_clock::time_point now =
                 std::chrono::steady_clock::now();
@@ -317,6 +336,13 @@ void tcp_server_endpoint_impl::connection::send_queued(
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(socket_, boost::asio::buffer(*its_buffer),
+                 std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition,
+                           shared_from_this(),
+                           std::placeholders::_1,
+                           std::placeholders::_2,
+                           its_buffer->size(),
+                           its_service, its_method, its_client, its_session,
+                           std::chrono::steady_clock::now()),
                 std::bind(&tcp_server_endpoint_base_impl::send_cbk,
                           its_server,
                           _queue_iterator,
@@ -628,6 +654,70 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
 std::size_t
 tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
     return recv_buffer_.capacity();
+}
+
+std::size_t
+tcp_server_endpoint_impl::connection::write_completion_condition(
+        const boost::system::error_code& _error,
+        std::size_t _bytes_transferred, std::size_t _bytes_to_send,
+        service_t _service, method_t _method, client_t _client, session_t _session,
+        std::chrono::steady_clock::time_point _start) {
+    if (_error) {
+        VSOMEIP_ERROR << "tse::write_completion_condition: "
+                << _error.message() << "(" << std::dec << _error.value()
+                << ") bytes transferred: " << std::dec << _bytes_transferred
+                << " bytes to sent: " << std::dec << _bytes_to_send << " "
+                << "remote:" << get_address_port_remote() << " ("
+                << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+        stop_and_remove_connection();
+        return 0;
+    }
+
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    std::chrono::milliseconds passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _start);
+    if (passed > send_timeout_warning_) {
+        if (passed > send_timeout_) {
+            VSOMEIP_ERROR << "tse::write_completion_condition: "
+                    << _error.message() << "(" << std::dec << _error.value()
+                    << ") took longer than " << std::dec << send_timeout_.count()
+                    << "ms bytes transferred: " << std::dec << _bytes_transferred
+                    << " bytes to sent: " << std::dec << _bytes_to_send
+                    << " remote:" << get_address_port_remote() << " ("
+                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _method << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+        } else {
+            VSOMEIP_WARNING << "tse::write_completion_condition: "
+                    << _error.message() << "(" << std::dec << _error.value()
+                    << ") took longer than " << std::dec << send_timeout_warning_.count()
+                    << "ms bytes transferred: " << std::dec << _bytes_transferred
+                    << " bytes to sent: " << std::dec << _bytes_to_send
+                    << " remote:" << get_address_port_remote() << " ("
+                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _method << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+        }
+    }
+    return _bytes_to_send - _bytes_transferred;
+}
+
+void tcp_server_endpoint_impl::connection::stop_and_remove_connection() {
+    std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
+    if (!its_server) {
+        VSOMEIP_ERROR << "tse::connection::stop_and_remove_connection "
+                " couldn't lock server_";
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+        stop();
+    }
+    its_server->remove_connection(this);
 }
 
 // Dummies

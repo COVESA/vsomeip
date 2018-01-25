@@ -154,6 +154,7 @@ private:
     std::string local_receiver_path_;
     std::shared_ptr<endpoint> endpoint_;
     std::shared_ptr<endpoint> local_receiver_;
+    std::mutex local_receiver_mutex_;
 
     std::map<client_t,
             std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>> > > > routing_info_;

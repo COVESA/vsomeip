@@ -231,11 +231,14 @@ On startup the following environment variables are read out:
    applications, all other configuration files are only read by the application that is 
    responsible for connections to external devices. If this configuration variable is not set,
    the default mandatory files vsomeip_std.json, vsomeip_app.json and vsomeip_plc.json are used.
-* `VSOMEIP_CLIENTSIDELOGGING`: Set this variable to an empty string or an arbitrary
-   value to enable logging of received messages to DLT in all applications
-   acting as routing manager proxies. For example add the following line to the
-   application's systemd service file:  
+* `VSOMEIP_CLIENTSIDELOGGING`: Set this variable to an empty string to enable logging of
+   any received messages to DLT in all applications acting as routing manager proxies. For
+   example add the following line to the  application's systemd service file:
    `Environment=VSOMEIP_CLIENTSIDELOGGING=""`
+   To enable service-specific logs, provide a space- or colon-separated list of ServiceIDs (using
+   4-digit hexadecimal notation, optionally followed by dot-separted InstanceID). For example:
+   `Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001 f013.000a 1001 1002"`
+   `Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001:f013.000a:1001:1002"`
 
 NOTE: If the file/folder that is configured by `VSOMEIP_CONFIGURATION` does _not_ exist,
 the default configuration locations will be used.
@@ -907,8 +910,36 @@ Specifies a service for the _offers_.
 +
 Specifies a instance for the _offers_
 
-In the config/ folder are some vSomeIP configuration files to run the vSomeIP examples with activated security checks.
+In the `config/` folder are some vSomeIP configuration files to run the vSomeIP
+examples with activated security checks.
+Additionally there's a security test in the `test/` subfolder which can be used
+for further reference. +
 They give a basic overview how to use the security related configuration tags described in this chapter to run a simple request/response or subscribe/notify example locally or over remote.
+
+Audit Mode
+~~~~~~~~~~
+vSomeIP's security implementation can be put in a so called 'Audit Mode' where
+all security violations will be logged but allowed. This mode can be used to
+build a security configuration.
+
+To activate the 'Audit Mode' the 'security' object has to be included in the
+json file but the 'check_credentials' switch has to be set to false. For
+example:
+
+[source, json]
+----
+    [...]
+    "services" :
+    [
+        [...]
+    ],
+    "security" :
+    {
+        "check_credentials" : "false"
+    },
+    "routing" : "service-sample",
+    [...]
+----
 
 Autoconfiguration
 -----------------

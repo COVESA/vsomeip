@@ -25,7 +25,8 @@ public:
                              endpoint_type _remote,
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size,
-                             std::uint32_t buffer_shrink_threshold);
+                             std::uint32_t buffer_shrink_threshold,
+                             std::chrono::milliseconds _send_timeout);
     virtual ~tcp_client_endpoint_impl();
 
     void start();
@@ -52,6 +53,11 @@ private:
     const std::string get_address_port_local() const;
     void handle_recv_buffer_exception(const std::exception &_e);
     void set_local_port();
+    std::size_t write_completion_condition(
+            const boost::system::error_code& _error,
+            std::size_t _bytes_transferred, std::size_t _bytes_to_send,
+            service_t _service, method_t _method, client_t _client, session_t _session,
+            std::chrono::steady_clock::time_point _start);
 
 
     const std::uint32_t recv_buffer_size_initial_;
@@ -64,6 +70,8 @@ private:
     const boost::asio::ip::address remote_address_;
     const std::uint16_t remote_port_;
     std::chrono::steady_clock::time_point last_cookie_sent_;
+    const std::chrono::milliseconds send_timeout_;
+    const std::chrono::milliseconds send_timeout_warning_;
 };
 
 } // namespace vsomeip

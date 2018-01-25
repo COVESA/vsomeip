@@ -310,10 +310,134 @@ protected:
     std::thread shutdown_thread_;
 };
 
+class someip_application_exception_test: public ::testing::Test {
+
+protected:
+    void SetUp() {
+        is_registered_ = false;
+        is_available_ = false;
+
+        app_ = runtime::get()->create_application("application_test");
+        if (!app_->init()) {
+            ADD_FAILURE() << "Couldn't initialize application";
+            return;
+        }
+
+        app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN,
+                std::bind(&someip_application_exception_test::on_message_shutdown, this,
+                        std::placeholders::_1));
+        app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN+1,
+                std::bind(&someip_application_exception_test::on_message_exception, this,
+                        std::placeholders::_1));
+
+        app_->register_state_handler(
+                std::bind(&someip_application_exception_test::on_state, this,
+                        std::placeholders::_1));
+        app_->register_availability_handler(
+                vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                std::bind(&someip_application_exception_test::on_availability,
+                        this, std::placeholders::_1, std::placeholders::_2,
+                        std::placeholders::_3));
+
+        shutdown_thread_ = std::thread(&someip_application_exception_test::send_shutdown_message, this);
+
+        app_->start();
+    }
+
+    void TearDown() {
+        shutdown_thread_.join();
+        app_->stop();
+    }
+
+    void on_state(vsomeip::state_type_e _state) {
+        if(_state == vsomeip::state_type_e::ST_REGISTERED)
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            is_registered_ = true;
+            cv_.notify_one();
+        }
+    }
+
+    void on_availability(vsomeip::service_t _service,
+                         vsomeip::instance_t _instance, bool _is_available) {
+        (void)_service;
+        (void)_instance;
+        if(_is_available) {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            is_available_ = _is_available;
+            cv_.notify_one();
+        }
+    }
+
+    void on_message_shutdown(const std::shared_ptr<message>& _request)
+    {
+        (void)_request;
+        VSOMEIP_INFO << "Shutdown method was called, going down now.";
+        app_->clear_all_handler();
+        app_->stop();
+    }
+
+    void on_message_exception(const std::shared_ptr<message>& _request)
+    {
+        (void)_request;
+        throw std::invalid_argument("something went terribly wrong");
+    }
+
+    void send_shutdown_message() {
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while(!is_registered_) {
+                cv_.wait(its_lock);
+            }
+            app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                    vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+            app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+                    vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+            while(!is_available_) {
+                cv_.wait(its_lock);
+            }
+        }
+
+        std::shared_ptr<message> r = runtime::get()->create_request();
+        // call method which throws exception
+        r->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
+        r->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+        r->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN+1);
+        app_->send(r);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+
+        //shutdown test
+        r->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
+        r->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+        r->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
+        app_->send(r);
+    }
+
+    bool is_registered_;
+    bool is_available_;
+    std::shared_ptr<application> app_;
+    std::condition_variable cv_;
+    std::mutex mutex_;
+    std::thread shutdown_thread_;
+};
+
 /**
  * @test Stop the application through a method invoked from a dispatcher thread
  */
 TEST_F(someip_application_shutdown_test, stop_application_from_dispatcher_thread) {
+
+}
+
+/**
+ * @test Catch unhandled exceptions from invoked handlers
+ */
+TEST_F(someip_application_exception_test, catch_exception_in_invoked_handler) {
 
 }
 

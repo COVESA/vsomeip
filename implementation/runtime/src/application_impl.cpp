@@ -108,6 +108,48 @@ bool application_impl::init() {
         client_side_logging_ = true;
         VSOMEIP_INFO << "Client side logging for application: " << name_
                 << " is enabled";
+
+        if ('\0' != *client_side_logging) {
+            std::stringstream its_converter(client_side_logging);
+            if ('"' == its_converter.peek()) {
+                its_converter.get(); // skip quote
+            }
+            uint16_t val(0xffffu);
+            bool stop_parsing(false);
+            do {
+                const uint16_t prev_val(val);
+                its_converter >> std::hex >> std::setw(4) >> val;
+                if (its_converter.good()) {
+                    const std::stringstream::int_type c = its_converter.eof()?'\0':its_converter.get();
+                    switch (c) {
+                    case '"':
+                    case '.':
+                    case ':':
+                    case ' ':
+                    case '\0': {
+                            if ('.' != c) {
+                                if (0xffffu == prev_val) {
+                                    VSOMEIP_INFO << "+filter "
+                                    << std::hex << std::setw(4) << std::setfill('0') << val;
+                                    client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
+                                } else {
+                                    VSOMEIP_INFO << "+filter "
+                                    << std::hex << std::setw(4) << std::setfill('0') << prev_val << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << val;
+                                    client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
+                                }
+                                val = 0xffffu;
+                            }
+                        }
+                        break;
+                    default:
+                        stop_parsing = true;
+                        break;
+                    }
+                }
+            }
+            while (!stop_parsing && its_converter.good());
+        }
     }
 
     std::shared_ptr<configuration> its_configuration = get_configuration();
@@ -157,7 +199,7 @@ bool application_impl::init() {
             routing_ = std::make_shared<routing_manager_impl>(this);
         } else {
             VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
-            routing_ = std::make_shared<routing_manager_proxy>(this, client_side_logging_);
+            routing_ = std::make_shared<routing_manager_proxy>(this, client_side_logging_, client_side_logging_filter_);
         }
 
         routing_->init();
@@ -273,8 +315,8 @@ void application_impl::start() {
             {
                 std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
                 block_stopping_ = true;
+                block_stop_cv_.notify_all();
             }
-            block_stop_cv_.notify_all();
 
             stopped_ = false;
             return;
@@ -357,8 +399,8 @@ void application_impl::start() {
     {
         std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
         block_stopping_ = true;
+        block_stop_cv_.notify_all();
     }
-    block_stop_cv_.notify_all();
 
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
@@ -414,7 +456,10 @@ void application_impl::stop() {
 
     }
 
-    stop_cv_.notify_one();
+    {
+        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        stop_cv_.notify_one();
+    }
 
     if (block) {
         std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
@@ -697,7 +742,10 @@ bool application_impl::are_available_unlocked(available_t &_available,
 void application_impl::send(std::shared_ptr<message> _message, bool _flush) {
     std::lock_guard<std::mutex> its_lock(session_mutex_);
     bool is_request = utility::is_request(_message);
-    if (client_side_logging_) {
+    if (client_side_logging_
+        && (client_side_logging_filter_.empty()
+            || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), ANY_INSTANCE)))
+            || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
         VSOMEIP_INFO << "application_impl::send: ("
             << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
             << std::hex << std::setw(4) << std::setfill('0') << _message->get_service() << "."
@@ -1029,24 +1077,26 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
             }
         }
     }
-    for (auto &handler : handlers) {
+    {
         std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([handler, _service,
-                                              _instance, _eventgroup,
-                                              _event, _error]() {
-                            handler(_service, _instance,
-                                    _eventgroup, _event, _error);
-                                             });
-        its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
-        its_sync_handler->service_id_ = _service;
-        its_sync_handler->instance_id_ = _instance;
-        its_sync_handler->method_id_ = _event;
-        its_sync_handler->eventgroup_id_ = _eventgroup;
-        handlers_.push_back(its_sync_handler);
-    }
-    if (handlers.size()) {
-        dispatcher_condition_.notify_all();
+        for (auto &handler : handlers) {
+            std::shared_ptr<sync_handler> its_sync_handler
+                = std::make_shared<sync_handler>([handler, _service,
+                                                  _instance, _eventgroup,
+                                                  _event, _error]() {
+                                handler(_service, _instance,
+                                        _eventgroup, _event, _error);
+                                                 });
+            its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
+            its_sync_handler->service_id_ = _service;
+            its_sync_handler->instance_id_ = _instance;
+            its_sync_handler->method_id_ = _event;
+            its_sync_handler->eventgroup_id_ = _eventgroup;
+            handlers_.push_back(its_sync_handler);
+        }
+        if (handlers.size()) {
+            dispatcher_condition_.notify_one();
+        }
     }
 }
 
@@ -1069,18 +1119,16 @@ void application_impl::on_subscription_error(service_t _service,
         }
     }
     if (handler) {
-        {
-            std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler, _error]() {
-                                                    handler(_error);
-                                                 });
-            its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
-            its_sync_handler->service_id_ = _service;
-            its_sync_handler->instance_id_ = _instance;
-            its_sync_handler->eventgroup_id_ = _eventgroup;
-            handlers_.push_back(its_sync_handler);
-        }
+        std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
+        std::shared_ptr<sync_handler> its_sync_handler
+            = std::make_shared<sync_handler>([handler, _error]() {
+                                                handler(_error);
+                                             });
+        its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
+        its_sync_handler->service_id_ = _service;
+        its_sync_handler->instance_id_ = _instance;
+        its_sync_handler->eventgroup_id_ = _eventgroup;
+        handlers_.push_back(its_sync_handler);
         dispatcher_condition_.notify_all();
     }
 }
@@ -1257,15 +1305,13 @@ void application_impl::on_state(state_type_e _state) {
         }
     }
     if (has_state_handler) {
-        {
-            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler, _state]() {
-                                                    handler(_state);
-                                                 });
-            its_sync_handler->handler_type_ = handler_type_e::STATE;
-            handlers_.push_back(its_sync_handler);
-        }
+        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        std::shared_ptr<sync_handler> its_sync_handler
+            = std::make_shared<sync_handler>([handler, _state]() {
+                                                handler(_state);
+                                             });
+        its_sync_handler->handler_type_ = handler_type_e::STATE;
+        handlers_.push_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -1391,6 +1437,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 
     if (its_handlers.size()) {
+        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
         dispatcher_condition_.notify_one();
     }
 }
@@ -1466,21 +1513,19 @@ void application_impl::on_message(const std::shared_ptr<message> &&_message) {
         }
 
         if (its_handlers.size()) {
-            {
-                std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-                for (const auto &its_handler : its_handlers) {
-                    auto handler = its_handler.handler_;
-                    std::shared_ptr<sync_handler> its_sync_handler =
-                            std::make_shared<sync_handler>([handler, _message]() {
-                                handler(std::move(_message));
-                            });
-                    its_sync_handler->handler_type_ = handler_type_e::MESSAGE;
-                    its_sync_handler->service_id_ = _message->get_service();
-                    its_sync_handler->instance_id_ = _message->get_instance();
-                    its_sync_handler->method_id_ = _message->get_method();
-                    its_sync_handler->session_id_ = _message->get_session();
-                    handlers_.push_back(its_sync_handler);
-                }
+            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+            for (const auto &its_handler : its_handlers) {
+                auto handler = its_handler.handler_;
+                std::shared_ptr<sync_handler> its_sync_handler =
+                        std::make_shared<sync_handler>([handler, _message]() {
+                            handler(std::move(_message));
+                        });
+                its_sync_handler->handler_type_ = handler_type_e::MESSAGE;
+                its_sync_handler->service_id_ = _message->get_service();
+                its_sync_handler->instance_id_ = _message->get_instance();
+                its_sync_handler->method_id_ = _message->get_method();
+                its_sync_handler->session_id_ = _message->get_session();
+                handlers_.push_back(its_sync_handler);
             }
             dispatcher_condition_.notify_one();
         }
@@ -1588,7 +1633,6 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             bool active_dispatcher_available(false);
             if (is_dispatching_) {
                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-                blocked_dispatchers_.insert(its_id);
                 active_dispatcher_available = has_active_dispatcher();
             }
             if (active_dispatcher_available) {
@@ -1612,7 +1656,10 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             }
         }
     });
-    if (client_side_logging_) {
+    if (client_side_logging_
+        && (client_side_logging_filter_.empty()
+            || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, ANY_INSTANCE)))
+            || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->instance_id_))))) {
         VSOMEIP_INFO << "Invoking handler: ("
             << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
             << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->service_id_ << "."
@@ -1622,17 +1669,28 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
             << " thread=" << std::hex << its_id;
     }
-    _handler->handler_();
-    its_dispatcher_timer.cancel();
+    {
+        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        running_dispatchers_.insert(its_id);
+    }
+    try {
+        _handler->handler_();
+    } catch (const std::exception &e) {
+        VSOMEIP_ERROR << "application_impl::invoke_handler caught exception: "
+                << e.what();
+        print_blocking_call(its_sync_handler);
+    }
+    boost::system::error_code ec;
+    its_dispatcher_timer.cancel(ec);
     if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        blocked_dispatchers_.erase(its_id);
+        running_dispatchers_.erase(its_id);
     }
 }
 
 bool application_impl::has_active_dispatcher() {
     for (const auto &d : dispatchers_) {
-        if (blocked_dispatchers_.find(d.first) == blocked_dispatchers_.end() &&
+        if (running_dispatchers_.find(d.first) == running_dispatchers_.end() &&
             elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
             return true;
         }
@@ -1647,7 +1705,7 @@ bool application_impl::is_active_dispatcher(const std::thread::id &_id) {
     std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
     for (const auto &d : dispatchers_) {
         if (d.first != _id &&
-            blocked_dispatchers_.find(d.first) == blocked_dispatchers_.end() &&
+            running_dispatchers_.find(d.first) == running_dispatchers_.end() &&
             elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
             return false;
         }
@@ -1741,7 +1799,7 @@ void application_impl::shutdown() {
                 its_dispatcher.second->detach();
             }
         }
-        blocked_dispatchers_.clear();
+        running_dispatchers_.clear();
         elapsed_dispatchers_.clear();
         dispatchers_.clear();
     }
@@ -2064,15 +2122,13 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
         }
     }
     if (has_offered_services_handler) {
-        {
-            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler, _services]() {
-                                                    handler(_services);
-                                                 });
-            its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
-            handlers_.push_back(its_sync_handler);
-        }
+        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        std::shared_ptr<sync_handler> its_sync_handler
+            = std::make_shared<sync_handler>([handler, _services]() {
+                                                handler(_services);
+                                             });
+        its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
+        handlers_.push_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -2097,9 +2153,8 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
                 = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
             handlers_.push_back(its_sync_handler);
+            dispatcher_condition_.notify_one();
         }
-        dispatcher_condition_.notify_one();
-
     }
 }
 

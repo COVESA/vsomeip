@@ -351,10 +351,6 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
         }
     }
 
-    for (auto its_service : services_) {
-        VSOMEIP_INFO << "service: " << its_service.first;
-    }
-
     return is_logging_loaded_ && has_routing && has_applications;
 }
 

@@ -1085,7 +1085,6 @@ bool service_discovery_impl::send(bool _is_announcing) {
         std::shared_ptr < message_impl > its_message;
 
         if(_is_announcing) {
-            remote_subscription_not_acknowledge_all();
             its_message = its_runtime->create_message();
             its_messages.push_back(its_message);
 

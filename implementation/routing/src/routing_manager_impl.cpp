@@ -1726,7 +1726,8 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
                     io_,
                     configuration_->get_max_message_size_reliable(
                             _address.to_string(), _remote_port),
-                    configuration_->get_buffer_shrink_threshold());
+                    configuration_->get_buffer_shrink_threshold(),
+                    std::chrono::milliseconds(configuration_->get_sd_ttl() * 666));
 
             if (configuration_->has_enabled_magic_cookies(_address.to_string(),
                     _remote_port)) {
@@ -1763,7 +1764,8 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
                         boost::asio::ip::tcp::endpoint(its_unicast, _port), io_,
                         configuration_->get_max_message_size_reliable(
                                 its_unicast.to_string(), _port),
-                        configuration_->get_buffer_shrink_threshold());
+                        configuration_->get_buffer_shrink_threshold(),
+                        std::chrono::milliseconds(configuration_->get_sd_ttl() * 666));
                 if (configuration_->has_enabled_magic_cookies(
                         its_unicast.to_string(), _port) ||
                         configuration_->has_enabled_magic_cookies(
