@@ -93,6 +93,11 @@ public:
             instance_t _instance, bool _reliable) = 0;
 
     virtual std::chrono::steady_clock::time_point expire_subscriptions() = 0;
+
+    virtual std::shared_ptr<serviceinfo> get_offered_service(
+            service_t _service, instance_t _instance) const = 0;
+    virtual std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(
+            service_t _service) const = 0;
 };
 
 }  // namespace sd

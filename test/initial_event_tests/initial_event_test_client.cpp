@@ -93,7 +93,7 @@ public:
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
-                other_services_received_notification_[std::make_pair(i.service_id, i.method_id+j)] = 0;
+                other_services_received_notification_[std::make_pair(i.service_id, i.method_id + j)] = 0;
             }
             if (!subscribe_on_available_) {
                 if (events_to_subscribe_ == 1 ) {
@@ -306,6 +306,8 @@ public:
             ADD_FAILURE() << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << client_number_ << "] "
                 << " Received too much initial events twice: " << received_twice;
+        } else if (received_normal == (events_to_subscribe_ * (service_infos_.size() - 1))) {
+            return true;
         }
         return false;
     }

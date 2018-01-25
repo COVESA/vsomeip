@@ -1145,6 +1145,30 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
@@ -1166,6 +1190,30 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
@@ -1413,6 +1461,30 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
     )
 
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
+    )
+
     # copy starter scripts into builddir
     set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
@@ -1581,6 +1653,31 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_SERVICE}
     )
 
+    # Copy config files for test into $BUILDDIR/test
+    set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
@@ -1602,6 +1699,30 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${TEST_INITIAL_EVENT_SERVICE}
     )
 
@@ -1810,6 +1931,45 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# offered services info tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_OFFERED_SERVICES_INFO_NAME offered_services_info_test)
+    set(TEST_OFFERED_SERVICES_INFO_SERVICE ${TEST_OFFERED_SERVICES_INFO_NAME}_service)
+    add_executable(${TEST_OFFERED_SERVICES_INFO_SERVICE} offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_NAME}_service.cpp)
+    target_link_libraries(${TEST_OFFERED_SERVICES_INFO_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_OFFERED_SERVICES_INFO_CLIENT ${TEST_OFFERED_SERVICES_INFO_NAME}_client)
+    add_executable(${TEST_OFFERED_SERVICES_INFO_CLIENT} offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_NAME}_client.cpp)
+    target_link_libraries(${TEST_OFFERED_SERVICES_INFO_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER ${TEST_OFFERED_SERVICES_INFO_NAME}_local_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
+        ${TEST_OFFERED_SERVICES_INFO_SERVICE}
+    )
+
+    # Copy config file for local test into $BUILDDIR/test
+    set(TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE ${TEST_OFFERED_SERVICES_INFO_NAME}_local.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
+        ${TEST_OFFERED_SERVICES_INFO_SERVICE}
+    )
+endif()
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -1846,6 +2006,8 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_OFFER_CLIENT} gtest)
     add_dependencies(${TEST_OFFER_SERVICE_EXTERNAL} gtest)
     add_dependencies(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER} gtest)
+    add_dependencies(${TEST_OFFERED_SERVICES_INFO_CLIENT} gtest)
+    add_dependencies(${TEST_OFFERED_SERVICES_INFO_SERVICE} gtest)
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -1890,6 +2052,8 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_CLIENT})
+    add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_CLIENT})
+    add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -2025,7 +2189,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
@@ -2037,7 +2201,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp
@@ -2045,11 +2209,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp
@@ -2057,7 +2221,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
@@ -2086,11 +2250,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp
@@ -2098,7 +2262,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     # cpu load tests
@@ -2113,11 +2277,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_udp
@@ -2125,7 +2289,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp
@@ -2133,7 +2297,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
@@ -2145,7 +2309,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
@@ -2161,11 +2325,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_udp
@@ -2173,7 +2337,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp
@@ -2181,11 +2345,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_udp
@@ -2193,7 +2357,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp
@@ -2209,11 +2373,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_udp
@@ -2221,7 +2385,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp
@@ -2229,11 +2393,11 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_udp
@@ -2241,7 +2405,7 @@ if(NOT ${TESTS_BAT})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp
@@ -2259,6 +2423,11 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_NAME}_external
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
+    
+    # offered services info tets
+    add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER})
+    set_tests_properties(${TEST_OFFERED_SERVICES_INFO_NAME}_local PROPERTIES TIMEOUT 180)  
     
     # Restart-Routing tests
     add_test(NAME ${TEST_RESTART_ROUTING_NAME}

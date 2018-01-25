@@ -123,6 +123,8 @@ public:
     virtual void register_client_error_handler(client_t _client,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
+    virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
+
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<serviceinfo> create_service_info(service_t _service,
@@ -253,6 +255,9 @@ protected:
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;
+
+    services_t services_remote_;
+    std::mutex services_remote_mutex_;
 
 private:
     services_t services_;

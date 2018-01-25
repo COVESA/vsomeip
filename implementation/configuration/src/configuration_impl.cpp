@@ -2065,6 +2065,24 @@ std::shared_ptr<client> configuration_impl::find_client(service_t _service,
     return its_client;
 }
 
+bool configuration_impl::is_event_reliable(service_t _service,
+        instance_t _instance, event_t _event) const {
+    bool is_reliable(false);
+    auto its_service = find_service(_service, _instance);
+    if (its_service) {
+        auto its_event = its_service->events_.find(_event);
+        if (its_event != its_service->events_.end()) {
+            return its_event->second->is_reliable_;
+        } else {
+            if (its_service->reliable_ != ILLEGAL_PORT &&
+                    its_service->unreliable_ == ILLEGAL_PORT) {
+                is_reliable = true;
+            }
+        }
+    }
+    return is_reliable;
+}
+
 std::shared_ptr<service> configuration_impl::find_service(service_t _service,
         instance_t _instance) const {
     std::shared_ptr<service> its_service;

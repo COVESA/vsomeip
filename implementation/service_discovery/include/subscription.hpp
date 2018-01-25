@@ -38,6 +38,9 @@ public:
     bool is_tcp_connection_established() const;
     void set_tcp_connection_established(bool _is_established);
 
+    bool is_udp_connection_established() const;
+    void set_udp_connection_established(bool _is_established);
+
     subscription_type_e get_subscription_type() const;
 
     uint8_t get_counter() const;
@@ -51,6 +54,7 @@ private:
 
     bool is_acknowledged_;
     bool tcp_connection_established_;
+    bool udp_connection_established_;
 
     subscription_type_e subscription_type_;
 

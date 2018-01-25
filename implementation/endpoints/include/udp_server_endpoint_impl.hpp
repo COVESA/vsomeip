@@ -12,6 +12,7 @@
 #include <vsomeip/defines.hpp>
 
 #include "server_endpoint_impl.hpp"
+#include <atomic>
 
 namespace vsomeip {
 
@@ -57,6 +58,7 @@ public:
 private:
     void set_broadcast();
     bool is_joined(const std::string &_address) const;
+    bool is_joined(const std::string &_address, bool* _received) const;
 
 private:
     socket_type socket_;
@@ -65,7 +67,8 @@ private:
     mutable std::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
     mutable std::mutex joined_mutex_;
-    std::set<std::string> joined_;
+    std::map<std::string, bool> joined_;
+    std::atomic<bool> joined_group_;
 
     message_buffer_t recv_buffer_;
     std::mutex socket_mutex_;

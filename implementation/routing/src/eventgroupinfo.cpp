@@ -9,16 +9,19 @@
 
 
 #include "../include/eventgroupinfo.hpp"
+#include "../include/event.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 
 namespace vsomeip {
 
 eventgroupinfo::eventgroupinfo()
-        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL), port_(ILLEGAL_PORT), threshold_(0) {
+        : major_(DEFAULT_MAJOR), ttl_(DEFAULT_TTL), port_(ILLEGAL_PORT), threshold_(0),
+          has_reliable_(false), has_unreliable_(false) {
 }
 
 eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl)
-        : major_(_major), ttl_(_ttl), port_(ILLEGAL_PORT), threshold_(0) {
+        : major_(_major), ttl_(_ttl), port_(ILLEGAL_PORT), threshold_(0),
+          has_reliable_(false), has_unreliable_(false) {
 }
 
 eventgroupinfo::~eventgroupinfo() {
@@ -77,11 +80,17 @@ const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
 void eventgroupinfo::add_event(std::shared_ptr<event> _event) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.insert(_event);
+    _event->is_reliable() ? has_reliable_ = true : has_unreliable_ = true;
 }
 
 void eventgroupinfo::remove_event(std::shared_ptr<event> _event) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.erase(_event);
+}
+
+void eventgroupinfo::get_reliability(bool& _has_reliable, bool& _has_unreliable) const {
+    _has_reliable = has_reliable_;
+    _has_unreliable = has_unreliable_;
 }
 
 const std::list<eventgroupinfo::target_t> eventgroupinfo::get_targets() const {

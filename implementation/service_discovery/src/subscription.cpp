@@ -17,6 +17,7 @@ subscription::subscription(major_version_t _major, ttl_t _ttl,
           reliable_(_reliable), unreliable_(_unreliable),
           is_acknowledged_(true),
           tcp_connection_established_(false),
+          udp_connection_established_(false),
           subscription_type_(_subscription_type),
           counter_(_counter) {
 }
@@ -61,6 +62,13 @@ bool subscription::is_tcp_connection_established() const {
 }
 void subscription::set_tcp_connection_established(bool _is_established) {
     tcp_connection_established_ = _is_established;
+}
+
+bool subscription::is_udp_connection_established() const {
+    return udp_connection_established_;
+}
+void subscription::set_udp_connection_established(bool _is_established) {
+    udp_connection_established_ = _is_established;
 }
 
 subscription_type_e subscription::get_subscription_type() const {

@@ -23,6 +23,10 @@ typedef std::function< void (const uint16_t) > error_handler_t;
 typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
                              const event_t, const uint16_t) > subscription_status_handler_t;
 
+typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
+typedef std::function< void () > watchdog_handler_t;
+
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_HANDLER_HPP

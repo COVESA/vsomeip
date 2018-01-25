@@ -262,21 +262,44 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                 }
             }
 
-            if (its_subscription->get_endpoint(true)
-                    && its_subscription->get_endpoint(true)->is_connected()) {
-                insert_subscription(its_message,
-                        _service, _instance,
-                        _eventgroup,
-                        its_subscription, true, true);
-            } else {
-                // don't insert reliable endpoint option if the
-                // TCP client endpoint is not yet connected
-                insert_subscription(its_message,
-                        _service, _instance,
-                        _eventgroup,
-                        its_subscription, false, true);
-                its_subscription->set_tcp_connection_established(false);
+            if (its_subscription->get_endpoint(true) &&
+                    its_subscription->get_endpoint(false)) {
+                if (its_subscription->get_endpoint(true)->is_connected() &&
+                        its_subscription->get_endpoint(false)->is_connected()) {
+                    insert_subscription(its_message,
+                            _service, _instance,
+                            _eventgroup,
+                            its_subscription, true, true);
+                } else {
+                    if (!its_subscription->get_endpoint(true)->is_connected()) {
+                        its_subscription->set_tcp_connection_established(false);
+                    }
+                    if (!its_subscription->get_endpoint(false)->is_connected()) {
+                        its_subscription->set_udp_connection_established(false);
+                    }
+                }
+            } else if (its_subscription->get_endpoint(true) &&
+                    !its_subscription->get_endpoint(false)) {
+                if (its_subscription->get_endpoint(true)->is_connected()) {
+                    insert_subscription(its_message,
+                            _service, _instance,
+                            _eventgroup,
+                            its_subscription, true, false);
+                } else {
+                    its_subscription->set_tcp_connection_established(false);
+                }
+            } else if (!its_subscription->get_endpoint(true) &&
+                    its_subscription->get_endpoint(false)) {
+                if (its_subscription->get_endpoint(false)->is_connected()) {
+                    insert_subscription(its_message,
+                            _service, _instance,
+                            _eventgroup,
+                            its_subscription, false, true);
+                } else {
+                    its_subscription->set_udp_connection_established(false);
+                }
             }
+
             if(0 < its_message->get_entries().size()) {
                 its_subscription->set_acknowledged(false);
             }
@@ -886,7 +909,7 @@ void service_discovery_impl::insert_subscription(
     }
     if (_insert_unreliable) {
         its_endpoint = _subscription->get_endpoint(false);
-        if (its_endpoint && its_endpoint->get_local_port()) {
+        if (its_endpoint) {
             const std::uint16_t its_port = its_endpoint->get_local_port();
             if (its_port) {
                 insert_option(_message, its_entry, unicast_, its_port, false);
@@ -1357,22 +1380,21 @@ void service_discovery_impl::process_offerservice_serviceentry(
 void service_discovery_impl::process_findservice_serviceentry(
         service_t _service, instance_t _instance, major_version_t _major,
         minor_version_t _minor, bool _unicast_flag) {
-    services_t offered_services = host_->get_offered_services();
-    auto found_service = offered_services.find(_service);
-    if (found_service != offered_services.end()) {
-        if (_instance != ANY_INSTANCE) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                std::shared_ptr<serviceinfo> its_info = found_instance->second;
-                send_uni_or_multicast_offerservice(_service, _instance, _major, _minor, its_info,
-                        _unicast_flag);
-            }
-        } else {
-            // send back all available instances
-            for (const auto &found_instance : found_service->second) {
-                send_uni_or_multicast_offerservice(_service, _instance, _major, _minor,
-                        found_instance.second, _unicast_flag);
-            }
+
+    if (_instance != ANY_INSTANCE) {
+        std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(
+                _service, _instance);
+        if (its_info) {
+            send_uni_or_multicast_offerservice(_service, _instance, _major,
+                    _minor, its_info, _unicast_flag);
+        }
+    } else {
+        std::map<instance_t, std::shared_ptr<serviceinfo>> offered_instances =
+                host_->get_offered_service_instances(_service);
+        // send back all available instances
+        for (const auto &found_instance : offered_instances) {
+            send_uni_or_multicast_offerservice(_service, _instance, _major,
+                    _minor, found_instance.second, _unicast_flag);
         }
     }
 }
@@ -1436,7 +1458,7 @@ void service_discovery_impl::send_multicast_offer_service(
     }
 }
 
-void service_discovery_impl::on_reliable_endpoint_connected(
+void service_discovery_impl::on_endpoint_connected(
         service_t _service, instance_t _instance,
         const std::shared_ptr<const vsomeip::endpoint> &_endpoint) {
     std::shared_ptr<runtime> its_runtime = runtime_.lock();
@@ -1467,16 +1489,39 @@ void service_discovery_impl::on_reliable_endpoint_connected(
                                             _instance, true)) {
                                     continue;
                                 }
+                                if (its_client.second->get_endpoint(false) &&
+                                        !host_->has_identified(its_client.first, _service,
+                                            _instance, false)) {
+                                    continue;
+                                }
                             }
                             std::shared_ptr<subscription> its_subscription(its_client.second);
-                            if(its_subscription && !its_subscription->is_tcp_connection_established()) {
-                                const std::shared_ptr<const endpoint> its_endpoint(
-                                        its_subscription->get_endpoint(true));
-                                if(its_endpoint && its_endpoint->is_connected()) {
-                                    if(its_endpoint.get() == _endpoint.get()) {
-                                        // mark as established
-                                        its_subscription->set_tcp_connection_established(true);
-
+                            if (its_subscription) {
+                                if (!its_subscription->is_tcp_connection_established() ||
+                                        !its_subscription->is_udp_connection_established()) {
+                                    const std::shared_ptr<const endpoint> its_reliable_endpoint(
+                                            its_subscription->get_endpoint(true));
+                                    const std::shared_ptr<const endpoint> its_unreliable_endpoint(
+                                            its_subscription->get_endpoint(false));
+                                    if(its_reliable_endpoint && its_reliable_endpoint->is_connected()) {
+                                        if(its_reliable_endpoint.get() == _endpoint.get()) {
+                                            // mark tcp as established
+                                            its_subscription->set_tcp_connection_established(true);
+                                        }
+                                    }
+                                    if(its_unreliable_endpoint && its_unreliable_endpoint->is_connected()) {
+                                        if(its_reliable_endpoint.get() == _endpoint.get()) {
+                                            // mark udp as established
+                                            its_subscription->set_udp_connection_established(true);
+                                        }
+                                    }
+                                    if ((its_reliable_endpoint && its_unreliable_endpoint &&
+                                            its_subscription->is_tcp_connection_established() &&
+                                            its_subscription->is_udp_connection_established()) ||
+                                            (its_reliable_endpoint && !its_unreliable_endpoint &&
+                                                    its_subscription->is_tcp_connection_established()) ||
+                                                    (its_unreliable_endpoint && !its_reliable_endpoint &&
+                                                            its_subscription->is_udp_connection_established())) {
                                         std::shared_ptr<endpoint> its_unreliable;
                                         std::shared_ptr<endpoint> its_reliable;
                                         get_subscription_endpoints(
@@ -1486,11 +1531,9 @@ void service_discovery_impl::on_reliable_endpoint_connected(
                                                 its_client.first);
                                         its_subscription->set_endpoint(its_reliable, true);
                                         its_subscription->set_endpoint(its_unreliable, false);
-                                        // only insert reliable subscriptions as unreliable
-                                        // ones are immediately sent out
                                         insert_subscription(its_message, _service,
                                                 _instance, its_eventgroup.first,
-                                                its_subscription, true, false);
+                                                its_subscription, true, true);
                                         its_subscription->set_acknowledged(false);
                                     }
                                 }
@@ -1881,6 +1924,41 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
         std::vector <accepted_subscriber_t> &accepted_subscribers) {
 
     if (its_message) {
+        bool has_reliable_events(false);
+        bool has_unreliable_events(false);
+        auto its_eventgroup = host_->find_eventgroup(_service, _instance, _eventgroup);
+        if (its_eventgroup) {
+            its_eventgroup->get_reliability(has_reliable_events, has_unreliable_events);
+        }
+
+        bool reliablility_nack(false);
+        if (has_reliable_events && !has_unreliable_events) {
+            if (!(_first_port != ILLEGAL_PORT && _is_first_reliable) &&
+                    !(_second_port != ILLEGAL_PORT && _is_second_reliable)) {
+                reliablility_nack = true;
+            }
+        } else if (!has_reliable_events && has_unreliable_events) {
+            if (!(_first_port != ILLEGAL_PORT && !_is_first_reliable) &&
+                    !(_second_port != ILLEGAL_PORT && !_is_second_reliable)) {
+                reliablility_nack = true;
+            }
+        } else if (has_reliable_events && has_unreliable_events) {
+            if (_first_port == ILLEGAL_PORT || _second_port == ILLEGAL_PORT) {
+                reliablility_nack = true;
+            }
+            if (_is_first_reliable == _is_second_reliable) {
+                reliablility_nack = true;
+            }
+        }
+        if (reliablility_nack && _ttl > 0) {
+            insert_subscription_nack(its_message, _service, _instance,
+                _eventgroup, _counter, _major, _reserved);
+            VSOMEIP_WARNING << "Subscription for service/instance "
+                    << std::hex << _service << "/" << _instance
+                    << " not valid: Event configuration does not match the provided endpoint options";
+            return;
+        }
+
         std::shared_ptr < eventgroupinfo > its_info = host_->find_eventgroup(
                 _service, _instance, _eventgroup);
 
@@ -2104,25 +2182,15 @@ bool service_discovery_impl::is_tcp_connected(service_t _service,
          instance_t _instance,
          std::shared_ptr<vsomeip::endpoint_definition> its_endpoint) {
     bool is_connected = false;
-    services_t offered_services = host_->get_offered_services();
-    auto found_service = offered_services.find(_service);
-    if (found_service != offered_services.end()) {
-        if (_instance != ANY_INSTANCE) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                std::shared_ptr<serviceinfo> its_info = found_instance->second;
-                if(its_info) {
-                    //get reliable server endpoint
-                    auto its_reliable_server_endpoint =
-                            std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
-                                    its_info->get_endpoint(true));
-                    if (its_reliable_server_endpoint
-                            && its_reliable_server_endpoint->is_established(
-                                    its_endpoint)) {
-                        is_connected = true;
-                    }
-                }
-            }
+    std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service,
+            _instance);
+    if (its_info) {
+        //get reliable server endpoint
+        auto its_reliable_server_endpoint = std::dynamic_pointer_cast<
+                tcp_server_endpoint_impl>(its_info->get_endpoint(true));
+        if (its_reliable_server_endpoint
+                && its_reliable_server_endpoint->is_established(its_endpoint)) {
+            is_connected = true;
         }
     }
     return is_connected;
@@ -2231,9 +2299,17 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                         if (_reliable) {
                             endpoint = its_reliable;
                             found_client->second->set_endpoint(its_reliable, true);
+                            if (its_unreliable &&
+                                    !host_->has_identified(found_client->first, _service, _instance, false)) {
+                                return;
+                            }
                         } else {
                             endpoint = its_unreliable;
                             found_client->second->set_endpoint(its_unreliable, false);
+                            if (its_reliable &&
+                                    !host_->has_identified(found_client->first, _service, _instance, true)) {
+                                return;
+                            }
                         }
                         if (endpoint) {
                             if (!has_address) {
@@ -2247,21 +2323,41 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                             std::shared_ptr<message_impl> its_message
                                 = its_runtime->create_message();
 
-                            if(_reliable) {
-                                if(endpoint->is_connected()) {
+                            if (its_reliable && its_unreliable) {
+                                if (its_reliable->is_connected() && its_unreliable->is_connected()) {
                                     insert_subscription(its_message, _service,
                                             _instance, found_eventgroup.first,
-                                            found_client->second, _reliable, !_reliable);
+                                            found_client->second, true, true);
                                     found_client->second->set_tcp_connection_established(true);
+                                    found_client->second->set_udp_connection_established(true);
                                 } else {
-                                    // don't insert reliable endpoint option if the
-                                    // TCP client endpoint is not yet connected
                                     found_client->second->set_tcp_connection_established(false);
+                                    found_client->second->set_udp_connection_established(false);
                                 }
                             } else {
-                                insert_subscription(its_message, _service,
-                                        _instance, found_eventgroup.first,
-                                        found_client->second, _reliable, !_reliable);
+                                if(_reliable) {
+                                    if(endpoint->is_connected()) {
+                                        insert_subscription(its_message, _service,
+                                                _instance, found_eventgroup.first,
+                                                found_client->second, _reliable, !_reliable);
+                                        found_client->second->set_tcp_connection_established(true);
+                                    } else {
+                                        // don't insert reliable endpoint option if the
+                                        // TCP client endpoint is not yet connected
+                                        found_client->second->set_tcp_connection_established(false);
+                                    }
+                                } else {
+                                    if (endpoint->is_connected()) {
+                                        insert_subscription(its_message, _service,
+                                                _instance, found_eventgroup.first,
+                                                found_client->second, _reliable, !_reliable);
+                                        found_client->second->set_udp_connection_established(true);
+                                    } else {
+                                        // don't insert reliable endpoint option if the
+                                        // UDP client endpoint is not yet connected
+                                        found_client->second->set_udp_connection_established(false);
+                                    }
+                                }
                             }
                             if (its_message->get_entries().size()
                                     && its_message->get_options().size()) {

@@ -1079,6 +1079,16 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 
             break;
 
+        case VSOMEIP_OFFERED_SERVICES_RESPONSE:
+            if (!configuration_->is_security_enabled() ||_bound_client == routing_host_id) {
+                on_offered_services_info(&_data[VSOMEIP_COMMAND_PAYLOAD_POS], its_length);
+            } else {
+                VSOMEIP_WARNING << std::hex << "Security: Client 0x" << get_client()
+                        << " received an offered services info from a client which isn't the routing manager"
+                        << " : Skip message!";
+            }
+            break;
+
         default:
             break;
         }
@@ -1285,6 +1295,57 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
             }
         }
     }
+}
+
+void routing_manager_proxy::on_offered_services_info(const byte_t *_data,
+        uint32_t _size) {
+#if 0
+    std::stringstream msg;
+    msg << "rmp::on_offered_services_info(" << std::hex << client_ << "): ";
+    for (uint32_t i = 0; i < _size; ++i)
+        msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    VSOMEIP_INFO << msg.str();
+#endif
+
+    std::vector<std::pair<service_t, instance_t>> its_offered_services_info;
+
+    uint32_t i = 0;
+    while (i + sizeof(uint32_t) + sizeof(routing_info_entry_e) <= _size) {
+        routing_info_entry_e routing_info_entry;
+        std::memcpy(&routing_info_entry, &_data[i], sizeof(routing_info_entry_e));
+        i += uint32_t(sizeof(routing_info_entry_e));
+
+        uint32_t its_service_entry_size;
+        std::memcpy(&its_service_entry_size, &_data[i], sizeof(uint32_t));
+        i += uint32_t(sizeof(uint32_t));
+
+        if (its_service_entry_size + i > _size) {
+            VSOMEIP_WARNING << "Client 0x" << std::hex << get_client() << " : "
+                    << "Processing of offered services info failed due to bad length fields!";
+            return;
+        }
+
+        if (its_service_entry_size >= sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)) {
+            service_t its_service;
+            std::memcpy(&its_service, &_data[i], sizeof(service_t));
+            i += uint32_t(sizeof(service_t));
+
+            instance_t its_instance;
+            std::memcpy(&its_instance, &_data[i], sizeof(instance_t));
+            i += uint32_t(sizeof(instance_t));
+
+            major_version_t its_major;
+            std::memcpy(&its_major, &_data[i], sizeof(major_version_t));
+            i += uint32_t(sizeof(major_version_t));
+
+            minor_version_t its_minor;
+            std::memcpy(&its_minor, &_data[i], sizeof(minor_version_t));
+            i += uint32_t(sizeof(minor_version_t));
+
+            its_offered_services_info.push_back(std::make_pair(its_service, its_instance));
+        }
+    }
+    host_->on_offered_services_info(its_offered_services_info);
 }
 
 void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clients) {
@@ -1837,5 +1898,27 @@ void routing_manager_proxy::handle_client_error(client_t _client) {
         }
     }
 }
+
+void routing_manager_proxy::send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
+    (void)_client;
+
+    byte_t its_command[VSOMEIP_OFFERED_SERVICES_COMMAND_SIZE];
+    uint32_t its_size = VSOMEIP_OFFERED_SERVICES_COMMAND_SIZE
+            - VSOMEIP_COMMAND_HEADER_SIZE;
+
+    its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_OFFERED_SERVICES_REQUEST;
+    std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
+            sizeof(_client));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+            sizeof(its_size));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_offer_type,
+                sizeof(_offer_type));
+
+    std::lock_guard<std::mutex> its_lock(sender_mutex_);
+    if (sender_) {
+        sender_->send(its_command, sizeof(its_command));
+    }
+}
+
 
 }  // namespace vsomeip

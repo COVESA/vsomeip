@@ -39,6 +39,7 @@ public:
     virtual void on_subscription_status(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event, uint16_t _error) = 0;
     virtual void send(std::shared_ptr<message> _message, bool _flush) = 0;
+    virtual void on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services) = 0;
 };
 
 } // namespace vsomeip

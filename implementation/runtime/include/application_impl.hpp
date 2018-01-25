@@ -174,6 +174,13 @@ public:
     VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
             subscription_status_handler_t _handler, bool _is_selective);
+
+    VSOMEIP_EXPORT void get_offered_services_async(offer_type_e _offer_type, offered_services_handler_t _handler);
+
+    VSOMEIP_EXPORT void on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services);
+
+    VSOMEIP_EXPORT void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval);
+
 private:
     //
     // Types
@@ -184,6 +191,8 @@ private:
         AVAILABILITY,
         STATE,
         SUBSCRIPTION,
+        OFFERED_SERVICES_INFO,
+        WATCHDOG,
         UNKNOWN
     };
 
@@ -268,6 +277,9 @@ private:
             eventgroup_t _eventgroup, event_t _event);
 
     void print_blocking_call(std::shared_ptr<sync_handler> _handler);
+
+    void watchdog_cbk(boost::system::error_code const &_error);
+
     //
     // Attributes
     //
@@ -295,6 +307,10 @@ private:
     // vsomeip state handler
     std::mutex state_handler_mutex_;
     state_handler_t handler_;
+
+    // vsomeip offered services handler
+    std::mutex offered_services_handler_mutex_;
+    offered_services_handler_t offered_services_handler_;
 
     // Method/Event (=Member) handlers
     std::map<service_t,
@@ -379,6 +395,10 @@ private:
     std::map<std::tuple<service_t, instance_t, eventgroup_t, event_t>,
         subscription_state_e> subscription_state_;
 
+    std::mutex watchdog_timer_mutex_;
+    boost::asio::steady_timer watchdog_timer_;
+    watchdog_handler_t watchdog_handler_;
+    std::chrono::seconds watchdog_interval_;
 };
 
 } // namespace vsomeip

@@ -55,7 +55,7 @@ public:
     virtual void send_subscriptions(service_t _service, instance_t _instance,
             client_t _client, bool _reliable) = 0;
 
-    virtual void on_reliable_endpoint_connected(
+    virtual void on_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<const vsomeip::endpoint> &_endpoint) = 0;
 

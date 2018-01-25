@@ -111,6 +111,8 @@ public:
 
     VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
 
+    VSOMEIP_EXPORT bool is_event_reliable(service_t _service, instance_t _instance, event_t _event) const;
+
     // Service Discovery configuration
     VSOMEIP_EXPORT bool is_sd_enabled() const;
 

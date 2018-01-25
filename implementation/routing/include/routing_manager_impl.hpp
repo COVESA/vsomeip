@@ -170,6 +170,11 @@ public:
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
     services_t get_offered_services() const;
+    std::shared_ptr<serviceinfo> get_offered_service(
+            service_t _service, instance_t _instance) const;
+    std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(
+                service_t _service) const;
+
     std::shared_ptr<endpoint> create_service_discovery_endpoint(const std::string &_address,
             uint16_t _port, bool _reliable);
     void init_routing_info();
@@ -211,6 +216,11 @@ public:
     void handle_client_error(client_t _client);
 
     void set_routing_state(routing_state_e _routing_state);
+
+    void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
+        (void) _client;
+        (void) _offer_type;
+    }
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
@@ -320,7 +330,7 @@ private:
     void requested_service_remove(client_t _client, service_t _service,
                        instance_t _instance);
 
-    void call_sd_reliable_endpoint_connected(const boost::system::error_code& _error,
+    void call_sd_endpoint_connected(const boost::system::error_code& _error,
                                              service_t _service, instance_t _instance,
                                              std::shared_ptr<endpoint> _endpoint,
                                              std::shared_ptr<boost::asio::steady_timer> _timer);

@@ -28,6 +28,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     : server_endpoint_impl<ip::udp_ext>(
             _host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE),
       socket_(_io, _local.protocol()),
+      joined_group_(false),
       recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
       local_port_(_local.port()) {
     boost::system::error_code ec;
@@ -151,10 +152,23 @@ bool udp_server_endpoint_impl::is_joined(const std::string &_address) const {
     return (joined_.find(_address) != joined_.end());
 }
 
-void udp_server_endpoint_impl::join(const std::string &_address) {
+bool udp_server_endpoint_impl::is_joined(
+        const std::string &_address, bool* _received) const {
+    *_received = false;
+    std::lock_guard<std::mutex> its_lock(joined_mutex_);
+    const auto found_address = joined_.find(_address);
+    if (found_address != joined_.end()) {
+        *_received = found_address->second;
+    }
+    return (found_address != joined_.end());
+}
 
-    try {
-        if (!is_joined(_address)) {
+void udp_server_endpoint_impl::join(const std::string &_address) {
+    bool has_received(false);
+
+    std::function<void(const std::string &)> join_func =
+            [this](const std::string &_address) {
+        try {
             bool is_v4(false);
             bool is_v6(false);
             {
@@ -191,15 +205,20 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
             }
             {
                 std::lock_guard<std::mutex> its_lock(joined_mutex_);
-                joined_.insert(_address);
+                joined_[_address] = false;
             }
-        } else {
-            VSOMEIP_INFO << "udp_server_endpoint_impl::join: "
-                    "Trying to join already joined address: " << _address;
+            joined_group_ = true;
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << "udp_server_endpoint_impl::join" << ":" << e.what();
         }
-    }
-    catch (const std::exception &e) {
-        VSOMEIP_ERROR << __func__ << ":" << e.what();
+    };
+
+    if (!is_joined(_address, &has_received)) {
+        join_func(_address);
+    } else if (!has_received) {
+        // joined the multicast group but didn't receive a event yet -> rejoin
+        leave(_address);
+        join_func(_address);
     }
 }
 
@@ -225,6 +244,9 @@ void udp_server_endpoint_impl::leave(const std::string &_address) {
             {
                 std::lock_guard<std::mutex> its_lock(joined_mutex_);
                 joined_.erase(_address);
+                if (!joined_.size()) {
+                    joined_group_ = false;
+                }
             }
         }
     }
@@ -297,6 +319,8 @@ void udp_server_endpoint_impl::receive_cbk(
                         return;
                     }
                     remaining_bytes -= current_message_size;
+                    service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_SERVICE_POS_MIN],
+                            recv_buffer_[i + VSOMEIP_SERVICE_POS_MAX]);
                     if (utility::is_request(
                             recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])) {
                         client_t its_client;
@@ -311,9 +335,16 @@ void udp_server_endpoint_impl::receive_cbk(
                         clients_[its_client][its_session] = remote_;
                         clients_to_endpoint_[its_client] = remote_;
                         clients_mutex_.unlock();
+                    } else if (its_service != VSOMEIP_SD_SERVICE
+                            && utility::is_notification(recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])
+                            && joined_group_) {
+                        std::lock_guard<std::mutex> its_lock(joined_mutex_);
+                        boost::system::error_code ec;
+                        const auto found_address = joined_.find(_destination.to_string(ec));
+                        if (found_address != joined_.end()) {
+                            found_address->second = true;
+                        }
                     }
-                    service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_SERVICE_POS_MIN],
-                            recv_buffer_[i + VSOMEIP_SERVICE_POS_MAX]);
                     if (its_service != VSOMEIP_SD_SERVICE ||
                         (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
                                 current_message_size >= remaining_bytes)) {

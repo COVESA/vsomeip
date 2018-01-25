@@ -138,6 +138,81 @@ TEST_F(someip_application_test, stop_application_twice)
     app_->stop();
 }
 
+/**
+ * @test Checks whether watchdog handler is invoked (regularly) also after restarting.
+ */
+TEST_F(someip_application_test, watchdog_handler)
+{
+    std::atomic<int> cb_count(0);
+    auto wd_handler = [&] () {
+        ++cb_count;
+    };
+
+    app_->set_watchdog_handler(std::cref(wd_handler), std::chrono::seconds(1));
+
+    std::promise<bool> its_promise;
+    std::thread t([&]() {
+        its_promise.set_value(true);
+        app_->start();
+    });
+    EXPECT_TRUE(its_promise.get_future().get());
+
+    // wait till watchdog handler has been invoked once
+    while (0 == cb_count.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    ASSERT_EQ(1, cb_count.load());
+
+    // clear handler (must not be called again)
+    app_->set_watchdog_handler(nullptr, std::chrono::seconds::zero());
+
+    // wait doubled interval (used previously)..
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    // .. to ensure it was not called again
+    ASSERT_EQ(1, cb_count.load());
+
+    // enable handler again
+    app_->set_watchdog_handler(std::cref(wd_handler), std::chrono::seconds(1));
+
+    // wait till watchdog handler has been invoked again (2nd time)
+    while (1 == cb_count.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    app_->stop();
+    t.join();
+
+    // wait doubled interval (used previously)..
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    // .. to ensure it was not called after stop()
+    ASSERT_EQ(2, cb_count.load());
+
+    // restart application (w/ watchdog handler still set)
+    std::promise<bool> its_promise2;
+    std::thread t2([&]() {
+        its_promise2.set_value(true);
+        app_->start();
+    });
+    EXPECT_TRUE(its_promise2.get_future().get());
+
+    // wait till watchdog handler has been invoked again (3rd time)
+    while (2 == cb_count.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    ASSERT_EQ(3, cb_count.load());
+
+    // clear handler again (must not be called again), this time via zero interval
+    app_->set_watchdog_handler(std::cref(wd_handler), std::chrono::seconds::zero());
+
+    // wait doubled interval (used previously)..
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    // .. to ensure it was not called again
+    ASSERT_EQ(3, cb_count.load());
+
+    app_->stop();
+    t2.join();
+}
+
 class someip_application_shutdown_test: public ::testing::Test {
 
 protected:

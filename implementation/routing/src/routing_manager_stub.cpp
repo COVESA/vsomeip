@@ -228,7 +228,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         client_t its_target_client;
         client_t its_subscriber;
         bool its_is_valid_crc(true);
-
+        offer_type_e its_offer_type;
 
         its_command = _data[VSOMEIP_COMMAND_TYPE_POS];
         std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS],
@@ -623,6 +623,57 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     VSOMEIP_INFO << "REGISTERED_ACK("
                         << std::hex << std::setw(4) << std::setfill('0') << its_client << ")";
                     break;
+                case VSOMEIP_OFFERED_SERVICES_REQUEST:
+                    if (_size != VSOMEIP_OFFERED_SERVICES_COMMAND_SIZE) {
+                        VSOMEIP_WARNING << "Received a VSOMEIP_OFFERED_SERVICES_REQUEST command with wrong size ~> skip!";
+                        break;
+                    }
+
+                    std::memcpy(&its_offer_type, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+                            sizeof(its_offer_type));
+
+                    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+                    create_offered_services_info(its_client);
+
+                    for (auto found_client : routing_info_) {
+                        // skip services which are offered on remote hosts
+                        if (found_client.first != VSOMEIP_ROUTING_CLIENT) {
+                            for (const auto &its_service : found_client.second.second) {
+                                for (const auto &its_instance : its_service.second) {
+                                    uint16_t its_reliable_port = configuration_->get_reliable_port(its_service.first,
+                                            its_instance.first);
+                                    uint16_t its_unreliable_port = configuration_->get_unreliable_port(
+                                            its_service.first, its_instance.first);
+
+                                    if (its_offer_type == offer_type_e::OT_LOCAL) {
+                                        if (its_reliable_port == ILLEGAL_PORT
+                                                && its_unreliable_port == ILLEGAL_PORT) {
+                                            insert_offered_services_info(its_client,
+                                                    routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
+                                                    its_service.first, its_instance.first,
+                                                    its_instance.second.first, its_instance.second.second);
+                                        }
+                                    }
+                                    else if (its_offer_type == offer_type_e::OT_REMOTE) {
+                                        if (its_reliable_port != ILLEGAL_PORT
+                                                || its_unreliable_port != ILLEGAL_PORT) {
+                                            insert_offered_services_info(its_client,
+                                                    routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
+                                                    its_service.first, its_instance.first,
+                                                    its_instance.second.first, its_instance.second.second);
+                                        }
+                                    } else if (its_offer_type == offer_type_e::OT_ALL) {
+                                        insert_offered_services_info(its_client,
+                                                routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE,
+                                                its_service.first, its_instance.first,
+                                                its_instance.second.first, its_instance.second.second);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    send_offered_services_info(its_client);
+                    break;
             }
         }
     }
@@ -879,6 +930,27 @@ void routing_manager_stub::create_client_routing_info(const client_t _target) {
     client_routing_info_[_target] = its_command;
 }
 
+void routing_manager_stub::create_offered_services_info(const client_t _target) {
+    std::vector<byte_t> its_command;
+    its_command.push_back(VSOMEIP_OFFERED_SERVICES_RESPONSE);
+
+    // Sender client
+    client_t client = get_client();
+    for (uint32_t i = 0; i < sizeof(client_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&client)[i]);
+    }
+
+    // Overall size placeholder
+    byte_t size_placeholder = 0x0;
+    for (uint32_t i = 0; i < sizeof(uint32_t); ++i) {
+        its_command.push_back(size_placeholder);
+    }
+
+    offered_services_info_[_target] = its_command;
+}
+
+
 void routing_manager_stub::send_client_routing_info(const client_t _target) {
     if (client_routing_info_.find(_target) == client_routing_info_.end()) {
         return;
@@ -911,6 +983,43 @@ void routing_manager_stub::send_client_routing_info(const client_t _target) {
         client_routing_info_.erase(_target);
     } else {
         VSOMEIP_ERROR << "Send routing info to client 0x" << std::hex << _target
+                << " failed: No valid endpoint!";
+    }
+}
+
+
+void routing_manager_stub::send_offered_services_info(const client_t _target) {
+    if (offered_services_info_.find(_target) == offered_services_info_.end()) {
+        return;
+    }
+    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_target);
+    if (its_endpoint) {
+        auto its_command = offered_services_info_[_target];
+
+        // File overall size
+        std::size_t its_size = its_command.size() - VSOMEIP_COMMAND_PAYLOAD_POS;
+        std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size, sizeof(uint32_t));
+        its_size += VSOMEIP_COMMAND_PAYLOAD_POS;
+
+#if 0
+        std::stringstream msg;
+        msg << "rms::send_offered_services_info to (" << std::hex << _target << "): ";
+        for (uint32_t i = 0; i < its_size; ++i)
+            msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+
+        // Send routing info or error!
+        if(its_command.size() <= max_local_message_size_
+                || VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0) {
+            its_endpoint->send(&its_command[0], uint32_t(its_size), true);
+        } else {
+            VSOMEIP_ERROR << "Offered services info exceeds maximum message size: Can't send!";
+        }
+
+        offered_services_info_.erase(_target);
+    } else {
+        VSOMEIP_ERROR << "Send offered services info to client 0x" << std::hex << _target
                 << " failed: No valid endpoint!";
     }
 }
@@ -985,6 +1094,56 @@ void routing_manager_stub::insert_client_routing_info(client_t _target,
     std::memcpy(&its_command[its_size_pos], &its_entry_size, sizeof(uint32_t));
 
     client_routing_info_[_target] = its_command;
+}
+
+void routing_manager_stub::insert_offered_services_info(client_t _target,
+        routing_info_entry_e _entry,
+        service_t _service,
+        instance_t _instance,
+        major_version_t _major,
+        minor_version_t _minor) {
+
+    if (offered_services_info_.find(_target) == offered_services_info_.end()) {
+        return;
+    }
+
+    auto its_command = offered_services_info_[_target];
+
+    // Routing Info State Change
+    for (uint32_t i = 0; i < sizeof(routing_info_entry_e); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_entry)[i]);
+    }
+
+    // entry size
+    uint32_t its_service_entry_size = uint32_t(sizeof(service_t)
+            + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t));
+    for (uint32_t i = 0; i < sizeof(its_service_entry_size); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&its_service_entry_size)[i]);
+    }
+    //Service
+    for (uint32_t i = 0; i < sizeof(service_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_service)[i]);
+    }
+    // Instance
+    for (uint32_t i = 0; i < sizeof(instance_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_instance)[i]);
+    }
+    // Major version
+    for (uint32_t i = 0; i < sizeof(major_version_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_major)[i]);
+    }
+    // Minor version
+    for (uint32_t i = 0; i < sizeof(minor_version_t); ++i) {
+        its_command.push_back(
+                reinterpret_cast<const byte_t*>(&_minor)[i]);
+    }
+
+    offered_services_info_[_target] = its_command;
 }
 
 void routing_manager_stub::inform_requesters(client_t _hoster, service_t _service,

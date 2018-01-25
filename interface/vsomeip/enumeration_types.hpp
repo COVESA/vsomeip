@@ -63,6 +63,12 @@ enum class routing_state_e : uint8_t {
     RS_UNKNOWN = 0xFF
 };
 
+enum class offer_type_e : uint8_t {
+    OT_LOCAL = 0x00,
+    OT_REMOTE = 0x01,
+    OT_ALL = 0x02,
+};
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_ENUMERATION_TYPES_HPP

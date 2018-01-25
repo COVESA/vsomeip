@@ -170,6 +170,7 @@ public:
     }
 
     bool on_subscription(vsomeip::client_t _client, bool _subscribed) {
+        std::lock_guard<std::mutex> its_lock(subscribers_mutex_);
         static bool notified(false);
         if (_subscribed) {
             subscribers_.insert(_client);
@@ -239,7 +240,7 @@ public:
                     }
                     break;
                 case vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
-                    if (all_notifications_received_tcp_and_udp()) {
+                    if (all_notifications_received()) {
                         notify = true;
                     }
                     break;
@@ -459,6 +460,8 @@ private:
     std::thread notify_thread_;
     std::atomic<uint32_t> subscription_state_handler_called_;
     std::atomic<bool> subscription_error_occured_;
+
+    std::mutex subscribers_mutex_;
 };
 
 static int service_number;

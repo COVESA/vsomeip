@@ -99,6 +99,10 @@ public:
             const std::shared_ptr<endpoint> &_endpoint);
     void handle_client_error(client_t _client);
 
+    void on_offered_services_info(const byte_t *_data, uint32_t _size);
+
+    void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
+
 private:
     void register_application();
     void deregister_application();

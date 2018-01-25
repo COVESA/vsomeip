@@ -128,6 +128,15 @@ private:
             minor_version_t _minor = ANY_MINOR);
     void send_client_routing_info(const client_t _target);
 
+    void create_offered_services_info(const client_t _target);
+    void insert_offered_services_info(client_t _target,
+            routing_info_entry_e _entry,
+            service_t _service,
+            instance_t _instance,
+            major_version_t _major,
+            minor_version_t _minor);
+    void send_offered_services_info(const client_t _target);
+
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
 private:
@@ -170,6 +179,7 @@ private:
     std::map<client_t, std::set<client_t>> connection_matrix_;
 
     std::map<client_t, std::vector<byte_t>> client_routing_info_;
+    std::map<client_t, std::vector<byte_t>> offered_services_info_;
 };
 
 } // namespace vsomeip

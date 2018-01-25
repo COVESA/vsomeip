@@ -46,7 +46,7 @@ void udp_client_endpoint_impl::connect() {
         boost::system::error_code its_bind_error;
         socket_->bind(local_, its_bind_error);
         if(its_bind_error) {
-            VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
+            VSOMEIP_WARNING << "udp_client_endpoint::connect: "
                     "Error binding socket: " << its_bind_error.message();
         }
     }

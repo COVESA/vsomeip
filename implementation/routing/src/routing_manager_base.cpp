@@ -202,6 +202,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
         }
     } else {
         its_event = std::make_shared<event>(this, _is_shadow);
+        its_event->set_reliable(configuration_->is_event_reliable(_service, _instance, _event));
         its_event->set_service(_service);
         its_event->set_instance(_instance);
         its_event->set_event(_event);
@@ -529,10 +530,16 @@ bool routing_manager_base::send(client_t its_client,
 std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(
         service_t _service, instance_t _instance, major_version_t _major,
         minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
     std::shared_ptr<serviceinfo> its_info =
             std::make_shared<serviceinfo>(_major, _minor, _ttl, _is_local_service);
-    services_[_service][_instance] = its_info;
+    {
+        std::lock_guard<std::mutex> its_lock(services_mutex_);
+        services_[_service][_instance] = its_info;
+    }
+    if (!_is_local_service) {
+        std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+        services_remote_[_service][_instance] = its_info;
+    }
     return its_info;
 }
 
@@ -557,30 +564,39 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
         return;
     }
 
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    bool deleted_instance(false);
+    bool deleted_service(false);
+    {
+        std::lock_guard<std::mutex> its_lock(services_mutex_);
 
-    // Clear service_info and service_group
-    std::shared_ptr<endpoint> its_empty_endpoint;
-    if (!its_info->get_endpoint(!_reliable)) {
-        if (1 >= services_[_service].size()) {
-            services_.erase(_service);
+        // Clear service_info and service_group
+        std::shared_ptr<endpoint> its_empty_endpoint;
+        if (!its_info->get_endpoint(!_reliable)) {
+            if (1 >= services_[_service].size()) {
+                services_.erase(_service);
+                deleted_service = true;
+            } else {
+                services_[_service].erase(_instance);
+                deleted_instance = true;
+            }
         } else {
-            services_[_service].erase(_instance);
+            its_info->set_endpoint(its_empty_endpoint, _reliable);
         }
-    } else {
-        its_info->set_endpoint(its_empty_endpoint, _reliable);
+    }
+
+    if ((deleted_instance || deleted_service) && !its_info->is_local()) {
+        std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+        if (deleted_service) {
+            services_remote_.erase(_service);
+        } else if (deleted_instance) {
+            services_remote_[_service].erase(_instance);
+        }
     }
 }
 
 services_t routing_manager_base::get_services() const {
-    services_t its_offers;
     std::lock_guard<std::mutex> its_lock(services_mutex_);
-    for (auto s : services_) {
-        for (auto i : s.second) {
-            its_offers[s.first][i.first] = i.second;
-        }
-    }
-    return (its_offers);
+    return services_;
 }
 
 bool routing_manager_base::is_available(service_t _service, instance_t _instance,
@@ -672,7 +688,7 @@ std::shared_ptr<endpoint> routing_manager_base::find_local(client_t _client) {
 }
 
 std::shared_ptr<endpoint> routing_manager_base::find_or_create_local(client_t _client) {
-	std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
+    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
     std::shared_ptr<endpoint> its_endpoint(find_local_unlocked(_client));
     if (!its_endpoint) {
         its_endpoint = create_local_unlocked(_client);

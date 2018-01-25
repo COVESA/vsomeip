@@ -27,6 +27,7 @@
 #include "../../tracing/include/trace_connector.hpp"
 #include "../../tracing/include/enumeration_types.hpp"
 #include "../../plugin/include/plugin_manager.hpp"
+#include "../../endpoints/include/endpoint.hpp"
 
 namespace vsomeip {
 
@@ -52,7 +53,8 @@ application_impl::application_impl(const std::string &_name)
           stopped_(false),
           block_stopping_(false),
           is_routing_manager_host_(false),
-          stopped_called_(false) {
+          stopped_called_(false),
+          watchdog_timer_(io_) {
 }
 
 application_impl::~application_impl() {
@@ -1358,6 +1360,10 @@ void application_impl::on_message(const std::shared_ptr<message> &&_message) {
     if (_message->get_message_type() == message_type_e::MT_NOTIFICATION) {
         if (!check_for_active_subscription(its_service, its_instance,
                 static_cast<event_t>(its_method))) {
+            VSOMEIP_ERROR << "application_impl::on_message ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "]";
             return;
         }
     }
@@ -1589,6 +1595,10 @@ void application_impl::remove_elapsed_dispatchers() {
 
 void application_impl::clear_all_handler() {
     unregister_state_handler();
+    {
+        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        offered_services_handler_ = nullptr;
+    }
 
     {
         std::lock_guard<std::mutex> availability_lock(availability_mutex_);
@@ -1909,10 +1919,125 @@ void application_impl::print_blocking_call(std::shared_ptr<sync_handler> _handle
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->eventgroup_id_ << ":"
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << "]";
             break;
+        case handler_type_e::OFFERED_SERVICES_INFO:
+            VSOMEIP_INFO << "BLOCKING CALL OFFERED_SERVICES_INFO("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+            break;
+        case handler_type_e::WATCHDOG:
+            VSOMEIP_INFO << "BLOCKING CALL WATCHDOG("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+            break;
         case handler_type_e::UNKNOWN:
             VSOMEIP_INFO << "BLOCKING CALL UNKNOWN("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
+    }
+}
+
+
+void application_impl::get_offered_services_async(offer_type_e _offer_type, offered_services_handler_t _handler) {
+    {
+        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        offered_services_handler_ = _handler;
+    }
+
+    if (!is_routing_manager_host_) {
+        routing_->send_get_offered_services_info(get_client(), _offer_type);
+    } else {
+        std::vector<std::pair<service_t, instance_t>> its_services;
+        auto its_routing_manager_host = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
+
+        for (auto s : its_routing_manager_host->get_offered_services()) {
+            for (auto i : s.second) {
+                auto its_unreliable_endpoint = i.second->get_endpoint(false);
+                auto its_reliable_endpoint = i.second->get_endpoint(true);
+
+                if (_offer_type == offer_type_e::OT_LOCAL) {
+                    if ( ((its_unreliable_endpoint && (its_unreliable_endpoint->get_local_port() == ILLEGAL_PORT))
+                                && (its_reliable_endpoint && (its_reliable_endpoint->get_local_port() == ILLEGAL_PORT)))
+                                || (!its_reliable_endpoint && !its_unreliable_endpoint)) {
+                        its_services.push_back(std::make_pair(s.first, i.first));
+                    }
+                } else if (_offer_type == offer_type_e::OT_REMOTE) {
+                    if ((its_unreliable_endpoint && its_unreliable_endpoint->get_local_port() != ILLEGAL_PORT)
+                                 || (its_reliable_endpoint && its_reliable_endpoint->get_local_port() != ILLEGAL_PORT)) {
+                        its_services.push_back(std::make_pair(s.first, i.first));
+                     }
+                } else if (_offer_type == offer_type_e::OT_ALL) {
+                    its_services.push_back(std::make_pair(s.first, i.first));
+                }
+            }
+        }
+        on_offered_services_info(its_services);
+    }
+    return;
+}
+
+
+void application_impl::on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services) {
+    bool has_offered_services_handler(false);
+    offered_services_handler_t handler = nullptr;
+    {
+        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        if (offered_services_handler_) {
+            has_offered_services_handler = true;
+            handler = offered_services_handler_;
+        }
+    }
+    if (has_offered_services_handler) {
+        {
+            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+            std::shared_ptr<sync_handler> its_sync_handler
+                = std::make_shared<sync_handler>([handler, _services]() {
+                                                    handler(_services);
+                                                 });
+            its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
+            handlers_.push_back(its_sync_handler);
+        }
+        dispatcher_condition_.notify_one();
+    }
+}
+
+void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
+    if (!_error) {
+
+        watchdog_handler_t handler = nullptr;
+        {
+            std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+            handler = watchdog_handler_;
+            if (handler && std::chrono::seconds::zero() != watchdog_interval_) {
+                watchdog_timer_.expires_from_now(watchdog_interval_);
+                watchdog_timer_.async_wait(std::bind(&application_impl::watchdog_cbk,
+                        this, std::placeholders::_1));
+            }
+        }
+
+        if (handler) {
+            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+            std::shared_ptr<sync_handler> its_sync_handler
+                = std::make_shared<sync_handler>([handler]() { handler(); });
+            its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
+            handlers_.push_back(its_sync_handler);
+        }
+        dispatcher_condition_.notify_one();
+
+    }
+}
+
+void application_impl::set_watchdog_handler(watchdog_handler_t _handler,
+            std::chrono::seconds _interval) {
+    if (_handler && std::chrono::seconds::zero() != _interval) {
+        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        watchdog_handler_ = _handler;
+        watchdog_interval_ = _interval;
+        watchdog_timer_.expires_from_now(_interval);
+        watchdog_timer_.async_wait(std::bind(&application_impl::watchdog_cbk,
+                this, std::placeholders::_1));
+    } else {
+        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        watchdog_timer_.cancel();
+        watchdog_handler_ = nullptr;
+        watchdog_interval_ = std::chrono::seconds::zero();
     }
 }
 

@@ -451,4 +451,12 @@ bool event::is_subscribed(client_t _client) {
     return false;
 }
 
+bool event::is_reliable() const {
+    return is_reliable_;
+}
+
+void event::set_reliable(bool _is_reliable) {
+    is_reliable_ = _is_reliable;
+}
+
 } // namespace vsomeip

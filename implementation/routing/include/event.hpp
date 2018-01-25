@@ -107,6 +107,9 @@ public:
 
     bool is_subscribed(client_t _client);
 
+    bool is_reliable() const;
+    void set_reliable(bool _is_reliable);
+
 private:
     void update_cbk(boost::system::error_code const &_error);
     void notify(bool _flush);
@@ -146,6 +149,8 @@ private:
     std::atomic<bool> is_cache_placeholder_;
 
     epsilon_change_func_t epsilon_change_func_;
+
+    std::atomic<bool> is_reliable_;
 };
 
 }  // namespace vsomeip

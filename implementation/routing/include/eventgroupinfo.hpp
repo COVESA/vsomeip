@@ -54,6 +54,7 @@ public:
     VSOMEIP_EXPORT const std::set<std::shared_ptr<event> > get_events() const;
     VSOMEIP_EXPORT void add_event(std::shared_ptr<event> _event);
     VSOMEIP_EXPORT void remove_event(std::shared_ptr<event> _event);
+    VSOMEIP_EXPORT void get_reliability(bool& _has_reliable, bool& _has_unreliable) const;
 
     VSOMEIP_EXPORT const std::list<target_t> get_targets() const;
     VSOMEIP_EXPORT uint32_t get_unreliable_target_count() const;
@@ -93,6 +94,9 @@ private:
 
     std::atomic<uint8_t> threshold_;
     std::mutex subscription_mutex_;
+
+    std::atomic<bool> has_reliable_;
+    std::atomic<bool> has_unreliable_;
 };
 
 } // namespace vsomeip

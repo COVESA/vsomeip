@@ -10,6 +10,7 @@
 #include <memory>
 #include <set>
 #include <map>
+#include <vector>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -312,7 +313,7 @@ public:
      */
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            subscription_type_e _subscription_type = subscription_type_e::SU_PREFER_RELIABLE,
+            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
             event_t _event = ANY_EVENT) = 0;
 
     /**
@@ -884,6 +885,47 @@ public:
     virtual void register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
             subscription_status_handler_t _handler, bool _is_selective) = 0;
+
+    /**
+     *
+     * \brief Returns all registered services / instances on this node in an async callback.
+     *
+     * When called with a handler of type offered_services_handler_t,
+     * all at the routing manager registered services on this node get returned in a vector of
+     * service / instance pairs depending on the given _offer_type.
+     *
+     * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE = 0x01, OT_ALL = 0x02)
+     * \param offered_services_handler_t handler which gets called with a vector of service instance pairs that are currently offered
+     */
+    virtual void get_offered_services_async(offer_type_e _offer_type, offered_services_handler_t _handler) = 0;
+
+    /**
+     *
+     * \brief Sets a handler to be called cyclically for watchdog monitoring.
+     *
+     * The handler shall be called in the given interval, but not before start()
+     * has been called, and not after call to stop() returned.
+     *
+     * In case the application is running, i.e. start() succeeded, but the
+     * handler will not be invoke within the (approximate) interval it may
+     * be assumed that I/O or internal dispatcher threads are non-functional.
+     *
+     * \remark Accuracy of call interval is limited by clock/timer granularity
+     *         or scheduling effects, thus it may underrun or overrun by small
+     *         amount.
+     *
+     * \note Only one handler can be active at the time, thus last handler set
+     *       by calling this function will be invoked.
+     *
+     * \note To disable calling an active handler, invoke this method again,
+     *       passing nullptr as _handler and/or std::chrono::seconds::zero()
+     *       as _interval.
+     *
+     * \param _handler A watchdog handler, pass nullptr to deactivate.
+     * \param _interval Call interval in seconds, pass std::chrono::seconds::zero() to deactivate.
+     */
+    virtual void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval) = 0;
+
 };
 
 /** @} */

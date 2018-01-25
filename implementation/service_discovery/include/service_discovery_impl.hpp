@@ -82,7 +82,7 @@ public:
             const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_destination);
 
-    void on_reliable_endpoint_connected(
+    void on_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<const vsomeip::endpoint> &_endpoint);
 

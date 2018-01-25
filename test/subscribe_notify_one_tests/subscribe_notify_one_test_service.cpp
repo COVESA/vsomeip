@@ -171,6 +171,7 @@ public:
     }
 
     bool on_subscription(vsomeip::client_t _client, bool _subscribed) {
+        std::lock_guard<std::mutex> its_subscribers_lock(subscribers_mutex_);
         // check if all other services have subscribed:
         // -1 for placeholder in array and -1 for the service itself
         if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2) {
@@ -467,6 +468,8 @@ private:
     std::unordered_set<vsomeip::client_t> subscribers_;
     std::atomic<uint32_t> subscription_state_handler_called_;
     std::atomic<bool> subscription_error_occured_;
+
+    std::mutex subscribers_mutex_;
 };
 
 static int service_number;

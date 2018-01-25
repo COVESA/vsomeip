@@ -295,23 +295,24 @@ bool trace_connector::apply_filter_rules(const byte_t *_data,  uint16_t _data_si
         filter_rule_t its_filter_rule = it_filter_rules->second;
 
         // apply filter rule
-        bool trace_message = true;
+        bool filter_rule_matches = false;
         filter_type_e its_filter_type = its_filter_rule.first;
         for(auto it_filter_rule_map = its_filter_rule.second.begin();
-            it_filter_rule_map != its_filter_rule.second.end() && trace_message;
+            it_filter_rule_map != its_filter_rule.second.end();
             ++it_filter_rule_map) {
 
             filter_criteria_e its_criteria = it_filter_rule_map->first;
             auto &its_filter_expressions = it_filter_rule_map->second;
 
-            if(its_filter_expressions.size() != 0) {
-                // check if filter expressions of filter criteria match
-                const bool filter_rule_matches = filter_expressions_match(its_criteria, its_filter_expressions, _data, _data_size);
-                trace_message = !(filter_rule_matches && its_filter_type == filter_type_e::NEGATIVE);
+            // check if filter expressions of filter criteria match
+            filter_rule_matches = filter_expressions_match(its_criteria, its_filter_expressions, _data, _data_size) == (int)its_filter_type;
+            if(!filter_rule_matches) {
+                // filter expressions of filter criteria does not match
+                break;
             }
         }
 
-        if(trace_message) {
+        if(filter_rule_matches) {
             //filter rule matches -> send message over 'its_channel' to DLT
             _send_msg_over_channels.push_back(its_channel);
         }
@@ -360,17 +361,20 @@ bool trace_connector::filter_expressions_match(
 
     // if extraction is successful, filter
     if (is_successful) {
-        bool filter_expressions_matches = false;
+        bool filter_expressions_matches = true;
         for (auto it_expressions = _expressions.begin();
-             it_expressions != _expressions.end() && !filter_expressions_matches;
+             it_expressions != _expressions.end();
              ++it_expressions) {
             filter_expression_t its_filter_expression = *it_expressions;
             uint16_t its_message_value = 0;
 
+
             its_message_value = (uint16_t)((its_message_value << 8) + first);
             its_message_value = (uint16_t)((its_message_value << 8) + second);
-
-            filter_expressions_matches = (its_filter_expression == its_message_value);
+            if(its_filter_expression != its_message_value) {
+                filter_expressions_matches = false;
+                break;
+            }
         }
         return filter_expressions_matches;
     }
