@@ -1358,7 +1358,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
     }
 
     host_->add_routing_info(_service, _instance,
-                            _major, _minor, _ttl,
+                            _major, _minor, _ttl * 5,
                             _reliable_address, _reliable_port,
                             _unreliable_address, _unreliable_port);
 
@@ -2172,7 +2172,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                 client_t its_subscribing_remote_client = VSOMEIP_ROUTING_CLIENT;
                 switch (host_->on_remote_subscription(_service, _instance,
                         _eventgroup, target.subscriber_, target.target_,
-                        _ttl, &its_subscribing_remote_client,
+                        _ttl * 5, &its_subscribing_remote_client,
                         _message_id)) {
                     case remote_subscription_state_e::SUBSCRIPTION_ACKED:
                         insert_subscription_ack(its_message, _service,
@@ -3182,7 +3182,7 @@ void service_discovery_impl::update_subscription_expiration_timer(
         if (entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
                 && entry->get_ttl()) {
             const std::chrono::steady_clock::time_point its_expiration = now
-                    + std::chrono::seconds(entry->get_ttl());
+                    + std::chrono::seconds(entry->get_ttl() * 5);
             if (its_expiration < next_subscription_expiration_) {
                 next_subscription_expiration_ = its_expiration;
             }

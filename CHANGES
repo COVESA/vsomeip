@@ -1,6 +1,11 @@
 Changes
 =======
 
+v2.10.3
+- Interpret all incoming TTLs five times longer in service discovery
+  to prevent inadvertent expiration of remote offers during high load
+  situations.
+
 v2.10.2
 - Fix deadlock in routing manager when processing subscription
   acknowledgment from a local client if the corresponding service
