@@ -1,6 +1,14 @@
 Changes
 =======
 
+v2.8.0
+- Change behaviour of register_subscription_status_handler method of
+  the application interface: Registered handlers will only be called
+  if the subscription was accepted by the remote side.
+- Add 2nd register_subscription_status_handler method to application
+  interface with additional flag to enable calling of the registered
+  handler if the subscription is rejected by the remote side.
+
 v.2.7.3
 - Fix deadlock when stopping client endpoints to remote services
 - Fix deadlock during construction of Subscribe Eventgroup entries

@@ -171,6 +171,9 @@ public:
 
     VSOMEIP_EXPORT void clear_all_handler();
 
+    VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            subscription_status_handler_t _handler, bool _is_selective);
 private:
     //
     // Types
@@ -369,7 +372,7 @@ private:
     bool stopped_called_;
 
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t,
-            std::map<event_t, subscription_status_handler_t > > > > subscription_status_handlers_;
+            std::map<event_t, std::pair<subscription_status_handler_t, bool> > > > > subscription_status_handlers_;
     std::mutex subscription_status_handlers_mutex_;
 
     std::mutex subscriptions_state_mutex_;
