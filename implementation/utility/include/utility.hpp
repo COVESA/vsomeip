@@ -47,6 +47,22 @@ public:
                 || _type == message_type_e::MT_REQUEST_NO_RETURN_ACK);
     }
 
+    static inline bool is_response(byte_t _type) {
+        return is_response(static_cast<message_type_e>(_type));
+    }
+
+    static inline bool is_response(message_type_e _type) {
+        return _type == message_type_e::MT_RESPONSE;
+    }
+
+    static inline bool is_error(byte_t _type) {
+        return is_error(static_cast<message_type_e>(_type));
+    }
+
+    static inline bool is_error(message_type_e _type) {
+        return _type == message_type_e::MT_ERROR;
+    }
+
     static inline bool is_event(byte_t _data) {
         return (0x80 & _data) > 0;
     }

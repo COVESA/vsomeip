@@ -704,6 +704,23 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 #endif
                             }
                         } else {
+                            if ((utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS])
+                                 || utility::is_error(_data[VSOMEIP_MESSAGE_TYPE_POS]))
+                                    && !its_info->is_local()) {
+                                // we received a response/error but neither the hosting application
+                                // nor another local client could be found --> drop
+                                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
+                                        _data[VSOMEIP_SESSION_POS_MIN],
+                                        _data[VSOMEIP_SESSION_POS_MAX]);
+                                VSOMEIP_ERROR
+                                    << "routing_manager_impl::send: Received response/error for unknown client ("
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "] "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                return false;
+                            }
                             its_target = is_service_discovery ?
                                          (sd_info_ ? sd_info_->get_endpoint(false) : nullptr) : its_info->get_endpoint(_reliable);
                             if (its_target) {
@@ -2234,9 +2251,7 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
     const std::chrono::seconds default_ttl(DEFAULT_TTL);
     std::chrono::milliseconds its_smallest_ttl =
             std::chrono::duration_cast<std::chrono::milliseconds>(default_ttl);
-    std::map<service_t,
-        std::map<instance_t,
-            std::pair<bool, bool> > > its_expired_offers;
+    std::map<service_t, std::vector<instance_t> > its_expired_offers;
 
     {
         std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
@@ -2247,10 +2262,7 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
                     std::chrono::milliseconds precise_ttl = i.second->get_precise_ttl();
                     if (precise_ttl.count() < _elapsed.count() || precise_ttl.count() == 0) {
                         i.second->set_ttl(0);
-                        its_expired_offers[s.first][i.first] = {
-                                i.second->get_endpoint(true) != nullptr,
-                                i.second->get_endpoint(false) != nullptr
-                        };
+                        its_expired_offers[s.first].push_back(i.first);
                     } else {
                         std::chrono::milliseconds its_new_ttl(precise_ttl - _elapsed);
                         i.second->set_precise_ttl(its_new_ttl);
@@ -2265,11 +2277,11 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
     for (const auto &s : its_expired_offers) {
         for (const auto &i : s.second) {
             if (discovery_) {
-                discovery_->unsubscribe_all(s.first, i.first);
+                discovery_->unsubscribe_all(s.first, i);
             }
-            del_routing_info(s.first, i.first, i.second.first, i.second.second);
+            del_routing_info(s.first, i, true, true);
             VSOMEIP_INFO << "update_routing_info: elapsed=" << _elapsed.count()
-                    << " : delete service/instance " << std::hex << s.first << "/" << i.first;
+                    << " : delete service/instance " << std::hex << s.first << "/" << i;
         }
     }
 
@@ -2277,9 +2289,7 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
 }
 
 void routing_manager_impl::expire_services(const boost::asio::ip::address &_address) {
-    std::map<service_t,
-        std::map<instance_t,
-            std::pair<bool, bool> > > its_expired_offers;
+    std::map<service_t, std::vector<instance_t> > its_expired_offers;
 
     for (auto &s : get_services()) {
         for (auto &i : s.second) {
@@ -2309,10 +2319,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
             if (is_gone) {
                 if (discovery_)
                     discovery_->unsubscribe_all(s.first, i.first);
-                its_expired_offers[s.first][i.first] = {
-                        i.second->get_endpoint(true) != nullptr,
-                        i.second->get_endpoint(false) != nullptr
-                };
+                its_expired_offers[s.first].push_back(i.first);
             }
         }
     }
@@ -2320,8 +2327,8 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
     for (auto &s : its_expired_offers) {
         for (auto &i : s.second) {
             VSOMEIP_INFO << "expire_services for address: " << _address.to_string()
-                    << " : delete service/instance " << std::hex << s.first << "/" << i.first;
-            del_routing_info(s.first, i.first, i.second.first, i.second.second);
+                    << " : delete service/instance " << std::hex << s.first << "/" << i;
+            del_routing_info(s.first, i, true, true);
         }
     }
 }
@@ -3698,6 +3705,19 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                                 discovery_->unsubscribe(s.first, i.first, its_eventgroup, its_client);
                             }
                         }
+                    }
+                }
+                // mark all external services as offline
+                services_t its_remote_services;
+                {
+                    std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+                    its_remote_services = services_remote_;
+                }
+                for (const auto &s : its_remote_services) {
+                    for (const auto &i : s.second) {
+                        const bool has_reliable(i.second->get_endpoint(true));
+                        const bool has_unreliable(i.second->get_endpoint(false));
+                        del_routing_info(s.first, i.first, has_reliable, has_unreliable);
                     }
                 }
                 break;

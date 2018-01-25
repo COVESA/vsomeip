@@ -145,7 +145,15 @@ void service_discovery_impl::start() {
             return;
         }
     }
-
+    {
+        // make sure to sent out FindService messages after resume
+        std::lock_guard<std::mutex> its_lock(requested_mutex_);
+        for (const auto &s : requested_) {
+            for (const auto &i : s.second) {
+                i.second->set_sent_counter(0);
+            }
+        }
+    }
     is_suspended_ = false;
     start_main_phase_timer();
     start_offer_debounce_timer(true);

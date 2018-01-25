@@ -1,5 +1,14 @@
 Changes
 =======
+v2.9.2
+- fix handling of received response messages for unknown
+  clients.
+- Ensure that all external services are marked as offline when
+  routing_state is set to RS_SUSPENDED
+- Ensure to start sending out FindService messages for requested
+  services after resuming.
+- Ensure that the service info is also deleted if no unreliable
+  communication happened before the service TTL has expired.
 
 v2.9.1
 - Don't ignore service requests for UDP-only remote services done
