@@ -42,7 +42,7 @@ public:
 
     bool get_default_target(service_t, endpoint_type &) const;
 
-    unsigned short get_local_port() const;
+    std::uint16_t get_local_port() const;
     bool is_reliable() const;
     bool is_local() const;
 

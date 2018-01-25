@@ -108,7 +108,7 @@ void endpoint_impl<Protocol>::remove_default_target(service_t) {
 }
 
 template<typename Protocol>
-unsigned short endpoint_impl<Protocol>::get_local_port() const {
+std::uint16_t endpoint_impl<Protocol>::get_local_port() const {
     return 0;
 }
 

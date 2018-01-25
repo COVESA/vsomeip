@@ -43,7 +43,7 @@ public:
     bool is_local() const;
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
-    unsigned short get_remote_port() const;
+    std::uint16_t get_remote_port() const;
 
     void restart();
 
@@ -56,6 +56,7 @@ private:
     void receive();
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes);
+    void set_local_port();
 
     message_buffer_t recv_buffer_;
 };

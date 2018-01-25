@@ -311,6 +311,7 @@ private:
     std::weak_ptr<runtime> runtime_;
 
     // TTL handling for services offered by other hosts
+    std::mutex ttl_timer_mutex_;
     boost::asio::steady_timer ttl_timer_;
     std::chrono::milliseconds smallest_ttl_;
     ttl_t ttl_;

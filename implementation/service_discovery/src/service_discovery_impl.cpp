@@ -875,6 +875,12 @@ void service_discovery_impl::insert_subscription(
             const std::uint16_t its_port = its_endpoint->get_local_port();
             if (its_port) {
                 insert_option(_message, its_entry, unicast_, its_port, true);
+            } else {
+                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                        "local reliable port is zero: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
             }
         }
     }
@@ -884,6 +890,12 @@ void service_discovery_impl::insert_subscription(
             const std::uint16_t its_port = its_endpoint->get_local_port();
             if (its_port) {
                 insert_option(_message, its_entry, unicast_, its_port, false);
+            } else {
+                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                        " local unreliable port is zero: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
             }
         }
     }
@@ -925,6 +937,12 @@ void service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared
         if (its_port) {
             insert_option(_message, its_stop_entry, unicast_, its_port, true);
             insert_option(_message, its_entry, unicast_, its_port, true);
+        } else {
+            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                    "local reliable port is zero: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
         }
     }
     its_endpoint = _subscription->get_endpoint(false);
@@ -933,6 +951,12 @@ void service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared
         if (its_port) {
             insert_option(_message, its_stop_entry, unicast_, its_port, false);
             insert_option(_message, its_entry, unicast_, its_port, false);
+        } else {
+            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                    "local unreliable port is zero: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
         }
     }
 }
@@ -2123,6 +2147,7 @@ void service_discovery_impl::serialize_and_send(
 }
 
 void service_discovery_impl::start_ttl_timer() {
+    std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
     ttl_timer_.expires_from_now(std::chrono::milliseconds(smallest_ttl_));
     ttl_timer_.async_wait(
             std::bind(&service_discovery_impl::check_ttl, shared_from_this(),
@@ -2130,6 +2155,7 @@ void service_discovery_impl::start_ttl_timer() {
 }
 
 std::chrono::milliseconds service_discovery_impl::stop_ttl_timer() {
+    std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
     std::chrono::milliseconds remaining = std::chrono::duration_cast<
                                 std::chrono::milliseconds
                             >(ttl_timer_.expires_from_now());

@@ -226,7 +226,7 @@ private:
     std::shared_ptr<endpoint> create_client_endpoint(
             const boost::asio::ip::address &_address,
             uint16_t _local_port, uint16_t _remote_port,
-            bool _reliable, client_t _client, bool _start);
+            bool _reliable, client_t _client);
 
     std::shared_ptr<endpoint> create_server_endpoint(uint16_t _port,
             bool _reliable, bool _start);
@@ -248,7 +248,6 @@ private:
             const byte_t *_data, length_t _size, endpoint *_receiver);
 
     void clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable);
-    void stop_and_delete_client_endpoint(std::shared_ptr<endpoint> _endpoint);
     void clear_multicast_endpoints(service_t _service, instance_t _instance);
 
     bool is_identifying(client_t _client, service_t _service,

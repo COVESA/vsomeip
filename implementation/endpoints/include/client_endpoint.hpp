@@ -15,7 +15,7 @@ public:
     virtual ~client_endpoint() {}
 
     virtual bool get_remote_address(boost::asio::ip::address &_address) const = 0;
-    virtual unsigned short get_remote_port() const = 0;
+    virtual std::uint16_t get_remote_port() const = 0;
 };
 
 } // namespace vsomeip

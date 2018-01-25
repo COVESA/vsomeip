@@ -53,7 +53,9 @@ public:
     bool is_connected() const;
 
     virtual bool get_remote_address(boost::asio::ip::address &_address) const;
-    virtual unsigned short get_remote_port() const;
+    virtual std::uint16_t get_remote_port() const;
+
+    std::uint16_t get_local_port() const;
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
@@ -90,6 +92,10 @@ protected:
 
     bool was_not_connected_;
 
+    std::atomic<std::uint16_t> local_port_;
+
+private:
+    virtual void set_local_port() = 0;
 };
 
 } // namespace vsomeip

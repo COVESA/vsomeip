@@ -44,7 +44,7 @@ public:
 
     // Dummy implementations as we only need these for server endpoints
     // TODO: redesign
-    unsigned short get_local_port() const;
+    std::uint16_t get_local_port() const;
     bool is_reliable() const;
 
     void increment_use_count();

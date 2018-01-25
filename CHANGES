@@ -1,6 +1,10 @@
 Changes
 =======
 
+v.2.7.3
+- Fix deadlock when stopping client endpoints to remote services
+- Fix deadlock during construction of Subscribe Eventgroup entries
+
 v.2.7.2
 - Avoid deadlock when printing error message about too large messages
 

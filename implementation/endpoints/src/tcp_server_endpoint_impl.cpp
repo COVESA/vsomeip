@@ -185,7 +185,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
     }
 }
 
-unsigned short tcp_server_endpoint_impl::get_local_port() const {
+std::uint16_t tcp_server_endpoint_impl::get_local_port() const {
     return local_port_;
 }
 

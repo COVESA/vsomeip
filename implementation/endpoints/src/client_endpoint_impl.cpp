@@ -37,7 +37,8 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           is_connected_(false),
           packetizer_(std::make_shared<message_buffer_t>()),
-          was_not_connected_(false) {
+          was_not_connected_(false),
+          local_port_(0) {
 }
 
 template<typename Protocol>
@@ -209,7 +210,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                 connect_timer_.cancel();
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
-
+            set_local_port();
             if (!is_connected_) {
                 is_connected_ = true;
                 its_host->on_connect(this->shared_from_this());
@@ -282,6 +283,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked() {
+    local_port_ = 0;
     if (socket_->is_open()) {
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
@@ -297,8 +299,13 @@ bool client_endpoint_impl<Protocol>::get_remote_address(
 }
 
 template<typename Protocol>
-unsigned short client_endpoint_impl<Protocol>::get_remote_port() const {
+std::uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
     return 0;
+}
+
+template<typename Protocol>
+std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
+    return local_port_;
 }
 
 template<typename Protocol>

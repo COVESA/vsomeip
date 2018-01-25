@@ -31,8 +31,7 @@ public:
     void restart();
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
-    unsigned short get_local_port() const;
-    unsigned short get_remote_port() const;
+    std::uint16_t get_remote_port() const;
     bool is_reliable() const;
     bool is_local() const;
 
@@ -50,6 +49,7 @@ private:
     const std::string get_address_port_remote() const;
     const std::string get_address_port_local() const;
     void handle_recv_buffer_exception(const std::exception &_e);
+    void set_local_port();
 
 
     const std::uint32_t recv_buffer_size_initial_;

@@ -44,7 +44,7 @@ public:
     void remove_default_target(service_t _service);
     bool get_default_target(service_t _service, endpoint_type &_target) const;
 
-    unsigned short get_local_port() const;
+    std::uint16_t get_local_port() const;
     bool is_local() const;
 
     client_t get_client(std::shared_ptr<endpoint_definition> _endpoint);

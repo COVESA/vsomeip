@@ -258,7 +258,7 @@ bool udp_server_endpoint_impl::get_default_target(service_t _service,
     return is_valid;
 }
 
-unsigned short udp_server_endpoint_impl::get_local_port() const {
+std::uint16_t udp_server_endpoint_impl::get_local_port() const {
     return local_port_;
 }
 

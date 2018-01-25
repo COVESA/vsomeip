@@ -210,22 +210,21 @@ bool tcp_client_endpoint_impl::get_remote_address(
     return true;
 }
 
-unsigned short tcp_client_endpoint_impl::get_local_port() const {
+void tcp_client_endpoint_impl::set_local_port() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     if (socket_->is_open()) {
         endpoint_type its_endpoint = socket_->local_endpoint(its_error);
         if (!its_error) {
-            return its_endpoint.port();
+            local_port_ = its_endpoint.port();
         } else {
-            VSOMEIP_WARNING << "tcp_client_endpoint_impl::get_local_port() "
+            VSOMEIP_WARNING << "tcp_client_endpoint_impl::set_local_port() "
                     << " couldn't get local_endpoint: " << its_error.message();
         }
     }
-    return 0;
 }
 
-unsigned short tcp_client_endpoint_impl::get_remote_port() const {
+std::uint16_t tcp_client_endpoint_impl::get_remote_port() const {
     return remote_port_;
 }
 

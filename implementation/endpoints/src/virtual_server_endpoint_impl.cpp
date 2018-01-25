@@ -79,11 +79,11 @@ bool virtual_server_endpoint_impl::get_remote_address(
     return false;
 }
 
-unsigned short virtual_server_endpoint_impl::get_local_port() const {
+std::uint16_t virtual_server_endpoint_impl::get_local_port() const {
     return port_;
 }
 
-unsigned short virtual_server_endpoint_impl::get_remote_port() const {
+std::uint16_t virtual_server_endpoint_impl::get_remote_port() const {
     return ILLEGAL_PORT;
 }
 
