@@ -1,5 +1,9 @@
 Changes
 =======
+v2.9.4
+- Fixed deadlock on suspend to RAM / resume, triggered
+  by signal handler.
+
 v2.9.3
 - Fixed race condition on application shutdown
 - Fixed bug that application object was not destroyed
