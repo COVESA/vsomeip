@@ -1998,7 +1998,12 @@ void routing_manager_proxy::handle_client_error(client_t _client) {
             should_reconnect = is_started_;
         }
         if (should_reconnect) {
-            reconnect(known_clients_);
+            std::unordered_set<client_t> its_known_clients;
+            {
+                std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+                its_known_clients = known_clients_;
+            }
+            reconnect(its_known_clients);
         }
     }
 }

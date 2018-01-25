@@ -1,6 +1,11 @@
 Changes
 =======
 
+v2.10.7
+- Fix potential deadlock when expiring remote subscriptions
+- Rework restarting of tcp client endpoints to prevent heap corruption
+  under high load situations
+
 v2.10.6
 - Fix concurrency issue leading to a crash when asynchronous
   subscription handlers were used.

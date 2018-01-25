@@ -41,18 +41,27 @@ public:
 
 private:
     void send_queued();
-    bool is_magic_cookie(size_t _offset) const;
+    bool is_magic_cookie(const message_buffer_ptr_t& _recv_buffer,
+                         size_t _offset) const;
     void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
     void receive_cbk(boost::system::error_code const &_error,
-                     std::size_t _bytes);
+                     std::size_t _bytes,
+                     message_buffer_ptr_t  _recv_buffer,
+                     std::size_t _recv_buffer_size);
 
     void connect();
     void receive();
-    void calculate_shrink_count();
+    void receive(message_buffer_ptr_t  _recv_buffer,
+                 std::size_t _recv_buffer_size,
+                 std::size_t _missing_capacity);
+    void calculate_shrink_count(const message_buffer_ptr_t& _recv_buffer,
+                                std::size_t _recv_buffer_size);
     const std::string get_address_port_remote() const;
     const std::string get_address_port_local() const;
-    void handle_recv_buffer_exception(const std::exception &_e);
+    void handle_recv_buffer_exception(const std::exception &_e,
+                                      const message_buffer_ptr_t& _recv_buffer,
+                                      std::size_t _recv_buffer_size);
     void set_local_port();
     std::size_t write_completion_condition(
             const boost::system::error_code& _error,
@@ -62,9 +71,7 @@ private:
     std::string get_remote_information() const;
 
     const std::uint32_t recv_buffer_size_initial_;
-    message_buffer_t recv_buffer_;
-    size_t recv_buffer_size_;
-    std::uint32_t missing_capacity_;
+    message_buffer_ptr_t recv_buffer_;
     std::uint32_t shrink_count_;
     const std::uint32_t buffer_shrink_threshold_;
 

@@ -384,30 +384,36 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
 void routing_manager_base::unregister_event(client_t _client, service_t _service, instance_t _instance,
             event_t _event, bool _is_provided) {
     (void)_client;
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
-    auto found_service = events_.find(_service);
-    if (found_service != events_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
-                auto its_event = found_event->second;
-                its_event->remove_ref(_client, _is_provided);
-                if (!its_event->has_ref()) {
-                    auto its_eventgroups = its_event->get_eventgroups();
-                    for (auto eg : its_eventgroups) {
-                        std::shared_ptr<eventgroupinfo> its_eventgroup_info
-                            = find_eventgroup(_service, _instance, eg);
-                        if (its_eventgroup_info) {
-                            its_eventgroup_info->remove_event(its_event);
-                            if (0 == its_eventgroup_info->get_events().size()) {
-                                remove_eventgroup_info(_service, _instance, eg);
-                            }
-                        }
+    std::shared_ptr<event> its_unrefed_event;
+    {
+        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        auto found_service = events_.find(_service);
+        if (found_service != events_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_event = found_instance->second.find(_event);
+                if (found_event != found_instance->second.end()) {
+                    auto its_event = found_event->second;
+                    its_event->remove_ref(_client, _is_provided);
+                    if (!its_event->has_ref()) {
+                        its_unrefed_event = its_event;
+                        found_instance->second.erase(found_event);
+                    } else if (_is_provided) {
+                        its_event->set_provided(false);
                     }
-                    found_instance->second.erase(_event);
-                } else if (_is_provided) {
-                    its_event->set_provided(false);
+                }
+            }
+        }
+    }
+    if (its_unrefed_event) {
+        auto its_eventgroups = its_unrefed_event->get_eventgroups();
+        for (auto eg : its_eventgroups) {
+            std::shared_ptr<eventgroupinfo> its_eventgroup_info
+                = find_eventgroup(_service, _instance, eg);
+            if (its_eventgroup_info) {
+                its_eventgroup_info->remove_event(its_unrefed_event);
+                if (0 == its_eventgroup_info->get_events().size()) {
+                    remove_eventgroup_info(_service, _instance, eg);
                 }
             }
         }

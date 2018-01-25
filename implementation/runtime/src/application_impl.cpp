@@ -1008,7 +1008,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
                     } else {
                         auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
                         if (its_any_event != found_eventgroup->second.end()) {
-                            if (!_error || (_error && found_event->second.second)) {
+                            if (!_error || (_error && its_any_event->second.second)) {
                                 handlers.push_back(its_any_event->second.first);
                             }
                         }
@@ -1027,7 +1027,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
                     } else {
                         auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
                         if (its_any_event != found_eventgroup->second.end()) {
-                            if (!_error || (_error && found_event->second.second)) {
+                            if (!_error || (_error && its_any_event->second.second)) {
                                 handlers.push_back(its_any_event->second.first);
                             }
                         }
@@ -1049,7 +1049,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
                     } else {
                         auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
                         if (its_any_event != found_eventgroup->second.end()) {
-                            if (!_error || (_error && found_event->second.second)) {
+                            if (!_error || (_error && its_any_event->second.second)) {
                                 handlers.push_back(its_any_event->second.first);
                             }
                         }
@@ -1068,7 +1068,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
                     } else {
                         auto its_any_event = found_eventgroup->second.find(ANY_EVENT);
                         if (its_any_event != found_eventgroup->second.end()) {
-                            if (!_error || (_error && found_event->second.second)) {
+                            if (!_error || (_error && its_any_event->second.second)) {
                                 handlers.push_back(its_any_event->second.first);
                             }
                         }

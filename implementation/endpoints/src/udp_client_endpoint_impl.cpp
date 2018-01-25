@@ -82,7 +82,14 @@ void udp_client_endpoint_impl::restart() {
         std::lock_guard<std::mutex> its_lock(mutex_);
         queue_.clear();
     }
+    std::string local;
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        local = get_address_port_local();
+    }
     shutdown_and_close_socket(false);
+    VSOMEIP_WARNING << "uce::restart: local: " << local
+            << " remote: " << get_address_port_remote();
     start_connect_timer();
 }
 

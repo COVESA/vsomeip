@@ -2418,58 +2418,79 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
 }
 
 void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &_address) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    for (auto &its_service : eventgroups_) {
-        for (auto &its_instance : its_service.second) {
+    struct subscriptions_info {
+        service_t service_id_;
+        instance_t instance_id_;
+        eventgroup_t eventgroup_id_;
+        std::shared_ptr<endpoint_definition> invalid_endpoint_;
+        client_t client_;
+        std::set<std::shared_ptr<event>> events_;
+    };
+    std::vector<struct subscriptions_info> subscriptions_to_expire_;
+    {
+        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        for (auto &its_service : eventgroups_) {
+            for (auto &its_instance : its_service.second) {
+                for (auto &its_eventgroup : its_instance.second) {
+                    std::set<std::shared_ptr<endpoint_definition>> its_invalid_endpoints;
+                    for (auto &its_target : its_eventgroup.second->get_targets()) {
+                        if (its_target.endpoint_->get_address() == _address)
+                            its_invalid_endpoints.insert(its_target.endpoint_);
+                    }
+
+                    for (auto &its_endpoint : its_invalid_endpoints) {
+                        its_eventgroup.second->remove_target(its_endpoint);
+                        client_t its_client = find_client(its_service.first,
+                                its_instance.first, its_eventgroup.second,
+                                its_endpoint);
+                        clear_remote_subscriber(its_service.first,
+                                its_instance.first, its_client, its_endpoint);
+
+                        std::set<std::shared_ptr<event> > its_events;
+                        if (its_eventgroup.second->get_targets().size() == 0) {
+                            its_events = its_eventgroup.second->get_events();
+                        }
+                        subscriptions_to_expire_.push_back({its_service.first,
+                            its_instance.first,
+                            its_eventgroup.first,
+                            its_endpoint,
+                            its_client,
+                            its_events});
+                    }
+                    if(its_eventgroup.second->is_multicast() && its_invalid_endpoints.size() &&
+                            0 == its_eventgroup.second->get_unreliable_target_count() ) {
+                        //clear multicast targets if no subscriber is left for multicast eventgroup
+                        its_eventgroup.second->clear_multicast_targets();
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto &s : subscriptions_to_expire_) {
+        if (s.invalid_endpoint_) {
+            for (const auto e: s.events_) {
+                if (e->is_shadow()) {
+                    e->unset_payload();
+                }
+            }
             const client_t its_hosting_client = find_local_client(
-                    its_service.first, its_instance.first);
+                    s.service_id_, s.instance_id_);
             const bool service_offered_by_host = (its_hosting_client
                     == host_->get_client());
-            auto target = find_local(its_hosting_client);
+            std::shared_ptr<endpoint> target = find_local(its_hosting_client);
 
-            for (auto &its_eventgroup : its_instance.second) {
-                std::set<std::shared_ptr<endpoint_definition>> its_invalid_endpoints;
-                for (auto &its_target : its_eventgroup.second->get_targets()) {
-                    if (its_target.endpoint_->get_address() == _address)
-                        its_invalid_endpoints.insert(its_target.endpoint_);
-                }
-
-                for (auto &its_endpoint : its_invalid_endpoints) {
-                    its_eventgroup.second->remove_target(its_endpoint);
-                    client_t its_client = find_client(its_service.first,
-                            its_instance.first, its_eventgroup.second,
-                            its_endpoint);
-                    clear_remote_subscriber(its_service.first,
-                            its_instance.first, its_client, its_endpoint);
-
-                    if (its_eventgroup.second->get_targets().size() == 0) {
-                        std::set<std::shared_ptr<event> > its_events
-                            = its_eventgroup.second->get_events();
-                        for (auto e : its_events) {
-                            if (e->is_shadow()) {
-                                e->unset_payload();
-                            }
-                        }
-                    }
-
-                    if (target) {
-                        stub_->send_unsubscribe(target, its_client, its_service.first,
-                                its_instance.first, its_eventgroup.first, ANY_EVENT, true);
-                    }
-                    if (service_offered_by_host) {
-                        host_->on_subscription(its_service.first,
-                                its_instance.first, its_eventgroup.first,
-                                its_client, false,
-                                [](const bool _subscription_accepted){
-                                    (void)_subscription_accepted;
-                                });
-                    }
-                }
-                if(its_eventgroup.second->is_multicast() && its_invalid_endpoints.size() &&
-                        0 == its_eventgroup.second->get_unreliable_target_count() ) {
-                    //clear multicast targets if no subscriber is left for multicast eventgroup
-                    its_eventgroup.second->clear_multicast_targets();
-                }
+            if (target) {
+                stub_->send_unsubscribe(target, s.client_, s.service_id_,
+                      s.instance_id_, s.eventgroup_id_, ANY_EVENT, true);
+            }
+            if (service_offered_by_host) {
+                host_->on_subscription(s.service_id_,
+                      s.instance_id_, s.eventgroup_id_,
+                      s.client_, false,
+                      [](const bool _subscription_accepted){
+                          (void)_subscription_accepted;
+                      });
             }
         }
     }
@@ -3330,81 +3351,99 @@ void routing_manager_impl::clear_remote_subscriber(
 
 std::chrono::steady_clock::time_point
 routing_manager_impl::expire_subscriptions() {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    struct subscriptions_info {
+        service_t service_id_;
+        instance_t instance_id_;
+        eventgroup_t eventgroup_id_;
+        std::shared_ptr<endpoint_definition> invalid_endpoint_;
+        client_t client_;
+        std::set<std::shared_ptr<event>> events_;
+    };
+    std::vector<struct subscriptions_info> subscriptions_to_expire_;
     std::chrono::steady_clock::time_point now
         = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point next_expiration
         = std::chrono::steady_clock::now() + std::chrono::hours(24);
+    {
+        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
 
-    for (auto &its_service : eventgroups_) {
-        for (auto &its_instance : its_service.second) {
-            const client_t its_hosting_client = find_local_client(
-                    its_service.first, its_instance.first);
-            for (auto &its_eventgroup : its_instance.second) {
-                std::set<std::shared_ptr<endpoint_definition>> its_expired_endpoints;
-                for (auto &its_target : its_eventgroup.second->get_targets()) {
-                    if (its_target.expiration_ < now) {
-                        its_expired_endpoints.insert(its_target.endpoint_);
-                    } else if (its_target.expiration_ < next_expiration) {
-                        next_expiration = its_target.expiration_;
-                    }
-                }
-                std::shared_ptr<endpoint> target;
-                bool service_offered_by_host(false);
-                if (its_expired_endpoints.size()) {
-                    target = find_local(its_hosting_client);
-                    service_offered_by_host = (its_hosting_client == host_->get_client());
-                }
-
-                for (auto its_endpoint : its_expired_endpoints) {
-                    its_eventgroup.second->remove_target(its_endpoint);
-
-                    client_t its_client
-                        = find_client(its_service.first, its_instance.first,
-                                      its_eventgroup.second, its_endpoint);
-                    clear_remote_subscriber(its_service.first, its_instance.first,
-                            its_client, its_endpoint);
-
-                    if (its_eventgroup.second->get_targets().size() == 0) {
-                        std::set<std::shared_ptr<event> > its_events
-                            = its_eventgroup.second->get_events();
-                        for (auto e : its_events) {
-                            if (e->is_shadow()) {
-                                e->unset_payload();
-                            }
+        for (auto &its_service : eventgroups_) {
+            for (auto &its_instance : its_service.second) {
+                for (auto &its_eventgroup : its_instance.second) {
+                    std::set<std::shared_ptr<endpoint_definition>> its_expired_endpoints;
+                    for (auto &its_target : its_eventgroup.second->get_targets()) {
+                        if (its_target.expiration_ < now) {
+                            its_expired_endpoints.insert(its_target.endpoint_);
+                        } else if (its_target.expiration_ < next_expiration) {
+                            next_expiration = its_target.expiration_;
                         }
                     }
 
-                    if (target) {
-                        stub_->send_unsubscribe(target, its_client, its_service.first,
-                                its_instance.first, its_eventgroup.first, ANY_EVENT, true);
-                    }
-                    if (service_offered_by_host) {
-                        host_->on_subscription(its_service.first,
-                                its_instance.first, its_eventgroup.first,
-                                its_client, false,
-                                [](const bool _subscription_accepted){
-                                    (void)_subscription_accepted;
-                                });
-                    }
+                    for (auto its_endpoint : its_expired_endpoints) {
+                        its_eventgroup.second->remove_target(its_endpoint);
 
-                    VSOMEIP_INFO << "Expired subscription ("
-                            << std::hex << its_service.first << "."
-                            << its_instance .first << "."
-                            << its_eventgroup.first << " from "
-                            << its_endpoint->get_address() << ":"
-                            << std::dec << its_endpoint->get_port()
-                            << "(" << std::hex << its_client << ")";
-                }
-                if(its_eventgroup.second->is_multicast() && its_expired_endpoints.size() &&
-                        0 == its_eventgroup.second->get_unreliable_target_count() ) {
-                    //clear multicast targets if no unreliable subscriber is left for multicast eventgroup
-                    its_eventgroup.second->clear_multicast_targets();
+                        client_t its_client
+                            = find_client(its_service.first, its_instance.first,
+                                          its_eventgroup.second, its_endpoint);
+                        clear_remote_subscriber(its_service.first, its_instance.first,
+                                its_client, its_endpoint);
+
+                        std::set<std::shared_ptr<event> > its_events;
+                        if (its_eventgroup.second->get_targets().size() == 0) {
+                            its_events = its_eventgroup.second->get_events();
+                        }
+                        subscriptions_to_expire_.push_back({its_service.first,
+                            its_instance.first,
+                            its_eventgroup.first,
+                            its_endpoint,
+                            its_client,
+                            its_events});
+                    }
+                    if(its_eventgroup.second->is_multicast() && its_expired_endpoints.size() &&
+                            0 == its_eventgroup.second->get_unreliable_target_count() ) {
+                        //clear multicast targets if no unreliable subscriber is left for multicast eventgroup
+                        its_eventgroup.second->clear_multicast_targets();
+                    }
                 }
             }
         }
     }
 
+    for (const auto &s : subscriptions_to_expire_) {
+        if (s.invalid_endpoint_) {
+            for (const auto e: s.events_) {
+                if (e->is_shadow()) {
+                    e->unset_payload();
+                }
+            }
+            const client_t its_hosting_client = find_local_client(s.service_id_,
+                    s.instance_id_);
+            const bool service_offered_by_host = (its_hosting_client
+                    == host_->get_client());
+            std::shared_ptr<endpoint> target = find_local(its_hosting_client);
+
+            if (target) {
+                stub_->send_unsubscribe(target, s.client_, s.service_id_,
+                      s.instance_id_, s.eventgroup_id_, ANY_EVENT, true);
+            }
+            if (service_offered_by_host) {
+                host_->on_subscription(s.service_id_,
+                      s.instance_id_, s.eventgroup_id_,
+                      s.client_, false,
+                      [](const bool _subscription_accepted){
+                          (void)_subscription_accepted;
+                      });
+            }
+
+            VSOMEIP_INFO << "Expired subscription ("
+                   << std::hex << s.service_id_ << "."
+                   << s.instance_id_ << "."
+                   << s.eventgroup_id_ << " from "
+                   << s.invalid_endpoint_->get_address() << ":"
+                   << std::dec << s.invalid_endpoint_->get_port()
+                   << "(" << std::hex << s.client_ << ")";
+        }
+    }
     return next_expiration;
 }
 
