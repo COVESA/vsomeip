@@ -315,10 +315,6 @@ private:
 
     void remote_subscription_not_acknowledge_all();
 
-    void remote_subscription_remove(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            const std::shared_ptr<endpoint_definition> &_subscriber);
-
     bool check_stop_subscribe_subscribe(message_impl::entries_t::const_iterator _iter,
                                         message_impl::entries_t::const_iterator _end,
                                         const message_impl::options_t& _options) const;

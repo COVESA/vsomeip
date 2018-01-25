@@ -103,6 +103,7 @@
 #define VSOMEIP_ID_REQUEST                      0x1E
 #define VSOMEIP_OFFERED_SERVICES_REQUEST        0x1F
 #define VSOMEIP_OFFERED_SERVICES_RESPONSE       0x20
+#define VSOMEIP_UNSUBSCRIBE_ACK                 0x21
 
 #define VSOMEIP_OFFER_SERVICE_COMMAND_SIZE      16
 #define VSOMEIP_REQUEST_SERVICE_COMMAND_SIZE    17
@@ -111,7 +112,8 @@
 #define VSOMEIP_SUBSCRIBE_COMMAND_SIZE          19
 #define VSOMEIP_SUBSCRIBE_ACK_COMMAND_SIZE      19
 #define VSOMEIP_SUBSCRIBE_NACK_COMMAND_SIZE     19
-#define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        16
+#define VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE        17
+#define VSOMEIP_UNSUBSCRIBE_ACK_COMMAND_SIZE    15
 #define VSOMEIP_REGISTER_EVENT_COMMAND_SIZE     15
 #define VSOMEIP_UNREGISTER_EVENT_COMMAND_SIZE   14
 #define VSOMEIP_ID_RESPONSE_COMMAND_SIZE        12
@@ -127,8 +129,6 @@
 
 #define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
 #define VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS   0000
-
-#define VSOMEIP_MAX_CLIENTS                     255
 
 #define VSOMEIP_ROUTING_READY_MESSAGE           "@VSOMEIP_ROUTING_READY_MESSAGE@"
 
@@ -168,12 +168,11 @@ struct configuration_data_t {
     pid_t pid_;
 #endif
     unsigned short client_base_;
-
-    unsigned short used_client_ids_[VSOMEIP_MAX_CLIENTS];
+    unsigned short max_clients_;
     int max_used_client_ids_index_;
-    unsigned char max_assigned_client_id_low_byte_;
-
+    unsigned short max_assigned_client_id_without_diagnosis_;
     unsigned short routing_manager_host_;
+    // array of used client ids here, pointer to it is kept in utility class
 };
 
 const std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();

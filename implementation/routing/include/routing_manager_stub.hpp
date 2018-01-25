@@ -66,7 +66,7 @@ public:
     void send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
             client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, bool _is_remote_subscriber);
+            event_t _event, pending_subscription_id_t _unsubscription_id);
 
     void send_subscribe_nack(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event);

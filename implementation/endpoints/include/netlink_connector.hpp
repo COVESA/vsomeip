@@ -129,17 +129,18 @@ private:
     int proto;
 };
 
-typedef std::function< void (std::string, bool) > net_if_changed_handler_t;
+typedef std::function< void (bool, std::string, bool) > net_if_changed_handler_t;
 
 class netlink_connector : public std::enable_shared_from_this<netlink_connector> {
 public:
-    netlink_connector(boost::asio::io_service& _io, boost::asio::ip::address _address):
+    netlink_connector(boost::asio::io_service& _io, boost::asio::ip::address _address,
+                      boost::asio::ip::address _multicast_address):
         net_if_index_for_address_(0),
         handler_(nullptr),
         socket_(_io),
         recv_buffer_(recv_buffer_size, 0),
-        address_(_address)
-        {
+        address_(_address),
+        multicast_address_(_multicast_address) {
     }
     ~netlink_connector() {}
 
@@ -155,9 +156,14 @@ private:
             const unsigned int address);
     void send_ifa_request();
     void send_ifi_request();
+    void send_rt_request();
 
     void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
     void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+
+    bool check_sd_multicast_route_match(struct rtmsg* _routemsg,
+                                        size_t _length,
+                                        std::string* _routename) const;
 
     std::map<int, unsigned int> net_if_flags_;
     int net_if_index_for_address_;
@@ -171,6 +177,7 @@ private:
     message_buffer_t recv_buffer_;
 
     boost::asio::ip::address address_;
+    boost::asio::ip::address multicast_address_;
 };
 
 }

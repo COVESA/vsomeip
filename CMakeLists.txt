@@ -8,7 +8,7 @@ project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
 set (VSOMEIP_MINOR_VERSION 10)
-set (VSOMEIP_PATCH_VERSION 8)
+set (VSOMEIP_PATCH_VERSION 9)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
@@ -39,6 +39,14 @@ foreach (p LIB BIN INCLUDE CMAKE)
 endforeach ()
 
 ###################################################################################################
+# Set a default build type if none was specified
+set(default_build_type "RelWithDebInfo")
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -145,7 +153,7 @@ if (MSVC)
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++0x ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
 

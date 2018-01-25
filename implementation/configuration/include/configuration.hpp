@@ -43,6 +43,7 @@ public:
 
     virtual const boost::asio::ip::address & get_unicast_address() const = 0;
     virtual unsigned short get_diagnosis_address() const = 0;
+    virtual std::uint16_t get_diagnosis_mask() const = 0;
     virtual bool is_v4() const = 0;
     virtual bool is_v6() const = 0;
 

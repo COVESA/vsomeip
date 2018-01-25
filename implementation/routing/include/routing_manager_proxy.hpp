@@ -178,6 +178,10 @@ private:
 
     void send_request_services(std::set<service_data_t>& _requests);
 
+    void send_unsubscribe_ack(service_t _service, instance_t _instance,
+                              eventgroup_t _eventgroup,
+                              pending_subscription_id_t _subscription_id);
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,

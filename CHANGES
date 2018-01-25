@@ -1,5 +1,25 @@
 Changes
 =======
+v2.10.9
+- Improve handling of service discovery messages with entries
+  referencing too many options.
+- Prevent sending of duplicate remote subscriptions to local clients
+  if the local client processes incoming subscriptions too slow.
+- Remote (un)subscriptions to the same eventgroup are now queued in
+  the routing manager until the local client has processed the
+  previous (un)subscription for this eventgroup.
+- Introduce new json configuration parameter 'diagnosis_mask' to
+  control the number of bits in the client ID used for the diagnosis
+  address. This can be used to enable more than 254 concurrent clients
+  on a node. For more information see the vsomeipUserGuide.
+- If the service discovery is enabled it is is only started if a
+  matching multicast route for the configured service discovery
+  multicast group is present in the system. This applies only to
+  Linux.
+- Rework security configuration:
+    - Allow policy specifications without client specification.
+    - Allow policies to be specified for ranges of uids/gids.
+  For more information see the vsomeipUserGuide.
 
 v2.10.8
 - Change dispatching of availability states in case an availability

@@ -89,6 +89,8 @@ configuration_data_t *utility::the_configuration_data__(nullptr);
 CriticalSection utility::its_local_configuration_mutex__;
 // number of times auto_configuration_init() has been called in this process
 uint16_t utility::its_configuration_refs__(0);
+// pointer to used client IDs array in shared memory
+std::uint16_t* utility::used_client_ids__(0);
 
 #ifdef _WIN32
 // global (inter-process) mutex
@@ -100,6 +102,8 @@ static HANDLE its_descriptor(INVALID_HANDLE_VALUE);
 bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
 
+    const size_t its_shm_size = sizeof(configuration_data_t) +
+            static_cast<std::uint16_t>(~_config->get_diagnosis_mask()) * sizeof(client_t);
 #ifdef _WIN32
     if (its_configuration_refs__ > 0) {
         assert(configuration_data_mutex != INVALID_HANDLE_VALUE);
@@ -126,7 +130,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         NULL,                           // default security
                         PAGE_READWRITE,                 // read/write access
                         0,                              // maximum object size (high-order DWORD)
-                        sizeof(configuration_data_t),   // maximum object size (low-order DWORD)
+                        its_shm_size,                   // maximum object size (low-order DWORD)
                         utility::get_shm_name(_config).c_str());// name of mapping object
 
                     if (its_descriptor && GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -135,7 +139,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                             FILE_MAP_ALL_ACCESS, // read/write permission
                             0,
                             0,
-                            sizeof(configuration_data_t));
+                            its_shm_size);
 
                         if (its_segment) {
                             the_configuration_data__
@@ -165,7 +169,7 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     NULL,                           // default security
                     PAGE_READWRITE,                 // read/write access
                     0,                              // maximum object size (high-order DWORD)
-                    sizeof(configuration_data_t),   // maximum object size (low-order DWORD)
+                    its_shm_size,                   // maximum object size (low-order DWORD)
                     utility::get_shm_name(_config).c_str());// name of mapping object
 
                 if (its_descriptor) {
@@ -173,20 +177,22 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         FILE_MAP_ALL_ACCESS, // read/write permission
                         0,
                         0,
-                        sizeof(configuration_data_t));
+                        its_shm_size);
                     if (its_segment) {
                         the_configuration_data__
                             = reinterpret_cast<configuration_data_t *>(its_segment);
 
                         the_configuration_data__->client_base_
-                            = static_cast<unsigned short>(_config->get_diagnosis_address() << 8);
-                        the_configuration_data__->used_client_ids_[0]
-                            = the_configuration_data__->client_base_;
-                        the_configuration_data__->client_base_++;
+                            = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
+                        the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
                         the_configuration_data__->max_used_client_ids_index_ = 1;
-                        the_configuration_data__->max_assigned_client_id_low_byte_ = 0x00;
-
+                        the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
                         the_configuration_data__->routing_manager_host_ = 0x0000;
+                        // the clientid array starts right after the routing_manager_host_ struct member
+                        used_client_ids__ = reinterpret_cast<unsigned short*>(
+                                reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
+                        used_client_ids__[0] = the_configuration_data__->client_base_;
+                        the_configuration_data__->client_base_++;
                         std::string its_name = _config->get_routing_host();
                         if (its_name == "")
                             the_configuration_data__->routing_manager_host_ = the_configuration_data__->client_base_;
@@ -224,11 +230,11 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
             static_cast<mode_t>(_config->get_permissions_shm()));
     ::umask(previous_mask);
     if (its_descriptor > -1) {
-        if (-1 == ftruncate(its_descriptor, sizeof(configuration_data_t))) {
+        if (-1 == ftruncate(its_descriptor, its_shm_size)) {
             VSOMEIP_ERROR << "utility::auto_configuration_init: "
                     "ftruncate failed: " << std::strerror(errno);
         } else {
-            void *its_segment = mmap(0, sizeof(configuration_data_t),
+            void *its_segment = mmap(0, its_shm_size,
                                      PROT_READ | PROT_WRITE, MAP_SHARED,
                                      its_descriptor, 0);
             if(MAP_FAILED == its_segment) {
@@ -264,14 +270,17 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     }
 
                     the_configuration_data__->client_base_
-                        = static_cast<unsigned short>(_config->get_diagnosis_address() << 8);
-                    the_configuration_data__->used_client_ids_[0]
-                        = the_configuration_data__->client_base_;
-                    the_configuration_data__->client_base_++;
+                        = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
+                    the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
                     the_configuration_data__->max_used_client_ids_index_ = 1;
-                    the_configuration_data__->max_assigned_client_id_low_byte_ = 0x00;
-
+                    the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
                     the_configuration_data__->routing_manager_host_ = 0x0000;
+                    // the clientid array starts right after the routing_manager_host_ struct member
+                    used_client_ids__ = reinterpret_cast<unsigned short*>(
+                            reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
+                    used_client_ids__[0] = the_configuration_data__->client_base_;
+                    the_configuration_data__->client_base_++;
+
                     std::string its_name = _config->get_routing_host();
 
                     its_configuration_refs__++;
@@ -301,11 +310,11 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
         } else {
             // truncate to make sure we work on valid shm;
             // in case creator already called truncate, this effectively becomes a noop
-            if (-1 == ftruncate(its_descriptor, sizeof(configuration_data_t))) {
+            if (-1 == ftruncate(its_descriptor, its_shm_size)) {
                 VSOMEIP_ERROR << "utility::auto_configuration_init: "
                     "ftruncate failed: " << std::strerror(errno);
             } else {
-                void *its_segment = mmap(0, sizeof(configuration_data_t),
+                void *its_segment = mmap(0, its_shm_size,
                                          PROT_READ | PROT_WRITE, MAP_SHARED,
                                          its_descriptor, 0);
                 if(MAP_FAILED == its_segment) {
@@ -334,6 +343,9 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                             }
                         }
                         its_configuration_refs__++;
+                        used_client_ids__ = reinterpret_cast<unsigned short*>(
+                                reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_)
+                                        + sizeof(unsigned short));
                         pthread_mutex_unlock(&the_configuration_data__->mutex_);
                     }
 
@@ -352,6 +364,8 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 void utility::auto_configuration_exit(client_t _client,
         const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    const size_t its_shm_size = sizeof(configuration_data_t) +
+            static_cast<std::uint16_t>(~_config->get_diagnosis_mask()) * sizeof(client_t);
     if (the_configuration_data__) {
 #ifdef _WIN32
         // not manipulating data in shared memory, no need to take global mutex
@@ -368,6 +382,7 @@ void utility::auto_configuration_exit(client_t _client,
         if (its_configuration_refs__ == 0) {
             UnmapViewOfFile(the_configuration_data__);
             the_configuration_data__ = nullptr;
+            used_client_ids__ = nullptr;
 
             CloseHandle(its_descriptor);
             its_descriptor = NULL;
@@ -385,13 +400,14 @@ void utility::auto_configuration_exit(client_t _client,
         }
 
         if (its_configuration_refs__ == 0) {
-            if (-1 == ::munmap(the_configuration_data__, sizeof(configuration_data_t))) {
+            if (-1 == ::munmap(the_configuration_data__, its_shm_size)) {
                 VSOMEIP_ERROR << "utility::auto_configuration_exit: "
                         "munmap failed: " << std::strerror(errno);
             } else {
                 VSOMEIP_INFO <<  "utility::auto_configuration_exit: "
                         "munmap succeeded.";
                 the_configuration_data__ = nullptr;
+                used_client_ids__ = nullptr;
                 if (unlink_shm) {
                     shm_unlink(utility::get_shm_name(_config).c_str());
                 }
@@ -407,7 +423,7 @@ bool utility::is_used_client_id(client_t _client,
     for (int i = 0;
          i < the_configuration_data__->max_used_client_ids_index_;
          i++) {
-        if (the_configuration_data__->used_client_ids_[i] == _client) {
+        if (used_client_ids__[i] == _client) {
             return true;
         }
     }
@@ -448,7 +464,7 @@ std::set<client_t> utility::get_used_client_ids() {
         for (int i = 1;
              i < the_configuration_data__->max_used_client_ids_index_;
              i++) {
-            clients.insert(the_configuration_data__->used_client_ids_[i]);
+            clients.insert(used_client_ids__[i]);
         }
 
 #ifdef _WIN32
@@ -514,9 +530,10 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
         }
 
         if (the_configuration_data__->max_used_client_ids_index_
-                == VSOMEIP_MAX_CLIENTS) {
+                == the_configuration_data__->max_clients_) {
             VSOMEIP_ERROR << "Max amount of possible concurrent active"
-                    << " vsomeip applications reached.";
+                    << " vsomeip applications reached (" << std::dec <<
+                    the_configuration_data__->max_clients_ << ").";
 #ifdef _WIN32
             BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
             assert(releaseResult);
@@ -561,17 +578,19 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
             }
             int increase_count = 0;
             while (is_used_client_id(_client, _config)
-                    || !is_bigger_last_assigned_client_id(_client)
+                    || !is_bigger_last_assigned_client_id(_client, _config->get_diagnosis_mask())
                     || _config->is_configured_client_id(_client)) {
-                if ((_client & 0xFF) + 1 > VSOMEIP_MAX_CLIENTS) {
+                if ((_client & the_configuration_data__->max_clients_)
+                        + 1 > the_configuration_data__->max_clients_) {
                     _client = the_configuration_data__->client_base_;
-                    the_configuration_data__->max_assigned_client_id_low_byte_ = 0;
+                    the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0;
                 } else {
                     _client++;
                     increase_count++;
-                    if (increase_count > VSOMEIP_MAX_CLIENTS) {
+                    if (increase_count > the_configuration_data__->max_clients_) {
                         VSOMEIP_ERROR << "Max amount of possible concurrent active"
-                                << " vsomeip applications reached.";
+                                << " vsomeip applications reached (" << std::dec <<
+                                the_configuration_data__->max_clients_ << ").";
 #ifdef _WIN32
                         BOOL releaseResult = ReleaseMutex(configuration_data_mutex);
                         assert(releaseResult);
@@ -583,7 +602,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                     }
                 }
             }
-            set_client_id_lowbyte(_client);
+            set_max_assigned_client_id_without_diagnosis(_client);
         }
 
         if (set_client_as_manager_host) {
@@ -593,8 +612,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 #endif
         }
 
-        the_configuration_data__->used_client_ids_[
-            the_configuration_data__->max_used_client_ids_index_] = _client;
+        used_client_ids__[the_configuration_data__->max_used_client_ids_index_] = _client;
         the_configuration_data__->max_used_client_ids_index_++;
 
 
@@ -626,15 +644,14 @@ void utility::release_client_id(client_t _client) {
 #endif
         int i = 0;
         for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
-            if (the_configuration_data__->used_client_ids_[i] == _client) {
+            if (used_client_ids__[i] == _client) {
                 break;
             }
         }
 
         if (i < the_configuration_data__->max_used_client_ids_index_) {
             for (; i < (the_configuration_data__->max_used_client_ids_index_ - 1); i++) {
-                the_configuration_data__->used_client_ids_[i]
-                    = the_configuration_data__->used_client_ids_[i+1];
+                used_client_ids__[i] = used_client_ids__[i+1];
             }
             the_configuration_data__->max_used_client_ids_index_--;
         }
@@ -702,25 +719,27 @@ void utility::set_routing_manager_host(client_t _client) {
 #endif
 }
 
-bool utility::is_bigger_last_assigned_client_id(client_t _client) {
+bool utility::is_bigger_last_assigned_client_id(client_t _client, std::uint16_t _diagnosis_mask) {
     return _client
-            > ((the_configuration_data__->client_base_ & 0xFF00)
-                    + the_configuration_data__->max_assigned_client_id_low_byte_);
+            > ((the_configuration_data__->client_base_ & _diagnosis_mask)
+                    + the_configuration_data__->max_assigned_client_id_without_diagnosis_);
 }
 
-void utility::set_client_id_lowbyte(client_t _client) {
-    const unsigned char its_low_byte =
-            static_cast<unsigned char>(_client & 0xFF);
-    the_configuration_data__->max_assigned_client_id_low_byte_ = its_low_byte
-            % VSOMEIP_MAX_CLIENTS;
+void utility::set_max_assigned_client_id_without_diagnosis(client_t _client) {
+    const std::uint16_t its_client_id_without_diagnosis =
+            static_cast<std::uint16_t>(_client
+                    & the_configuration_data__->max_clients_);
+    the_configuration_data__->max_assigned_client_id_without_diagnosis_ =
+            static_cast<std::uint16_t>(its_client_id_without_diagnosis
+                    % the_configuration_data__->max_clients_);
 }
 
 void utility::check_client_id_consistency() {
     if (1 < the_configuration_data__->max_used_client_ids_index_) {
-        client_t prevID = the_configuration_data__->used_client_ids_[0];
+        client_t prevID = used_client_ids__[0];
         int i = 1;
         for (; i < the_configuration_data__->max_used_client_ids_index_; i++) {
-            const client_t currID = the_configuration_data__->used_client_ids_[i];
+            const client_t currID = used_client_ids__[i];
             if (prevID == currID) {
                 break;
             }
@@ -729,8 +748,7 @@ void utility::check_client_id_consistency() {
 
         if (i < the_configuration_data__->max_used_client_ids_index_) {
             for (; i < (the_configuration_data__->max_used_client_ids_index_ - 1); i++) {
-                the_configuration_data__->used_client_ids_[i]
-                    = the_configuration_data__->used_client_ids_[i+1];
+                used_client_ids__[i] = used_client_ids__[i+1];
             }
             the_configuration_data__->max_used_client_ids_index_--;
         }

@@ -12,6 +12,7 @@
         "dlt":"false"
     },
     "diagnosis":"0x63",
+    "diagnosis_mask":"0xFF80",
     "applications":
     [
         {

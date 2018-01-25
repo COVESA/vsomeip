@@ -400,7 +400,27 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
                     << std::hex << std::setw(4) << std::setfill('0') << its_event << "]";
                 break;
-
+            case VSOMEIP_UNSUBSCRIBE_ACK:
+                if (_size != VSOMEIP_UNSUBSCRIBE_ACK_COMMAND_SIZE) {
+                    VSOMEIP_WARNING << "Received a VSOMEIP_UNSUBSCRIBE_ACK command with wrong size ~> skip!";
+                    break;
+                }
+                std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+                        sizeof(its_service));
+                std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
+                        sizeof(its_instance));
+                std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
+                        sizeof(its_eventgroup));
+                std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
+                        sizeof(its_subscription_id));
+                host_->on_unsubscribe_ack(its_client, its_service,
+                        its_instance, its_eventgroup, its_subscription_id);
+                VSOMEIP_INFO << "UNSUBSCRIBE ACK("
+                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
+                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "]";
+                break;
             case VSOMEIP_SEND: {
                 its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
@@ -1233,12 +1253,21 @@ void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _ta
                 &_subscription_id, sizeof(_subscription_id));
 
         _target->send(its_command, sizeof(its_command));
+    } else {
+        VSOMEIP_WARNING << __func__ << " Couldn't send subscription to local client ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
+                << _client;
     }
 }
 
 void routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
         client_t _client, service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, event_t _event, bool _is_remote_subscriber) {
+        eventgroup_t _eventgroup, event_t _event,
+        pending_subscription_id_t _unsubscription_id) {
     if (_target) {
         byte_t its_command[VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE];
         uint32_t its_size = VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE
@@ -1256,10 +1285,18 @@ void routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _
                 sizeof(_eventgroup));
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6], &_event,
                 sizeof(_event));
-        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_is_remote_subscriber,
-                sizeof(_is_remote_subscriber));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_unsubscription_id,
+                        sizeof(_unsubscription_id));
 
         _target->send(its_command, sizeof(its_command));
+    } else {
+        VSOMEIP_WARNING << __func__ << " Couldn't send unsubscription to local client ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
+                << _client;
     }
 }
 

@@ -237,28 +237,116 @@ pending_subscription_id_t eventgroupinfo::add_pending_subscription(
         subscription_id_++;
     }
     pending_subscriptions_[subscription_id_] = _pending_subscription;
+
+    const auto remote_address_port = std::make_pair(
+            _pending_subscription.subscriber_->get_address(),
+            _pending_subscription.subscriber_->get_port());
+
+    auto found_address = pending_subscriptions_by_remote_.find(remote_address_port);
+    if (found_address != pending_subscriptions_by_remote_.end()) {
+        found_address->second.push_back(subscription_id_);
+        VSOMEIP_WARNING << __func__ << " num pending subscriptions: "
+                << std::dec << found_address->second.size();
+        return DEFAULT_SUBSCRIPTION;
+    } else {
+        pending_subscriptions_by_remote_[remote_address_port].push_back(subscription_id_);
+    }
     return subscription_id_;
 }
 
-pending_subscription_t eventgroupinfo::remove_pending_subscription(
+std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
         pending_subscription_id_t _subscription_id) {
+    std::vector<pending_subscription_t> its_pending_subscriptions;
     std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
-    pending_subscription_t its_pending_subscription;
     const auto found_pending_subscription = pending_subscriptions_.find(
             _subscription_id);
     if (found_pending_subscription != pending_subscriptions_.end()) {
-        its_pending_subscription = found_pending_subscription->second;
-        pending_subscriptions_.erase(found_pending_subscription);
+        pending_subscription_t its_pending_sub = found_pending_subscription->second;
+        const auto remote_address_port = std::make_pair(
+                its_pending_sub.subscriber_->get_address(),
+                its_pending_sub.subscriber_->get_port());
+        const bool removed_is_subscribe = (found_pending_subscription->second.ttl_ > 0);
+
+        // check if more (un)subscriptions to this eventgroup arrived from the
+        //  same remote during the time the current pending subscription was processed
+        auto found_remote = pending_subscriptions_by_remote_.find(remote_address_port);
+        if (found_remote != pending_subscriptions_by_remote_.end()) {
+            if (found_remote->second.size()
+                    && found_remote->second.front() == _subscription_id) {
+                pending_subscriptions_.erase(found_pending_subscription);
+                found_remote->second.erase(found_remote->second.begin());
+
+                if (removed_is_subscribe) { // only subscriptions must be acked via SD
+                    its_pending_sub.pending_subscription_id_ = _subscription_id;
+                    its_pending_subscriptions.push_back(its_pending_sub);
+                }
+                // retrieve all pending (un)subscriptions which arrived during
+                // the time the rm_proxy answered the currently processed subscription
+                for (auto iter = found_remote->second.begin();
+                        iter != found_remote->second.end();) {
+                    const auto other_pen_sub = pending_subscriptions_.find(*iter);
+                    if (other_pen_sub != pending_subscriptions_.end()) {
+                        const bool queued_is_subscribe = (other_pen_sub->second.ttl_ > 0);
+                        if (removed_is_subscribe) {
+                            its_pending_subscriptions.push_back(other_pen_sub->second);
+                            its_pending_subscriptions.back().pending_subscription_id_ = *iter;
+                            if (!queued_is_subscribe) {
+                                // unsubscribe was queued and needs to be sent to
+                                // rm_proxy first before continuing processing
+                                // following queued (un)subscriptions
+                                break;
+                            } else {
+                                iter = found_remote->second.erase(iter);
+                                pending_subscriptions_.erase(other_pen_sub);
+                            }
+                        } else {
+                            if (queued_is_subscribe) {
+                                // subscribe was queued and needs to be sent to
+                                // rm_proxy first before continuing processing
+                                // following queued (un)subscriptions
+                                its_pending_subscriptions.push_back(other_pen_sub->second);
+                                its_pending_subscriptions.back().pending_subscription_id_ = *iter;
+                                break;
+                            } else {
+                                // further queued unsubscriptions can be ignored
+                                iter = found_remote->second.erase(iter);
+                                pending_subscriptions_.erase(other_pen_sub);
+                            }
+                        }
+                    } else {
+                        VSOMEIP_ERROR << __func__ << " didn't find queued subscription: "
+                                << *iter;
+                        ++iter;
+                    }
+                }
+
+                if (found_remote->second.empty()) {
+                    pending_subscriptions_by_remote_.erase(found_remote);
+                }
+            } else {
+                boost::system::error_code ec;
+                VSOMEIP_WARNING << __func__ << " Subscriptions were answered in "
+                        << " in wrong order by rm_proxy! ["
+                        << " subscriber: " << remote_address_port.first.to_string(ec)
+                        << ":" << std::dec << remote_address_port.second;
+                // found_pending_subscription isn't deleted from
+                // pending_subscriptions_ map in this case to ensure answer
+                // sequence of SD messages.
+                its_pending_subscriptions.clear();
+            }
+        }
     } else {
         VSOMEIP_ERROR << __func__ << " didn't find pending_subscription: "
-                << _subscription_id;;
+                << _subscription_id;
     }
-    return its_pending_subscription;
+    return its_pending_subscriptions;
 }
+
 
 void eventgroupinfo::clear_pending_subscriptions() {
     std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
     pending_subscriptions_.clear();
+    pending_subscriptions_by_remote_.clear();
 }
 
 }  // namespace vsomeip

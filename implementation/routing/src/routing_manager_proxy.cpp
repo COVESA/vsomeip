@@ -596,7 +596,8 @@ void routing_manager_proxy::unsubscribe(client_t _client, service_t _service,
                     sizeof(_eventgroup));
             std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6], &_event,
                     sizeof(_event));
-            its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8] = 0; // is_local
+            std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &DEFAULT_SUBSCRIPTION,
+                        sizeof(DEFAULT_SUBSCRIPTION)); // is_local
 
             auto its_target = find_local(_service, _instance);
             if (its_target) {
@@ -849,7 +850,6 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
     eventgroup_t its_eventgroup;
     event_t its_event;
     major_version_t its_major;
-    uint8_t is_remote_subscriber;
     client_t routing_host_id = configuration_->get_id(configuration_->get_routing_host());
     client_t its_subscriber;
     bool its_reliable;
@@ -1087,10 +1087,10 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     sizeof(its_eventgroup));
             std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
                     sizeof(its_event));
-            std::memcpy(&is_remote_subscriber, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
-                    sizeof(is_remote_subscriber));
+            std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
+                    sizeof(its_subscription_id));
             host_->on_subscription(its_service, its_instance, its_eventgroup, its_client, false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
-            if (!is_remote_subscriber) {
+            if (its_subscription_id == DEFAULT_SUBSCRIPTION) {
                 // Local subscriber: withdraw subscription
                 routing_manager_base::unsubscribe(its_client, its_service, its_instance, its_eventgroup, its_event);
             } else {
@@ -1101,6 +1101,8 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     routing_manager_base::unsubscribe(VSOMEIP_ROUTING_CLIENT, its_service,
                             its_instance, its_eventgroup, its_event);
                 }
+                send_unsubscribe_ack(its_service, its_instance, its_eventgroup,
+                                     its_subscription_id);
             }
             VSOMEIP_INFO << "UNSUBSCRIBE("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
@@ -1108,7 +1110,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_event << "] "
-                << (bool)is_remote_subscriber << " "
+                << (bool)(its_subscription_id != DEFAULT_SUBSCRIPTION) << " "
                 << std::dec << its_remote_subscriber_count;
             break;
 
@@ -2032,5 +2034,34 @@ void routing_manager_proxy::send_get_offered_services_info(client_t _client, off
     }
 }
 
+void routing_manager_proxy::send_unsubscribe_ack(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        pending_subscription_id_t _subscription_id) {
+    byte_t its_command[VSOMEIP_UNSUBSCRIBE_ACK_COMMAND_SIZE];
+    const std::uint32_t its_size = VSOMEIP_UNSUBSCRIBE_ACK_COMMAND_SIZE
+            - VSOMEIP_COMMAND_HEADER_SIZE;
+
+    const client_t its_client = get_client();
+    its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_UNSUBSCRIBE_ACK;
+    std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &its_client,
+            sizeof(its_client));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+            sizeof(its_size));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_service,
+            sizeof(_service));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 2], &_instance,
+            sizeof(_instance));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_eventgroup,
+            sizeof(_eventgroup));
+    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
+            &_subscription_id, sizeof(_subscription_id));
+
+    {
+        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        if (sender_) {
+            sender_->send(its_command, sizeof(its_command));
+        }
+    }
+}
 
 }  // namespace vsomeip

@@ -76,12 +76,12 @@ public:
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
 
-    virtual remote_subscription_state_e on_remote_subscription(
+    virtual void on_remote_subscription(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<endpoint_definition> &_subscriber,
-            const std::shared_ptr<endpoint_definition> &_target,
-            ttl_t _ttl, client_t *_client,
-            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) = 0;
+            const std::shared_ptr<endpoint_definition> &_target, ttl_t _ttl,
+            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id,
+            const std::function<void(remote_subscription_state_e, client_t)>& _callback) = 0;
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,

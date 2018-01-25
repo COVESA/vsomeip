@@ -529,15 +529,24 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                         missing_capacity_ = VSOMEIP_SOMEIP_HEADER_SIZE
                                 - static_cast<std::uint32_t>(recv_buffer_size_);
                     } else {
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                        VSOMEIP_ERROR << "tse::c<" << this
-                                << ">rcb: recv_buffer_size is: " << std::dec
-                                << recv_buffer_size_ << " but couldn't read "
-                                "out message_size. recv_buffer_capacity: "
-                                << recv_buffer_.capacity()
-                                << " its_iteration_gap: " << its_iteration_gap
-                                << "local: " << get_address_port_local()
-                                << " remote: " << get_address_port_remote();
+                        {
+                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                            VSOMEIP_ERROR << "tse::c<" << this
+                                    << ">rcb: recv_buffer_size is: " << std::dec
+                                    << recv_buffer_size_ << " but couldn't read "
+                                    "out message_size. recv_buffer_capacity: "
+                                    << recv_buffer_.capacity()
+                                    << " its_iteration_gap: " << its_iteration_gap
+                                    << "local: " << get_address_port_local()
+                                    << " remote: " << get_address_port_remote()
+                                    << ". Closing connection due to missing/broken data TCP stream.";
+                        }
+                        {
+                            std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+                            stop();
+                        }
+                        its_server->remove_connection(this);
+                        return;
                     }
                 }
             } while (has_full_message && recv_buffer_size_);

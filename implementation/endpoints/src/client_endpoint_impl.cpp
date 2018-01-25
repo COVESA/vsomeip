@@ -320,6 +320,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
         if (!stopping) {
             print_status();
         }
+        was_not_connected_ = true;
         shutdown_and_close_socket(true);
         connect();
     } else if (_error == boost::asio::error::not_connected

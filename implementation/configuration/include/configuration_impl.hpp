@@ -60,6 +60,7 @@ public:
 
     VSOMEIP_EXPORT const boost::asio::ip::address & get_unicast_address() const;
     VSOMEIP_EXPORT unsigned short get_diagnosis_address() const;
+    VSOMEIP_EXPORT std::uint16_t get_diagnosis_mask() const;
     VSOMEIP_EXPORT bool is_v4() const;
     VSOMEIP_EXPORT bool is_v6() const;
 
@@ -230,6 +231,8 @@ private:
     void load_selective_broadcasts_support(const element &_element);
     void load_policies(const element &_element);
     void load_policy(const boost::property_tree::ptree &_tree);
+    void load_credential(const boost::property_tree::ptree &_tree, ids_t &_ids);
+    void load_ranges(const boost::property_tree::ptree &_tree, ranges_t &_range);
 
     void load_debounce(const element &_element);
     void load_service_debounce(const boost::property_tree::ptree &_tree);
@@ -279,6 +282,7 @@ protected:
     // Configuration data
     boost::asio::ip::address unicast_;
     unsigned short diagnosis_;
+    std::uint16_t diagnosis_mask_;
 
     bool has_console_log_;
     bool has_file_log_;
@@ -335,6 +339,7 @@ protected:
         ET_NETWORK,
         ET_UNICAST,
         ET_DIAGNOSIS,
+        ET_DIAGNOSIS_MASK,
         ET_LOGGING_CONSOLE,
         ET_LOGGING_FILE,
         ET_LOGGING_DLT,
@@ -362,7 +367,7 @@ protected:
         ET_ENDPOINT_QUEUE_LIMITS,
         ET_ENDPOINT_QUEUE_LIMIT_EXTERNAL,
         ET_ENDPOINT_QUEUE_LIMIT_LOCAL,
-        ET_MAX = 30
+        ET_MAX = 31
     };
 
     bool is_configured_[ET_MAX];

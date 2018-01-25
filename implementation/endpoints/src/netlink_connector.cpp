@@ -9,6 +9,7 @@
 
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
+#include<sstream>
 
 #include "../include/netlink_connector.hpp"
 #include "../../logging/include/logger.hpp"
@@ -46,17 +47,23 @@ void netlink_connector::start() {
     if (ec) {
         VSOMEIP_WARNING << "Error opening NETLINK socket: " << ec.message();
         if (handler_) {
-            handler_("n/a", true);
+            handler_(true, "n/a", true);
+            handler_(false, "n/a", true);
         }
         return;
     }
     if (socket_.is_open()) {
-        socket_.bind(nl_endpoint<nl_protocol>(RTMGRP_LINK|RTMGRP_IPV4_IFADDR|RTMGRP_IPV6_IFADDR), ec);
+        socket_.bind(nl_endpoint<nl_protocol>(
+                RTMGRP_LINK |
+                RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR |
+                RTMGRP_IPV4_ROUTE | RTMGRP_IPV6_ROUTE |
+                RTMGRP_IPV4_MROUTE | RTMGRP_IPV6_MROUTE), ec);
 
         if (ec) {
             VSOMEIP_WARNING << "Error binding NETLINK socket: " << ec.message();
             if (handler_) {
-                handler_("n/a", true);
+                handler_(true, "n/a", true);
+                handler_(false, "n/a", true);
             }
             return;
         }
@@ -75,7 +82,8 @@ void netlink_connector::start() {
     } else {
         VSOMEIP_WARNING << "Error opening NETLINK socket!";
         if (handler_) {
-            handler_("n/a", true);
+            handler_(true, "n/a", true);
+            handler_(false, "n/a", true);
         }
     }
 }
@@ -96,13 +104,11 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
 
         while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
             char ifname[1024];
-            struct ifinfomsg *ifi = (ifinfomsg *)NLMSG_DATA(nlh);
-            struct ifaddrmsg *ifa = (ifaddrmsg *)NLMSG_DATA(nlh);
             switch (nlh->nlmsg_type) {
-                case RTM_NEWADDR:
+                case RTM_NEWADDR: {
                     // New Address information
-                    if (has_address((struct ifaddrmsg *)NLMSG_DATA(nlh),
-                            IFA_PAYLOAD(nlh), address)) {
+                    struct ifaddrmsg *ifa = (ifaddrmsg *)NLMSG_DATA(nlh);
+                    if (has_address(ifa, IFA_PAYLOAD(nlh), address)) {
                         net_if_index_for_address_ = ifa->ifa_index;
                         auto its_if = net_if_flags_.find(ifa->ifa_index);
                         if (its_if != net_if_flags_.end()) {
@@ -110,12 +116,13 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                                     (its_if->second & IFF_RUNNING)) {
                                 if (handler_) {
                                     if_indextoname(ifa->ifa_index,ifname);
-                                    handler_(ifname, true);
+                                    handler_(true, ifname, true);
+                                    send_rt_request();
                                 }
                             } else {
                                 if (handler_) {
                                     if_indextoname(ifa->ifa_index,ifname);
-                                    handler_(ifname, false);
+                                    handler_(true, ifname, false);
                                 }
                             }
                         } else {
@@ -125,24 +132,59 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                         }
                     }
                     break;
-                case RTM_NEWLINK:
+                }
+                case RTM_NEWLINK: {
                     // New Interface information
+                    struct ifinfomsg *ifi = (ifinfomsg *)NLMSG_DATA(nlh);
                     net_if_flags_[ifi->ifi_index] = ifi->ifi_flags;
                     if (net_if_index_for_address_ == ifi->ifi_index) {
                         if ((ifi->ifi_flags & IFF_UP) &&
                             (ifi->ifi_flags & IFF_RUNNING)) {
                             if (handler_) {
                                 if_indextoname(ifi->ifi_index,ifname);
-                                handler_(ifname, true);
+                                handler_(true, ifname, true);
+                                send_rt_request();
                             }
                         } else {
                             if (handler_) {
                                 if_indextoname(ifi->ifi_index,ifname);
-                                handler_(ifname, false);
+                                handler_(true, ifname, false);
                             }
                         }
                     }
                     break;
+                }
+                case RTM_NEWROUTE: {
+                    struct rtmsg *routemsg = (rtmsg *)NLMSG_DATA(nlh);
+                    std::string its_route_name;
+                    if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh),
+                            &its_route_name)) {
+                        if (handler_) {
+                            handler_(false, its_route_name, true);
+                        }
+                    }
+                    break;
+                }
+                case RTM_DELROUTE: {
+                    struct rtmsg *routemsg = (rtmsg *)NLMSG_DATA(nlh);
+                    std::string its_route_name;
+                    if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh),
+                            &its_route_name)) {
+                        if (handler_) {
+                            handler_(false, its_route_name, false);
+                        }
+                    }
+                    break;
+                }
+                case NLMSG_ERROR: {
+                    struct nlmsgerr *errmsg = (nlmsgerr *)NLMSG_DATA(nlh);
+                    VSOMEIP_ERROR << "netlink_connector::receive_cbk received "
+                        "error message: " << std::dec << nlh->nlmsg_type
+                        << " seq " << errmsg->msg.nlmsg_seq;
+                    break;
+                }
+                case NLMSG_DONE:
+                case NLMSG_NOOP:
                 default:
                     break;
             }
@@ -178,7 +220,8 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                 }
             }
             if (handler_) {
-                handler_("n/a", true);
+                handler_(true, "n/a", true);
+                handler_(false, "n/a", true);
             }
         }
     }
@@ -189,7 +232,8 @@ void netlink_connector::send_cbk(boost::system::error_code const &_error, std::s
     if (_error) {
         VSOMEIP_WARNING << "Netlink send error : " << _error.message();
         if (handler_) {
-            handler_("n/a", true);
+            handler_(true, "n/a", true);
+            handler_(false, "n/a", true);
         }
     }
 }
@@ -204,6 +248,7 @@ void netlink_connector::send_ifa_request() {
     get_address_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifaddrmsg));
     get_address_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_address_msg.nlhdr.nlmsg_type = RTM_GETADDR;
+    get_address_msg.nlhdr.nlmsg_seq = 1;
     if (address_.is_v4()) {
         get_address_msg.addrmsg.ifa_family = AF_INET;
     } else {
@@ -232,11 +277,44 @@ void netlink_connector::send_ifi_request() {
     get_link_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_link_msg.nlhdr.nlmsg_type = RTM_GETLINK;
     get_link_msg.infomsg.ifi_family = AF_UNSPEC;
+    get_link_msg.nlhdr.nlmsg_seq = 2;
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         socket_.async_send(
             boost::asio::buffer(&get_link_msg, get_link_msg.nlhdr.nlmsg_len),
+            std::bind(
+                &netlink_connector::send_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2
+            )
+        );
+    }
+}
+
+void netlink_connector::send_rt_request() {
+    typedef struct {
+        struct nlmsghdr nlhdr;
+        struct rtgenmsg routemsg;
+    } netlink_route_msg;
+
+    netlink_route_msg get_route_msg;
+    memset(&get_route_msg, 0, sizeof(get_route_msg));
+    get_route_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtgenmsg));
+    get_route_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+    get_route_msg.nlhdr.nlmsg_type = RTM_GETROUTE;
+    get_route_msg.nlhdr.nlmsg_seq = 3;
+    if (multicast_address_.is_v6()) {
+        get_route_msg.routemsg.rtgen_family = AF_INET6;
+    } else {
+        get_route_msg.routemsg.rtgen_family = AF_INET;
+    }
+
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        socket_.async_send(
+            boost::asio::buffer(&get_route_msg, get_route_msg.nlhdr.nlmsg_len),
             std::bind(
                 &netlink_connector::send_cbk,
                 shared_from_this(),
@@ -269,6 +347,88 @@ bool netlink_connector::has_address(struct ifaddrmsg * ifa_struct,
         retrta = RTA_NEXT(retrta, length);
     }
 
+    return false;
+}
+
+bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
+                                              size_t _length,
+                                              std::string* _routename) const {
+    struct rtattr *retrta;
+    retrta = static_cast<struct rtattr *>(RTM_RTA(_routemsg));
+    int if_index(0);
+    char if_name[1024] = "n/a";
+    char address[INET6_ADDRSTRLEN] = "n/a";
+    char gateway[INET6_ADDRSTRLEN] = "n/a";
+    bool matches_sd_multicast(false);
+    while (RTA_OK(retrta, _length)) {
+        if (retrta->rta_type == RTA_DST) {
+            // check if added/removed route matches on configured SD multicast address
+            size_t rtattr_length = RTA_PAYLOAD(retrta);
+            if (rtattr_length == 4 && multicast_address_.is_v4()) { // IPv4 route
+                inet_ntop(AF_INET, RTA_DATA(retrta), address, sizeof(address));
+                std::uint32_t netmask(0);
+                for (int i = 31; i > 31 - _routemsg->rtm_dst_len; i--) {
+                    netmask |= (1 << i);
+                }
+                const std::uint32_t dst_addr = ntohl(*((std::uint32_t *)RTA_DATA(retrta)));
+                const std::uint32_t dst_net = (dst_addr & netmask);
+                const std::uint32_t sd_addr = static_cast<std::uint32_t>(multicast_address_.to_v4().to_ulong());
+                const std::uint32_t sd_net = (sd_addr & netmask);
+                matches_sd_multicast = !(dst_net ^ sd_net);
+            } else if (rtattr_length == 16 && multicast_address_.is_v6()) { // IPv6 route
+                inet_ntop(AF_INET6, RTA_DATA(retrta), address, sizeof(address));
+                std::uint32_t netmask2[4] = {0,0,0,0};
+                for (int i = 127; i > 127 - _routemsg->rtm_dst_len; i--) {
+                    if (i > 95) {
+                        netmask2[0] |= (1 << (i-96));
+                    } else if (i > 63) {
+                        netmask2[1] |= (1 << (i-63));
+                    } else if (i > 31) {
+                        netmask2[2] |= (1 << (i-32));
+                    } else {
+                        netmask2[3] |= (1 << i);
+                    }
+                }
+
+                for (int i = 0; i < 4; i++) {
+                    const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
+                    const std::uint32_t sd = ntohl(reinterpret_cast<std::uint32_t*>(multicast_address_.to_v6().to_bytes().data())[i]);
+                    const std::uint32_t dst_net = dst & netmask2[i];
+                    const std::uint32_t sd_net = sd & netmask2[i];
+                    matches_sd_multicast = !(dst_net ^ sd_net);
+                    if (!matches_sd_multicast) {
+                        break;
+                    }
+                }
+            }
+        } else if (retrta->rta_type == RTA_OIF) {
+            if_index = *(int *)(RTA_DATA(retrta));
+            if_indextoname(if_index,if_name);
+        } else if (retrta->rta_type == RTA_GATEWAY) {
+            size_t rtattr_length = RTA_PAYLOAD(retrta);
+            if (rtattr_length == 4) {
+                inet_ntop(AF_INET, RTA_DATA(retrta), gateway, sizeof(gateway));
+            } else if (rtattr_length == 16) {
+                inet_ntop(AF_INET6, RTA_DATA(retrta), gateway, sizeof(gateway));
+            }
+        }
+        retrta = RTA_NEXT(retrta, _length);
+    }
+    if (matches_sd_multicast && net_if_index_for_address_ == if_index) {
+        std::stringstream stream;
+        stream << address << "/" <<  (static_cast<uint32_t>(_routemsg->rtm_dst_len))
+                << " if: " << if_name << " gw: " << gateway;
+        *_routename = stream.str();
+        return true;
+    } else if (if_index > 0 && net_if_index_for_address_ == if_index &&
+            _routemsg->rtm_dst_len == 0) {
+        // the default route is set to the interface on which the SD will listen
+        // therefore no explicit multicast route is required.
+        std::stringstream stream;
+        stream << "default route (0.0.0.0/0) if: " << if_name << " gw: " << gateway;
+        *_routename = stream.str();
+        return true;
+    }
     return false;
 }
 

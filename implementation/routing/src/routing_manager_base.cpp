@@ -815,14 +815,17 @@ std::shared_ptr<endpoint> routing_manager_base::find_or_create_local(client_t _c
 }
 
 void routing_manager_base::remove_local(client_t _client) {
-    auto subscriptions = get_subscriptions(_client);
-    for (auto its_subscription : subscriptions) {
+    remove_local(_client, get_subscriptions(_client));
+}
+
+void routing_manager_base::remove_local(client_t _client,
+                  const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups) {
+    for (auto its_subscription : _subscribed_eventgroups) {
         host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
                 std::get<2>(its_subscription), _client, false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
         routing_manager_base::unsubscribe(_client, std::get<0>(its_subscription),
                 std::get<1>(its_subscription), std::get<2>(its_subscription), ANY_EVENT);
     }
-
     std::shared_ptr<endpoint> its_endpoint(find_local(_client));
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);

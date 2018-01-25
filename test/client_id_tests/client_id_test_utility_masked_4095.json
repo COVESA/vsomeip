@@ -12,15 +12,16 @@
         "dlt":"false"
     },
     "diagnosis":"0x63",
+    "diagnosis_mask":"0xF000",
     "applications":
     [
         {
             "name":"client_id_test_utility_service_in",
-            "id":"0x6311"
+            "id":"0x6011"
         },
         {
             "name":"client_id_test_utility_service_in_two",
-            "id":"0x6312"
+            "id":"0x6012"
         },
         {
             "name":"client_id_test_utility_service_out_low",

@@ -139,6 +139,9 @@ protected:
     std::shared_ptr<endpoint> create_local(client_t _client);
     std::shared_ptr<endpoint> find_or_create_local(client_t _client);
     void remove_local(client_t _client);
+    void remove_local(client_t _client,
+                      const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups);
+
     std::shared_ptr<endpoint> find_local(client_t _client);
     std::shared_ptr<endpoint> find_local(service_t _service,
             instance_t _instance);
@@ -195,16 +198,17 @@ protected:
 
     std::map<client_t, std::shared_ptr<endpoint>> get_local_endpoints();
 
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>>
+        get_subscriptions(const client_t _client);
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
 
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>>
-        get_subscriptions(const client_t _client);
 
     virtual bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             event_t _event, client_t _client) = 0;
+
 protected:
     routing_manager_host *host_;
     boost::asio::io_service &io_;

@@ -11,8 +11,10 @@
 #include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/primitive_types.hpp>
+#include <vsomeip/constants.hpp>
 
 #include "../../service_discovery/include/message_impl.hpp"
+#include "../../configuration/include/internal.hpp"
 
 namespace vsomeip {
 
@@ -84,22 +86,29 @@ struct pending_subscription_t {
             std::shared_ptr<sd_message_identifier_t> _sd_message_identifier,
             std::shared_ptr<endpoint_definition> _subscriber,
             std::shared_ptr<endpoint_definition> _target,
-            ttl_t _ttl) :
+            ttl_t _ttl,
+            client_t _subscribing_client) :
             sd_message_identifier_(_sd_message_identifier),
             subscriber_(_subscriber),
             target_(_target),
-            ttl_(_ttl) {
+            ttl_(_ttl),
+            subscribing_client_(_subscribing_client),
+            pending_subscription_id_(DEFAULT_SUBSCRIPTION) {
     }
     pending_subscription_t () :
         sd_message_identifier_(std::shared_ptr<sd_message_identifier_t>()),
         subscriber_(std::shared_ptr<endpoint_definition>()),
         target_(std::shared_ptr<endpoint_definition>()),
-        ttl_(0) {
+        ttl_(0),
+        subscribing_client_(VSOMEIP_ROUTING_CLIENT),
+        pending_subscription_id_(DEFAULT_SUBSCRIPTION) {
     }
     std::shared_ptr<sd_message_identifier_t> sd_message_identifier_;
     std::shared_ptr<endpoint_definition> subscriber_;
     std::shared_ptr<endpoint_definition> target_;
     ttl_t ttl_;
+    client_t subscribing_client_;
+    pending_subscription_id_t pending_subscription_id_;
 };
 
 enum remote_subscription_state_e : std::uint8_t {

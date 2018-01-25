@@ -69,6 +69,8 @@ routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
         routing_manager_base(_host),
         version_log_timer_(_host->get_io()),
         if_state_running_(false),
+        sd_route_set_(false),
+        routing_running_(false),
 #ifndef WITHOUT_SYSTEMD
         watchdog_timer_(_host->get_io()),
 #endif
@@ -142,13 +144,17 @@ void routing_manager_impl::init() {
 void routing_manager_impl::start() {
 #ifndef _WIN32
     netlink_connector_ = std::make_shared<netlink_connector>(host_->get_io(),
-            configuration_->get_unicast_address());
+            configuration_->get_unicast_address(),
+            boost::asio::ip::address::from_string(configuration_->get_sd_multicast()));
     netlink_connector_->register_net_if_changes_handler(
-            std::bind(&routing_manager_impl::on_net_if_state_changed,
-            this, std::placeholders::_1, std::placeholders::_2));
+            std::bind(&routing_manager_impl::on_net_interface_or_route_state_changed,
+            this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     netlink_connector_->start();
 #else
-    start_ip_routing();
+    {
+        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        start_ip_routing();
+    }
 #endif
 
     stub_->start();
@@ -555,7 +561,8 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service,
                 std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
                 remove_pending_subscription(_service, _instance, _eventgroup, _event);
                 stub_->send_unsubscribe(find_local(_service, _instance),
-                        _client, _service, _instance, _eventgroup, _event, false);
+                        _client, _service, _instance, _eventgroup, _event,
+                        DEFAULT_SUBSCRIPTION);
             }
         }
         clear_multicast_endpoints(_service, _instance);
@@ -1035,7 +1042,6 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
     if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
         its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
                 _data[VSOMEIP_SERVICE_POS_MAX]);
-        its_instance = find_instance(its_service, _receiver);
         if (its_service == VSOMEIP_SD_SERVICE) {
             its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
                             _data[VSOMEIP_METHOD_POS_MAX]);
@@ -1052,6 +1058,26 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                 }
             }
         } else {
+            its_instance = find_instance(its_service, _receiver);
+            if (its_instance == 0xFFFF) {
+                its_method = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_METHOD_POS_MIN],
+                        _data[VSOMEIP_METHOD_POS_MAX]);
+                const client_t its_client = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_CLIENT_POS_MIN],
+                        _data[VSOMEIP_CLIENT_POS_MAX]);
+                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
+                        _data[VSOMEIP_SESSION_POS_MIN],
+                        _data[VSOMEIP_SESSION_POS_MAX]);
+                boost::system::error_code ec;
+                VSOMEIP_ERROR << "Received message on invalid port: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_client << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_session << "] from: "
+                        << _remote_address.to_string(ec) << ":" << std::dec << _remote_port;
+            }
             //Ignore messages with invalid message type
             if(_size >= VSOMEIP_MESSAGE_TYPE_POS) {
                 if(!utility::is_valid_message_type(static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
@@ -1850,7 +1876,15 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_server_endpoint(
 }
 
 void routing_manager_impl::remove_local(client_t _client) {
-    routing_manager_base::remove_local(_client);
+    auto clients_subscriptions = get_subscriptions(_client);
+    {
+        std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+        for (const auto& s : clients_subscriptions) {
+            remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
+        }
+    }
+    routing_manager_base::remove_local(_client, clients_subscriptions);
+
     std::forward_list<std::pair<service_t, instance_t>> services_to_release_;
     {
         std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
@@ -2425,6 +2459,7 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
         std::shared_ptr<endpoint_definition> invalid_endpoint_;
         client_t client_;
         std::set<std::shared_ptr<event>> events_;
+        std::shared_ptr<eventgroupinfo> eventgroupinfo_;
     };
     std::vector<struct subscriptions_info> subscriptions_to_expire_;
     {
@@ -2455,7 +2490,8 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
                             its_eventgroup.first,
                             its_endpoint,
                             its_client,
-                            its_events});
+                            its_events,
+                            its_eventgroup.second});
                     }
                     if(its_eventgroup.second->is_multicast() && its_invalid_endpoints.size() &&
                             0 == its_eventgroup.second->get_unreliable_target_count() ) {
@@ -2476,21 +2512,19 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address &
             }
             const client_t its_hosting_client = find_local_client(
                     s.service_id_, s.instance_id_);
-            const bool service_offered_by_host = (its_hosting_client
-                    == host_->get_client());
-            std::shared_ptr<endpoint> target = find_local(its_hosting_client);
-
-            if (target) {
-                stub_->send_unsubscribe(target, s.client_, s.service_id_,
-                      s.instance_id_, s.eventgroup_id_, ANY_EVENT, true);
-            }
-            if (service_offered_by_host) {
-                host_->on_subscription(s.service_id_,
-                      s.instance_id_, s.eventgroup_id_,
-                      s.client_, false,
-                      [](const bool _subscription_accepted){
-                          (void)_subscription_accepted;
-                      });
+            if (its_hosting_client != VSOMEIP_ROUTING_CLIENT) {
+                const pending_subscription_t its_pending_unsubscription(
+                        std::shared_ptr<sd_message_identifier_t>(),
+                        s.invalid_endpoint_, s.invalid_endpoint_,
+                        0, s.client_);
+                pending_subscription_id_t its_pending_unsubscription_id =
+                        s.eventgroupinfo_->add_pending_subscription(
+                                its_pending_unsubscription);
+                if (its_pending_unsubscription_id != DEFAULT_SUBSCRIPTION) {
+                    send_unsubscription(its_hosting_client, s.client_,
+                            s.service_id_, s.instance_id_, s.eventgroup_id_,
+                            its_pending_unsubscription_id);
+                }
             }
         }
     }
@@ -2525,14 +2559,15 @@ void routing_manager_impl::init_routing_info() {
     }
 }
 
-remote_subscription_state_e routing_manager_impl::on_remote_subscription(
+void routing_manager_impl::on_remote_subscription(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         const std::shared_ptr<endpoint_definition> &_subscriber,
-        const std::shared_ptr<endpoint_definition> &_target,
-        ttl_t _ttl, client_t *_client,
-        const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) {
+        const std::shared_ptr<endpoint_definition> &_target, ttl_t _ttl,
+        const std::shared_ptr<sd_message_identifier_t> &_sd_message_id,
+        const std::function<void(remote_subscription_state_e, client_t)>& _callback) {
     std::shared_ptr<eventgroupinfo> its_eventgroup
         = find_eventgroup(_service, _instance, _eventgroup);
+    client_t its_subscribing_client(ILLEGAL_CLIENT);
     if (!its_eventgroup) {
         VSOMEIP_ERROR << "REMOTE SUBSCRIBE: attempt to subscribe to unknown eventgroup ["
             << std::hex << std::setw(4) << std::setfill('0') << _service << "."
@@ -2541,7 +2576,8 @@ remote_subscription_state_e routing_manager_impl::on_remote_subscription(
             << " from " << _subscriber->get_address().to_string()
             << ":" << std::dec << _subscriber->get_port()
             << (_subscriber->is_reliable() ? " reliable" : " unreliable");
-        return remote_subscription_state_e::SUBSCRIPTION_ERROR;
+        _callback(remote_subscription_state_e::SUBSCRIPTION_ERROR, its_subscribing_client);
+        return;
     }
     // find out client id for selective subscriber
     if (!_subscriber->is_reliable()) {
@@ -2550,7 +2586,7 @@ remote_subscription_state_e routing_manager_impl::on_remote_subscription(
         if (!its_eventgroup->is_multicast()) {
             auto endpoint = find_server_endpoint(unreliable_port, false);
             if (endpoint) {
-                *_client = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)->
+                its_subscribing_client = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)->
                         get_client(_subscriber);
             }
         }
@@ -2559,55 +2595,42 @@ remote_subscription_state_e routing_manager_impl::on_remote_subscription(
         _subscriber->set_remote_port(reliable_port);
         auto endpoint = find_server_endpoint(reliable_port, true);
         if (endpoint) {
-            *_client = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint)->
+            its_subscribing_client = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(endpoint)->
                     get_client(_subscriber);
         }
     }
+    std::unique_lock<std::mutex> eventgroup_lock(its_eventgroup->get_subscription_lock());
     const std::chrono::steady_clock::time_point its_expiration =
             std::chrono::steady_clock::now() + std::chrono::seconds(_ttl);
     if (its_eventgroup->update_target(_subscriber, its_expiration)) {
-        return remote_subscription_state_e::SUBSCRIPTION_ACKED;
+        _callback(remote_subscription_state_e::SUBSCRIPTION_ACKED,its_subscribing_client);
+        return;
     } else {
         const pending_subscription_id_t its_subscription_id =
                 its_eventgroup->add_pending_subscription(
-                        pending_subscription_t(_sd_message_id,
-                                _subscriber, _target, _ttl));
-        if (host_->get_client() == find_local_client(_service, _instance)) {
-            auto self = shared_from_this();
-            const client_t its_client = *_client;
-            host_->on_subscription(_service, _instance, _eventgroup, *_client, true,
-                [this, self, _service, _instance,
-                    _eventgroup, its_client, its_subscription_id]
-                        (const bool _subscription_accepted) {
-                try {
-                    if (!_subscription_accepted) {
-                        const auto its_callback = std::bind(
-                                &routing_manager_stub_host::on_subscribe_nack,
-                                std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                its_client, _service, _instance,
-                                _eventgroup, ANY_EVENT, its_subscription_id);
-                        io_.post(its_callback);
-                    } else {
-                        const auto its_callback = std::bind(
-                                &routing_manager_stub_host::on_subscribe_ack,
-                                std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                its_client, _service, _instance,
-                                _eventgroup, ANY_EVENT, its_subscription_id);
-                        io_.post(its_callback);
-                    }
-                } catch (const std::exception &e) {
-                    VSOMEIP_ERROR << __func__ << e.what();
-                }
-            });
-            return remote_subscription_state_e::SUBSCRIPTION_PENDING;
-        } else { // service hosted by local client
-            stub_->send_subscribe(find_local(_service, _instance), *_client,
+                        pending_subscription_t(_sd_message_id, _subscriber,
+                                _target, _ttl, its_subscribing_client));
+        if (its_subscription_id != DEFAULT_SUBSCRIPTION) {
+            // only sent subscription to rm_proxy / hosting application if there's
+            // no subscription for this eventgroup from the same remote subscriber
+            // already pending
+            const client_t its_offering_client = find_local_client(_service, _instance);
+            send_subscription(its_offering_client, its_subscribing_client,
                     _service, _instance, _eventgroup,
-                    its_eventgroup->get_major(), ANY_EVENT, its_subscription_id);
-            return remote_subscription_state_e::SUBSCRIPTION_PENDING;
+                    its_eventgroup->get_major(), its_subscription_id);
+        } else {
+            VSOMEIP_WARNING << __func__ << " a remote subscription is already pending ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                << " from " << _subscriber->get_address().to_string()
+                << ":" << std::dec << _subscriber->get_port()
+                << (_subscriber->is_reliable() ? " reliable" : " unreliable");
         }
+        _callback(remote_subscription_state_e::SUBSCRIPTION_PENDING, its_subscribing_client);
+        return;
     }
-    return remote_subscription_state_e::SUBSCRIPTION_ERROR;
+    _callback(remote_subscription_state_e::SUBSCRIPTION_ERROR, its_subscribing_client);
 }
 
 void routing_manager_impl::on_unsubscribe(service_t _service,
@@ -2617,14 +2640,22 @@ void routing_manager_impl::on_unsubscribe(service_t _service,
             _instance, _eventgroup);
     if (its_eventgroup) {
         client_t its_client = find_client(_service, _instance, its_eventgroup, _target);
+        const pending_subscription_t its_pending_unsubscription(
+                std::shared_ptr<sd_message_identifier_t>(), _target, _target,
+                0, its_client);
+        pending_subscription_id_t its_pending_unsubscription_id =
+                its_eventgroup->add_pending_subscription(
+                        its_pending_unsubscription);
 
         its_eventgroup->remove_target(_target);
         clear_remote_subscriber(_service, _instance, its_client, _target);
 
-        stub_->send_unsubscribe(find_local(_service, _instance),
-                its_client, _service, _instance, _eventgroup, ANY_EVENT, true);
-
-        host_->on_subscription(_service, _instance, _eventgroup, its_client, false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
+        if (its_pending_unsubscription_id != DEFAULT_SUBSCRIPTION) {
+            // there are no pending (un)subscriptions
+            const client_t its_offering_client = find_local_client(_service, _instance);
+            send_unsubscription(its_offering_client, its_client, _service,
+                    _instance, _eventgroup, its_pending_unsubscription_id);
+        }
 
         if (its_eventgroup->get_targets().size() == 0) {
             std::set<std::shared_ptr<event> > its_events
@@ -2721,7 +2752,8 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
             }
             remote_subscription_state_[its_tuple] = subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED;
         } else { // ACK sent back from local client as answer to a remote subscription
-            if (find_local_client(_service, _instance) == VSOMEIP_ROUTING_CLIENT) {
+            const client_t its_offering_client = find_local_client(_service, _instance);
+            if (its_offering_client == VSOMEIP_ROUTING_CLIENT) {
                 // service was stopped while subscription was pending
                 // send subscribe_nack back instead
                 eventgroup_lock.unlock();
@@ -2730,45 +2762,53 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
                 return;
             }
             if (discovery_) {
-                pending_subscription_t its_sd_message_id =
-                        its_eventgroup->remove_pending_subscription(
-                                _subscription_id);
-                if (its_sd_message_id.sd_message_identifier_
-                        && its_sd_message_id.subscriber_
-                        && its_sd_message_id.target_) {
-                    {
-                        std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-                        remote_subscribers_[_service][_instance][_client].insert(its_sd_message_id.subscriber_);
-                    }
-                    const std::chrono::steady_clock::time_point its_expiration =
-                            std::chrono::steady_clock::now()
-                                    + std::chrono::seconds(
-                                            its_sd_message_id.ttl_);
-                    // IP address of target is a multicast address if the event is in a multicast eventgroup
-                    if (its_eventgroup->is_multicast()
-                            && !its_sd_message_id.subscriber_->is_reliable()) {
-                        // Event is in multicast eventgroup and subscribe for UDP
-                        its_eventgroup->add_target(
-                            { its_sd_message_id.target_, its_expiration },
-                            { its_sd_message_id.subscriber_, its_expiration });
-                    } else {
-                        // subscribe for TCP or UDP
-                        its_eventgroup->add_target(
-                            { its_sd_message_id.subscriber_, its_expiration });
-                    }
-                    discovery_->remote_subscription_acknowledge(_service,
-                            _instance, _eventgroup, _client, true,
-                            its_sd_message_id.sd_message_identifier_);
+                std::vector<pending_subscription_t> its_pending_subscriptions =
+                        its_eventgroup->remove_pending_subscription(_subscription_id);
+                for (const pending_subscription_t& its_sd_message_id : its_pending_subscriptions) {
+                    if (its_sd_message_id.ttl_ > 0) {
+                        if (its_sd_message_id.sd_message_identifier_
+                                && its_sd_message_id.subscriber_
+                                && its_sd_message_id.target_) {
+                            {
+                                std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                                remote_subscribers_[_service][_instance][_client].insert(its_sd_message_id.subscriber_);
+                            }
+                            const std::chrono::steady_clock::time_point its_expiration =
+                                    std::chrono::steady_clock::now()
+                                            + std::chrono::seconds(
+                                                    its_sd_message_id.ttl_);
+                            // IP address of target is a multicast address if the event is in a multicast eventgroup
+                            if (its_eventgroup->is_multicast()
+                                    && !its_sd_message_id.subscriber_->is_reliable()) {
+                                // Event is in multicast eventgroup and subscribe for UDP
+                                its_eventgroup->add_target(
+                                    { its_sd_message_id.target_, its_expiration },
+                                    { its_sd_message_id.subscriber_, its_expiration });
+                            } else {
+                                // subscribe for TCP or UDP
+                                its_eventgroup->add_target(
+                                    { its_sd_message_id.subscriber_, its_expiration });
+                            }
+                            discovery_->remote_subscription_acknowledge(_service,
+                                    _instance, _eventgroup, _client, true,
+                                    its_sd_message_id.sd_message_identifier_);
 
-                    VSOMEIP_INFO << "REMOTE SUBSCRIBE("
-                        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
-                        << " from " << its_sd_message_id.subscriber_->get_address().to_string()
-                        << ":" << std::dec << its_sd_message_id.subscriber_->get_port()
-                        << (its_sd_message_id.subscriber_->is_reliable() ? " reliable" : " unreliable")
-                        << " was accepted";
+                            VSOMEIP_INFO << "REMOTE SUBSCRIBE("
+                                << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                                << " from " << its_sd_message_id.subscriber_->get_address().to_string()
+                                << ":" << std::dec << its_sd_message_id.subscriber_->get_port()
+                                << (its_sd_message_id.subscriber_->is_reliable() ? " reliable" : " unreliable")
+                                << " was accepted";
+                        }
+                    } else { // unsubscription was queued while subscription was pending -> send it to client
+                        send_unsubscription(its_offering_client,
+                                its_sd_message_id.subscribing_client_,
+                                _service, _instance, _eventgroup,
+                                its_sd_message_id.pending_subscription_id_);
+                    }
                 }
             }
             return;
@@ -2830,20 +2870,30 @@ void routing_manager_impl::on_subscribe_nack(client_t _client,
             remote_subscription_state_[its_tuple] = subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
         } else { // NACK sent back from local client as answer to a remote subscription
             if (discovery_) {
-                pending_subscription_t its_sd_message_id =
+                std::vector<pending_subscription_t> its_pending_subscriptions =
                         its_eventgroup->remove_pending_subscription(_subscription_id);
-                if (its_sd_message_id.sd_message_identifier_ && its_sd_message_id.subscriber_) {
-                    discovery_->remote_subscription_acknowledge(_service, _instance,
-                            _eventgroup, _client, false, its_sd_message_id.sd_message_identifier_);
-                    VSOMEIP_INFO << "REMOTE SUBSCRIBE("
-                        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
-                        << " from " << its_sd_message_id.subscriber_->get_address().to_string()
-                        << ":" << std::dec <<its_sd_message_id.subscriber_->get_port()
-                        << (its_sd_message_id.subscriber_->is_reliable() ? " reliable" : " unreliable")
-                        << " was not accepted";
+                for (const pending_subscription_t& its_sd_message_id : its_pending_subscriptions) {
+                    if (its_sd_message_id.ttl_ > 0) {
+                        if (its_sd_message_id.sd_message_identifier_ && its_sd_message_id.subscriber_) {
+                            discovery_->remote_subscription_acknowledge(_service, _instance,
+                                    _eventgroup, _client, false, its_sd_message_id.sd_message_identifier_);
+                            VSOMEIP_INFO << "REMOTE SUBSCRIBE("
+                                << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
+                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                                << " from " << its_sd_message_id.subscriber_->get_address().to_string()
+                                << ":" << std::dec <<its_sd_message_id.subscriber_->get_port()
+                                << (its_sd_message_id.subscriber_->is_reliable() ? " reliable" : " unreliable")
+                                << " was not accepted";
+                        }
+                    } else { // unsubscription was queued while subscription was pending -> send it to client
+                        const client_t its_offering_client = find_local_client(_service, _instance);
+                        send_unsubscription(its_offering_client,
+                                its_sd_message_id.subscribing_client_, _service,
+                                _instance, _eventgroup,
+                                its_sd_message_id.pending_subscription_id_);
+                    }
                 }
             }
             return;
@@ -3340,6 +3390,7 @@ routing_manager_impl::expire_subscriptions() {
         std::shared_ptr<endpoint_definition> invalid_endpoint_;
         client_t client_;
         std::set<std::shared_ptr<event>> events_;
+        std::shared_ptr<eventgroupinfo> eventgroupinfo_;
     };
     std::vector<struct subscriptions_info> subscriptions_to_expire_;
     std::chrono::steady_clock::time_point now
@@ -3379,7 +3430,8 @@ routing_manager_impl::expire_subscriptions() {
                             its_eventgroup.first,
                             its_endpoint,
                             its_client,
-                            its_events});
+                            its_events,
+                            its_eventgroup.second});
                     }
                     if(its_eventgroup.second->is_multicast() && its_expired_endpoints.size() &&
                             0 == its_eventgroup.second->get_unreliable_target_count() ) {
@@ -3400,30 +3452,29 @@ routing_manager_impl::expire_subscriptions() {
             }
             const client_t its_hosting_client = find_local_client(s.service_id_,
                     s.instance_id_);
-            const bool service_offered_by_host = (its_hosting_client
-                    == host_->get_client());
-            std::shared_ptr<endpoint> target = find_local(its_hosting_client);
 
-            if (target) {
-                stub_->send_unsubscribe(target, s.client_, s.service_id_,
-                      s.instance_id_, s.eventgroup_id_, ANY_EVENT, true);
-            }
-            if (service_offered_by_host) {
-                host_->on_subscription(s.service_id_,
-                      s.instance_id_, s.eventgroup_id_,
-                      s.client_, false,
-                      [](const bool _subscription_accepted){
-                          (void)_subscription_accepted;
-                      });
+            if (its_hosting_client != VSOMEIP_ROUTING_CLIENT) {
+                const pending_subscription_t its_pending_unsubscription(
+                        std::shared_ptr<sd_message_identifier_t>(),
+                        s.invalid_endpoint_, s.invalid_endpoint_,
+                        0, s.client_);
+                pending_subscription_id_t its_pending_unsubscription_id =
+                        s.eventgroupinfo_->add_pending_subscription(
+                                its_pending_unsubscription);
+                if (its_pending_unsubscription_id != DEFAULT_SUBSCRIPTION) {
+                    send_unsubscription(its_hosting_client, s.client_, s.service_id_,
+                                        s.instance_id_, s.eventgroup_id_,
+                                        its_pending_unsubscription_id);
+                }
             }
 
-            VSOMEIP_INFO << "Expired subscription ("
-                   << std::hex << s.service_id_ << "."
-                   << s.instance_id_ << "."
-                   << s.eventgroup_id_ << " from "
-                   << s.invalid_endpoint_->get_address() << ":"
-                   << std::dec << s.invalid_endpoint_->get_port()
-                   << "(" << std::hex << s.client_ << ")";
+            VSOMEIP_INFO << "Expired subscription ["
+                    << std::hex << std::setfill('0') << std::setw(4) << s.service_id_ << "."
+                    << std::hex << std::setfill('0') << std::setw(4) << s.instance_id_ << "."
+                    << std::hex << std::setfill('0') << std::setw(4) << s.eventgroup_id_ << "] from "
+                    << s.invalid_endpoint_->get_address() << ":"
+                    << std::dec << s.invalid_endpoint_->get_port()
+                    << "(" << std::hex << std::setfill('0') << std::setw(4) << s.client_ << ")";
         }
     }
     return next_expiration;
@@ -3976,20 +4027,58 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
     }
 }
 
-void routing_manager_impl::on_net_if_state_changed(std::string _if, bool _available) {
-    if (!if_state_running_ && _available) {
-        VSOMEIP_INFO << "Network interface \"" << _if << "\" is up and running.";
-        start_ip_routing();
+void routing_manager_impl::on_net_interface_or_route_state_changed(
+        bool _is_interface, std::string _if, bool _available) {
+    std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+    auto log_change_message = [&_if, _available, _is_interface](bool _warning) {
+        std::stringstream ss;
+        ss << (_is_interface ? "Network interface" : "Route") << " \"" << _if
+                << "\" state changed: " << (_available ? "up" : "down");
+        if (_warning) {
+            VSOMEIP_WARNING << ss.str();
+        } else {
+            VSOMEIP_INFO << ss.str();
+        }
+    };
+    if (_is_interface) {
+        if (if_state_running_
+                || (_available && !if_state_running_ && routing_running_)) {
+            log_change_message(true);
+        } else if (!if_state_running_) {
+            log_change_message(false);
+        }
+        if (_available && !if_state_running_) {
+            if_state_running_ = true;
+            if (!routing_running_) {
+                if(configuration_->is_sd_enabled()) {
+                    if (sd_route_set_) {
+                        start_ip_routing();
+                    }
+                } else {
+                    // Static routing, don't wait for route!
+                    start_ip_routing();
+                }
+            }
+        }
     } else {
-        VSOMEIP_WARNING << "Network interface \"" << _if << "\" state changed: "
-                << std::string((_available) ? "up" : "down");
+        if (sd_route_set_
+                || (_available && !sd_route_set_ && routing_running_)) {
+            log_change_message(true);
+        } else if (!sd_route_set_) {
+            log_change_message(false);
+        }
+        if (_available && !sd_route_set_) {
+            sd_route_set_ = true;
+            if (!routing_running_) {
+                if (if_state_running_) {
+                    start_ip_routing();
+                }
+            }
+        }
     }
 }
 
 void routing_manager_impl::start_ip_routing() {
-    std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
-    if_state_running_  = true;
-
     if (discovery_) {
         discovery_->start();
     } else {
@@ -4001,6 +4090,7 @@ void routing_manager_impl::start_ip_routing() {
     }
     pending_sd_offers_.clear();
 
+    routing_running_ = true;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
@@ -4364,6 +4454,106 @@ void routing_manager_impl::status_log_timer_cbk(
         status_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::status_log_timer_cbk, this,
                         std::placeholders::_1));
+    }
+}
+
+void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _service,
+        instance_t _instance, eventgroup_t _eventgroup,
+        pending_subscription_id_t _unsubscription_id) {
+    std::shared_ptr<eventgroupinfo> its_eventgroup = find_eventgroup(_service,
+            _instance, _eventgroup);
+    if (!its_eventgroup) {
+        VSOMEIP_ERROR << __func__ << ": Received UNSUBSCRIBE_ACK for unknown "
+                << "eventgroup: ("
+                << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+        return;
+    }
+    // there will only be one or zero subscriptions returned here
+    std::vector<pending_subscription_t> its_pending_subscriptions =
+            its_eventgroup->remove_pending_subscription(_unsubscription_id);
+    for (const pending_subscription_t& its_sd_message_id : its_pending_subscriptions) {
+        const pending_subscription_id_t its_subscription_id = its_sd_message_id.pending_subscription_id_;
+        const client_t its_subscribing_client = its_sd_message_id.subscribing_client_;
+        const client_t its_offering_client = find_local_client(_service, _instance);
+        send_subscription(its_offering_client, its_subscribing_client, _service,
+                          _instance, _eventgroup, its_eventgroup->get_major(),
+                          its_subscription_id);
+    }
+}
+
+void routing_manager_impl::send_unsubscription(
+        client_t _offering_client, client_t _subscribing_client,
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        pending_subscription_id_t _pending_unsubscription_id) {
+    if (host_->get_client() == _offering_client) {
+        auto self = shared_from_this();
+        host_->on_subscription(_service, _instance, _eventgroup,
+            _subscribing_client, false,
+            [this, self, _service, _instance, _eventgroup,
+             _subscribing_client, _pending_unsubscription_id, _offering_client]
+             (const bool _subscription_accepted) {
+                (void)_subscription_accepted;
+                try {
+                    const auto its_callback = std::bind(
+                        &routing_manager_stub_host::on_unsubscribe_ack,
+                        std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
+                        _offering_client, _service, _instance,
+                        _eventgroup, _pending_unsubscription_id);
+                    io_.post(its_callback);
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR << __func__ << e.what();
+                }
+            }
+        );
+    } else {
+        stub_->send_unsubscribe(find_local(_offering_client),
+                _subscribing_client,
+                _service, _instance, _eventgroup, ANY_EVENT,
+                _pending_unsubscription_id);
+    }
+}
+
+void routing_manager_impl::send_subscription(
+        client_t _offering_client, client_t _subscribing_client,
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        major_version_t _major,
+        pending_subscription_id_t _pending_subscription_id) {
+    if (host_->get_client() == _offering_client) {
+        auto self = shared_from_this();
+        host_->on_subscription(_service, _instance, _eventgroup,
+                _subscribing_client, true,
+            [this, self, _service, _instance,
+                _eventgroup, _subscribing_client, _pending_subscription_id]
+                    (const bool _subscription_accepted) {
+            try {
+                if (!_subscription_accepted) {
+                    const auto its_callback = std::bind(
+                            &routing_manager_stub_host::on_subscribe_nack,
+                            std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
+                            _subscribing_client, _service, _instance,
+                            _eventgroup, ANY_EVENT, _pending_subscription_id);
+                    io_.post(its_callback);
+                } else {
+                    const auto its_callback = std::bind(
+                            &routing_manager_stub_host::on_subscribe_ack,
+                            std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
+                            _subscribing_client, _service, _instance,
+                            _eventgroup, ANY_EVENT, _pending_subscription_id);
+                    io_.post(its_callback);
+                }
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << __func__ << e.what();
+            }
+        });
+    } else { // service hosted by local client
+        stub_->send_subscribe(find_local(_offering_client),
+                _subscribing_client,
+                _service, _instance, _eventgroup,
+                _major, ANY_EVENT,
+                _pending_subscription_id);
     }
 }
 

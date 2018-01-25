@@ -493,8 +493,12 @@ void tcp_client_endpoint_impl::receive_cbk(
                             "out message_size. recv_buffer_capacity: "
                             << _recv_buffer->capacity()
                             << " its_iteration_gap: " << its_iteration_gap
-                            << "local: " << get_address_port_local()
-                            << " remote: " << get_address_port_remote();
+                            << " local: " << get_address_port_local()
+                            << " remote: " << get_address_port_remote()
+                            << ". Restarting connection due to missing/broken data TCP stream.";
+                    its_lock.unlock();
+                    restart();
+                    return;
                 }
             } while (has_full_message && _recv_buffer_size);
             if (its_iteration_gap) {

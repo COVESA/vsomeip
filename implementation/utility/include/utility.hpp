@@ -124,11 +124,12 @@ public:
     }
 
 private:
-    static bool is_bigger_last_assigned_client_id(client_t _client);
-    static void set_client_id_lowbyte(client_t _client);
+    static bool is_bigger_last_assigned_client_id(client_t _client, std::uint16_t _diagnosis_mask);
+    static void set_max_assigned_client_id_without_diagnosis(client_t _client);
     static void check_client_id_consistency();
 
     static uint16_t its_configuration_refs__;
+    static std::uint16_t* used_client_ids__;
 };
 
 }  // namespace vsomeip

@@ -417,7 +417,7 @@ void message_impl::increase_number_contained_acks() {
 }
 
 bool message_impl::all_required_acks_contained() const {
-    return number_contained_acks_ == number_required_acks_;
+    return number_contained_acks_ >= number_required_acks_;
 }
 
 std::unique_lock<std::mutex> message_impl::get_message_lock() {

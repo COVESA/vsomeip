@@ -82,7 +82,7 @@ public:
     VSOMEIP_EXPORT pending_subscription_id_t add_pending_subscription(
             pending_subscription_t _pending_subscription);
 
-    VSOMEIP_EXPORT pending_subscription_t remove_pending_subscription(
+    VSOMEIP_EXPORT std::vector<pending_subscription_t> remove_pending_subscription(
             pending_subscription_id_t _subscription_id);
 
     VSOMEIP_EXPORT void clear_pending_subscriptions();
@@ -109,6 +109,8 @@ private:
 
     std::mutex pending_subscriptions_mutex_;
     std::map<pending_subscription_id_t, pending_subscription_t> pending_subscriptions_;
+    std::map<std::pair<boost::asio::ip::address, std::uint16_t>,
+            std::vector<pending_subscription_id_t>> pending_subscriptions_by_remote_;
     pending_subscription_id_t subscription_id_;
 };
 

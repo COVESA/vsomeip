@@ -146,6 +146,10 @@ public:
 
     void on_pong(client_t _client);
 
+    void on_unsubscribe_ack(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            pending_subscription_id_t _unsubscription_id);
+
     // interface "endpoint_host"
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service,
             instance_t _instance,
@@ -191,12 +195,12 @@ public:
             bool _has_reliable, bool _has_unreliable);
     void update_routing_info(std::chrono::milliseconds _elapsed);
 
-    remote_subscription_state_e on_remote_subscription(
+    void on_remote_subscription(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<endpoint_definition> &_subscriber,
-            const std::shared_ptr<endpoint_definition> &_target,
-            ttl_t _ttl, client_t *_client,
-            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id);
+            const std::shared_ptr<endpoint_definition> &_target, ttl_t _ttl,
+            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id,
+            const std::function<void(remote_subscription_state_e, client_t)>& _callback);
     void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,
             std::shared_ptr<endpoint_definition> _target);
@@ -324,7 +328,9 @@ private:
             major_version_t _major, event_t _event,
             subscription_type_e _subscription_type);
 
-    void on_net_if_state_changed(std::string _if, bool _available);
+    void on_net_interface_or_route_state_changed(bool _is_interface,
+                                                 std::string _if,
+                                                 bool _available);
 
     void start_ip_routing();
 
@@ -353,6 +359,18 @@ private:
 
     void memory_log_timer_cbk(boost::system::error_code const & _error);
     void status_log_timer_cbk(boost::system::error_code const & _error);
+
+    void send_subscription(client_t _offering_client,
+                           client_t _subscribing_client, service_t _service,
+                           instance_t _instance, eventgroup_t _eventgroup,
+                           major_version_t _major,
+                           pending_subscription_id_t _pending_subscription_id);
+
+    void send_unsubscription(
+            client_t _offering_client, client_t _subscribing_client,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            pending_subscription_id_t _pending_unsubscription_id);
+
 
 
     std::shared_ptr<routing_manager_stub> stub_;
@@ -407,6 +425,8 @@ private:
     boost::asio::steady_timer version_log_timer_;
 
     bool if_state_running_;
+    bool sd_route_set_;
+    bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
 #ifndef _WIN32

@@ -1237,8 +1237,8 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                 if (its_message_response->all_required_acks_contained()) {
                     update_subscription_expiration_timer(its_message_response);
                     serialize_and_send(its_message_response, _sender);
-                    // set required acks to zero to mark message as sent
-                    its_message_response->set_number_required_acks(0);
+                    // set required acks to 0xFF to mark message as sent
+                    its_message_response->set_number_required_acks((std::numeric_limits<uint8_t>::max)());
                     sent = true;
                 }
             }
@@ -1472,31 +1472,31 @@ void service_discovery_impl::process_offerservice_serviceentry(
                         }
 
                         if (its_subscription->is_acknowledged()) {
-                            if (its_offer_type == remote_offer_type_e::UNRELIABLE &&
-                                    its_unreliable && its_unreliable->is_connected()) {
-                                // 28 = 16 (subscription) + 12 (option)
-                                check_space(28);
-                                const std::size_t options_size_before =
-                                        _resubscribes->back().second->get_options().size();
-                                if (insert_subscription(_resubscribes->back().second,
-                                        _service, _instance,
-                                        its_eventgroup.first,
-                                        its_subscription, its_offer_type)) {
-                                    its_subscription->set_acknowledged(false);
-                                    const std::size_t options_size_after =
+                            if (its_offer_type == remote_offer_type_e::UNRELIABLE) {
+                                if (its_unreliable && its_unreliable->is_connected()) {
+                                    // 28 = 16 (subscription) + 12 (option)
+                                    check_space(28);
+                                    const std::size_t options_size_before =
                                             _resubscribes->back().second->get_options().size();
-                                    const std::size_t diff = options_size_after - options_size_before;
-                                    _resubscribes->back().first =
-                                            static_cast<std::uint16_t>(
-                                                    _resubscribes->back().first + (12u * diff - 12u));
-                                } else {
-                                    _resubscribes->back().first =
-                                            static_cast<std::uint16_t>(
-                                                    _resubscribes->back().first - 28);
+                                    if (insert_subscription(_resubscribes->back().second,
+                                            _service, _instance,
+                                            its_eventgroup.first,
+                                            its_subscription, its_offer_type)) {
+                                        its_subscription->set_acknowledged(false);
+                                        const std::size_t options_size_after =
+                                                _resubscribes->back().second->get_options().size();
+                                        const std::size_t diff = options_size_after - options_size_before;
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first + (12u * diff - 12u));
+                                    } else {
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first - 28);
+                                    }
                                 }
-                            } else if (its_offer_type == remote_offer_type_e::RELIABLE &&
-                                    its_reliable) {
-                                if (its_reliable->is_connected()) {
+                            } else if (its_offer_type == remote_offer_type_e::RELIABLE) {
+                                if (its_reliable && its_reliable->is_connected()) {
                                     // 28 = 16 (subscription) + 12 (option)
                                     check_space(28);
                                     const std::size_t options_size_before =
@@ -1520,7 +1520,9 @@ void service_discovery_impl::process_offerservice_serviceentry(
                                 } else {
                                     its_client.second->set_tcp_connection_established(false);
                                     // restart TCP endpoint if not connected
-                                    its_reliable->restart();
+                                    if (its_reliable) {
+                                        its_reliable->restart();
+                                    }
                                 }
                             } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE) {
                                 if (its_reliable && its_unreliable &&
@@ -1930,14 +1932,8 @@ void service_discovery_impl::process_eventgroupentry(
                     << _message_id->sender_.to_string(ec) << " session: "
                     << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
             if(its_ttl > 0) {
-                const std::uint8_t num_overreferenced_options =
-                static_cast<std::uint8_t>(_entry->get_num_options(1) +
-                        _entry->get_num_options(2) - _options.size());
-                if (its_message_response->get_number_required_acks() -
-                        num_overreferenced_options > 0) {
-                    its_message_response->decrease_number_required_acks(
-                            num_overreferenced_options);
-                }
+                // set to 0 to ensure an answer containing at least this subscribe_nack is sent out
+                its_message_response->set_number_required_acks(0);
                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                          its_eventgroup, its_counter, its_major, its_reserved);
             }
@@ -2347,7 +2343,6 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
         if (_ttl == 0) { // --> unsubscribe
             for (const auto &target : its_targets) {
                 if (target.subscriber_) {
-                    remote_subscription_remove(_service, _instance, _eventgroup, target.subscriber_);
                     if (!_is_stop_subscribe_subscribe) {
                         host_->on_unsubscribe(_service, _instance, _eventgroup, target.subscriber_);
                     }
@@ -2356,14 +2351,16 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             return;
         }
 
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
         for (const auto &target : its_targets) {
-            if (target.target_) {
-                client_t its_subscribing_remote_client = VSOMEIP_ROUTING_CLIENT;
-                switch (host_->on_remote_subscription(_service, _instance,
-                        _eventgroup, target.subscriber_, target.target_,
-                        _ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_),
-                        &its_subscribing_remote_client, _message_id)) {
+            if (!target.target_) {
+                continue;
+            }
+            host_->on_remote_subscription(_service, _instance,
+                    _eventgroup, target.subscriber_, target.target_,
+                    _ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_),
+                    _message_id,
+                    [&](remote_subscription_state_e _rss, client_t _subscribing_remote_client) {
+                switch (_rss) {
                     case remote_subscription_state_e::SUBSCRIPTION_ACKED:
                         insert_subscription_ack(its_message, _service,
                                 _instance, _eventgroup, its_info, _ttl,
@@ -2396,15 +2393,16 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                             subscriber_->reserved_ = _reserved;
                             subscriber_->counter_ = _counter;
 
+                            std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
                             pending_remote_subscriptions_[_service]
                                                          [_instance]
                                                          [_eventgroup]
-                                                         [its_subscribing_remote_client].push_back(subscriber_);
+                                                         [_subscribing_remote_client].push_back(subscriber_);
                         }
                     default:
                         break;
                 }
-            }
+            });
         }
     }
 }
@@ -3410,8 +3408,8 @@ void service_discovery_impl::remote_subscription_acknowledge_subscriber(
         if (its_response->all_required_acks_contained()) {
             update_subscription_expiration_timer(its_response);
             serialize_and_send(its_response, _subscriber->response_message_id_->sender_);
-            // set required acks to zero to mark message as sent
-            its_response->set_number_required_acks(0);
+            // set required acks to 0xFF to mark message as sent
+            its_response->set_number_required_acks((std::numeric_limits<uint8_t>::max)());
             sent = true;
         }
     }
@@ -3511,48 +3509,6 @@ void service_discovery_impl::remote_subscription_not_acknowledge_all() {
                 for (const auto &sub : eg.second) {
                     remote_subscription_acknowledge_subscriber(s.first, i.first,
                             eg.first, sub, false);
-                }
-            }
-        }
-    }
-}
-
-void service_discovery_impl::remote_subscription_remove(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        const std::shared_ptr<endpoint_definition> &_subscriber) {
-    std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
-    const auto its_service = pending_remote_subscriptions_.find(_service);
-    if (its_service != pending_remote_subscriptions_.end()) {
-        const auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            const auto its_eventgroup = its_instance->second.find(_eventgroup);
-            if (its_eventgroup != its_instance->second.end()) {
-                for (auto client_iter = its_eventgroup->second.begin();
-                        client_iter != its_eventgroup->second.end(); ) {
-                    for (auto subscriber_iter = client_iter->second.begin();
-                            subscriber_iter != client_iter->second.end();) {
-                        if ((*subscriber_iter)->subscriber == _subscriber) {
-                            (*subscriber_iter)->response_message_id_->response_->decrease_number_required_acks();
-                            subscriber_iter = client_iter->second.erase(
-                                    subscriber_iter);
-                        } else {
-                            ++subscriber_iter;
-                        }
-                    }
-                    if (!client_iter->second.size()) {
-                        client_iter = its_eventgroup->second.erase(client_iter);
-                    } else {
-                        ++client_iter;
-                    }
-                }
-                if (!its_eventgroup->second.size()) {
-                    its_instance->second.erase(its_eventgroup);
-                    if (!its_service->second.size()) {
-                        its_service->second.erase(its_instance);
-                        if (!its_service->second.size()) {
-                            pending_remote_subscriptions_.erase(its_service);
-                        }
-                    }
                 }
             }
         }

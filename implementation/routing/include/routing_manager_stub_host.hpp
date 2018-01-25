@@ -56,6 +56,10 @@ public:
     virtual void unsubscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
+    virtual void on_unsubscribe_ack(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            pending_subscription_id_t _unsubscription_id) = 0;
+
     virtual bool on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true) = 0;
 

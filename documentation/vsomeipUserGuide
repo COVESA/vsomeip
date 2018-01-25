@@ -291,8 +291,20 @@ The netmask to specify the subnet of the host system.
 +
 * 'diagnosis'
 +
-The diagnosis address (byte) that will be used to build client identifiers.
+The diagnosis address (byte) that will be used to build client identifiers. The
+diagnosis address is assigned to the most significant byte in all client
+identifiers if not specified otherwise (for example through a predefined client
+ID).
 +
+* 'diagnosis_mask'
++
+The diagnosis mask (2 byte) is used to control the amount of bits used for the
+diagnosis address in client identifiers. The default value is `0xFF00` meaning
+the most significant byte of the client ID is reserved for the diagnosis
+address. Setting the mask to `0xFE00` allows to only use the 7 most
+significant bits of the client ID as a diagnosis address. This can be used to
+increase the maximum amount of concurrent active clients on an ECU.
+
 * 'network'
 +
 Network identifier used to support multiple routing managers on one host. This
@@ -330,16 +342,16 @@ _true, false_).
 +
 ** 'version'
 +
-Configures logging of the vSomeIP version
+Configures logging of the vsomeip version
 +
 *** 'enable'
 +
-Enable or disable cyclic logging of vSomeIP version, defaults to true (valid
+Enable or disable cyclic logging of vsomeip version, defaults to true (valid
 values: _true, false_)
 +
 *** 'interval'
 +
-Configures interval in seconds to log the vSomeIP version. Default value is 10.
+Configures interval in seconds to log the vsomeip version. Default value is 10.
 +
 ** 'memory_log_interval'
 +
@@ -742,7 +754,7 @@ reduced and starts to grow dynamically again.
 * `internal_services` (optional array)
 +
 Specifies service/instance ranges for pure internal service-instances.
-This information is used by vSomeIP to avoid sending Find-Service messages
+This information is used by vsomeip to avoid sending Find-Service messages
 via the Service-Discovery when a client is requesting a not available service-
 instance. Its can either be done on service/instance level or on service level
 only which then includes all instance from 0x0000-0xffff.
@@ -974,15 +986,15 @@ Multiple addresses can be configuered.
 
 Security
 --------
-vSomeIP has a security implementation based on UNIX credentials.
+vsomeip has a security implementation based on UNIX credentials.
 If activated every local connection is authenticated during connect using the standard UNIX credential passing mechanism.
 During authentification a client transfers its client identifier together with its credentials (UID / GID) to the server which is then matched against the configuration.
 If received credentials don't match the policy the socket will be immediately closed by the server and an message is logged.
-If accepted the client identifier is bound to the receiving socket and can therefore be used to do further security checks on incoming messages (vSomeIP messages as well as internal commands).
+If accepted the client identifier is bound to the receiving socket and can therefore be used to do further security checks on incoming messages (vsomeip messages as well as internal commands).
 
 In general clients can be configured to be allowed/denied to request (means communicate with) and offer different service instances.
-Every incoming vSomeIP message (request/response/notifcation) as well as offer service requests or local subscriptions are then checked against the policy.
-If an incoming vSomeIP message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.
+Every incoming vsomeip message (request/response/notifcation) as well as offer service requests or local subscriptions are then checked against the policy.
+If an incoming vsomeip message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.
 
 Furthermore if an application receives informations about other clients/services in the system, it must be received from the authenticated routing manager. 
 This is to avoid malicious applications faking the routing manager and therefore being able to wrongly inform other clients about services running on the system.
@@ -993,7 +1005,9 @@ Credential passing is only possible via Unix-Domain-Sockets and therefore only a
 However if security is activated method calls from remote clients to local services are checked as well which means remote clients needs to be explicitly allowed.
 Such a policy looks same in case for local clients except the _credentials_ tag can be skipped.
 
-It follows the available configuration switches for the security feature including its functional behavior: 
+Security configuration
+~~~~~~~~~~~~~~~~~~~~~~
+The available configuration switches for the security feature are: 
 
 // Security
 * anchor:config-policy[]'security' (optional)
@@ -1007,13 +1021,15 @@ Specifies whether security checks are active or not. This includes credentials c
 
 ** 'policies' (array)
 +
-Specifies the security policies. Each policy at least needs to specify _client_ and _allow_ / _deny_.
+Specifies the security policies. Each policy at least needs to specify _allow_ or _deny_.
 
-*** 'client'
+*** 'client' (optional)
 +
 Specifies a client for which a security policy will be applied (valid value: A valid client identifier in hex: e.g. _0x1234_).
 It is also possible to specify a client identifier range to easily apply a policy to a set of clients.
 A usecase is e.g. to allow a set of remote clients communicate with local services offered remote.
++
+No client specification equals to any client (_0xFFFF_). Such policies are applied if a client has no specific policy.
 
 **** 'first'
 +
@@ -1041,6 +1057,20 @@ As a wildcard "any" can be used.
 +
 Specifies the LINUX group id of the above client(s) as decimal number.
 As a wildcard "any" can be used.
+
+**** 'allow/deny' (optional)
++
+Specifies whether the LINUX user and group ids are allowed or denied for the policy.
+
+***** 'uid' (array)
++
+Specifies a list of LINUX user ids. These may either be specified as decimal numbers or as ranges. Ranges
+are specified by the first and the last valid id (see example below).
+
+***** 'gid' (array)
++
+Specifies a list of LINUX group ids. These may either be specified as decimal numbers or as ranges. Ranges
+are specified by the first and the last valid id (see example below).
 
 *** 'allow/deny'
 +
@@ -1072,15 +1102,75 @@ Specifies a service for the _offers_.
 +
 Specifies a instance for the _offers_
 
-In the `config/` folder are some vSomeIP configuration files to run the vSomeIP
+Security configuration example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[source, bash]
+----
+...
+"security" :
+{
+    ...
+    "policies" :
+    [
+        {
+            ...
+            "credentials" :
+            {
+                "uid" : "44",
+                "gid" : "any"
+             },
+             "allow" :
+             [
+                 "requests" :
+                 [
+                     {
+                         "service" : "0x6731",
+                         "instance" : "0x0001"
+                     }
+                 ]
+             ]
+         },
+         {
+            "credentials" :
+            {
+                "deny" :
+                [
+                    {
+                        "uid" : [ "1000", { "first" : "1002", "last" : "max" }],
+                        "gid" : [ "0", { "first" : "100", "last" : "243" }, "300"]
+                    },
+                    {
+                        "uid" : "55",
+                        "gid" : "55"
+                    }
+                 ]
+             },
+             "allow" :
+             [
+                 "requests" :
+                 [
+                     {
+                         "service" : "0x6732",
+                         "instance" : "0x0001"
+                     }
+                 ]
+             ]
+         }
+     ]
+}
+----
+
+The config/ folder contains some addition vsomeip configuration files to run the vsomeip
 examples with activated security checks.
 Additionally there's a security test in the `test/` subfolder which can be used
 for further reference. +
-They give a basic overview how to use the security related configuration tags described in this chapter to run a simple request/response or subscribe/notify example locally or over remote.
+They give a basic overview how to use the security related configuration tags described 
+in this chapter to run a simple request/response or subscribe/notify example locally or
+remotely.
 
 Audit Mode
 ~~~~~~~~~~
-vSomeIP's security implementation can be put in a so called 'Audit Mode' where
+vsomeip's security implementation can be put in a so called 'Audit Mode' where
 all security violations will be logged but allowed. This mode can be used to
 build a security configuration.
 
@@ -1113,7 +1203,7 @@ DIAGNOSIS_ADDRESS when compiling vsomeip. vsomeip will use the diagnosis address
 as the high byte and enumerate the connecting applications within the low byte
 of the client identifier.
 
-Autoconfiguration of client identifiers isn't meant to be used together with vSomeIP Security.
+Autoconfiguration of client identifiers isn't meant to be used together with vsomeip Security.
 Every client running locally needs to have at least its own credentials configured when security is activated to ensure the credential checks can pass.
 Practically that means if a client requests its identifier over the autoconfiguration for which no credentials are configured (at least it isn't known which client identifier is used beforehand) it is impossible for that client to establish a connection to a server endpoint.
 However if the credentials for all clients are same it's possible to configure them for the overall (or DIAGNOSIS_ADDRESS) client identifier range to mix autoconfiguration together with activated security.

@@ -1202,6 +1202,26 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}
         ${TEST_CLIENT_ID_UTILITY}
     )
+    set(TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_511.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}
+        ${TEST_CLIENT_ID_UTILITY}
+    )
+
+    set(TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_4095.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}
+        ${TEST_CLIENT_ID_UTILITY}
+    )
+
+    set(TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_127.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
+        ${TEST_CLIENT_ID_UTILITY}
+    )
 
     # copy starter scripts into builddir
     set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
@@ -2140,6 +2160,126 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# pending subscription tests tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_PENDING_SUBSCRIPTION_NAME pending_subscription_test)
+    set(TEST_PENDING_SUBSCRIPTION_SERVICE ${TEST_PENDING_SUBSCRIPTION_NAME}_service)
+    add_executable(${TEST_PENDING_SUBSCRIPTION_SERVICE} pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_NAME}_service.cpp)
+    target_link_libraries(${TEST_PENDING_SUBSCRIPTION_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    file(GLOB sd_sources
+        "../implementation/service_discovery/src/*entry*.cpp"
+        "../implementation/service_discovery/src/*option*.cpp"
+        "../implementation/service_discovery/src/*message*.cpp"
+    )
+    set(TEST_PENDING_SUBSCRIPTION_CLIENT ${TEST_PENDING_SUBSCRIPTION_NAME}_sd_msg_sender)
+    add_executable(${TEST_PENDING_SUBSCRIPTION_CLIENT}
+        pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_NAME}_sd_msg_sender.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/deserializer.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/message_impl.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
+        ${sd_sources}
+    )
+
+    target_link_libraries(${TEST_PENDING_SUBSCRIPTION_CLIENT}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip
+        vsomeip-sd
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_PENDING_SUBSCRIPTION_MASTER_STARTER ${TEST_PENDING_SUBSCRIPTION_NAME}_master_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}.in
+        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
+        ${TEST_PENDING_SUBSCRIPTION_SERVICE}
+    )
+
+    # Copy config file for local test into $BUILDDIR/test
+    set(TEST_PENDING_SUBSCRIPTION_CONFIG_FILE ${TEST_PENDING_SUBSCRIPTION_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
+        ${TEST_PENDING_SUBSCRIPTION_SERVICE}
+    )
+endif()
+
+##############################################################################
+# malicious data tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_MALICIOUS_DATA_NAME malicious_data_test)
+    set(TEST_MALICIOUS_DATA_SERVICE ${TEST_MALICIOUS_DATA_NAME}_service)
+    add_executable(${TEST_MALICIOUS_DATA_SERVICE} malicious_data_tests/${TEST_MALICIOUS_DATA_NAME}_service.cpp)
+    target_link_libraries(${TEST_MALICIOUS_DATA_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    file(GLOB sd_sources
+        "../implementation/service_discovery/src/*entry*.cpp"
+        "../implementation/service_discovery/src/*option*.cpp"
+        "../implementation/service_discovery/src/*message*.cpp"
+    )
+    set(TEST_MALICIOUS_DATA_CLIENT ${TEST_MALICIOUS_DATA_NAME}_msg_sender)
+    add_executable(${TEST_MALICIOUS_DATA_CLIENT}
+        malicious_data_tests/${TEST_MALICIOUS_DATA_CLIENT}.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/deserializer.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/message_impl.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
+        ${sd_sources}
+    )
+
+    target_link_libraries(${TEST_MALICIOUS_DATA_CLIENT}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip
+        vsomeip-sd
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_MALICIOUS_DATA_MASTER_STARTER ${TEST_MALICIOUS_DATA_NAME}_master_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_MASTER_STARTER}.in
+        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER}
+        ${TEST_MALICIOUS_DATA_SERVICE}
+    )
+
+    # Copy config file for local test into $BUILDDIR/test
+    set(TEST_MALICIOUS_DATA_CONFIG_FILE ${TEST_MALICIOUS_DATA_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_CONFIG_FILE}
+        ${TEST_MALICIOUS_DATA_SERVICE}
+    )
+endif()
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -2178,6 +2318,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER} gtest)
     add_dependencies(${TEST_OFFERED_SERVICES_INFO_CLIENT} gtest)
     add_dependencies(${TEST_OFFERED_SERVICES_INFO_SERVICE} gtest)
+    add_dependencies(${TEST_PENDING_SUBSCRIPTION_SERVICE} gtest)
+    add_dependencies(${TEST_PENDING_SUBSCRIPTION_CLIENT} gtest)
+    add_dependencies(${TEST_MALICIOUS_DATA_SERVICE} gtest)
+    add_dependencies(${TEST_MALICIOUS_DATA_CLIENT} gtest)
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -2230,6 +2374,10 @@ if(NOT ${TESTS_BAT})
     endif()
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_CLIENT})
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
+    add_dependencies(build_tests ${TEST_PENDING_SUBSCRIPTION_SERVICE})
+    add_dependencies(build_tests ${TEST_PENDING_SUBSCRIPTION_CLIENT})
+    add_dependencies(build_tests ${TEST_MALICIOUS_DATA_SERVICE})
+    add_dependencies(build_tests ${TEST_MALICIOUS_DATA_CLIENT})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -2372,6 +2520,27 @@ if(NOT ${TESTS_BAT})
     set_property(TEST ${TEST_CLIENT_ID_UTILITY}
         APPEND PROPERTY ENVIRONMENT
         "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}")
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_511
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
+    set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_511
+        APPEND PROPERTY ENVIRONMENT
+        "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}")
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_4095
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
+    set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_4095
+        APPEND PROPERTY ENVIRONMENT
+        "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}")
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_127
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
+    set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_127
+        APPEND PROPERTY ENVIRONMENT
+        "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}")
     set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
 
     # subscribe notify tests
@@ -2633,6 +2802,28 @@ if(NOT ${TESTS_BAT})
             COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_START_SCRIPT}
         )
     endif()
+
+    # pending subscriptions test
+    add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_alternating_subscribe_unsubscribe
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_UNSUBSCRIBE)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_alternating_subscribe_unsubscribe PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_unsubscribe
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} UNSUBSCRIBE)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_unsubscribe PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_alternating_subscribe_unsubscribe_nack
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_UNSUBSCRIBE_NACK)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_alternating_subscribe_unsubscribe_nack PROPERTIES TIMEOUT 180)
+
+    # malicious data test
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER})
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME} PROPERTIES TIMEOUT 180)
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

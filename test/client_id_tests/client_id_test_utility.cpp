@@ -20,22 +20,27 @@ static const std::string APPLICATION_NAME_ROUTING_MANAGER = "vsomeipd";
 
 static const std::string APPLICATION_NAME_NOT_PREDEFINED = "test-application-name";
 
+vsomeip::client_t CLIENT_ID_ROUTING_MANAGER = 0xFFFF;
+
 static const std::string APPLICATION_IN_NAME = "client_id_test_utility_service_in";
-static const vsomeip::client_t APPLICATION_IN_CLIENT_ID = 0x6311;
+static vsomeip::client_t APPLICATION_IN_CLIENT_ID = 0xFFFF;
 
 static const std::string APPLICATION_IN_NAME_TWO = "client_id_test_utility_service_in_two";
-static const vsomeip::client_t APPLICATION_IN_CLIENT_ID_TWO = 0x6312;
+static vsomeip::client_t APPLICATION_IN_CLIENT_ID_TWO = 0xFFFF;
 
 static const std::string APPLICATION_OUT_LOW_NAME = "client_id_test_utility_service_out_low";
-static const vsomeip::client_t APPLICATION_OUT_LOW_CLIENT_ID = 0x6011;
+static const vsomeip::client_t APPLICATION_OUT_LOW_CLIENT_ID = 0x5911;
 
 static const std::string APPLICATION_OUT_HIGH_NAME = "client_id_test_utility_service_out_high";
-static const vsomeip::client_t APPLICATION_OUT_HIGH_CLIENT_ID = 0x6411;
+static const vsomeip::client_t APPLICATION_OUT_HIGH_CLIENT_ID = 0x7411;
 
 class client_id_utility_test: public ::testing::Test {
 public:
     client_id_utility_test() :
-            client_id_routing_manager_(0x0) {
+            client_id_routing_manager_(0x0),
+            diagnosis_(0x0),
+            diagnosis_mask_(0xFF00),
+            client_id_base_(0x0) {
 
         std::shared_ptr<vsomeip::configuration> its_configuration;
         auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(
@@ -49,13 +54,21 @@ protected:
         ASSERT_FALSE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
         ASSERT_TRUE(static_cast<bool>(configuration_));
         configuration_->load(APPLICATION_NAME_ROUTING_MANAGER);
+        diagnosis_mask_ = configuration_->get_diagnosis_mask();
+        diagnosis_ = configuration_->get_diagnosis_address();
+
+        // calculate all client IDs based on mask
+        client_id_base_ = static_cast<client_t>((diagnosis_ << 8) & diagnosis_mask_);
+        CLIENT_ID_ROUTING_MANAGER = client_id_base_ | 0x1;
+        APPLICATION_IN_CLIENT_ID = static_cast<client_t>(client_id_base_ | 0x11);
+        APPLICATION_IN_CLIENT_ID_TWO = static_cast<client_t>(client_id_base_ | 0x12);
 
         utility::auto_configuration_init(configuration_);
         EXPECT_TRUE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
 
         client_id_routing_manager_ = utility::request_client_id(
                 configuration_, APPLICATION_NAME_ROUTING_MANAGER, 0x0);
-        EXPECT_EQ(0x6301, client_id_routing_manager_);
+        EXPECT_EQ(client_id_base_ | 0x1, client_id_routing_manager_);
         EXPECT_TRUE(utility::is_routing_manager_host(client_id_routing_manager_));
     }
 
@@ -81,12 +94,15 @@ protected:
 protected:
     std::shared_ptr<configuration> configuration_;
     vsomeip::client_t client_id_routing_manager_;
+    std::uint16_t diagnosis_;
+    std::uint16_t diagnosis_mask_;
+    client_t client_id_base_;
 };
 
 TEST_F(client_id_utility_test, request_release_client_id) {
     client_t its_client_id = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6302, its_client_id);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id);
 
     utility::release_client_id(its_client_id);
 }
@@ -94,11 +110,11 @@ TEST_F(client_id_utility_test, request_release_client_id) {
 TEST_F(client_id_utility_test, request_client_id_twice) {
     client_t its_client_id = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6302, its_client_id);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id);
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6303, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x3, its_client_id_2);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -107,14 +123,14 @@ TEST_F(client_id_utility_test, request_client_id_twice) {
 TEST_F(client_id_utility_test, release_unknown_client_id) {
     client_t its_client_id = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6302, its_client_id);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id);
 
     utility::release_client_id(0x4711);
     utility::release_client_id(its_client_id);
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6303, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x3, its_client_id_2);
     utility::release_client_id(its_client_id_2);
 }
 
@@ -122,22 +138,24 @@ TEST_F(client_id_utility_test, release_client_id_twice)
 {
     client_t its_client_id = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6302, its_client_id);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id);
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6303, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x3, its_client_id_2);
     utility::release_client_id(its_client_id_2);
 }
 
 TEST_F(client_id_utility_test, ensure_preconfigured_client_ids_not_used_for_autoconfig)
 {
-    const std::uint8_t limit = APPLICATION_IN_CLIENT_ID & 0xFF;
+    // request client ids until 10 over the preconfigured one
+    const std::uint16_t limit = static_cast<std::uint16_t>((APPLICATION_IN_CLIENT_ID & ~diagnosis_mask_) + 10u);
+
     std::vector<client_t> its_client_ids;
-    for (int i = 0; i < limit + 10; i++ ) {
+    for (int i = 0; i < limit; i++ ) {
         client_t its_client_id = utility::request_client_id(configuration_,
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
@@ -161,7 +179,7 @@ TEST_F(client_id_utility_test,
 {
     client_t its_client_id = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6302, its_client_id);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id);
 
     client_t its_client_id2 = utility::request_client_id(configuration_,
             APPLICATION_IN_NAME, APPLICATION_IN_CLIENT_ID);
@@ -174,11 +192,11 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id4 = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6303, its_client_id4);
+    EXPECT_EQ(client_id_base_ | 0x3, its_client_id4);
 
     client_t its_client_id5 = utility::request_client_id(configuration_,
             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-    EXPECT_EQ(0x6304, its_client_id5);
+    EXPECT_EQ(client_id_base_ | 0x4, its_client_id5);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id2);
@@ -204,7 +222,7 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_IN_NAME, APPLICATION_IN_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_2);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -213,18 +231,18 @@ TEST_F(client_id_utility_test,
 TEST_F(client_id_utility_test,
         request_different_client_id_with_predefined_app_name_in_diagnosis_range) {
     client_t its_client_id = utility::request_client_id(configuration_,
-            APPLICATION_IN_NAME, APPLICATION_IN_CLIENT_ID + 1u);
+            APPLICATION_IN_NAME, static_cast<client_t>(APPLICATION_IN_CLIENT_ID + 1u));
     // has to get predefined client id although other was requested
     EXPECT_EQ(APPLICATION_IN_CLIENT_ID, its_client_id);
 
     // predefined in json is now already used and requested should be assigned
     client_t its_client_id_2 = utility::request_client_id(configuration_,
-            APPLICATION_IN_NAME, APPLICATION_IN_CLIENT_ID + 1u);
+            APPLICATION_IN_NAME, static_cast<client_t>(APPLICATION_IN_CLIENT_ID + 1u));
     EXPECT_EQ(APPLICATION_IN_CLIENT_ID + 1u, its_client_id_2);
 
     client_t its_client_id_3 = utility::request_client_id(configuration_,
             APPLICATION_IN_NAME, APPLICATION_IN_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_3);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_3);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -248,7 +266,7 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_OUT_LOW_NAME, APPLICATION_OUT_LOW_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_2);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -268,7 +286,7 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id_3 = utility::request_client_id(configuration_,
             APPLICATION_OUT_LOW_NAME, APPLICATION_OUT_LOW_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_3);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_3);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -292,7 +310,7 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id_2 = utility::request_client_id(configuration_,
             APPLICATION_OUT_HIGH_NAME, APPLICATION_OUT_HIGH_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_2);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_2);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -312,7 +330,7 @@ TEST_F(client_id_utility_test,
 
     client_t its_client_id_3 = utility::request_client_id(configuration_,
             APPLICATION_OUT_HIGH_NAME, APPLICATION_OUT_HIGH_CLIENT_ID);
-    EXPECT_EQ(0x6302, its_client_id_3);
+    EXPECT_EQ(client_id_base_ | 0x2, its_client_id_3);
 
     utility::release_client_id(its_client_id);
     utility::release_client_id(its_client_id_2);
@@ -321,28 +339,30 @@ TEST_F(client_id_utility_test,
 
 
 TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
-     std::vector<client_t> its_client_ids;
+    std::vector<client_t> its_client_ids;
 
-     // -1 for the routing manager, -2 as two predefined client IDs are present
-     // in the json file which aren't assigned via autoconfiguration
-     std::uint8_t max_allowed_clients = 0xFF - 3;
-     // acquire maximum amount of client IDs
-     for (std::uint8_t i = 0; i < max_allowed_clients; i++) {
-         client_t its_client_id = utility::request_client_id(configuration_,
-                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
-         if (its_client_id != ILLEGAL_CLIENT) {
-             its_client_ids.push_back(its_client_id);
-         } else {
-             ADD_FAILURE() << "Received ILLEGAL_CLIENT "
-                     << static_cast<std::uint32_t>(i);
-         }
-     }
+    const std::uint16_t max_possible_clients = static_cast<std::uint16_t>(~diagnosis_mask_);
+    // -1 for the routing manager, -2 as two predefined client IDs are present
+    // in the json file which aren't assigned via autoconfiguration
+    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
 
-     // check limit is reached
-     client_t its_illegal_client_id = utility::request_client_id(configuration_,
-             APPLICATION_NAME_NOT_PREDEFINED, 0x0);
-     EXPECT_EQ(ILLEGAL_CLIENT, its_illegal_client_id);
+    // acquire maximum amount of client IDs
+    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE()<< "Received ILLEGAL_CLIENT "
+            << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // check limit is reached
+    client_t its_illegal_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_EQ(ILLEGAL_CLIENT, its_illegal_client_id);
 
     // release all
     for (const client_t c : its_client_ids) {
@@ -354,7 +374,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
     // One more time!
 
     // acquire maximum amount of client IDs
-    for (std::uint8_t i = 0; i < max_allowed_clients; i++) {
+    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
          client_t its_client_id = utility::request_client_id(configuration_,
                  APPLICATION_NAME_NOT_PREDEFINED, 0x0);
          EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
@@ -382,9 +402,11 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
 
     // -1 for the routing manager, -2 as two predefined client IDs are present
     // in the json file which aren't assigned via autoconfiguration
-    std::uint8_t max_allowed_clients = 0xFF - 3;
+    const std::uint16_t max_possible_clients = static_cast<std::uint16_t>(~diagnosis_mask_);
+    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
+
     // acquire maximum amount of client IDs
-    for (std::uint8_t i = 0; i < max_allowed_clients; i++) {
+    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
         client_t its_client_id = utility::request_client_id(configuration_,
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
@@ -420,7 +442,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
     }
 
     // acquire client IDs up to the maximum allowed amount again
-    for (std::uint8_t i = 0; i < its_released_client_ids.size(); i++) {
+    for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
         client_t its_client_id = utility::request_client_id(configuration_,
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);

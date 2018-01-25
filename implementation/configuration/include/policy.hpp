@@ -7,26 +7,25 @@
 #define VSOMEIP_CFG_POLICY_HPP
 
 #include <memory>
+#include <set>
 
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 namespace cfg {
 
-struct policy {
-    policy() :
-        uid_(0), is_uid_set_(false), gid_(0), is_gid_set_(false) {
-    }
+typedef std::set<std::pair<uint32_t, uint32_t>> ranges_t;
+typedef std::set<std::pair<ranges_t, ranges_t>> ids_t;
 
-    std::set<std::pair<service_t, instance_t>> allowed_services_;
-    std::set<std::pair<service_t, instance_t>> allowed_offers_;
-    std::set<std::pair<service_t, instance_t>> denied_services_;
-    std::set<std::pair<service_t, instance_t>> denied_offers_;
-    std::uint32_t uid_;
-    bool is_uid_set_;
-    std::uint32_t gid_;
-    bool is_gid_set_;
-    bool allow_;
+struct policy {
+    policy() : allow_who_(false), allow_what_(false) {};
+
+    ids_t ids_;
+    bool allow_who_;
+
+    std::set<std::pair<service_t, instance_t>> services_;
+    std::set<std::pair<service_t, instance_t>> offers_;
+    bool allow_what_;
 };
 
 } // namespace cfg

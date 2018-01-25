@@ -43,6 +43,7 @@ configuration_impl::configuration_impl()
       is_loaded_(false),
       is_logging_loaded_(false),
       diagnosis_(VSOMEIP_DIAGNOSIS_ADDRESS),
+      diagnosis_mask_(0xFF00),
       has_console_log_(true),
       has_file_log_(false),
       has_dlt_log_(false),
@@ -105,6 +106,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     unicast_ = _other.unicast_;
     diagnosis_ = _other.diagnosis_;
+    diagnosis_mask_ = _other.diagnosis_mask_;
 
     has_console_log_ = _other.has_console_log_;
     has_file_log_ = _other.has_file_log_;
@@ -770,6 +772,21 @@ void configuration_impl::load_diagnosis_address(const element &_element) {
             }
             its_converter >> diagnosis_;
             is_configured_[ET_DIAGNOSIS] = true;
+        }
+        std::string its_mask = _element.tree_.get<std::string>("diagnosis_mask");
+        if (is_configured_[ET_DIAGNOSIS_MASK]) {
+            VSOMEIP_WARNING << "Multiple definitions for diagnosis_mask."
+                    "Ignoring definition from " << _element.name_;
+        } else {
+            std::stringstream its_converter;
+
+            if (its_mask.size() > 1 && its_mask[0] == '0' && its_mask[1] == 'x') {
+                its_converter << std::hex << its_mask;
+            } else {
+                its_converter << std::dec << its_mask;
+            }
+            its_converter >> diagnosis_mask_;
+            is_configured_[ET_DIAGNOSIS_MASK] = true;
         }
     } catch (...) {
         // intentionally left empty
@@ -1634,6 +1651,7 @@ void configuration_impl::load_policies(const element &_element) {
 void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
     client_t client = 0x0;
     std::shared_ptr<policy> policy(std::make_shared<policy>());
+    bool has_been_inserted(false);
     bool allow_deny_set(false);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         if (i->first == "client") {
@@ -1655,16 +1673,13 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         its_converter >> lastClient;
                     }
                 }
-                if (firstClient < lastClient) {
+                if (firstClient < lastClient && lastClient != ANY_CLIENT) {
                     uint32_t overrides(0);
                     for (client_t c = firstClient; c <= lastClient; ++c) {
                         if (policies_.find(c) != policies_.end()) {
                             overrides++;
                         }
                         policies_[c] = policy;
-                        if (c == 0xffff) {
-                            break;
-                        }
                     }
                     if (overrides) {
                         VSOMEIP_INFO << std::hex << "Security configuration: "
@@ -1672,6 +1687,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                                 << " - 0x" << lastClient << " overrides policy of "
                                 << std::dec << overrides << " clients";
                     }
+                    has_been_inserted = true;
                 } else {
                     VSOMEIP_WARNING << std::hex << "Security configuration: "
                             << "Client range have to be ascending, \"first\"=0x"
@@ -1688,29 +1704,58 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                                 << "Overriding policy for client 0x" << client << ".";
                     }
                     policies_[client] = policy;
+                    has_been_inserted= true;
                 }
             }
         } else if (i->first == "credentials") {
+            std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
+            bool has_uid(false), has_gid(false);
             for (auto n = i->second.begin();
                     n != i->second.end(); ++n) {
-                if (n->first == "uid") {
-                    std::stringstream its_converter;
-                    std::string value = n->second.data();
-                    if (value != "any") {
-                        its_converter << std::dec << value;
-                        its_converter >> policy->uid_ ;
-                        policy->is_uid_set_ = true;
+                std::string its_key(n->first);
+                std::string its_value(n->second.data());
+                if (its_key == "uid") {
+                    if (its_value != "any") {
+                        uint32_t its_uid;
+                        std::stringstream its_converter;
+                        its_converter << std::dec << its_value;
+                        its_converter >> its_uid;
+                        std::get<0>(its_uid_range) = its_uid;
+                        std::get<1>(its_uid_range) = its_uid;
+                    } else {
+                        std::get<0>(its_uid_range) = 0;
+                        std::get<1>(its_uid_range) = 0xFFFFFFFF;
                     }
-                } else if (n->first == "gid") {
-                    std::stringstream its_converter;
-                    std::string value = n->second.data();
-                    if (value != "any") {
-                        its_converter << std::dec << value;
-                        its_converter >> policy->gid_ ;
-                        policy->is_gid_set_ = true;
+                    has_uid = true;
+                } else if (its_key == "gid") {
+                    if (its_value != "any") {
+                        uint32_t its_gid;
+                        std::stringstream its_converter;
+                        its_converter << std::dec << its_value;
+                        its_converter >> its_gid;
+                        std::get<0>(its_gid_range) = its_gid;
+                        std::get<1>(its_gid_range) = its_gid;
+                    } else {
+                        std::get<0>(its_gid_range) = 0;
+                        std::get<1>(its_gid_range) = 0xFFFFFFFF;
                     }
+                    has_gid = true;
+                } else if (its_key == "allow" || its_key == "deny") {
+                    policy->allow_who_ = (its_key == "allow");
+                    load_credential(n->second, policy->ids_);
                 }
             }
+
+            if (has_uid && has_gid) {
+                std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
+
+                its_uids.insert(its_uid_range);
+                its_gids.insert(its_gid_range);
+
+                policy->allow_who_ = true;
+                policy->ids_.insert(std::make_pair(its_uids, its_gids));
+            }
+
         } else if (i->first == "allow") {
             if (allow_deny_set) {
                 VSOMEIP_WARNING << "Security configuration: \"allow\" tag overrides "
@@ -1718,7 +1763,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         << "Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
-            policy->allow_ = true;
+            policy->allow_what_ = true;
             for (auto l = i->second.begin(); l != i->second.end(); ++l) {
                 if (l->first == "requests") {
                     for (auto n = l->second.begin(); n != l->second.end(); ++n) {
@@ -1737,7 +1782,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && instance != 0x0) {
-                            policy->allowed_services_.insert(
+                            policy->services_.insert(
                                     std::make_pair(service, instance));
                         }
                     }
@@ -1758,7 +1803,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && instance != 0x0) {
-                            policy->allowed_offers_.insert(
+                            policy->offers_.insert(
                                     std::make_pair(service, instance));
                         }
                     }
@@ -1771,7 +1816,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         << "Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
-            policy->allow_ = false;
+            policy->allow_what_ = false;
             for (auto l = i->second.begin(); l != i->second.end(); ++l) {
                 if (l->first == "requests") {
                     for (auto n = l->second.begin(); n != l->second.end(); ++n) {
@@ -1790,7 +1835,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && instance != 0x0) {
-                            policy->denied_services_.insert(
+                            policy->services_.insert(
                                     std::make_pair(service, instance));
                         }
                     }
@@ -1812,7 +1857,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && instance != 0x0) {
-                            policy->denied_offers_.insert(
+                            policy->offers_.insert(
                                     std::make_pair(service, instance));
                         }
                     }
@@ -1820,6 +1865,83 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
             }
         }
     }
+
+    if (!has_been_inserted) {
+        policies_[ANY_CLIENT] = policy;
+    }
+}
+
+void configuration_impl::load_credential(
+        const boost::property_tree::ptree &_tree, ids_t &_ids) {
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        ranges_t its_uid_ranges, its_gid_ranges;
+        for (auto j = i->second.begin(); j != i->second.end(); ++j) {
+            std::string its_key(j->first);
+            if (its_key == "uid") {
+                load_ranges(j->second, its_uid_ranges);
+            } else if (its_key == "gid") {
+                load_ranges(j->second, its_gid_ranges);
+            } else {
+                VSOMEIP_WARNING << "Security configuration: "
+                        << "Malformed credential (contains illegal key \""
+                        << its_key << "\"";
+            }
+        }
+
+        _ids.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
+    }
+}
+
+void configuration_impl::load_ranges(
+        const boost::property_tree::ptree &_tree, ranges_t &_range) {
+    ranges_t its_ranges;
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        auto its_data = i->second;
+        if (!its_data.data().empty()) {
+            uint32_t its_id;
+            std::stringstream its_converter;
+            its_converter << std::dec << its_data.data();
+            its_converter >> its_id;
+
+            its_ranges.insert(std::make_pair(its_id, its_id));
+        } else {
+            uint32_t its_first, its_last;
+            bool has_first(false), has_last(false);
+            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
+                std::string its_key(j->first);
+                std::string its_value(j->second.data());
+                if (its_key == "first") {
+                    if (its_value == "max") {
+                        its_first = 0xFFFFFFFF;
+                    } else {
+                        std::stringstream its_converter;
+                        its_converter << std::dec << j->second.data();
+                        its_converter >> its_first;
+                    }
+                    has_first = true;
+                } else if (its_key == "last") {
+                    if (its_value == "max") {
+                        its_last = 0xFFFFFFFF;
+                    } else {
+                        std::stringstream its_converter;
+                        its_converter << std::dec << j->second.data();
+                        its_converter >> its_last;
+                    }
+                    has_last = true;
+                } else {
+                    VSOMEIP_WARNING << "Security configuration: "
+                            << " Malformed range. Contains illegal key ("
+                            << its_key << ")";
+                }
+            }
+
+            if (has_first && has_last) {
+                its_ranges.insert(std::make_pair(its_first, its_last));
+            }
+        }
+    }
+
+    _range = its_ranges;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1874,6 +1996,10 @@ const boost::asio::ip::address & configuration_impl::get_unicast_address() const
 
 unsigned short configuration_impl::get_diagnosis_address() const {
     return diagnosis_;
+}
+
+std::uint16_t configuration_impl::get_diagnosis_mask() const {
+    return diagnosis_mask_;
 }
 
 bool configuration_impl::is_v4() const {
@@ -2410,10 +2536,38 @@ bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
     if (!policy_enabled_) {
         return true;
     }
+
+    bool has_id(false);
     auto its_client = policies_.find(_client);
+
+    // Search for generic policy if no specific could be found
+    if (its_client == policies_.end())
+        its_client = policies_.find(ANY_CLIENT);
+
     if (its_client != policies_.end()) {
-        if ((!its_client->second->is_uid_set_ || its_client->second->uid_ == _uid)
-                 && (!its_client->second->is_gid_set_ || its_client->second->gid_ == _gid)) {
+        for (auto its_credential : its_client->second->ids_) {
+            bool has_uid(false), has_gid(false);
+            for (auto its_range : std::get<0>(its_credential)) {
+                if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
+                    has_uid = true;
+                    break;
+                }
+            }
+            for (auto its_range : std::get<1>(its_credential)) {
+                if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
+                    has_gid = true;
+                    break;
+                }
+            }
+
+            if (has_uid && has_gid) {
+                has_id = true;
+                break;
+            }
+        }
+
+        if ((has_id && its_client->second->allow_who_)
+                || (!has_id && !its_client->second->allow_who_)) {
             return true;
         }
     }
@@ -2433,6 +2587,11 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
         return true;
     }
     auto its_client = policies_.find(_client);
+
+    // Search for generic policy if no specific could be found
+    if (its_client == policies_.end())
+            its_client = policies_.find(ANY_CLIENT);
+
     if (its_client == policies_.end()) {
         if (!check_credentials_) {
             VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
@@ -2443,18 +2602,13 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
         return !check_credentials_;
     }
 
-    if (!its_client->second->allow_) {
-        auto its_denied_service = its_client->second->denied_services_.find(
-                std::make_pair(_service, _instance));
-        if (its_denied_service == its_client->second->denied_services_.end()) {
-            return true;
-        }
-    } else {
-        auto its_allowed_service = its_client->second->allowed_services_.find(
-                std::make_pair(_service, _instance));
-        if (its_allowed_service != its_client->second->allowed_services_.end()) {
-            return true;
-        }
+    auto its_service = its_client->second->services_.find(std::make_pair(_service, _instance));
+    if (its_client->second->allow_what_
+            && its_service != its_client->second->services_.end()) {
+        return true;
+    } else if (!its_client->second->allow_what_
+            && its_service == its_client->second->services_.end()) {
+        return true;
     }
 
     if (!check_credentials_) {
@@ -2472,7 +2626,13 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     if (!policy_enabled_) {
         return true;
     }
+
     auto its_client = policies_.find(_client);
+
+    // Search for generic policy if no specific could be found
+    if (its_client == policies_.end())
+        its_client = policies_.find(ANY_CLIENT);
+
     if (its_client == policies_.end()) {
         if (!check_credentials_) {
             VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
@@ -2483,18 +2643,13 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
         return !check_credentials_;
     }
 
-    if (!its_client->second->allow_) {
-        auto its_denied_service = its_client->second->denied_offers_.find(
-                std::make_pair(_service, _instance));
-        if (its_denied_service == its_client->second->denied_offers_.end()) {
-            return true;
-        }
-    } else {
-        auto its_allowed_service = its_client->second->allowed_offers_.find(
-                std::make_pair(_service, _instance));
-        if (its_allowed_service != its_client->second->allowed_offers_.end()) {
-            return true;
-        }
+    auto its_offer = its_client->second->offers_.find(std::make_pair(_service, _instance));
+    if (its_client->second->allow_what_
+            && its_offer != its_client->second->offers_.end()) {
+        return true;
+    } else if (!its_client->second->allow_what_
+            && its_offer == its_client->second->offers_.end()) {
+        return true;
     }
 
     if (!check_credentials_) {
