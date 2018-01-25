@@ -3,7 +3,7 @@
    "diagnosis":"0x12",
    "logging" : 
    {
-      "level" : "debug",
+      "level" : "warning",
       "console" : "true",
       "file" : 
       {

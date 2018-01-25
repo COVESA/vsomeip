@@ -1,5 +1,8 @@
 Changes
 =======
+v2.10.10
+- Fix concurrency issue leading to a crash
+
 v2.10.9
 - Improve handling of service discovery messages with entries
   referencing too many options.

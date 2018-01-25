@@ -12,6 +12,7 @@
 #include <map>
 #include <algorithm>
 #include <atomic>
+#include <future>
 
 #include <gtest/gtest.h>
 
@@ -76,13 +77,17 @@ public:
                 std::bind(&offered_services_info_test_client::on_message, this,
                         std::placeholders::_1));
 
-        app_->register_availability_handler(service_info_.service_id,
-                service_info_.instance_id,
+        app_->register_availability_handler(vsomeip::ANY_SERVICE,
+                vsomeip::ANY_INSTANCE,
                 std::bind(&offered_services_info_test_client::on_availability, this,
                         std::placeholders::_1, std::placeholders::_2,
                         std::placeholders::_3));
-        app_->request_service(service_info_.service_id,
-                service_info_.instance_id);
+        // request all services
+        app_->request_service(service_info_.service_id, service_info_.instance_id);
+        app_->request_service(service_info_.service_id, vsomeip::instance_t(service_info_.instance_id + 1));
+        app_->request_service(remote_service_info_.service_id, remote_service_info_.instance_id);
+        app_->request_service(vsomeip::service_t(remote_service_info_.service_id + 1), vsomeip::instance_t(remote_service_info_.instance_id + 1));
+        app_->request_service(vsomeip::service_t(remote_service_info_.service_id + 2), vsomeip::instance_t(remote_service_info_.instance_id + 2));
 
         app_->start();
     }
@@ -109,10 +114,14 @@ public:
         VSOMEIP_INFO << "Service [" << std::setw(4)
         << std::setfill('0') << std::hex << _service << "." << _instance
         << "] is " << (_is_available ? "available":"not available") << ".";
+        static int services_available =0;
         std::lock_guard<std::mutex> its_lock(mutex_);
         if(_is_available) {
-            wait_until_service_available_ = false;
-            condition_.notify_one();
+            services_available++;
+            if (services_available == 5) {
+                wait_until_service_available_ = false;
+                condition_.notify_one();
+            }
         } else {
             wait_until_service_available_ = true;
             condition_.notify_one();
@@ -165,28 +174,16 @@ public:
         VSOMEIP_INFO << "TEST LOCAL SERVICES";
         app_->get_offered_services_async(vsomeip::offer_type_e::OT_LOCAL, std::bind(&offered_services_info_test_client::on_offered_services_local, this, std::placeholders::_1));
 
-        VSOMEIP_INFO << "TEST REMOTE SERVICES";
-        app_->get_offered_services_async(vsomeip::offer_type_e::OT_REMOTE, std::bind(&offered_services_info_test_client::on_offered_services_remote, this, std::placeholders::_1));
-
-        VSOMEIP_INFO << "TEST ALL SERVICES";
-        app_->get_offered_services_async(vsomeip::offer_type_e::OT_ALL, std::bind(&offered_services_info_test_client::on_offered_services_all, this, std::placeholders::_1));
-
-
         // send shutdown command to service
-        bool send(false);
-        {
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            send = !wait_until_service_available_;
-        }
-        if (send) {
+        if (std::future_status::timeout == all_callbacks_received_.get_future().wait_for(std::chrono::seconds(15))) {
+            ADD_FAILURE() << "Didn't receive all callbacks within time";
+        } else {
             std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
             its_req->set_service(service_info_.service_id);
             its_req->set_instance(service_info_.instance_id);
             its_req->set_method(service_info_.shutdown_method_id);
             app_->send(its_req);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        } else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
 
 
@@ -201,6 +198,7 @@ public:
 
     void on_offered_services_local( const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>> &_services) {
         std::cout << "ON OFFERED SERVICES LOCAL CALLBACK START" << std::endl;
+        EXPECT_EQ(2u, _services.size());
         bool local_service_test_failed(true);
         for (auto its_pair : _services) {
             local_service_test_failed = true;
@@ -215,10 +213,13 @@ public:
             EXPECT_FALSE(local_service_test_failed);
         }
         std::cout << "ON OFFERED SERVICES LOCAL CALLBACK END" << std::endl;
+        VSOMEIP_INFO << "TEST REMOTE SERVICES";
+        app_->get_offered_services_async(vsomeip::offer_type_e::OT_REMOTE, std::bind(&offered_services_info_test_client::on_offered_services_remote, this, std::placeholders::_1));
     }
 
     void on_offered_services_remote( const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>> &_services) {
         std::cout << "ON OFFERED SERVICES REMOTE CALLBACK START" << std::endl;
+        EXPECT_EQ(3u, _services.size());
         bool remote_service_test_failed(true);
         for (auto its_pair : _services) {
             remote_service_test_failed = true;
@@ -233,10 +234,13 @@ public:
             EXPECT_FALSE(remote_service_test_failed);
         }
         std::cout << "ON OFFERED SERVICES REMOTE CALLBACK END" << std::endl;
+        VSOMEIP_INFO << "TEST ALL SERVICES";
+        app_->get_offered_services_async(vsomeip::offer_type_e::OT_ALL, std::bind(&offered_services_info_test_client::on_offered_services_all, this, std::placeholders::_1));
     }
 
     void on_offered_services_all( const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>> &_services) {
         std::cout << "ON OFFERED SERVICES ALL CALLBACK START" << std::endl;
+        EXPECT_EQ(5u, _services.size());
         bool all_service_test_failed(true);
         for (auto its_pair : _services) {
             all_service_test_failed = true;
@@ -251,6 +255,7 @@ public:
             EXPECT_FALSE(all_service_test_failed);
         }
         std::cout << "ON OFFERED SERVICES ALL CALLBACK END" << std::endl;
+        all_callbacks_received_.set_value();
     }
 
     void wait_for_stop() {
@@ -282,6 +287,7 @@ private:
     std::uint32_t last_received_counter_;
     std::chrono::steady_clock::time_point last_received_response_;
     std::atomic<std::uint32_t> number_received_responses_;
+    std::promise<void> all_callbacks_received_;
     std::thread stop_thread_;
     std::thread test_offered_services_thread_;
 };

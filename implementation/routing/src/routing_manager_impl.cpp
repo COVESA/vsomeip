@@ -1953,7 +1953,10 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
             }
 
             if (its_endpoint) {
-                used_client_ports_[_reliable].insert(its_local_port);
+                {
+                    std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+                    used_client_ports_[_reliable].insert(its_local_port);
+                }
                 service_instances_[_service][its_endpoint.get()] = _instance;
                 remote_services_[_service][_instance][_client][_reliable] = its_endpoint;
                 if (_client == VSOMEIP_ROUTING_CLIENT) {
