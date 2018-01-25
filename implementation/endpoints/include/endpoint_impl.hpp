@@ -16,6 +16,7 @@
 
 #include "buffer.hpp"
 #include "endpoint.hpp"
+#include "../../configuration/include/configuration.hpp"
 
 namespace vsomeip {
 
@@ -29,7 +30,8 @@ public:
     endpoint_impl(std::shared_ptr<endpoint_host> _adapter,
                   endpoint_type _local,
                   boost::asio::io_service &_io,
-                  std::uint32_t _max_message_size);
+                  std::uint32_t _max_message_size,
+                  configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~endpoint_impl();
 
     void enable_magic_cookies();
@@ -87,6 +89,8 @@ protected:
 
     error_handler_t error_handler_;
     std::mutex error_handler_mutex_;
+
+    const configuration::endpoint_queue_limit_t queue_limit_;
 };
 
 } // namespace vsomeip

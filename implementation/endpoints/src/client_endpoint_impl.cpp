@@ -21,6 +21,7 @@
 #include "../../configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
 
@@ -30,13 +31,15 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
         endpoint_type _local,
         endpoint_type _remote,
         boost::asio::io_service &_io,
-        std::uint32_t _max_message_size)
-        : endpoint_impl<Protocol>(_host, _local, _io, _max_message_size),
+        std::uint32_t _max_message_size,
+        configuration::endpoint_queue_limit_t _queue_limit)
+        : endpoint_impl<Protocol>(_host, _local, _io, _max_message_size, _queue_limit),
           socket_(new socket_type(_io)), remote_(_remote),
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           is_connected_(false),
           packetizer_(std::make_shared<message_buffer_t>()),
+          queue_size_(0),
           was_not_connected_(false),
           local_port_(0) {
 }
@@ -62,6 +65,7 @@ void client_endpoint_impl<Protocol>::stop() {
         endpoint_impl<Protocol>::sending_blocked_ = true;
         // delete unsent messages
         queue_.clear();
+        queue_size_ = 0;
     }
     {
         std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
@@ -69,7 +73,7 @@ void client_endpoint_impl<Protocol>::stop() {
         connect_timer_.cancel(ec);
     }
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
-    shutdown_and_close_socket();
+    shutdown_and_close_socket(false);
 }
 
 template<typename Protocol>
@@ -118,14 +122,50 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
     if (packetizer_->size() + _size > endpoint_impl<Protocol>::max_message_size_
             && !packetizer_->empty()) {
         queue_.push_back(packetizer_);
+        queue_size_ += packetizer_->size();
         packetizer_ = std::make_shared<message_buffer_t>();
     }
 
+    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
+            && queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
+        service_t its_service(0);
+        method_t its_method(0);
+        client_t its_client(0);
+        session_t its_session(0);
+        if (_size >= VSOMEIP_SESSION_POS_MAX) {
+            // this will yield wrong IDs for local communication as the commands
+            // are prepended to the actual payload
+            // it will print:
+            // (lowbyte service ID + highbyte methoid)
+            // [(Command + lowerbyte sender's client ID).
+            //  highbyte sender's client ID + lowbyte command size.
+            //  lowbyte methodid + highbyte vsomeipd length]
+            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
+                                                _data[VSOMEIP_SERVICE_POS_MAX]);
+            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
+                                               _data[VSOMEIP_METHOD_POS_MAX]);
+            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
+                                               _data[VSOMEIP_CLIENT_POS_MAX]);
+            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
+                                                _data[VSOMEIP_SESSION_POS_MAX]);
+        }
+        VSOMEIP_ERROR << "cei::send: queue size limit (" << std::dec
+                << endpoint_impl<Protocol>::queue_limit_
+                << ") reached. Dropping message ("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_session << "] "
+                << "queue_size: " << std::dec << queue_size_
+                << " data size: " << std::dec << _size;
+        return false;
+    }
     packetizer_->insert(packetizer_->end(), _data, _data + _size);
 
     if (_flush) {
         flush_timer_.cancel();
         queue_.push_back(packetizer_);
+        queue_size_ += packetizer_->size();
         packetizer_ = std::make_shared<message_buffer_t>();
     } else {
         flush_timer_.expires_from_now(
@@ -152,6 +192,7 @@ bool client_endpoint_impl<Protocol>::flush() {
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (!packetizer_->empty()) {
         queue_.push_back(packetizer_);
+        queue_size_ += packetizer_->size();
         packetizer_ = std::make_shared<message_buffer_t>();
         if (queue_.size() == 1) { // no writing in progress
             send_queued();
@@ -168,13 +209,13 @@ void client_endpoint_impl<Protocol>::connect_cbk(
         boost::system::error_code const &_error) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
-        shutdown_and_close_socket();
+        shutdown_and_close_socket(false);
         return;
     }
     std::shared_ptr<endpoint_host> its_host = this->host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
-            shutdown_and_close_socket();
+            shutdown_and_close_socket(true);
             start_connect_timer();
             // Double the timeout as long as the maximum allowed is larger
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
@@ -224,33 +265,42 @@ void client_endpoint_impl<Protocol>::send_cbk(
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
+            queue_size_ -= queue_.front()->size();
             queue_.pop_front();
             send_queued();
         }
     } else if (_error == boost::asio::error::broken_pipe) {
         is_connected_ = false;
+        bool stopping(false);
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
-            if (endpoint_impl<Protocol>::sending_blocked_) {
+            stopping = endpoint_impl<Protocol>::sending_blocked_;
+            if (stopping) {
                 queue_.clear();
+                queue_size_ = 0;
             } else {
                 VSOMEIP_WARNING << "cei::send_cbk received error: "
                         << _error.message() << " (" << std::dec
                         << _error.value() << ") " << std::dec << queue_.size();
             }
         }
-        shutdown_and_close_socket();
+        if (!stopping) {
+            print_status();
+        }
+        shutdown_and_close_socket(true);
         connect();
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor) {
         was_not_connected_ = true;
+        shutdown_and_close_socket(true);
         connect();
     } else if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
-        shutdown_and_close_socket();
+        shutdown_and_close_socket(false);
     } else {
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ")" ;
+        print_status();
     }
 }
 
@@ -263,18 +313,21 @@ void client_endpoint_impl<Protocol>::flush_cbk(
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket() {
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket) {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    shutdown_and_close_socket_unlocked();
+    shutdown_and_close_socket_unlocked(_recreate_socket);
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked() {
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _recreate_socket) {
     local_port_ = 0;
     if (socket_->is_open()) {
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
         socket_->close(its_error);
+    }
+    if (_recreate_socket) {
+        socket_.reset(new socket_type(endpoint_impl<Protocol>::service_));
     }
 }
 

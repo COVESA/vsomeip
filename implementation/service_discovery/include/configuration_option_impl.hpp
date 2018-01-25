@@ -24,7 +24,7 @@ class configuration_option_impl: public option_impl {
 public:
     configuration_option_impl();
     virtual ~configuration_option_impl();
-    bool operator==(const option_impl &_other) const;
+    bool operator==(const configuration_option_impl &_other) const;
 
     void add_item(const std::string &_key, const std::string &_value);
     void remove_item(const std::string &_key);

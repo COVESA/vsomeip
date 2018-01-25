@@ -20,8 +20,7 @@ option_impl::~option_impl() {
 }
 
 bool option_impl::operator ==(const option_impl &_other) const {
-    (void)_other;
-    return false;
+    return (type_ == _other.type_ && length_ == _other.length_);
 }
 
 uint16_t option_impl::get_length() const {

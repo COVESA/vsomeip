@@ -19,9 +19,10 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local,
         endpoint_type _remote,
-        boost::asio::io_service &_io)
+        boost::asio::io_service &_io,
+        configuration::endpoint_queue_limit_t _queue_limit)
     : udp_client_endpoint_base_impl(_host, _local, _remote, _io,
-            VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+            VSOMEIP_MAX_UDP_MESSAGE_SIZE, _queue_limit),
       recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
       remote_address_(_remote.address()),
       remote_port_(_remote.port()) {
@@ -81,7 +82,7 @@ void udp_client_endpoint_impl::restart() {
         std::lock_guard<std::mutex> its_lock(mutex_);
         queue_.clear();
     }
-    shutdown_and_close_socket();
+    shutdown_and_close_socket(false);
     start_connect_timer();
 }
 
@@ -215,7 +216,7 @@ void udp_client_endpoint_impl::receive_cbk(
         receive();
     } else {
         if (_error == boost::asio::error::connection_refused) {
-            shutdown_and_close_socket();
+            shutdown_and_close_socket(false);
         } else {
             receive();
         }
@@ -256,9 +257,7 @@ void udp_client_endpoint_impl::print_status() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
-        for (const auto &m : queue_) {
-            its_data_size += m->size();
-        }
+        its_data_size = queue_size_;
     }
     std::string local;
     {

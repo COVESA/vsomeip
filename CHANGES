@@ -1,6 +1,34 @@
 Changes
 =======
 
+v2.10.5
+- Fix possible deadlock on application shutdown
+- Try to reestablish TCP connection on resubscription if the remote
+  closed the connection
+- Introduce new configuration file parameters to control
+  interpretation of TTL field of incoming remote offers and
+  subscriptions:
+  - service-discovery > ttl_factor_offers (optional array of
+    service/instance/TTL factor tuples)
+  - service-discovery > ttl_factor_subscriptions (optional array of
+    service/instance/TTL factor tuples)
+- Added possibility to debounce external events/fields
+  based on time or change of data in the payload (maskable) via new
+  configuration file parameter:
+  - debounce (optional array)
+  For more information see the vsomeipUserGuide.
+- Added possibility to limit amount of memory used to cache outgoing
+  messages on IP port basis or globally via configuration file
+  parameter:
+  - endpoint-queue-limits (array): to limit on IP:Port (endpoint)
+    level
+  - endpoint-queue-limit-external: to generally limit all external
+    endpoints.
+  - endpoint-queue-limit-local: to limit queue sizes for local
+    communication
+  For more information see the vsomeipUserGuide.
+
+
 v2.10.4
 - Extended diagnosis plugin to handle requests for
   "disableRxAndEnableTx" and "disableRxAndTx".

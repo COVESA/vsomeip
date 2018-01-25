@@ -29,7 +29,8 @@ public:
     udp_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
                              endpoint_type _remote,
-                             boost::asio::io_service &_io);
+                             boost::asio::io_service &_io,
+                             configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~udp_client_endpoint_impl();
 
     void start();

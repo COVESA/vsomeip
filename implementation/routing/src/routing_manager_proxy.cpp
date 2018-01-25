@@ -1783,7 +1783,8 @@ void routing_manager_proxy::init_receiver() {
                 boost::asio::local::stream_protocol::endpoint(its_client.str()),
 #endif
                 io_, configuration_->get_max_message_size_local(),
-                configuration_->get_buffer_shrink_threshold());
+                configuration_->get_buffer_shrink_threshold(),
+                configuration_->get_endpoint_queue_limit_local());
 #ifdef _WIN32
         VSOMEIP_INFO << "Listening at " << port;
 #else

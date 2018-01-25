@@ -42,14 +42,16 @@ public:
                                endpoint_type _local,
                                boost::asio::io_service &_io,
                                std::uint32_t _max_message_size,
-                               std::uint32_t _buffer_shrink_threshold);
+                               std::uint32_t _buffer_shrink_threshold,
+                               configuration::endpoint_queue_limit_t _queue_limit);
 
     local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
                                boost::asio::io_service &_io,
                                std::uint32_t _max_message_size,
                                int native_socket,
-                               std::uint32_t _buffer_shrink_threshold);
+                               std::uint32_t _buffer_shrink_threshold,
+                               configuration::endpoint_queue_limit_t _queue_limit);
 
     virtual ~local_server_endpoint_impl();
 

@@ -25,8 +25,10 @@ tcp_server_endpoint_impl::tcp_server_endpoint_impl(
         std::shared_ptr<endpoint_host> _host, endpoint_type _local,
         boost::asio::io_service &_io, std::uint32_t _max_message_size,
         std::uint32_t _buffer_shrink_threshold,
-        std::chrono::milliseconds _send_timeout)
-    : tcp_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
+        std::chrono::milliseconds _send_timeout,
+        configuration::endpoint_queue_limit_t _queue_limit)
+    : tcp_server_endpoint_base_impl(_host, _local, _io,
+                                    _max_message_size, _queue_limit),
         acceptor_(_io),
         buffer_shrink_threshold_(_buffer_shrink_threshold),
         local_port_(_local.port()),
@@ -110,7 +112,7 @@ void tcp_server_endpoint_impl::send_queued(const queue_iterator_type _queue_iter
                     << _queue_iterator->first.address().to_string() << ":" << std::dec
                     << static_cast<std::uint16_t>(_queue_iterator->first.port())
                     << " dropping outstanding messages (" << std::dec
-                    << _queue_iterator->second.size() << ").";
+                    << _queue_iterator->second.second.size() << ").";
             queues_.erase(_queue_iterator->first);
         }
     }
@@ -310,7 +312,7 @@ void tcp_server_endpoint_impl::connection::send_queued(
                 " couldn't lock server_";
         return;
     }
-    message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
+    message_buffer_ptr_t its_buffer = _queue_iterator->second.second.front();
     const service_t its_service = VSOMEIP_BYTES_TO_WORD(
             (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
             (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
@@ -328,8 +330,10 @@ void tcp_server_endpoint_impl::connection::send_queued(
                 std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
-            send_magic_cookie(its_buffer);
-            last_cookie_sent_ = now;
+            if (send_magic_cookie(its_buffer)) {
+                last_cookie_sent_ = now;
+                _queue_iterator->second.first += sizeof(SERVICE_COOKIE);
+            }
         }
     }
 
@@ -351,14 +355,16 @@ void tcp_server_endpoint_impl::connection::send_queued(
     }
 }
 
-void tcp_server_endpoint_impl::connection::send_magic_cookie(
+bool tcp_server_endpoint_impl::connection::send_magic_cookie(
         message_buffer_ptr_t &_buffer) {
     if (max_message_size_ == MESSAGE_SIZE_UNLIMITED
             || max_message_size_ - _buffer->size() >=
     VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
         _buffer->insert(_buffer->begin(), SERVICE_COOKIE,
                 SERVICE_COOKIE + sizeof(SERVICE_COOKIE));
+        return true;
     }
+    return false;
 }
 
 bool tcp_server_endpoint_impl::connection::is_magic_cookie(size_t _offset) const {
@@ -553,7 +559,10 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
             || _error == boost::asio::error::connection_reset
             || _error == boost::asio::error::timed_out) {
         if(_error == boost::asio::error::timed_out) {
-            VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk: " << _error.message();
+            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk: " << _error.message()
+                    << " local: " << get_address_port_local()
+                    << " remote: " << get_address_port_remote();
         }
         {
             std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
@@ -746,10 +755,8 @@ void tcp_server_endpoint_impl::print_status() {
         }
         auto found_queue = queues_.find(c.first);
         if (found_queue != queues_.end()) {
-            its_queue_size = found_queue->second.size();
-            for (const auto &m : found_queue->second) {
-                its_data_size += m->size();
-            }
+            its_queue_size = found_queue->second.second.size();
+            its_data_size = found_queue->second.first;
         }
         VSOMEIP_INFO << "status tse: client: "
                 << c.second->get_address_port_remote()

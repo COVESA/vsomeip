@@ -20,14 +20,11 @@ load_balancing_option_impl::load_balancing_option_impl() {
 load_balancing_option_impl::~load_balancing_option_impl() {
 }
 
-bool load_balancing_option_impl::operator ==(const option_impl &_other) const {
-    if (_other.get_type() != option_type_e::LOAD_BALANCING)
-        return false;
-
-    const load_balancing_option_impl& other =
-            dynamic_cast<const load_balancing_option_impl &>(_other);
-
-    return (priority_ == other.priority_ && weight_ == other.weight_);
+bool load_balancing_option_impl::operator ==(
+        const load_balancing_option_impl &_other) const {
+    return (option_impl::operator ==(_other)
+            && priority_ == _other.priority_
+            && priority_ == _other.weight_);
 }
 
 priority_t load_balancing_option_impl::get_priority() const {

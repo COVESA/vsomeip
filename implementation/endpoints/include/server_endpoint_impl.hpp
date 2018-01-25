@@ -27,12 +27,13 @@ class server_endpoint_impl: public endpoint_impl<Protocol>,
 public:
     typedef typename Protocol::socket socket_type;
     typedef typename Protocol::endpoint endpoint_type;
-    typedef typename std::map<endpoint_type, std::deque<message_buffer_ptr_t> > queue_type;
+    typedef typename std::map<endpoint_type, std::pair<size_t, std::deque<message_buffer_ptr_t>>> queue_type;
     typedef typename queue_type::iterator queue_iterator_type;
 
     server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                          endpoint_type _local, boost::asio::io_service &_io,
-                         std::uint32_t _max_message_size);
+                         std::uint32_t _max_message_size,
+                         configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~server_endpoint_impl();
 
     bool is_client() const;

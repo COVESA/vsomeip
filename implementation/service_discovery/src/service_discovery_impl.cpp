@@ -131,6 +131,9 @@ void service_discovery_impl::init() {
         offer_debounce_time_ = std::chrono::milliseconds(
                 its_configuration->get_sd_offer_debounce_time());
         ttl_timer_runtime_ = cyclic_offer_delay_ / 2;
+
+        ttl_factor_offers_ = its_configuration->get_ttl_factor_offers();
+        ttl_factor_subscriptions_ = its_configuration->get_ttl_factor_subscribes();
     } else {
         VSOMEIP_ERROR << "SD: no configuration found!";
     }
@@ -1194,7 +1197,8 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                 if (is_stop_subscribe_subscribe) {
                     force_initial_events = true;
                 }
-                is_stop_subscribe_subscribe = check_stop_subscribe_subscribe(iter, its_end);
+                is_stop_subscribe_subscribe = check_stop_subscribe_subscribe(
+                        iter, its_end, its_message->get_options());
                 process_eventgroupentry(its_eventgroup_entry, its_options,
                         its_message_response, _destination,
                         its_message_id, is_stop_subscribe_subscribe, force_initial_events);
@@ -1357,7 +1361,8 @@ void service_discovery_impl::process_offerservice_serviceentry(
     }
 
     host_->add_routing_info(_service, _instance,
-                            _major, _minor, _ttl * 5,
+                            _major, _minor,
+                            _ttl * get_ttl_factor(_service, _instance, ttl_factor_offers_),
                             _reliable_address, _reliable_port,
                             _unreliable_address, _unreliable_port);
 
@@ -1410,13 +1415,24 @@ void service_discovery_impl::process_offerservice_serviceentry(
                                         its_eventgroup.first,
                                         its_subscription, false, true);
                                 its_client.second->set_tcp_connection_established(false);
-                            }
 
+                                // restart TCP endpoint if not connected
+                                if (its_subscription->get_endpoint(true)
+                                        && !its_subscription->get_endpoint(true)->is_connected()) {
+                                    its_subscription->get_endpoint(true)->restart();
+                                }
+                            }
                             its_subscription->set_acknowledged(false);
                         } else {
                             insert_nack_subscription_on_resubscribe(its_message,
                                     _service, _instance, its_eventgroup.first,
                                     its_subscription);
+
+                            // restart TCP endpoint if not connected
+                            if (its_subscription->get_endpoint(true)
+                                    && !its_subscription->get_endpoint(true)->is_connected()) {
+                                its_subscription->get_endpoint(true)->restart();
+                            }
                         }
                     }
                 }
@@ -2171,8 +2187,8 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                 client_t its_subscribing_remote_client = VSOMEIP_ROUTING_CLIENT;
                 switch (host_->on_remote_subscription(_service, _instance,
                         _eventgroup, target.subscriber_, target.target_,
-                        _ttl * 5, &its_subscribing_remote_client,
-                        _message_id)) {
+                        _ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_),
+                        &its_subscribing_remote_client, _message_id)) {
                     case remote_subscription_state_e::SUBSCRIPTION_ACKED:
                         insert_subscription_ack(its_message, _service,
                                 _instance, _eventgroup, its_info, _ttl,
@@ -2460,7 +2476,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                                                 found_client->second, _reliable, !_reliable);
                                         found_client->second->set_udp_connection_established(true);
                                     } else {
-                                        // don't insert reliable endpoint option if the
+                                        // don't insert unreliable endpoint option if the
                                         // UDP client endpoint is not yet connected
                                         found_client->second->set_udp_connection_established(false);
                                     }
@@ -3181,7 +3197,12 @@ void service_discovery_impl::update_subscription_expiration_timer(
         if (entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
                 && entry->get_ttl()) {
             const std::chrono::steady_clock::time_point its_expiration = now
-                    + std::chrono::seconds(entry->get_ttl() * 5);
+                    + std::chrono::seconds(
+                            entry->get_ttl()
+                                    * get_ttl_factor(
+                                            entry->get_service(),
+                                            entry->get_instance(),
+                                            ttl_factor_subscriptions_));
             if (its_expiration < next_subscription_expiration_) {
                 next_subscription_expiration_ = its_expiration;
             }
@@ -3364,17 +3385,35 @@ void service_discovery_impl::remote_subscription_remove(
 
 bool service_discovery_impl::check_stop_subscribe_subscribe(
         message_impl::entries_t::const_iterator _iter,
-        message_impl::entries_t::const_iterator _end) const {
+        message_impl::entries_t::const_iterator _end,
+        const message_impl::options_t& _options) const {
     const message_impl::entries_t::const_iterator its_next = std::next(_iter);
-    if ((*_iter)->get_type() != entry_type_e::SUBSCRIBE_EVENTGROUP
+    if ((*_iter)->get_ttl() > 0
+            || (*_iter)->get_type() != entry_type_e::STOP_SUBSCRIBE_EVENTGROUP
             || its_next == _end
-            || (*its_next)->get_type() != entry_type_e::STOP_SUBSCRIBE_EVENTGROUP) {
+            || (*its_next)->get_type() != entry_type_e::SUBSCRIBE_EVENTGROUP) {
         return false;
     }
 
     return (*static_cast<eventgroupentry_impl*>(_iter->get())).is_matching_subscribe(
-            *(static_cast<eventgroupentry_impl*>(its_next->get())));
+            *(static_cast<eventgroupentry_impl*>(its_next->get())), _options);
 }
+
+configuration::ttl_factor_t service_discovery_impl::get_ttl_factor(
+        service_t _service, instance_t _instance,
+        const configuration::ttl_map_t& _ttl_map) const {
+    configuration::ttl_factor_t its_ttl_factor(1);
+    auto found_service = _ttl_map.find(_service);
+    if (found_service != _ttl_map.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            its_ttl_factor = found_instance->second;
+        }
+    }
+    return its_ttl_factor;
+}
+
+
 
 }  // namespace sd
 }  // namespace vsomeip

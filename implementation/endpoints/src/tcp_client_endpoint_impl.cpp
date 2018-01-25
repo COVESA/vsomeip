@@ -29,8 +29,10 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(
         boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
         std::uint32_t _buffer_shrink_threshold,
-        std::chrono::milliseconds _send_timeout)
-    : tcp_client_endpoint_base_impl(_host, _local, _remote, _io, _max_message_size),
+        std::chrono::milliseconds _send_timeout,
+        configuration::endpoint_queue_limit_t _queue_limit)
+    : tcp_client_endpoint_base_impl(_host, _local, _remote, _io,
+                                    _max_message_size, _queue_limit),
       recv_buffer_size_initial_(VSOMEIP_SOMEIP_HEADER_SIZE),
       recv_buffer_(recv_buffer_size_initial_, 0),
       recv_buffer_size_(0),
@@ -64,11 +66,10 @@ void tcp_client_endpoint_impl::restart() {
     is_connected_ = false;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        shutdown_and_close_socket_unlocked();
+        shutdown_and_close_socket_unlocked(true);
         recv_buffer_size_ = 0;
         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
         recv_buffer_.shrink_to_fit();
-        socket_.reset(new socket_type(service_));
     }
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -94,6 +95,7 @@ void tcp_client_endpoint_impl::restart() {
                     << " size: " << std::dec << m->size();
         }
         queue_.clear();
+        queue_size_ = 0;
     }
     start_connect_timer();
 }
@@ -348,6 +350,7 @@ void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t &_buffer) 
             CLIENT_COOKIE,
             CLIENT_COOKIE + sizeof(CLIENT_COOKIE)
         );
+        queue_size_ += sizeof(CLIENT_COOKIE);
     } else {
         VSOMEIP_WARNING << "Packet full. Cannot insert magic cookie!";
     }
@@ -496,10 +499,11 @@ void tcp_client_endpoint_impl::receive_cbk(
             if (_error == boost::asio::error::connection_reset ||
                     _error ==  boost::asio::error::eof ||
                     _error == boost::asio::error::timed_out) {
-                if(_error == boost::asio::error::timed_out) {
-                    VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk: " << _error.message();
-                }
-                shutdown_and_close_socket_unlocked();
+                VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk: " << _error.message()
+                        << " local: " << get_address_port_local()
+                        << " remote: " << get_address_port_remote();
+                is_connected_ = false;
+                shutdown_and_close_socket_unlocked(false);
             } else {
                 its_lock.unlock();
                 receive();
@@ -594,9 +598,7 @@ void tcp_client_endpoint_impl::print_status() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
-        for (const auto &m : queue_) {
-            its_data_size += m->size();
-        }
+        its_data_size = queue_size_;
     }
     std::string local;
     {

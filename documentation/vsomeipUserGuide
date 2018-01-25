@@ -650,7 +650,7 @@ remote service hosted on beforehand specified IP and port.
 On service side: the payload size limit in bytes of messages received and sent
 by the service offered on previously specified IP and port.
 +
-If multiple services are hosted on the same port all they share the limit
+If multiple services are hosted on the same port they all share the limit
 specified.
 
 * `max-payload-size-local`
@@ -664,6 +664,62 @@ limited via this setting.
 The maximum allowed payload size for TCP communication in
 bytes. By default the payload size for TCP communication is
 unlimited. It can be limited via this setting.
+
+* `endpoint-queue-limits` (array)
++
+Array to limit the maximum allowed size in bytes of cached outgoing messages per
+IP and port (message queue size per endpoint). If not specified otherwise the
+allowed queue size is unlimited. The settings in this array only affect external
+communication. To limit the local queue size `endpoint-queue-limit-local` can
+be used.
+
+** `unicast`
++
+On client side: the IP of the remote service for which the queue size of sent
+requests should be limited.
++
+On service side: the IP of the offered service for which the queue size for
+sent responses should be limited. This IP address is therefore
+identical to the IP address specified via `unicast` setting on top level of the
+json file.
+
+** `ports` (array)
++
+Array which holds pairs of port and queue size statements.
+
+*** `port`
++
+On client side: the port of the remote service for which the queue size of sent
+requests should be limited.
++
+On service side: the port of the offered service for which the queue size for
+send responses should be limited.
+
+*** `queue-size-limit`
++
+On client side: the queue size limit in bytes of messages sent to the
+remote service hosted on beforehand specified IP and port.
++
+On service side: the queue size limit in bytes for responses sent by the service
+offered on previously specified IP and port.
++
+If multiple services are hosted on the same port they all share the limit
+specified.
+
+* `endpoint-queue-limit-external`
++
+Setting to limit the maximum allowed size in bytes of cached outgoing messages
+for external communication (message queue size per endpoint). By default the
+queue size for external communication is unlimited. It can be limited via this
+setting. Settings done in the `endpoint-queue-limits` array override this
+setting.
+
+* `endpoint-queue-limit-local`
++
+Setting to limit the maximum allowed size in bytes of cached outgoing messages
+for local communication (message queue size per endpoint). By default the queue
+size for node internal communication is unlimited. It can be limited via this
+setting.
 
 * `buffer-shrink-threshold`
 +
@@ -714,6 +770,60 @@ The highest Service-ID in hex of a internal service range.
 The highest Instance-ID in hex of a internal service-instance range.
 If not specified the highest Instance-ID is 0xFFFF.
 
+* `debounce` (optional array)
++
+Events/fields sent by external devices will be forwarded to the
+applications only if a configurable function evaluates to true. The
+function checks whether the event/field payload has changed and whether
+a specified interval has been elapsed since the last forwarding.
+
+** `service`
++
+Service ID which hosts the events to be debounced.
+
+** `instance`
++
+Instance ID which hosts the events to be debounced.
+
+** `events`
++
+Array of events which shall be debounced based on the following 
+configuration options.
+
+*** `event`
++
+Event ID.
+
+*** `on_change`
++
+Specifies whether the event is only forwared on 
+paylaod change or not. (valid values: _true_, _false_).
+
+*** `ignore`
++
+Array of payload indexes with given bit mask (optional) 
+to be ignored in payload change evaluation. 
+Instead of specifying an index / bitmask pair, one can only define the paylaod index 
+which shall be ignored in the evaluation.
+
+**** `index`
++
+Payload index to be checked with given bitmask.
+
+**** `mask`
++
+1Byte bitmask applied to byte at given payload index.
+Example mask: 0x0f ignores payload changes in low nibble of the byte at given index. 
+
+*** `interval`
++
+Specifies if the event shall be debounced based on elapsed time interval.
+(valid values: _time in ms_, _never_).
+
+*** `on_change_resets_interval_` (optional)
+Specifies if interval timer is reset when payload change was detected.
+(valid values: _false_, _true_).
+
 * `routing`
 +
 The name of the application that is responsible for the routing.
@@ -762,9 +872,54 @@ repetition phase.
 +
 Lifetime of entries for provided services as well as consumed services and eventgroups.
 
+** `ttl_factor_offers` (optional array)
++
+Array which holds correction factors for incoming remote offers. If a value
+greater than one is specified for a service instance, the TTL field of the
+corresponding service entry will be multiplied with the specified factor. +
+Example: An offer of a service is received with a TTL of 3 sec and the TTL
+factor is set to 5. The remote node stops offering the service w/o sending a
+StopOffer message. The service will then expire (marked as unavailable) 15 seconds
+after the last offer has been received.
+
+*** `service`
++
+The id of the service.
+
+*** `instance`
++
+The id of the service instance.
+
+*** `ttl_factor`
++
+TTL correction factor
+
+** `ttl_factor_subscriptions` (optional array)
++
+Array which holds correction factors for incoming remote subscriptions. If a
+value greater than one is specified for a service instance, the TTL field of the
+corresponding eventgroup entry will be multiplied with the specified factor. +
+Example: A remote subscription to an offered service is received with a TTL of 3
+sec and the TTL factor is set to 5. The remote node stops resubscribing to the
+service w/o sending a StopSubscribeEventgroup message. The subscription will
+then expire 15 seconds after the last resubscription has been received.
+
+*** `service`
++
+The id of the service.
+
+*** `instance`
++
+The id of the service instance.
+
+*** `ttl_factor`
++
+TTL correction factor
+
 ** `cyclic_offer_delay`
 +
 Cycle of the OfferService messages in the main phase.
+
 
 ** `request_response_delay`
 +
@@ -926,7 +1081,7 @@ To activate the 'Audit Mode' the 'security' object has to be included in the
 json file but the 'check_credentials' switch has to be set to false. For
 example:
 
-[source, json]
+[source, bash]
 ----
     [...]
     "services" :

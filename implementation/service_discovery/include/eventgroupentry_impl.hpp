@@ -8,6 +8,7 @@
 
 #include "entry_impl.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
+#include "message_impl.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -31,19 +32,20 @@ public:
     bool deserialize(vsomeip::deserializer *_from);
 
     bool operator==(const eventgroupentry_impl& _other) const {
-        return !(ttl_ != _other.ttl_ ||
-                 service_ != _other.service_ ||
-                 instance_ != _other.instance_ ||
-                 eventgroup_ != _other.eventgroup_ ||
-                 index1_ != _other.index1_ ||
-                 index2_ != _other.index2_ ||
-                 num_options_[0] != _other.num_options_[0] ||
-                 num_options_[1] != _other.num_options_[1] ||
-                 major_version_ != _other.major_version_ ||
-                 counter_ != _other.counter_);
+        return (ttl_ == _other.ttl_ &&
+                service_ == _other.service_ &&
+                instance_ == _other.instance_ &&
+                eventgroup_ == _other.eventgroup_ &&
+                index1_ == _other.index1_ &&
+                index2_ == _other.index2_ &&
+                num_options_[0] == _other.num_options_[0] &&
+                num_options_[1] == _other.num_options_[1] &&
+                major_version_ == _other.major_version_ &&
+                counter_ == _other.counter_);
     }
 
-    bool is_matching_subscribe(const eventgroupentry_impl& _other) const;
+    bool is_matching_subscribe(const eventgroupentry_impl& _other,
+                               const message_impl::options_t& _options) const;
 
     void add_target(const std::shared_ptr<endpoint_definition> &_target);
     std::shared_ptr<endpoint_definition> get_target(bool _reliable) const;

@@ -22,7 +22,8 @@ endpoint_impl<Protocol>::endpoint_impl(
         std::shared_ptr<endpoint_host> _host,
         endpoint_type _local,
         boost::asio::io_service &_io,
-        std::uint32_t _max_message_size)
+        std::uint32_t _max_message_size,
+        configuration::endpoint_queue_limit_t _queue_limit)
     : service_(_io),
       host_(_host),
       is_supporting_magic_cookies_(false),
@@ -30,7 +31,8 @@ endpoint_impl<Protocol>::endpoint_impl(
       max_message_size_(_max_message_size),
       use_count_(0),
       sending_blocked_(false),
-      local_(_local) {
+      local_(_local),
+      queue_limit_(_queue_limit) {
 }
 
 template<typename Protocol>

@@ -160,7 +160,7 @@ public:
                     client_t _bound_client,
                     const boost::asio::ip::address &_remote_address,
                     std::uint16_t _remote_port);
-    void on_message(service_t _service, instance_t _instance,
+    bool on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true);
     void on_notification(client_t _client, service_t _service,
             instance_t _instance, const byte_t *_data, length_t _size,

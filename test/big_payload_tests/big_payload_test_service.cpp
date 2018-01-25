@@ -28,6 +28,14 @@ big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _
             expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES / 2;
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_LIMITED_GENERAL;
             break;
+        case big_payload_test::test_mode::QUEUE_LIMITED_GENERAL:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES / 2;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_GENERAL;
+            break;
+        case big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES / 2;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC;
+            break;
         default:
             expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES;
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
@@ -146,7 +154,9 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
         its_payload_data.assign(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM,
                 big_payload_test::DATA_SERVICE_TO_CLIENT);
     } else if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         if (number_of_received_messages_ % 2) {
             // try to send to big response for half of the received messsages.
             // this way the client will only get replies for a fourth of his sent
@@ -194,7 +204,9 @@ void big_payload_test_service::run()
     }
     std::this_thread::sleep_for(std::chrono::seconds(3));
     if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         ASSERT_EQ(number_of_received_messages_, expected_messages_);
     }
     stop();
@@ -223,6 +235,10 @@ int main(int argc, char** argv)
             test_mode = big_payload_test::test_mode::LIMITED;
         } else if (std::string("LIMITEDGENERAL") == std::string(argv[1])) {
             test_mode = big_payload_test::test_mode::LIMITED_GENERAL;
+        } else if (std::string("QUEUELIMITEDGENERAL") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::QUEUE_LIMITED_GENERAL;
+        } else if (std::string("QUEUELIMITEDSPECIFIC") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC;
         }
     }
     return RUN_ALL_TESTS();

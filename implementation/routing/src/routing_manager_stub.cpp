@@ -848,7 +848,8 @@ void routing_manager_stub::init_routing_endpoint() {
                                 boost::asio::local::stream_protocol::endpoint(endpoint_path_),
                             #endif
                                 io_, configuration_->get_max_message_size_local(),
-                                configuration_->get_buffer_shrink_threshold());
+                                configuration_->get_buffer_shrink_threshold(),
+                                configuration_->get_endpoint_queue_limit_local());
         } catch (const std::exception &e) {
             VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
                         << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";
@@ -1459,7 +1460,8 @@ void routing_manager_stub::create_local_receiver() {
                             boost::asio::local::stream_protocol::endpoint(local_receiver_path_),
                         #endif
                             io_, configuration_->get_max_message_size_local(),
-                            configuration_->get_buffer_shrink_threshold());
+                            configuration_->get_buffer_shrink_threshold(),
+                            configuration_->get_endpoint_queue_limit_local());
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << ERROR_INFO[static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED)]
                     << " (" << static_cast<int>(error_code_e::SERVER_ENDPOINT_CREATION_FAILED) << ")";

@@ -77,7 +77,9 @@ configuration_impl::configuration_impl()
       log_memory_(false),
       log_memory_interval_(0),
       log_status_(false),
-      log_status_interval_(0) {
+      log_status_interval_(0),
+      endpoint_queue_limit_external_(QUEUE_SIZE_UNLIMITED),
+      endpoint_queue_limit_local_(QUEUE_SIZE_UNLIMITED) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
@@ -94,7 +96,9 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       max_reliable_message_size_(_other.max_reliable_message_size_),
       buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
-      umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS) {
+      umask_(VSOMEIP_DEFAULT_UMASK_LOCAL_ENDPOINTS),
+      endpoint_queue_limit_external_(_other.endpoint_queue_limit_external_),
+      endpoint_queue_limit_local_(_other.endpoint_queue_limit_local_) {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
     services_.insert(_other.services_.begin(), _other.services_.end());
@@ -144,6 +148,8 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     log_memory_interval_ = _other.log_memory_interval_;
     log_status_ = _other.log_status_;
     log_status_interval_ = _other.log_status_interval_;
+
+    debounces_ = _other.debounces_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -332,6 +338,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
             load_network(e);
             load_diagnosis_address(e);
             load_payload_sizes(e);
+            load_endpoint_queue_sizes(e);
             load_permissions(e);
             load_policies(e);
             load_tracing(e);
@@ -348,6 +355,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
             load_watchdog(e);
             load_selective_broadcasts_support(e);
             load_e2e(e);
+            load_debounce(e);
         }
     }
 
@@ -891,6 +899,22 @@ void configuration_impl::load_service_discovery(
                     its_converter << its_value;
                     its_converter >> sd_offer_debounce_time_;
                     is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME] = true;
+                }
+            } else if (its_key == "ttl_factor_offers") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_offers."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    load_ttl_factors(i->second, &ttl_factors_offers_);
+                    is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS] = true;
+                }
+            } else if (its_key == "ttl_factor_subscriptions") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_subscriptions."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    load_ttl_factors(i->second, &ttl_factors_subscriptions_);
+                    is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS] = true;
                 }
             }
         }
@@ -2634,6 +2658,342 @@ bool configuration_impl::log_status() const {
 
 uint32_t configuration_impl::get_log_status_interval() const {
     return log_status_interval_;
+}
+
+void configuration_impl::load_ttl_factors(
+        const boost::property_tree::ptree &_tree, ttl_map_t* _target) {
+    const service_t ILLEGAL_VALUE(0xffff);
+    for (const auto& i : _tree) {
+        service_t its_service(ILLEGAL_VALUE);
+        instance_t its_instance(ILLEGAL_VALUE);
+        configuration::ttl_factor_t its_ttl_factor(0);
+
+        for (const auto& j : i.second) {
+            std::string its_key(j.first);
+            std::string its_value(j.second.data());
+            std::stringstream its_converter;
+
+            if (its_key == "ttl_factor") {
+                its_converter << its_value;
+                its_converter >> its_ttl_factor;
+            } else {
+                // Trim "its_value"
+                if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                    its_converter << std::hex << its_value;
+                } else {
+                    its_converter << std::dec << its_value;
+                }
+
+                if (its_key == "service") {
+                    its_converter >> its_service;
+                } else if (its_key == "instance") {
+                    its_converter >> its_instance;
+                }
+            }
+        }
+        if (its_service != ILLEGAL_VALUE
+            && its_instance != ILLEGAL_VALUE
+            && its_ttl_factor > 0) {
+            (*_target)[its_service][its_instance] = its_ttl_factor;
+        } else {
+            VSOMEIP_ERROR << "Invalid ttl factor configuration";
+        }
+    }
+}
+
+configuration::ttl_map_t configuration_impl::get_ttl_factor_offers() const {
+    return ttl_factors_offers_;
+}
+
+configuration::ttl_map_t configuration_impl::get_ttl_factor_subscribes() const {
+    return ttl_factors_subscriptions_;
+}
+
+configuration::endpoint_queue_limit_t
+configuration_impl::get_endpoint_queue_limit(
+        const std::string& _address, std::uint16_t _port) const {
+    auto found_address = endpoint_queue_limits_.find(_address);
+    if (found_address != endpoint_queue_limits_.end()) {
+        auto found_port = found_address->second.find(_port);
+        if (found_port != found_address->second.end()) {
+            return found_port->second;
+        }
+    }
+    return endpoint_queue_limit_external_;
+}
+
+configuration::endpoint_queue_limit_t
+configuration_impl::get_endpoint_queue_limit_local() const {
+    return endpoint_queue_limit_local_;
+}
+
+void configuration_impl::load_endpoint_queue_sizes(const element &_element) {
+    const std::string endpoint_queue_limits("endpoint-queue-limits");
+    const std::string endpoint_queue_limit_external("endpoint-queue-limit-external");
+    const std::string endpoint_queue_limit_local("endpoint-queue-limit-local");
+
+    try {
+        if (_element.tree_.get_child_optional(endpoint_queue_limit_external)) {
+            if (is_configured_[ET_ENDPOINT_QUEUE_LIMIT_EXTERNAL]) {
+                VSOMEIP_WARNING << "Multiple definitions for "
+                        << endpoint_queue_limit_external
+                        << " Ignoring definition from " << _element.name_;
+            } else {
+                is_configured_[ET_ENDPOINT_QUEUE_LIMIT_EXTERNAL] = true;
+                auto mpsl = _element.tree_.get_child(
+                        endpoint_queue_limit_external);
+                std::string s(mpsl.data());
+                try {
+                    endpoint_queue_limit_external_ =
+                            static_cast<configuration::endpoint_queue_limit_t>(std::stoul(
+                                    s.c_str(), NULL, 10));
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR<<__func__ << ": " << endpoint_queue_limit_external
+                    << " " << e.what();
+                }
+            }
+        }
+        if (_element.tree_.get_child_optional(endpoint_queue_limit_local)) {
+            if (is_configured_[ET_ENDPOINT_QUEUE_LIMIT_LOCAL]) {
+                VSOMEIP_WARNING << "Multiple definitions for "
+                        << endpoint_queue_limit_local
+                        << " Ignoring definition from " << _element.name_;
+            } else {
+                is_configured_[ET_ENDPOINT_QUEUE_LIMIT_LOCAL] = true;
+                auto mpsl = _element.tree_.get_child(endpoint_queue_limit_local);
+                std::string s(mpsl.data());
+                try {
+                    endpoint_queue_limit_local_=
+                            static_cast<configuration::endpoint_queue_limit_t>(
+                                    std::stoul(s.c_str(), NULL, 10));
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR<< __func__ << ": "<< endpoint_queue_limit_local
+                            << " " << e.what();
+                }
+            }
+        }
+
+        if (_element.tree_.get_child_optional(endpoint_queue_limits)) {
+            if (is_configured_[ET_ENDPOINT_QUEUE_LIMITS]) {
+                VSOMEIP_WARNING << "Multiple definitions for "
+                        << endpoint_queue_limits
+                        << " Ignoring definition from " << _element.name_;
+            } else {
+                is_configured_[ET_ENDPOINT_QUEUE_LIMITS] = true;
+                const std::string unicast("unicast");
+                const std::string ports("ports");
+                const std::string port("port");
+                const std::string queue_size_limit("queue-size-limit");
+
+                for (const auto i : _element.tree_.get_child(endpoint_queue_limits)) {
+                    if (!i.second.get_child_optional(unicast)
+                            || !i.second.get_child_optional(ports)) {
+                        continue;
+                    }
+                    std::string its_unicast(i.second.get_child(unicast).data());
+                    for (const auto j : i.second.get_child(ports)) {
+
+                        if (!j.second.get_child_optional(port)
+                                || !j.second.get_child_optional(queue_size_limit)) {
+                            continue;
+                        }
+
+                        std::uint16_t its_port = ILLEGAL_PORT;
+                        std::uint32_t its_queue_size_limit = 0;
+
+                        try {
+                            std::string p(j.second.get_child(port).data());
+                            its_port = static_cast<std::uint16_t>(std::stoul(p.c_str(),
+                                            NULL, 10));
+                            std::string s(j.second.get_child(queue_size_limit).data());
+                            its_queue_size_limit = static_cast<std::uint32_t>(std::stoul(
+                                            s.c_str(), NULL, 10));
+                        } catch (const std::exception &e) {
+                            VSOMEIP_ERROR << __func__ << ":" << e.what();
+                        }
+
+                        if (its_port == ILLEGAL_PORT || its_queue_size_limit == 0) {
+                            continue;
+                        }
+
+                        endpoint_queue_limits_[its_unicast][its_port] = its_queue_size_limit;
+                    }
+                }
+            }
+        }
+    } catch (...) {
+    }
+}
+
+void configuration_impl::load_debounce(const element &_element) {
+    try {
+        auto its_debounce = _element.tree_.get_child("debounce");
+        for (auto i = its_debounce.begin(); i != its_debounce.end(); ++i) {
+            load_service_debounce(i->second);
+        }
+    } catch (...) {
+    }
+}
+
+void configuration_impl::load_service_debounce(
+        const boost::property_tree::ptree &_tree) {
+    service_t its_service(0);
+    instance_t its_instance(0);
+    std::map<event_t, std::shared_ptr<debounce>> its_debounces;
+
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        std::string its_key(i->first);
+        std::string its_value(i->second.data());
+        std::stringstream its_converter;
+
+        if (its_key == "service") {
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> its_service;
+        } else if (its_key == "instance") {
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> its_instance;
+        } else if (its_key == "events") {
+            load_events_debounce(i->second, its_debounces);
+        }
+    }
+
+    // TODO: Improve error handling!
+    if (its_service > 0 && its_instance > 0 && !its_debounces.empty()) {
+        auto find_service = debounces_.find(its_service);
+        if (find_service != debounces_.end()) {
+            auto find_instance = find_service->second.find(its_instance);
+            if (find_instance != find_service->second.end()) {
+                VSOMEIP_ERROR << "Multiple debounce configurations for service "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_service
+                    << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_instance;
+                return;
+            }
+        }
+        debounces_[its_service][its_instance] = its_debounces;
+    }
+}
+
+void configuration_impl::load_events_debounce(
+        const boost::property_tree::ptree &_tree,
+        std::map<event_t, std::shared_ptr<debounce>> &_debounces) {
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        load_event_debounce(i->second, _debounces);
+    }
+}
+
+void configuration_impl::load_event_debounce(
+        const boost::property_tree::ptree &_tree,
+        std::map<event_t, std::shared_ptr<debounce>> &_debounces) {
+    event_t its_event(0);
+    std::shared_ptr<debounce> its_debounce = std::make_shared<debounce>();
+
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        std::string its_key(i->first);
+        std::string its_value(i->second.data());
+        std::stringstream its_converter;
+
+        if (its_key == "event") {
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> its_event;
+        } else if (its_key == "on_change") {
+            its_debounce->on_change_ = (its_value == "true");
+        } else if (its_key == "on_change_resets_interval") {
+            its_debounce->on_change_resets_interval_ = (its_value == "true");
+        } else if (its_key == "ignore") {
+            load_event_debounce_ignore(i->second, its_debounce->ignore_);
+        } else if (its_key == "interval") {
+           if (its_value == "never") {
+               its_debounce->interval_ = -1;
+           } else {
+               its_converter << std::dec << its_value;
+               its_converter >> its_debounce->interval_;
+           }
+        }
+    }
+
+    // TODO: Improve error handling
+    if (its_event > 0) {
+        auto find_event = _debounces.find(its_event);
+        if (find_event == _debounces.end()) {
+            _debounces[its_event] = its_debounce;
+        }
+    }
+}
+
+void configuration_impl::load_event_debounce_ignore(
+        const boost::property_tree::ptree &_tree,
+        std::map<std::size_t, byte_t> &_ignore) {
+    std::size_t its_ignored;
+    byte_t its_mask;
+    std::stringstream its_converter;
+
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        std::string its_value = i->second.data();
+
+        its_mask = 0xff;
+
+        if (!its_value.empty()
+               && std::find_if(its_value.begin(), its_value.end(),
+                      [](char _c) { return !std::isdigit(_c); })
+                      == its_value.end()) {
+            its_converter.str("");
+            its_converter.clear();
+            its_converter << std::dec << its_value;
+            its_converter >> its_ignored;
+
+        } else {
+            for (auto j = i->second.begin(); j != i->second.end(); ++j) {
+                std::string its_ignore_key(j->first);
+                std::string its_ignore_value(j->second.data());
+
+                if (its_ignore_key == "index") {
+                    its_converter.str("");
+                    its_converter.clear();
+                    its_converter << std::dec << its_ignore_value;
+                    its_converter >> its_ignored;
+                } else if (its_ignore_key == "mask") {
+                    its_converter.str("");
+                    its_converter.clear();
+
+                    int its_tmp_mask;
+                    its_converter << std::hex << its_ignore_value;
+                    its_converter >> its_tmp_mask;
+
+                    its_mask = static_cast<byte_t>(its_tmp_mask);
+                }
+            }
+        }
+
+        _ignore[its_ignored] = its_mask;
+    }
+}
+
+std::shared_ptr<debounce> configuration_impl::get_debounce(
+        service_t _service, instance_t _instance, event_t _event) const {
+    auto found_service = debounces_.find(_service);
+    if (found_service != debounces_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            auto found_event = found_instance->second.find(_event);
+            if (found_event != found_instance->second.end()) {
+                return found_event->second;
+            }
+        }
+    }
+    return nullptr;
 }
 
 }  // namespace config

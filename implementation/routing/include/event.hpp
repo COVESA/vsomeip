@@ -53,7 +53,7 @@ public:
             const std::shared_ptr<endpoint_definition> _target,
             bool _force, bool _flush);
 
-    void set_payload_dont_notify(const std::shared_ptr<payload> &_payload);
+    bool set_payload_dont_notify(const std::shared_ptr<payload> &_payload);
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             bool _force, bool _flush);

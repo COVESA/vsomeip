@@ -17,7 +17,7 @@ class ip_option_impl: public option_impl {
 public:
     ip_option_impl();
     virtual ~ip_option_impl();
-    bool operator ==(const option_impl &_option) const;
+    virtual bool operator ==(const ip_option_impl &_option) const;
 
     uint16_t get_port() const;
     void set_port(uint16_t _port);

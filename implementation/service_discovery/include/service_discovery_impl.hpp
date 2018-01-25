@@ -23,6 +23,7 @@
 #include "ipv4_option_impl.hpp"
 #include "ipv6_option_impl.hpp"
 #include "deserializer.hpp"
+#include "../../configuration/include/configuration.hpp"
 
 namespace vsomeip {
 
@@ -312,7 +313,12 @@ private:
             const std::shared_ptr<endpoint_definition> &_subscriber);
 
     bool check_stop_subscribe_subscribe(message_impl::entries_t::const_iterator _iter,
-                                        message_impl::entries_t::const_iterator _end) const;
+                                        message_impl::entries_t::const_iterator _end,
+                                        const message_impl::options_t& _options) const;
+
+    configuration::ttl_factor_t get_ttl_factor(
+            service_t _service, instance_t _instance,
+            const configuration::ttl_map_t& _ttl_map) const;
 
 private:
     boost::asio::io_service &io_;
@@ -402,6 +408,9 @@ private:
                     std::map<eventgroup_t,
                             std::map<client_t, std::vector<std::shared_ptr<subscriber_t>>>>>> pending_remote_subscriptions_;
     std::mutex response_mutex_;
+
+    configuration::ttl_map_t ttl_factor_offers_;
+    configuration::ttl_map_t ttl_factor_subscriptions_;
 };
 
 }  // namespace sd

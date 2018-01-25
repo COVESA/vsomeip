@@ -92,16 +92,19 @@ const std::shared_ptr<payload> event::get_payload() const {
     return (message_->get_payload());
 }
 
-void event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
+bool event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if(is_cache_placeholder_) {
+    if (is_cache_placeholder_) {
         reset_payload(_payload);
         is_set_ = true;
     } else {
         if (set_payload_helper(_payload, false)) {
             reset_payload(_payload);
+        } else {
+            return false;
         }
     }
+    return true;
 }
 
 void event::set_payload(const std::shared_ptr<payload> &_payload,

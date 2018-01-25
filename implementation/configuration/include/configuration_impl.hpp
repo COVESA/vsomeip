@@ -22,6 +22,7 @@
 #include "policy.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "e2e.hpp"
+#include "debounce.hpp"
 
 namespace vsomeip {
 namespace cfg {
@@ -161,6 +162,15 @@ public:
     VSOMEIP_EXPORT bool log_status() const;
     VSOMEIP_EXPORT uint32_t get_log_status_interval() const;
 
+    VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
+    VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
+
+    VSOMEIP_EXPORT std::shared_ptr<debounce> get_debounce(
+            service_t _service, instance_t _instance, event_t _event) const;
+
+    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
+            const std::string& _address, std::uint16_t _port) const;
+    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<element> &_elements,
@@ -221,6 +231,15 @@ private:
     void load_policies(const element &_element);
     void load_policy(const boost::property_tree::ptree &_tree);
 
+    void load_debounce(const element &_element);
+    void load_service_debounce(const boost::property_tree::ptree &_tree);
+    void load_events_debounce(const boost::property_tree::ptree &_tree,
+            std::map<event_t, std::shared_ptr<debounce>> &_debounces);
+    void load_event_debounce(const boost::property_tree::ptree &_tree,
+                std::map<event_t, std::shared_ptr<debounce>> &_debounces);
+    void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
+            std::map<std::size_t, byte_t> &_ignore);
+
     servicegroup *find_servicegroup(const std::string &_name) const;
     std::shared_ptr<client> find_client(service_t _service,
             instance_t _instance) const;
@@ -242,6 +261,11 @@ private:
 
     void load_e2e(const element &_element);
     void load_e2e_protected(const boost::property_tree::ptree &_tree);
+
+    void load_ttl_factors(const boost::property_tree::ptree &_tree,
+                          ttl_map_t* _target);
+
+    void load_endpoint_queue_sizes(const element &_element);
 
 private:
     std::mutex mutex_;
@@ -333,7 +357,12 @@ protected:
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
-        ET_MAX = 25
+        ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS,
+        ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS,
+        ET_ENDPOINT_QUEUE_LIMITS,
+        ET_ENDPOINT_QUEUE_LIMIT_EXTERNAL,
+        ET_ENDPOINT_QUEUE_LIMIT_LOCAL,
+        ET_MAX = 30
     };
 
     bool is_configured_[ET_MAX];
@@ -355,6 +384,15 @@ protected:
 
     bool log_status_;
     uint32_t log_status_interval_;
+
+    ttl_map_t ttl_factors_offers_;
+    ttl_map_t ttl_factors_subscriptions_;
+
+    std::map<service_t, std::map<instance_t, std::map<event_t, std::shared_ptr<debounce>>>> debounces_;
+
+    std::map<std::string, std::map<std::uint16_t, endpoint_queue_limit_t>> endpoint_queue_limits_;
+    endpoint_queue_limit_t endpoint_queue_limit_external_;
+    endpoint_queue_limit_t endpoint_queue_limit_local_;
 };
 
 } // namespace cfg

@@ -27,8 +27,10 @@ local_client_endpoint_impl::local_client_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _remote,
         boost::asio::io_service &_io,
-        std::uint32_t _max_message_size)
-    : local_client_endpoint_base_impl(_host, _remote, _remote, _io, _max_message_size),
+        std::uint32_t _max_message_size,
+        configuration::endpoint_queue_limit_t _queue_limit)
+    : local_client_endpoint_base_impl(_host, _remote, _remote, _io,
+                                      _max_message_size, _queue_limit),
                                       // Using _remote for the local(!) endpoint is ok,
                                       // because we have no bind for local endpoints!
       recv_buffer_(1,0) {
@@ -49,11 +51,11 @@ void local_client_endpoint_impl::restart() {
         std::lock_guard<std::mutex> its_lock(mutex_);
         sending_blocked_ = false;
         queue_.clear();
+        queue_size_ = 0;
     }
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        shutdown_and_close_socket_unlocked();
-        socket_.reset(new socket_type(service_));
+        shutdown_and_close_socket_unlocked(true);
     }
     start_connect_timer();
 }
@@ -95,7 +97,7 @@ void local_client_endpoint_impl::stop() {
             }
         }
     }
-    shutdown_and_close_socket();
+    shutdown_and_close_socket(false);
 }
 
 void local_client_endpoint_impl::connect() {
@@ -266,9 +268,7 @@ void local_client_endpoint_impl::print_status() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
-        for (const auto &m : queue_) {
-            its_data_size += m->size();
-        }
+        its_data_size = queue_size_;
     }
 
     VSOMEIP_INFO << "status lce: " << its_path  << " queue: "

@@ -16,7 +16,7 @@ class load_balancing_option_impl: public option_impl {
 public:
     load_balancing_option_impl();
     virtual ~load_balancing_option_impl();
-    bool operator ==(const option_impl &_other) const;
+    bool operator ==(const load_balancing_option_impl &_other) const;
 
     priority_t get_priority() const;
     void set_priority(priority_t _priority);

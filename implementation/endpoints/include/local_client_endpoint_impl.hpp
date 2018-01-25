@@ -34,7 +34,8 @@ public:
     local_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _remote,
                                boost::asio::io_service &_io,
-                               std::uint32_t _max_message_size);
+                               std::uint32_t _max_message_size,
+                               configuration::endpoint_queue_limit_t _queue_limit);
 
     virtual ~local_client_endpoint_impl();
 

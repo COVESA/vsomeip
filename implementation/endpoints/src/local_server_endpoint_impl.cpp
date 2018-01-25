@@ -29,8 +29,10 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
-        std::uint32_t _buffer_shrink_threshold)
-    : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
+        std::uint32_t _buffer_shrink_threshold,
+        configuration::endpoint_queue_limit_t _queue_limit)
+    : local_server_endpoint_base_impl(_host, _local, _io,
+                                      _max_message_size, _queue_limit),
       acceptor_(_io),
       buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
@@ -57,8 +59,10 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
         int native_socket,
-        std::uint32_t _buffer_shrink_threshold)
-    : local_server_endpoint_base_impl(_host, _local, _io, _max_message_size),
+        std::uint32_t _buffer_shrink_threshold,
+        configuration::endpoint_queue_limit_t _queue_limit)
+    : local_server_endpoint_base_impl(_host, _local, _io,
+                                      _max_message_size, _queue_limit),
       acceptor_(_io),
       buffer_shrink_threshold_(_buffer_shrink_threshold) {
     is_supporting_magic_cookies_ = false;
@@ -143,6 +147,7 @@ void local_server_endpoint_impl::send_queued(
         auto connection_iterator = connections_.find(_queue_iterator->first);
         if (connection_iterator != connections_.end()) {
             connection_iterator->second->send_queued(_queue_iterator);
+            its_connection = connection_iterator->second;
         } else {
             VSOMEIP_INFO << "Didn't find connection: "
 #ifdef _WIN32
@@ -152,7 +157,7 @@ void local_server_endpoint_impl::send_queued(
                     << _queue_iterator->first.path()
 #endif
                     << " dropping outstanding messages (" << std::dec
-                    << _queue_iterator->second.size() << ").";
+                    << _queue_iterator->second.second.size() << ").";
             queues_.erase(_queue_iterator->first);
         }
     }
@@ -348,7 +353,7 @@ void local_server_endpoint_impl::connection::send_queued(
         return;
     }
 
-    message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
+    message_buffer_ptr_t its_buffer = _queue_iterator->second.second.front();
 #if 0
         std::stringstream msg;
         msg << "lse::sq: ";
@@ -664,10 +669,8 @@ void local_server_endpoint_impl::print_status() {
         }
         auto found_queue = queues_.find(c.first);
         if (found_queue != queues_.end()) {
-            its_queue_size = found_queue->second.size();
-            for (const auto &m : found_queue->second) {
-                its_data_size += m->size();
-            }
+            its_queue_size = found_queue->second.second.size();
+            its_data_size = found_queue->second.first;
         }
         VSOMEIP_INFO << "status lse: client: " << its_remote_path
                 << " queue: " << std::dec << its_queue_size

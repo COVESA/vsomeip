@@ -31,6 +31,12 @@ big_payload_test_client::big_payload_test_client(
         case big_payload_test::test_mode::LIMITED_GENERAL:
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_LIMITED_GENERAL;
             break;
+        case big_payload_test::test_mode::QUEUE_LIMITED_GENERAL:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_GENERAL;
+            break;
+        case big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC;
+            break;
         default:
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
             break;
@@ -71,7 +77,9 @@ void big_payload_test_client::stop()
 {
     VSOMEIP_INFO << "Stopping...";
     if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));
         ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
     }
@@ -82,7 +90,9 @@ void big_payload_test_client::stop()
 void big_payload_test_client::join_sender_thread(){
     sender_.join();
     if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
     } else {
         ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
@@ -150,7 +160,9 @@ void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>
     }
     number_of_acknowledged_messages_++;
     if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         if (number_of_acknowledged_messages_ == number_of_messages_to_send_ / 4) {
             send();
         }
@@ -191,7 +203,9 @@ void big_payload_test_client::run()
             unsigned int datasize(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
             its_payload_data.assign(datasize, big_payload_test::DATA_CLIENT_TO_SERVICE);
         } else if (test_mode_ == big_payload_test::test_mode::LIMITED
-                || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+                || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
             if (i % 2) {
                 // try to sent a too big payload for half of the messages
                 its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 3,
@@ -207,6 +221,10 @@ void big_payload_test_client::run()
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
         app_->send(request_, true);
+        if (test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
         VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
                 << std::hex << request_->get_client() << "/" << std::setw(4)
                 << std::setfill('0') << std::hex << request_->get_session()
@@ -223,7 +241,9 @@ void big_payload_test_client::run()
             GTEST_FATAL_FAILURE_("Didn't receive all replies within time");
         } else {
             if (test_mode_ == big_payload_test::LIMITED
-                    || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL) {
+                    || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+                    || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+                    || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
                 ASSERT_EQ(number_of_messages_to_send_ / 4,
                         number_of_acknowledged_messages_);
             } else {
@@ -258,6 +278,10 @@ int main(int argc, char** argv)
             test_mode = big_payload_test::test_mode::LIMITED;
         } else if (std::string("LIMITEDGENERAL") == std::string(argv[1])) {
             test_mode = big_payload_test::test_mode::LIMITED_GENERAL;
+        } else if (std::string("QUEUELIMITEDGENERAL") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::QUEUE_LIMITED_GENERAL;
+        } else if (std::string("QUEUELIMITEDSPECIFIC") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC;
         }
     }
     return RUN_ALL_TESTS();

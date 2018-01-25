@@ -20,14 +20,11 @@ protection_option_impl::protection_option_impl() {
 protection_option_impl::~protection_option_impl() {
 }
 
-bool protection_option_impl::operator ==(const option_impl &_other) const {
-    if (_other.get_type() != option_type_e::PROTECTION)
-        return false;
-
-    const protection_option_impl& other =
-            dynamic_cast<const protection_option_impl &>(_other);
-
-    return (counter_ == other.counter_ && crc_ == other.crc_);
+bool protection_option_impl::operator ==(
+        const protection_option_impl &_other) const {
+    return (option_impl::operator ==(_other)
+            && counter_ == _other.counter_
+            && crc_ == _other.crc_);
 }
 
 alive_counter_t protection_option_impl::get_alive_counter() const {

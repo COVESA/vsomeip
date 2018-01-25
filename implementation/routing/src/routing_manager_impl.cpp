@@ -1029,7 +1029,9 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
     method_t its_method;
     bool its_is_crc_valid(true);
     instance_t its_instance(0x0);
-
+#ifdef USE_DLT
+    bool is_forwarded(true);
+#endif
     if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
         its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
                 _data[VSOMEIP_SERVICE_POS_MAX]);
@@ -1121,30 +1123,36 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                     its_data[VSOMEIP_CLIENT_POS_MAX] = 0x0;
                 }
                 // Common way of message handling
+#ifdef USE_DLT
+                is_forwarded =
+#endif
                 on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), its_is_crc_valid);
+
             }
         }
     }
 #ifdef USE_DLT
-    const uint16_t its_data_size
-        = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
+    if (is_forwarded) {
+        const uint16_t its_data_size
+            = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
-    tc::trace_header its_header;
-    const boost::asio::ip::address_v4 its_remote_address =
-            _remote_address.is_v4() ? _remote_address.to_v4() :
-                    boost::asio::ip::address_v4::from_string("6.6.6.6");
-    tc::protocol_e its_protocol =
-            _receiver->is_local() ? tc::protocol_e::local :
-            _receiver->is_reliable() ? tc::protocol_e::tcp :
+        tc::trace_header its_header;
+        const boost::asio::ip::address_v4 its_remote_address =
+                _remote_address.is_v4() ? _remote_address.to_v4() :
+                        boost::asio::ip::address_v4::from_string("6.6.6.6");
+        tc::protocol_e its_protocol =
+                _receiver->is_local() ? tc::protocol_e::local :
+                _receiver->is_reliable() ? tc::protocol_e::tcp :
                     tc::protocol_e::udp;
-    its_header.prepare(its_remote_address, _remote_port, its_protocol, false,
-            its_instance);
-    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data,
-            its_data_size);
+        its_header.prepare(its_remote_address, _remote_port, its_protocol, false,
+                its_instance);
+        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data,
+                its_data_size);
+    }
 #endif
 }
 
-void routing_manager_impl::on_message(
+bool routing_manager_impl::on_message(
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _size,
         bool _reliable, bool _is_valid_crc) {
@@ -1158,6 +1166,7 @@ void routing_manager_impl::on_message(
     VSOMEIP_INFO << msg.str();
 #endif
     client_t its_client;
+    bool is_forwarded(true);
 
     if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         its_client = find_local_client(_service, _instance);
@@ -1169,12 +1178,13 @@ void routing_manager_impl::on_message(
 
     if (its_client == VSOMEIP_ROUTING_CLIENT
             && utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-        deliver_notification(_service, _instance, _data, _size, _reliable, _is_valid_crc);
+        is_forwarded = deliver_notification(_service, _instance, _data, _size, _reliable, _is_valid_crc);
     } else if (its_client == host_->get_client()) {
         deliver_message(_data, _size, _instance, _reliable, _is_valid_crc);
     } else {
         send(its_client, _data, _size, _instance, true, _reliable, _is_valid_crc); //send to proxy
     }
+    return is_forwarded;
 }
 
 void routing_manager_impl::on_notification(client_t _client,
@@ -1515,21 +1525,20 @@ bool routing_manager_impl::deliver_notification(
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _length,
         bool _reliable, bool _is_valid_crc) {
-    bool is_delivered(false);
-
     method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
             _data[VSOMEIP_METHOD_POS_MAX]);
 
     std::shared_ptr<event> its_event = find_event(_service, _instance, its_method);
     if (its_event) {
-        if(its_event->is_field() && !its_event->is_provided()) {
-            // store the current value of the remote field
+        if (!its_event->is_provided()) {
             const uint32_t its_length(utility::get_payload_size(_data, _length));
-            std::shared_ptr<payload> its_payload =
-                    runtime::get()->create_payload(
-                            &_data[VSOMEIP_PAYLOAD_POS],
-                            its_length);
-            its_event->set_payload_dont_notify(its_payload);
+            std::shared_ptr<payload> its_payload
+                = runtime::get()->create_payload(&_data[VSOMEIP_PAYLOAD_POS],
+                                                 its_length);
+            if (!its_event->set_payload_dont_notify(its_payload)) {
+                // do not forward the notification as it was filtered
+                return false;
+            }
         }
 
         for (const auto its_local_client : its_event->get_subscribers()) {
@@ -1545,7 +1554,7 @@ bool routing_manager_impl::deliver_notification(
         }
     }
 
-    return is_delivered;
+    return true;
 }
 
 std::shared_ptr<eventgroupinfo> routing_manager_impl::find_eventgroup(
@@ -1727,7 +1736,9 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
                     configuration_->get_max_message_size_reliable(
                             _address.to_string(), _remote_port),
                     configuration_->get_buffer_shrink_threshold(),
-                    std::chrono::milliseconds(configuration_->get_sd_ttl() * 666));
+                    std::chrono::milliseconds(configuration_->get_sd_ttl() * 666),
+                    configuration_->get_endpoint_queue_limit(
+                            _address.to_string(), _remote_port));
 
             if (configuration_->has_enabled_magic_cookies(_address.to_string(),
                     _remote_port)) {
@@ -1742,7 +1753,8 @@ std::shared_ptr<endpoint> routing_manager_impl::create_client_endpoint(
                                 boost::asio::ip::udp::v6()),
                             _local_port),
                     boost::asio::ip::udp::endpoint(_address, _remote_port),
-                    io_);
+                    io_, configuration_->get_endpoint_queue_limit(
+                            _address.to_string(), _remote_port));
         }
     } catch (...) {
         host_->on_error(error_code_e::CLIENT_ENDPOINT_CREATION_FAILED);
@@ -1765,7 +1777,9 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
                         configuration_->get_max_message_size_reliable(
                                 its_unicast.to_string(), _port),
                         configuration_->get_buffer_shrink_threshold(),
-                        std::chrono::milliseconds(configuration_->get_sd_ttl() * 666));
+                        std::chrono::milliseconds(configuration_->get_sd_ttl() * 666),
+                        configuration_->get_endpoint_queue_limit(
+                                its_unicast.to_string(), _port));
                 if (configuration_->has_enabled_magic_cookies(
                         its_unicast.to_string(), _port) ||
                         configuration_->has_enabled_magic_cookies(
@@ -1773,6 +1787,9 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
                     its_endpoint->enable_magic_cookies();
                 }
             } else {
+                configuration::endpoint_queue_limit_t its_limit =
+                        configuration_->get_endpoint_queue_limit(
+                                its_unicast.to_string(), _port);
 #ifndef _WIN32
                 if (its_unicast.is_v4()) {
                     its_unicast = boost::asio::ip::address_v4::any();
@@ -1782,8 +1799,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_server_endpoint(
 #endif
                 boost::asio::ip::udp::endpoint ep(its_unicast, _port);
                 its_endpoint = std::make_shared<udp_server_endpoint_impl>(
-                        shared_from_this(),
-                        ep, io_);
+                        shared_from_this(), ep, io_, its_limit);
             }
 
         } else {
@@ -3287,10 +3303,10 @@ void routing_manager_impl::clear_remote_subscriber(
         if (its_instance != its_service->second.end()) {
             auto its_client = its_instance->second.find(_client);
             if (its_client != its_instance->second.end()) {
-                if (its_client->second.size() <= 1) {
-                    its_instance->second.erase(_client);
-                } else {
-                    its_client->second.erase(_target);
+                if (its_client->second.erase(_target)) {
+                    if (!its_client->second.size()) {
+                        its_instance->second.erase(_client);
+                    }
                 }
             }
         }

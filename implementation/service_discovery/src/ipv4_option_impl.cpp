@@ -25,6 +25,11 @@ ipv4_option_impl::ipv4_option_impl(bool _is_multicast) :
 ipv4_option_impl::~ipv4_option_impl() {
 }
 
+bool ipv4_option_impl::operator ==(const ipv4_option_impl &_other) const {
+    return (ip_option_impl::operator ==(_other)
+            && address_ == _other.address_);
+}
+
 const ipv4_address_t & ipv4_option_impl::get_address() const {
     return address_;
 }

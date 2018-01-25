@@ -25,6 +25,8 @@
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "e2e.hpp"
 
+#include "debounce.hpp"
+
 #define VSOMEIP_CONFIG_PLUGIN_VERSION              1
 
 namespace vsomeip {
@@ -150,6 +152,22 @@ public:
 
     virtual bool log_status() const = 0;
     virtual uint32_t get_log_status_interval() const = 0;
+
+    // TTL factor
+    typedef std::uint32_t ttl_factor_t;
+    typedef std::map<service_t, std::map<instance_t, ttl_factor_t>> ttl_map_t;
+    virtual ttl_map_t get_ttl_factor_offers() const = 0;
+    virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
+
+    // Debouncing
+    virtual std::shared_ptr<cfg::debounce> get_debounce(
+            service_t _service, instance_t _instance, event_t _event) const = 0;
+
+    // Queue size limit endpoints
+    typedef std::uint32_t endpoint_queue_limit_t;
+    virtual endpoint_queue_limit_t get_endpoint_queue_limit(
+            const std::string& _address, std::uint16_t _port) const = 0;
+    virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
 };
 
 } // namespace vsomeip

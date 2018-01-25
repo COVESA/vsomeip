@@ -17,6 +17,7 @@ class ipv6_option_impl: public ip_option_impl {
 public:
     ipv6_option_impl(bool _is_multicast);
     virtual ~ipv6_option_impl();
+    bool operator ==(const ipv6_option_impl &_other) const;
 
     const ipv6_address_t & get_address() const;
     void set_address(const ipv6_address_t &_address);

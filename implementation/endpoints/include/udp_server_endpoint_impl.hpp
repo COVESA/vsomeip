@@ -25,7 +25,8 @@ class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 public:
     udp_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
-                             boost::asio::io_service &_io);
+                             boost::asio::io_service &_io,
+                             configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~udp_server_endpoint_impl();
 
     void start();

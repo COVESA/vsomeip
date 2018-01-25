@@ -238,6 +238,100 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
             its_event->set_eventgroups(_eventgroups);
         }
 
+        if (_is_shadow && !_epsilon_change_func) {
+            std::shared_ptr<vsomeip::cfg::debounce> its_debounce
+                = configuration_->get_debounce(_service, _instance, _event);
+            if (its_debounce) {
+                VSOMEIP_WARNING << "Using debounce configuration for "
+                        << " SOME/IP event "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _event << ".";
+                std::stringstream its_debounce_parameters;
+                its_debounce_parameters << "(on_change="
+                        << (its_debounce->on_change_ ? "true" : "false")
+                        << ", ignore=[ ";
+                for (auto i : its_debounce->ignore_)
+                   its_debounce_parameters << "(" << std::dec << i.first
+                           << ", " << std::hex << (int)i.second << ") ";
+                its_debounce_parameters << "], interval="
+                        << std::dec << its_debounce->interval_ << ")";
+                VSOMEIP_WARNING << "Debounce parameters: "
+                        << its_debounce_parameters.str();
+                _epsilon_change_func = [its_debounce](
+                    const std::shared_ptr<payload> &_old,
+                    const std::shared_ptr<payload> &_new) {
+                    bool is_changed(false), is_elapsed(false);
+
+                    // Check whether we should forward because of changed data
+                    if (its_debounce->on_change_) {
+                        length_t its_min_length, its_max_length;
+
+                        if (_old->get_length() < _new->get_length()) {
+                            its_min_length = _old->get_length();
+                            its_max_length = _new->get_length();
+                        } else {
+                            its_min_length = _new->get_length();
+                            its_max_length = _old->get_length();
+                        }
+
+                        // Check whether all additional bytes (if any) are excluded
+                        for (length_t i = its_min_length; i < its_max_length; i++) {
+                            auto j = its_debounce->ignore_.find(i);
+                            if (j == its_debounce->ignore_.end() && j->second == 0xFF) {
+                                is_changed = true;
+                                break;
+                            }
+                        }
+
+                        if (!is_changed) {
+                            const byte_t *its_old = _old->get_data();
+                            const byte_t *its_new = _new->get_data();
+                            for (length_t i = 0; i < its_min_length; i++) {
+                                auto j = its_debounce->ignore_.find(i);
+                                if (j == its_debounce->ignore_.end()) {
+                                    if (its_old[i] != its_new[i]) {
+                                        is_changed = true;
+                                        break;
+                                    }
+                                } else if (j->second != 0xFF) {
+                                    if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
+                                        is_changed = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (its_debounce->interval_ > -1) {
+                        // Check whether we should forward because of the elapsed time since
+                        // we did last time
+                        std::chrono::steady_clock::time_point its_current
+                            = std::chrono::steady_clock::now();
+
+                        long elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           its_current - its_debounce->last_forwarded_).count();
+                        is_elapsed = (its_debounce->last_forwarded_ == (std::chrono::steady_clock::time_point::max)()
+                                || elapsed >= its_debounce->interval_);
+                        if (is_elapsed || (is_changed && its_debounce->on_change_resets_interval_))
+                            its_debounce->last_forwarded_ = its_current;
+                    }
+                    return (is_changed || is_elapsed);
+                };
+            } else {
+                _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
+                                    const std::shared_ptr<payload> &_new) {
+                    (void)_old;
+                    (void)_new;
+                    return true;
+                };
+            }
+        }
+
         its_event->set_epsilon_change_function(_epsilon_change_func);
         its_event->set_change_resets_cycle(_change_resets_cycle);
         its_event->set_update_cycle(_cycle);
@@ -670,7 +764,8 @@ std::shared_ptr<endpoint> routing_manager_base::create_local_unlocked(client_t _
 #else
         boost::asio::local::stream_protocol::endpoint(its_path.str())
 #endif
-    , io_, configuration_->get_max_message_size_local());
+    , io_, configuration_->get_max_message_size_local(),
+    configuration_->get_endpoint_queue_limit_local());
 
     // Messages sent to the VSOMEIP_ROUTING_CLIENT are meant to be routed to
     // external devices. Therefore, its local endpoint must not be found by

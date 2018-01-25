@@ -24,9 +24,10 @@ namespace vsomeip {
 udp_server_endpoint_impl::udp_server_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local,
-        boost::asio::io_service &_io)
+        boost::asio::io_service &_io,
+        configuration::endpoint_queue_limit_t _queue_limit)
     : server_endpoint_impl<ip::udp_ext>(
-            _host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE),
+            _host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE, _queue_limit),
       socket_(_io, _local.protocol()),
       joined_group_(false),
       recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
@@ -121,7 +122,7 @@ bool udp_server_endpoint_impl::send_to(
 
 void udp_server_endpoint_impl::send_queued(
         const queue_iterator_type _queue_iterator) {
-    message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
+    message_buffer_ptr_t its_buffer = _queue_iterator->second.second.front();
 #if 0
         std::stringstream msg;
         msg << "usei::sq(" << _queue_iterator->first.address().to_string() << ":"
@@ -405,10 +406,9 @@ void udp_server_endpoint_impl::print_status() {
     for (const auto &c : queues_) {
         std::size_t its_data_size(0);
         std::size_t its_queue_size(0);
-        its_queue_size = c.second.size();
-        for (const auto &m : c.second) {
-                its_data_size += m->size();
-        }
+        its_queue_size = c.second.second.size();
+        its_data_size = c.second.first;
+
         boost::system::error_code ec;
         VSOMEIP_INFO << "status use: client: "
                 << c.first.address().to_string(ec) << ":"

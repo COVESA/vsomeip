@@ -16,7 +16,7 @@ class protection_option_impl: public option_impl {
 public:
     protection_option_impl();
     virtual ~protection_option_impl();
-    virtual bool operator ==(const option_impl &_other) const;
+    bool operator ==(const protection_option_impl &_other) const;
 
     alive_counter_t get_alive_counter() const;
     void set_alive_counter(alive_counter_t _counter);

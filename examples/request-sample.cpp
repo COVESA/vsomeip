@@ -150,7 +150,6 @@ public:
             {
                 std::unique_lock<std::mutex> its_lock(mutex_);
                 while (!blocked_) condition_.wait(its_lock);
-                std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
                 if (is_available_) {
                     app_->send(request_, true);
                     std::cout << "Client/Session ["
@@ -165,8 +164,8 @@ public:
                             << std::endl;
                     blocked_ = false;
                 }
-
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(cycle_));
         }
     }
 

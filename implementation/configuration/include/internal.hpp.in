@@ -176,13 +176,10 @@ struct configuration_data_t {
     unsigned short routing_manager_host_;
 };
 
-#ifndef _WIN32
-constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
-#elif _MSC_VER >= 1900
-constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
-#else
 const std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
-#endif
+
+const std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+
 
 } // namespace vsomeip
 

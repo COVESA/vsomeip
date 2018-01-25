@@ -37,7 +37,8 @@ public:
     client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
             endpoint_type _local, endpoint_type _remote,
             boost::asio::io_service &_io,
-            std::uint32_t _max_message_size);
+            std::uint32_t _max_message_size,
+            configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~client_endpoint_impl();
 
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
@@ -70,8 +71,8 @@ public:
 
 protected:
     virtual void send_queued() = 0;
-    void shutdown_and_close_socket();
-    void shutdown_and_close_socket_unlocked();
+    void shutdown_and_close_socket(bool _recreate_socket);
+    void shutdown_and_close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
 
     mutable std::mutex socket_mutex_;
@@ -88,6 +89,7 @@ protected:
     // send data
     message_buffer_ptr_t packetizer_;
     std::deque<message_buffer_ptr_t> queue_;
+    std::size_t queue_size_;
 
     std::mutex mutex_;
 

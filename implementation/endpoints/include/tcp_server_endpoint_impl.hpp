@@ -31,7 +31,8 @@ public:
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size,
                              std::uint32_t _buffer_shrink_threshold,
-                             std::chrono::milliseconds _send_timeout);
+                             std::chrono::milliseconds _send_timeout,
+                             configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~tcp_server_endpoint_impl();
 
     void start();
@@ -88,7 +89,7 @@ private:
                    bool _magic_cookies_enabled,
                    boost::asio::io_service & _io_service,
                    std::chrono::milliseconds _send_timeout);
-        void send_magic_cookie(message_buffer_ptr_t &_buffer);
+        bool send_magic_cookie(message_buffer_ptr_t &_buffer);
         bool is_magic_cookie(size_t _offset) const;
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);

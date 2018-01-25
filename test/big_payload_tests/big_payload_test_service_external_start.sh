@@ -4,9 +4,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" && $1 != "LIMITEDGENERAL" ]]
+if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" && $1 != "LIMITEDGENERAL" && $1 != "QUEUELIMITEDGENERAL" && $1 != "QUEUELIMITEDSPECIFIC" ]]
 then
-    echo "The only allowed parameter to this script is RANDOM or LIMITED or LIMITEDGENERAL."
+    echo "The only allowed parameter to this script is RANDOM, LIMITED, LIMITEDGENERAL, QUEUELIMITEDGENERAL or QUEUELIMITEDSPECIFIC"
     echo "Like $0 RANDOM"
     exit 1
 fi
@@ -16,6 +16,10 @@ if [[ $# -gt 0 && $1 == "RANDOM" ]]; then
     export VSOMEIP_CONFIGURATION=big_payload_test_tcp_service_random.json
 elif [[ $# -gt 0 && $1 == "LIMITEDGENERAL" ]]; then
     export VSOMEIP_CONFIGURATION=big_payload_test_tcp_service_limited_general.json
+elif [[ $# -gt 0 && $1 == "QUEUELIMITEDGENERAL" ]]; then
+    export VSOMEIP_CONFIGURATION=big_payload_test_tcp_service_queue_limited_general.json
+elif [[ $# -gt 0 && $1 == "QUEUELIMITEDSPECIFIC" ]]; then
+    export VSOMEIP_CONFIGURATION=big_payload_test_tcp_service_queue_limited_specific.json
 else
     export VSOMEIP_CONFIGURATION=big_payload_test_tcp_service.json
 fi

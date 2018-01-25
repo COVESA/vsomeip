@@ -1669,16 +1669,18 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
             << " thread=" << std::hex << its_id;
     }
-    {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        running_dispatchers_.insert(its_id);
-    }
-    try {
-        _handler->handler_();
-    } catch (const std::exception &e) {
-        VSOMEIP_ERROR << "application_impl::invoke_handler caught exception: "
-                << e.what();
-        print_blocking_call(its_sync_handler);
+    if (is_dispatching_) {
+        {
+            std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+            running_dispatchers_.insert(its_id);
+        }
+        try {
+            _handler->handler_();
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << "application_impl::invoke_handler caught exception: "
+                    << e.what();
+            print_blocking_call(its_sync_handler);
+        }
     }
     boost::system::error_code ec;
     its_dispatcher_timer.cancel(ec);

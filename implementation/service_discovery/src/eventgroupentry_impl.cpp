@@ -7,6 +7,8 @@
 #include "../include/eventgroupentry_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
+#include "../include/ipv4_option_impl.hpp"
+#include "../include/ipv6_option_impl.hpp"
 
 namespace vsomeip {
 namespace sd {
@@ -116,18 +118,110 @@ bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 bool eventgroupentry_impl::is_matching_subscribe(
-        const eventgroupentry_impl& _other) const {
-    return !(ttl_ != 0
-            || _other.ttl_ == 0
-            || service_ != _other.service_
-            || instance_ != _other.instance_
-            || eventgroup_ != _other.eventgroup_
-            || index1_ != _other.index1_
-            || index2_ != _other.index2_
-            || num_options_[0] != _other.num_options_[0]
-            || num_options_[1] != _other.num_options_[1]
-            || major_version_ != _other.major_version_
-            || counter_ != _other.counter_);
+        const eventgroupentry_impl& _other,
+        const message_impl::options_t& _options) const {
+    if (ttl_ == 0
+            && _other.ttl_ > 0
+            && service_ == _other.service_
+            && instance_ == _other.instance_
+            && eventgroup_ == _other.eventgroup_
+            && index1_ == _other.index1_
+            && index2_ == _other.index2_
+            && num_options_[0] == _other.num_options_[0]
+            && num_options_[1] == _other.num_options_[1]
+            && major_version_ == _other.major_version_
+            && counter_ == _other.counter_) {
+        return true;
+    } else if (ttl_ == 0
+            && _other.ttl_ > 0
+            && service_ == _other.service_
+            && instance_ == _other.instance_
+            && eventgroup_ == _other.eventgroup_
+            && major_version_ == _other.major_version_
+            && counter_ == _other.counter_) {
+        // check if entries reference options at different indexes but the
+        // options itself are identical
+        // check if number of options referenced is the same
+        if (num_options_[0] + num_options_[1]
+                != _other.num_options_[0] + _other.num_options_[1] ||
+                num_options_[0] + num_options_[1] == 0) {
+            return false;
+        }
+        // read out ip options of current and _other
+        std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
+        std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
+        for (const auto option_run : {0,1}) {
+            for (const auto option_index : options_[option_run]) {
+                switch (_options[option_index]->get_type()) {
+                    case option_type_e::IP4_ENDPOINT:
+                        its_options_current.push_back(
+                                std::static_pointer_cast<ipv4_option_impl>(
+                                        _options[option_index]));
+                        break;
+                    case option_type_e::IP6_ENDPOINT:
+                        its_options_current.push_back(
+                                std::static_pointer_cast<ipv6_option_impl>(
+                                        _options[option_index]));
+                        break;
+                    default:
+                        break;
+                }
+            }
+            for (const auto option_index : _other.options_[option_run]) {
+                switch (_options[option_index]->get_type()) {
+                    case option_type_e::IP4_ENDPOINT:
+                        its_options_other.push_back(
+                                std::static_pointer_cast<ipv4_option_impl>(
+                                        _options[option_index]));
+                        break;
+                    case option_type_e::IP6_ENDPOINT:
+                        its_options_other.push_back(
+                                std::static_pointer_cast<ipv6_option_impl>(
+                                        _options[option_index]));
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        if (!its_options_current.size() || !its_options_other.size()) {
+            return false;
+        }
+
+        // search every option of current in other
+        for (const auto& c : its_options_current) {
+            bool found(false);
+            for (const auto& o : its_options_other) {
+                if (*c == *o) {
+                    switch (c->get_type()) {
+                        case option_type_e::IP4_ENDPOINT:
+                            if (static_cast<ipv4_option_impl*>(c.get())->get_address()
+                                    == static_cast<ipv4_option_impl*>(o.get())->get_address()) {
+                                found = true;
+                            }
+                            break;
+                        case option_type_e::IP6_ENDPOINT:
+                            if (static_cast<ipv6_option_impl*>(c.get())->get_address()
+                                    == static_cast<ipv6_option_impl*>(o.get())->get_address()) {
+                                found = true;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if (found) {
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 void eventgroupentry_impl::add_target(

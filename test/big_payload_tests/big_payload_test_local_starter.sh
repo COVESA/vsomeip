@@ -10,9 +10,9 @@
 # the testcase simply executes this script. This script then runs client
 # and service and checks that both exit successfully.
 
-if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" ]]
+if [[ $# -gt 0 && $1 != "RANDOM" && $1 != "LIMITED" && $1 != "QUEUELIMITEDGENERAL" ]]
 then
-    echo "The only allowed parameter to this script is RANDOM or LIMITED."
+    echo "The only allowed parameter to this script is RANDOM or LIMITED or QUEUELIMITEDGENERAL."
     echo "Like $0 RANDOM"
     exit 1
 fi
@@ -25,6 +25,8 @@ if [[ $# -gt 0 && $1 == "RANDOM" ]]; then
     export VSOMEIP_CONFIGURATION=big_payload_test_local_random.json
 elif [[ $# -gt 0 && $1 == "LIMITED" ]]; then
     export VSOMEIP_CONFIGURATION=big_payload_test_local_limited.json
+elif [[ $# -gt 0 && $1 == "QUEUELIMITEDGENERAL" ]]; then
+    export VSOMEIP_CONFIGURATION=big_payload_test_local_queue_limited.json
 else
     export VSOMEIP_CONFIGURATION=big_payload_test_local.json
 fi

@@ -21,6 +21,8 @@ namespace big_payload_test {
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED = 0x1235;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_RANDOM = 0x1236;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED_GENERAL = 0x1237;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_GENERAL = 0x1238;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC = 0x1239;
 
     constexpr vsomeip::service_t TEST_SERVICE_INSTANCE_ID = 0x1;
     constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
@@ -29,6 +31,8 @@ namespace big_payload_test {
         RANDOM,
         LIMITED,
         LIMITED_GENERAL,
+        QUEUE_LIMITED_GENERAL,
+        QUEUE_LIMITED_SPECIFIC,
         UNKNOWN
     };
 }

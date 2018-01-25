@@ -26,7 +26,8 @@ public:
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size,
                              std::uint32_t buffer_shrink_threshold,
-                             std::chrono::milliseconds _send_timeout);
+                             std::chrono::milliseconds _send_timeout,
+                             configuration::endpoint_queue_limit_t _queue_limit);
     virtual ~tcp_client_endpoint_impl();
 
     void start();

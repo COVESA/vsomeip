@@ -20,14 +20,10 @@ configuration_option_impl::configuration_option_impl() {
 configuration_option_impl::~configuration_option_impl() {
 }
 
-bool configuration_option_impl::operator ==(const option_impl &_other) const {
-    if (_other.get_type() != option_type_e::CONFIGURATION)
-        return false;
-
-    const configuration_option_impl& other =
-            dynamic_cast<const configuration_option_impl &>(_other);
-
-    return (configuration_ == other.configuration_);
+bool configuration_option_impl::operator ==(
+        const configuration_option_impl &_other) const {
+    return (option_impl::operator ==(_other)
+            && configuration_ == _other.configuration_);
 }
 
 void configuration_option_impl::add_item(const std::string &_key,

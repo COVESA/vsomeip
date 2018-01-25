@@ -21,15 +21,10 @@ ip_option_impl::ip_option_impl() :
 ip_option_impl::~ip_option_impl() {
 }
 
-bool ip_option_impl::operator ==(const option_impl &_other) const {
-    if (type_ != _other.get_type())
-        return false;
-
-#ifdef VSOMEIP_TODO
-    const ip_option_impl & other =
-            dynamic_cast<const ip_option_impl &>(_other);
-#endif
-    return true;
+bool ip_option_impl::operator ==(const ip_option_impl &_other) const {
+    return (option_impl::operator ==(_other)
+            && protocol_ == _other.protocol_
+            && port_ == _other.port_);
 }
 
 unsigned short ip_option_impl::get_port() const {
