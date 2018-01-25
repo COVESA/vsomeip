@@ -1035,10 +1035,12 @@ For remote clients this entry should be skipped.
 **** 'uid'
 +
 Specifies the LINUX user id of the above client(s) as decimal number.
+As a wildcard "any" can be used.
 
 **** 'gid'
 +
 Specifies the LINUX group id of the above client(s) as decimal number.
+As a wildcard "any" can be used.
 
 *** 'allow/deny'
 +

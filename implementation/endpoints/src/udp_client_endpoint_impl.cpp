@@ -51,7 +51,7 @@ void udp_client_endpoint_impl::connect() {
                     "Error binding socket: " << its_bind_error.message();
         }
     }
-
+    state_ = cei_state_e::CONNECTING;
     socket_->async_connect(
         remote_,
         std::bind(
@@ -77,7 +77,10 @@ void udp_client_endpoint_impl::start() {
 }
 
 void udp_client_endpoint_impl::restart() {
-    is_connected_ = false;
+    if (state_ == cei_state_e::CONNECTING) {
+        return;
+    }
+    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         queue_.clear();

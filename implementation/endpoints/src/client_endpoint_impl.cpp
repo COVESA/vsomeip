@@ -37,7 +37,7 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
           socket_(new socket_type(_io)), remote_(_remote),
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
-          is_connected_(false),
+          state_(cei_state_e::CLOSED),
           packetizer_(std::make_shared<message_buffer_t>()),
           queue_size_(0),
           was_not_connected_(false),
@@ -55,11 +55,16 @@ bool client_endpoint_impl<Protocol>::is_client() const {
 
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::is_connected() const {
-    return is_connected_;
+    return state_ == cei_state_e::ESTABLISHED;
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::set_connected(bool _connected) {    is_connected_ = _connected;}
+void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
+    if (_connected) {
+        state_ = cei_state_e::ESTABLISHED;
+    } else {
+        state_ = cei_state_e::CLOSED;
+    }}
 template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -222,8 +227,8 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
                 connect_timeout_ = (connect_timeout_ << 1);
 
-            if (is_connected_) {
-                is_connected_ = false;
+            if (state_ != cei_state_e::ESTABLISHED) {
+                state_ = cei_state_e::CLOSED;
                 its_host->on_disconnect(this->shared_from_this());
             }
         } else {
@@ -233,7 +238,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
             set_local_port();
-            if (!is_connected_) {
+            if (state_ != cei_state_e::ESTABLISHED) {
                 its_host->on_connect(this->shared_from_this());
             }
 
@@ -270,7 +275,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
             send_queued();
         }
     } else if (_error == boost::asio::error::broken_pipe) {
-        is_connected_ = false;
+        state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -319,6 +324,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
         connect();
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor) {
+        state_ = cei_state_e::CLOSED;
         was_not_connected_ = true;
         shutdown_and_close_socket(true);
         connect();

@@ -1557,13 +1557,18 @@ void application_impl::main_dispatch() {
                 dispatcher_condition_.wait(its_lock);
             }
         } else {
-            while (is_dispatching_ && !handlers_.empty() && is_active_dispatcher(its_id)) {
-                std::shared_ptr<sync_handler> its_handler = handlers_.front();
-                handlers_.pop_front();
+            std::shared_ptr<sync_handler> its_handler;
+            while (is_dispatching_  && is_active_dispatcher(its_id)
+                   && (its_handler = get_next_handler())) {
                 its_lock.unlock();
                 invoke_handler(its_handler);
+
+                if (!is_dispatching_)
+                    return;
+
                 its_lock.lock();
 
+                reschedule_availability_handler(its_handler);
                 remove_elapsed_dispatchers();
 
 #ifdef _WIN32
@@ -1596,14 +1601,18 @@ void application_impl::dispatch() {
                  return;
              }
         } else {
-            while (is_dispatching_ && !handlers_.empty()
-                    && is_active_dispatcher(its_id)) {
-                std::shared_ptr<sync_handler> its_handler = handlers_.front();
-                handlers_.pop_front();
+            std::shared_ptr<sync_handler> its_handler;
+            while (is_dispatching_ && is_active_dispatcher(its_id)
+                   && (its_handler = get_next_handler())) {
                 its_lock.unlock();
                 invoke_handler(its_handler);
+
+                if (!is_dispatching_)
+                    return;
+
                 its_lock.lock();
 
+                reschedule_availability_handler(its_handler);
                 remove_elapsed_dispatchers();
             }
         }
@@ -1614,6 +1623,72 @@ void application_impl::dispatch() {
         elapsed_dispatchers_.insert(its_id);
     }
     dispatcher_condition_.notify_all();
+}
+
+std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handler() {
+    std::shared_ptr<sync_handler> its_next_handler;
+    while (!handlers_.empty() && !its_next_handler) {
+        its_next_handler = handlers_.front();
+        handlers_.pop_front();
+
+        // Check handler
+        if (its_next_handler->handler_type_ == handler_type_e::AVAILABILITY) {
+            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+                    its_next_handler->service_id_,
+                    its_next_handler->instance_id_);
+            auto found_si = availability_handlers_.find(its_si_pair);
+            if (found_si != availability_handlers_.end()
+                    && !found_si->second.empty()
+                    && found_si->second.front() != its_next_handler) {
+                found_si->second.push_back(its_next_handler);
+                // There is a running availability handler for this service.
+                // Therefore, this one must wait...
+                its_next_handler = nullptr;
+            } else {
+                availability_handlers_[its_si_pair].push_back(its_next_handler);
+            }
+        } else if (its_next_handler->handler_type_ == handler_type_e::MESSAGE) {
+            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+                    its_next_handler->service_id_,
+                    its_next_handler->instance_id_);
+            auto found_si = availability_handlers_.find(its_si_pair);
+            if (found_si != availability_handlers_.end()
+                    && found_si->second.size() > 1) {
+                // The message comes after the next availability handler
+                // Therefore, queue it to the last one
+                found_si->second.push_back(its_next_handler);
+                its_next_handler = nullptr;
+            }
+        }
+    }
+
+    return its_next_handler;
+}
+
+void application_impl::reschedule_availability_handler(
+        const std::shared_ptr<sync_handler> &_handler) {
+    if (_handler->handler_type_ == handler_type_e::AVAILABILITY) {
+        const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+                _handler->service_id_, _handler->instance_id_);
+        auto found_si = availability_handlers_.find(its_si_pair);
+        if (found_si != availability_handlers_.end()) {
+            if (!found_si->second.empty()
+                    && found_si->second.front() == _handler) {
+                found_si->second.pop_front();
+
+                // If there are other availability handlers pending, schedule
+                //  them and all handlers that were queued because of them
+                for (auto it = found_si->second.rbegin();
+                        it != found_si->second.rend(); it++) {
+                    handlers_.push_front(*it);
+                }
+                availability_handlers_.erase(found_si);
+            }
+            return;
+        }
+        VSOMEIP_WARNING << __func__
+                << ": An unknown availability handler returned!";
+    }
 }
 
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
@@ -1669,11 +1744,17 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
             << " thread=" << std::hex << its_id;
     }
-    if (is_dispatching_) {
-        {
-            std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+
+    while (is_dispatching_ ) {
+        if (dispatcher_mutex_.try_lock()) {
             running_dispatchers_.insert(its_id);
+            dispatcher_mutex_.unlock();
+            break;
         }
+        std::this_thread::yield();
+    }
+
+    if (is_dispatching_) {
         try {
             _handler->handler_();
         } catch (const std::exception &e) {
@@ -1684,9 +1765,14 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     }
     boost::system::error_code ec;
     its_dispatcher_timer.cancel(ec);
-    if (is_dispatching_) {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        running_dispatchers_.erase(its_id);
+
+    while (is_dispatching_ ) {
+        if (dispatcher_mutex_.try_lock()) {
+            running_dispatchers_.erase(its_id);
+            dispatcher_mutex_.unlock();
+            return;
+        }
+        std::this_thread::yield();
     }
 }
 
@@ -1801,6 +1887,7 @@ void application_impl::shutdown() {
                 its_dispatcher.second->detach();
             }
         }
+        availability_handlers_.clear();
         running_dispatchers_.clear();
         elapsed_dispatchers_.clear();
         dispatchers_.clear();
@@ -2033,13 +2120,13 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
 void application_impl::print_blocking_call(std::shared_ptr<sync_handler> _handler) {
     switch (_handler->handler_type_) {
         case handler_type_e::AVAILABILITY:
-            VSOMEIP_INFO << "BLOCKING CALL AVAILABILITY("
+            VSOMEIP_WARNING << "BLOCKING CALL AVAILABILITY("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "]";
             break;
         case handler_type_e::MESSAGE:
-            VSOMEIP_INFO << "BLOCKING CALL MESSAGE("
+            VSOMEIP_WARNING << "BLOCKING CALL MESSAGE("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
@@ -2047,11 +2134,11 @@ void application_impl::print_blocking_call(std::shared_ptr<sync_handler> _handle
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->session_id_ << "]";
             break;
         case handler_type_e::STATE:
-            VSOMEIP_INFO << "BLOCKING CALL STATE("
+            VSOMEIP_WARNING << "BLOCKING CALL STATE("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
         case handler_type_e::SUBSCRIPTION:
-            VSOMEIP_INFO << "BLOCKING CALL SUBSCRIPTION("
+            VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
@@ -2059,15 +2146,15 @@ void application_impl::print_blocking_call(std::shared_ptr<sync_handler> _handle
                 << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << "]";
             break;
         case handler_type_e::OFFERED_SERVICES_INFO:
-            VSOMEIP_INFO << "BLOCKING CALL OFFERED_SERVICES_INFO("
+            VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
             break;
         case handler_type_e::WATCHDOG:
-            VSOMEIP_INFO << "BLOCKING CALL WATCHDOG("
+            VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
             break;
         case handler_type_e::UNKNOWN:
-            VSOMEIP_INFO << "BLOCKING CALL UNKNOWN("
+            VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
     }

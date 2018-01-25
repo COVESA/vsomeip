@@ -1,6 +1,23 @@
 Changes
 =======
 
+v2.10.8
+- Change dispatching of availability states in case an availability
+  handler of a service instance is blocked in user code: Availability
+  states of a service instance are now never dispatched parallel. The
+  next availability state for a service instance is only dispatched
+  after the blocked availability handler returned from user code. If
+  the availability of the service instance changes in the meantime,
+  subsequent incoming messages of the service instance are queued
+  until the availability change was reported to the user code.
+- Subscriptions to remotely offered services are now always done based
+  on the protocol(s) the remote service is offered with. The
+  subscription_type parameter of the application::subscribe method is
+  ignored.
+- Added wildcard support ("any") for the uid and gid json parameters
+  in the security configuration.
+- Fix possible deadlock on application shutdown
+
 v2.10.7
 - Fix potential deadlock when expiring remote subscriptions
 - Rework restarting of tcp client endpoints to prevent heap corruption

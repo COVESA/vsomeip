@@ -14,12 +14,18 @@ namespace vsomeip {
 namespace cfg {
 
 struct policy {
+    policy() :
+        uid_(0), is_uid_set_(false), gid_(0), is_gid_set_(false) {
+    }
+
     std::set<std::pair<service_t, instance_t>> allowed_services_;
     std::set<std::pair<service_t, instance_t>> allowed_offers_;
     std::set<std::pair<service_t, instance_t>> denied_services_;
     std::set<std::pair<service_t, instance_t>> denied_offers_;
     std::uint32_t uid_;
+    bool is_uid_set_;
     std::uint32_t gid_;
+    bool is_gid_set_;
     bool allow_;
 };
 

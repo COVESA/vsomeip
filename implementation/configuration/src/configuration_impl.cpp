@@ -1667,7 +1667,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         }
                     }
                     if (overrides) {
-                        VSOMEIP_WARNING << std::hex << "Security configuration: "
+                        VSOMEIP_INFO << std::hex << "Security configuration: "
                                 << "Client range 0x" << firstClient
                                 << " - 0x" << lastClient << " overrides policy of "
                                 << std::dec << overrides << " clients";
@@ -1684,31 +1684,33 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
                 its_converter >> client;
                 if (client != 0x0) {
                     if (policies_.find(client) != policies_.end()) {
-                        VSOMEIP_WARNING << std::hex << "Security configuration: "
+                        VSOMEIP_INFO << std::hex << "Security configuration: "
                                 << "Overriding policy for client 0x" << client << ".";
                     }
                     policies_[client] = policy;
                 }
             }
         } else if (i->first == "credentials") {
-            uint32_t uid = 0x0;
-            uint32_t gid = 0x0;
             for (auto n = i->second.begin();
                     n != i->second.end(); ++n) {
                 if (n->first == "uid") {
                     std::stringstream its_converter;
                     std::string value = n->second.data();
-                    its_converter << std::dec << value;
-                    its_converter >> uid;
+                    if (value != "any") {
+                        its_converter << std::dec << value;
+                        its_converter >> policy->uid_ ;
+                        policy->is_uid_set_ = true;
+                    }
                 } else if (n->first == "gid") {
                     std::stringstream its_converter;
                     std::string value = n->second.data();
-                    its_converter << std::dec << value;
-                    its_converter >> gid;
+                    if (value != "any") {
+                        its_converter << std::dec << value;
+                        its_converter >> policy->gid_ ;
+                        policy->is_gid_set_ = true;
+                    }
                 }
             }
-            policy->uid_ = uid;
-            policy->gid_ = gid;
         } else if (i->first == "allow") {
             if (allow_deny_set) {
                 VSOMEIP_WARNING << "Security configuration: \"allow\" tag overrides "
@@ -2410,7 +2412,8 @@ bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
     }
     auto its_client = policies_.find(_client);
     if (its_client != policies_.end()) {
-        if (its_client->second->uid_ == _uid && its_client->second->gid_ == _gid) {
+        if ((!its_client->second->is_uid_set_ || its_client->second->uid_ == _uid)
+                 && (!its_client->second->is_gid_set_ || its_client->second->gid_ == _gid)) {
             return true;
         }
     }

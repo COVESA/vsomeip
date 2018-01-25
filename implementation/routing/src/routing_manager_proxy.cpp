@@ -363,12 +363,15 @@ void routing_manager_proxy::register_event(client_t _client,
                     _event, _eventgroups, _is_field, _is_provided);
         }
     }
-    VSOMEIP_INFO << "REGISTER EVENT("
-        << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-        << std::hex << std::setw(4) << std::setfill('0') << _event
-        << ":is_provider=" << _is_provided << "]";
+
+    if(_is_provided) {
+        VSOMEIP_INFO << "REGISTER EVENT("
+            << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _event
+            << ":is_provider=" << _is_provided << "]";
+    }
 }
 
 void routing_manager_proxy::unregister_event(client_t _client,

@@ -203,7 +203,6 @@ private:
 
         sync_handler(std::function<void()> _handler) :
                     handler_(_handler),
-                    is_dispatching_(false),
                     service_id_(ANY_SERVICE),
                     instance_id_(ANY_INSTANCE),
                     method_id_(ANY_METHOD),
@@ -215,7 +214,6 @@ private:
                      method_t _method_id, session_t _session_id,
                      eventgroup_t _eventgroup_id, handler_type_e _handler_type) :
                     handler_(nullptr),
-                    is_dispatching_(false),
                     service_id_(_service_id),
                     instance_id_(_instance_id),
                     method_id_(_method_id),
@@ -224,7 +222,6 @@ private:
                     handler_type_(_handler_type) { }
 
         std::function<void()> handler_;
-        bool is_dispatching_;
         service_t service_id_;
         instance_t instance_id_;
         method_t method_id_;
@@ -268,6 +265,8 @@ private:
     void main_dispatch();
     void dispatch();
     void invoke_handler(std::shared_ptr<sync_handler> &_handler);
+    std::shared_ptr<sync_handler> get_next_handler();
+    void reschedule_availability_handler(const std::shared_ptr<sync_handler> &_handler);
     bool has_active_dispatcher();
     bool is_active_dispatcher(const std::thread::id &_id);
     void remove_elapsed_dispatchers();
@@ -372,6 +371,7 @@ private:
     std::set<std::thread::id> running_dispatchers_;
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
     std::mutex dispatcher_mutex_;
+
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
@@ -419,6 +419,9 @@ private:
 
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
+
+    std::map<std::pair<service_t, instance_t>,
+            std::deque<std::shared_ptr<sync_handler> > > availability_handlers_;
 };
 
 } // namespace vsomeip

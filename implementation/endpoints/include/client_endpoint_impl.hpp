@@ -70,6 +70,11 @@ public:
     virtual void print_status() = 0;
 
 protected:
+    enum class cei_state_e : std::uint8_t {
+        CLOSED,
+        CONNECTING,
+        ESTABLISHED
+    };
     virtual void send_queued() = 0;
     void shutdown_and_close_socket(bool _recreate_socket);
     void shutdown_and_close_socket_unlocked(bool _recreate_socket);
@@ -84,7 +89,7 @@ protected:
     std::mutex connect_timer_mutex_;
     boost::asio::steady_timer connect_timer_;
     std::atomic<uint32_t> connect_timeout_;
-    std::atomic<bool> is_connected_;
+    std::atomic<cei_state_e> state_;
 
     // send data
     message_buffer_ptr_t packetizer_;

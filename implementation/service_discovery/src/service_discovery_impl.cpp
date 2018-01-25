@@ -258,7 +258,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
     bool has_address(false);
     boost::asio::ip::address its_address;
 
-    get_subscription_endpoints(_subscription_type, its_unreliable, its_reliable,
+    get_subscription_endpoints(its_unreliable, its_reliable,
             &its_address, &has_address, _service, _instance, _client);
 
     std::shared_ptr<runtime> its_runtime = runtime_.lock();
@@ -286,14 +286,40 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                 }
             }
 
-            if (its_subscription->get_endpoint(true) &&
+            const remote_offer_type_e its_offer_type = get_remote_offer_type(
+                    _service, _instance);
+
+            if (its_offer_type == remote_offer_type_e::UNRELIABLE &&
+                    !its_subscription->get_endpoint(true) &&
+                    its_subscription->get_endpoint(false)) {
+                if (its_subscription->get_endpoint(false)->is_connected()) {
+                    insert_subscription(its_message,
+                            _service, _instance,
+                            _eventgroup,
+                            its_subscription, its_offer_type);
+                } else {
+                    its_subscription->set_udp_connection_established(false);
+                }
+            } else if (its_offer_type == remote_offer_type_e::RELIABLE &&
+                    its_subscription->get_endpoint(true) &&
+                    !its_subscription->get_endpoint(false)) {
+                if (its_subscription->get_endpoint(true)->is_connected()) {
+                    insert_subscription(its_message,
+                            _service, _instance,
+                            _eventgroup,
+                            its_subscription, its_offer_type);
+                } else {
+                    its_subscription->set_tcp_connection_established(false);
+                }
+            } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE &&
+                    its_subscription->get_endpoint(true) &&
                     its_subscription->get_endpoint(false)) {
                 if (its_subscription->get_endpoint(true)->is_connected() &&
                         its_subscription->get_endpoint(false)->is_connected()) {
                     insert_subscription(its_message,
                             _service, _instance,
                             _eventgroup,
-                            its_subscription, true, true);
+                            its_subscription, its_offer_type);
                 } else {
                     if (!its_subscription->get_endpoint(true)->is_connected()) {
                         its_subscription->set_tcp_connection_established(false);
@@ -301,26 +327,6 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                     if (!its_subscription->get_endpoint(false)->is_connected()) {
                         its_subscription->set_udp_connection_established(false);
                     }
-                }
-            } else if (its_subscription->get_endpoint(true) &&
-                    !its_subscription->get_endpoint(false)) {
-                if (its_subscription->get_endpoint(true)->is_connected()) {
-                    insert_subscription(its_message,
-                            _service, _instance,
-                            _eventgroup,
-                            its_subscription, true, false);
-                } else {
-                    its_subscription->set_tcp_connection_established(false);
-                }
-            } else if (!its_subscription->get_endpoint(true) &&
-                    its_subscription->get_endpoint(false)) {
-                if (its_subscription->get_endpoint(false)->is_connected()) {
-                    insert_subscription(its_message,
-                            _service, _instance,
-                            _eventgroup,
-                            its_subscription, false, true);
-                } else {
-                    its_subscription->set_udp_connection_established(false);
                 }
             }
 
@@ -336,107 +342,30 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
 }
 
 void service_discovery_impl::get_subscription_endpoints(
-        subscription_type_e _subscription_type,
         std::shared_ptr<endpoint>& _unreliable,
         std::shared_ptr<endpoint>& _reliable, boost::asio::ip::address* _address,
         bool* _has_address,
         service_t _service, instance_t _instance, client_t _client) const {
-    switch (_subscription_type) {
-        case subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
-            _reliable = host_->find_or_create_remote_client(_service, _instance,
-                    true, _client);
-            _unreliable = host_->find_or_create_remote_client(_service,
-                    _instance, false, _client);
-            if (_unreliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_unreliable);
-                if (its_client_endpoint) {
-                    *_has_address = its_client_endpoint->get_remote_address(
+    _reliable = host_->find_or_create_remote_client(_service, _instance,
+            true, _client);
+    _unreliable = host_->find_or_create_remote_client(_service,
+            _instance, false, _client);
+    if (_unreliable) {
+        std::shared_ptr<client_endpoint> its_client_endpoint =
+                std::dynamic_pointer_cast<client_endpoint>(_unreliable);
+        if (its_client_endpoint) {
+            *_has_address = its_client_endpoint->get_remote_address(
+                    *_address);
+        }
+    }
+    if (_reliable) {
+        std::shared_ptr<client_endpoint> its_client_endpoint =
+                std::dynamic_pointer_cast<client_endpoint>(_reliable);
+        if (its_client_endpoint) {
+            *_has_address = *_has_address
+                    || its_client_endpoint->get_remote_address(
                             *_address);
-                }
-            }
-            if (_reliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_reliable);
-                if (its_client_endpoint) {
-                    *_has_address = *_has_address
-                            || its_client_endpoint->get_remote_address(
-                                    *_address);
-                }
-            }
-            break;
-        case subscription_type_e::SU_PREFER_UNRELIABLE:
-            _unreliable = host_->find_or_create_remote_client(_service,
-                    _instance, false, _client);
-            if (_unreliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_unreliable);
-                if (its_client_endpoint) {
-                    *_has_address = its_client_endpoint->get_remote_address(
-                            *_address);
-                }
-            } else {
-                _reliable = host_->find_or_create_remote_client(_service,
-                        _instance, true, _client);
-                if (_reliable) {
-                    std::shared_ptr<client_endpoint> its_client_endpoint =
-                            std::dynamic_pointer_cast<client_endpoint>(
-                                    _reliable);
-                    if (its_client_endpoint) {
-                        *_has_address = its_client_endpoint->get_remote_address(
-                                *_address);
-                    }
-                }
-            }
-            break;
-        case subscription_type_e::SU_PREFER_RELIABLE:
-            _reliable = host_->find_or_create_remote_client(_service,
-                        _instance, true, _client);
-            if (_reliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_reliable);
-                if (its_client_endpoint) {
-                    *_has_address = its_client_endpoint->get_remote_address(
-                            *_address);
-                }
-            } else {
-                _unreliable = host_->find_or_create_remote_client(_service,
-                        _instance, false, _client);
-                if (_unreliable) {
-                    std::shared_ptr<client_endpoint> its_client_endpoint =
-                            std::dynamic_pointer_cast<client_endpoint>(
-                                    _unreliable);
-                    if (its_client_endpoint) {
-                        *_has_address = its_client_endpoint->get_remote_address(
-                                *_address);
-                    }
-                }
-            }
-            break;
-        case subscription_type_e::SU_UNRELIABLE:
-            _unreliable = host_->find_or_create_remote_client(_service,
-                    _instance,
-                    false, _client);
-            if (_unreliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_unreliable);
-                if (its_client_endpoint) {
-                    *_has_address = its_client_endpoint->get_remote_address(
-                            *_address);
-                }
-            }
-            break;
-        case subscription_type_e::SU_RELIABLE:
-            _reliable = host_->find_or_create_remote_client(_service, _instance,
-                    true, _client);
-            if (_reliable) {
-                std::shared_ptr<client_endpoint> its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(_reliable);
-                if (its_client_endpoint) {
-                    *_has_address = its_client_endpoint->get_remote_address(
-                            *_address);
-                }
-            }
+        }
     }
 }
 
@@ -456,6 +385,8 @@ void service_discovery_impl::unsubscribe(service_t _service,
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
+                const remote_offer_type_e its_offer_type = get_remote_offer_type(
+                        _service, _instance);
                 auto found_eventgroup = found_instance->second.find(_eventgroup);
                 if (found_eventgroup != found_instance->second.end()) {
                     auto found_client = found_eventgroup->second.find(_client);
@@ -488,8 +419,8 @@ void service_discovery_impl::unsubscribe(service_t _service,
                                 return;
                             }
                         }
-                        insert_subscription(its_message, _service, _instance, _eventgroup,
-                                            its_subscription, true, true);
+                        insert_subscription(its_message, _service, _instance,
+                                _eventgroup, its_subscription, its_offer_type);
                     }
                 }
             }
@@ -535,6 +466,8 @@ void service_discovery_impl::unsubscribe_client(service_t _service,
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
+                const remote_offer_type_e its_offer_type = get_remote_offer_type(
+                        _service, _instance);
                 for (auto &found_eventgroup : found_instance->second) {
                     auto found_client = found_eventgroup.second.find(_client);
                     if (found_client != found_eventgroup.second.end()) {
@@ -570,8 +503,7 @@ void service_discovery_impl::unsubscribe_client(service_t _service,
                             }
                         }
                         insert_subscription(its_message, _service, _instance,
-                                found_eventgroup.first, its_subscription, true,
-                                true);
+                                found_eventgroup.first, its_subscription, its_offer_type);
                     }
                 }
             }
@@ -895,33 +827,154 @@ void service_discovery_impl::insert_offer_entries(
     _done = true;
 }
 
-void service_discovery_impl::insert_subscription(
+bool service_discovery_impl::insert_subscription(
         std::shared_ptr<message_impl> &_message, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
         std::shared_ptr<subscription> &_subscription,
-        bool _insert_reliable, bool _insert_unreliable) {
-    if((_insert_reliable && !_insert_unreliable && !_subscription->get_endpoint(true)) ||
-       (_insert_unreliable && !_insert_reliable && !_subscription->get_endpoint(false))) {
-        // don't create an eventgroup entry if there isn't an endpoint option
-        // to insert
-        return;
+        remote_offer_type_e _offer_type) {
+    bool ret(false);
+    std::shared_ptr<endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
+    std::shared_ptr<endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
+
+    bool insert_reliable(false);
+    bool insert_unreliable(false);
+    switch (_offer_type) {
+        case remote_offer_type_e::RELIABLE:
+            if (its_reliable_endpoint) {
+                insert_reliable = true;
+            }
+            break;
+        case remote_offer_type_e::UNRELIABLE:
+            if (its_unreliable_endpoint) {
+                insert_unreliable = true;
+            }
+            break;
+        case remote_offer_type_e::RELIABLE_UNRELIABLE:
+            if (its_reliable_endpoint && its_unreliable_endpoint) {
+                insert_reliable = true;
+                insert_unreliable = true;
+            }
+            break;
+        default:
+            break;
     }
-    std::shared_ptr < eventgroupentry_impl > its_entry =
-            _message->create_eventgroup_entry();
-    its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
-    its_entry->set_service(_service);
-    its_entry->set_instance(_instance);
-    its_entry->set_eventgroup(_eventgroup);
-    its_entry->set_counter(_subscription->get_counter());
-    its_entry->set_major_version(_subscription->get_major());
-    its_entry->set_ttl(_subscription->get_ttl());
-    std::shared_ptr < endpoint > its_endpoint;
-    if (_insert_reliable) {
-        its_endpoint = _subscription->get_endpoint(true);
-        if (its_endpoint) {
-            const std::uint16_t its_port = its_endpoint->get_local_port();
+
+    if (!insert_reliable && !insert_unreliable) {
+        VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                "subscription doesn't match offer type: ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
+                << _offer_type;
+        return false;
+    }
+    std::shared_ptr<eventgroupentry_impl> its_entry;
+    if (insert_reliable && its_reliable_endpoint) {
+        const std::uint16_t its_port = its_reliable_endpoint->get_local_port();
+        if (its_port) {
+            its_entry = _message->create_eventgroup_entry();
+            its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+            its_entry->set_service(_service);
+            its_entry->set_instance(_instance);
+            its_entry->set_eventgroup(_eventgroup);
+            its_entry->set_counter(_subscription->get_counter());
+            its_entry->set_major_version(_subscription->get_major());
+            its_entry->set_ttl(_subscription->get_ttl());
+            insert_option(_message, its_entry, unicast_, its_port, true);
+            ret = true;
+        } else {
+            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                    "local reliable port is zero: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+            ret = false;
+        }
+    }
+    if (insert_unreliable && its_unreliable_endpoint) {
+        const std::uint16_t its_port = its_unreliable_endpoint->get_local_port();
+        if (its_port) {
+            if (!its_entry) {
+                its_entry = _message->create_eventgroup_entry();
+                its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+                its_entry->set_service(_service);
+                its_entry->set_instance(_instance);
+                its_entry->set_eventgroup(_eventgroup);
+                its_entry->set_counter(_subscription->get_counter());
+                its_entry->set_major_version(_subscription->get_major());
+                its_entry->set_ttl(_subscription->get_ttl());
+            }
+            insert_option(_message, its_entry, unicast_, its_port, false);
+            ret = true;
+        } else {
+            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                    " local unreliable port is zero: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+            ret = false;
+        }
+    }
+    return ret;
+}
+
+bool service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            std::shared_ptr<subscription> &_subscription, remote_offer_type_e _offer_type) {
+    bool ret(false);
+    // SIP_SD_844:
+    // This method is used for not acknowledged subscriptions on renew subscription
+    // Two entries: Stop subscribe & subscribe within one SD-Message
+    // One option: Both entries reference it
+
+    const std::function<std::shared_ptr<eventgroupentry_impl>(ttl_t)> insert_entry
+            = [&](ttl_t _ttl) {
+        std::shared_ptr<eventgroupentry_impl> its_entry =
+                _message->create_eventgroup_entry();
+        // SUBSCRIBE_EVENTGROUP and STOP_SUBSCRIBE_EVENTGROUP are identical
+        its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+        its_entry->set_service(_service);
+        its_entry->set_instance(_instance);
+        its_entry->set_eventgroup(_eventgroup);
+        its_entry->set_counter(_subscription->get_counter());
+        its_entry->set_major_version(_subscription->get_major());
+        its_entry->set_ttl(_ttl);
+        return its_entry;
+    };
+
+    std::shared_ptr<endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
+    std::shared_ptr<endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
+
+    if (_offer_type == remote_offer_type_e::UNRELIABLE &&
+            !its_reliable_endpoint && its_unreliable_endpoint) {
+        if (its_unreliable_endpoint->is_connected()) {
+            const std::uint16_t its_port = its_unreliable_endpoint->get_local_port();
             if (its_port) {
+                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
+                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
+                insert_option(_message, its_stop_entry, unicast_, its_port, false);
+                insert_option(_message, its_entry, unicast_, its_port, false);
+                ret = true;
+            } else {
+                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                        "local unreliable port is zero: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+            }
+        } else {
+            _subscription->set_udp_connection_established(false);
+        }
+    } else if (_offer_type == remote_offer_type_e::RELIABLE &&
+            its_reliable_endpoint && !its_unreliable_endpoint) {
+        if (its_reliable_endpoint->is_connected()) {
+            const std::uint16_t its_port = its_reliable_endpoint->get_local_port();
+            if (its_port) {
+                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
+                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
+                insert_option(_message, its_stop_entry, unicast_, its_port, true);
                 insert_option(_message, its_entry, unicast_, its_port, true);
+                ret = true;
             } else {
                 VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
                         "local reliable port is zero: ["
@@ -929,83 +982,52 @@ void service_discovery_impl::insert_subscription(
                         << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                         << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
             }
+        } else {
+            _subscription->set_tcp_connection_established(false);
         }
-    }
-    if (_insert_unreliable) {
-        its_endpoint = _subscription->get_endpoint(false);
-        if (its_endpoint) {
-            const std::uint16_t its_port = its_endpoint->get_local_port();
-            if (its_port) {
-                insert_option(_message, its_entry, unicast_, its_port, false);
-            } else {
+    } else if (_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE &&
+            its_reliable_endpoint && its_unreliable_endpoint) {
+        if (its_reliable_endpoint->is_connected() &&
+                its_unreliable_endpoint->is_connected()) {
+            const std::uint16_t its_reliable_port = its_reliable_endpoint->get_local_port();
+            const std::uint16_t its_unreliable_port = its_unreliable_endpoint->get_local_port();
+            if (its_reliable_port && its_unreliable_port) {
+                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
+                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
+                insert_option(_message, its_stop_entry, unicast_, its_reliable_port, true);
+                insert_option(_message, its_entry, unicast_, its_reliable_port, true);
+                insert_option(_message, its_stop_entry, unicast_, its_unreliable_port, false);
+                insert_option(_message, its_entry, unicast_, its_unreliable_port, false);
+                ret = true;
+            } else if (!its_reliable_port) {
                 VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                        " local unreliable port is zero: ["
+                        "local reliable port is zero: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+            } else if (!its_unreliable_port) {
+                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
+                        "local unreliable port is zero: ["
                         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                         << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                         << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
             }
-        }
-    }
-}
-
-void service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription) {
-
-    // SIP_SD_844:
-    // This method is used for not acknowledged subscriptions on renew subscription
-    // Two entries: Stop subscribe & subscribe within one SD-Message
-    // One option: Both entries reference it
-
-    std::shared_ptr < eventgroupentry_impl > its_stop_entry =
-            _message->create_eventgroup_entry();
-    its_stop_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
-    its_stop_entry->set_service(_service);
-    its_stop_entry->set_instance(_instance);
-    its_stop_entry->set_eventgroup(_eventgroup);
-    its_stop_entry->set_counter(_subscription->get_counter());
-    its_stop_entry->set_major_version(_subscription->get_major());
-    its_stop_entry->set_ttl(0);
-
-    std::shared_ptr < eventgroupentry_impl > its_entry =
-            _message->create_eventgroup_entry();
-    its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
-    its_entry->set_service(_service);
-    its_entry->set_instance(_instance);
-    its_entry->set_eventgroup(_eventgroup);
-    its_entry->set_counter(_subscription->get_counter());
-    its_entry->set_major_version(_subscription->get_major());
-    its_entry->set_ttl(_subscription->get_ttl());
-
-    std::shared_ptr < endpoint > its_endpoint;
-    its_endpoint = _subscription->get_endpoint(true);
-    if (its_endpoint && its_endpoint->is_connected()) {
-        const std::uint16_t its_port = its_endpoint->get_local_port();
-        if (its_port) {
-            insert_option(_message, its_stop_entry, unicast_, its_port, true);
-            insert_option(_message, its_entry, unicast_, its_port, true);
         } else {
-            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                    "local reliable port is zero: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+            if (!its_reliable_endpoint->is_connected()) {
+                _subscription->set_tcp_connection_established(false);
+            }
+            if (!its_unreliable_endpoint->is_connected()) {
+                _subscription->set_udp_connection_established(false);
+            }
         }
+    } else {
+        VSOMEIP_WARNING << __func__ << ": Couldn't insert StopSubscribe/Subscribe ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
+                << _offer_type;
     }
-    its_endpoint = _subscription->get_endpoint(false);
-    if (its_endpoint) {
-        const std::uint16_t its_port = its_endpoint->get_local_port();
-        if (its_port) {
-            insert_option(_message, its_stop_entry, unicast_, its_port, false);
-            insert_option(_message, its_entry, unicast_, its_port, false);
-        } else {
-            VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                    "local unreliable port is zero: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-        }
-    }
+    return ret;
 }
 
 void service_discovery_impl::insert_subscription_ack(
@@ -1151,6 +1173,7 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
         if (is_reboot(_sender, _destination,
                 its_message->get_reboot_flag(), its_message->get_session())) {
             VSOMEIP_INFO << "Reboot detected: IP=" << _sender.to_string();
+            remove_remote_offer_type_by_ip(_sender);
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
         }
@@ -1341,6 +1364,9 @@ void service_discovery_impl::process_serviceentry(
             // ID: SIP_SD_830
             its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
         }
+        remove_remote_offer_type(its_service, its_instance,
+                                 (its_reliable_port != ILLEGAL_PORT ?
+                                         its_reliable_address : its_unreliable_address));
         unsubscribe_all(its_service, its_instance);
         if (!is_diagnosis_ && !is_suspended_) {
             host_->del_routing_info(its_service, its_instance,
@@ -1367,6 +1393,31 @@ void service_discovery_impl::process_offerservice_serviceentry(
         std::lock_guard<std::mutex> its_lock(requested_mutex_);
         its_request->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
     }
+    remote_offer_type_e offer_type(remote_offer_type_e::UNKNOWN);
+    if (_reliable_port != ILLEGAL_PORT
+            && _unreliable_port != ILLEGAL_PORT
+            && !_reliable_address.is_unspecified()
+            && !_unreliable_address.is_unspecified()) {
+        offer_type = remote_offer_type_e::RELIABLE_UNRELIABLE;
+    } else if (_unreliable_port != ILLEGAL_PORT
+            && !_unreliable_address.is_unspecified()) {
+        offer_type = remote_offer_type_e::UNRELIABLE;
+    } else if (_reliable_port != ILLEGAL_PORT
+            && !_reliable_address.is_unspecified()) {
+        offer_type = remote_offer_type_e::RELIABLE;
+    } else {
+        VSOMEIP_WARNING << __func__ << ": unknown remote offer type ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+    }
+
+    if (update_remote_offer_type(_service,_instance, offer_type,
+            _reliable_address, _unreliable_address)) {
+        VSOMEIP_WARNING << __func__ << ": Remote offer type changed ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+    }
+
 
     host_->add_routing_info(_service, _instance,
                             _major, _minor,
@@ -1392,6 +1443,8 @@ void service_discovery_impl::process_offerservice_serviceentry(
         auto found_instance = found_service->second.find(_instance);
         if (found_instance != found_service->second.end()) {
             if (0 < found_instance->second.size()) {
+                const remote_offer_type_e its_offer_type =
+                        get_remote_offer_type(_service, _instance);
                 for (auto its_eventgroup : found_instance->second) {
                     for (auto its_client : its_eventgroup.second) {
                         std::shared_ptr<subscription> its_subscription(its_client.second);
@@ -1400,7 +1453,6 @@ void service_discovery_impl::process_offerservice_serviceentry(
                         bool has_address(false);
                         boost::asio::ip::address its_address;
                         get_subscription_endpoints(
-                                its_client.second->get_subscription_type(),
                                 its_unreliable, its_reliable, &its_address,
                                 &has_address, _service, _instance,
                                 its_client.first);
@@ -1420,16 +1472,98 @@ void service_discovery_impl::process_offerservice_serviceentry(
                         }
 
                         if (its_subscription->is_acknowledged()) {
-                            if (its_subscription->get_endpoint(true)
-                                    && its_subscription->get_endpoint(true)->is_connected()) {
-                                // 40 = 16 (subscription) + 2x12 (option)
-                                check_space(40);
+                            if (its_offer_type == remote_offer_type_e::UNRELIABLE &&
+                                    its_unreliable && its_unreliable->is_connected()) {
+                                // 28 = 16 (subscription) + 12 (option)
+                                check_space(28);
                                 const std::size_t options_size_before =
                                         _resubscribes->back().second->get_options().size();
-                                insert_subscription(_resubscribes->back().second,
+                                if (insert_subscription(_resubscribes->back().second,
                                         _service, _instance,
                                         its_eventgroup.first,
-                                        its_subscription, true, true);
+                                        its_subscription, its_offer_type)) {
+                                    its_subscription->set_acknowledged(false);
+                                    const std::size_t options_size_after =
+                                            _resubscribes->back().second->get_options().size();
+                                    const std::size_t diff = options_size_after - options_size_before;
+                                    _resubscribes->back().first =
+                                            static_cast<std::uint16_t>(
+                                                    _resubscribes->back().first + (12u * diff - 12u));
+                                } else {
+                                    _resubscribes->back().first =
+                                            static_cast<std::uint16_t>(
+                                                    _resubscribes->back().first - 28);
+                                }
+                            } else if (its_offer_type == remote_offer_type_e::RELIABLE &&
+                                    its_reliable) {
+                                if (its_reliable->is_connected()) {
+                                    // 28 = 16 (subscription) + 12 (option)
+                                    check_space(28);
+                                    const std::size_t options_size_before =
+                                            _resubscribes->back().second->get_options().size();
+                                    if (insert_subscription(_resubscribes->back().second,
+                                            _service, _instance,
+                                            its_eventgroup.first,
+                                            its_subscription, its_offer_type)) {
+                                        its_subscription->set_acknowledged(false);
+                                        const std::size_t options_size_after =
+                                                _resubscribes->back().second->get_options().size();
+                                        const std::size_t diff = options_size_after - options_size_before;
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first + (12u * diff - 12u));
+                                    } else {
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first - 28);
+                                    }
+                                } else {
+                                    its_client.second->set_tcp_connection_established(false);
+                                    // restart TCP endpoint if not connected
+                                    its_reliable->restart();
+                                }
+                            } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE) {
+                                if (its_reliable && its_unreliable &&
+                                        its_reliable->is_connected() &&
+                                        its_unreliable->is_connected()) {
+                                    // 40 = 16 (subscription) + 2x12 (option)
+                                    check_space(40);
+                                    const std::size_t options_size_before =
+                                            _resubscribes->back().second->get_options().size();
+                                    if (insert_subscription(_resubscribes->back().second,
+                                            _service, _instance,
+                                            its_eventgroup.first,
+                                            its_subscription, its_offer_type)) {
+                                        its_subscription->set_acknowledged(false);
+                                        const std::size_t options_size_after =
+                                                _resubscribes->back().second->get_options().size();
+                                        const std::size_t diff = options_size_after - options_size_before;
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first + (12u * diff - 24u));
+                                    } else {
+                                        _resubscribes->back().first =
+                                                static_cast<std::uint16_t>(
+                                                        _resubscribes->back().first - 40);
+                                    }
+                                } else if (its_reliable && !its_reliable->is_connected()) {
+                                    its_client.second->set_tcp_connection_established(false);
+                                    // restart TCP endpoint if not connected
+                                    its_reliable->restart();
+                                }
+                            } else {
+                                VSOMEIP_WARNING << __func__ << ": unknown remote offer type ["
+                                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+                            }
+                        } else {
+                            // 56 = 2x16 (subscription) + 2x12 (option)
+                            check_space(56);
+                            const std::size_t options_size_before =
+                                    _resubscribes->back().second->get_options().size();
+                            if (insert_nack_subscription_on_resubscribe(_resubscribes->back().second,
+                                    _service, _instance, its_eventgroup.first,
+                                    its_subscription, its_offer_type) ) {
                                 const std::size_t options_size_after =
                                         _resubscribes->back().second->get_options().size();
                                 const std::size_t diff = options_size_after - options_size_before;
@@ -1437,49 +1571,14 @@ void service_discovery_impl::process_offerservice_serviceentry(
                                         static_cast<std::uint16_t>(
                                                 _resubscribes->back().first + (12u * diff - 24u));
                             } else {
-                                // don't insert reliable endpoint option if the
-                                // TCP client endpoint is not yet connected
-                                // 28 = 16 (subscription) + 12 (option)
-                                check_space(28);
-                                const std::size_t options_size_before =
-                                        _resubscribes->back().second->get_options().size();
-                                insert_subscription(_resubscribes->back().second,
-                                        _service, _instance,
-                                        its_eventgroup.first,
-                                        its_subscription, false, true);
-                                its_client.second->set_tcp_connection_established(false);
-                                const std::size_t options_size_after =
-                                        _resubscribes->back().second->get_options().size();
-                                const std::size_t diff = options_size_after - options_size_before;
                                 _resubscribes->back().first =
                                         static_cast<std::uint16_t>(
-                                                _resubscribes->back().first + (12u * diff - 12u));
-                                // restart TCP endpoint if not connected
-                                if (its_subscription->get_endpoint(true)
-                                        && !its_subscription->get_endpoint(true)->is_connected()) {
-                                    its_subscription->get_endpoint(true)->restart();
-                                }
+                                                _resubscribes->back().first - 56u);
                             }
-                            its_subscription->set_acknowledged(false);
-                        } else {
-                            // 56 = 2x16 (subscription) + 2x12 (option)
-                            check_space(56);
-                            const std::size_t options_size_before =
-                                    _resubscribes->back().second->get_options().size();
-                            insert_nack_subscription_on_resubscribe(_resubscribes->back().second,
-                                    _service, _instance, its_eventgroup.first,
-                                    its_subscription);
-                            const std::size_t options_size_after =
-                                    _resubscribes->back().second->get_options().size();
-                            const std::size_t diff = options_size_after - options_size_before;
-                            _resubscribes->back().first =
-                                    static_cast<std::uint16_t>(
-                                            _resubscribes->back().first + (12u * diff - 24u));
 
                             // restart TCP endpoint if not connected
-                            if (its_subscription->get_endpoint(true)
-                                    && !its_subscription->get_endpoint(true)->is_connected()) {
-                                its_subscription->get_endpoint(true)->restart();
+                            if (its_reliable && !its_reliable->is_connected()) {
+                                its_reliable->restart();
                             }
                         }
                     }
@@ -1592,7 +1691,8 @@ void service_discovery_impl::on_endpoint_connected(
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 if(0 < found_instance->second.size()) {
-
+                    const remote_offer_type_e its_offer_type =
+                            get_remote_offer_type(_service, _instance);
                     for(const auto &its_eventgroup : found_instance->second) {
                         for(const auto &its_client : its_eventgroup.second) {
                             if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
@@ -1637,7 +1737,6 @@ void service_discovery_impl::on_endpoint_connected(
                                         std::shared_ptr<endpoint> its_unreliable;
                                         std::shared_ptr<endpoint> its_reliable;
                                         get_subscription_endpoints(
-                                                its_subscription->get_subscription_type(),
                                                 its_unreliable, its_reliable, &its_address,
                                                 &has_address, _service, _instance,
                                                 its_client.first);
@@ -1645,7 +1744,7 @@ void service_discovery_impl::on_endpoint_connected(
                                         its_subscription->set_endpoint(its_unreliable, false);
                                         insert_subscription(its_message, _service,
                                                 _instance, its_eventgroup.first,
-                                                its_subscription, true, true);
+                                                its_subscription, its_offer_type);
                                         its_subscription->set_acknowledged(false);
                                     }
                                 }
@@ -2482,6 +2581,8 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
+                const remote_offer_type_e its_offer_type =
+                        get_remote_offer_type(_service, _instance);
                 for (auto found_eventgroup : found_instance->second) {
                     auto found_client = found_eventgroup.second.find(_client);
                     if (found_client != found_eventgroup.second.end()) {
@@ -2490,7 +2591,6 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                         bool has_address(false);
                         boost::asio::ip::address its_address;
                         get_subscription_endpoints(
-                                found_client->second->get_subscription_type(),
                                 its_unreliable, its_reliable, &its_address,
                                 &has_address, _service, _instance,
                                 found_client->first);
@@ -2526,7 +2626,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                                 if (its_reliable->is_connected() && its_unreliable->is_connected()) {
                                     insert_subscription(its_message, _service,
                                             _instance, found_eventgroup.first,
-                                            found_client->second, true, true);
+                                            found_client->second, its_offer_type);
                                     found_client->second->set_tcp_connection_established(true);
                                     found_client->second->set_udp_connection_established(true);
                                 } else {
@@ -2538,7 +2638,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                                     if(endpoint->is_connected()) {
                                         insert_subscription(its_message, _service,
                                                 _instance, found_eventgroup.first,
-                                                found_client->second, _reliable, !_reliable);
+                                                found_client->second, its_offer_type);
                                         found_client->second->set_tcp_connection_established(true);
                                     } else {
                                         // don't insert reliable endpoint option if the
@@ -2549,7 +2649,7 @@ void service_discovery_impl::send_subscriptions(service_t _service, instance_t _
                                     if (endpoint->is_connected()) {
                                         insert_subscription(its_message, _service,
                                                 _instance, found_eventgroup.first,
-                                                found_client->second, _reliable, !_reliable);
+                                                found_client->second, its_offer_type);
                                         found_client->second->set_udp_connection_established(true);
                                     } else {
                                         // don't insert unreliable endpoint option if the
@@ -3515,6 +3615,79 @@ void service_discovery_impl::stop_last_msg_received_timer() {
     std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
     boost::system::error_code ec;
     last_msg_received_timer_.cancel(ec);
+}
+
+service_discovery_impl::remote_offer_type_e service_discovery_impl::get_remote_offer_type(
+        service_t _service, instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    auto found_si = remote_offer_types_.find(std::make_pair(_service, _instance));
+    if (found_si != remote_offer_types_.end()) {
+        return found_si->second;
+    }
+    return remote_offer_type_e::UNKNOWN;
+}
+
+bool service_discovery_impl::update_remote_offer_type(
+        service_t _service, instance_t _instance,
+        remote_offer_type_e _offer_type,
+        const boost::asio::ip::address &_reliable_address,
+        const boost::asio::ip::address &_unreliable_address) {
+    bool ret(false);
+    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    const std::pair<service_t, instance_t> its_si_pair = std::make_pair(_service, _instance);
+    auto found_si = remote_offer_types_.find(its_si_pair);
+    if (found_si != remote_offer_types_.end()) {
+        if (found_si->second != _offer_type ) {
+            found_si->second = _offer_type;
+            ret = true;
+        }
+    } else {
+        remote_offer_types_[its_si_pair] = _offer_type;
+    }
+    switch (_offer_type) {
+        case remote_offer_type_e::UNRELIABLE:
+            remote_offers_by_ip_[_unreliable_address].insert(its_si_pair);
+            break;
+        case remote_offer_type_e::RELIABLE:
+            remote_offers_by_ip_[_reliable_address].insert(its_si_pair);
+            break;
+        case remote_offer_type_e::RELIABLE_UNRELIABLE:
+            remote_offers_by_ip_[_unreliable_address].insert(its_si_pair);
+            break;
+        case remote_offer_type_e::UNKNOWN:
+        default:
+            VSOMEIP_WARNING << __func__ << ": unkown offer type ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "]"
+                    << _offer_type;
+            break;
+    }
+    return ret;
+}
+
+void service_discovery_impl::remove_remote_offer_type(
+        service_t _service, instance_t _instance,
+        const boost::asio::ip::address &_address) {
+    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    const std::pair<service_t, instance_t> its_si_pair =
+            std::make_pair(_service, _instance);
+    remote_offer_types_.erase(its_si_pair);
+    auto found_services = remote_offers_by_ip_.find(_address);
+    if (found_services != remote_offers_by_ip_.end()) {
+        found_services->second.erase(its_si_pair);
+    }
+}
+
+void service_discovery_impl::remove_remote_offer_type_by_ip(
+        const boost::asio::ip::address &_address) {
+    std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
+    auto found_services = remote_offers_by_ip_.find(_address);
+    if (found_services != remote_offers_by_ip_.end()) {
+        for (const auto& si : found_services->second) {
+            remote_offer_types_.erase(si);
+        }
+    }
+    remote_offers_by_ip_.erase(_address);
 }
 
 }  // namespace sd

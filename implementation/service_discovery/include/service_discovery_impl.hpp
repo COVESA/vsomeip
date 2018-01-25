@@ -122,12 +122,20 @@ private:
                               service_t _service, instance_t _instance,
                               const std::shared_ptr<const serviceinfo> &_info,
                               uint32_t &_size);
-    void insert_subscription(std::shared_ptr<message_impl> &_message,
+    enum remote_offer_type_e : std::uint8_t {
+        RELIABLE_UNRELIABLE,
+        RELIABLE,
+        UNRELIABLE,
+        UNKNOWN = 0xff
+    };
+    bool insert_subscription(std::shared_ptr<message_impl> &_message,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription, bool _insert_reliable, bool _insert_unreliable);
-    void insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
+            std::shared_ptr<subscription> &_subscription,
+            remote_offer_type_e _offer_type);
+    bool insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription);
+            std::shared_ptr<subscription> &_subscription,
+            remote_offer_type_e _offer_type);
     void insert_subscription_ack(std::shared_ptr<message_impl> &_message,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
@@ -206,8 +214,7 @@ private:
             const std::shared_ptr<const message> &_message) const;
     bool check_layer_four_protocol(
             const std::shared_ptr<const ip_option_impl> _ip_option) const;
-    void get_subscription_endpoints(subscription_type_e _subscription_type,
-                                    std::shared_ptr<endpoint>& _unreliable,
+    void get_subscription_endpoints(std::shared_ptr<endpoint>& _unreliable,
                                     std::shared_ptr<endpoint>& _reliable,
                                     boost::asio::ip::address* _address,
                                     bool* _has_address,
@@ -322,6 +329,16 @@ private:
     void on_last_msg_received_timer_expired(const boost::system::error_code &_error);
     void stop_last_msg_received_timer();
 
+
+    remote_offer_type_e get_remote_offer_type(service_t _service, instance_t _instance);
+    bool update_remote_offer_type(service_t _service, instance_t _instance,
+                                  remote_offer_type_e _offer_type,
+                                  const boost::asio::ip::address &_reliable_address,
+                                  const boost::asio::ip::address &_unreliable_address);
+    void remove_remote_offer_type(service_t _service, instance_t _instance,
+                                  const boost::asio::ip::address &_address);
+    void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address);
+
 private:
     boost::asio::io_service &io_;
     service_discovery_host *host_;
@@ -417,6 +434,10 @@ private:
     std::mutex last_msg_received_timer_mutex_;
     boost::asio::steady_timer last_msg_received_timer_;
     std::chrono::milliseconds last_msg_received_timer_timeout_;
+
+    std::mutex remote_offer_types_mutex_;
+    std::map<std::pair<service_t, instance_t>, remote_offer_type_e> remote_offer_types_;
+    std::map<boost::asio::ip::address, std::set<std::pair<service_t, instance_t>>> remote_offers_by_ip_;
 };
 
 }  // namespace sd

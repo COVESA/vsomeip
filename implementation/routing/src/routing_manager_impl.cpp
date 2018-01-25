@@ -3204,32 +3204,14 @@ void routing_manager_impl::on_identify_response(client_t _client, service_t _ser
 void routing_manager_impl::identify_for_subscribe(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major,
         subscription_type_e _subscription_type) {
-    if (_subscription_type == subscription_type_e::SU_RELIABLE_AND_UNRELIABLE
-            || _subscription_type == subscription_type_e::SU_PREFER_UNRELIABLE
-            || _subscription_type == subscription_type_e::SU_UNRELIABLE) {
-        if (!has_identified(_client, _service, _instance, false)
-                && !is_identifying(_client, _service, _instance, false)) {
-            if (!send_identify_message(_client, _service, _instance, _major,
-                    false) && _subscription_type
-                                == subscription_type_e::SU_PREFER_UNRELIABLE) {
-                send_identify_message(_client, _service, _instance, _major,
-                        true);
-            }
-        }
+    (void)_subscription_type;
+    if (!has_identified(_client, _service, _instance, false)
+            && !is_identifying(_client, _service, _instance, false)) {
+        send_identify_message(_client, _service, _instance, _major, false);
     }
-
-    if (_subscription_type == subscription_type_e::SU_RELIABLE_AND_UNRELIABLE
-            || _subscription_type == subscription_type_e::SU_PREFER_RELIABLE
-            || _subscription_type == subscription_type_e::SU_RELIABLE) {
-        if (!has_identified(_client, _service, _instance, true)
-                && !is_identifying(_client, _service, _instance, true)) {
-            if (!send_identify_message(_client, _service, _instance, _major,
-                    true) && _subscription_type
-                    == subscription_type_e::SU_PREFER_RELIABLE) {
-                send_identify_message(_client, _service, _instance, _major,
-                        false);
-            }
-        }
+    if (!has_identified(_client, _service, _instance, true)
+            && !is_identifying(_client, _service, _instance, true)) {
+        send_identify_message(_client, _service, _instance, _major, true);
     }
 }
 

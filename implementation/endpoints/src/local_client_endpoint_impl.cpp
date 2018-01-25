@@ -46,7 +46,10 @@ bool local_client_endpoint_impl::is_local() const {
 }
 
 void local_client_endpoint_impl::restart() {
-    is_connected_ = false;
+    if (state_ == cei_state_e::CONNECTING) {
+        return;
+    }
+    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         sending_blocked_ = false;
@@ -113,6 +116,7 @@ void local_client_endpoint_impl::connect() {
                 VSOMEIP_WARNING << "local_client_endpoint_impl::connect: "
                         << "couldn't enable SO_REUSEADDR: " << its_error.message();
             }
+            state_ = cei_state_e::CONNECTING;
             socket_->connect(remote_, its_connect_error);
 
 // Credentials

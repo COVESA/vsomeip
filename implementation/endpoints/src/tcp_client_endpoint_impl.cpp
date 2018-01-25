@@ -61,7 +61,10 @@ void tcp_client_endpoint_impl::start() {
 }
 
 void tcp_client_endpoint_impl::restart() {
-    is_connected_ = false;
+    if (state_ == cei_state_e::CONNECTING) {
+        return;
+    }
+    state_ = cei_state_e::CONNECTING;
     std::string address_port_local;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -137,7 +140,7 @@ void tcp_client_endpoint_impl::connect() {
                         "Error binding socket: " << its_bind_error.message();
             }
         }
-
+        state_ = cei_state_e::CONNECTING;
         socket_->async_connect(
             remote_,
             std::bind(
@@ -180,7 +183,6 @@ void tcp_client_endpoint_impl::receive(message_buffer_ptr_t  _recv_buffer,
                     _recv_buffer->resize(its_required_capacity, 0x0);
                 }
                 buffer_size = _missing_capacity;
-                _missing_capacity = 0;
             } else if (buffer_shrink_threshold_
                     && shrink_count_ > buffer_shrink_threshold_
                     && _recv_buffer_size == 0) {
@@ -517,7 +519,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                         << _error.message() << "( " << std::dec << _error.value()
                         << ") local: " << get_address_port_local()
                         << " remote: " << get_address_port_remote();
-                is_connected_ = false;
+                state_ = cei_state_e::CLOSED;
                 shutdown_and_close_socket_unlocked(false);
             } else {
                 VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk: "
