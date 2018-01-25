@@ -1799,4 +1799,13 @@ void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code 
     }
 }
 
+void routing_manager_stub::print_endpoint_status() const {
+    if (local_receiver_) {
+        local_receiver_->print_status();
+    }
+    if (endpoint_) {
+        endpoint_->print_status();
+    }
+}
+
 } // namespace vsomeip

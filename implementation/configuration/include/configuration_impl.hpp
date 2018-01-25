@@ -149,11 +149,17 @@ public:
             instance_t _instance) const;
     VSOMEIP_EXPORT bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const;
 
-    VSOMEIP_EXPORT std::map<plugin_type_e, std::string> get_plugins(
+    VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const;
     // E2E
     VSOMEIP_EXPORT std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const;
     VSOMEIP_EXPORT bool is_e2e_enabled() const;
+
+    VSOMEIP_EXPORT bool log_memory() const;
+    VSOMEIP_EXPORT uint32_t get_log_memory_interval() const;
+
+    VSOMEIP_EXPORT bool log_status() const;
+    VSOMEIP_EXPORT uint32_t get_log_status_interval() const;
 
 private:
     void read_data(const std::set<std::string> &_input,
@@ -217,10 +223,12 @@ private:
 
     servicegroup *find_servicegroup(const std::string &_name) const;
     std::shared_ptr<client> find_client(service_t _service,
-            instance_t _instance, uint16_t _remote_port, bool _reliable) const;
+            instance_t _instance) const;
     std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
+    bool find_port(uint16_t &_port, uint16_t _remote, bool _reliable,
+            std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
 
     void set_magic_cookies_unicast_address();
 
@@ -255,7 +263,7 @@ protected:
     boost::log::trivial::severity_level loglevel_;
 
     std::map<std::string, std::tuple<client_t, std::size_t, std::size_t,
-                size_t, size_t, std::map<plugin_type_e, std::string>>> applications_;
+                size_t, size_t, std::map<plugin_type_e, std::set<std::string>>>> applications_;
     std::set<client_t> client_identifiers_;
 
     std::map<service_t,
@@ -341,6 +349,12 @@ protected:
 
     bool e2e_enabled_;
     std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> e2e_configuration_;
+
+    bool log_memory_;
+    uint32_t log_memory_interval_;
+
+    bool log_status_;
+    uint32_t log_status_interval_;
 };
 
 } // namespace cfg

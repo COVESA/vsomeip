@@ -56,8 +56,7 @@ public:
     virtual void del_routing_info(service_t _service, instance_t _instance,
             bool _has_reliable, bool _has_unreliable) = 0;
 
-    virtual std::chrono::milliseconds update_routing_info(
-            std::chrono::milliseconds _elapsed) = 0;
+    virtual void update_routing_info(std::chrono::milliseconds _elapsed) = 0;
 
     virtual void on_unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup,

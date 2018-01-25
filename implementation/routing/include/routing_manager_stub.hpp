@@ -94,6 +94,7 @@ public:
 
     void update_registration(client_t _client, registration_type_e _type);
 
+    void print_endpoint_status() const;
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 

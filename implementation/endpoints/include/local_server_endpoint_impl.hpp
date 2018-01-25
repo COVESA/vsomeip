@@ -67,6 +67,7 @@ public:
     bool is_local() const;
 
     void accept_client_func();
+    void print_status();
 
 private:
     class connection: public std::enable_shared_from_this<connection> {
@@ -87,6 +88,7 @@ private:
         void send_queued(const queue_iterator_type _queue_iterator);
 
         void set_bound_client(client_t _client);
+        std::size_t get_recv_buffer_capacity() const;
 
     private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
@@ -126,8 +128,9 @@ private:
     boost::asio::local::stream_protocol::acceptor acceptor_;
 #endif
 
+    typedef std::map<endpoint_type, connection::ptr> connections_t;
     std::mutex connections_mutex_;
-    std::map<endpoint_type, connection::ptr> connections_;
+    connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
 
 private:

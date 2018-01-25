@@ -338,6 +338,16 @@ values: _true, false_)
 +
 Configures interval in seconds to log the vSomeIP version. Default value is 10.
 +
+** 'memory_log_interval'
++
+Configures interval in seconds in which the routing manager logs its used
+memory. Setting a value greater than zero enables the logging.
++
+** 'status_log_interval'
++
+Configures interval in seconds in which the routing manager logs its internal
+status. Setting a value greater than zero enables the logging.
++
 //Tracing
 * anchor:config-tracing[]'tracing' (optional)
 +

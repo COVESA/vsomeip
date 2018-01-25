@@ -189,7 +189,7 @@ public:
             uint16_t _unreliable_port);
     void del_routing_info(service_t _service, instance_t _instance,
             bool _has_reliable, bool _has_unreliable);
-    std::chrono::milliseconds update_routing_info(std::chrono::milliseconds _elapsed);
+    void update_routing_info(std::chrono::milliseconds _elapsed);
 
     remote_subscription_state_e on_remote_subscription(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -351,11 +351,16 @@ private:
     client_t is_specific_endpoint_client(client_t _client, service_t _service, instance_t _instance);
     std::unordered_set<client_t> get_specific_endpoint_clients(service_t _service, instance_t _instance);
 
+    void memory_log_timer_cbk(boost::system::error_code const & _error);
+    void status_log_timer_cbk(boost::system::error_code const & _error);
+
+
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
     // Server endpoints for local services
-    std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint> > > server_endpoints_;
+    typedef std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint>>> server_endpoints_t;
+    server_endpoints_t server_endpoints_;
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;
 
     // Multicast endpoint info (notifications)
@@ -365,10 +370,13 @@ private:
     std::map<service_t,
             std::map<instance_t, std::map<bool, std::shared_ptr<endpoint_definition> > > > remote_service_info_;
 
-    std::map<service_t,
-            std::map<instance_t, std::map<client_t, std::map<bool, std::shared_ptr<endpoint> > > > >remote_services_;
-    std::map<boost::asio::ip::address,
-            std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint> > > >  client_endpoints_by_ip_;
+    typedef std::map<service_t, std::map<instance_t, std::map<client_t,
+                std::map<bool, std::shared_ptr<endpoint>>>>> remote_services_t;
+    remote_services_t remote_services_;
+
+    typedef std::map<boost::asio::ip::address, std::map<uint16_t,
+                std::map<bool, std::shared_ptr<endpoint>>>> client_endpoints_by_ip_t;
+    client_endpoints_by_ip_t client_endpoints_by_ip_;
     std::map<client_t,
             std::map<service_t,
                     std::map<instance_t,
@@ -428,6 +436,12 @@ private:
 
     std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::protector>> custom_protectors;
     std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::checker>> custom_checkers;
+
+    std::mutex status_log_timer_mutex_;
+    boost::asio::steady_timer status_log_timer_;
+
+    std::mutex memory_log_timer_mutex_;
+    boost::asio::steady_timer memory_log_timer_;
 };
 
 }  // namespace vsomeip

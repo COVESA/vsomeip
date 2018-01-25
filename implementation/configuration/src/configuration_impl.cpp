@@ -19,6 +19,7 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
+#include <vsomeip/plugins/pre_configuration_plugin.hpp>
 
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
@@ -30,6 +31,7 @@
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../plugin/include/plugin_manager.hpp"
 
 VSOMEIP_PLUGIN(vsomeip::cfg::configuration_impl)
 
@@ -71,7 +73,11 @@ configuration_impl::configuration_impl()
       policy_enabled_(false),
       check_credentials_(false),
       network_("vsomeip"),
-      e2e_enabled_(false) {
+      e2e_enabled_(false),
+      log_memory_(false),
+      log_memory_interval_(0),
+      log_status_(false),
+      log_status_interval_(0) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
@@ -133,6 +139,11 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     check_credentials_ = _other.check_credentials_;
     network_ = _other.network_;
     e2e_enabled_ = _other.e2e_enabled_;
+
+    log_memory_ = _other.log_memory_;
+    log_memory_interval_ = _other.log_memory_interval_;
+    log_status_ = _other.log_status_;
+    log_status_interval_ = _other.log_status_interval_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -170,23 +181,20 @@ bool configuration_impl::load(const std::string &_name) {
         }
     }
 
-    // Finally, pverride with path from set config path (if existing)
-    if (configuration_path_.length()) {
-        if (utility::is_file(configuration_path_)) {
-            its_file = configuration_path_;
-            its_folder = "";
-        } else if (utility::is_folder(configuration_path_)) {
-            its_folder = configuration_path_;
-            its_file = "";
-        }
-    }
-
     std::set<std::string> its_input;
     if (its_file != "") {
         its_input.insert(its_file);
     }
     if (its_folder != "") {
         its_input.insert(its_folder);
+    }
+
+    // Add debug configuration folder/file on top of already set input
+    const char* its_debug_env = getenv(VSOMEIP_ENV_DEBUG_CONFIGURATION);
+    if (nullptr != its_debug_env) {
+        its_input.insert(its_debug_env);
+    } else {
+        its_input.insert(VSOMEIP_DEBUG_CONFIGURATION_FOLDER);
     }
 
     // Determine standard configuration file
@@ -236,11 +244,13 @@ bool configuration_impl::load(const std::string &_name) {
             << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
             << "ms";
 
-    if (utility::is_file(its_file))
-        VSOMEIP_INFO << "Using configuration file: \"" << its_file << "\".";
+    for (auto i : its_input) {
+        if (utility::is_file(i))
+            VSOMEIP_INFO << "Using configuration file: \"" << i << "\".";
 
-    if (utility::is_folder(its_folder))
-        VSOMEIP_INFO << "Using configuration folder: \"" << its_folder << "\".";
+        if (utility::is_folder(i))
+            VSOMEIP_INFO << "Using configuration folder: \"" << i << "\".";
+    }
 
     if (policy_enabled_ && check_credentials_)
         VSOMEIP_INFO << "Security configuration is active.";
@@ -341,6 +351,10 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
         }
     }
 
+    for (auto its_service : services_) {
+        VSOMEIP_INFO << "service: " << its_service.first;
+    }
+
     return is_logging_loaded_ && has_routing && has_applications;
 }
 
@@ -418,6 +432,20 @@ bool configuration_impl::load_logging(
                         its_converter >> log_version_interval_;
                     }
                 }
+            } else if (its_key == "memory_log_interval") {
+                std::stringstream its_converter;
+                its_converter << std::dec << i->second.data();
+                its_converter >> log_memory_interval_;
+                if (log_memory_interval_ > 0) {
+                    log_memory_ = true;
+                }
+            } else if (its_key == "status_log_interval") {
+                std::stringstream its_converter;
+                its_converter << std::dec << i->second.data();
+                its_converter >> log_status_interval_;
+                if (log_status_interval_ > 0) {
+                    log_status_ = true;
+                }
             }
         }
     } catch (...) {
@@ -465,7 +493,7 @@ void configuration_impl::load_application_data(
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
     std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
-    std::map<plugin_type_e, std::string> plugins;
+    std::map<plugin_type_e, std::set<std::string>> plugins;
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -520,7 +548,13 @@ void configuration_impl::load_application_data(
                         library += ".";
                         library += (VSOMEIP_APPLICATION_PLUGIN_VERSION + '0');
     #endif
-                        plugins[plugin_type_e::APPLICATION_PLUGIN] = library;
+                        plugins[plugin_type_e::APPLICATION_PLUGIN].insert(library);
+                    } else if (its_inner_key == "configuration_plugin") {
+    #ifndef _WIN32
+                        library += ".";
+                        library += (VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION + '0');
+    #endif
+                        plugins[plugin_type_e::PRE_CONFIGURATION_PLUGIN].insert(library);
                     } else {
                         VSOMEIP_WARNING << "Unknown plug-in type ("
                                 << its_inner_key << ") configured for client: "
@@ -1896,19 +1930,14 @@ bool configuration_impl::get_client_port(
         uint16_t _remote_port, bool _reliable,
         std::map<bool, std::set<uint16_t> > &_used_client_ports,
         uint16_t &_client_port) const {
+    bool is_configured(false);
 
     _client_port = ILLEGAL_PORT;
-    auto its_client = find_client(_service, _instance, _remote_port, _reliable);
+    auto its_client = find_client(_service, _instance);
 
-    // If no client ports are configured, return true
-    if (!its_client ||
-            (its_client->ports_[_reliable].empty()
-                    && its_client->client_ports_[_reliable].first == ILLEGAL_PORT)) {
-        return true;
-    }
-
-    // specific ports to service / instance are prioritized
-    if (!its_client->ports_[_reliable].empty()) {
+    // Check for service, instance specific port configuration
+    if (its_client  && !its_client->ports_[_reliable].empty()) {
+        is_configured = true;
         for (auto its_port : its_client->ports_[_reliable]) {
             // Found free configured port
             if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
@@ -1918,17 +1947,20 @@ bool configuration_impl::get_client_port(
         }
     }
 
-    // If no client port ranges are configured use auto port assignment
-    if (its_client->client_ports_[_reliable].first != ILLEGAL_PORT
-            && its_client->client_ports_[_reliable].second != ILLEGAL_PORT) {
-        // look for free port in configured client range
-        for (uint16_t its_port = its_client->client_ports_[_reliable].first;
-                its_port <= its_client->client_ports_[_reliable].second;  its_port++ ) {
-            if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
-                _client_port = its_port;
-                return true;
-            }
+    // No specific port configuration found, use generic configuration
+    uint16_t its_port(ILLEGAL_PORT);
+    if (find_port(its_port, _remote_port, _reliable, _used_client_ports)) {
+        is_configured = true;
+        if (its_port != ILLEGAL_PORT) {
+            _client_port = its_port;
+            return true;
         }
+    }
+
+    if (!is_configured) {
+        // Neither specific not generic configurarion available,
+        // use dynamic port configuration!
+        return true;
     }
 
     // Configured ports do exist, but they are all in use
@@ -2119,22 +2151,38 @@ uint8_t configuration_impl::get_threshold(service_t _service,
 }
 
 std::shared_ptr<client> configuration_impl::find_client(service_t _service,
-        instance_t _instance, uint16_t _remote_port, bool _reliable) const {
-    std::shared_ptr<client> its_client;
+        instance_t _instance) const {
     std::list<std::shared_ptr<client>>::const_iterator it;
 
     for (it = clients_.begin(); it != clients_.end(); ++it){
         // client was configured for specific service / instance
         if ((*it)->service_ == _service
                 && (*it)->instance_ == _instance) {
-            its_client = *it;
-            break;
-        } else if (is_in_port_range(_remote_port, (*it)->remote_ports_[_reliable])) {
-            its_client = *it;
-            break;
+            return *it;
         }
     }
-    return its_client;
+    return nullptr;
+}
+
+bool configuration_impl::find_port(uint16_t &_port, uint16_t _remote, bool _reliable,
+        std::map<bool, std::set<uint16_t> > &_used_client_ports) const {
+    bool is_configured(false);
+    std::list<std::shared_ptr<client>>::const_iterator it;
+
+    for (it = clients_.begin(); it != clients_.end(); ++it) {
+        if (is_in_port_range(_remote, (*it)->remote_ports_[_reliable])) {
+            is_configured = true;
+            for (uint16_t its_port = (*it)->client_ports_[_reliable].first;
+                    its_port <= (*it)->client_ports_[_reliable].second;  its_port++ ) {
+                if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                    _port = its_port;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return is_configured;
 }
 
 bool configuration_impl::is_event_reliable(service_t _service,
@@ -2436,9 +2484,9 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
     return !check_credentials_;
 }
 
-std::map<plugin_type_e, std::string> configuration_impl::get_plugins(
+std::map<plugin_type_e, std::set<std::string>> configuration_impl::get_plugins(
             const std::string &_name) const {
-    std::map<plugin_type_e, std::string> result;
+    std::map<plugin_type_e, std::set<std::string>> result;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -2574,6 +2622,22 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
 
 std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> configuration_impl::get_e2e_configuration() const {
     return e2e_configuration_;
+}
+
+bool configuration_impl::log_memory() const {
+    return log_memory_;
+}
+
+uint32_t configuration_impl::get_log_memory_interval() const {
+    return log_memory_interval_;
+}
+
+bool configuration_impl::log_status() const {
+    return log_status_;
+}
+
+uint32_t configuration_impl::get_log_status_interval() const {
+    return log_status_interval_;
 }
 
 }  // namespace config

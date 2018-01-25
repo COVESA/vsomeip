@@ -52,6 +52,7 @@ public:
     uint32_t get_use_count();
 
     void register_error_handler(error_handler_t _error_handler);
+    virtual void print_status() = 0;
 
 public:
     // required

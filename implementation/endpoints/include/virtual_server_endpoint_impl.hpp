@@ -52,6 +52,7 @@ public:
     void restart();
 
     void register_error_handler(error_handler_t _handler);
+    void print_status();
 
 private:
     std::string address_;

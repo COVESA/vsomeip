@@ -50,7 +50,7 @@ service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
                   std::make_shared<deserializer>(
                           host_->get_configuration()->get_buffer_shrink_threshold())),
           ttl_timer_(_host->get_io()),
-          smallest_ttl_(DEFAULT_TTL),
+          ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2),
           ttl_(VSOMEIP_SD_DEFAULT_TTL),
           subscription_expiration_timer_(_host->get_io()),
           max_message_size_(VSOMEIP_MAX_UDP_SD_PAYLOAD),
@@ -65,9 +65,6 @@ service_discovery_impl::service_discovery_impl(service_discovery_host *_host)
           main_phase_timer_(_host->get_io()),
           is_suspended_(false),
           is_diagnosis_(false) {
-    std::chrono::seconds smallest_ttl(DEFAULT_TTL);
-    smallest_ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(smallest_ttl);
-
     // TODO: cleanup start condition!
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
@@ -84,13 +81,15 @@ boost::asio::io_service & service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
-    runtime_ = std::dynamic_pointer_cast<sd::runtime>(plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN));
+    runtime_ = std::dynamic_pointer_cast<sd::runtime>(plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY));
 
     std::shared_ptr < configuration > its_configuration =
             host_->get_configuration();
     if (its_configuration) {
         unicast_ = its_configuration->get_unicast_address();
         sd_multicast_ = its_configuration->get_sd_multicast();
+        boost::system::error_code ec;
+        sd_multicast_address_ = boost::asio::ip::address::from_string(sd_multicast_, ec);
 
         port_ = its_configuration->get_sd_port();
         reliable_ = (its_configuration->get_sd_protocol()
@@ -131,6 +130,7 @@ void service_discovery_impl::init() {
                 its_configuration->get_sd_cyclic_offer_delay());
         offer_debounce_time_ = std::chrono::milliseconds(
                 its_configuration->get_sd_offer_debounce_time());
+        ttl_timer_runtime_ = cyclic_offer_delay_ / 2;
     } else {
         VSOMEIP_ERROR << "SD: no configuration found!";
     }
@@ -163,10 +163,12 @@ void service_discovery_impl::start() {
     start_main_phase_timer();
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
+    start_ttl_timer();
 }
 
 void service_discovery_impl::stop() {
     is_suspended_ = true;
+    stop_ttl_timer();
 }
 
 void service_discovery_impl::request_service(service_t _service,
@@ -1112,16 +1114,37 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
     if(is_suspended_) {
         return;
     }
+    // ignore all SD messages with source address equal to node's unicast address
+    if (!check_source_address(_sender)) {
+        return;
+    }
+    if (_destination == sd_multicast_address_) {
+        static std::chrono::steady_clock::time_point last_msg_received =
+                std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point now =
+                std::chrono::steady_clock::now();
+        std::chrono::milliseconds time_since_last_message(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - last_msg_received));
+        if (time_since_last_message >
+            std::chrono::milliseconds(cyclic_offer_delay_ + (cyclic_offer_delay_ / 10))) {
+            // we didn't receive a multicast message within 110% of the cyclic_offer_delay_
+            VSOMEIP_WARNING << "Didn't receive a multicast SD message for " <<
+                    std::dec << time_since_last_message.count() << "ms.";
+            // rejoin multicast group
+            if (endpoint_) {
+                endpoint_->join(sd_multicast_);
+            }
+        }
+        last_msg_received = now;
+    }
+
     current_remote_address_ = _sender;
     deserializer_->set_data(_data, _length);
     std::shared_ptr < message_impl
             > its_message(deserializer_->deserialize_sd_message());
     deserializer_->reset();
     if (its_message) {
-        // ignore all SD messages with source address equal to node's unicast address
-        if (!check_source_address(_sender)) {
-            return;
-        }
         // ignore all messages which are sent with invalid header fields
         if(!check_static_header_fields(its_message)) {
             return;
@@ -1133,9 +1156,6 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);
         }
-
-        std::chrono::milliseconds expired = stop_ttl_timer();
-        smallest_ttl_ = host_->update_routing_info(expired);
 
         std::vector < std::shared_ptr<option_impl> > its_options =
                 its_message->get_options();
@@ -1173,7 +1193,6 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                                 > (*iter);
                 bool force_initial_events(false);
                 if (is_stop_subscribe_subscribe) {
-                    is_stop_subscribe_subscribe = false;
                     force_initial_events = true;
                 }
                 is_stop_subscribe_subscribe = check_stop_subscribe_subscribe(iter, its_end);
@@ -1203,7 +1222,6 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                 }
             }
         }
-        start_ttl_timer();
     } else {
         VSOMEIP_ERROR << "service_discovery_impl::on_message: deserialization error.";
         return;
@@ -1343,10 +1361,6 @@ void service_discovery_impl::process_offerservice_serviceentry(
                             _major, _minor, _ttl,
                             _reliable_address, _reliable_port,
                             _unreliable_address, _unreliable_port);
-    const std::chrono::milliseconds its_precise_ttl(_ttl * 1000);
-    if (its_precise_ttl < smallest_ttl_) {
-        smallest_ttl_ = its_precise_ttl;
-    }
 
     std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
@@ -2312,24 +2326,22 @@ void service_discovery_impl::serialize_and_send(
 
 void service_discovery_impl::start_ttl_timer() {
     std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
-    ttl_timer_.expires_from_now(std::chrono::milliseconds(smallest_ttl_));
+    boost::system::error_code ec;
+    ttl_timer_.expires_from_now(std::chrono::milliseconds(ttl_timer_runtime_), ec);
     ttl_timer_.async_wait(
             std::bind(&service_discovery_impl::check_ttl, shared_from_this(),
                       std::placeholders::_1));
 }
 
-std::chrono::milliseconds service_discovery_impl::stop_ttl_timer() {
+void service_discovery_impl::stop_ttl_timer() {
     std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
-    std::chrono::milliseconds remaining = std::chrono::duration_cast<
-                                std::chrono::milliseconds
-                            >(ttl_timer_.expires_from_now());
-    ttl_timer_.cancel();
-    return (smallest_ttl_ - remaining);
+    boost::system::error_code ec;
+    ttl_timer_.cancel(ec);
 }
 
 void service_discovery_impl::check_ttl(const boost::system::error_code &_error) {
     if (!_error) {
-        smallest_ttl_ = host_->update_routing_info(smallest_ttl_);
+        host_->update_routing_info(ttl_timer_runtime_);
         start_ttl_timer();
     }
 }

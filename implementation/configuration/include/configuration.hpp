@@ -136,7 +136,7 @@ public:
     virtual bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
 
     // Plugins
-    virtual std::map<plugin_type_e, std::string> get_plugins(
+    virtual std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const = 0;
 
     virtual void set_configuration_path(const std::string &_path) = 0;
@@ -144,6 +144,12 @@ public:
     //E2E
     virtual std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const = 0;
     virtual bool is_e2e_enabled() const = 0;
+
+    virtual bool log_memory() const = 0;
+    virtual uint32_t get_log_memory_interval() const = 0;
+
+    virtual bool log_status() const = 0;
+    virtual uint32_t get_log_status_interval() const = 0;
 };
 
 } // namespace vsomeip

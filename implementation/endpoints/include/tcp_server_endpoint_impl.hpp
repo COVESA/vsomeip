@@ -53,7 +53,7 @@ public:
     // dummies to implement endpoint_impl interface
     // TODO: think about a better design!
     void receive();
-
+    void print_status();
 private:
     class connection: public std::enable_shared_from_this<connection> {
 
@@ -75,6 +75,8 @@ private:
         void send_queued(const queue_iterator_type _queue_iterator);
 
         void set_remote_info(const endpoint_type &_remote);
+        const std::string get_address_port_remote() const;
+        std::size_t get_recv_buffer_capacity() const;
 
     private:
         connection(std::weak_ptr<tcp_server_endpoint_impl> _server,
@@ -88,7 +90,6 @@ private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes);
         void calculate_shrink_count();
-        const std::string get_address_port_remote() const;
         const std::string get_address_port_local() const;
         void handle_recv_buffer_exception(const std::exception &_e);
 
@@ -116,7 +117,8 @@ private:
     std::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::mutex connections_mutex_;
-    std::map<endpoint_type, connection::ptr> connections_;
+    typedef std::map<endpoint_type, connection::ptr> connections_t;
+    connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
     const std::uint16_t local_port_;
 

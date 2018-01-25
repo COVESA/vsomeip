@@ -222,4 +222,54 @@ void udp_client_endpoint_impl::receive_cbk(
     }
 }
 
+const std::string udp_client_endpoint_impl::get_address_port_remote() const {
+    boost::system::error_code ec;
+    std::string its_address_port;
+    its_address_port.reserve(21);
+    boost::asio::ip::address its_address;
+    if (get_remote_address(its_address)) {
+        its_address_port += its_address.to_string();
+    }
+    its_address_port += ":";
+    its_address_port += std::to_string(remote_port_);
+    return its_address_port;
+}
+
+const std::string udp_client_endpoint_impl::get_address_port_local() const {
+    std::string its_address_port;
+    its_address_port.reserve(21);
+    boost::system::error_code ec;
+    if (socket_->is_open()) {
+        endpoint_type its_local_endpoint = socket_->local_endpoint(ec);
+        if (!ec) {
+            its_address_port += its_local_endpoint.address().to_string(ec);
+            its_address_port += ":";
+            its_address_port.append(std::to_string(its_local_endpoint.port()));
+        }
+    }
+    return its_address_port;
+}
+
+void udp_client_endpoint_impl::print_status() {
+    std::size_t its_data_size(0);
+    std::size_t its_queue_size(0);
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        its_queue_size = queue_.size();
+        for (const auto &m : queue_) {
+            its_data_size += m->size();
+        }
+    }
+    std::string local;
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        local = get_address_port_local();
+    }
+
+    VSOMEIP_INFO << "status uce: " << local << " -> "
+            << get_address_port_remote()
+            << " queue: " << std::dec << its_queue_size
+            << " data: " << std::dec << its_data_size;
+}
+
 } // namespace vsomeip

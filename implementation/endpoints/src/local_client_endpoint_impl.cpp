@@ -255,4 +255,24 @@ void local_client_endpoint_impl::set_local_port() {
     // local_port_ is set to zero in ctor of client_endpoint_impl -> do nothing
 }
 
+void local_client_endpoint_impl::print_status() {
+#ifndef _WIN32
+    std::string its_path = remote_.path();
+#else
+    std::string its_path("");
+#endif
+    std::size_t its_data_size(0);
+    std::size_t its_queue_size(0);
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        its_queue_size = queue_.size();
+        for (const auto &m : queue_) {
+            its_data_size += m->size();
+        }
+    }
+
+    VSOMEIP_INFO << "status lce: " << its_path  << " queue: "
+            << its_queue_size << " data: " << its_data_size;
+}
+
 } // namespace vsomeip

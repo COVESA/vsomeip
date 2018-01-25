@@ -150,13 +150,23 @@ bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target) {
 
 bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target,
                                 const eventgroupinfo::target_t &_subscriber) {
+    bool found(false);
     bool add(false);
     bool ret(false);
     {
         std::lock_guard<std::mutex> its_lock(targets_mutex_);
         std::size_t its_size = targets_.size();
-        if (std::find(targets_.begin(), targets_.end(), _subscriber)
-                == targets_.end()) {
+
+        for (auto i = targets_.begin(); i != targets_.end(); i++) {
+            if (i->endpoint_->get_address() == _subscriber.endpoint_->get_address() &&
+                    i->endpoint_->get_port() == _subscriber.endpoint_->get_port() &&
+                    i->endpoint_->is_reliable() == _subscriber.endpoint_->is_reliable()) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
             targets_.push_back(_subscriber);
             add = true;
         }
@@ -172,14 +182,18 @@ bool eventgroupinfo::update_target(
         const std::shared_ptr<endpoint_definition> &_target,
         const std::chrono::steady_clock::time_point &_expiration) {
     std::lock_guard<std::mutex> its_lock(targets_mutex_);
-     for (auto i = targets_.begin(); i != targets_.end(); i++) {
-         if (i->endpoint_->get_address() == _target->get_address() &&
-                 i->endpoint_->get_port() == _target->get_port()) {
-             i->expiration_ = _expiration;
-             return true;
-         }
-     }
-     return false;
+    bool updated_target(false);
+
+    for (auto i = targets_.begin(); i != targets_.end(); i++) {
+        if (i->endpoint_->get_address() == _target->get_address() &&
+                i->endpoint_->get_port() == _target->get_port() &&
+                i->endpoint_->is_reliable() == _target->is_reliable() ) {
+            i->expiration_ = _expiration;
+            updated_target = true;
+            break;
+        }
+    }
+    return updated_target;
 }
 
 bool eventgroupinfo::remove_target(
@@ -188,7 +202,9 @@ bool eventgroupinfo::remove_target(
     std::size_t its_size = targets_.size();
 
     for (auto i = targets_.begin(); i != targets_.end(); i++) {
-        if (i->endpoint_ == _target) {
+        if (i->endpoint_->get_address() == _target->get_address() &&
+                      i->endpoint_->get_port() == _target->get_port() &&
+                      i->endpoint_->is_reliable() == _target->is_reliable()) {
             targets_.erase(i);
             break;
         }

@@ -39,7 +39,7 @@ public:
 
         std::shared_ptr<vsomeip::configuration> its_configuration;
         auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(
-                vsomeip::plugin_type_e::CONFIGURATION_PLUGIN);
+                vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             configuration_ = std::dynamic_pointer_cast<vsomeip::configuration>(its_plugin);
         }

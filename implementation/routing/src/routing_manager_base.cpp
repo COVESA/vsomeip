@@ -1099,4 +1099,10 @@ void routing_manager_base::send_identify_request(service_t _service,
     host_->send(message, true);
 }
 
+std::map<client_t, std::shared_ptr<endpoint>>
+routing_manager_base::get_local_endpoints() {
+    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
+    return local_endpoints_;
+}
+
 } // namespace vsomeip

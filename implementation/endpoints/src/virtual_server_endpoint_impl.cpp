@@ -118,4 +118,8 @@ void virtual_server_endpoint_impl::register_error_handler(
     (void)_handler;
 }
 
+void virtual_server_endpoint_impl::print_status() {
+
+}
+
 } // namespace vsomeip

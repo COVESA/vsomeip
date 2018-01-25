@@ -50,6 +50,8 @@ public:
     virtual void restart() = 0;
 
     virtual void register_error_handler(error_handler_t _error) = 0;
+
+    virtual void print_status() = 0;
 };
 
 } // namespace vsomeip

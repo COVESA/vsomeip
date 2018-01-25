@@ -108,7 +108,7 @@ void tcp_server_endpoint_impl::send_queued(const queue_iterator_type _queue_iter
                     << static_cast<std::uint16_t>(_queue_iterator->first.port())
                     << " dropping outstanding messages (" << std::dec
                     << _queue_iterator->second.size() << ").";
-            _queue_iterator->second.clear();
+            queues_.erase(_queue_iterator->first);
         }
     }
     if (its_connection) {
@@ -625,9 +625,48 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
     }
 }
 
+std::size_t
+tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
+    return recv_buffer_.capacity();
+}
+
 // Dummies
 void tcp_server_endpoint_impl::receive() {
     // intentionally left empty
+}
+
+void tcp_server_endpoint_impl::print_status() {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    connections_t its_connections;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        its_connections = connections_;
+    }
+
+    VSOMEIP_INFO << "status tse: " << std::dec << local_port_
+            << " connections: " << std::dec << its_connections.size()
+            << " queues: " << std::dec << queues_.size();
+    for (const auto &c : its_connections) {
+        std::size_t its_data_size(0);
+        std::size_t its_queue_size(0);
+        std::size_t its_recv_size(0);
+        {
+            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            its_recv_size = c.second->get_recv_buffer_capacity();
+        }
+        auto found_queue = queues_.find(c.first);
+        if (found_queue != queues_.end()) {
+            its_queue_size = found_queue->second.size();
+            for (const auto &m : found_queue->second) {
+                its_data_size += m->size();
+            }
+        }
+        VSOMEIP_INFO << "status tse: client: "
+                << c.second->get_address_port_remote()
+                << " queue: " << std::dec << its_queue_size
+                << " data: " << std::dec << its_data_size
+                << " recv_buffer: " << std::dec << its_recv_size;
+    }
 }
 
 }  // namespace vsomeip

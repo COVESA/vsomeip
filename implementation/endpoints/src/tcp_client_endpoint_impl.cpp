@@ -493,4 +493,29 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
     }
 }
 
+void tcp_client_endpoint_impl::print_status() {
+    std::size_t its_data_size(0);
+    std::size_t its_queue_size(0);
+    std::size_t its_receive_buffer_capacity(0);
+    {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        its_queue_size = queue_.size();
+        for (const auto &m : queue_) {
+            its_data_size += m->size();
+        }
+    }
+    std::string local;
+    {
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        local = get_address_port_local();
+        its_receive_buffer_capacity = recv_buffer_.capacity();
+    }
+
+    VSOMEIP_INFO << "status tce: " << local << " -> "
+            << get_address_port_remote()
+            << " queue: " << std::dec << its_queue_size
+            << " data: " << std::dec << its_data_size
+            << " recv_buffer: " << std::dec << its_receive_buffer_capacity;
+}
+
 } // namespace vsomeip

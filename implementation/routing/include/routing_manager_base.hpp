@@ -193,6 +193,8 @@ protected:
     void send_identify_request(service_t _service, instance_t _instance,
             major_version_t _major, bool _reliable);
 
+    std::map<client_t, std::shared_ptr<endpoint>> get_local_endpoints();
+
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<endpoint> find_local_unlocked(client_t _client);

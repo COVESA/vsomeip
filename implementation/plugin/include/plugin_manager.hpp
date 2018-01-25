@@ -27,7 +27,7 @@ public:
 
         VSOMEIP_EXPORT void load_plugins();
 
-        VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type);
+        VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type, std::string _name);
 
         VSOMEIP_EXPORT std::shared_ptr<plugin> load_plugin(
                 const std::string _library, plugin_type_e _type,
@@ -36,7 +36,7 @@ public:
         VSOMEIP_EXPORT bool unload_plugin(plugin_type_e _type);
 
 private:
-        void add_plugin(const std::shared_ptr<plugin> &_plugin);
+        void add_plugin(const std::shared_ptr<plugin> &_plugin, const std::string _name);
 
         void * load_library(const std::string &_path);
         void * load_symbol(void * _handle, const std::string &_symbol);
@@ -44,9 +44,8 @@ private:
         bool plugins_loaded_;
         std::mutex loader_mutex_;
 
-        std::map<plugin_type_e, std::vector<std::shared_ptr<plugin> > > plugins_;
-        std::map<plugin_type_e, std::string> plugin_names_;
-        std::map<plugin_type_e, void*> handles_;
+        std::map<plugin_type_e, std::map<std::string, std::shared_ptr<plugin> > > plugins_;
+        std::map<plugin_type_e, std::map<std::string, void*> > handles_;
         std::mutex plugins_mutex_;
 
         static std::shared_ptr<plugin_manager> the_plugin_manager__;

@@ -16,6 +16,8 @@ namespace vsomeip {
 namespace cfg {
 
 struct client {
+    client() : service_(ANY_SERVICE), instance_(ANY_INSTANCE) {}
+
     // ports for specific service / instance
     service_t service_;
     instance_t instance_;

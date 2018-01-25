@@ -189,7 +189,7 @@ private:
             std::shared_ptr<vsomeip::endpoint_definition> its_endpoint);
 
     void start_ttl_timer();
-    std::chrono::milliseconds stop_ttl_timer();
+    void stop_ttl_timer();
 
     void check_ttl(const boost::system::error_code &_error);
 
@@ -348,7 +348,7 @@ private:
     // TTL handling for services offered by other hosts
     std::mutex ttl_timer_mutex_;
     boost::asio::steady_timer ttl_timer_;
-    std::chrono::milliseconds smallest_ttl_;
+    std::chrono::milliseconds ttl_timer_runtime_;
     ttl_t ttl_;
 
     // TTL handling for subscriptions done by other hosts
@@ -390,6 +390,7 @@ private:
     std::atomic<bool> is_suspended_;
 
     std::string sd_multicast_;
+    boost::asio::ip::address sd_multicast_address_;
 
     boost::asio::ip::address current_remote_address_;
 

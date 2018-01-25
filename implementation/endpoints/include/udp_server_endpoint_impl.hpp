@@ -50,10 +50,11 @@ public:
 
     client_t get_client(std::shared_ptr<endpoint_definition> _endpoint);
 
-public:
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _size,
                      boost::asio::ip::address const &_destination);
+
+    void print_status();
 
 private:
     void set_broadcast();

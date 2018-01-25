@@ -35,6 +35,7 @@ public:
     std::uint16_t get_remote_port() const;
     bool is_reliable() const;
     bool is_local() const;
+    void print_status();
 
 private:
     void send_queued();

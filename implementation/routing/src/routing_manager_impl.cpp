@@ -9,6 +9,12 @@
 #include <sstream>
 #include <forward_list>
 
+#ifndef _WIN32
+#include <unistd.h>
+#include <cstdio>
+#include <time.h>
+#endif
+
 #ifndef WITHOUT_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
@@ -62,10 +68,12 @@ namespace vsomeip {
 routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
         routing_manager_base(_host),
         version_log_timer_(_host->get_io()),
-        if_state_running_(false)
+        if_state_running_(false),
 #ifndef WITHOUT_SYSTEMD
-        , watchdog_timer_(_host->get_io())
+        watchdog_timer_(_host->get_io()),
 #endif
+        status_log_timer_(_host->get_io()),
+        memory_log_timer_(_host->get_io())
 {
 }
 
@@ -93,7 +101,7 @@ void routing_manager_impl::init() {
     if (configuration_->is_sd_enabled()) {
         VSOMEIP_INFO<< "Service Discovery enabled. Trying to load module.";
         auto its_plugin = plugin_manager::get()->get_plugin(
-                plugin_type_e::SD_RUNTIME_PLUGIN);
+                plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY);
         if (its_plugin) {
             VSOMEIP_INFO << "Service Discovery module loaded.";
             discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this);
@@ -162,6 +170,24 @@ void routing_manager_impl::start() {
         this, std::placeholders::_1));
     }
 #endif
+#ifndef _WIN32
+    if (configuration_->log_memory()) {
+        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        boost::system::error_code ec;
+        memory_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
+        memory_log_timer_.async_wait(
+                std::bind(&routing_manager_impl::memory_log_timer_cbk, this,
+                        std::placeholders::_1));
+    }
+#endif
+    if (configuration_->log_status()) {
+        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::system::error_code ec;
+        status_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
+        status_log_timer_.async_wait(
+                std::bind(&routing_manager_impl::status_log_timer_cbk, this,
+                        std::placeholders::_1));
+    }
 }
 
 void routing_manager_impl::stop() {
@@ -170,11 +196,21 @@ void routing_manager_impl::stop() {
         version_log_timer_.cancel();
     }
 #ifndef _WIN32
+    {
+        boost::system::error_code ec;
+        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        memory_log_timer_.cancel(ec);
+    }
     if (netlink_connector_) {
         netlink_connector_->stop();
     }
 #endif
 
+    {
+        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::system::error_code ec;
+        status_log_timer_.cancel(ec);
+    }
 #ifndef WITHOUT_SYSTEMD
     {
         std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
@@ -2275,10 +2311,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
     }
 }
 
-std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapsed) {
-    const std::chrono::seconds default_ttl(DEFAULT_TTL);
-    std::chrono::milliseconds its_smallest_ttl =
-            std::chrono::duration_cast<std::chrono::milliseconds>(default_ttl);
+void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapsed) {
     std::map<service_t, std::vector<instance_t> > its_expired_offers;
 
     {
@@ -2294,8 +2327,6 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
                     } else {
                         std::chrono::milliseconds its_new_ttl(precise_ttl - _elapsed);
                         i.second->set_precise_ttl(its_new_ttl);
-                        if (its_smallest_ttl > its_new_ttl)
-                            its_smallest_ttl = its_new_ttl;
                     }
                 }
             }
@@ -2309,11 +2340,11 @@ std::chrono::milliseconds routing_manager_impl::update_routing_info(std::chrono:
             }
             del_routing_info(s.first, i, true, true);
             VSOMEIP_INFO << "update_routing_info: elapsed=" << _elapsed.count()
-                    << " : delete service/instance " << std::hex << s.first << "/" << i;
+                    << " : delete service/instance "
+                    << std::hex << std::setw(4) << std::setfill('0') << s.first
+                    << "." << std::hex << std::setw(4) << std::setfill('0') << i;
         }
     }
-
-    return its_smallest_ttl;
 }
 
 void routing_manager_impl::expire_services(const boost::asio::ip::address &_address) {
@@ -2355,7 +2386,9 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
     for (auto &s : its_expired_offers) {
         for (auto &i : s.second) {
             VSOMEIP_INFO << "expire_services for address: " << _address.to_string()
-                    << " : delete service/instance " << std::hex << s.first << "/" << i;
+                    << " : delete service/instance "
+                    << std::hex << std::setw(4) << std::setfill('0') << s.first
+                    << "." << std::hex << std::setw(4) << std::setfill('0') << i;
             del_routing_info(s.first, i, true, true);
         }
     }
@@ -2637,6 +2670,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
             if (find_local_client(_service, _instance) == VSOMEIP_ROUTING_CLIENT) {
                 // service was stopped while subscription was pending
                 // send subscribe_nack back instead
+                eventgroup_lock.unlock();
                 on_subscribe_nack(_client, _service, _instance, _eventgroup,
                         _event, _subscription_id);
                 return;
@@ -4122,6 +4156,153 @@ void routing_manager_impl::send_initial_events(
                 its_event->set_remote_notification_pending(true);
             }
         }
+    }
+}
+
+void routing_manager_impl::memory_log_timer_cbk(
+        boost::system::error_code const & _error) {
+    if (_error) {
+        return;
+    }
+#ifndef _WIN32
+    static const std::uint32_t its_pagesize = getpagesize() / 1024;
+#else
+    static const std::uint32_t its_pagesize = 4096 / 1024;
+#endif
+    std::FILE *its_file = std::fopen("/proc/self/statm", "r");
+    if (!its_file) {
+        VSOMEIP_ERROR << "memory_log_timer_cbk: couldn't open:"
+                << std::string(std::strerror(errno));
+        return;
+    }
+    std::uint64_t its_size(0);
+    std::uint64_t its_rsssize(0);
+    std::uint64_t its_sharedpages(0);
+    std::uint64_t its_text(0);
+    std::uint64_t its_lib(0);
+    std::uint64_t its_data(0);
+    std::uint64_t its_dirtypages(0);
+
+    if (EOF == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size,
+                    &its_rsssize, &its_sharedpages, &its_text, &its_lib,
+                    &its_data, &its_dirtypages)) {
+        VSOMEIP_ERROR<< "memory_log_timer_cbk: error reading:"
+                << std::string(std::strerror(errno));
+    }
+    std::fclose(its_file);
+#ifndef _WIN32
+    struct timespec cputs, monots;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputs);
+    clock_gettime(CLOCK_MONOTONIC, &monots);
+#endif
+
+    VSOMEIP_INFO << "memory usage: "
+            << "VmSize " << std::dec << its_size * its_pagesize << " kB, "
+            << "VmRSS " << std::dec << its_rsssize * its_pagesize << " kB, "
+            << "shared pages " << std::dec << its_sharedpages * its_pagesize << " kB, "
+            << "text " << std::dec << its_text * its_pagesize << " kB, "
+            << "data " << std::dec << its_data * its_pagesize << " kB "
+#ifndef _WIN32
+            << "| monotonic time: " << std::dec << monots.tv_sec << "."
+            << std::dec << monots.tv_nsec << " cpu time: "
+            << std::dec << cputs.tv_sec << "." << std::dec << cputs.tv_nsec
+#endif
+            ;
+
+    {
+        std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
+        boost::system::error_code ec;
+        memory_log_timer_.expires_from_now(std::chrono::seconds(
+                configuration_->get_log_memory_interval()), ec);
+        memory_log_timer_.async_wait(
+                std::bind(&routing_manager_impl::memory_log_timer_cbk, this,
+                        std::placeholders::_1));
+    }
+}
+
+void routing_manager_impl::status_log_timer_cbk(
+        boost::system::error_code const & _error) {
+    if (_error) {
+        return;
+    }
+
+    // local client endpoints
+    {
+        std::map<client_t, std::shared_ptr<endpoint>> lces = get_local_endpoints();
+        VSOMEIP_INFO << "status local client endpoints: " << std::dec << lces.size();
+        for (const auto lce : lces) {
+            lce.second->print_status();
+        }
+    }
+
+    // udp and tcp client endpoints
+    {
+        client_endpoints_by_ip_t client_endpoints_by_ip;
+        remote_services_t remote_services;
+        server_endpoints_t server_endpoints;
+        {
+            std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+            client_endpoints_by_ip = client_endpoints_by_ip_;
+            remote_services = remote_services_;
+            server_endpoints = server_endpoints_;
+        }
+        VSOMEIP_INFO << "status start remote client endpoints:";
+        std::uint32_t num_remote_client_endpoints(0);
+        // normal endpoints
+        for (const auto &a : client_endpoints_by_ip) {
+            for (const auto p : a.second) {
+                for (const auto ru : p.second) {
+                    ru.second->print_status();
+                    num_remote_client_endpoints++;
+                }
+            }
+        }
+        VSOMEIP_INFO << "status end remote client endpoints: " << std::dec
+                << num_remote_client_endpoints;
+
+        // selective client endpoints
+        VSOMEIP_INFO << "status start selective remote client endpoints:";
+        std::uint32_t num_remote_selectiv_client_endpoints(0);
+        for (const auto s : remote_services) {
+            for (const auto i : s.second) {
+                for (const auto c : i.second) {
+                    if (c.first != VSOMEIP_ROUTING_CLIENT) {
+                        for (const auto ur : c.second) {
+                            ur.second->print_status();
+                            num_remote_selectiv_client_endpoints++;
+                        }
+                    }
+                }
+            }
+        }
+        VSOMEIP_INFO << "status end selective remote client endpoints: "
+                << std::dec << num_remote_selectiv_client_endpoints;
+
+        VSOMEIP_INFO << "status start server endpoints:";
+        std::uint32_t num_server_endpoints(1);
+        // local server endpoints
+        stub_->print_endpoint_status();
+
+        // server endpoints
+        for (const auto p : server_endpoints) {
+            for (const auto ru : p.second ) {
+                ru.second->print_status();
+                num_server_endpoints++;
+            }
+        }
+        VSOMEIP_INFO << "status end server endpoints:"
+                << std::dec << num_server_endpoints;
+    }
+
+
+    {
+        std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
+        boost::system::error_code ec;
+        status_log_timer_.expires_from_now(std::chrono::seconds(
+                configuration_->get_log_status_interval()), ec);
+        status_log_timer_.async_wait(
+                std::bind(&routing_manager_impl::status_log_timer_cbk, this,
+                        std::placeholders::_1));
     }
 }
 

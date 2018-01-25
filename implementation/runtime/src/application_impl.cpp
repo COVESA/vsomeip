@@ -82,12 +82,6 @@ bool application_impl::init() {
     }
 
     std::string configuration_path;
-    plugin_manager::get()->load_plugins();
-    auto its_pre_config_plugin = plugin_manager::get()->get_plugin(plugin_type_e::PRE_CONFIGURATION_PLUGIN);
-    if (its_pre_config_plugin) {
-        configuration_path = std::dynamic_pointer_cast<pre_configuration_plugin>(its_pre_config_plugin)->
-                get_configuration_path();
-    }
 
     // load configuration from module
     std::string config_module = "";
@@ -96,7 +90,7 @@ bool application_impl::init() {
         // TODO: Add loading of custom configuration module
     } else { // load default module
         auto its_plugin = plugin_manager::get()->get_plugin(
-                plugin_type_e::CONFIGURATION_PLUGIN);
+                plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             configuration_ = std::dynamic_pointer_cast<configuration>(its_plugin);
             if (configuration_path.length()) {
@@ -247,17 +241,15 @@ bool application_impl::init() {
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
-        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
-        if (!its_application_plugin) {
-            VSOMEIP_INFO << std::hex << "Client 0x" << get_client()
-                    << " : loading application plugin: " << its_app_plugin_info->second;
-            its_application_plugin = plugin_manager::get()->load_plugin(
-                    its_app_plugin_info->second, plugin_type_e::APPLICATION_PLUGIN,
-                    VSOMEIP_APPLICATION_PLUGIN_VERSION);
-        }
-        if (its_application_plugin) {
-            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                    on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
+        for (auto its_library : its_app_plugin_info->second) {
+            auto its_application_plugin = plugin_manager::get()->get_plugin(
+                    plugin_type_e::APPLICATION_PLUGIN, its_library);
+            if (its_application_plugin) {
+                VSOMEIP_INFO << "Client 0x" << std::hex << get_client()
+                        << " Loading plug-in library: " << its_library << " succeeded!";
+                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                        on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
+            }
         }
     }
 
@@ -331,11 +323,15 @@ void application_impl::start() {
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
-        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
-        if (its_application_plugin) {
-            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                    on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
+        for (auto its_library : its_app_plugin_info->second) {
+            auto its_application_plugin = plugin_manager::get()->get_plugin(
+                    plugin_type_e::APPLICATION_PLUGIN, its_library);
+            if (its_application_plugin) {
+                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                        on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
+            }
         }
+
     }
 
     app_counter_mutex__.lock();
@@ -407,11 +403,15 @@ void application_impl::stop() {
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
-        auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN);
-        if (its_application_plugin) {
-            std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                    on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+        for (auto its_library : its_app_plugin_info->second) {
+            auto its_application_plugin = plugin_manager::get()->get_plugin(
+                    plugin_type_e::APPLICATION_PLUGIN, its_library);
+            if (its_application_plugin) {
+                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                        on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+            }
         }
+
     }
 
     stop_cv_.notify_one();

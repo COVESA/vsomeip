@@ -59,6 +59,8 @@ public:
     virtual bool get_default_target(service_t _service,
             endpoint_type &_target) const = 0;
 
+    virtual void print_status() = 0;
+
 protected:
     std::map<endpoint_type, message_buffer_ptr_t> packetizer_;
     queue_type queues_;

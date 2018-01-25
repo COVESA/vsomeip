@@ -212,7 +212,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
     } else {
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
-        _queue_iterator->second.clear();
+        queues_.erase(_queue_iterator);
     }
 }
 

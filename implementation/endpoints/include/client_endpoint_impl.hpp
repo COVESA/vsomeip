@@ -66,6 +66,7 @@ public:
 public:
     virtual void connect() = 0;
     virtual void receive() = 0;
+    virtual void print_status() = 0;
 
 protected:
     virtual void send_queued() = 0;

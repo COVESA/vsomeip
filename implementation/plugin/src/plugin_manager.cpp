@@ -35,14 +35,11 @@ std::shared_ptr<plugin_manager> plugin_manager::get() {
 
 plugin_manager::plugin_manager() :
         plugins_loaded_(false) {
-    plugin_names_[plugin_type_e::CONFIGURATION_PLUGIN] = VSOMEIP_CFG_LIBRARY;
-    plugin_names_[plugin_type_e::SD_RUNTIME_PLUGIN] = VSOMEIP_SD_LIBRARY;
 }
 
 plugin_manager::~plugin_manager() {
     handles_.clear();
     plugins_.clear();
-    plugin_names_.clear();
 }
 
 void plugin_manager::load_plugins() {
@@ -76,12 +73,12 @@ void plugin_manager::load_plugins() {
             if (its_create_func) {
                 auto its_plugin = (*its_create_func)();
                 if (its_plugin) {
-                    handles_[its_plugin->get_plugin_type()] = handle;
+                    handles_[its_plugin->get_plugin_type()][plugin_name] = handle;
                     switch (its_plugin->get_plugin_type()) {
                     case plugin_type_e::APPLICATION_PLUGIN:
                         if (its_plugin->get_plugin_version()
                                 == VSOMEIP_APPLICATION_PLUGIN_VERSION) {
-                            add_plugin(its_plugin);
+                            add_plugin(its_plugin, plugin_name);
                         } else {
                             VSOMEIP_ERROR << "Plugin version mismatch. "
                                     << "Ignoring application plugin "
@@ -91,7 +88,7 @@ void plugin_manager::load_plugins() {
                     case plugin_type_e::PRE_CONFIGURATION_PLUGIN:
                         if (its_plugin->get_plugin_version()
                                 == VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION) {
-                            add_plugin(its_plugin);
+                            add_plugin(its_plugin, plugin_name);
                         } else {
                             VSOMEIP_ERROR << "Plugin version mismatch. Ignoring "
                                     << "pre-configuration plugin "
@@ -107,17 +104,16 @@ void plugin_manager::load_plugins() {
     }
 }
 
-std::shared_ptr<plugin> plugin_manager::get_plugin(plugin_type_e _type) {
+std::shared_ptr<plugin> plugin_manager::get_plugin(plugin_type_e _type, std::string _name) {
     std::lock_guard<std::mutex> its_lock_start_stop(plugins_mutex_);
-    if (plugins_[_type].size()) {
-        return plugins_[_type][0];
-    } else {
-        auto its_name = plugin_names_.find(_type);
-        if (its_name != plugin_names_.end()) {
-            return load_plugin(its_name->second, _type, 1);
+    auto its_type = plugins_.find(_type);
+    if (its_type != plugins_.end()) {
+        auto its_name = its_type->second.find(_name);
+        if (its_name != its_type->second.end()) {
+            return its_name->second;
         }
     }
-    return nullptr;
+    return load_plugin(_name, _type, 1);
 }
 
 std::shared_ptr<plugin> plugin_manager::load_plugin(const std::string _library,
@@ -128,12 +124,12 @@ std::shared_ptr<plugin> plugin_manager::load_plugin(const std::string _library,
     if (its_init_func) {
         create_plugin_func its_create_func = (*its_init_func)();
         if (its_create_func) {
-            handles_[_type] = handle;
+            handles_[_type][_library] = handle;
             auto its_plugin = (*its_create_func)();
             if (its_plugin) {
                 if (its_plugin->get_plugin_type() == _type
                         && its_plugin->get_plugin_version() == _version) {
-                    add_plugin(its_plugin);
+                    add_plugin(its_plugin, _library);
                     return its_plugin;
                 } else {
                     VSOMEIP_ERROR << "Plugin version mismatch. Ignoring plugin "
@@ -149,13 +145,15 @@ bool plugin_manager::unload_plugin(plugin_type_e _type) {
     std::lock_guard<std::mutex> its_lock_start_stop(plugins_mutex_);
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
+        for (auto its_name : found_handle->second) {
 #ifdef _WIN32
-        FreeLibrary((HMODULE)found_handle->second);
+            FreeLibrary((HMODULE)its_name.second);
 #else
-        if (dlclose(found_handle->second)) {
-            VSOMEIP_ERROR << "Unloading failed: (" << dlerror() << ")";
-        }
+            if (dlclose(its_name.second)) {
+                VSOMEIP_ERROR << "Unloading failed: (" << dlerror() << ")";
+            }
 #endif
+        }
     } else {
         VSOMEIP_ERROR << "plugin_manager::unload_plugin didn't find plugin"
                 << " type:" << (int)_type;
@@ -164,8 +162,8 @@ bool plugin_manager::unload_plugin(plugin_type_e _type) {
     return plugins_.erase(_type);
 }
 
-void plugin_manager::add_plugin(const std::shared_ptr<plugin> &_plugin) {
-    plugins_[_plugin->get_plugin_type()].push_back(_plugin);
+void plugin_manager::add_plugin(const std::shared_ptr<plugin> &_plugin, const std::string _name) {
+    plugins_[_plugin->get_plugin_type()][_name] = _plugin;
 }
 
 void * plugin_manager::load_library(const std::string &_path) {

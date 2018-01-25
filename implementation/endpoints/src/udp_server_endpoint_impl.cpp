@@ -395,4 +395,27 @@ client_t udp_server_endpoint_impl::get_client(std::shared_ptr<endpoint_definitio
     return 0;
 }
 
+void udp_server_endpoint_impl::print_status() {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+
+    VSOMEIP_INFO << "status use: " << std::dec << local_port_
+            << " number queues: " << std::dec << queues_.size()
+            << " recv_buffer: " << std::dec << recv_buffer_.capacity();
+
+    for (const auto &c : queues_) {
+        std::size_t its_data_size(0);
+        std::size_t its_queue_size(0);
+        its_queue_size = c.second.size();
+        for (const auto &m : c.second) {
+                its_data_size += m->size();
+        }
+        boost::system::error_code ec;
+        VSOMEIP_INFO << "status use: client: "
+                << c.first.address().to_string(ec) << ":"
+                << std::dec << c.first.port()
+                << " queue: " << std::dec << its_queue_size
+                << " data: " << std::dec << its_data_size;
+    }
+}
+
 } // namespace vsomeip

@@ -1,6 +1,16 @@
 Changes
 =======
 
+v2.10.2
+- Fix deadlock in routing manager when processing subscription
+  acknowledgment from a local client if the corresponding service
+  instance was stopped in the meanwhile.
+- Introduce status_log_interval and memory_log_interval json file
+  parameters which can be used to cyclically log memory consumption
+  and/or internal status of the routing manager in a given interval
+- Add Debug Diagnosis Job plug-in
+- Support definition of multiple client port ranges in configuration
+
 v2.10.1
 - Fix possible memory corruption in routing manager on TCP connection
   reset

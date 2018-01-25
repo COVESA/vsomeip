@@ -47,6 +47,7 @@ public:
     std::uint16_t get_remote_port() const;
 
     void restart();
+    void print_status();
 
 private:
     void send_queued();

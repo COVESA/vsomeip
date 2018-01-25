@@ -41,12 +41,14 @@ public:
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
     bool is_local() const;
-
+    void print_status();
 private:
     void send_queued();
     void connect();
     void receive();
     void set_local_port();
+    const std::string get_address_port_remote() const;
+    const std::string get_address_port_local() const;
 
     message_buffer_t recv_buffer_;
 
