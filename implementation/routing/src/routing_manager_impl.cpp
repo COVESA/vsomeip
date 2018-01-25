@@ -3692,21 +3692,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
 
-                // determine existing subscriptions to remote services and send StopSubscribe
-                for (auto &s : get_services()) {
-                    for (auto &i : s.second) {
-                        if (find_local_client(s.first, i.first) != VSOMEIP_ROUTING_CLIENT) {
-                            continue; //don't expire local services
-                        }
-                        for (auto its_eventgroup : get_subscribed_eventgroups(s.first, i.first)) {
-                            discovery_->unsubscribe(s.first, i.first, its_eventgroup, VSOMEIP_ROUTING_CLIENT);
-                            auto specific_endpoint_clients = get_specific_endpoint_clients(s.first, i.first);
-                            for (auto its_client : specific_endpoint_clients) {
-                                discovery_->unsubscribe(s.first, i.first, its_eventgroup, its_client);
-                            }
-                        }
-                    }
-                }
                 // mark all external services as offline
                 services_t its_remote_services;
                 {
@@ -3715,9 +3700,24 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
                 for (const auto &s : its_remote_services) {
                     for (const auto &i : s.second) {
+                        // determine existing subscriptions to remote service and send StopSubscribe
+                        for (auto its_eventgroup : get_subscribed_eventgroups(s.first, i.first)) {
+                            discovery_->unsubscribe(s.first, i.first, its_eventgroup, VSOMEIP_ROUTING_CLIENT);
+                            auto specific_endpoint_clients = get_specific_endpoint_clients(s.first, i.first);
+                            for (auto its_client : specific_endpoint_clients) {
+                                discovery_->unsubscribe(s.first, i.first, its_eventgroup, its_client);
+                            }
+                            for (const auto &e : find_events(s.first, i.first, its_eventgroup)) {
+                                e->clear_subscribers();
+                            }
+                        }
+
                         const bool has_reliable(i.second->get_endpoint(true));
                         const bool has_unreliable(i.second->get_endpoint(false));
                         del_routing_info(s.first, i.first, has_reliable, has_unreliable);
+
+                        // clear all cached payloads of remote services
+                        unset_all_eventpayloads(s.first, i.first);
                     }
                 }
                 break;

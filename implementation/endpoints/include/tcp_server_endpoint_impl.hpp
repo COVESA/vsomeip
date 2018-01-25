@@ -15,6 +15,8 @@
 #include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
 
+#include <chrono>
+
 namespace vsomeip {
 
 typedef server_endpoint_impl<
@@ -108,6 +110,7 @@ private:
         boost::asio::ip::address remote_address_;
         std::uint16_t remote_port_;
         std::atomic<bool> magic_cookies_enabled_;
+        std::chrono::steady_clock::time_point last_cookie_sent_;
     };
 
     std::mutex acceptor_mutex_;

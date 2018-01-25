@@ -213,7 +213,8 @@ tcp_server_endpoint_impl::connection::connection(
         shrink_count_(0),
         buffer_shrink_threshold_(_buffer_shrink_threshold),
         remote_port_(0),
-        magic_cookies_enabled_(_magic_cookies_enabled) {
+        magic_cookies_enabled_(_magic_cookies_enabled),
+        last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)) {
 }
 
 tcp_server_endpoint_impl::connection::ptr
@@ -303,7 +304,13 @@ void tcp_server_endpoint_impl::connection::send_queued(
     }
     message_buffer_ptr_t its_buffer = _queue_iterator->second.front();
     if (magic_cookies_enabled_) {
-        send_magic_cookie(its_buffer);
+        const std::chrono::steady_clock::time_point now =
+                std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
+            send_magic_cookie(its_buffer);
+            last_cookie_sent_ = now;
+        }
     }
 
     {

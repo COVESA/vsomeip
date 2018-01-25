@@ -35,7 +35,8 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(
       shrink_count_(0),
       buffer_shrink_threshold_(_buffer_shrink_threshold),
       remote_address_(_remote.address()),
-      remote_port_(_remote.port()) {
+      remote_port_(_remote.port()),
+      last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)) {
     is_supporting_magic_cookies_ = true;
 }
 
@@ -174,8 +175,16 @@ void tcp_client_endpoint_impl::send_queued() {
         return;
     }
 
-    if (has_enabled_magic_cookies_)
-        send_magic_cookie(its_buffer);
+    if (has_enabled_magic_cookies_) {
+        const std::chrono::steady_clock::time_point now =
+                std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
+            send_magic_cookie(its_buffer);
+            last_cookie_sent_ = now;
+        }
+    }
+
 
 #if 0
     std::stringstream msg;

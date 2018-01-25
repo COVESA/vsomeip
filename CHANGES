@@ -1,5 +1,12 @@
 Changes
 =======
+
+v2.9.5
+- Change magic cookie behaviour to only send a magic cookie every 10
+  seconds instead of in front of every SOME/IP message
+- Fixed bug which prevented resubscription after resuming from
+  suspended state
+
 v2.9.4
 - Fixed deadlock on suspend to RAM / resume, triggered
   by signal handler.

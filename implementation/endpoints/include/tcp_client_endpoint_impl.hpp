@@ -7,6 +7,7 @@
 #define VSOMEIP_TCP_CLIENT_ENDPOINT_IMPL_HPP
 
 #include <boost/asio/ip/tcp.hpp>
+#include <chrono>
 
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"
@@ -61,6 +62,7 @@ private:
 
     const boost::asio::ip::address remote_address_;
     const std::uint16_t remote_port_;
+    std::chrono::steady_clock::time_point last_cookie_sent_;
 };
 
 } // namespace vsomeip
