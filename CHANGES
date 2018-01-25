@@ -329,3 +329,9 @@ v2.7.0
   is_valid_crc()
 - Incoming remote responses where the CRC check fails will trigger:
   set_is_valid_crc(false)
+
+v2.7.1
+- Prevent processing of too short messages received via UDP
+- Avoid catching SIGABRT in vsomeipd
+- Prevent duplicate logging of remote messages
+- Log message cleanup/enhancement

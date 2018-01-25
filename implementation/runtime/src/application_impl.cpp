@@ -765,6 +765,9 @@ void application_impl::do_register_availability_handler(service_t _service,
                                                  for(auto available_instances_it : available_services_it.second)
                                                      _handler(available_services_it.first, available_instances_it.first, are_available);
                                          });
+    its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+    its_sync_handler->service_id_ = _service;
+    its_sync_handler->instance_id_ = _instance;
     handlers_.push_back(its_sync_handler);
 
     dispatcher_condition_.notify_one();
@@ -964,6 +967,11 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
                             handler(_service, _instance,
                                     _eventgroup, _event, _error);
                                              });
+        its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
+        its_sync_handler->service_id_ = _service;
+        its_sync_handler->instance_id_ = _instance;
+        its_sync_handler->method_id_ = _event;
+        its_sync_handler->eventgroup_id_ = _eventgroup;
         handlers_.push_back(its_sync_handler);
     }
     if (handlers.size()) {
@@ -996,6 +1004,10 @@ void application_impl::on_subscription_error(service_t _service,
                 = std::make_shared<sync_handler>([handler, _error]() {
                                                     handler(_error);
                                                  });
+            its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
+            its_sync_handler->service_id_ = _service;
+            its_sync_handler->instance_id_ = _instance;
+            its_sync_handler->eventgroup_id_ = _eventgroup;
             handlers_.push_back(its_sync_handler);
         }
         dispatcher_condition_.notify_all();
@@ -1172,6 +1184,7 @@ void application_impl::on_state(state_type_e _state) {
                 = std::make_shared<sync_handler>([handler, _state]() {
                                                     handler(_state);
                                                  });
+            its_sync_handler->handler_type_ = handler_type_e::STATE;
             handlers_.push_back(its_sync_handler);
         }
         dispatcher_condition_.notify_one();
@@ -1264,6 +1277,9 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
                                 {
                                     handler(_service, _instance, _is_available);
                                 });
+                its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+                its_sync_handler->service_id_ = _service;
+                its_sync_handler->instance_id_ = _instance;
                 handlers_.push_back(its_sync_handler);
             }
         }
@@ -1375,6 +1391,11 @@ void application_impl::on_message(const std::shared_ptr<message> &&_message) {
                             std::make_shared<sync_handler>([handler, _message]() {
                                 handler(std::move(_message));
                             });
+                    its_sync_handler->handler_type_ = handler_type_e::MESSAGE;
+                    its_sync_handler->service_id_ = _message->get_service();
+                    its_sync_handler->instance_id_ = _message->get_instance();
+                    its_sync_handler->method_id_ = _message->get_method();
+                    its_sync_handler->session_id_ = _message->get_session();
                     handlers_.push_back(its_sync_handler);
                 }
             }
@@ -1460,9 +1481,9 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
 
     boost::asio::steady_timer its_dispatcher_timer(io_);
     its_dispatcher_timer.expires_from_now(std::chrono::milliseconds(max_dispatch_time_));
-    its_dispatcher_timer.async_wait([this, its_id](const boost::system::error_code &_error) {
+    its_dispatcher_timer.async_wait([this, its_id, _handler](const boost::system::error_code &_error) {
         if (!_error) {
-            VSOMEIP_INFO << "Blocking call detected. Client=" << std::hex << get_client();
+            print_blocking_call(_handler);
             bool active_dispatcher_available(false);
             {
                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
@@ -1824,6 +1845,41 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
     }
 
     return should_subscribe;
+}
+
+void application_impl::print_blocking_call(std::shared_ptr<sync_handler> _handler) {
+    switch (_handler->handler_type_) {
+        case handler_type_e::AVAILABILITY:
+            VSOMEIP_INFO << "BLOCKING CALL AVAILABILITY("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "]";
+            break;
+        case handler_type_e::MESSAGE:
+            VSOMEIP_INFO << "BLOCKING CALL MESSAGE("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << ":"
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->session_id_ << "]";
+            break;
+        case handler_type_e::STATE:
+            VSOMEIP_INFO << "BLOCKING CALL STATE("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+            break;
+        case handler_type_e::SUBSCRIPTION:
+            VSOMEIP_INFO << "BLOCKING CALL SUBSCRIPTION("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->eventgroup_id_ << ":"
+                << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << "]";
+            break;
+        case handler_type_e::UNKNOWN:
+            VSOMEIP_INFO << "BLOCKING CALL UNKNOWN("
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+            break;
+    }
 }
 
 } // namespace vsomeip

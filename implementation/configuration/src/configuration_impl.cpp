@@ -1315,9 +1315,6 @@ std::set<uint16_t> configuration_impl::load_client_ports(
 }
 
 void configuration_impl::load_watchdog(const element &_element) {
-    watchdog_->is_enabeled_ = false;
-    watchdog_->timeout_in_ms_ = VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT;
-    watchdog_->missing_pongs_allowed_ = VSOMEIP_DEFAULT_MAX_MISSING_PONGS;
     try {
         auto its_service_discovery = _element.tree_.get_child("watchdog");
         for (auto i = its_service_discovery.begin();

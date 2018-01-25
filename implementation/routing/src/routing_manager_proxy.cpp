@@ -743,6 +743,9 @@ void routing_manager_proxy::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
         is_connected_ = !(_endpoint == sender_);
     }
     if (!is_connected_) {
+        VSOMEIP_INFO << "routing_manager_proxy::on_disconnect: Client 0x" << std::hex
+                << get_client() << " calling host_->on_state "
+                << "with DEREGISTERED";
         host_->on_state(state_type_e::ST_DEREGISTERED);
     }
 }
@@ -1102,6 +1105,12 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
         std::memcpy(&its_client_size, &_data[i], sizeof(uint32_t));
         i += uint32_t(sizeof(uint32_t));
 
+        if (its_client_size + i > _size) {
+            VSOMEIP_WARNING << "Client 0x" << std::hex << get_client() << " : "
+                    << "Processing of routing info failed due to bad length fields!";
+            return;
+        }
+
         if (i + sizeof(client_t) <= _size) {
             client_t its_client;
             std::memcpy(&its_client, &_data[i], sizeof(client_t));
@@ -1195,6 +1204,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                                 send_pending_subscriptions(its_service, its_instance, its_major);
                             }
                             host_->on_availability(its_service, its_instance, true, its_major, its_minor);
+                            VSOMEIP_INFO << "ON_AVAILABLE("
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
+                                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << its_instance
+                                << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
                         } else if (routing_info_entry == routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE) {
                             {
                                 std::lock_guard<std::mutex> its_lock(local_services_mutex_);
@@ -1208,6 +1222,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                             }
                             on_stop_offer_service(its_service, its_instance, its_major, its_minor);
                             host_->on_availability(its_service, its_instance, false, its_major, its_minor);
+                            VSOMEIP_INFO << "ON_UNAVAILABLE("
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
+                                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                << std::hex << std::setw(4) << std::setfill('0') << its_instance
+                                << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
                         }
 
                         its_services_size -= uint32_t(sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t) );

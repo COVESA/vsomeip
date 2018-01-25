@@ -175,14 +175,35 @@ private:
     //
     // Types
     //
+
+    enum class handler_type_e : uint8_t {
+        MESSAGE,
+        AVAILABILITY,
+        STATE,
+        SUBSCRIPTION,
+        UNKNOWN
+    };
+
     struct sync_handler {
 
         sync_handler(std::function<void()> _handler) :
                     handler_(_handler),
-                    is_dispatching_(false) { }
+                    is_dispatching_(false),
+                    service_id_(ANY_SERVICE),
+                    instance_id_(ANY_INSTANCE),
+                    method_id_(ANY_METHOD),
+                    session_id_(0),
+                    eventgroup_id_(0),
+                    handler_type_(handler_type_e::UNKNOWN) { }
 
         std::function<void()> handler_;
         bool is_dispatching_;
+        service_t service_id_;
+        instance_t instance_id_;
+        method_t method_id_;
+        session_t session_id_;
+        eventgroup_t eventgroup_id_;
+        handler_type_e handler_type_;
     };
 
     struct message_handler {
@@ -242,6 +263,8 @@ private:
 
     bool check_subscription_state(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event);
+
+    void print_blocking_call(std::shared_ptr<sync_handler> _handler);
     //
     // Attributes
     //

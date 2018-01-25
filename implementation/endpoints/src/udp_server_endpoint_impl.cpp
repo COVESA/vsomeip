@@ -328,12 +328,18 @@ void udp_server_endpoint_impl::receive_cbk(
                     i += current_message_size;
                 } else {
                     VSOMEIP_ERROR << "Received an unreliable vSomeIP message with bad length field";
-                    service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[VSOMEIP_SERVICE_POS_MIN],
-                            recv_buffer_[VSOMEIP_SERVICE_POS_MAX]);
-                    if (its_service != VSOMEIP_SD_SERVICE) {
-                        its_host->on_error(&recv_buffer_[i],
-                                (uint32_t)remaining_bytes, this,
-                                its_remote_address, its_remote_port);
+                    if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
+                        service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[VSOMEIP_SERVICE_POS_MIN],
+                                recv_buffer_[VSOMEIP_SERVICE_POS_MAX]);
+                        if (its_service != VSOMEIP_SD_SERVICE) {
+                            if (read_message_size == 0) {
+                                VSOMEIP_ERROR << "Ignoring unreliable vSomeIP message with SomeIP message length 0!";
+                            } else {
+                                its_host->on_error(&recv_buffer_[i],
+                                        (uint32_t)remaining_bytes, this,
+                                        its_remote_address, its_remote_port);
+                            }
+                        }
                     }
                     remaining_bytes = 0;
                 }

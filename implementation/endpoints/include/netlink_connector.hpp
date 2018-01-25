@@ -94,48 +94,6 @@ public:
         return sizeof(sockaddr);
     }
 
-    /// Compare two endpoints for equality.
-    friend bool operator==(const nl_endpoint<Protocol>& e1,
-               const nl_endpoint<Protocol>& e2)
-    {
-        return e1.sockaddr == e2.sockaddr;
-    }
-
-    /// Compare two endpoints for inequality.
-    friend bool operator!=(const nl_endpoint<Protocol>& e1,
-               const nl_endpoint<Protocol>& e2)
-    {
-        return !(e1.sockaddr == e2.sockaddr);
-    }
-
-    /// Compare endpoints for ordering.
-    friend bool operator<(const nl_endpoint<Protocol>& e1,
-              const nl_endpoint<Protocol>& e2)
-    {
-        return e1.sockaddr < e2.sockaddr;
-    }
-
-    /// Compare endpoints for ordering.
-    friend bool operator>(const nl_endpoint<Protocol>& e1,
-              const nl_endpoint<Protocol>& e2)
-    {
-        return e2.sockaddr < e1.sockaddr;
-    }
-
-    /// Compare endpoints for ordering.
-    friend bool operator<=(const nl_endpoint<Protocol>& e1,
-               const nl_endpoint<Protocol>& e2)
-    {
-        return !(e2 < e1);
-    }
-
-    /// Compare endpoints for ordering.
-    friend bool operator>=(const nl_endpoint<Protocol>& e1,
-               const nl_endpoint<Protocol>& e2)
-    {
-        return !(e1 < e2);
-    }
-
 private:
     sockaddr_nl sockaddr;
 };

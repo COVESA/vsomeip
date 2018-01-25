@@ -560,9 +560,16 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         bool is_service_discovery = (its_service == vsomeip::sd::service
                 && its_method == vsomeip::sd::method);
 
+#ifdef USE_DLT
+        bool is_response(false);
+#endif
+
         if (is_request) {
             its_target = find_local(its_service, _instance);
         } else if (!is_notification) {
+#ifdef USE_DLT
+            is_response = true;
+#endif
             its_target = find_local(its_client);
         } else if (is_notification && _client) { // Selective notifications!
             if (_client == get_client()) {
@@ -583,13 +590,16 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 
         if (its_target) {
 #ifdef USE_DLT
-            const uint16_t its_data_size
-                = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
+            if ((is_request && its_client == get_client()) ||
+                    (is_response && find_local_client(its_service, _instance) == get_client())) {
+                const uint16_t its_data_size
+                    = uint16_t(_size > USHRT_MAX ? USHRT_MAX : _size);
 
-            tc::trace_header its_header;
-            if (its_header.prepare(its_target, true, _instance))
-                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                        _data, its_data_size);
+                tc::trace_header its_header;
+                if (its_header.prepare(its_target, true, _instance))
+                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
+                            _data, its_data_size);
+            }
 #endif
             is_sent = send_local(its_target, get_client(), _data, _size, _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
         } else {
@@ -2316,26 +2326,27 @@ bool routing_manager_impl::on_subscribe_accepted(service_t _service, instance_t 
             return false;
         }
 
-        if (client != VSOMEIP_ROUTING_CLIENT) {
-            VSOMEIP_INFO << "Subscription accepted: eventgroup=" << _eventgroup
-                          << " : target: " << _target->get_address().to_string()
-                          << ":" << std::dec <<_target->get_port()
-                          << (_target->is_reliable() ? " reliable" : " unreliable")
-                          << " from client: 0x" << std::hex << client << ".";
-        } else {
-            VSOMEIP_INFO << "Subscription accepted: eventgroup: " << _eventgroup
-                          << " : target: " << _target->get_address().to_string()
-                          << ":" << std::dec <<_target->get_port()
-                          << (_target->is_reliable() ? " reliable" : " unreliable")
-                          << " from unknown client.";
-        }
+        VSOMEIP_INFO << "REMOTE SUBSCRIBE("
+            << std::hex << std::setw(4) << std::setfill('0') << client <<"): ["
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+            << " from " << _target->get_address().to_string()
+            << ":" << std::dec <<_target->get_port()
+            << (_target->is_reliable() ? " reliable" : " unreliable");
 
         {
             std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
             remote_subscribers_[_service][_instance][client].insert(_target);
         }
     } else {
-        VSOMEIP_ERROR<< "subscribe: attempt to subscribe to unknown eventgroup!";
+        VSOMEIP_ERROR << "REMOTE SUBSCRIBE: attempt to subscribe to unknown eventgroup ["
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+            << " from " << _target->get_address().to_string()
+            << ":" << std::dec <<_target->get_port()
+            << (_target->is_reliable() ? " reliable" : " unreliable");
         return false;
     }
     return true;
@@ -2409,16 +2420,14 @@ void routing_manager_impl::on_unsubscribe(service_t _service,
     if (its_eventgroup) {
         client_t its_client = find_client(_service, _instance, its_eventgroup, _target);
 
-        if (its_client != VSOMEIP_ROUTING_CLIENT) {
-            VSOMEIP_INFO << "on_unsubscribe: target: " << _target->get_address().to_string()
-                            << ":" << std::dec <<_target->get_port()
-                            << (_target->is_reliable() ? " reliable" : " unreliable")
-                            << " from client: 0x" << std::hex << its_client;
-        } else {
-            VSOMEIP_INFO << "on_unsubscribe: target: " << _target->get_address().to_string()
-                                    << ":" << std::dec <<_target->get_port()
-                                    << (_target->is_reliable() ? " reliable" : " unreliable");
-        }
+        VSOMEIP_INFO << "REMOTE UNSUBSCRIBE("
+            << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+            << " from " << _target->get_address().to_string()
+            << ":" << std::dec <<_target->get_port()
+            << (_target->is_reliable() ? " reliable" : " unreliable");
 
         its_eventgroup->remove_target(_target);
         clear_remote_subscriber(_service, _instance, its_client, _target);
@@ -2439,7 +2448,13 @@ void routing_manager_impl::on_unsubscribe(service_t _service,
         }
 
     } else {
-        VSOMEIP_ERROR<<"unsubscribe: attempt to subscribe to unknown eventgroup!";
+        VSOMEIP_ERROR << "REMOTE UNSUBSCRIBE: attempt to subscribe to unknown eventgroup ["
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+            << " from " << _target->get_address().to_string()
+            << ":" << std::dec <<_target->get_port()
+            << (_target->is_reliable() ? " reliable" : " unreliable");
     }
 }
 

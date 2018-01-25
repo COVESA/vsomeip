@@ -29,11 +29,6 @@ void vsomeipd_stop(int _signal) {
     if (_signal == SIGINT || _signal == SIGTERM) {
         its_application->stop();
     }
-    if (_signal == SIGABRT) {
-        VSOMEIP_INFO << "Stopping service discovery";
-        its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
-        its_application->stop();
-    }
     if (_signal == SIGUSR1) {
         VSOMEIP_INFO << "Suspending service discovery";
         its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
@@ -69,7 +64,6 @@ int vsomeipd_process(bool _is_quiet) {
     // Handle signals
     signal(SIGINT, vsomeipd_stop);
     signal(SIGTERM, vsomeipd_stop);
-    signal(SIGABRT, vsomeipd_stop);
     signal(SIGUSR1, vsomeipd_stop);
     signal(SIGUSR2, vsomeipd_stop);
 #endif
