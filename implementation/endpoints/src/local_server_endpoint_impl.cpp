@@ -173,25 +173,13 @@ bool local_server_endpoint_impl::get_default_target(
 
 void local_server_endpoint_impl::remove_connection(
         local_server_endpoint_impl::connection *_connection) {
-    endpoint_type its_target;
-    {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        for (auto it = connections_.begin(); it != connections_.end();) {
-            if (it->second.get() == _connection) {
-                its_target = it->first;
-                it = connections_.erase(it);
-                break;
-            } else {
-                ++it;
-            }
-        }
-    }
-    {
-        // delete outstanding responses for this connection as well
-        std::lock_guard<std::mutex> its_lock(mutex_);
-        const auto found_target = queues_.find(its_target);
-        if (found_target != queues_.end()) {
-            found_target->second.clear();
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    for (auto it = connections_.begin(); it != connections_.end();) {
+        if (it->second.get() == _connection) {
+            it = connections_.erase(it);
+            break;
+        } else {
+            ++it;
         }
     }
 }

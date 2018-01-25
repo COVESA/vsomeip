@@ -1,6 +1,10 @@
 Changes
 =======
 
+v2.10.1
+- Fix possible memory corruption in routing manager on TCP connection
+  reset
+
 v2.10.0
 - Add register_async_subscription_handler to application interface
 - Ensure faster stopping of UDP and TCP endpoints
