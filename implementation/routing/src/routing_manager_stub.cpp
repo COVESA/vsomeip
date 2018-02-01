@@ -29,7 +29,7 @@
 #include "../include/routing_manager_stub.hpp"
 #include "../include/routing_manager_stub_host.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../endpoints/include/local_server_endpoint_impl.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"

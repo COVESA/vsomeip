@@ -18,10 +18,10 @@
 
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
-#include "../../configuration/include/internal.hpp"
-#include "../../logging/include/logger.hpp"
-#include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "configuration/include/internal.hpp"
+#include "logging/include/logger.hpp"
+#include "utility/include/utility.hpp"
+#include "utility/include/byteorder.hpp"
 
 namespace vsomeip {
 

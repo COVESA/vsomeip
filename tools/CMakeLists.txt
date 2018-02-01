@@ -3,16 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8)
+add_custom_target(tools)
 
 # vsomeip_ctrl
 add_executable(vsomeip_ctrl EXCLUDE_FROM_ALL vsomeip_ctrl.cpp)
-target_link_libraries(vsomeip_ctrl
-    vsomeip
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-)
-
-###################################################################################################
-
+target_link_libraries(vsomeip_ctrl vsomeip::vsomeip)
+set_target_properties(vsomeip_ctrl PROPERTIES CXX_STANDARD 14)

@@ -18,8 +18,8 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
-#include "../../endpoints/include/endpoint_host.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "endpoints/include/endpoint_host.hpp"
+#include "configuration/include/internal.hpp"
 #include "types.hpp"
 
 namespace vsomeip {
@@ -82,6 +82,7 @@ public:
     bool send_ping(client_t _client);
     bool is_registered(client_t _client) const;
     client_t get_client() const;
+    instance_t get_instance(service_t _service, endpoint *_endpoint);
     void handle_requests(const client_t _client, std::set<service_data_t>& _requests);
 
     void send_identify_request_command(std::shared_ptr<vsomeip::endpoint> _target,

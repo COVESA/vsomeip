@@ -3,11 +3,72 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8.1)
+##############################################################################
+# google test
+
+# check for set environment variable
+if(DEFINED ENV{GTEST_ROOT})
+    message("GTEST_ROOT is set. GTEST_ROOT = $ENV{GTEST_ROOT}")
+else()
+    message("GTEST_ROOT is not defined. For building the tests environment variable
+        GTEST_ROOT have to be defined. Tests can not be built.")
+    # early exit
+    return()  # test can not be build -> make commands build_tests and check are not available
+endif()
+
+# build google test as static library (always) -> therefore deactivate BUILD_SHARED_LIBS in case it is active
+set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
+if("${BUILD_SHARED_LIBS}" STREQUAL "ON")
+    set(BUILD_SHARED_LIBS OFF)
+    set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 1)
+endif()
+add_subdirectory($ENV{GTEST_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/gtest EXCLUDE_FROM_ALL)
+if("${BUILD_SHARED_LIBS_AUTOMATIC_OFF}" STREQUAL "1")
+    set(BUILD_SHARED_LIBS ON)
+    set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
+endif()
+
+##############################################################################
+# build tests
+
+enable_testing()
+set(TESTS_BAT "OFF" CACHE BOOL
+    "Controls whether only BAT tests should be build or not")
+set(TEST_SYMLINK_CONFIG_FILES "OFF" CACHE BOOL
+    "Controls if the json and scripts needed needed to run
+    the tests are copied or symlinked into the build directroy (ignored on Windows)")
+set(TEST_SYMLINK_CONFIG_FILES_RELATIVE "OFF" CACHE BOOL
+    "Controls if the json and scripts needed needed to run the tests are symlinked
+    relatively into the build directroy (ignored on Windows)")
+
+set(TEST_IP_DEFAULT_VALUE "XXX.XXX.XXX.XXX")
+set(TEST_IP_MASTER "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
+    "The IP address of the interface which will act as test master")
+set(TEST_IP_SLAVE "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
+    "The IP address of the interface which will act as test slave")
+
+if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
+    (${TEST_IP_SLAVE} STREQUAL ${TEST_IP_DEFAULT_VALUE}))
+    message(WARNING "TEST_IP_MASTER and/or TEST_IP_SLAVE isn't set. "
+                    "Only local tests will be runnable "
+                    "Please specify them via for example "
+                    "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125")
+endif()
+
+add_custom_target(build_tests)
+add_dependencies(build_tests vsomeip)
+add_dependencies(build_tests vsomeip-sd)
+
+set(CMAKE_CTEST_COMMAND ctest -V)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+
+add_dependencies(check build_tests)
+
+##############################################################################
+# add test directory
 
 # Add the gtest header files to the include files
 include_directories(
-    .
     ${gtest_SOURCE_DIR}/include
 )
 
@@ -21,7 +82,7 @@ set(TEST_LINK_LIBRARIES gtest)
 #                   a dependency to this target
 function(copy_to_builddir SOURCE_PATH DESTINATION_PATH TARGET_TO_DEPEND)
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows" OR NOT ${TEST_SYMLINK_CONFIG_FILES})
-        ADD_CUSTOM_COMMAND(
+        add_custom_command(
             OUTPUT "${DESTINATION_PATH}"
             COMMAND ${CMAKE_COMMAND} -E copy "${SOURCE_PATH}" "${DESTINATION_PATH}"
             DEPENDS "${SOURCE_PATH}"
@@ -29,7 +90,7 @@ function(copy_to_builddir SOURCE_PATH DESTINATION_PATH TARGET_TO_DEPEND)
         )
     else()
         if(${TEST_SYMLINK_CONFIG_FILES_RELATIVE})
-            ADD_CUSTOM_COMMAND(
+            add_custom_command(
                 OUTPUT "${DESTINATION_PATH}"
                 # Create a relative link
                 COMMAND ln -s -r "${SOURCE_PATH}" "${DESTINATION_PATH}"
@@ -37,7 +98,7 @@ function(copy_to_builddir SOURCE_PATH DESTINATION_PATH TARGET_TO_DEPEND)
                 COMMENT "Symlinking \"${SOURCE_PATH}\" into build directory"
             )
         else()
-            ADD_CUSTOM_COMMAND(
+            add_custom_command(
                 OUTPUT "${DESTINATION_PATH}"
                 # Create an absolute link
                 COMMAND ${CMAKE_COMMAND} -E create_symlink "${SOURCE_PATH}" "${DESTINATION_PATH}"
@@ -49,18 +110,18 @@ function(copy_to_builddir SOURCE_PATH DESTINATION_PATH TARGET_TO_DEPEND)
     # Add a random number to the end of the string to avoid problems with
     # duplicate filenames
     set(FILENAME "")
-    get_filename_component(FILENAME ${SOURCE_PATH} NAME )
+    get_filename_component(FILENAME ${SOURCE_PATH} NAME)
     string(RANDOM LENGTH 4 ALPHABET 0123456789 RANDOMNUMBER)
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        ADD_CUSTOM_TARGET(copy_${FILENAME}_${RANDOMNUMBER}
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        add_custom_target(copy_${FILENAME}_${RANDOMNUMBER}
             DEPENDS "${DESTINATION_PATH}"
         )
-        ADD_DEPENDENCIES(${TARGET_TO_DEPEND} copy_${FILENAME}_${RANDOMNUMBER})
+        add_dependencies(${TARGET_TO_DEPEND} copy_${FILENAME}_${RANDOMNUMBER})
     else()
-        ADD_CUSTOM_TARGET(symlink_${FILENAME}_${RANDOMNUMBER}
+        add_custom_target(symlink_${FILENAME}_${RANDOMNUMBER}
             DEPENDS "${DESTINATION_PATH}"
         )
-        ADD_DEPENDENCIES(${TARGET_TO_DEPEND} symlink_${FILENAME}_${RANDOMNUMBER})
+        add_dependencies(${TARGET_TO_DEPEND} symlink_${FILENAME}_${RANDOMNUMBER})
     endif()
 endfunction()
 
@@ -78,7 +139,7 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
-    
+ 
     # The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
     # from the config folder into the test folder in the builddirectory
     # This makes it possible to call the configuration test within the build directory
@@ -134,7 +195,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
+        ${PROJECT_BINARY_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_CONFIGURATION_FILE}
@@ -144,7 +205,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
-        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+        ${PROJECT_BINARY_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
@@ -154,7 +215,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+        ${PROJECT_BINARY_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
@@ -164,19 +225,19 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
-        ${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+        ${PROJECT_BINARY_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
         ${TEST_APPLICATION}
-    )
+        )
 
     set(TEST_APPLICATION_STARTER ${TEST_APPLICATION}_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_STARTER}
         ${TEST_APPLICATION}
     )
-    
+ 
     set(TEST_APPLICATION_SINGLE_PROCESS_STARTER ${TEST_APPLICATION}_single_process_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
@@ -219,7 +280,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE ${TEST_MAGIC_COOKIES_CLIENT}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
@@ -238,7 +299,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE ${TEST_MAGIC_COOKIES_SERVICE}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
@@ -390,7 +451,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.in
-        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
+        ${PROJECT_BINARY_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_ROUTING_STARTER}
@@ -412,7 +473,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
@@ -441,7 +502,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
@@ -507,7 +568,7 @@ else()
     set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.bat.in
-        ${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
+        ${PROJECT_BINARY_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_ROUTING_STARTER}
@@ -610,7 +671,7 @@ if (${TEST_SECURITY})
         set(TEST_SECURITY_SERVICE_CONFIG_FILE ${TEST_SECURITY_NAME}_config.json)
         configure_file(
             ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE}.in
-            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            ${PROJECT_BINARY_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
             @ONLY)
         copy_to_builddir(
             ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
@@ -714,7 +775,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
@@ -736,7 +797,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
@@ -767,7 +828,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
@@ -776,7 +837,9 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh)
+    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT
+        ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh
+        )
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
@@ -786,7 +849,8 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL external_local_payload_test_service_client_external)
 
     # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL}_start.sh)
+    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT
+        ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL}_start.sh)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
@@ -794,7 +858,8 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}_starter.sh)
+    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER
+        ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
         ${TEST_PAYLOAD_CLIENT}
@@ -802,9 +867,12 @@ if(NOT ${TESTS_BAT})
 
     ##############################################################################
     # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME external_local_payload_test_client_local_and_external)
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}_starter.sh)
-    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
+    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME
+        external_local_payload_test_client_local_and_external)
+    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER
+        ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
         ${TEST_PAYLOAD_CLIENT}
     )
@@ -879,7 +947,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
@@ -891,7 +959,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_service.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
@@ -903,7 +971,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_client_limited_general.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
@@ -915,7 +983,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_service_limited_general.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
@@ -927,7 +995,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
@@ -939,7 +1007,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
@@ -951,7 +1019,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_general.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
@@ -963,7 +1031,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_general.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
@@ -975,7 +1043,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_specific.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
@@ -987,7 +1055,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_specific.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+        ${PROJECT_BINARY_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
@@ -1080,7 +1148,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1092,7 +1160,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1104,7 +1172,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1116,7 +1184,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1128,7 +1196,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1140,7 +1208,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1152,7 +1220,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1164,7 +1232,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1176,7 +1244,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1188,7 +1256,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1255,7 +1323,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1267,7 +1335,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1279,7 +1347,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
@@ -1291,7 +1359,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
@@ -1303,7 +1371,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1315,7 +1383,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1327,7 +1395,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
@@ -1339,7 +1407,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
@@ -1351,7 +1419,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1363,7 +1431,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1375,7 +1443,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1387,7 +1455,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1399,7 +1467,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1411,7 +1479,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1423,7 +1491,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
@@ -1435,7 +1503,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
@@ -1447,7 +1515,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
@@ -1459,7 +1527,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
@@ -1507,7 +1575,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
@@ -1519,7 +1587,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
@@ -1530,7 +1598,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
@@ -1571,7 +1639,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1583,7 +1651,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1595,7 +1663,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
@@ -1607,7 +1675,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
@@ -1651,7 +1719,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
@@ -1661,7 +1729,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
@@ -1685,7 +1753,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
@@ -1695,7 +1763,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
@@ -1730,7 +1798,7 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
-    
+ 
     set(TEST_INITIAL_EVENT_CLIENT ${TEST_INITIAL_EVENT_NAME}_client)
     add_executable(${TEST_INITIAL_EVENT_CLIENT} initial_event_tests/${TEST_INITIAL_EVENT_NAME}_client.cpp)
     target_link_libraries(${TEST_INITIAL_EVENT_CLIENT}
@@ -1763,7 +1831,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1775,7 +1843,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1788,7 +1856,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
@@ -1800,7 +1868,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
@@ -1812,7 +1880,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1824,7 +1892,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1836,7 +1904,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
@@ -1848,7 +1916,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_tcp.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
@@ -1860,7 +1928,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1872,7 +1940,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1884,7 +1952,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
@@ -1896,7 +1964,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
@@ -1908,7 +1976,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
@@ -1920,7 +1988,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
@@ -1932,7 +2000,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
@@ -1944,7 +2012,7 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
@@ -2044,7 +2112,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_SLAVE_CONFIG_FILE ${TEST_OFFER_NAME}_external_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
@@ -2055,7 +2123,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_MASTER_CONFIG_FILE ${TEST_OFFER_NAME}_external_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
@@ -2067,7 +2135,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_SLAVE_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_slave.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
@@ -2078,7 +2146,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_MASTER_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
@@ -2090,7 +2158,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_EXTERNAL_MASTER_STARTER}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
@@ -2106,7 +2174,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_MASTER_STARTER ${TEST_OFFER_BIG_NAME}_master_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/offer_tests/conf/${TEST_OFFER_BIG_MASTER_STARTER}.in
-        ${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_MASTER_STARTER}
@@ -2199,7 +2267,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_PENDING_SUBSCRIPTION_MASTER_STARTER ${TEST_PENDING_SUBSCRIPTION_NAME}_master_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}.in
-        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
@@ -2210,7 +2278,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_PENDING_SUBSCRIPTION_CONFIG_FILE ${TEST_PENDING_SUBSCRIPTION_NAME}_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
@@ -2259,7 +2327,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MALICIOUS_DATA_MASTER_STARTER ${TEST_MALICIOUS_DATA_NAME}_master_starter.sh)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_MASTER_STARTER}.in
-        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
         @ONLY)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER}
@@ -2270,7 +2338,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MALICIOUS_DATA_CONFIG_FILE ${TEST_MALICIOUS_DATA_NAME}_master.json)
     configure_file(
         ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}

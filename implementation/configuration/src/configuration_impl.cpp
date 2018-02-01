@@ -26,7 +26,7 @@
 #include "../include/event.hpp"
 #include "../include/eventgroup.hpp"
 #include "../include/service.hpp"
-#include "../include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger_impl.hpp"
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"

@@ -20,7 +20,7 @@
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 
 #include "../include/plugin_manager.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
 

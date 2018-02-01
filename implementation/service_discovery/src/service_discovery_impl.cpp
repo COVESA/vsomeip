@@ -23,7 +23,7 @@
 #include "../include/serviceentry_impl.hpp"
 #include "../include/subscription.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../endpoints/include/endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"

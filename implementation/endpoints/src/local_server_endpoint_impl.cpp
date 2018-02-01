@@ -15,7 +15,7 @@
 
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../configuration/include/configuration.hpp"
 
 // Credentials

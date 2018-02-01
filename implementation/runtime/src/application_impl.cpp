@@ -18,7 +18,7 @@
 
 #include "../include/application_impl.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../message/include/serializer.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"

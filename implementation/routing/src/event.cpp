@@ -11,7 +11,7 @@
 
 #include "../include/event.hpp"
 #include "../include/routing_manager.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../message/include/payload_impl.hpp"
 

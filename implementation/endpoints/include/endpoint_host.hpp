@@ -9,7 +9,8 @@
 #include <memory>
 
 #include <boost/asio/ip/address.hpp>
-#include "../../configuration/include/internal.hpp"
+#include <routing/include/event.hpp>
+#include <configuration/include/internal.hpp>
 
 #include <vsomeip/primitive_types.hpp>
 
@@ -37,6 +38,7 @@ public:
                           std::uint16_t _remote_port) = 0;
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
     virtual client_t get_client() const = 0;
+    virtual instance_t get_instance(service_t _service, endpoint *_endpoint) = 0;
 #ifndef _WIN32
     virtual bool check_credentials(client_t _client, uid_t _uid, gid_t _gid) = 0;
 #endif

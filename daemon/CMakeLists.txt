@@ -3,15 +3,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8)
+add_custom_target(daemon)
 
-# Daemon
 add_executable(vsomeipd vsomeipd.cpp)
-target_link_libraries(vsomeipd vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY} ${DLT_LIBRARIES})
+target_link_libraries(vsomeipd vsomeip::vsomeip)
 
-install (
-    TARGETS vsomeipd
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-)
+install(TARGETS vsomeipd
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT bin
+    )
 
-###################################################################################################
+target_compile_definitions(vsomeipd PUBLIC ${OS_COMPILER_DEFINITIONS})
+target_compile_options(vsomeipd PUBLIC ${OS_COMPILER_FLAGS})
+
+set_target_properties(vsomeipd PROPERTIES CXX_STANDARD 14)

@@ -23,7 +23,7 @@
 #include <vsomeip/application.hpp>
 
 #include "../../routing/include/routing_manager_host.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 
 namespace vsomeip {
 

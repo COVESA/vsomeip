@@ -12,7 +12,7 @@
 #include "../include/event.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../logging/include/logger.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 
 namespace vsomeip {
 

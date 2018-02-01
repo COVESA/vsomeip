@@ -21,7 +21,7 @@
 #include "../include/byteorder.hpp"
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 
 #ifdef _WIN32

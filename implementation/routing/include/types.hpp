@@ -14,7 +14,7 @@
 #include <vsomeip/constants.hpp>
 
 #include "../../service_discovery/include/message_impl.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 
 namespace vsomeip {
 

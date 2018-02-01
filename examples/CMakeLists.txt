@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8)
+add_custom_target(examples)
 
 set(EXAMPLE_CONFIG_FILES
     "../config/vsomeip.json"
@@ -14,24 +14,23 @@ set(EXAMPLE_CONFIG_FILES
     "../config/vsomeip-udp-service.json"
 )
 
-# Examples
-add_executable(request-sample request-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(request-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+list(APPEND all_examples
+    request-sample
+    response-sample
+    subscribe-sample
+    notify-sample
+    )
 
-add_executable(response-sample response-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(response-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+foreach(example ${all_examples})
+    add_executable(${example} ${example}.cpp ${EXAMPLE_CONFIG_FILES})
+    target_link_libraries(${example} vsomeip::vsomeip)
+    set_target_properties(${example} PROPERTIES CXX_STANDARD 14)
+endforeach()
 
-add_executable(subscribe-sample subscribe-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+add_dependencies(examples ${all_examples})
 
-add_executable(notify-sample notify-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
-
-add_dependencies(examples request-sample response-sample subscribe-sample notify-sample)
-
-install (
-    TARGETS request-sample response-sample subscribe-sample notify-sample
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-)
-
-###################################################################################################
+install(
+    TARGETS ${all_examples}
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT bin
+    )

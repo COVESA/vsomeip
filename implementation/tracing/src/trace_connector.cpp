@@ -8,7 +8,7 @@
 #include <vsomeip/constants.hpp>
 
 #include "../include/defines.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 
 namespace vsomeip {
 namespace tc {

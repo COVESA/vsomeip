@@ -19,7 +19,7 @@
 #include <vsomeip/plugin.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-#include "internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "trace.hpp"
 
 #include "../../e2e_protection/include/e2exf/config.hpp"

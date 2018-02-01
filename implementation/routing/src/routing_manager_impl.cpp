@@ -33,7 +33,7 @@
 #include "../include/routing_manager_stub.hpp"
 #include "../include/serviceinfo.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/tcp_client_endpoint_impl.hpp"

@@ -9,7 +9,7 @@
 
 #include "../include/credentials.hpp"
 
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 
 namespace vsomeip {

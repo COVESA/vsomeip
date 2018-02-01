@@ -23,7 +23,7 @@
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_proxy.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../endpoints/include/local_client_endpoint_impl.hpp"
 #include "../../endpoints/include/local_server_endpoint_impl.hpp"
 #include "../../logging/include/logger.hpp"

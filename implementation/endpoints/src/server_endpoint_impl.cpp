@@ -15,7 +15,7 @@
 #include <vsomeip/defines.hpp>
 
 #include "../include/server_endpoint_impl.hpp"
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"

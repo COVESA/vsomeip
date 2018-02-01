@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_SD_DEFINES_HPP
 #define VSOMEIP_SD_DEFINES_HPP
 
-#include "../../configuration/include/internal.hpp"
+#include "configuration/include/internal.hpp"
 
 #define VSOMEIP_MAX_TCP_SD_PAYLOAD               4075 // Available for entries & options
 #define VSOMEIP_MAX_UDP_SD_PAYLOAD               1380

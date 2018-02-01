@@ -15,8 +15,7 @@
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/byteorder.hpp"
-#include "../../configuration/include/internal.hpp"
-
+#include "configuration/include/internal.hpp"
 
 namespace ip = boost::asio::ip;
 
