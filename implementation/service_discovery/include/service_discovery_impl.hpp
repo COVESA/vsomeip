@@ -364,6 +364,7 @@ private:
     std::map<boost::asio::ip::address, std::pair<session_t, bool> > sessions_sent_;
     std::map<boost::asio::ip::address,
         std::tuple<session_t, session_t, bool, bool> > sessions_received_;
+    std::mutex sessions_received_mutex_;
 
     // Runtime
     std::weak_ptr<runtime> runtime_;

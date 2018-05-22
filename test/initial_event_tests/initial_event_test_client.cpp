@@ -34,7 +34,7 @@ public:
                               std::array<initial_event_test::service_info, 7> _service_infos,
                               bool _subscribe_on_available, std::uint32_t _events_to_subscribe,
                               bool _initial_event_strict_checking,
-                              bool _dont_exit) :
+                              bool _dont_exit, bool _subscribe_only_one) :
             client_number_(_client_number),
             service_infos_(_service_infos),
             subscription_type_(_subscription_type),
@@ -46,6 +46,7 @@ public:
             events_to_subscribe_(_events_to_subscribe),
             initial_event_strict_checking_(_initial_event_strict_checking),
             dont_exit_(_dont_exit),
+            subscribe_only_one_(_subscribe_only_one),
             stop_thread_(std::bind(&initial_event_test_client::wait_for_stop, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -92,19 +93,30 @@ public:
             }
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
-            for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
-                other_services_received_notification_[std::make_pair(i.service_id, i.method_id + j)] = 0;
-            }
+
             if (!subscribe_on_available_) {
-                if (events_to_subscribe_ == 1 ) {
+                if (events_to_subscribe_ == 1) {
                     app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
                                     vsomeip::DEFAULT_MAJOR, subscription_type_);
+                    other_services_received_notification_[std::make_pair(i.service_id, i.event_id)] = 0;
                 } else if (events_to_subscribe_ > 1) {
-                    for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
+                    if (!subscribe_only_one_) {
+                        for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
+                            app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
+                                            vsomeip::DEFAULT_MAJOR, subscription_type_,
+                                            static_cast<vsomeip::event_t>(i.event_id + j));
+                            other_services_received_notification_[std::make_pair(i.service_id, i.event_id + j)] = 0;
+                        }
+                    } else {
                         app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
                                         vsomeip::DEFAULT_MAJOR, subscription_type_,
-                                        static_cast<vsomeip::event_t>(i.event_id + j));
+                                        static_cast<vsomeip::event_t>(i.event_id));
+                        other_services_received_notification_[std::make_pair(i.service_id, i.event_id)] = 0;
                     }
+                }
+            } else {
+                for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
+                    other_services_received_notification_[std::make_pair(i.service_id, i.event_id + j)] = 0;
                 }
             }
         }
@@ -360,6 +372,7 @@ private:
     std::uint32_t events_to_subscribe_;
     bool initial_event_strict_checking_;
     bool dont_exit_;
+    bool subscribe_only_one_;
 
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
@@ -373,6 +386,7 @@ static bool subscribe_on_available;
 static std::uint32_t subscribe_multiple_events;
 static bool initial_event_strict_checking;
 static bool dont_exit;
+static bool subscribe_only_one;
 
 extern "C" void signal_handler(int signum) {
     the_client->handle_signal(signum);
@@ -384,11 +398,13 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services)
         initial_event_test_client its_sample(client_number,
                 subscription_type,
                 initial_event_test::service_infos_same_service_id, subscribe_on_available,
-                subscribe_multiple_events, initial_event_strict_checking, dont_exit);
+                subscribe_multiple_events, initial_event_strict_checking, dont_exit,
+                subscribe_only_one);
     } else {
         initial_event_test_client its_sample(client_number, subscription_type,
                 initial_event_test::service_infos, subscribe_on_available,
-                subscribe_multiple_events, initial_event_strict_checking, dont_exit);
+                subscribe_multiple_events, initial_event_strict_checking, dont_exit,
+                subscribe_only_one);
     }
 }
 
@@ -407,6 +423,7 @@ int main(int argc, char** argv)
         std::cerr << " - MULTIPLE_EVENTS flag. If set the test will subscribe to multiple events in the eventgroup, default false" << std::endl;
         std::cerr << " - STRICT_CHECKING flag. If set the test will only successfully finish if exactly the number of initial events were received (and not more). Default false" << std::endl;
         std::cerr << " - DONT_EXIT flag. If set the test will not exit if all notifications have been received. Default false" << std::endl;
+        std::cerr << " - SUBSCRIBE_ONLY_ONE flag. If set the test will only subscribe to one event even if MULTIPLE_EVENTS is set. Default false" << std::endl;
         return 1;
     }
 
@@ -434,6 +451,7 @@ int main(int argc, char** argv)
     use_same_service_id = false;
     subscribe_multiple_events = 1;
     dont_exit = false;
+    subscribe_only_one = false;
     if (argc > 3) {
         for (int i = 3; i < argc; i++) {
             if (std::string("SUBSCRIBE_ON_AVAILABILITY") == std::string(argv[i])) {
@@ -448,6 +466,8 @@ int main(int argc, char** argv)
                 initial_event_strict_checking = true;
             } else if (std::string("DONT_EXIT") == std::string(argv[i])) {
                 dont_exit = true;
+            } else if (std::string("SUBSCRIBE_ONLY_ONE") == std::string(argv[i])) {
+                subscribe_only_one = true;
             }
         }
     }

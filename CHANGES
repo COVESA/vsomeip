@@ -1,5 +1,8 @@
 Changes
 =======
+v2.10.16
+- Only map shared memory for client IDs once per process
+
 v2.10.15
 - Fix remote event caching
 

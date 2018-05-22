@@ -153,6 +153,14 @@ void service_discovery_impl::start() {
             return;
         }
     }
+    {
+        std::lock_guard<std::mutex> its_lock(sessions_received_mutex_);
+        sessions_received_.clear();
+    }
+    {
+        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+        sessions_sent_.clear();
+    }
 
     if (is_suspended_) {
         // make sure to sent out FindService messages after resume
@@ -1141,6 +1149,8 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
     msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
+    std::lock_guard<std::mutex> its_session_lock(sessions_received_mutex_);
+
     if(is_suspended_) {
         return;
     }

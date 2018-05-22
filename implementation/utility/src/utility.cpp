@@ -88,7 +88,7 @@ configuration_data_t *utility::the_configuration_data__(nullptr);
 // critical section to protect shared memory pointers, handles and ref count in this process
 CriticalSection utility::its_local_configuration_mutex__;
 // number of times auto_configuration_init() has been called in this process
-uint16_t utility::its_configuration_refs__(0);
+std::atomic<std::uint16_t> utility::its_configuration_refs__(0);
 // pointer to used client IDs array in shared memory
 std::uint16_t* utility::used_client_ids__(0);
 
@@ -228,94 +228,18 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
         }
     }
 #else
-    const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
-    int its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR | O_CREAT | O_EXCL,
-            static_cast<mode_t>(_config->get_permissions_shm()));
-    ::umask(previous_mask);
-    if (its_descriptor > -1) {
-        if (-1 == ftruncate(its_descriptor, its_shm_size)) {
-            VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                    "ftruncate failed: " << std::strerror(errno);
-        } else {
-            void *its_segment = mmap(0, its_shm_size,
-                                     PROT_READ | PROT_WRITE, MAP_SHARED,
-                                     its_descriptor, 0);
-            if(MAP_FAILED == its_segment) {
-                VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                        "mmap failed: " << std::strerror(errno);
-            } else {
-                the_configuration_data__
-                    = reinterpret_cast<configuration_data_t *>(its_segment);
-                if (the_configuration_data__ != nullptr) {
-                    int ret;
-                    pthread_mutexattr_t attr;
-                    ret = pthread_mutexattr_init(&attr);
-                    if (0 == ret) {
-                        ret = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-                        if (0 != ret) {
-                            VSOMEIP_ERROR << "pthread_mutexattr_setpshared() failed " << ret;
-                        }
-                        ret = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
-                        if (0 != ret) {
-                            VSOMEIP_ERROR << "pthread_mutexattr_setrobust() failed " << ret;
-                        }
-
-                    } else {
-                        VSOMEIP_ERROR << "pthread_mutexattr_init() failed " << ret;
-                    }
-                    ret = pthread_mutex_init(&the_configuration_data__->mutex_, (0==ret)?&attr:NULL);
-                    if (0 != ret) {
-                        VSOMEIP_ERROR << "pthread_mutex_init() failed " << ret;
-                    }
-                    ret = pthread_mutex_lock(&the_configuration_data__->mutex_);
-                    if (0 != ret) {
-                        VSOMEIP_ERROR << "pthread_mutex_lock() failed " << ret;
-                    }
-
-                    the_configuration_data__->client_base_
-                        = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
-                    the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
-                    the_configuration_data__->max_used_client_ids_index_ = 1;
-                    the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
-                    the_configuration_data__->routing_manager_host_ = 0x0000;
-                    // the clientid array starts right after the routing_manager_host_ struct member
-                    used_client_ids__ = reinterpret_cast<unsigned short*>(
-                            reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
-                    used_client_ids__[0] = the_configuration_data__->client_base_;
-                    the_configuration_data__->client_base_++;
-
-                    std::string its_name = _config->get_routing_host();
-
-                    its_configuration_refs__++;
-
-                    the_configuration_data__->initialized_ = 1;
-
-                    ret = pthread_mutex_unlock(&the_configuration_data__->mutex_);
-                    if (0 != ret) {
-                        VSOMEIP_ERROR << "pthread_mutex_unlock() failed " << ret;
-                    }
-                }
-
-                if(-1 == ::close(its_descriptor)) {
-                    VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                            "close failed: " << std::strerror(errno);
-                }
-            }
-        }
-    } else if (errno == EEXIST) {
+    if (its_configuration_refs__ > 0) {
+        // shm is already mapped into the process
+        its_configuration_refs__++;
+    } else {
         const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
-        its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
+        int its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR | O_CREAT | O_EXCL,
                 static_cast<mode_t>(_config->get_permissions_shm()));
         ::umask(previous_mask);
-        if (-1 == its_descriptor) {
-            VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                    "shm_open failed: " << std::strerror(errno);
-        } else {
-            // truncate to make sure we work on valid shm;
-            // in case creator already called truncate, this effectively becomes a noop
+        if (its_descriptor > -1) {
             if (-1 == ftruncate(its_descriptor, its_shm_size)) {
                 VSOMEIP_ERROR << "utility::auto_configuration_init: "
-                    "ftruncate failed: " << std::strerror(errno);
+                        "ftruncate failed: " << std::strerror(errno);
             } else {
                 void *its_segment = mmap(0, its_shm_size,
                                          PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -324,37 +248,118 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                     VSOMEIP_ERROR << "utility::auto_configuration_init: "
                             "mmap failed: " << std::strerror(errno);
                 } else {
-                    configuration_data_t *configuration_data
+                    the_configuration_data__
                         = reinterpret_cast<configuration_data_t *>(its_segment);
-
-                    // check if it is ready for use (for 3 seconds)
-                    int retry_count = 300;
-                    while (configuration_data->initialized_ == 0 && --retry_count > 0) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                    }
-
-                    if (configuration_data->initialized_ == 0) {
-                        VSOMEIP_ERROR << "utility::auto_configuration_init: data in shm not initialized";
-                    } else {
-                        the_configuration_data__ = configuration_data;
-
-                        if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
-                            VSOMEIP_WARNING << "utility::auto_configuration_init EOWNERDEAD";
-                            check_client_id_consistency();
-                            if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
-                                VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+                    if (the_configuration_data__ != nullptr) {
+                        int ret;
+                        pthread_mutexattr_t attr;
+                        ret = pthread_mutexattr_init(&attr);
+                        if (0 == ret) {
+                            ret = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+                            if (0 != ret) {
+                                VSOMEIP_ERROR << "pthread_mutexattr_setpshared() failed " << ret;
                             }
+                            ret = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+                            if (0 != ret) {
+                                VSOMEIP_ERROR << "pthread_mutexattr_setrobust() failed " << ret;
+                            }
+
+                        } else {
+                            VSOMEIP_ERROR << "pthread_mutexattr_init() failed " << ret;
                         }
-                        its_configuration_refs__++;
+                        ret = pthread_mutex_init(&the_configuration_data__->mutex_, (0==ret)?&attr:NULL);
+                        if (0 != ret) {
+                            VSOMEIP_ERROR << "pthread_mutex_init() failed " << ret;
+                        }
+                        ret = pthread_mutex_lock(&the_configuration_data__->mutex_);
+                        if (0 != ret) {
+                            VSOMEIP_ERROR << "pthread_mutex_lock() failed " << ret;
+                        }
+
+                        the_configuration_data__->client_base_
+                            = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
+                        the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
+                        the_configuration_data__->max_used_client_ids_index_ = 1;
+                        the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
+                        the_configuration_data__->routing_manager_host_ = 0x0000;
+                        // the clientid array starts right after the routing_manager_host_ struct member
                         used_client_ids__ = reinterpret_cast<unsigned short*>(
-                                reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_)
-                                        + sizeof(unsigned short));
-                        pthread_mutex_unlock(&the_configuration_data__->mutex_);
+                                reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
+                        used_client_ids__[0] = the_configuration_data__->client_base_;
+                        the_configuration_data__->client_base_++;
+
+                        std::string its_name = _config->get_routing_host();
+
+                        its_configuration_refs__++;
+
+                        the_configuration_data__->initialized_ = 1;
+
+                        ret = pthread_mutex_unlock(&the_configuration_data__->mutex_);
+                        if (0 != ret) {
+                            VSOMEIP_ERROR << "pthread_mutex_unlock() failed " << ret;
+                        }
                     }
 
-                    if (-1 == ::close(its_descriptor)) {
+                    if(-1 == ::close(its_descriptor)) {
                         VSOMEIP_ERROR << "utility::auto_configuration_init: "
                                 "close failed: " << std::strerror(errno);
+                    }
+                }
+            }
+        } else if (errno == EEXIST) {
+            const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
+            its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
+                    static_cast<mode_t>(_config->get_permissions_shm()));
+            ::umask(previous_mask);
+            if (-1 == its_descriptor) {
+                VSOMEIP_ERROR << "utility::auto_configuration_init: "
+                        "shm_open failed: " << std::strerror(errno);
+            } else {
+                // truncate to make sure we work on valid shm;
+                // in case creator already called truncate, this effectively becomes a noop
+                if (-1 == ftruncate(its_descriptor, its_shm_size)) {
+                    VSOMEIP_ERROR << "utility::auto_configuration_init: "
+                        "ftruncate failed: " << std::strerror(errno);
+                } else {
+                    void *its_segment = mmap(0, its_shm_size,
+                                             PROT_READ | PROT_WRITE, MAP_SHARED,
+                                             its_descriptor, 0);
+                    if(MAP_FAILED == its_segment) {
+                        VSOMEIP_ERROR << "utility::auto_configuration_init: "
+                                "mmap failed: " << std::strerror(errno);
+                    } else {
+                        configuration_data_t *configuration_data
+                            = reinterpret_cast<configuration_data_t *>(its_segment);
+
+                        // check if it is ready for use (for 3 seconds)
+                        int retry_count = 300;
+                        while (configuration_data->initialized_ == 0 && --retry_count > 0) {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        }
+
+                        if (configuration_data->initialized_ == 0) {
+                            VSOMEIP_ERROR << "utility::auto_configuration_init: data in shm not initialized";
+                        } else {
+                            the_configuration_data__ = configuration_data;
+
+                            if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+                                VSOMEIP_WARNING << "utility::auto_configuration_init EOWNERDEAD";
+                                check_client_id_consistency();
+                                if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
+                                    VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
+                                }
+                            }
+                            its_configuration_refs__++;
+                            used_client_ids__ = reinterpret_cast<unsigned short*>(
+                                    reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_)
+                                            + sizeof(unsigned short));
+                            pthread_mutex_unlock(&the_configuration_data__->mutex_);
+                        }
+
+                        if (-1 == ::close(its_descriptor)) {
+                            VSOMEIP_ERROR << "utility::auto_configuration_init: "
+                                    "close failed: " << std::strerror(errno);
+                        }
                     }
                 }
             }

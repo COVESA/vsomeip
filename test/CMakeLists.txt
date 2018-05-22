@@ -2800,6 +2800,18 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+
     # offer tests
     add_test(NAME ${TEST_OFFER_NAME}_local
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_LOCAL_STARTER})

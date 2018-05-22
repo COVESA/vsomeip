@@ -19,6 +19,7 @@ then
     echo "Please pass a json file to this script."
     echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_slave.json"
     echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
+    echo "To ensure the first client only subscribes to one event pass SUBSCRIBE_ONLY_ONE as third/fourth parameter"
     exit 1
 fi
 
@@ -73,6 +74,11 @@ CLIENT_PIDS=()
 # Start first client which subscribes remotely
 ./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE DONT_EXIT $REMAINING_OPTIONS &
 FIRST_PID=$!
+
+# remove SUBSCRIBE_ONLY_ONCE parameter from $REMAINING_OPTIONS to ensure the
+# following clients subscribe normaly
+REMAINING_OPTIONS=${REMAINING_OPTIONS%SUBSCRIBE_ONLY_ONE}
+REMAINING_OPTIONS=${REMAINING_OPTIONS#SUBSCRIBE_ONLY_ONE}
 
 # Start availability checker in order to wait until the services on the remote
 # were started as well

@@ -1944,9 +1944,10 @@ bool routing_manager_proxy::create_placeholder_event_and_subscribe(
     // full information like eventgroup, field or not etc.
     std::set<eventgroup_t> its_eventgroups({ _eventgroup });
     // routing_manager_proxy: Always register with own client id and shadow = false
-    register_event(host_->get_client(), _service, _instance, _event,
-            its_eventgroups, true, std::chrono::milliseconds::zero(), false,
-            nullptr, false, false, true);
+    routing_manager_base::register_event(host_->get_client(), _service,
+            _instance, _event, its_eventgroups, true,
+            std::chrono::milliseconds::zero(), false, nullptr, false, false,
+            true);
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
         is_inserted = its_event->add_subscriber(_eventgroup, _client);

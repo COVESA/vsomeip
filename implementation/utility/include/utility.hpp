@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <set>
+#include <atomic>
 
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
@@ -128,7 +129,7 @@ private:
     static void set_max_assigned_client_id_without_diagnosis(client_t _client);
     static void check_client_id_consistency();
 
-    static uint16_t its_configuration_refs__;
+    static std::atomic<std::uint16_t> its_configuration_refs__;
     static std::uint16_t* used_client_ids__;
 };
 
