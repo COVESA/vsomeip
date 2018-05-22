@@ -1575,7 +1575,24 @@ bool routing_manager_impl::deliver_notification(
     if (its_event) {
         if (!its_event->is_provided()) {
             if (its_event->get_subscribers().size() == 0) {
-                  return true; // as there is nothing to do
+                // no subscribers for this specific event / check subscriptions
+                // to other events of the event's eventgroups
+                bool cache_event = false;
+                for (const auto eg : its_event->get_eventgroups()) {
+                    std::shared_ptr<eventgroupinfo> egi = find_eventgroup(_service, _instance, eg);
+                    for (const auto &e : egi->get_events()) {
+                        cache_event = (e->get_subscribers().size() > 0);
+                        if (cache_event) {
+                            break;
+                        }
+                    }
+                    if (cache_event) {
+                        break;
+                    }
+                }
+                if (!cache_event) {
+                    return true; // as there is nothing to do
+                }
             }
             const uint32_t its_length(utility::get_payload_size(_data, _length));
             std::shared_ptr<payload> its_payload

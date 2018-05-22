@@ -1,5 +1,8 @@
 Changes
 =======
+v2.10.15
+- Fix remote event caching
+
 v2.10.14
 - Bugfix for pending subscriptions when same port is used
   for TCP and UDP endpoint option.
