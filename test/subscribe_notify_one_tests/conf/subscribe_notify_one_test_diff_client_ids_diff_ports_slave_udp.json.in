@@ -31,29 +31,17 @@
         {
             "service":"0x4444",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40004",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30004"
         },
         {
             "service":"0x5555",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40005",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30005"
         },
         {
             "service":"0x6666",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40006",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30006"
         }
     ],
     "routing":"subscribe_notify_one_test_service_four",

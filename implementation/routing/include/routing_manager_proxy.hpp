@@ -189,7 +189,7 @@ private:
         ST_REGISTERING = 0x2
     };
 
-    bool is_connected_;
+    std::atomic<bool> is_connected_;
     std::atomic<bool> is_started_;
     inner_state_type_e state_;
 

@@ -1,5 +1,9 @@
 Changes
 =======
+v2.10.14
+- Bugfix for pending subscriptions when same port is used
+  for TCP and UDP endpoint option.
+
 v2.10.13
 
 v2.10.12

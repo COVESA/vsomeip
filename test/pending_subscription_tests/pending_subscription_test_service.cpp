@@ -144,6 +144,8 @@ public:
             ;
         } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK) {
             ;
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT) {
+            ;
         }
         std::future<bool> itsFuture = notify_method_called_.get_future();
         if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(10))) {
@@ -205,6 +207,17 @@ public:
             if (count_subscribe == 8 || count_unsubscribe == 7) {
                 subscription_accepted_asynchronous_ = true;
             }
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT) {
+            static int count_subscribe = 0;
+            static int count_unsubscribe = 0;
+            _subscribed ? count_subscribe++ : count_unsubscribe++;
+            if (count_subscribe == 1) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+            _cbk(true);
+            if (count_subscribe == 16 || count_unsubscribe == 14) {
+                subscription_accepted_asynchronous_ = true;
+            }
         }
     }
 
@@ -256,6 +269,17 @@ public:
             } else {
                 ret = true;
             }
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT) {
+            static int count_subscribed = 0;
+            static int count_unsubscribe = 0;
+            _subscribed ? count_subscribed++ : count_unsubscribe++;
+            if (count_subscribed == 1) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+            if (count_subscribed == 16 && count_unsubscribe == 14) {
+                subscription_accepted_synchronous_ = true;
+            }
+            ret = true;
         }
         return ret;
     }
@@ -291,7 +315,7 @@ int main(int argc, char** argv)
     if (argc < 2) {
         std::cerr << "Please pass a test mode to this binary like: "
                 << argv[0] << " SUBSCRIBE" << std::endl;
-        std::cerr << "Testmodes are [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE]" << std::endl;
+        std::cerr << "Testmodes are [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE_NACK, SUBSCRIBE_UNSUBSCRIBE_SAME_PORT]" << std::endl;
         exit(1);
     }
 
@@ -304,6 +328,8 @@ int main(int argc, char** argv)
         its_testmode = pending_subscription_test::test_mode_e::UNSUBSCRIBE;
     } else if (its_pased_testmode == std::string("SUBSCRIBE_UNSUBSCRIBE_NACK")) {
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK;
+    } else if (its_pased_testmode == std::string("SUBSCRIBE_UNSUBSCRIBE_SAME_PORT")) {
+        its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT;
     }
 
     return RUN_ALL_TESTS();

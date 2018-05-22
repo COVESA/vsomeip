@@ -238,9 +238,10 @@ pending_subscription_id_t eventgroupinfo::add_pending_subscription(
     }
     pending_subscriptions_[subscription_id_] = _pending_subscription;
 
-    const auto remote_address_port = std::make_pair(
+    const auto remote_address_port = std::make_tuple(
             _pending_subscription.subscriber_->get_address(),
-            _pending_subscription.subscriber_->get_port());
+            _pending_subscription.subscriber_->get_port(),
+            _pending_subscription.subscriber_->is_reliable());
 
     auto found_address = pending_subscriptions_by_remote_.find(remote_address_port);
     if (found_address != pending_subscriptions_by_remote_.end()) {
@@ -262,9 +263,10 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
             _subscription_id);
     if (found_pending_subscription != pending_subscriptions_.end()) {
         pending_subscription_t its_pending_sub = found_pending_subscription->second;
-        const auto remote_address_port = std::make_pair(
+        const auto remote_address_port = std::make_tuple(
                 its_pending_sub.subscriber_->get_address(),
-                its_pending_sub.subscriber_->get_port());
+                its_pending_sub.subscriber_->get_port(),
+                its_pending_sub.subscriber_->is_reliable());
         const bool removed_is_subscribe = (found_pending_subscription->second.ttl_ > 0);
 
         // check if more (un)subscriptions to this eventgroup arrived from the
@@ -327,8 +329,8 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
                 boost::system::error_code ec;
                 VSOMEIP_WARNING << __func__ << " Subscriptions were answered in "
                         << " in wrong order by rm_proxy! ["
-                        << " subscriber: " << remote_address_port.first.to_string(ec)
-                        << ":" << std::dec << remote_address_port.second;
+                        << " subscriber: " << std::get<0>(remote_address_port).to_string(ec)
+                        << ":" << std::dec << std::get<1>(remote_address_port);
                 // found_pending_subscription isn't deleted from
                 // pending_subscriptions_ map in this case to ensure answer
                 // sequence of SD messages.

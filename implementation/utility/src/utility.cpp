@@ -146,6 +146,9 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                                 = reinterpret_cast<configuration_data_t *>(its_segment);
 
                             ++its_configuration_refs__;
+                            used_client_ids__ = reinterpret_cast<unsigned short*>(
+                                    reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_) + sizeof(unsigned short));
+
                         } else {
                             VSOMEIP_ERROR << "utility::auto_configuration_init: MapViewOfFile failed (" << GetLastError() << ")";
                         }

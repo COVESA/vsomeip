@@ -1,5 +1,5 @@
 {
-    "unicast":"@TEST_IP_SLAVE@",
+    "unicast":"@TEST_IP_MASTER@",
     "logging":
     {
         "level":"warning",
@@ -14,49 +14,37 @@
     "applications":
     [
         {
-            "name":"subscribe_notify_one_test_service_four",
-            "id":"0x4444"
+            "name":"subscribe_notify_one_test_service_one",
+            "id":"0x1111"
         },
         {
-            "name":"subscribe_notify_one_test_service_five",
-            "id":"0x5555"
+            "name":"subscribe_notify_one_test_service_two",
+            "id":"0x2222"
         },
         {
-            "name":"subscribe_notify_one_test_service_six",
-            "id":"0x6666"
+            "name":"subscribe_notify_one_test_service_three",
+            "id":"0x3333"
         }
     ],
     "services":
     [
         {
-            "service":"0x4444",
+            "service":"0x1111",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40004",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30001"
         },
         {
-            "service":"0x5555",
+            "service":"0x2222",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40005",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30002"
         },
         {
-            "service":"0x6666",
+            "service":"0x3333",
             "instance":"0x0001",
-            "reliable":
-            {
-                "port":"40006",
-                "enable-magic-cookies":"false"
-            }
+            "unreliable":"30003"
         }
     ],
-    "routing":"subscribe_notify_one_test_service_four",
+    "routing":"subscribe_notify_one_test_service_one",
     "service-discovery":
     {
         "enable":"true",
@@ -72,6 +60,6 @@
     },
     "supports_selective_broadcasts" :
     {
-        "address" : "@TEST_IP_MASTER@"
+        "address" : "@TEST_IP_SLAVE@"
     }
 }

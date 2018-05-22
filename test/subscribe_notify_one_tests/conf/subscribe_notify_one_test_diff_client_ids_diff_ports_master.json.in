@@ -36,7 +36,15 @@
             {
                 "port":"40001",
                 "enable-magic-cookies":"false"
-            }
+            },
+            "events" :
+            [
+                {
+                    "event" : "0x1111",
+                    "is_field" : "false",
+                    "is_reliable" : "true"
+                }
+            ]
         },
         {
             "service":"0x2222",
@@ -46,7 +54,15 @@
             {
                 "port":"40002",
                 "enable-magic-cookies":"false"
-            }
+            },
+            "events" :
+            [
+                {
+                    "event" : "0x2222",
+                    "is_field" : "false",
+                    "is_reliable" : "true"
+                }
+            ]
         },
         {
             "service":"0x3333",
@@ -56,7 +72,15 @@
             {
                 "port":"40003",
                 "enable-magic-cookies":"false"
-            }
+            },
+            "events" :
+            [
+                {
+                    "event" : "0x3333",
+                    "is_field" : "false",
+                    "is_reliable" : "true"
+                }
+            ]
         }
     ],
     "routing":"subscribe_notify_one_test_service_one",

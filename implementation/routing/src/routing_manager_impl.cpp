@@ -967,6 +967,10 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
                 }
             }
             if (found_eventgroup) {
+                const bool is_offered_both =
+                        (configuration_->get_reliable_port(_service, _instance) != ILLEGAL_PORT &&
+                        configuration_->get_unreliable_port(_service, _instance) != ILLEGAL_PORT);
+
                 std::set<std::shared_ptr<endpoint_definition>> its_targets;
                 // Now set event's payload!
                 // Either with endpoint_definition (remote) or with client (local).
@@ -984,7 +988,15 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
                     }
                 }
                 for (const auto &its_target : its_targets) {
-                    its_event->set_payload(_payload, its_target, _force, _flush);
+                    if (!is_offered_both) {
+                        its_event->set_payload(_payload, its_target, _force, _flush);
+                    } else {
+                        if (its_event->is_reliable() && its_target->is_reliable()) {
+                            its_event->set_payload(_payload, its_target, _force, _flush);
+                        } else if (!its_event->is_reliable() && !its_target->is_reliable()) {
+                            its_event->set_payload(_payload, its_target, _force, _flush);
+                        }
+                    }
                 }
             }
         } else {

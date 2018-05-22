@@ -237,7 +237,7 @@ public:
                 case vsomeip::subscription_type_e::SU_PREFER_UNRELIABLE:
                 case vsomeip::subscription_type_e::SU_PREFER_RELIABLE:
                 case vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
-                    if (all_notifications_received_tcp_and_udp()) {
+                    if (all_notifications_received()) {
                         notify = true;
                     }
                     break;

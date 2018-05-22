@@ -109,7 +109,7 @@ private:
 
     std::mutex pending_subscriptions_mutex_;
     std::map<pending_subscription_id_t, pending_subscription_t> pending_subscriptions_;
-    std::map<std::pair<boost::asio::ip::address, std::uint16_t>,
+    std::map<std::tuple<boost::asio::ip::address, std::uint16_t, bool>,
             std::vector<pending_subscription_id_t>> pending_subscriptions_by_remote_;
     pending_subscription_id_t subscription_id_;
 };
