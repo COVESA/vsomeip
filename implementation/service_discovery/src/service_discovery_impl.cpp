@@ -1799,7 +1799,7 @@ bool service_discovery_impl::insert_offer_service(
             }
         } else {
             if (!find_existing_option<ipv6_option_impl, ipv6_address_t>(_message,
-                    unicast_.to_v6().to_bytes(), its_reliable->get_local_port(),
+                    unicast_.to_v6().to_bytes(), its_unreliable->get_local_port(),
                     layer_four_protocol_e::UDP, option_type_e::IP6_ENDPOINT)) {
                 its_endpoint_size = VSOMEIP_SOMEIP_SD_IPV6_OPTION_SIZE;
             }
@@ -3308,6 +3308,10 @@ bool service_discovery_impl::check_source_address(
 
 void service_discovery_impl::set_diagnosis_mode(const bool _activate) {
     is_diagnosis_ = _activate;
+}
+
+bool service_discovery_impl::get_diagnosis_mode() {
+    return is_diagnosis_;
 }
 
 void service_discovery_impl::remote_subscription_acknowledge(

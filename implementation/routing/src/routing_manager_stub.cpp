@@ -1224,7 +1224,7 @@ void routing_manager_stub::broadcast(const std::vector<byte_t> &_command) const 
     }
 }
 
-void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _target,
+bool routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _target,
         client_t _client, service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
         event_t _event, pending_subscription_id_t _subscription_id) {
@@ -1252,7 +1252,7 @@ void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _ta
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
                 &_subscription_id, sizeof(_subscription_id));
 
-        _target->send(its_command, sizeof(its_command));
+        return _target->send(its_command, sizeof(its_command));
     } else {
         VSOMEIP_WARNING << __func__ << " Couldn't send subscription to local client ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
@@ -1261,10 +1261,11 @@ void routing_manager_stub::send_subscribe(std::shared_ptr<vsomeip::endpoint> _ta
                 << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
                 << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
                 << _client;
+        return false;
     }
 }
 
-void routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
+bool routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _target,
         client_t _client, service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, event_t _event,
         pending_subscription_id_t _unsubscription_id) {
@@ -1288,7 +1289,7 @@ void routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _
         std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_unsubscription_id,
                         sizeof(_unsubscription_id));
 
-        _target->send(its_command, sizeof(its_command));
+        return _target->send(its_command, sizeof(its_command));
     } else {
         VSOMEIP_WARNING << __func__ << " Couldn't send unsubscription to local client ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
@@ -1297,6 +1298,7 @@ void routing_manager_stub::send_unsubscribe(std::shared_ptr<vsomeip::endpoint> _
                 << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
                 << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
                 << _client;
+        return false;
     }
 }
 

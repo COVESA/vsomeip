@@ -349,7 +349,7 @@ void routing_manager_proxy::register_event(client_t _client,
             pending_event_registrations_.insert(registration);
         }
     }
-    if (is_first) {
+    if (is_first || _is_provided) {
         routing_manager_base::register_event(_client, _service, _instance,
                         _event,_eventgroups, _is_field,
                         _cycle, _change_resets_cycle,

@@ -12,6 +12,7 @@
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/utility/exception_handler.hpp>
 #include <boost/phoenix/bind/bind_member_function.hpp>
 #include <boost/shared_ptr.hpp>
 
@@ -65,7 +66,7 @@ logger_impl::get_internal() {
 
 void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     get()->loglevel_ = _configuration->get_loglevel();
-
+    logging::core::get()->set_exception_handler(boost::log::make_exception_suppressor());
     logging::core::get()->set_filter(
             logging::trivial::severity >= get()->loglevel_);
 

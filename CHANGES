@@ -1,6 +1,9 @@
 Changes
 =======
 
+v2.10.12
+- Fix exception handling for boost logger
+
 v2.10.11
 - Fix client ID handling for remote selective subscriptions
 - Add handling for EDESTADDRREQ in endpoints

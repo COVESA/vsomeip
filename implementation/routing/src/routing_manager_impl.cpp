@@ -1562,6 +1562,9 @@ bool routing_manager_impl::deliver_notification(
     std::shared_ptr<event> its_event = find_event(_service, _instance, its_method);
     if (its_event) {
         if (!its_event->is_provided()) {
+            if (its_event->get_subscribers().size() == 0) {
+                  return true; // as there is nothing to do
+            }
             const uint32_t its_length(utility::get_payload_size(_data, _length));
             std::shared_ptr<payload> its_payload
                 = runtime::get()->create_payload(&_data[VSOMEIP_PAYLOAD_POS],
@@ -3489,8 +3492,13 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
 #ifndef VSOMEIP_VERSION
 #define VSOMEIP_VERSION "unknown version"
 #endif
+        bool is_diag_mode(false);
 
-        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION;
+        if (discovery_) {
+            is_diag_mode = discovery_->get_diagnosis_mode();
+        }
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | ("
+                << ((is_diag_mode == true) ? "diagnosis)" : "default)");
         {
             std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
             version_log_timer_.expires_from_now(
@@ -3914,7 +3922,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
         switch (_routing_state) {
             case vsomeip::routing_state_e::RS_SUSPENDED:
             {
-                VSOMEIP_INFO << "set routing to suspend mode";
+                VSOMEIP_INFO << "Set routing to suspend mode, diagnosis mode is "
+                        << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
                 // stop processing of incoming SD messages
                 discovery_->stop();
 
@@ -3958,7 +3967,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             }
             case vsomeip::routing_state_e::RS_RESUMED:
             {
-                VSOMEIP_INFO << "set routing to resume mode";
+                VSOMEIP_INFO << "Set routing to resume mode, diagnosis mode was "
+                        << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
                 // Reset relevant in service info
                 for (const auto &its_service : get_offered_services()) {
@@ -3967,6 +3977,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                         its_instance.second->set_is_in_mainphase(false);
                     }
                 }
+                // Switch SD back to normal operation
+                discovery_->set_diagnosis_mode(false);
+
                 // start processing of SD messages (incoming remote offers should lead to new subscribe messages)
                 discovery_->start();
 
@@ -3981,10 +3994,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             }
             case routing_state_e::RS_DIAGNOSIS:
             {
-                VSOMEIP_INFO << "set routing to diagnosis mode";
+                VSOMEIP_INFO << "Set routing to diagnosis mode.";
                 discovery_->set_diagnosis_mode(true);
 
-                // send StopOffer messages for all someip protocal services
+                // send StopOffer messages for all someip protocol services
                 for (const auto &its_service : get_offered_services()) {
                     for (const auto &its_instance : its_service.second) {
                         if (host_->get_configuration()->is_someip(
@@ -3998,7 +4011,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 break;
             }
             case routing_state_e::RS_RUNNING:
-                VSOMEIP_INFO << "set routing to running mode";
+                VSOMEIP_INFO << "Set routing to running mode, diagnosis mode was "
+                        << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
                 // Reset relevant in service info
                 for (const auto &its_service : get_offered_services()) {
@@ -4512,10 +4526,21 @@ void routing_manager_impl::send_unsubscription(
             }
         );
     } else {
-        stub_->send_unsubscribe(find_local(_offering_client),
+        if (!stub_->send_unsubscribe(find_local(_offering_client),
                 _subscribing_client,
                 _service, _instance, _eventgroup, ANY_EVENT,
-                _pending_unsubscription_id);
+                _pending_unsubscription_id)) {
+            try {
+                const auto its_callback = std::bind(
+                    &routing_manager_stub_host::on_unsubscribe_ack,
+                    std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
+                    _offering_client, _service, _instance,
+                    _eventgroup, _pending_unsubscription_id);
+                io_.post(its_callback);
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << __func__ << e.what();
+            }
+        }
     }
 }
 
@@ -4552,11 +4577,22 @@ void routing_manager_impl::send_subscription(
             }
         });
     } else { // service hosted by local client
-        stub_->send_subscribe(find_local(_offering_client),
+        if (!stub_->send_subscribe(find_local(_offering_client),
                 _subscribing_client,
                 _service, _instance, _eventgroup,
                 _major, ANY_EVENT,
-                _pending_subscription_id);
+                _pending_subscription_id)) {
+            try {
+                const auto its_callback = std::bind(
+                        &routing_manager_stub_host::on_subscribe_nack,
+                        std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
+                        _subscribing_client, _service, _instance,
+                        _eventgroup, ANY_EVENT, _pending_subscription_id);
+                io_.post(its_callback);
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << __func__ << e.what();
+            }
+        }
     }
 }
 

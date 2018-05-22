@@ -65,6 +65,9 @@ public:
                                     std::shared_ptr<serviceinfo> _info) = 0;
 
     virtual void set_diagnosis_mode(const bool _activate) = 0;
+
+    virtual bool get_diagnosis_mode() = 0;
+
     virtual void remote_subscription_acknowledge(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _accepted,

@@ -6,6 +6,8 @@
 #include <future>
 #include <thread>
 #include <iomanip>
+#include <iostream>
+#include <boost/log/exceptions.hpp>
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -352,6 +354,11 @@ void application_impl::start() {
                             << std::this_thread::get_id();
                     try {
                       io_.run();
+#ifndef _WIN32
+                    } catch (const boost::log::v2_mt_posix::system_error &e) {
+                        std::cerr << "catched boost::log system_error in I/O thread" << std::endl <<
+                            boost::current_exception_diagnostic_information();
+#endif
                     } catch (const std::exception &e) {
                         VSOMEIP_ERROR << "application_impl::start() "
                                 "catched exception:" << e.what();
@@ -384,6 +391,11 @@ void application_impl::start() {
             << name_ << ") is: " << std::hex << std::this_thread::get_id();
     try {
         io_.run();
+#ifndef _WIN32
+    } catch (const boost::log::v2_mt_posix::system_error &e) {
+        std::cerr << "catched boost::log system_error in I/O thread" << std::endl <<
+            boost::current_exception_diagnostic_information();
+#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::start() catched exception:" << e.what();
         throw;
@@ -1697,7 +1709,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     std::shared_ptr<sync_handler> its_sync_handler
         = std::make_shared<sync_handler>(_handler->service_id_,
             _handler->instance_id_, _handler->method_id_,
-            _handler->eventgroup_id_, _handler->session_id_,
+            _handler->session_id_, _handler->eventgroup_id_,
             _handler->handler_type_);
 
     boost::asio::steady_timer its_dispatcher_timer(io_);

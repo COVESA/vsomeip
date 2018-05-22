@@ -96,6 +96,8 @@ public:
 
     void set_diagnosis_mode(const bool _activate);
 
+    bool get_diagnosis_mode();
+
     void remote_subscription_acknowledge(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _acknowledged,
