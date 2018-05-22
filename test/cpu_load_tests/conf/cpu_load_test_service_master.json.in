@@ -1,0 +1,46 @@
+{
+   "unicast" : "@TEST_IP_MASTER@",
+   "logging" : 
+   {
+      "level" : "debug",
+      "console" : "true",
+      "file" : 
+      {
+         "enable" : "false",
+         "path" : "/tmp/vsomeip.log"
+      },
+
+      "dlt" : "false"
+   },
+
+   "applications" : 
+   [
+      {
+         "name" : "cpu_load_test_service",
+         "id" : "0x1111"
+      }
+   ],
+
+   "services" : 
+   [
+      {
+         "service" : "0x1111",
+         "instance" : "0x1",
+         "unreliable" : "30510",
+         "reliable" : 
+         {
+            "port" : "30510",
+            "enable-magic-cookies" : "false"
+         }
+      }
+   ],
+
+   "routing" : "cpu_load_test_service",
+   "service-discovery" : 
+   {
+      "enable" : "true",
+      "multicast" : "224.0.0.1",
+      "port" : "30490",
+      "protocol" : "udp"
+   }
+}

@@ -1,0 +1,47 @@
+{
+global: 
+    extern "C++" {
+        *vsomeip::configuration;
+        vsomeip::configuration::*;
+        *vsomeip::cfg::configuration_impl;
+        vsomeip::cfg::configuration_impl::*;
+        *vsomeip::serializer;
+        vsomeip::serializer::*;
+        *vsomeip::deserializer;
+        vsomeip::deserializer::*;
+        *vsomeip::endpoint_definition;
+        vsomeip::endpoint_definition*;
+        *vsomeip::tcp*;
+        vsomeip::tcp*;
+        *vsomeip::udp*;
+        vsomeip::udp*;
+        *vsomeip::logger;
+        vsomeip::logger::get*;
+        *vsomeip::logger_impl;
+        vsomeip::logger_impl::init*;
+        *vsomeip::message_base_impl;
+        *vsomeip::message_base_impl::*;
+        *vsomeip::message_header_impl;
+        *vsomeip::message_header_impl::*;
+        *vsomeip::runtime;
+        vsomeip::runtime::get*;
+        vsomeip::runtime::set_property*;
+        *vsomeip::application_impl;
+        vsomeip::application_impl*;
+        *vsomeip::eventgroupinfo;
+        vsomeip::eventgroupinfo::*;
+        *vsomeip::servicegroup;
+        vsomeip::servicegroup::*;
+        *vsomeip::serviceinfo;
+        vsomeip::serviceinfo::*;
+        *vsomeip::sd::runtime;
+        vsomeip::sd::runtime::*;
+        *vsomeip::utility;
+        vsomeip::utility::is*;
+        *vsomeip::plugin_manager;
+        vsomeip::plugin_manager::*;
+    }; 
+    vsomeip_plugin_init;
+local:
+    *;
+};

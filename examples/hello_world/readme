@@ -1,0 +1,48 @@
+# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Build instructions for Hello World example
+------------------------------------------
+
+mkdir build
+cd build
+cmake ..
+make
+
+Running Hello World Example
+---------------------------
+
+The Hello World Example should be run on the same host.
+The network addresses within the configuration files need to be adapted to match
+the devices addresses.
+
+To start the hello world client and service from their build-directory do:
+
+HOST1:
+VSOMEIP_CONFIGURATION=../helloworld-local.json \
+VSOMEIP_APPLICATION_NAME=hello_world_service \
+./hello_world_service
+
+HOST1:
+VSOMEIP_CONFIGURATION=../helloworld-local.json \
+VSOMEIP_APPLICATION_NAME=hello_world_client \
+./hello_world_client
+
+Expected output service
+-----------------------
+2015-04-01 11:31:13.248437 [info] Using configuration file: ../helloworld-local.json
+2015-04-01 11:31:13.248766 [debug] Routing endpoint at /tmp/vsomeip-0
+2015-04-01 11:31:13.248913 [info] Service Discovery disabled. Using static routing information.
+2015-04-01 11:31:13.248979 [debug] Application(hello_world_service, 4444) is initialized.
+2015-04-01 11:31:22.705010 [debug] Application/Client 5555 got registered!
+
+Expected output client
+----------------------
+2015-04-01 11:31:22.704166 [info] Using configuration file: ../helloworld-local.json
+2015-04-01 11:31:22.704417 [debug] Connecting to [0] at /tmp/vsomeip-0
+2015-04-01 11:31:22.704630 [debug] Listening at /tmp/vsomeip-5555
+2015-04-01 11:31:22.704680 [debug] Application(hello_world_client, 5555) is initialized.
+Sending: World
+Received: Hello World
