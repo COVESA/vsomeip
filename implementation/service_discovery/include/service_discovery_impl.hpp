@@ -337,6 +337,12 @@ private:
                                   const boost::asio::ip::address &_address);
     void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address);
 
+    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
+            std::shared_ptr<endpoint_definition>>>
+                get_eventgroups_requiring_initial_events(
+                        const std::shared_ptr<message_impl>& _response) const;
+
+
 private:
     boost::asio::io_service &io_;
     service_discovery_host *host_;

@@ -1410,6 +1410,14 @@ void routing_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
                             }
                             on_availability(its_service.first, its_instance.first,
                                     false, its_info->get_major(), its_info->get_minor());
+                            stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT,
+                                    its_service.first, its_instance.first,
+                                    its_info->get_major(),
+                                    its_info->get_minor());
+                            VSOMEIP_WARNING << __func__
+                                    << ": lost connection to remote service: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_instance.first;
                         }
                     }
                 }

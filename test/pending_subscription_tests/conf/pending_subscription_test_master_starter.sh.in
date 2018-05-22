@@ -17,7 +17,7 @@ then
     echo "Please pass a test mode to this script."
     echo "For example: $0 SUSCRIBE"
     echo "Valid subscription types include:"
-    echo "            [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE_NACK, SUBSCRIBE_UNSUBSCRIBE_SAME_PORT]"
+    echo "            [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE_NACK, SUBSCRIBE_UNSUBSCRIBE_SAME_PORT, SUBSCRIBE_RESUBSCRIBE_MIXED]"
     exit 1
 fi
 TESTMODE=$1

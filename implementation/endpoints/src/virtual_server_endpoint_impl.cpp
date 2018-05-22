@@ -113,8 +113,8 @@ uint32_t virtual_server_endpoint_impl::get_use_count() {
     return use_count_;
 }
 
-void virtual_server_endpoint_impl::restart() {
-
+void virtual_server_endpoint_impl::restart(bool _force) {
+    (void)_force;
 }
 
 void virtual_server_endpoint_impl::register_error_handler(

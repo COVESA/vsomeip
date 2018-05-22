@@ -50,7 +50,7 @@ public:
     void decrement_use_count();
     uint32_t get_use_count();
 
-    void restart();
+    void restart(bool _force);
 
     void register_error_handler(error_handler_t _handler);
     void print_status();

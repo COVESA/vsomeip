@@ -92,8 +92,8 @@ void udp_client_endpoint_impl::start() {
     connect();
 }
 
-void udp_client_endpoint_impl::restart() {
-    if (state_ == cei_state_e::CONNECTING) {
+void udp_client_endpoint_impl::restart(bool _force) {
+    if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
     state_ = cei_state_e::CONNECTING;
@@ -136,7 +136,8 @@ void udp_client_endpoint_impl::send_queued() {
                 &udp_client_endpoint_base_impl::send_cbk,
                 shared_from_this(),
                 std::placeholders::_1,
-                std::placeholders::_2
+                std::placeholders::_2,
+                its_buffer
             )
         );
     }

@@ -157,6 +157,7 @@ private:
 
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, bool _increment);
+    void clear_remote_subscriber_count(service_t _service, instance_t _instance);
 
     void register_application_timeout_cbk(boost::system::error_code const &_error);
 

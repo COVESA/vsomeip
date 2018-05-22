@@ -47,7 +47,7 @@ public:
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
 
-    void restart();
+    void restart(bool _force);
     void print_status();
 
 private:

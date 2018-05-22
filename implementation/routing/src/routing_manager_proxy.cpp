@@ -210,6 +210,7 @@ void routing_manager_proxy::stop_offer_service(client_t _client,
     (void)_client;
 
     routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);
+    clear_remote_subscriber_count(_service, _instance);
 
     // Reliable/Unreliable unimportant as routing_proxy does not
     // create server endpoints which needs to be freed
@@ -1892,6 +1893,19 @@ uint32_t routing_manager_proxy::get_remote_subscriber_count(service_t _service,
         }
     }
     return count;
+}
+
+void routing_manager_proxy::clear_remote_subscriber_count(
+        service_t _service, instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(remote_subscriber_count_mutex_);
+    auto found_service = remote_subscriber_count_.find(_service);
+    if (found_service != remote_subscriber_count_.end()) {
+        if (found_service->second.erase(_instance)) {
+            if (!found_service->second.size()) {
+                remote_subscriber_count_.erase(found_service);
+            }
+        }
+    }
 }
 
 void routing_manager_proxy::register_application_timeout_cbk(

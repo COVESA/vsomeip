@@ -361,8 +361,7 @@ void application_impl::start() {
 #endif
                     } catch (const std::exception &e) {
                         VSOMEIP_ERROR << "application_impl::start() "
-                                "catched exception:" << e.what();
-                        throw;
+                                "catched exception: " << e.what();
                     }
                   });
             io_threads_.insert(its_thread);
@@ -397,8 +396,7 @@ void application_impl::start() {
             boost::current_exception_diagnostic_information();
 #endif
     } catch (const std::exception &e) {
-        VSOMEIP_ERROR << "application_impl::start() catched exception:" << e.what();
-        throw;
+        VSOMEIP_ERROR << "application_impl::start() catched exception: " << e.what();
     }
 
     if (stop_thread_.joinable()) {

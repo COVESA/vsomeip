@@ -31,7 +31,7 @@ public:
     virtual ~tcp_client_endpoint_impl();
 
     void start();
-    void restart();
+    void restart(bool _force);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
@@ -39,6 +39,8 @@ public:
     bool is_local() const;
     void print_status();
 
+    void send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
+                  message_buffer_ptr_t _sent_msg);
 private:
     void send_queued();
     bool is_magic_cookie(const message_buffer_ptr_t& _recv_buffer,

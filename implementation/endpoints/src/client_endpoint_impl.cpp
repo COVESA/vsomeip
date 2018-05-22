@@ -61,7 +61,12 @@ bool client_endpoint_impl<Protocol>::is_connected() const {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
     if (_connected) {
-        state_ = cei_state_e::ESTABLISHED;
+        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        if (socket_->is_open()) {
+            state_ = cei_state_e::ESTABLISHED;
+        } else {
+            state_ = cei_state_e::CLOSED;
+        }
     } else {
         state_ = cei_state_e::CLOSED;
     }}
@@ -222,15 +227,15 @@ void client_endpoint_impl<Protocol>::connect_cbk(
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
             shutdown_and_close_socket(true);
-            start_connect_timer();
-            // Double the timeout as long as the maximum allowed is larger
-            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
-                connect_timeout_ = (connect_timeout_ << 1);
 
             if (state_ != cei_state_e::ESTABLISHED) {
                 state_ = cei_state_e::CLOSED;
                 its_host->on_disconnect(this->shared_from_this());
             }
+            start_connect_timer();
+            // Double the timeout as long as the maximum allowed is larger
+            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
+                connect_timeout_ = (connect_timeout_ << 1);
         } else {
             {
                 std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
@@ -244,11 +249,13 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 
             receive();
 
-            {
+            if (was_not_connected_) {
+                was_not_connected_ = false;
                 std::lock_guard<std::mutex> its_lock(mutex_);
-                if (queue_.size() > 0 && was_not_connected_) {
-                    was_not_connected_ = false;
+                if (queue_.size() > 0) {
                     send_queued();
+                    VSOMEIP_WARNING << __func__ << ": resume sending to: "
+                            << get_remote_information();
                 }
             }
         }
@@ -258,14 +265,15 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::wait_connect_cbk(
         boost::system::error_code const &_error) {
-    if (!_error) {
+    if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect();
     }
 }
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::send_cbk(
-        boost::system::error_code const &_error, std::size_t _bytes) {
+        boost::system::error_code const &_error, std::size_t _bytes,
+        message_buffer_ptr_t _sent_msg) {
     (void)_bytes;
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -284,27 +292,23 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 queue_.clear();
                 queue_size_ = 0;
             } else {
-                message_buffer_ptr_t its_buffer;
-                if (queue_.size()) {
-                    its_buffer = queue_.front();
-                }
                 service_t its_service(0);
                 method_t its_method(0);
                 client_t its_client(0);
                 session_t its_session(0);
-                if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
+                if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
                     its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
-                            (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
+                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
+                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
                     its_method = VSOMEIP_BYTES_TO_WORD(
-                            (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
-                            (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
+                            (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
+                            (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
                     its_client = VSOMEIP_BYTES_TO_WORD(
-                            (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
-                            (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
+                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
+                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
                     its_session = VSOMEIP_BYTES_TO_WORD(
-                            (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
-                            (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
+                            (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
+                            (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
                 }
                 VSOMEIP_WARNING << "cei::send_cbk received error: "
                         << _error.message() << " (" << std::dec
@@ -338,40 +342,33 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 << get_remote_information();
         was_not_connected_ = true;
     } else {
-        {
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            message_buffer_ptr_t its_buffer;
-            if (queue_.size()) {
-                its_buffer = queue_.front();
-            }
-            service_t its_service(0);
-            method_t its_method(0);
-            client_t its_client(0);
-            session_t its_session(0);
-            if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-                its_service = VSOMEIP_BYTES_TO_WORD(
-                        (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
-                        (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
-                its_method = VSOMEIP_BYTES_TO_WORD(
-                        (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
-                        (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
-                its_client = VSOMEIP_BYTES_TO_WORD(
-                        (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
-                        (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
-                its_session = VSOMEIP_BYTES_TO_WORD(
-                        (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
-                        (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
-            }
-            VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
-                    << " (" << std::dec << _error.value() << ") "
-                    << get_remote_information() << " "
-                    << " " << std::dec << queue_.size()
-                    << " " << std::dec << queue_size_ << " ("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+        service_t its_service(0);
+        method_t its_method(0);
+        client_t its_client(0);
+        session_t its_session(0);
+        if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
+            its_service = VSOMEIP_BYTES_TO_WORD(
+                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
+                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
+            its_method = VSOMEIP_BYTES_TO_WORD(
+                    (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
+                    (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
+            its_client = VSOMEIP_BYTES_TO_WORD(
+                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
+                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
+            its_session = VSOMEIP_BYTES_TO_WORD(
+                    (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
+                    (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
         }
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
+                << " (" << std::dec << _error.value() << ") "
+                << get_remote_information() << " "
+                << " " << std::dec << queue_.size()
+                << " " << std::dec << queue_size_ << " ("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
         print_status();
     }
 }

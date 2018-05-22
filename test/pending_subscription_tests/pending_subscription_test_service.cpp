@@ -146,6 +146,8 @@ public:
             ;
         } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT) {
             ;
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
+            ;
         }
         std::future<bool> itsFuture = notify_method_called_.get_future();
         if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(10))) {
@@ -218,6 +220,13 @@ public:
             if (count_subscribe == 16 || count_unsubscribe == 14) {
                 subscription_accepted_asynchronous_ = true;
             }
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
+            static int was_called = 0;
+            was_called++;
+            EXPECT_EQ(1, was_called);
+            EXPECT_TRUE(_subscribed);
+            _cbk(true);
+            subscription_accepted_asynchronous_ = true;
         }
     }
 
@@ -280,6 +289,13 @@ public:
                 subscription_accepted_synchronous_ = true;
             }
             ret = true;
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
+            static int was_called = 0;
+            was_called++;
+            EXPECT_EQ(1, was_called);
+            EXPECT_TRUE(_subscribed);
+            subscription_accepted_synchronous_ = true;
+            ret = true;
         }
         return ret;
     }
@@ -330,6 +346,8 @@ int main(int argc, char** argv)
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK;
     } else if (its_pased_testmode == std::string("SUBSCRIBE_UNSUBSCRIBE_SAME_PORT")) {
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT;
+    } else if (its_pased_testmode == std::string("SUBSCRIBE_RESUBSCRIBE_MIXED")) {
+        its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED;
     }
 
     return RUN_ALL_TESTS();

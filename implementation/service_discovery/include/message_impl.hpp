@@ -98,6 +98,9 @@ public:
     void forced_initial_events_add(forced_initial_events_t _entry);
     const std::vector<forced_initial_events_t> forced_initial_events_get();
 
+    void set_initial_events_required(bool _initial_events);
+    bool initial_events_required() const;
+
 private:
     entry_impl * deserialize_entry(vsomeip::deserializer *_from);
     option_impl * deserialize_option(vsomeip::deserializer *_from);
@@ -114,6 +117,8 @@ private:
 
     std::mutex forced_initial_events_mutex_;
     std::vector<forced_initial_events_t> forced_initial_events_info_;
+
+    std::atomic<bool> initial_events_required_;
 };
 
 } // namespace sd

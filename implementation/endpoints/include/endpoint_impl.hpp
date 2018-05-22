@@ -60,7 +60,7 @@ public:
     // required
     virtual bool is_client() const = 0;
     virtual void receive() = 0;
-    virtual void restart() = 0;
+    virtual void restart(bool _force) = 0;
 
 protected:
     uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
@@ -82,7 +82,7 @@ protected:
 
     uint32_t use_count_;
 
-    bool sending_blocked_;
+    std::atomic<bool> sending_blocked_;
 
     std::mutex local_mutex_;
     endpoint_type local_;

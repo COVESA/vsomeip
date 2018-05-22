@@ -47,7 +47,7 @@ public:
     bool flush();
 
     virtual void stop();
-    virtual void restart() = 0;
+    virtual void restart(bool _force = false) = 0;
 
     bool is_client() const;
 
@@ -61,7 +61,8 @@ public:
 public:
     void connect_cbk(boost::system::error_code const &_error);
     void wait_connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
+    virtual void send_cbk(boost::system::error_code const &_error,
+                          std::size_t _bytes, message_buffer_ptr_t _sent_msg);
     void flush_cbk(boost::system::error_code const &_error);
 
 public:
@@ -98,7 +99,7 @@ protected:
 
     std::mutex mutex_;
 
-    bool was_not_connected_;
+    std::atomic<bool> was_not_connected_;
 
     std::atomic<std::uint16_t> local_port_;
 

@@ -45,8 +45,8 @@ bool local_client_endpoint_impl::is_local() const {
     return true;
 }
 
-void local_client_endpoint_impl::restart() {
-    if (state_ == cei_state_e::CONNECTING) {
+void local_client_endpoint_impl::restart(bool _force) {
+    if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
     state_ = cei_state_e::CONNECTING;
@@ -206,7 +206,8 @@ VSOMEIP_INFO << msg.str();
                     local_client_endpoint_impl
                 >(shared_from_this()),
                 std::placeholders::_1,
-                std::placeholders::_2
+                std::placeholders::_2,
+                its_buffer
             )
         );
     }

@@ -48,7 +48,8 @@ bool server_endpoint_impl<Protocol>::is_client() const {
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::restart() {
+void server_endpoint_impl<Protocol>::restart(bool _force) {
+    (void)_force;
     // intentionally left blank
 }
 

@@ -30,7 +30,8 @@ message_impl::message_impl() :
     flags_(0x0),
     options_length_(0x0),
     number_required_acks_(0x0),
-    number_contained_acks_(0x0) {
+    number_contained_acks_(0x0),
+    initial_events_required_(false) {
     header_.service_ = 0xFFFF;
     header_.method_ = 0x8100;
     header_.protocol_version_ = 0x01;
@@ -433,6 +434,14 @@ const std::vector<message_impl::forced_initial_events_t>
 message_impl::forced_initial_events_get() {
     std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
     return forced_initial_events_info_;
+}
+
+void message_impl::set_initial_events_required(bool _initial_events_required) {
+    initial_events_required_ = _initial_events_required;
+}
+
+bool message_impl::initial_events_required() const {
+    return initial_events_required_;
 }
 
 } // namespace sd

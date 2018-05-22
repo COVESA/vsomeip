@@ -1257,6 +1257,14 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                     host_->send_initial_events(fie.service_, fie.instance_,
                             fie.eventgroup_, fie.target_);
                 }
+                if (its_message_response->initial_events_required()) {
+                    for (const auto& ack_tuple :
+                            get_eventgroups_requiring_initial_events(its_message_response)) {
+                        host_->send_initial_events(std::get<0>(ack_tuple),
+                                std::get<1>(ack_tuple), std::get<2>(ack_tuple),
+                                std::get<3>(ack_tuple));
+                    }
+                }
             }
         }
         for (const auto& response : its_resubscribes) {
@@ -1616,7 +1624,7 @@ void service_discovery_impl::process_findservice_serviceentry(
                 host_->get_offered_service_instances(_service);
         // send back all available instances
         for (const auto &found_instance : offered_instances) {
-            send_uni_or_multicast_offerservice(_service, _instance, _major,
+            send_uni_or_multicast_offerservice(_service, found_instance.first, _major,
                     _minor, found_instance.second, _unicast_flag);
         }
     }
@@ -3393,8 +3401,6 @@ void service_discovery_impl::remote_subscription_acknowledge_subscriber(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged) {
     std::shared_ptr<message_impl> its_response = _subscriber->response_message_id_->response_;
-    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
-            std::shared_ptr<endpoint_definition>>> its_acks;
     bool sent(false);
     {
         std::lock_guard<std::mutex> its_lock(response_mutex_);
@@ -3415,32 +3421,13 @@ void service_discovery_impl::remote_subscription_acknowledge_subscriber(
             // set required acks to 0xFF to mark message as sent
             its_response->set_number_required_acks((std::numeric_limits<uint8_t>::max)());
             sent = true;
+        } else {
+            its_response->set_initial_events_required(true);
         }
     }
     if (sent) {
-        for (const auto &e : its_response->get_entries()) {
-            if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
-                    && e->get_ttl() > 0) {
-                const std::shared_ptr<eventgroupentry_impl> casted_e =
-                        std::static_pointer_cast<eventgroupentry_impl>(e);
-                const std::shared_ptr<endpoint_definition> its_reliable =
-                        casted_e->get_target(true);
-                if (its_reliable) {
-                    its_acks.push_back(
-                            std::make_tuple(e->get_service(), e->get_instance(),
-                                    casted_e->get_eventgroup(), its_reliable));
-                }
-                const std::shared_ptr<endpoint_definition> its_unreliable =
-                        casted_e->get_target(false);
-                if (its_unreliable) {
-                    its_acks.push_back(
-                            std::make_tuple(e->get_service(), e->get_instance(),
-                                    casted_e->get_eventgroup(),
-                                    its_unreliable));
-                }
-            }
-        }
-        for (const auto& ack_tuple : its_acks) {
+        for (const auto& ack_tuple : get_eventgroups_requiring_initial_events(
+                its_response)) {
             host_->send_initial_events(std::get<0>(ack_tuple),
                     std::get<1>(ack_tuple), std::get<2>(ack_tuple),
                     std::get<3>(ack_tuple));
@@ -3648,6 +3635,38 @@ void service_discovery_impl::remove_remote_offer_type_by_ip(
         }
     }
     remote_offers_by_ip_.erase(_address);
+}
+
+std::vector<std::tuple<service_t, instance_t, eventgroup_t,
+        std::shared_ptr<endpoint_definition>>>
+service_discovery_impl::get_eventgroups_requiring_initial_events(
+        const std::shared_ptr<message_impl>& _response) const {
+    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
+            std::shared_ptr<endpoint_definition>>> its_acks;
+    for (const auto &e : _response->get_entries()) {
+        if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
+                && e->get_ttl() > 0) {
+            const std::shared_ptr<eventgroupentry_impl> casted_e =
+                    std::static_pointer_cast<eventgroupentry_impl>(e);
+            // only entries which require initial events have a target set
+            const std::shared_ptr<endpoint_definition> its_reliable =
+                    casted_e->get_target(true);
+            if (its_reliable) {
+                its_acks.push_back(
+                        std::make_tuple(e->get_service(), e->get_instance(),
+                                casted_e->get_eventgroup(), its_reliable));
+            }
+            const std::shared_ptr<endpoint_definition> its_unreliable =
+                    casted_e->get_target(false);
+            if (its_unreliable) {
+                its_acks.push_back(
+                        std::make_tuple(e->get_service(), e->get_instance(),
+                                casted_e->get_eventgroup(),
+                                its_unreliable));
+            }
+        }
+    }
+    return its_acks;
 }
 
 }  // namespace sd

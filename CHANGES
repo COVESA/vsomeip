@@ -1,6 +1,16 @@
 Changes
 =======
 
+v2.10.18
+- Fix restarting of TCP connection on connection reset by the server
+  and mark services reachable through it as unavailable until
+  connection is established again.
+- Fix bug which prevented restarting of TCP connections if the peer
+  instantly send a RST after the connection had been established.
+- Fix bug which could cause missing initial events in conjunction with
+  service discovery messages containing new subscriptions and
+  resubscriptions.
+
 v2.10.17
 - Speedup initial subscriptions to unreliable remote services
 - Fix deadlock in conjunction with configured client ports
