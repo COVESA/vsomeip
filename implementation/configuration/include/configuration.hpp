@@ -136,7 +136,8 @@ public:
             instance_t _instance) const = 0;
     virtual bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const = 0;
-    virtual bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
+    virtual bool check_credentials(client_t _client,
+            uint32_t _uid, uint32_t _gid) = 0;
 
     // Plugins
     virtual std::map<plugin_type_e, std::set<std::string>> get_plugins(

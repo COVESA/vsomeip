@@ -552,6 +552,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                     VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk already"
                             " restarting" << get_remote_information();
                 } else {
+                    VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk restarting.";
                     state_ = cei_state_e::CONNECTING;
                     shutdown_and_close_socket_unlocked(false);
                     was_not_connected_ = true;
@@ -560,10 +561,6 @@ void tcp_client_endpoint_impl::receive_cbk(
                     restart(true);
                 }
             } else {
-                VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk: "
-                        << _error.message() << "( " << std::dec << _error.value()
-                        << ") local: " << get_address_port_local()
-                        << " remote: " << get_address_port_remote();
                 its_lock.unlock();
                 receive(_recv_buffer, _recv_buffer_size, its_missing_capacity);
             }

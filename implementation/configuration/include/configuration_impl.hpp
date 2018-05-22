@@ -149,7 +149,8 @@ public:
             instance_t _instance) const;
     VSOMEIP_EXPORT bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const;
-    VSOMEIP_EXPORT bool check_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const;
+    VSOMEIP_EXPORT bool check_credentials(client_t _client,
+            uint32_t _uid, uint32_t _gid);
 
     VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const;
@@ -375,6 +376,8 @@ protected:
     std::uint32_t umask_;
 
     std::map<client_t, std::shared_ptr<policy>> policies_;
+    std::vector<std::shared_ptr<policy> > any_client_policies_;
+    std::map<client_t, std::pair<uint32_t, uint32_t> > ids_;
     bool policy_enabled_;
     bool check_credentials_;
 

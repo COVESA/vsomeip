@@ -1,6 +1,20 @@
 Changes
 =======
 
+v2.10.20
+- Add security config (i.e. vsomeip_security.json) to mandatory config files
+- Enable local_routing_test_starter.sh to use externally defined configuration
+  files
+- Reject malformed subscriptions with SubscribeEventgroupNACK if multiple
+  endpoint options are referenced
+- Use CMake define or environment variable to find gtest
+- Quit vsomeipd when Service Discovery is configured but module cannot be loaded
+- Added error message when Configuration module cannot be loaded
+- Export payload_impl to enable compilation with newer GCC versions
+- Avoid printing the same warning twice. Ensure all error paths are identifiable
+- Fixed security checks for policies without configured client ID
+- Fixed crash on auto config load in case of EOWNERDEAD caused by previous crashed/exited application
+
 v2.10.19
 - Catch exceptions on shutdown (especially from boost::log)
 - Fixed handling of malformed packets in TCP client endpoint in conjunction 

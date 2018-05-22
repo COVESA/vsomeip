@@ -1867,7 +1867,7 @@ void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
     }
 
     if (!has_been_inserted) {
-        policies_[ANY_CLIENT] = policy;
+        any_client_policies_.push_back(policy);
     }
 }
 
@@ -2532,20 +2532,26 @@ bool configuration_impl::is_security_enabled() const {
 }
 
 bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
-        uint32_t _gid) const {
+        uint32_t _gid) {
     if (!policy_enabled_) {
         return true;
     }
 
+    // store the client -> (uid, gid) mapping
+    ids_[_client] = std::make_pair(_uid, _gid);
+
+    std::vector<std::shared_ptr<policy> > its_policies;
     bool has_id(false);
     auto its_client = policies_.find(_client);
 
-    // Search for generic policy if no specific could be found
-    if (its_client == policies_.end())
-        its_client = policies_.find(ANY_CLIENT);
+    // Use client specific policy if it does exist
+    if (its_client != policies_.end())
+        its_policies.push_back(its_client->second);
+    else
+        its_policies = any_client_policies_;
 
-    if (its_client != policies_.end()) {
-        for (auto its_credential : its_client->second->ids_) {
+    for (const auto &p : its_policies) {
+        for (auto its_credential : p->ids_) {
             bool has_uid(false), has_gid(false);
             for (auto its_range : std::get<0>(its_credential)) {
                 if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
@@ -2566,8 +2572,7 @@ bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
             }
         }
 
-        if ((has_id && its_client->second->allow_who_)
-                || (!has_id && !its_client->second->allow_who_)) {
+        if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
             return true;
         }
     }
@@ -2586,29 +2591,66 @@ bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
     if (!policy_enabled_) {
         return true;
     }
+
+    uint32_t its_uid(0xffffffff), its_gid(0xffffffff);
+    bool must_apply(true);
+    std::vector<std::shared_ptr<policy> > its_policies;
     auto its_client = policies_.find(_client);
 
-    // Search for generic policy if no specific could be found
-    if (its_client == policies_.end())
-            its_client = policies_.find(ANY_CLIENT);
+    // Use client specific policy if it does exist
+    if (its_client != policies_.end())
+        its_policies.push_back(its_client->second);
+    else {
+        must_apply = false;
+        its_policies = any_client_policies_;
 
-    if (its_client == policies_.end()) {
-        if (!check_credentials_) {
-            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                    << " isn't allowed to communicate with service/instance "
-                    << _service << "/" << _instance
-                    << " but will be allowed due to audit mode is active!";
+        auto found_id = ids_.find(_client);
+        if (found_id != ids_.end()) {
+            its_uid = found_id->second.first;
+            its_gid = found_id->second.second;
+        } else {
+            if (!check_credentials_) {
+                VSOMEIP_INFO << "vSomeIP Security: Cannot determine uid/gid for"
+                        "client 0x" << std::hex << _client
+                        << ". Therefore it isn't allowed to communicate to service/instance "
+                        << _service << "/" << _instance
+                        << " but will be allowed due to audit mode is active!";
+            }
+            return !check_credentials_;
         }
-        return !check_credentials_;
     }
 
-    auto its_service = its_client->second->services_.find(std::make_pair(_service, _instance));
-    if (its_client->second->allow_what_
-            && its_service != its_client->second->services_.end()) {
-        return true;
-    } else if (!its_client->second->allow_what_
-            && its_service == its_client->second->services_.end()) {
-        return true;
+    for (const auto &p : its_policies) {
+        bool has_uid(false), has_gid(false);
+        if (must_apply) {
+            has_uid = has_gid = p->allow_what_;
+        } else {
+            for (auto its_credential : p->ids_) {
+                has_uid = has_gid = false;
+                for (auto its_range : std::get<0>(its_credential)) {
+                    if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
+                        has_uid = true;
+                        break;
+                    }
+                }
+                for (auto its_range : std::get<1>(its_credential)) {
+                    if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
+                        has_gid = true;
+                        break;
+                    }
+                }
+
+                if (has_uid && has_gid)
+                    break;
+            }
+        }
+
+        auto its_service = p->services_.find(std::make_pair(_service, _instance));
+        if (has_uid && has_gid && p->allow_what_ && its_service != p->services_.end()) {
+            return true;
+        } else if (!has_uid && !has_gid && !p->allow_what_ && its_service == p->services_.end()) {
+            return true;
+        }
     }
 
     if (!check_credentials_) {
@@ -2627,29 +2669,67 @@ bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
         return true;
     }
 
+    uint32_t its_uid(0xffffffff), its_gid(0xffffffff);
+    bool must_apply(true);
+    std::vector<std::shared_ptr<policy> > its_policies;
     auto its_client = policies_.find(_client);
 
-    // Search for generic policy if no specific could be found
-    if (its_client == policies_.end())
-        its_client = policies_.find(ANY_CLIENT);
+    // Use client specific policy if it does exist
+    if (its_client != policies_.end())
+        its_policies.push_back(its_client->second);
+    else {
+        must_apply = false;
+        its_policies = any_client_policies_;
 
-    if (its_client == policies_.end()) {
-        if (!check_credentials_) {
-            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                    << " isn't allowed to offer service/instance "
-                    << _service << "/" << _instance
-                    << " but will be allowed due to audit mode is active!";
+        auto found_id = ids_.find(_client);
+        if (found_id != ids_.end()) {
+            its_uid = found_id->second.first;
+            its_gid = found_id->second.second;
+        } else {
+            if (!check_credentials_) {
+                VSOMEIP_INFO << "vSomeIP Security: Cannot determine uid/gid for"
+                        "client 0x" << std::hex << _client
+                        << ". Therefore it isn't allowed to offer service/instance "
+                        << _service << "/" << _instance
+                        << " but will be allowed due to audit mode is active!";
+            }
+            return !check_credentials_;
         }
-        return !check_credentials_;
     }
 
-    auto its_offer = its_client->second->offers_.find(std::make_pair(_service, _instance));
-    if (its_client->second->allow_what_
-            && its_offer != its_client->second->offers_.end()) {
-        return true;
-    } else if (!its_client->second->allow_what_
-            && its_offer == its_client->second->offers_.end()) {
-        return true;
+    for (const auto &p : its_policies) {
+        bool has_uid(false), has_gid(false);
+        if (must_apply) {
+            has_uid = has_gid = p->allow_what_;
+        } else {
+            for (auto its_credential : p->ids_) {
+                has_uid = has_gid = false;
+                for (auto its_range : std::get<0>(its_credential)) {
+                    if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
+                        has_uid = true;
+                        break;
+                    }
+                }
+                for (auto its_range : std::get<1>(its_credential)) {
+                    if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
+                        has_gid = true;
+                        break;
+                    }
+                }
+
+                if (has_uid && has_gid)
+                    break;
+            }
+        }
+
+        auto its_offer = p->offers_.find(std::make_pair(_service, _instance));
+        if (has_uid && has_gid
+                && p->allow_what_ && its_offer != p->offers_.end()) {
+            return true;
+        } else if (!has_uid && !has_gid
+                && !p->allow_what_ && its_offer == p->offers_.end()) {
+            return true;
+        }
     }
 
     if (!check_credentials_) {

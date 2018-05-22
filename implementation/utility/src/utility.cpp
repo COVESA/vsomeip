@@ -342,17 +342,21 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                         } else {
                             the_configuration_data__ = configuration_data;
 
-                            if (EOWNERDEAD == pthread_mutex_lock(&the_configuration_data__->mutex_)) {
+                            int its_result = pthread_mutex_lock(&the_configuration_data__->mutex_);
+
+                            used_client_ids__ = reinterpret_cast<unsigned short*>(
+                                    reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_)
+                                            + sizeof(unsigned short));
+
+                            if (EOWNERDEAD == its_result) {
                                 VSOMEIP_WARNING << "utility::auto_configuration_init EOWNERDEAD";
                                 check_client_id_consistency();
                                 if (0 != pthread_mutex_consistent(&the_configuration_data__->mutex_)) {
                                     VSOMEIP_ERROR << "pthread_mutex_consistent() failed ";
                                 }
                             }
+
                             its_configuration_refs__++;
-                            used_client_ids__ = reinterpret_cast<unsigned short*>(
-                                    reinterpret_cast<size_t>(&the_configuration_data__->routing_manager_host_)
-                                            + sizeof(unsigned short));
                             pthread_mutex_unlock(&the_configuration_data__->mutex_);
                         }
 

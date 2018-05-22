@@ -101,7 +101,8 @@ bool application_impl::init() {
             configuration_->load(name_);
             VSOMEIP_INFO << "Default configuration module loaded.";
         } else {
-            exit(-1);
+            std::cerr << "Service Discovery module could not be loaded!" << std::endl;
+            std::exit(EXIT_FAILURE);
         }
     }
 

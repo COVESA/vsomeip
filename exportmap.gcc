@@ -23,6 +23,8 @@ global:
         *vsomeip::message_base_impl::*;
         *vsomeip::message_header_impl;
         *vsomeip::message_header_impl::*;
+        *vsomeip::payload_impl;
+	*vsomeip::payload_impl::*;
         *vsomeip::runtime;
         vsomeip::runtime::get*;
         vsomeip::runtime::set_property*;

@@ -108,6 +108,9 @@ void routing_manager_impl::init() {
             VSOMEIP_INFO << "Service Discovery module loaded.";
             discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this);
             discovery_->init();
+        } else {
+            VSOMEIP_ERROR << "Service Discovery module could not be loaded!";
+            std::exit(EXIT_FAILURE);
         }
     }
 

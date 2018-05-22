@@ -1879,12 +1879,17 @@ void service_discovery_impl::process_eventgroupentry(
     uint16_t its_reserved = _entry->get_reserved();
     uint8_t its_counter = _entry->get_counter();
 
+    bool has_two_options_ = (_entry->get_num_options(1) + _entry->get_num_options(2) >= 2) ? true : false;
+
     if (_entry->get_owning_message()->get_return_code() != return_code) {
         boost::system::error_code ec;
         VSOMEIP_ERROR << "Invalid return code in SD header "
                 << _message_id->sender_.to_string(ec) << " session: "
                 << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
         if(its_ttl > 0) {
+            if (has_two_options_) {
+                its_message_response->decrease_number_required_acks();
+            }
             insert_subscription_nack(its_message_response, its_service, its_instance,
                                      its_eventgroup, its_counter, its_major, its_reserved);
         }
@@ -1898,6 +1903,9 @@ void service_discovery_impl::process_eventgroupentry(
                     << _message_id->sender_.to_string(ec) << " session: "
                     << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
             if(its_ttl > 0) {
+                if (has_two_options_) {
+                    its_message_response->decrease_number_required_acks();
+                }
                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                          its_eventgroup, its_counter, its_major, its_reserved);
             }
@@ -1924,6 +1932,9 @@ void service_discovery_impl::process_eventgroupentry(
                     << _message_id->sender_.to_string(ec) << " session: "
                     << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
             if(its_ttl > 0) {
+                if (has_two_options_) {
+                    its_message_response->decrease_number_required_acks();
+                }
                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                          its_eventgroup, its_counter, its_major, its_reserved);
             }
@@ -1984,6 +1995,9 @@ void service_discovery_impl::process_eventgroupentry(
                                  << std::hex << std::setw(4) << std::setfill('0')
                                  << _message_id->session_;
                 if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type && its_ttl > 0) {
+                    if (has_two_options_) {
+                        its_message_response->decrease_number_required_acks();
+                    }
                     insert_subscription_nack(its_message_response, its_service, its_instance,
                                              its_eventgroup, its_counter, its_major, its_reserved);
                 }
@@ -2000,6 +2014,9 @@ void service_discovery_impl::process_eventgroupentry(
                             its_ipv4_option->get_address());
                     if (!check_layer_four_protocol(its_ipv4_option)) {
                         if( its_ttl > 0) {
+                            if (has_two_options_) {
+                                its_message_response->decrease_number_required_acks();
+                            }
                             insert_subscription_nack(its_message_response, its_service, its_instance,
                                                      its_eventgroup, its_counter, its_major, its_reserved);
                         }
@@ -2012,9 +2029,31 @@ void service_discovery_impl::process_eventgroupentry(
                         is_first_reliable = (its_ipv4_option->get_layer_four_protocol()
                                              == layer_four_protocol_e::TCP);
 
+                        // reject subscription referencing two conflicting options of same protocol type
+                        // ID: SIP_SD_1144
+                        if (is_first_reliable == is_second_reliable
+                                && its_second_port != ILLEGAL_PORT) {
+                            if (its_ttl > 0) {
+                                if (has_two_options_) {
+                                     its_message_response->decrease_number_required_acks();
+                                }
+                                insert_subscription_nack(its_message_response, its_service, its_instance,
+                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                            }
+                            boost::system::error_code ec;
+                            VSOMEIP_ERROR << "Multiple IPv4 endpoint options of same kind referenced! "
+                                    << _message_id->sender_.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                                    << " is_first_reliable: " << is_first_reliable;
+                            return;
+                        }
+
                         if(!check_ipv4_address(its_first_address)
                                 || 0 == its_first_port) {
                             if(its_ttl > 0) {
+                                if (has_two_options_) {
+                                    its_message_response->decrease_number_required_acks();
+                                }
                                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                                          its_eventgroup, its_counter, its_major, its_reserved);
                             }
@@ -2031,9 +2070,31 @@ void service_discovery_impl::process_eventgroupentry(
                         is_second_reliable = (its_ipv4_option->get_layer_four_protocol()
                                               == layer_four_protocol_e::TCP);
 
+                        // reject subscription referencing two conflicting options of same protocol type
+                        // ID: SIP_SD_1144
+                        if (is_second_reliable == is_first_reliable
+                                && its_first_port != ILLEGAL_PORT) {
+                            if (its_ttl > 0) {
+                                if (has_two_options_) {
+                                     its_message_response->decrease_number_required_acks();
+                                }
+                                insert_subscription_nack(its_message_response, its_service, its_instance,
+                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                            }
+                            boost::system::error_code ec;
+                            VSOMEIP_ERROR << "Multiple IPv4 endpoint options of same kind referenced! "
+                                    << _message_id->sender_.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                                    << " is_second_reliable: " << is_second_reliable;
+                            return;
+                        }
+
                         if(!check_ipv4_address(its_second_address)
                                 || 0 == its_second_port) {
                             if(its_ttl > 0) {
+                                if (has_two_options_) {
+                                    its_message_response->decrease_number_required_acks();
+                                }
                                 insert_subscription_nack(its_message_response, its_service, its_instance,
                                                          its_eventgroup, its_counter, its_major, its_reserved);
                             }
@@ -2065,6 +2126,9 @@ void service_discovery_impl::process_eventgroupentry(
                             its_ipv6_option->get_address());
                     if (!check_layer_four_protocol(its_ipv6_option)) {
                         if(its_ttl > 0) {
+                            if (has_two_options_) {
+                                its_message_response->decrease_number_required_acks();
+                            }
                             insert_subscription_nack(its_message_response, its_service, its_instance,
                                                      its_eventgroup, its_counter, its_major, its_reserved);
                         }
@@ -2080,12 +2144,46 @@ void service_discovery_impl::process_eventgroupentry(
                         its_first_port = its_ipv6_option->get_port();
                         is_first_reliable = (its_ipv6_option->get_layer_four_protocol()
                                              == layer_four_protocol_e::TCP);
+
+                        if (is_first_reliable == is_second_reliable
+                                && its_second_port != ILLEGAL_PORT) {
+                            if (its_ttl > 0) {
+                                if (has_two_options_) {
+                                     its_message_response->decrease_number_required_acks();
+                                }
+                                insert_subscription_nack(its_message_response, its_service, its_instance,
+                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                            }
+                            boost::system::error_code ec;
+                            VSOMEIP_ERROR << "Multiple IPv6 endpoint options of same kind referenced! "
+                                    << _message_id->sender_.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                                    << " is_first_reliable: " << is_first_reliable;
+                            return;
+                        }
                     } else
                     if (its_second_port == ILLEGAL_PORT) {
                         its_second_address = its_ipv6_address;
                         its_second_port = its_ipv6_option->get_port();
                         is_second_reliable = (its_ipv6_option->get_layer_four_protocol()
                                               == layer_four_protocol_e::TCP);
+
+                        if (is_second_reliable == is_first_reliable
+                                && its_first_port != ILLEGAL_PORT) {
+                            if (its_ttl > 0) {
+                                if (has_two_options_) {
+                                     its_message_response->decrease_number_required_acks();
+                                }
+                                insert_subscription_nack(its_message_response, its_service, its_instance,
+                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                            }
+                            boost::system::error_code ec;
+                            VSOMEIP_ERROR << "Multiple IPv6 endpoint options of same kind referenced! "
+                                    << _message_id->sender_.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                                    << " is_second_reliable: " << is_second_reliable;
+                            return;
+                        }
                     } else {
                         // TODO: error message, too many endpoint options!
                     }
@@ -2117,6 +2215,15 @@ void service_discovery_impl::process_eventgroupentry(
                     } else {
                         // TODO: error message, too many endpoint options!
                     }
+                    // ID: SIP_SD_946, ID: SIP_SD_1144
+                    if (its_first_port != ILLEGAL_PORT
+                            && its_second_port != ILLEGAL_PORT) {
+                        boost::system::error_code ec;
+                        VSOMEIP_ERROR << "Multiple IPv4 multicast options referenced! "
+                                << _message_id->sender_.to_string(ec) << " session: "
+                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                        return;
+                    }
                 } else {
                     boost::system::error_code ec;
                     VSOMEIP_ERROR
@@ -2143,6 +2250,15 @@ void service_discovery_impl::process_eventgroupentry(
                         its_second_port = its_ipv6_option->get_port();
                     } else {
                         // TODO: error message, too many endpoint options!
+                    }
+                    // ID: SIP_SD_946, ID: SIP_SD_1144
+                    if (its_first_port != ILLEGAL_PORT
+                            && its_second_port != ILLEGAL_PORT) {
+                        boost::system::error_code ec;
+                        VSOMEIP_ERROR << "Multiple IPv6 multicast options referenced! "
+                                << _message_id->sender_.to_string(ec) << " session: "
+                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                        return;
                     }
                 } else {
                     boost::system::error_code ec;
@@ -2204,6 +2320,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
     if (its_message) {
         bool has_reliable_events(false);
         bool has_unreliable_events(false);
+        bool has_two_options_ = (_first_port != ILLEGAL_PORT && _second_port != ILLEGAL_PORT) ? true : false;
         auto its_eventgroup = host_->find_eventgroup(_service, _instance, _eventgroup);
         if (its_eventgroup) {
             its_eventgroup->get_reliability(has_reliable_events, has_unreliable_events);
@@ -2229,6 +2346,9 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             }
         }
         if (reliablility_nack && _ttl > 0) {
+            if (has_two_options_) {
+                its_message->decrease_number_required_acks();
+            }
             insert_subscription_nack(its_message, _service, _instance,
                 _eventgroup, _counter, _major, _reserved);
             boost::system::error_code ec;
@@ -2275,6 +2395,9 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
             }
             its_info = std::make_shared < eventgroupinfo > (_major, 0);
             if(_ttl > 0) {
+                if (has_two_options_) {
+                    its_message->decrease_number_required_acks();
+                }
                 insert_subscription_nack(its_message, _service, _instance,
                         _eventgroup, _counter, _major, _reserved);
             }
@@ -2305,7 +2428,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                                 << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
                                 << _message_id->sender_.to_string(ec) << " session: "
                                 << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-                        if (ILLEGAL_PORT != _second_port) {
+                        if (has_two_options_) {
                             its_message->decrease_number_required_acks();
                         }
                         return;
@@ -2337,7 +2460,7 @@ void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
                                 << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
                                 << _message_id->sender_.to_string(ec) << " session: "
                                 << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-                        if (ILLEGAL_PORT != _first_port) {
+                        if (has_two_options_) {
                             its_message->decrease_number_required_acks();
                         }
                         return;

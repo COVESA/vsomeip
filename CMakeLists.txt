@@ -8,10 +8,18 @@ project (vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 2)
 set (VSOMEIP_MINOR_VERSION 10)
-set (VSOMEIP_PATCH_VERSION 19)
+set (VSOMEIP_PATCH_VERSION 20)
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
+
+if (NOT GTEST_ROOT)
+    if (DEFINED ENV{GTEST_ROOT})
+        set(GTEST_ROOT $ENV{GTEST_ROOT})
+    else()
+        set(GTEST_ROOT "n/a" CACHE STRING "Path to root folder of googletest. Must be set for building the tests.")
+    endif()
+endif()
 
 ###################################################################################################
 # see http://www.cmake.org/Wiki/CMake/Tutorials/How_to_create_a_ProjectConfig.cmake_file
@@ -407,13 +415,13 @@ endif()
 # google test
 
 # check for set environment variable
-if(DEFINED ENV{GTEST_ROOT})
-    message("GTEST_ROOT is set. GTEST_ROOT = $ENV{GTEST_ROOT}")
-else()
-    message("GTEST_ROOT is not defined. For building the tests environment variable
-             GTEST_ROOT have to be defined. Tests can not be built.")
+if(${GTEST_ROOT} STREQUAL "n/a")
+    message(STATUS "GTEST_ROOT is not defined. For building the tests the variable
+             GTEST_ROOT has to be defined. Tests can not be built.")
     # early exit
     return()  # test can not be build -> make commands build_tests and check are not available
+else()
+    message(STATUS "GTEST_ROOT is set. gtest root path set to ${GTEST_ROOT}")
 endif()
 
 # build google test as static library (always) -> therefore deactivate BUILD_SHARED_LIBS in case it is active
@@ -422,7 +430,7 @@ if ("${BUILD_SHARED_LIBS}" STREQUAL "ON")
     set(BUILD_SHARED_LIBS OFF)
     set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 1)
 endif()
-add_subdirectory($ENV{GTEST_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/gtest EXCLUDE_FROM_ALL)
+add_subdirectory(${GTEST_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/gtest EXCLUDE_FROM_ALL)
 if ("${BUILD_SHARED_LIBS_AUTOMATIC_OFF}" STREQUAL "1")
     set(BUILD_SHARED_LIBS ON)
     set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
