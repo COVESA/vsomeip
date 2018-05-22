@@ -1944,6 +1944,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
     if( its_remote_port != ILLEGAL_PORT) {
         // if client port range for remote service port range is configured
         // and remote port is in range, determine unused client port
+        std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
         if (configuration_->get_client_port(_service, _instance, its_remote_port, _reliable,
                 used_client_ports_, its_local_port)) {
             if(its_endpoint_def) {
@@ -1956,10 +1957,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
             }
 
             if (its_endpoint) {
-                {
-                    std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
-                    used_client_ports_[_reliable].insert(its_local_port);
-                }
+                used_client_ports_[_reliable].insert(its_local_port);
                 service_instances_[_service][its_endpoint.get()] = _instance;
                 remote_services_[_service][_instance][_client][_reliable] = its_endpoint;
                 if (_client == VSOMEIP_ROUTING_CLIENT) {

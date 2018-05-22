@@ -1,5 +1,6 @@
 Changes
 =======
+v2.10.13
 
 v2.10.12
 - Fix exception handling for boost logger
