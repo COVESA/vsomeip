@@ -1875,46 +1875,57 @@ void application_impl::shutdown() {
         is_dispatching_ = false;
         dispatcher_condition_.notify_all();
     }
-    {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-        for (auto its_dispatcher : dispatchers_) {
-            if (its_dispatcher.second->get_id() != stop_caller_id_) {
-                if (its_dispatcher.second->joinable()) {
-                    its_dispatcher.second->join();
+
+    try {
+
+        {
+            std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+            for (auto its_dispatcher : dispatchers_) {
+                if (its_dispatcher.second->get_id() != stop_caller_id_) {
+                    if (its_dispatcher.second->joinable()) {
+                        its_dispatcher.second->join();
+                    }
+                } else {
+                    // If the caller of stop() is one of our dispatchers
+                    // it can happen the shutdown mechanism will block
+                    // as that thread probably can't be joined. The reason
+                    // is the caller of stop() probably wants to join the
+                    // thread once call start (which got to the IO-Thread)
+                    // and which is expected to return after stop() has been
+                    // called.
+                    // Therefore detach this thread instead of joining because
+                    // after it will return to "main_dispatch" it will be
+                    // properly shutdown anyways because "is_dispatching_"
+                    // was set to "false" here.
+                    its_dispatcher.second->detach();
                 }
-            } else {
-                // If the caller of stop() is one of our dispatchers
-                // it can happen the shutdown mechanism will block
-                // as that thread probably can't be joined. The reason
-                // is the caller of stop() probably wants to join the
-                // thread once call start (which got to the IO-Thread)
-                // and which is expected to return after stop() has been
-                // called.
-                // Therefore detach this thread instead of joining because
-                // after it will return to "main_dispatch" it will be
-                // properly shutdown anyways because "is_dispatching_"
-                // was set to "false" here.
-                its_dispatcher.second->detach();
             }
+            availability_handlers_.clear();
+            running_dispatchers_.clear();
+            elapsed_dispatchers_.clear();
+            dispatchers_.clear();
         }
-        availability_handlers_.clear();
-        running_dispatchers_.clear();
-        elapsed_dispatchers_.clear();
-        dispatchers_.clear();
-    }
 
-    if (routing_)
-        routing_->stop();
+        if (routing_)
+            routing_->stop();
 
-    work_.reset();
-    io_.stop();
+        work_.reset();
+        io_.stop();
 
-    {
-        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
-        for (auto t : io_threads_) {
-            t->join();
+        {
+            std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+            for (auto t : io_threads_) {
+                t->join();
+            }
+            io_threads_.clear();
         }
-        io_threads_.clear();
+#ifndef _WIN32
+    } catch (const boost::log::v2_mt_posix::system_error &e) {
+        std::cerr << "catched boost::log system_error in stop thread" << std::endl <<
+            boost::current_exception_diagnostic_information();
+#endif
+    } catch (const std::exception &e) {
+        VSOMEIP_ERROR << "application_impl::shutdown() catched exception: " << e.what();
     }
 }
 

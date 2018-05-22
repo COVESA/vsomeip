@@ -507,6 +507,9 @@ void tcp_client_endpoint_impl::receive_cbk(
                         _recv_buffer_size -= its_offset;
                         its_iteration_gap += its_offset;
                         has_full_message = true; // trigger next loop
+                    } else {
+                        _recv_buffer_size = 0;
+                        its_missing_capacity = 0;
                     }
                 } else {
                     VSOMEIP_ERROR << "tce::c<" << this

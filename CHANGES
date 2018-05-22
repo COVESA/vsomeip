@@ -1,6 +1,11 @@
 Changes
 =======
 
+v2.10.19
+- Catch exceptions on shutdown (especially from boost::log)
+- Fixed handling of malformed packets in TCP client endpoint in conjunction 
+  with magic cookies
+
 v2.10.18
 - Fix restarting of TCP connection on connection reset by the server
   and mark services reachable through it as unavailable until
