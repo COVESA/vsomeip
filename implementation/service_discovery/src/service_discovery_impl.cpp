@@ -1837,21 +1837,11 @@ bool service_discovery_impl::insert_offer_service(
             if (its_reliable) {
                 insert_option(_message, its_entry, unicast_,
                         its_reliable->get_local_port(), true);
-                if ((0 == _info->get_ttl() && !is_diagnosis_)
-                        && (0 == _info->get_ttl() && !is_suspended_)) {
-                    host_->del_routing_info(_service,
-                            _instance, true, false);
-                }
             }
 
             if (its_unreliable) {
                 insert_option(_message, its_entry, unicast_,
                         its_unreliable->get_local_port(), false);
-                if ((0 == _info->get_ttl() && !is_diagnosis_)
-                        && (0 == _info->get_ttl() && !is_suspended_)) {
-                    host_->del_routing_info(_service,
-                            _instance, false, true);
-                }
             }
             // This would be a clean solution but does _not_ work with the ANDi tool
             //unsubscribe_all(_service, _instance);

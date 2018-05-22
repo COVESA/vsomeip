@@ -41,39 +41,55 @@ bool udp_client_endpoint_impl::is_local() const {
 
 void udp_client_endpoint_impl::connect() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    // In case a client endpoint port was configured,
-    // bind to it before connecting
-    if (local_.port() != ILLEGAL_PORT) {
-        boost::system::error_code its_bind_error;
-        socket_->bind(local_, its_bind_error);
-        if(its_bind_error) {
-            VSOMEIP_WARNING << "udp_client_endpoint::connect: "
-                    "Error binding socket: " << its_bind_error.message();
+    boost::system::error_code its_error;
+    socket_->open(remote_.protocol(), its_error);
+    if (!its_error || its_error == boost::asio::error::already_open) {
+        // Enable SO_REUSEADDR to avoid bind problems with services going offline
+        // and coming online again and the user has specified only a small number
+        // of ports in the clients section for one service instance
+        socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "udp_client_endpoint_impl::connect: couldn't enable "
+                    << "SO_REUSEADDR: " << its_error.message() << " remote:"
+                    << get_address_port_remote();
         }
+        // In case a client endpoint port was configured,
+        // bind to it before connecting
+        if (local_.port() != ILLEGAL_PORT) {
+            boost::system::error_code its_bind_error;
+            socket_->bind(local_, its_bind_error);
+            if(its_bind_error) {
+                VSOMEIP_WARNING << "udp_client_endpoint::connect: "
+                        "Error binding socket: " << its_bind_error.message()
+                        << " remote:" << get_address_port_remote();
+                try {
+                    // don't connect on bind error to avoid using a random port
+                    service_.post(std::bind(&client_endpoint_impl::connect_cbk,
+                                    shared_from_this(), its_bind_error));
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR << "udp_client_endpoint_impl::connect: "
+                            << e.what() << " remote:" << get_address_port_remote();
+                }
+                return;
+            }
+        }
+        state_ = cei_state_e::CONNECTING;
+        socket_->async_connect(
+            remote_,
+            std::bind(
+                &udp_client_endpoint_base_impl::connect_cbk,
+                shared_from_this(),
+                std::placeholders::_1
+            )
+        );
+    } else {
+        VSOMEIP_WARNING << "udp_client_endpoint::connect: Error opening socket: "
+                << its_error.message() << " remote:" << get_address_port_remote();
     }
-    state_ = cei_state_e::CONNECTING;
-    socket_->async_connect(
-        remote_,
-        std::bind(
-            &udp_client_endpoint_base_impl::connect_cbk,
-            shared_from_this(),
-            std::placeholders::_1
-        )
-    );
 }
 
 void udp_client_endpoint_impl::start() {
-    boost::system::error_code its_error;
-    {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        socket_->open(remote_.protocol(), its_error);
-    }
-    if (!its_error || its_error == boost::asio::error::already_open) {
-        connect();
-    } else {
-        VSOMEIP_WARNING << "udp_client_endpoint::connect: Error opening socket: "
-                << its_error.message();
-    }
+    connect();
 }
 
 void udp_client_endpoint_impl::restart() {

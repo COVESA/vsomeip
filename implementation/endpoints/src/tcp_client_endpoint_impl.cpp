@@ -113,13 +113,15 @@ void tcp_client_endpoint_impl::connect() {
         socket_->set_option(ip::tcp::no_delay(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't disable "
-                    << "Nagle algorithm: " << its_error.message();
+                    << "Nagle algorithm: " << its_error.message()
+                    << " remote:" << get_address_port_remote();
         }
 
         socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
-                    << "keep_alive: " << its_error.message();
+                    << "keep_alive: " << its_error.message()
+                    << " remote:" << get_address_port_remote();
         }
 
         // Enable SO_REUSEADDR to avoid bind problems with services going offline
@@ -128,7 +130,8 @@ void tcp_client_endpoint_impl::connect() {
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
-                    << "SO_REUSEADDR: " << its_error.message();
+                    << "SO_REUSEADDR: " << its_error.message()
+                    << " remote:" << get_address_port_remote();
         }
         // In case a client endpoint port was configured,
         // bind to it before connecting
@@ -137,7 +140,17 @@ void tcp_client_endpoint_impl::connect() {
             socket_->bind(local_, its_bind_error);
             if(its_bind_error) {
                 VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
-                        "Error binding socket: " << its_bind_error.message();
+                        "Error binding socket: " << its_bind_error.message()
+                        << " remote:" << get_address_port_remote();
+                try {
+                    // don't connect on bind error to avoid using a random port
+                    service_.post(std::bind(&client_endpoint_impl::connect_cbk,
+                                    shared_from_this(), its_bind_error));
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR << "tcp_client_endpoint_impl::connect: "
+                            << e.what() << " remote:" << get_address_port_remote();
+                }
+                return;
             }
         }
         state_ = cei_state_e::CONNECTING;
@@ -151,7 +164,7 @@ void tcp_client_endpoint_impl::connect() {
         );
     } else {
         VSOMEIP_WARNING << "tcp_client_endpoint::connect: Error opening socket: "
-                << its_error.message();
+                << its_error.message() << " remote:" << get_address_port_remote();
     }
 }
 

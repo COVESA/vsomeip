@@ -1474,7 +1474,6 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         its_unreliable_endpoint = its_info->get_endpoint(false);
     }
 
-    // Trigger "del_routing_info" either over SD or static
     if (discovery_) {
         if (its_info) {
             if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
@@ -1482,11 +1481,9 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                 discovery_->stop_offer_service(_service, _instance, its_info);
             }
         }
-    } else {
-        del_routing_info(_service, _instance,
-                (its_reliable_endpoint != nullptr),
-                (its_unreliable_endpoint != nullptr));
     }
+    del_routing_info(_service, _instance, (its_reliable_endpoint != nullptr),
+            (its_unreliable_endpoint != nullptr));
 
     // Cleanup reliable & unreliable server endpoints hold before
     if (its_info) {
@@ -1973,7 +1970,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
     if( its_remote_port != ILLEGAL_PORT) {
         // if client port range for remote service port range is configured
         // and remote port is in range, determine unused client port
-        std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+        std::unique_lock<std::mutex> its_lock(used_client_ports_mutex_);
         if (configuration_->get_client_port(_service, _instance, its_remote_port, _reliable,
                 used_client_ports_, its_local_port)) {
             if(its_endpoint_def) {
@@ -1987,6 +1984,7 @@ std::shared_ptr<endpoint> routing_manager_impl::create_remote_client(
 
             if (its_endpoint) {
                 used_client_ports_[_reliable].insert(its_local_port);
+                its_lock.unlock();
                 service_instances_[_service][its_endpoint.get()] = _instance;
                 remote_services_[_service][_instance][_client][_reliable] = its_endpoint;
                 if (_client == VSOMEIP_ROUTING_CLIENT) {
@@ -2051,6 +2049,11 @@ std::shared_ptr<endpoint> routing_manager_impl::find_remote_client(
                             remote_services_[_service][_instance][_client][_reliable] =
                                     its_endpoint;
                             service_instances_[_service][its_endpoint.get()] = _instance;
+                            // add endpoint to serviceinfo object
+                            auto found_service_info = find_service(_service,_instance);
+                            if (found_service_info) {
+                                found_service_info->set_endpoint(its_endpoint, _reliable);
+                            }
                         }
                     }
                 }
@@ -2240,6 +2243,10 @@ void routing_manager_impl::add_routing_info(
                                 if(!connected) {
                                     find_or_create_remote_client(_service, _instance,
                                             true, VSOMEIP_ROUTING_CLIENT);
+                                    if (udp_inserted) {
+                                        find_or_create_remote_client(_service, _instance,
+                                                false, VSOMEIP_ROUTING_CLIENT);
+                                    }
                                     connected = true;
                                 }
                                 its_info->add_client(client_id.first);
@@ -2268,20 +2275,23 @@ void routing_manager_impl::add_routing_info(
                                 && (major_minor_pair.second <= _minor
                                         || _minor == DEFAULT_MINOR
                                         || major_minor_pair.second == ANY_MINOR)) {
-                            on_availability(_service, _instance,
-                                    true, its_info->get_major(), its_info->get_minor());
                             if (!stub_->contained_in_routing_info(
                                     VSOMEIP_ROUTING_CLIENT, _service, _instance,
                                     its_info->get_major(),
                                     its_info->get_minor())) {
+                                on_availability(_service, _instance,
+                                        true, its_info->get_major(), its_info->get_minor());
                                 stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT,
                                         _service, _instance,
                                         its_info->get_major(),
                                         its_info->get_minor());
                                 if (discovery_) {
-                                    discovery_->on_endpoint_connected(
-                                            _service, _instance,
-                                            its_info->get_endpoint(true));
+                                    std::shared_ptr<endpoint> ep = its_info->get_endpoint(true);
+                                    if (ep && ep->is_connected()) {
+                                        discovery_->on_endpoint_connected(
+                                                _service, _instance,
+                                                ep);
+                                    }
                                 }
                             }
                             break;
@@ -2302,6 +2312,7 @@ void routing_manager_impl::add_routing_info(
             }
             // check if service was requested and increase requester count if necessary
             {
+                bool connected(false);
                 std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
                 for (const auto &client_id : requested_services_) {
                     const auto found_service = client_id.second.find(_service);
@@ -2317,6 +2328,11 @@ void routing_manager_impl::add_routing_info(
                                                 || _minor == DEFAULT_MINOR
                                                 || major_minor_pair.second
                                                         == ANY_MINOR)) {
+                                    if(!connected) {
+                                        find_or_create_remote_client(_service, _instance,
+                                                false, VSOMEIP_ROUTING_CLIENT);
+                                        connected = true;
+                                    }
                                     its_info->add_client(client_id.first);
                                     break;
                                 }
@@ -2331,9 +2347,49 @@ void routing_manager_impl::add_routing_info(
             stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
         }
         if (discovery_) {
-            discovery_->on_endpoint_connected(
-                    _service, _instance,
-                    its_info->get_endpoint(false));
+            std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
+            if (ep && ep->is_connected()) {
+                discovery_->on_endpoint_connected(_service, _instance, ep);
+            }
+        }
+    } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
+        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        for(const auto &client_id : requested_services_) {
+            auto found_service = client_id.second.find(_service);
+            if (found_service != client_id.second.end()) {
+                auto found_instance = found_service->second.find(_instance);
+                if (found_instance != found_service->second.end()) {
+                    for (const auto &major_minor_pair : found_instance->second) {
+                        if ((major_minor_pair.first == _major
+                                || _major == DEFAULT_MAJOR
+                                || major_minor_pair.first == ANY_MAJOR)
+                                && (major_minor_pair.second <= _minor
+                                        || _minor == DEFAULT_MINOR
+                                        || major_minor_pair.second == ANY_MINOR)) {
+                            if (!stub_->contained_in_routing_info(
+                                    VSOMEIP_ROUTING_CLIENT, _service, _instance,
+                                    its_info->get_major(),
+                                    its_info->get_minor())) {
+                                on_availability(_service, _instance,
+                                        true, its_info->get_major(), its_info->get_minor());
+                                stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT,
+                                        _service, _instance,
+                                        its_info->get_major(),
+                                        its_info->get_minor());
+                                if (discovery_) {
+                                    std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
+                                    if (ep && ep->is_connected()) {
+                                        discovery_->on_endpoint_connected(
+                                                _service, _instance,
+                                                ep);
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 }
