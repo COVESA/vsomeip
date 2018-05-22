@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/message.hpp>
@@ -334,9 +336,21 @@ bool event::has_ref() {
     return refs_.size() != 0;
 }
 
-bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client) {
+bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _force) {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    return eventgroups_[_eventgroup].insert(_client).second;
+    bool ret = false;
+    if (_force // remote events managed by rm_impl
+            || is_provided_ // events provided by rm_proxies
+            || is_shadow_ // local events managed by rm_impl
+            || is_cache_placeholder_) {
+        ret = eventgroups_[_eventgroup].insert(_client).second;
+    } else {
+        VSOMEIP_WARNING << __func__ << ": Didnt' insert client "
+                << std::hex << std::setw(4) << std::setfill('0') << _client
+                << "to eventgroup 0x"
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup;
+    }
+    return ret;
 }
 
 void event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {

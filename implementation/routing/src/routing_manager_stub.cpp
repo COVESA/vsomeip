@@ -422,18 +422,19 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "]";
                 break;
             case VSOMEIP_SEND: {
-                its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
+                its_data = &_data[VSOMEIP_SEND_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
                 its_client_from_header = VSOMEIP_BYTES_TO_WORD(
                         its_data[VSOMEIP_CLIENT_POS_MIN],
                         its_data[VSOMEIP_CLIENT_POS_MAX]);
-                std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
-                                                  - sizeof(bool) - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                std::memcpy(&its_reliable, &_data[_size - sizeof(bool) - sizeof(bool)], sizeof(its_reliable));
-
-                std::memcpy(&its_is_valid_crc, &_data[_size - sizeof(bool)], sizeof(its_is_valid_crc));
+                std::memcpy(&its_instance, &_data[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
+                            sizeof(its_instance));
+                std::memcpy(&its_reliable, &_data[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
+                            sizeof(its_reliable));
+                std::memcpy(&its_is_valid_crc, &_data[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
+                            sizeof(its_is_valid_crc));
 
                 if (utility::is_request(its_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                     if (!configuration_->is_client_allowed(its_client_from_header,
@@ -456,40 +457,37 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         return;
                     }
                 }
-                // reduce by size of instance, flush, reliable and is_valid_crc flag
+                // reduce by size of instance, flush, reliable, client and is_valid_crc flag
                 const std::uint32_t its_message_size = its_size -
-                        static_cast<std::uint32_t>(sizeof(its_instance)
-                        + sizeof(bool) + sizeof(bool) + sizeof(bool));
+                        (VSOMEIP_SEND_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE);
                 host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable, its_is_valid_crc);
                 break;
             }
             case VSOMEIP_NOTIFY: {
-                its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
+                its_data = &_data[VSOMEIP_SEND_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
-                std::memcpy(&its_instance, &_data[_size - sizeof(instance_t)
-                                                  - sizeof(bool) - sizeof(bool) - sizeof(bool)], sizeof(its_instance));
-                // reduce by size of instance, flush, reliable and is_valid_crc flag
+                std::memcpy(&its_instance, &_data[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
+                            sizeof(its_instance));
+                // reduce by size of instance, flush, reliable, is_valid_crc flag and target client
                 const std::uint32_t its_message_size = its_size -
-                        static_cast<uint32_t>(sizeof(its_instance)
-                        + sizeof(bool) + sizeof(bool));
+                        (VSOMEIP_SEND_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE);
                 host_->on_notification(VSOMEIP_ROUTING_CLIENT, its_service, its_instance, its_data, its_message_size);
                 break;
             }
             case VSOMEIP_NOTIFY_ONE: {
-                its_data = &_data[VSOMEIP_COMMAND_PAYLOAD_POS];
+                its_data = &_data[VSOMEIP_SEND_COMMAND_PAYLOAD_POS];
                 its_service = VSOMEIP_BYTES_TO_WORD(
                                 its_data[VSOMEIP_SERVICE_POS_MIN],
                                 its_data[VSOMEIP_SERVICE_POS_MAX]);
-                std::memcpy(&its_instance, &_data[_size - sizeof(instance_t) -
-                                                 sizeof(bool) - sizeof(bool) - sizeof(bool) - sizeof(client_t)],
-                                                sizeof(its_instance));
-                std::memcpy(&its_target_client, &_data[_size - sizeof(client_t)], sizeof(client_t));
+                std::memcpy(&its_instance, &_data[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
+                            sizeof(its_instance));
+                std::memcpy(&its_target_client, &_data[VSOMEIP_SEND_COMMAND_DST_CLIENT_POS_MIN],
+                            sizeof(client_t));
                 // reduce by size of instance, flush, reliable flag, is_valid_crc and target client
                 const std::uint32_t its_message_size = its_size -
-                        static_cast<uint32_t>(sizeof(its_instance)
-                        + sizeof(bool) + sizeof(bool) + sizeof(client_t));
+                        (VSOMEIP_SEND_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE);
                 host_->on_notification(its_target_client, its_service, its_instance,
                         its_data, its_message_size, true);
                 break;
@@ -742,6 +740,14 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 }
 
 void routing_manager_stub::client_registration_func(void) {
+#ifndef _WIN32
+    {
+        std::stringstream s;
+        s << std::hex << std::setw(4) << std::setfill('0')
+            << host_->get_client() << "_client_reg";
+        pthread_setname_np(pthread_self(),s.str().c_str());
+    }
+#endif
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
         while (!pending_client_registrations_.size() && client_registration_running_) {

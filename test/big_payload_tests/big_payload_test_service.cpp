@@ -162,7 +162,7 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
             // this way the client will only get replies for a fourth of his sent
             // requests as he tries to sent to big data for every second request
             // as well
-            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 3,
+            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 1,
                     big_payload_test::DATA_SERVICE_TO_CLIENT);
         } else {
             its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,

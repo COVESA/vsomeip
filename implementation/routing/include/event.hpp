@@ -85,7 +85,7 @@ public:
     void notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush);
     void notify_one(client_t _client, bool _flush);
 
-    bool add_subscriber(eventgroup_t _eventgroup, client_t _client);
+    bool add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _force);
     void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
     bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
     std::set<client_t> get_subscribers();

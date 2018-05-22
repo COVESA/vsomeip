@@ -42,6 +42,8 @@ public:
     virtual ~client_endpoint_impl();
 
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+    bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+              uint32_t _size, bool _flush = true);
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
                  const byte_t *_data, uint32_t _size, bool _flush = true);
     bool flush();
@@ -80,6 +82,11 @@ protected:
     void shutdown_and_close_socket(bool _recreate_socket);
     void shutdown_and_close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
+
+    bool check_message_size(std::uint32_t _size) const;
+    bool check_packetizer_space(std::uint32_t _size);
+    bool check_queue_limit(const uint8_t *_data, std::uint32_t _size) const;
+    void send_or_start_flush_timer(bool _flush, bool _queue_size_zero_on_entry);
 
     mutable std::mutex socket_mutex_;
     std::unique_ptr<socket_type> socket_;

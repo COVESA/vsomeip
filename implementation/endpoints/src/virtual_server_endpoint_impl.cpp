@@ -40,6 +40,16 @@ bool virtual_server_endpoint_impl::send(const byte_t *_data, uint32_t _size,
     return false;
 }
 
+bool virtual_server_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
+                                      const byte_t *_data, uint32_t _size,
+                                      bool _flush) {
+    (void)_cmd_header;
+    (void)_data;
+    (void)_size;
+    (void)_flush;
+    return false;
+}
+
 bool virtual_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
         const byte_t *_data, uint32_t _size, bool _flush) {

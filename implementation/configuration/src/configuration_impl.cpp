@@ -2400,9 +2400,7 @@ std::uint32_t configuration_impl::get_max_message_size_local() const {
 
     // add sizes of the the routing_manager_proxy's messages
     // to the routing_manager stub
-    return std::uint32_t(its_max_message_size
-            + VSOMEIP_COMMAND_HEADER_SIZE + sizeof(instance_t)
-            + sizeof(bool) + sizeof(bool) + sizeof(client_t));
+    return std::uint32_t(its_max_message_size + VSOMEIP_SEND_COMMAND_SIZE);
 }
 
 std::uint32_t configuration_impl::get_max_message_size_reliable(

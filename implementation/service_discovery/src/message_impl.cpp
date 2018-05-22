@@ -239,30 +239,16 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
     while (is_successful && _from->get_remaining()) {
         std::shared_ptr < entry_impl > its_entry(deserialize_entry(_from));
         if (its_entry) {
-            if (its_entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP) {
-                bool is_unique(true);
-                for (const auto& e : entries_) {
-                    if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP &&
-                        *(static_cast<eventgroupentry_impl*>(e.get())) ==
-                        *(static_cast<eventgroupentry_impl*>(its_entry.get()))) {
-                        is_unique = false;
-                        break;
-                    }
-                }
-                if (is_unique) {
-                    entries_.push_back(its_entry);
-                    if (its_entry->get_ttl() > 0) {
-                        const std::uint8_t num_options =
-                                static_cast<std::uint8_t>(
-                                        its_entry->get_num_options(1) +
-                                        its_entry->get_num_options(2));
-                        number_required_acks_ =
-                                static_cast<std::uint8_t>(number_required_acks_
-                                        + num_options);
-                    }
-                }
-            } else {
-                entries_.push_back(its_entry);
+            entries_.push_back(its_entry);
+            if (its_entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP
+                    && its_entry->get_ttl() > 0) {
+                const std::uint8_t num_options =
+                        static_cast<std::uint8_t>(
+                                its_entry->get_num_options(1) +
+                                its_entry->get_num_options(2));
+                number_required_acks_ =
+                        static_cast<std::uint8_t>(number_required_acks_
+                                + num_options);
             }
         } else {
             is_successful = false;

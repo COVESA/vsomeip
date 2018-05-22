@@ -463,9 +463,7 @@ void check_file(const std::string &_config_file,
     // use 17000 instead of 1500 as configured max-local-payload size will be
     // increased to bigger max-reliable-payload-size
     std::uint32_t max_local_message_size(
-            17000u + 16u + + VSOMEIP_COMMAND_HEADER_SIZE
-                    + sizeof(vsomeip::instance_t) + sizeof(bool) + sizeof(bool)
-                    + sizeof(vsomeip::client_t));
+            17000u + 16u + + VSOMEIP_SEND_COMMAND_SIZE);
     EXPECT_EQ(max_local_message_size, its_configuration->get_max_message_size_local());
     EXPECT_EQ(11u, its_configuration->get_buffer_shrink_threshold());
     EXPECT_EQ(14999u + 16u, its_configuration->get_max_message_size_reliable("10.10.10.10", 7777));

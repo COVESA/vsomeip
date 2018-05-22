@@ -43,12 +43,9 @@ private:
     bool is_reliable_;
 
     static std::mutex definitions_mutex_;
-    static std::map<service_t,
-              std::map<instance_t,
-                  std::map<boost::asio::ip::address,
-                      std::map<uint16_t,
-                          std::map<bool,
-                              std::shared_ptr<endpoint_definition> > > > > > definitions_;
+    static std::map<
+        std::tuple<service_t, instance_t, boost::asio::ip::address, uint16_t, bool>,
+        std::shared_ptr<endpoint_definition> > definitions_;
 };
 
 } // namespace vsomeip

@@ -878,23 +878,21 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
         switch (its_command) {
         case VSOMEIP_SEND: {
             instance_t its_instance;
-            std::memcpy(&its_instance,
-                    &_data[_size - sizeof(instance_t) - sizeof(bool)
-                            - sizeof(bool) - sizeof(bool)], sizeof(instance_t));
             bool its_reliable;
-            std::memcpy(&its_reliable, &_data[_size - sizeof(bool) - sizeof(bool)],
-                            sizeof(its_reliable));
             bool its_is_vslid_crc;
-            std::memcpy(&its_is_vslid_crc, &_data[_size - sizeof(bool)],
-                            sizeof(its_is_vslid_crc));
+            std::memcpy(&its_instance,&_data[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
+                        sizeof(instance_t));
+            std::memcpy(&its_reliable, &_data[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
+                        sizeof(its_reliable));
+            std::memcpy(&its_is_vslid_crc, &_data[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
+                        sizeof(its_is_vslid_crc));
 
-            // reduce by size of instance, flush, reliable and is_valid_crc flag
+            // reduce by size of instance, flush, reliable, client and is_valid_crc flag
             const std::uint32_t its_message_size = its_length -
-                    static_cast<uint32_t>(sizeof(its_instance)
-                    + sizeof(bool) + sizeof(bool) + sizeof(bool));
+                    (VSOMEIP_SEND_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE);
 
             auto a_deserializer = get_deserializer();
-            a_deserializer->set_data(&_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+            a_deserializer->set_data(&_data[VSOMEIP_SEND_COMMAND_PAYLOAD_POS],
                     its_message_size);
             std::shared_ptr<message> its_message(a_deserializer->deserialize_message());
             a_deserializer->reset();
@@ -1964,7 +1962,7 @@ bool routing_manager_proxy::create_placeholder_event_and_subscribe(
             true);
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
-        is_inserted = its_event->add_subscriber(_eventgroup, _client);
+        is_inserted = its_event->add_subscriber(_eventgroup, _client, false);
     }
     return is_inserted;
 }

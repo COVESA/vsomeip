@@ -266,6 +266,11 @@ TEST_F(malicious_data, send_malicious_events)
 
     send_thread.join();
     receive_thread.join();
+    udp_socket.shutdown(boost::asio::socket_base::shutdown_both);
+    tcp_socket.shutdown(boost::asio::socket_base::shutdown_both);
+    udp_socket.close();
+    tcp_socket.close();
+
 }
 
 #ifndef _WIN32

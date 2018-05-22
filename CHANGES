@@ -1,6 +1,20 @@
 Changes
 =======
 
+v2.10.21
+- Improve memory usage of routing manager.
+- Improve handling of incoming SD messages with uncommon entry
+  combinations.
+- Name all threads under Linux and log thread IDs during startup.
+- Optimize memory allocation for internal message handling.
+- Ensure an (extra) dispatch thread is running in case the main
+  dispatch thread is (still) blocked.
+- Fix race condition which could lead to missing initial events for
+  local subscriptions if the application hosting the service called
+  application::offer_event and additionally application::request_event
+  for the same event.
+- Fixed crash
+
 v2.10.20
 - Add security config (i.e. vsomeip_security.json) to mandatory config files
 - Enable local_routing_test_starter.sh to use externally defined configuration

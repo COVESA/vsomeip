@@ -41,6 +41,8 @@ public:
     bool is_connected() const;
     void set_connected(bool _connected);
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
+    bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+              uint32_t _size, bool _flush = true);
 
     virtual void stop();
     bool flush(endpoint_type _target);

@@ -356,7 +356,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                     std::set<client_t> its_any_event_subscribers =
                             its_any_event->get_subscribers(eventgroup);
                     for (const client_t subscriber : its_any_event_subscribers) {
-                        its_event->add_subscriber(eventgroup, subscriber);
+                        its_event->add_subscriber(eventgroup, subscriber, true);
                     }
                 }
             }
@@ -998,36 +998,29 @@ bool routing_manager_base::send_local(
         std::shared_ptr<endpoint>& _target, client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
         bool _flush, bool _reliable, uint8_t _command, bool _is_valid_crc) const {
-    std::size_t its_complete_size = _size + sizeof(instance_t)
-            + sizeof(bool) + sizeof(bool) + sizeof(bool);
-    client_t sender = get_client();
-    if (_command == VSOMEIP_NOTIFY_ONE) {
-        its_complete_size +=sizeof(client_t);
-    }
-    std::vector<byte_t> its_command(
-            VSOMEIP_COMMAND_HEADER_SIZE + its_complete_size);
-    its_command[VSOMEIP_COMMAND_TYPE_POS] = _command;
-    std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &sender,
-            sizeof(client_t));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_complete_size,
-            sizeof(_size));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], _data,
-            _size);
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size],
-            &_instance, sizeof(instance_t));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-            + sizeof(instance_t)], &_flush, sizeof(bool));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-            + sizeof(instance_t) + sizeof(bool)], &_reliable, sizeof(bool));
-    std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-            + sizeof(instance_t) + sizeof(bool) + sizeof(bool)], &_is_valid_crc, sizeof(bool));
-    if (_command == VSOMEIP_NOTIFY_ONE) {
-        // Add target client
-        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + _size
-                + sizeof(instance_t) + sizeof(bool) + sizeof(bool) + sizeof(bool)], &_client, sizeof(client_t));
-    }
+    const std::size_t its_complete_size = VSOMEIP_SEND_COMMAND_SIZE
+            - VSOMEIP_COMMAND_HEADER_SIZE + _size;
+    const client_t sender = get_client();
 
-    return _target->send(&its_command[0], uint32_t(its_command.size()));
+    std::vector<byte_t> its_command_header(VSOMEIP_SEND_COMMAND_SIZE);
+    its_command_header[VSOMEIP_COMMAND_TYPE_POS] = _command;
+    std::memcpy(&its_command_header[VSOMEIP_COMMAND_CLIENT_POS],
+            &sender, sizeof(client_t));
+    std::memcpy(&its_command_header[VSOMEIP_COMMAND_SIZE_POS_MIN],
+            &its_complete_size, sizeof(_size));
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
+            &_instance, sizeof(instance_t));
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_FLUSH_POS],
+            &_flush, sizeof(bool));
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
+            &_reliable, sizeof(bool));
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
+            &_is_valid_crc, sizeof(bool));
+    // Add target client, only relevant for selective notifications
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_DST_CLIENT_POS_MIN],
+            &_client, sizeof(client_t));
+
+    return _target->send(its_command_header, _data, _size);
 }
 
 bool routing_manager_base::insert_subscription(
@@ -1037,7 +1030,8 @@ bool routing_manager_base::insert_subscription(
     if (_event != ANY_EVENT) { // subscribe to specific event
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event) {
-            is_inserted = its_event->add_subscriber(_eventgroup, _client);
+            is_inserted = its_event->add_subscriber(_eventgroup, _client,
+                    host_->is_routing());
         } else {
             VSOMEIP_WARNING << "routing_manager_base::insert_subscription("
                 << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
@@ -1067,7 +1061,8 @@ bool routing_manager_base::insert_subscription(
                         // eventgroups
                         _already_subscribed_events->insert(e->get_event());
                     }
-                    is_inserted = e->add_subscriber(_eventgroup, _client) || is_inserted;
+                    is_inserted = e->add_subscriber(_eventgroup, _client,
+                            host_->is_routing()) || is_inserted;
                 }
             }
         } else {

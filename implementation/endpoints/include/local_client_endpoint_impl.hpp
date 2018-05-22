@@ -50,6 +50,8 @@ public:
     void restart(bool _force);
     void print_status();
 
+    bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+              uint32_t _size, bool _flush = true);
 private:
     void send_queued();
 

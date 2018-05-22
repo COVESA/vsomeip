@@ -10,6 +10,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 
+#include <vector>
+
 namespace vsomeip {
 
 class endpoint_definition;
@@ -27,6 +29,8 @@ public:
 
     virtual bool send(const byte_t *_data, uint32_t _size,
             bool _flush = true) = 0;
+    virtual bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+              uint32_t _size, bool _flush = true) = 0;
     virtual bool send_to(const std::shared_ptr<endpoint_definition> _target,
             const byte_t *_data, uint32_t _size, bool _flush = true) = 0;
     virtual void enable_magic_cookies() = 0;

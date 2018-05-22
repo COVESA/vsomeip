@@ -148,6 +148,8 @@ public:
             ;
         } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
             ;
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE) {
+            ;
         }
         std::future<bool> itsFuture = notify_method_called_.get_future();
         if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(10))) {
@@ -202,7 +204,7 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
             if (_subscribed) {
-                _cbk((count_subscribe % 2)); // nack every second subscription
+                _cbk(((count_subscribe + 1) % 2)); // nack every second subscription
             } else {
                 _cbk(true);
             }
@@ -227,6 +229,16 @@ public:
             EXPECT_TRUE(_subscribed);
             _cbk(true);
             subscription_accepted_asynchronous_ = true;
+        }  else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE) {
+            static int was_called = 0;
+            was_called++;
+            EXPECT_EQ(1, was_called);
+            EXPECT_TRUE(_subscribed);
+            subscription_accepted_asynchronous_ = true;
+            // this test doesn't subscribe to the second eventgroup which is handled by the asynchronous
+            // subscription handler, set it to true here:
+            subscription_accepted_synchronous_ = true;
+            _cbk(true);
         }
     }
 
@@ -274,7 +286,7 @@ public:
                 subscription_accepted_synchronous_ = true;
             }
             if (_subscribed) {
-                ret = (count_subscribed % 2); // nack every second subscription
+                ret = ((count_subscribed + 1) % 2); // nack every second subscription
             } else {
                 ret = true;
             }
@@ -348,6 +360,8 @@ int main(int argc, char** argv)
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT;
     } else if (its_pased_testmode == std::string("SUBSCRIBE_RESUBSCRIBE_MIXED")) {
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED;
+    } else if (its_pased_testmode == std::string("SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE")) {
+        its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE;
     }
 
     return RUN_ALL_TESTS();

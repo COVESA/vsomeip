@@ -171,8 +171,8 @@ void local_client_endpoint_impl::receive() {
 }
 
 void local_client_endpoint_impl::send_queued() {
-    static byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
-    static byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
+    static const byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
+    static const byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
     std::vector<boost::asio::const_buffer> bufs;
 
     message_buffer_ptr_t its_buffer;
@@ -288,6 +288,35 @@ std::string local_client_endpoint_impl::get_remote_information() const {
 #else
     return remote_.path();
 #endif
+}
+
+bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
+                                      const byte_t *_data, uint32_t _size,
+                                      bool _flush) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    bool ret(true);
+    const bool queue_size_zero_on_entry(queue_.empty());
+
+    if (endpoint_impl::sending_blocked_ ||
+        !check_message_size(static_cast<std::uint32_t>(_cmd_header.size() + _size)) ||
+        !check_packetizer_space(static_cast<std::uint32_t>(_cmd_header.size() + _size))||
+        !check_queue_limit(_data, static_cast<std::uint32_t>(_cmd_header.size() + _size))) {
+        ret = false;
+    } else {
+#if 0
+        std::stringstream msg;
+        msg << "lce::send: ";
+        for (uint32_t i = 0; i < _size; i++)
+        msg << std::hex << std::setw(2) << std::setfill('0')
+        << (int)_data[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+        packetizer_->reserve(_cmd_header.size() + _size);
+        packetizer_->insert(packetizer_->end(), _cmd_header.begin(), _cmd_header.end());
+        packetizer_->insert(packetizer_->end(), _data, _data + _size);
+        send_or_start_flush_timer(_flush, queue_size_zero_on_entry);
+    }
+    return ret;
 }
 
 } // namespace vsomeip

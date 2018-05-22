@@ -1588,14 +1588,16 @@ bool routing_manager_impl::deliver_notification(
                 bool cache_event = false;
                 for (const auto eg : its_event->get_eventgroups()) {
                     std::shared_ptr<eventgroupinfo> egi = find_eventgroup(_service, _instance, eg);
-                    for (const auto &e : egi->get_events()) {
-                        cache_event = (e->get_subscribers().size() > 0);
+                    if (egi) {
+                        for (const auto &e : egi->get_events()) {
+                            cache_event = (e->get_subscribers().size() > 0);
+                            if (cache_event) {
+                                break;
+                            }
+                        }
                         if (cache_event) {
                             break;
                         }
-                    }
-                    if (cache_event) {
-                        break;
                     }
                 }
                 if (!cache_event) {
@@ -4322,7 +4324,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(
 
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
-        is_inserted = its_event->add_subscriber(_eventgroup, _client);
+        is_inserted = its_event->add_subscriber(_eventgroup, _client, false);
     }
     return is_inserted;
 }
@@ -4586,12 +4588,27 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
     std::vector<pending_subscription_t> its_pending_subscriptions =
             its_eventgroup->remove_pending_subscription(_unsubscription_id);
     for (const pending_subscription_t& its_sd_message_id : its_pending_subscriptions) {
-        const pending_subscription_id_t its_subscription_id = its_sd_message_id.pending_subscription_id_;
-        const client_t its_subscribing_client = its_sd_message_id.subscribing_client_;
-        const client_t its_offering_client = find_local_client(_service, _instance);
-        send_subscription(its_offering_client, its_subscribing_client, _service,
-                          _instance, _eventgroup, its_eventgroup->get_major(),
-                          its_subscription_id);
+        if (its_sd_message_id.pending_subscription_id_ == _unsubscription_id) {
+            its_eventgroup->remove_target(its_sd_message_id.target_);
+            clear_remote_subscriber(_service, _instance,
+                                    its_sd_message_id.subscribing_client_,
+                                    its_sd_message_id.target_);
+            if (its_eventgroup->get_targets().size() == 0) {
+                for (auto e : its_eventgroup->get_events()) {
+                    if (e->is_shadow()) {
+                        e->unset_payload();
+                    }
+                }
+            }
+        } else {
+            const pending_subscription_id_t its_subscription_id =
+                    its_sd_message_id.pending_subscription_id_;
+            const client_t its_subscribing_client = its_sd_message_id.subscribing_client_;
+            const client_t its_offering_client = find_local_client(_service, _instance);
+            send_subscription(its_offering_client, its_subscribing_client, _service,
+                              _instance, _eventgroup, its_eventgroup->get_major(),
+                              its_subscription_id);
+        }
     }
 }
 

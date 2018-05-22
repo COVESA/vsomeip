@@ -40,6 +40,7 @@ public:
             eventgroup_t _eventgroup, event_t _event, uint16_t _error) = 0;
     virtual void send(std::shared_ptr<message> _message, bool _flush) = 0;
     virtual void on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services) = 0;
+    virtual bool is_routing() const = 0;
 };
 
 } // namespace vsomeip

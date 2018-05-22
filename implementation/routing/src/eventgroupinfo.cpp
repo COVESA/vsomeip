@@ -236,6 +236,7 @@ pending_subscription_id_t eventgroupinfo::add_pending_subscription(
     if (++subscription_id_ == DEFAULT_SUBSCRIPTION) {
         subscription_id_++;
     }
+    _pending_subscription.pending_subscription_id_ = subscription_id_;
     pending_subscriptions_[subscription_id_] = _pending_subscription;
 
     const auto remote_address_port = std::make_tuple(
@@ -278,10 +279,9 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
                 pending_subscriptions_.erase(found_pending_subscription);
                 found_remote->second.erase(found_remote->second.begin());
 
-                if (removed_is_subscribe) { // only subscriptions must be acked via SD
-                    its_pending_sub.pending_subscription_id_ = _subscription_id;
-                    its_pending_subscriptions.push_back(its_pending_sub);
-                }
+                // return removed (un)subscription as first element
+                its_pending_subscriptions.push_back(its_pending_sub);
+
                 // retrieve all pending (un)subscriptions which arrived during
                 // the time the rm_proxy answered the currently processed subscription
                 for (auto iter = found_remote->second.begin();
@@ -291,7 +291,6 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
                         const bool queued_is_subscribe = (other_pen_sub->second.ttl_ > 0);
                         if (removed_is_subscribe) {
                             its_pending_subscriptions.push_back(other_pen_sub->second);
-                            its_pending_subscriptions.back().pending_subscription_id_ = *iter;
                             if (!queued_is_subscribe) {
                                 // unsubscribe was queued and needs to be sent to
                                 // rm_proxy first before continuing processing
@@ -307,7 +306,6 @@ std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
                                 // rm_proxy first before continuing processing
                                 // following queued (un)subscriptions
                                 its_pending_subscriptions.push_back(other_pen_sub->second);
-                                its_pending_subscriptions.back().pending_subscription_id_ = *iter;
                                 break;
                             } else {
                                 // further queued unsubscriptions can be ignored

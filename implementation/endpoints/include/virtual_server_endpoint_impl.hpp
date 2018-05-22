@@ -28,6 +28,8 @@ public:
     void set_connected(bool _connected);
 
     bool send(const byte_t *_data, uint32_t _size, bool _flush);
+    bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+              uint32_t _size, bool _flush);
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
             const byte_t *_data, uint32_t _size, bool _flush);
     void enable_magic_cookies();

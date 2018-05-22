@@ -105,96 +105,37 @@ template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
         uint32_t _size, bool _flush) {
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (endpoint_impl<Protocol>::sending_blocked_) {
-        return false;
-    }
-#if 0
-    std::stringstream msg;
-    msg << "cei::send: ";
-    for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0')
-    << (int)_data[i] << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
-
-    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
-            && _size > endpoint_impl<Protocol>::max_message_size_) {
-        VSOMEIP_ERROR << "cei::send: Dropping to big message (" << std::dec
-                << _size << " Bytes). Maximum allowed message size is: "
-                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
-        return false;
-    }
-
+    bool ret(true);
     const bool queue_size_zero_on_entry(queue_.empty());
-    if (packetizer_->size() + _size < packetizer_->size()) {
-        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
-        return false;
-    }
-    if (packetizer_->size() + _size > endpoint_impl<Protocol>::max_message_size_
-            && !packetizer_->empty()) {
-        queue_.push_back(packetizer_);
-        queue_size_ += packetizer_->size();
-        packetizer_ = std::make_shared<message_buffer_t>();
-    }
-
-    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-            && queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
-        service_t its_service(0);
-        method_t its_method(0);
-        client_t its_client(0);
-        session_t its_session(0);
-        if (_size >= VSOMEIP_SESSION_POS_MAX) {
-            // this will yield wrong IDs for local communication as the commands
-            // are prepended to the actual payload
-            // it will print:
-            // (lowbyte service ID + highbyte methoid)
-            // [(Command + lowerbyte sender's client ID).
-            //  highbyte sender's client ID + lowbyte command size.
-            //  lowbyte methodid + highbyte vsomeipd length]
-            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                _data[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                               _data[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                               _data[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                _data[VSOMEIP_SESSION_POS_MAX]);
-        }
-        VSOMEIP_ERROR << "cei::send: queue size limit (" << std::dec
-                << endpoint_impl<Protocol>::queue_limit_
-                << ") reached. Dropping message ("
-                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << "] "
-                << "queue_size: " << std::dec << queue_size_
-                << " data size: " << std::dec << _size;
-        return false;
-    }
-    packetizer_->insert(packetizer_->end(), _data, _data + _size);
-
-    if (_flush) {
-        flush_timer_.cancel();
-        queue_.push_back(packetizer_);
-        queue_size_ += packetizer_->size();
-        packetizer_ = std::make_shared<message_buffer_t>();
+    if (endpoint_impl<Protocol>::sending_blocked_ ||
+        !check_message_size(_size) ||
+        !check_packetizer_space(_size) ||
+        !check_queue_limit(_data, _size)) {
+        ret = false;
     } else {
-        flush_timer_.expires_from_now(
-                std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
-        flush_timer_.async_wait(
-            std::bind(
-                &client_endpoint_impl<Protocol>::flush_cbk,
-                this->shared_from_this(),
-                std::placeholders::_1
-            )
-        );
+#if 0
+        std::stringstream msg;
+        msg << "cei::send: ";
+        for (uint32_t i = 0; i < _size; i++)
+        msg << std::hex << std::setw(2) << std::setfill('0')
+        << (int)_data[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+        packetizer_->insert(packetizer_->end(), _data, _data + _size);
+        send_or_start_flush_timer(_flush, queue_size_zero_on_entry);
     }
+    return ret;
+}
 
-    if (queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
-        send_queued();
-    }
-
-    return (true);
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::send(const std::vector<byte_t>& _cmd_header,
+                                      const byte_t *_data, uint32_t _size,
+                                      bool _flush) {
+    (void) _cmd_header;
+    (void) _data;
+    (void) _size;
+    (void) _flush;
+    return false;
 }
 
 template<typename Protocol>
@@ -425,6 +366,97 @@ void client_endpoint_impl<Protocol>::start_connect_timer() {
     connect_timer_.async_wait(
             std::bind(&client_endpoint_impl<Protocol>::wait_connect_cbk,
                       this->shared_from_this(), std::placeholders::_1));
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
+            && _size > endpoint_impl<Protocol>::max_message_size_) {
+        VSOMEIP_ERROR << "cei::check_message_size: Dropping to big message ("
+                << std::dec << _size << " Bytes). Maximum allowed message size is: "
+                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+        return false;
+    }
+    return true;
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::check_packetizer_space(std::uint32_t _size) {
+    if (packetizer_->size() + _size < packetizer_->size()) {
+        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
+        return false;
+    }
+    if (packetizer_->size() + _size > endpoint_impl<Protocol>::max_message_size_
+            && !packetizer_->empty()) {
+        queue_.push_back(packetizer_);
+        queue_size_ += packetizer_->size();
+        packetizer_ = std::make_shared<message_buffer_t>();
+    }
+    return true;
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std::uint32_t _size) const {
+    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
+            && queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
+        service_t its_service(0);
+        method_t its_method(0);
+        client_t its_client(0);
+        session_t its_session(0);
+        if (_size >= VSOMEIP_SESSION_POS_MAX) {
+            // this will yield wrong IDs for local communication as the commands
+            // are prepended to the actual payload
+            // it will print:
+            // (lowbyte service ID + highbyte methoid)
+            // [(Command + lowerbyte sender's client ID).
+            //  highbyte sender's client ID + lowbyte command size.
+            //  lowbyte methodid + highbyte vsomeipd length]
+            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
+                                                _data[VSOMEIP_SERVICE_POS_MAX]);
+            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
+                                               _data[VSOMEIP_METHOD_POS_MAX]);
+            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
+                                               _data[VSOMEIP_CLIENT_POS_MAX]);
+            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
+                                                _data[VSOMEIP_SESSION_POS_MAX]);
+        }
+        VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec
+                << endpoint_impl<Protocol>::queue_limit_
+                << ") reached. Dropping message ("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_session << "] "
+                << "queue_size: " << std::dec << queue_size_
+                << " data size: " << std::dec << _size;
+        return false;
+    }
+    return true;
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::send_or_start_flush_timer(
+        bool _flush, bool _queue_size_zero_on_entry) {
+    if (_flush) {
+        flush_timer_.cancel();
+        queue_.push_back(packetizer_);
+        queue_size_ += packetizer_->size();
+        packetizer_ = std::make_shared<message_buffer_t>();
+
+        if (_queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
+            send_queued();
+        }
+    } else {
+        flush_timer_.expires_from_now(
+                std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
+        flush_timer_.async_wait(
+            std::bind(
+                &client_endpoint_impl<Protocol>::flush_cbk,
+                this->shared_from_this(),
+                std::placeholders::_1
+            )
+        );
+    }
 }
 
 // Instantiate template

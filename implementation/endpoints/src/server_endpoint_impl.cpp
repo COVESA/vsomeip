@@ -116,6 +116,17 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint
 }
 
 template<typename Protocol>
+bool server_endpoint_impl<Protocol>::send(
+        const std::vector<byte_t>& _cmd_header, const byte_t *_data,
+        uint32_t _size, bool _flush) {
+    (void) _cmd_header;
+    (void) _data;
+    (void) _size;
+    (void) _flush;
+    return false;
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::send_intern(
         endpoint_type _target, const byte_t *_data, uint32_t _size,
         bool _flush) {

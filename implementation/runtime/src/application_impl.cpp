@@ -11,6 +11,7 @@
 
 #ifndef _WIN32
 #include <dlfcn.h>
+#include <sys/syscall.h>
 #endif
 
 #include <vsomeip/defines.hpp>
@@ -302,6 +303,15 @@ bool application_impl::init() {
 }
 
 void application_impl::start() {
+#ifndef _WIN32
+    if (getpid() != static_cast<pid_t>(syscall(SYS_gettid))) {
+        // only set threadname if calling thread isn't the main thread
+        std::stringstream s;
+        s << std::hex << std::setw(4) << std::setfill('0') << client_
+                << "_io" << std::setw(2) << std::setfill('0') << 0;
+        pthread_setname_np(pthread_self(),s.str().c_str());
+    }
+#endif
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
@@ -352,7 +362,20 @@ void application_impl::start() {
                     VSOMEIP_INFO << "io thread id from application: "
                             << std::hex << std::setw(4) << std::setfill('0')
                             << client_ << " (" << name_ << ") is: " << std::hex
-                            << std::this_thread::get_id();
+                            << std::this_thread::get_id()
+                    #ifndef _WIN32
+                            << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+                    #endif
+                            ;
+                    #ifndef _WIN32
+                        {
+                            std::stringstream s;
+                            s << std::hex << std::setw(4) << std::setfill('0')
+                                << client_ << "_io" << std::setw(2)
+                                << std::setfill('0') << i+1;
+                            pthread_setname_np(pthread_self(),s.str().c_str());
+                        }
+                    #endif
                     try {
                       io_.run();
 #ifndef _WIN32
@@ -388,7 +411,11 @@ void application_impl::start() {
     app_counter_mutex__.unlock();
     VSOMEIP_INFO << "io thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
-            << name_ << ") is: " << std::hex << std::this_thread::get_id();
+            << name_ << ") is: " << std::hex << std::this_thread::get_id()
+#ifndef _WIN32
+            << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+    ;
     try {
         io_.run();
 #ifndef _WIN32
@@ -1554,10 +1581,22 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
+#ifndef _WIN32
+    {
+        std::stringstream s;
+        s << std::hex << std::setw(4) << std::setfill('0')
+            << client_ << "_m_dispatch";
+        pthread_setname_np(pthread_self(),s.str().c_str());
+    }
+#endif
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "main dispatch thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
-            << name_ << ") is: " << std::hex << its_id;
+            << name_ << ") is: " << std::hex << its_id
+#ifndef _WIN32
+            << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
@@ -1595,15 +1634,28 @@ void application_impl::main_dispatch() {
 }
 
 void application_impl::dispatch() {
+#ifndef _WIN32
+    {
+        std::stringstream s;
+        s << std::hex << std::setw(4) << std::setfill('0')
+            << client_ << "_dispatch";
+        pthread_setname_np(pthread_self(),s.str().c_str());
+    }
+#endif
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "dispatch thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
-            << name_ << ") is: " << std::hex << its_id;
+            << name_ << ") is: " << std::hex << its_id
+#ifndef _WIN32
+            << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
     while (is_active_dispatcher(its_id)) {
         std::unique_lock<std::mutex> its_lock(handlers_mutex_);
         if (is_dispatching_ && handlers_.empty()) {
              dispatcher_condition_.wait(its_lock);
-             if (handlers_.empty()) { // Maybe woken up from main dispatcher
+             // Maybe woken up from main dispatcher
+             if (handlers_.empty() && !is_active_dispatcher(its_id)) {
                  if (!is_dispatching_) {
                      return;
                  }
@@ -1860,9 +1912,19 @@ void application_impl::clear_all_handler() {
 void application_impl::shutdown() {
     VSOMEIP_INFO << "shutdown thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
-            << name_ << ") is: " << std::hex << std::this_thread::get_id();
+            << name_ << ") is: " << std::hex << std::this_thread::get_id()
+#ifndef _WIN32
+            << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+    ;
 #ifndef _WIN32
     boost::asio::detail::posix_signal_blocker blocker;
+    {
+        std::stringstream s;
+        s << std::hex << std::setw(4) << std::setfill('0')
+            << client_ << "_shutdown";
+        pthread_setname_np(pthread_self(),s.str().c_str());
+    }
 #endif
 
     {
