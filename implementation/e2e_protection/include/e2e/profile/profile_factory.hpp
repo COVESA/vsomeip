@@ -13,15 +13,25 @@
 #include "profile_interface/protector.hpp"
 #include "profile_interface/checker.hpp"
 #include "../../../../configuration/include/e2e.hpp"
+#include "../../../../../interface/vsomeip/export.hpp"
+#include "../../../../../interface/vsomeip/plugin.hpp"
 
 namespace vsomeip {
 namespace e2e {
 
-bool is_e2e_profile_supported(const std::string& name);
+class profile_factory:
+        public plugin_impl<profile_factory>,
+        public std::enable_shared_from_this<profile_factory> {
+public:
+	VSOMEIP_EXPORT profile_factory();
+	VSOMEIP_EXPORT ~profile_factory() override;
 
-std::tuple<std::shared_ptr<profile_interface::checker>, std::shared_ptr<profile_interface::protector>>
-process_e2e_config(std::shared_ptr<cfg::e2e> config);
+	VSOMEIP_EXPORT bool is_e2e_profile_supported(const std::string& name) const;
 
+	VSOMEIP_EXPORT
+	std::tuple<std::shared_ptr<profile_interface::checker>, std::shared_ptr<profile_interface::protector>>
+	process_e2e_config(std::shared_ptr<cfg::e2e> config) const;
+};
 
 } // namespace e2e
 } // namespace vsomeip

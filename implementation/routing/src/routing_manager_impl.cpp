@@ -111,15 +111,17 @@ void routing_manager_impl::init() {
 
     if( configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
+        // TODO: this will be retrieved from the plugin later
+        std::shared_ptr<e2e::profile_factory> profile_factory = std::make_shared<e2e::profile_factory>();
         std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> its_e2e_configuration = configuration_->get_e2e_configuration();
         for (auto &identifier : its_e2e_configuration) {
             auto its_cfg = identifier.second;
-            if(e2e::is_e2e_profile_supported(its_cfg->profile)) {
+            if(profile_factory->is_e2e_profile_supported(its_cfg->profile)) {
                 e2exf::data_identifier its_data_identifier = {its_cfg->service_id, its_cfg->event_id};
 
                 std::shared_ptr<e2e::profile_interface::checker> checker;
                 std::shared_ptr<e2e::profile_interface::protector> protector;
-                std::tie(checker, protector) = e2e::process_e2e_config(its_cfg);
+                std::tie(checker, protector) = profile_factory->process_e2e_config(its_cfg);
 
                 if(checker) {
                      custom_checkers[its_data_identifier] = checker;

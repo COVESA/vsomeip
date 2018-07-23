@@ -86,15 +86,26 @@ process_e2e_profile(std::shared_ptr<vsomeip::cfg::e2e> config) {
 
 } // namespace
 
+VSOMEIP_PLUGIN(vsomeip::e2e::profile_factory)
+
 namespace vsomeip {
 namespace e2e {
 
-bool is_e2e_profile_supported(const std::string& name) {
+profile_factory::profile_factory()
+    : plugin_impl("vsomeip e2e plugin", 1, plugin_type_e::APPLICATION_PLUGIN)
+{
+}
+
+profile_factory::~profile_factory()
+{
+}
+
+bool profile_factory::is_e2e_profile_supported(const std::string& name) const {
     return (name == "CRC8") || (name == "CRC32");
 }
 
 std::tuple<std::shared_ptr<profile_interface::checker>, std::shared_ptr<profile_interface::protector>>
-process_e2e_config(std::shared_ptr<cfg::e2e> config) {
+profile_factory::process_e2e_config(std::shared_ptr<cfg::e2e> config) const {
     if(config->profile == "CRC8") {
         return process_e2e_profile<profile01::profile_config, profile01::profile_01_checker, profile01::protector>(config);
     }
@@ -107,6 +118,8 @@ process_e2e_config(std::shared_ptr<cfg::e2e> config) {
 
     return std::make_tuple(nullptr, nullptr);
 }
+
+
 
 
 } // namespace e2e
