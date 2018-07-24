@@ -17,7 +17,7 @@ namespace profile_interface {
 class checker : public profile_interface {
   public:
     virtual void check(const e2e_buffer &_buffer,
-                       vsomeip::e2e::profile_interface::generic_check_status &_generic_check_status) = 0;
+                       vsomeip::e2e::profile_interface::check_status_t &_generic_check_status) = 0;
 };
 
 } // namespace profile_interface

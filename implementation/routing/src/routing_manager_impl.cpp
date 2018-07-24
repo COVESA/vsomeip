@@ -1148,7 +1148,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                            _data[VSOMEIP_METHOD_POS_MAX]);
                 if( custom_checkers.count({its_service, its_method})) {
                     e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data + _size);
-                    e2e::profile_interface::generic_check_status check_status;
+                    e2e::profile_interface::check_status_t check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
                     custom_checkers[{its_service, its_method}]->check( inputBuffer, check_status);
 
                     if ( check_status != e2e::profile_interface::generic_check_status::E2E_OK ) {
