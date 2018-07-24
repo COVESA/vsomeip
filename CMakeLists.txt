@@ -143,12 +143,8 @@ file(GLOB vsomeip_SRC
     "implementation/plugin/src/*.cpp"
 )
 
-file(GLOB_RECURSE vsomeip_e2e_SRC
-    "implementation/e2e_protection/src/*.cpp"
-)
 
 list(SORT vsomeip_SRC)
-list(SORT vsomeip_e2e_SRC)
 
 if (${VSOMEIP_HOTFIX_VERSION} EQUAL 0)
 add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
@@ -171,7 +167,7 @@ else()
     set(USE_RT "rt")
 endif()
 
-add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
+add_library(vsomeip SHARED ${vsomeip_SRC})
 set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 # PRIVATE means the listed libraries won't be included in the "link interface",
 # meaning the exported vsomeipTargets.cmake targets won't try to link against
@@ -179,6 +175,17 @@ set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION $
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
 target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+# e2e library
+file(GLOB_RECURSE vsomeip-e2e_SRC
+    "implementation/e2e_protection/src/*.cpp"
+)
+
+list(SORT vsomeip-e2e_SRC)
+
+add_library(vsomeip-e2e SHARED ${vsomeip-e2e_SRC})
+set_target_properties (vsomeip-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(vsomeip-e2e vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 # Configuration library
 file(GLOB vsomeip-cfg_SRC
@@ -201,6 +208,7 @@ set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSIO
 target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 if (MSVC)
+    set_target_properties(vsomeip-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
@@ -258,6 +266,12 @@ install (
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT
     ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
     COMPONENT dev
+)
+
+install (
+    TARGETS vsomeip-e2e
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
 
 install (
@@ -400,7 +414,7 @@ add_subdirectory( tools )
 
 # build examples
 add_custom_target( examples )
-add_subdirectory( examples EXCLUDE_FROM_ALL )
+add_subdirectory( examples )
 
 # build plugins located directly in the build tree
 # (Non-Windows only)

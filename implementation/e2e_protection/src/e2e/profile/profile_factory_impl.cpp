@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "../../../../e2e_protection/include/e2e/profile/profile_factory.hpp"
+#include "../../../../e2e_protection/include/e2e/profile/profile_factory_impl.hpp"
 
 #include "../../../../e2e_protection/include/e2e/profile/profile01/checker.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile01/profile_01.hpp"
@@ -86,26 +86,26 @@ process_e2e_profile(std::shared_ptr<vsomeip::cfg::e2e> config) {
 
 } // namespace
 
-VSOMEIP_PLUGIN(vsomeip::e2e::profile_factory)
+VSOMEIP_PLUGIN(vsomeip::e2e::profile_factory_impl)
 
 namespace vsomeip {
 namespace e2e {
 
-profile_factory::profile_factory()
+profile_factory_impl::profile_factory_impl()
     : plugin_impl("vsomeip e2e plugin", 1, plugin_type_e::APPLICATION_PLUGIN)
 {
 }
 
-profile_factory::~profile_factory()
+profile_factory_impl::~profile_factory_impl()
 {
 }
 
-bool profile_factory::is_e2e_profile_supported(const std::string& name) const {
+bool profile_factory_impl::is_e2e_profile_supported(const std::string& name) const {
     return (name == "CRC8") || (name == "CRC32");
 }
 
 std::tuple<std::shared_ptr<profile_interface::checker>, std::shared_ptr<profile_interface::protector>>
-profile_factory::process_e2e_config(std::shared_ptr<cfg::e2e> config) const {
+profile_factory_impl::process_e2e_config(std::shared_ptr<cfg::e2e> config) const {
     if(config->profile == "CRC8") {
         return process_e2e_profile<profile01::profile_config, profile01::profile_01_checker, profile01::protector>(config);
     }

@@ -109,10 +109,19 @@ void routing_manager_impl::init() {
         }
     }
 
+    std::shared_ptr<e2e::profile_factory> profile_factory;
     if( configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
-        // TODO: this will be retrieved from the plugin later
-        std::shared_ptr<e2e::profile_factory> profile_factory = std::make_shared<e2e::profile_factory>();
+
+        auto its_plugin = plugin_manager::get()->get_plugin(
+                plugin_type_e::APPLICATION_PLUGIN, VSOMEIP_E2E_LIBRARY);
+        if (its_plugin) {
+            VSOMEIP_INFO << "E2E module loaded.";
+            profile_factory = std::dynamic_pointer_cast<e2e::profile_factory>(its_plugin);
+        }
+    }
+
+    if(profile_factory) {
         std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> its_e2e_configuration = configuration_->get_e2e_configuration();
         for (auto &identifier : its_e2e_configuration) {
             auto its_cfg = identifier.second;

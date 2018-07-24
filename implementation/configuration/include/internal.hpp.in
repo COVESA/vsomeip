@@ -40,6 +40,12 @@
 #define VSOMEIP_SD_LIBRARY                      "libvsomeip-sd.so.@VSOMEIP_MAJOR_VERSION@"
 #endif
 
+#ifdef WIN32
+#define VSOMEIP_E2E_LIBRARY                      "vsomeip-e2e.dll"
+#else
+#define VSOMEIP_E2E_LIBRARY                      "libvsomeip-e2e.so.@VSOMEIP_MAJOR_VERSION@"
+#endif
+
 #define VSOMEIP_ROUTING                         "@VSOMEIP_ROUTING@"
 #define VSOMEIP_ROUTING_CLIENT                  0
 #define VSOMEIP_ROUTING_INFO_SIZE_INIT          256
