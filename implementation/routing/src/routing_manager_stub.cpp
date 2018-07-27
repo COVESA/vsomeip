@@ -226,7 +226,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         client_t its_client_from_header;
         client_t its_target_client;
         client_t its_subscriber;
-        bool its_is_valid_crc(true);
+        uint8_t its_check_status(0);
         std::uint16_t its_subscription_id(DEFAULT_SUBSCRIPTION);
         offer_type_e its_offer_type;
 
@@ -433,8 +433,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             sizeof(its_instance));
                 std::memcpy(&its_reliable, &_data[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
                             sizeof(its_reliable));
-                std::memcpy(&its_is_valid_crc, &_data[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
-                            sizeof(its_is_valid_crc));
+                std::memcpy(&its_check_status, &_data[VSOMEIP_SEND_COMMAND_CHECK_STATUS_POS],
+                            sizeof(its_check_status));
 
                 if (utility::is_request(its_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                     if (!configuration_->is_client_allowed(its_client_from_header,
@@ -460,7 +460,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 // reduce by size of instance, flush, reliable, client and is_valid_crc flag
                 const std::uint32_t its_message_size = its_size -
                         (VSOMEIP_SEND_COMMAND_SIZE - VSOMEIP_COMMAND_HEADER_SIZE);
-                host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable, its_is_valid_crc);
+                host_->on_message(its_service, its_instance, its_data, its_message_size, its_reliable, its_check_status);
                 break;
             }
             case VSOMEIP_NOTIFY: {

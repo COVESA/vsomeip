@@ -584,7 +584,7 @@ bool routing_manager_impl::send(client_t _client,
 
 bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         length_t _size, instance_t _instance,
-        bool _flush, bool _reliable, bool _is_valid_crc) {
+        bool _flush, bool _reliable, uint8_t _status_check) {
     bool is_sent(false);
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
         std::shared_ptr<endpoint> its_target;
@@ -623,7 +623,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                             _data, its_data_size);
 #endif
-                deliver_message(_data, _size, _instance, _reliable, _is_valid_crc);
+                deliver_message(_data, _size, _instance, _reliable, _status_check);
                 return true;
             }
             its_target = find_local(_client);
@@ -642,7 +642,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                             _data, its_data_size);
             }
 #endif
-            is_sent = send_local(its_target, get_client(), _data, _size, _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
+            is_sent = send_local(its_target, get_client(), _data, _size, _instance, _flush, _reliable, VSOMEIP_SEND, _status_check);
         } else {
             // Check whether hosting application should get the message
             // If not, check routes to external
@@ -650,7 +650,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     || (find_local_client(its_service, _instance)
                             == host_->get_client() && is_request)) {
                 // TODO: find out how to handle session id here
-                is_sent = deliver_message(_data, _size, _instance, _reliable, _is_valid_crc);
+                is_sent = deliver_message(_data, _size, _instance, _reliable, _status_check);
             } else {
                 e2e_buffer outputBuffer;
                 if( configuration_->is_e2e_enabled()) {
@@ -698,7 +698,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
                     if (its_info || is_service_discovery) {
                         if (is_notification && !is_service_discovery) {
-                            send_local_notification(get_client(), _data, _size, _instance, _flush, _reliable, _is_valid_crc);
+                            send_local_notification(get_client(), _data, _size, _instance, _flush, _reliable, _status_check);
                             method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
                                     _data[VSOMEIP_METHOD_POS_MAX]);
                             std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
@@ -1051,7 +1051,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
     (void)_bound_client;
     service_t its_service;
     method_t its_method;
-    bool its_is_crc_valid(true);
+    uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
 #ifdef USE_DLT
     bool is_forwarded(true);
@@ -1148,12 +1148,10 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                            _data[VSOMEIP_METHOD_POS_MAX]);
                 if( custom_checkers.count({its_service, its_method})) {
                     e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data + _size);
-                    e2e::profile_interface::check_status_t check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
-                    custom_checkers[{its_service, its_method}]->check( inputBuffer, check_status);
+                    custom_checkers[{its_service, its_method}]->check( inputBuffer, its_check_status);
 
-                    if ( check_status != e2e::profile_interface::generic_check_status::E2E_OK ) {
+                    if ( its_check_status != e2e::profile_interface::generic_check_status::E2E_OK ) {
                         VSOMEIP_INFO << std::hex << "E2E protection: CRC check failed for service: " << its_service << " method: " << its_method;
-                        its_is_crc_valid = false;
                     }
                 }
             }
@@ -1169,7 +1167,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 #ifdef USE_DLT
                 is_forwarded =
 #endif
-                on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), its_is_crc_valid);
+                on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), its_check_status);
 
             }
         }
@@ -1198,7 +1196,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 bool routing_manager_impl::on_message(
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _size,
-        bool _reliable, bool _is_valid_crc) {
+        bool _reliable, uint8_t _check_status) {
 #if 0
     std::stringstream msg;
     msg << "rmi::on_message("
@@ -1221,11 +1219,11 @@ bool routing_manager_impl::on_message(
 
     if (its_client == VSOMEIP_ROUTING_CLIENT
             && utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-        is_forwarded = deliver_notification(_service, _instance, _data, _size, _reliable, _is_valid_crc);
+        is_forwarded = deliver_notification(_service, _instance, _data, _size, _reliable, _check_status);
     } else if (its_client == host_->get_client()) {
-        deliver_message(_data, _size, _instance, _reliable, _is_valid_crc);
+        deliver_message(_data, _size, _instance, _reliable, _check_status);
     } else {
-        send(its_client, _data, _size, _instance, true, _reliable, _is_valid_crc); //send to proxy
+        send(its_client, _data, _size, _instance, true, _reliable, _check_status); //send to proxy
     }
     return is_forwarded;
 }
@@ -1552,7 +1550,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
 }
 
 bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
-        instance_t _instance, bool _reliable, bool _is_valid_crc) {
+        instance_t _instance, bool _reliable, uint8_t _status_check) {
     bool is_delivered(false);
 
     auto a_deserializer = get_deserializer();
@@ -1564,7 +1562,7 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
     if (its_message) {
         its_message->set_instance(_instance);
         its_message->set_reliable(_reliable);
-        its_message->set_is_valid_crc(_is_valid_crc);
+        its_message->set_check_result(_status_check);
         host_->on_message(std::move(its_message));
         is_delivered = true;
     } else {
@@ -1577,7 +1575,7 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
 bool routing_manager_impl::deliver_notification(
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _length,
-        bool _reliable, bool _is_valid_crc) {
+        bool _reliable, uint8_t _status_check) {
     method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
             _data[VSOMEIP_METHOD_POS_MAX]);
 
@@ -1618,12 +1616,12 @@ bool routing_manager_impl::deliver_notification(
 
         for (const auto its_local_client : its_event->get_subscribers()) {
             if (its_local_client == host_->get_client()) {
-                deliver_message(_data, _length, _instance, _reliable, _is_valid_crc);
+                deliver_message(_data, _length, _instance, _reliable, _status_check);
             } else {
                 std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
                 if (its_local_target) {
                     send_local(its_local_target, VSOMEIP_ROUTING_CLIENT,
-                            _data, _length, _instance, true, _reliable, VSOMEIP_SEND, _is_valid_crc);
+                            _data, _length, _instance, true, _reliable, VSOMEIP_SEND, _status_check);
                 }
             }
         }

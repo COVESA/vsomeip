@@ -62,7 +62,7 @@ public:
             bool _flush) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true) = 0;
+            instance_t _instance, bool _flush, bool _reliable, uint8_t _status_check = 0) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message>, bool _flush) = 0;

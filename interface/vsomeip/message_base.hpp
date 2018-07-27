@@ -199,9 +199,14 @@ public:
     VSOMEIP_EXPORT virtual bool is_valid_crc() const = 0;
 
     /**
-     * \brief Set whether or not the CRC value received is valid.
+     * \brief Get e2e protection check result.
      */
-    VSOMEIP_EXPORT virtual void set_is_valid_crc(bool _is_valid_crc) = 0;
+    VSOMEIP_EXPORT virtual uint8_t get_check_result() const = 0;
+
+    /**
+     * \brief Set e2e protection check result.
+     */
+    VSOMEIP_EXPORT virtual void set_check_result(uint8_t _check_result) = 0;
 
 };
 

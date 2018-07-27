@@ -85,7 +85,7 @@ public:
     bool send(client_t _client, std::shared_ptr<message> _message, bool _flush);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true);
+            instance_t _instance, bool _flush, bool _reliable, uint8_t _status_check = 0);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);
@@ -165,7 +165,7 @@ public:
                     const boost::asio::ip::address &_remote_address,
                     std::uint16_t _remote_port);
     bool on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true);
+            const byte_t *_data, length_t _size, bool _reliable, uint8_t _status_check = 0);
     void on_notification(client_t _client, service_t _service,
             instance_t _instance, const byte_t *_data, length_t _size,
             bool _notify_one);
@@ -232,9 +232,9 @@ public:
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
-            instance_t _instance, bool _reliable, bool _is_valid_crc = true);
+            instance_t _instance, bool _reliable, uint8_t _status_check = 0);
     bool deliver_notification(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _length, bool _reliable, bool _is_valid_crc = true);
+            const byte_t *_data, length_t _length, bool _reliable, uint8_t _status_check = 0);
 
     instance_t find_instance(service_t _service, endpoint *_endpoint);
 

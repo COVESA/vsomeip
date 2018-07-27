@@ -948,7 +948,7 @@ void routing_manager_base::remove_eventgroup_info(service_t _service,
 
 bool routing_manager_base::send_local_notification(client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
-        bool _flush, bool _reliable, bool _is_valid_crc) {
+        bool _flush, bool _reliable, uint8_t _status_check) {
 #ifdef USE_DLT
     bool has_local(false);
 #endif
@@ -975,7 +975,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
             std::shared_ptr<endpoint> its_local_target = find_local(its_client);
             if (its_local_target) {
                 send_local(its_local_target, _client, _data, _size,
-                           _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
+                           _instance, _flush, _reliable, VSOMEIP_SEND, _status_check);
             }
         }
     }
@@ -997,7 +997,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
 bool routing_manager_base::send_local(
         std::shared_ptr<endpoint>& _target, client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
-        bool _flush, bool _reliable, uint8_t _command, bool _is_valid_crc) const {
+        bool _flush, bool _reliable, uint8_t _command, uint8_t _status_check) const {
     const std::size_t its_complete_size = VSOMEIP_SEND_COMMAND_SIZE
             - VSOMEIP_COMMAND_HEADER_SIZE + _size;
     const client_t sender = get_client();
@@ -1014,8 +1014,8 @@ bool routing_manager_base::send_local(
             &_flush, sizeof(bool));
     std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
             &_reliable, sizeof(bool));
-    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
-            &_is_valid_crc, sizeof(bool));
+    std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_CHECK_STATUS_POS],
+            &_status_check, sizeof(uint8_t));
     // Add target client, only relevant for selective notifications
     std::memcpy(&its_command_header[VSOMEIP_SEND_COMMAND_DST_CLIENT_POS_MIN],
             &_client, sizeof(client_t));

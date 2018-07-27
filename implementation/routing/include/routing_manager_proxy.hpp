@@ -61,7 +61,7 @@ public:
             eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush = true, bool _reliable = false, bool _is_valid_crc= true);
+            instance_t _instance, bool _flush = true, bool _reliable = false, uint8_t _status_check = 0);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);

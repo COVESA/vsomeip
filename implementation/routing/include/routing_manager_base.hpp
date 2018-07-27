@@ -96,7 +96,7 @@ public:
             bool _flush);
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true) = 0;
+            instance_t _instance, bool _flush, bool _reliable, uint8_t _status_check = 0) = 0;
 
     // Endpoint host ~> will be implemented by routing_manager_impl/_proxy/
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
@@ -156,12 +156,12 @@ protected:
 
     bool send_local_notification(client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush = true, bool _reliable = false, bool _is_valid_crc = true);
+            bool _flush = true, bool _reliable = false, uint8_t _status_check = 0);
 
     bool send_local(
             std::shared_ptr<endpoint> &_target, client_t _client,
             const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush, bool _reliable, uint8_t _command, bool _is_valid_crc = true) const;
+            bool _flush, bool _reliable, uint8_t _command, uint8_t _status_check = 0) const;
 
     bool insert_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event, client_t _client,
