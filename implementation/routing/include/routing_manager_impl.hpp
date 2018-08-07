@@ -42,6 +42,10 @@ namespace sd {
 class service_discovery;
 } // namespace sd
 
+namespace e2e {
+class e2e_provider;
+} // namespace e2e
+
 
 // TODO: encapsulate common parts of classes "routing_manager_impl"
 // and "routing_manager_proxy" into a base class.
@@ -454,8 +458,7 @@ private:
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
         subscription_state_e> remote_subscription_state_;
 
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::protector>> custom_protectors;
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::checker>> custom_checkers;
+    std::shared_ptr<e2e::e2e_provider> e2e_provider_;
 
     std::mutex status_log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;

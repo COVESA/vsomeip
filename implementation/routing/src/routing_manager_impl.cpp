@@ -55,7 +55,7 @@
 #include "../../e2e_protection/include/buffer/buffer.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 
-#include "../../e2e_protection/include/e2e/profile/profile_factory.hpp"
+#include "../../e2e_protection/include/e2e/profile/e2e_provider.hpp"
 
 
 namespace vsomeip {
@@ -109,7 +109,6 @@ void routing_manager_impl::init() {
         }
     }
 
-    std::shared_ptr<e2e::profile_factory> profile_factory;
     if( configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
 
@@ -119,28 +118,15 @@ void routing_manager_impl::init() {
         auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, plugin_name);
         if (its_plugin) {
             VSOMEIP_INFO << "E2E module loaded.";
-            profile_factory = std::dynamic_pointer_cast<e2e::profile_factory>(its_plugin);
+            e2e_provider_ = std::dynamic_pointer_cast<e2e::e2e_provider>(its_plugin);
         }
     }
 
-    if(profile_factory) {
+    if(e2e_provider_) {
         std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> its_e2e_configuration = configuration_->get_e2e_configuration();
         for (auto &identifier : its_e2e_configuration) {
-            auto its_cfg = identifier.second;
-            if(profile_factory->is_e2e_profile_supported(its_cfg->profile)) {
-                e2exf::data_identifier its_data_identifier = {its_cfg->service_id, its_cfg->event_id};
-
-                std::shared_ptr<e2e::profile_interface::checker> checker;
-                std::shared_ptr<e2e::profile_interface::protector> protector;
-                std::tie(checker, protector) = profile_factory->process_e2e_config(its_cfg);
-
-                if(checker) {
-                     custom_checkers[its_data_identifier] = checker;
-                }
-
-                if(protector) {
-                     custom_protectors[its_data_identifier] = protector;
-                }
+            if(!e2e_provider_->add_configuration(identifier.second)) {
+                VSOMEIP_INFO << "Unknown E2E profile: " << identifier.second->profile << ", skipping ...";
             }
         }
     }
@@ -653,16 +639,16 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                 is_sent = deliver_message(_data, _size, _instance, _reliable, _status_check);
             } else {
                 e2e_buffer outputBuffer;
-                if( configuration_->is_e2e_enabled()) {
+                if (e2e_provider_) {
                     if ( !is_service_discovery) {
                         service_t its_service = VSOMEIP_BYTES_TO_WORD(
                                 _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
                         method_t its_method = VSOMEIP_BYTES_TO_WORD(
                                 _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-                        if( custom_protectors.count({its_service, its_method})) {
+                        if (e2e_provider_->is_protected({its_service, its_method})) {
                             outputBuffer.assign(_data, _data + VSOMEIP_PAYLOAD_POS);
                             e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data +_size);
-                            custom_protectors[{its_service, its_method}]->protect( inputBuffer);
+                            e2e_provider_->protect({its_service, its_method}, inputBuffer);
                             outputBuffer.resize(inputBuffer.size() + VSOMEIP_PAYLOAD_POS);
                             std::copy(inputBuffer.begin(), inputBuffer.end(), outputBuffer.begin() + VSOMEIP_PAYLOAD_POS);
                             _data = outputBuffer.data();
@@ -837,15 +823,15 @@ bool routing_manager_impl::send_to(
         const byte_t *_data = serializer_->get_data();
         length_t _size = serializer_->get_size();
         e2e_buffer outputBuffer;
-        if( configuration_->is_e2e_enabled()) {
+        if (e2e_provider_) {
             service_t its_service = VSOMEIP_BYTES_TO_WORD(
                     _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
             method_t its_method = VSOMEIP_BYTES_TO_WORD(
                     _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-            if( custom_protectors.count({its_service, its_method})) {
+            if (e2e_provider_->is_protected({its_service, its_method})) {
                 outputBuffer.assign(_data, _data + VSOMEIP_PAYLOAD_POS);
                 e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data +_size);
-                custom_protectors[{its_service, its_method}]->protect( inputBuffer);
+                e2e_provider_->protect({its_service, its_method}, inputBuffer);
                 outputBuffer.resize(inputBuffer.size() + VSOMEIP_PAYLOAD_POS);
                 std::copy(inputBuffer.begin(), inputBuffer.end(), outputBuffer.begin() + VSOMEIP_PAYLOAD_POS);
                 _data = outputBuffer.data();
@@ -1142,13 +1128,13 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                     }
                 }
             }
-            if( configuration_->is_e2e_enabled()) {
+            if (e2e_provider_) {
                 its_method = VSOMEIP_BYTES_TO_WORD(
                            _data[VSOMEIP_METHOD_POS_MIN],
                            _data[VSOMEIP_METHOD_POS_MAX]);
-                if( custom_checkers.count({its_service, its_method})) {
+                if( e2e_provider_->is_checked({its_service, its_method})) {
                     e2e_buffer inputBuffer(_data + VSOMEIP_PAYLOAD_POS, _data + _size);
-                    custom_checkers[{its_service, its_method}]->check( inputBuffer, its_check_status);
+                    e2e_provider_->check({its_service, its_method}, inputBuffer, its_check_status);
 
                     if ( its_check_status != e2e::profile_interface::generic_check_status::E2E_OK ) {
                         VSOMEIP_INFO << std::hex << "E2E protection: CRC check failed for service: " << its_service << " method: " << its_method;
