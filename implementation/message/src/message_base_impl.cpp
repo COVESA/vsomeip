@@ -11,7 +11,7 @@ namespace vsomeip {
 message_base_impl::message_base_impl()
     : is_reliable_(false),
       is_initial_(false),
-      is_valid_crc_(true) {
+      check_result_(0) {
     header_.set_owner(this);
 }
 
@@ -120,12 +120,15 @@ void message_base_impl::set_initial(bool _is_initial) {
 }
 
 bool message_base_impl::is_valid_crc() const {
-    return is_valid_crc_;
+    return (check_result_ == 0);
 }
 
-void message_base_impl::set_is_valid_crc(bool _is_valid_crc) {
-    is_valid_crc_ = _is_valid_crc;
+uint8_t message_base_impl::get_check_result() const {
+    return check_result_;
 }
 
+void message_base_impl::set_check_result(uint8_t _check_result) {
+    check_result_ = _check_result;
+}
 
 } // namespace vsomeip

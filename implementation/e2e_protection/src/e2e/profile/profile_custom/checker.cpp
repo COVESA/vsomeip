@@ -16,7 +16,7 @@ namespace e2e {
 namespace profile_custom {
 
 void profile_custom_checker::check(const e2e_buffer &_buffer,
-                                   e2e::profile_interface::generic_check_status &_generic_check_status) {
+                                   vsomeip::e2e::profile_interface::check_status_t &_generic_check_status) {
     std::lock_guard<std::mutex> lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 

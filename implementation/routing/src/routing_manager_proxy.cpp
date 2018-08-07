@@ -617,7 +617,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         length_t _size, instance_t _instance,
         bool _flush,
         bool _reliable,
-        bool _is_valid_crc) {
+        uint8_t _status_check) {
     (void)_client;
     bool is_sent(false);
     bool has_remote_subscribers(false);
@@ -687,7 +687,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                 _client == VSOMEIP_ROUTING_CLIENT) {
             // notify
             has_remote_subscribers = send_local_notification(get_client(), _data, _size,
-                    _instance, _flush, _reliable, _is_valid_crc);
+                    _instance, _flush, _reliable, _status_check);
         } else if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]) &&
                 _client != VSOMEIP_ROUTING_CLIENT) {
             // notify_one
@@ -703,7 +703,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
                             _data, its_data_size);
 #endif
                 return send_local(its_target, get_client(), _data, _size,
-                        _instance, _flush, _reliable, VSOMEIP_SEND, _is_valid_crc);
+                        _instance, _flush, _reliable, VSOMEIP_SEND, _status_check);
             }
         }
         // If no direct endpoint could be found
@@ -750,7 +750,7 @@ bool routing_manager_proxy::send(client_t _client, const byte_t *_data,
         if (send) {
             is_sent = send_local(its_target,
                     (command == VSOMEIP_NOTIFY_ONE ? _client : get_client()),
-                    _data, _size, _instance, _flush, _reliable, command, _is_valid_crc);
+                    _data, _size, _instance, _flush, _reliable, command, _status_check);
         }
     }
     return (is_sent);
@@ -879,13 +879,13 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
         case VSOMEIP_SEND: {
             instance_t its_instance;
             bool its_reliable;
-            bool its_is_vslid_crc;
+            uint8_t its_check_status;
             std::memcpy(&its_instance,&_data[VSOMEIP_SEND_COMMAND_INSTANCE_POS_MIN],
                         sizeof(instance_t));
             std::memcpy(&its_reliable, &_data[VSOMEIP_SEND_COMMAND_RELIABLE_POS],
                         sizeof(its_reliable));
-            std::memcpy(&its_is_vslid_crc, &_data[VSOMEIP_SEND_COMMAND_VALID_CRC_POS],
-                        sizeof(its_is_vslid_crc));
+            std::memcpy(&its_check_status, &_data[VSOMEIP_SEND_COMMAND_CHECK_STATUS_POS],
+                        sizeof(its_check_status));
 
             // reduce by size of instance, flush, reliable, client and is_valid_crc flag
             const std::uint32_t its_message_size = its_length -
@@ -901,7 +901,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             if (its_message) {
                 its_message->set_instance(its_instance);
                 its_message->set_reliable(its_reliable);
-                its_message->set_is_valid_crc(its_is_vslid_crc);
+                its_message->set_check_result(its_check_status);
                 if (utility::is_notification(its_message->get_message_type())) {
                     if (!configuration_->is_client_allowed(get_client(), its_message->get_service(),
                             its_message->get_instance())) {

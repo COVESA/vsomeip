@@ -23,7 +23,7 @@ class profile_01_checker final : public e2e::profile_interface::checker {
             config_(_config) {}
 
     virtual void check(const e2e_buffer &_buffer,
-                       e2e::profile_interface::generic_check_status &_generic_check_status) override final;
+                       vsomeip::e2e::profile_interface::check_status_t &_generic_check_status) override final;
 
 private:
     profile_config config_;

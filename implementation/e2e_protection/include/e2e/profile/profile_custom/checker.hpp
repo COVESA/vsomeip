@@ -23,7 +23,7 @@ class profile_custom_checker final : public vsomeip::e2e::profile_interface::che
             config_(_config) {}
 
     virtual void check(const e2e_buffer &_buffer,
-                       vsomeip::e2e::profile_interface::generic_check_status &_generic_check_status);
+                       vsomeip::e2e::profile_interface::check_status_t &_generic_check_status);
 
   private:
     uint32_t read_crc(const e2e_buffer &_buffer) const;

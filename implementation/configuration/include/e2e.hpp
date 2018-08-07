@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_CFG_E2E_HPP_
 #define VSOMEIP_CFG_E2E_HPP_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -15,36 +16,24 @@ namespace vsomeip {
 namespace cfg {
 
 struct e2e {
+    typedef std::map<std::string, std::string> custom_parameters_t;
 
     e2e() :
         data_id(0),
         variant(""),
         profile(""),
         service_id(0),
-        event_id(0),
-        crc_offset(0),
-        data_id_mode(0),
-        data_length(0),
-        data_id_nibble_offset(0),
-        counter_offset(0) {
+        event_id(0) {
     }
 
-
     e2e(uint16_t _data_id, std::string _variant, std::string _profile, uint16_t _service_id,
-        uint16_t _event_id,uint16_t _crc_offset,
-        uint8_t  _data_id_mode, uint16_t _data_length, uint16_t _data_id_nibble_offset, uint16_t _counter_offset) :
-
+        uint16_t _event_id, custom_parameters_t&& _custom_parameters) :
         data_id(_data_id),
         variant(_variant),
         profile(_profile),
         service_id(_service_id),
         event_id(_event_id),
-        crc_offset(_crc_offset),
-        data_id_mode(_data_id_mode),
-        data_length(_data_length),
-        data_id_nibble_offset(_data_id_nibble_offset),
-        counter_offset(_counter_offset) {
-
+        custom_parameters(_custom_parameters) {
     }
 
     // common config
@@ -54,13 +43,8 @@ struct e2e {
     uint16_t service_id;
     uint16_t event_id;
 
-    //profile 1 specific config
-    // [SWS_E2E_00018]
-    uint16_t crc_offset;
-    uint8_t  data_id_mode;
-    uint16_t data_length;
-    uint16_t data_id_nibble_offset;
-    uint16_t counter_offset;
+    // custom parameters
+    custom_parameters_t custom_parameters;
 };
 
 } // namespace cfg

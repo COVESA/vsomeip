@@ -61,7 +61,7 @@ public:
             pending_subscription_id_t _unsubscription_id) = 0;
 
     virtual bool on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true) = 0;
+            const byte_t *_data, length_t _size, bool _reliable, uint8_t _status_check = 0) = 0;
 
     virtual void on_notification(client_t _client,
             service_t _service, instance_t _instance,

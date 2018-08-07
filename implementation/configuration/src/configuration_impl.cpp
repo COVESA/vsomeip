@@ -2796,15 +2796,10 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
     uint16_t service_id(0);
     uint16_t event_id(0);
 
-    uint16_t crc_offset(0);
-    uint8_t  data_id_mode(0);
-    uint16_t data_length(0);
-    uint16_t data_id_nibble_offset(12); // data id nibble behind 4 bit counter value
-    uint16_t counter_offset(8); // counter field behind CRC8
+    e2e::custom_parameters_t custom_parameters;
 
     for (auto l = _tree.begin(); l != _tree.end(); ++l) {
         std::stringstream its_converter;
-        uint16_t tmp;
         if (l->first == "data_id" && data_id == 0) {
             std::string value = l->second.data();
             if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
@@ -2837,28 +2832,8 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
             std::string value = l->second.data();
             its_converter << value;
             its_converter >> profile;
-        } else if (l->first == "crc_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> crc_offset;
-        }  else if (l->first == "counter_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> counter_offset;
-        } else if (l->first == "data_id_mode") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> tmp;
-            data_id_mode = static_cast<uint8_t>(tmp);
-        } else if (l->first == "data_id_nibble_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> data_id_nibble_offset;
-        }
-        else if (l->first == "data_length") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> data_length;
+        } else {
+            custom_parameters[l->first.data()] = l->second.data();
         }
     }
     e2exf::data_identifier its_data_identifier = {service_id, event_id};
@@ -2868,11 +2843,7 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
         profile,
         service_id,
         event_id,
-        crc_offset,
-        data_id_mode,
-        data_length,
-        data_id_nibble_offset,
-        counter_offset
+        std::move(custom_parameters)
     );
 }
 

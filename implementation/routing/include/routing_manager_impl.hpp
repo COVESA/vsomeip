@@ -42,6 +42,10 @@ namespace sd {
 class service_discovery;
 } // namespace sd
 
+namespace e2e {
+class e2e_provider;
+} // namespace e2e
+
 
 // TODO: encapsulate common parts of classes "routing_manager_impl"
 // and "routing_manager_proxy" into a base class.
@@ -85,7 +89,7 @@ public:
     bool send(client_t _client, std::shared_ptr<message> _message, bool _flush);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true);
+            instance_t _instance, bool _flush, bool _reliable, uint8_t _status_check = 0);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);
@@ -165,7 +169,7 @@ public:
                     const boost::asio::ip::address &_remote_address,
                     std::uint16_t _remote_port);
     bool on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true);
+            const byte_t *_data, length_t _size, bool _reliable, uint8_t _status_check = 0);
     void on_notification(client_t _client, service_t _service,
             instance_t _instance, const byte_t *_data, length_t _size,
             bool _notify_one);
@@ -232,9 +236,9 @@ public:
 
 private:
     bool deliver_message(const byte_t *_data, length_t _length,
-            instance_t _instance, bool _reliable, bool _is_valid_crc = true);
+            instance_t _instance, bool _reliable, uint8_t _status_check = 0);
     bool deliver_notification(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _length, bool _reliable, bool _is_valid_crc = true);
+            const byte_t *_data, length_t _length, bool _reliable, uint8_t _status_check = 0);
 
     instance_t find_instance(service_t _service, endpoint *_endpoint);
 
@@ -454,8 +458,7 @@ private:
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
         subscription_state_e> remote_subscription_state_;
 
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::protector>> custom_protectors;
-    std::map<e2exf::data_identifier, std::shared_ptr<e2e::profile_interface::checker>> custom_checkers;
+    std::shared_ptr<e2e::e2e_provider> e2e_provider_;
 
     std::mutex status_log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;

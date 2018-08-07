@@ -9,6 +9,8 @@ global:
         vsomeip::serializer::*;
         *vsomeip::deserializer;
         vsomeip::deserializer::*;
+        *vsomeip::e2e::e2e_provider_impl;
+        vsomeip::e2e::e2e_provider_impl::*;
         *vsomeip::endpoint_definition;
         vsomeip::endpoint_definition*;
         *vsomeip::tcp*;
