@@ -796,18 +796,16 @@ void application_impl::send(std::shared_ptr<message> _message, bool _flush) {
             << "type=" << std::hex << static_cast<std::uint32_t>(_message->get_message_type())
             << " thread=" << std::hex << std::this_thread::get_id();
     }
+
+    // in case of requests set the request-id (client-id|session-id)
+    if (is_request) {
+        _message->set_client(client_);
+        _message->set_session(session_);
+        update_session();
+    }
+
     if (routing_) {
-        // in case of requests set the request-id (client-id|session-id)
-        if (is_request) {
-            _message->set_client(client_);
-            _message->set_session(session_);
-        }
-        // in case of successful sending, increment the session-id
-        if (routing_->send(client_, _message, _flush)) {
-            if (is_request) {
-                update_session();
-            }
-        }
+        routing_->send(client_, _message, _flush);
     }
 }
 
