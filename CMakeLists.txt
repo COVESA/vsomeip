@@ -173,6 +173,10 @@ endif()
 
 add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
 set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_include_directories(vsomeip INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>)
 # PRIVATE means the listed libraries won't be included in the "link interface",
 # meaning the exported vsomeipTargets.cmake targets won't try to link against
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
@@ -284,17 +288,7 @@ export (TARGETS vsomeip FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
 export (PACKAGE vsomeip)
 
 # Create the vsomeipConfig.cmake and vsomeipConfigVersion files
-file (RELATIVE_PATH REL_INCLUDE_DIR "${ABSOLUTE_INSTALL_CMAKE_DIR}" "${ABSOLUTE_INSTALL_INCLUDE_DIR}")
-
-# ... for the build tree
-set (CONF_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/interface" "${PROJECT_BINARY_DIR}")
 configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake" @ONLY)
-
-# ... for the install tree
-set (CONF_INCLUDE_DIRS "\${VSOMEIP_CMAKE_DIR}/${REL_INCLUDE_DIR}")
-configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vsomeipConfig.cmake" @ONLY)
-
-# ... for both
 configure_file (vsomeipConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake" @ONLY)
 
 # confugure internal.hpp for correct version number
@@ -306,7 +300,7 @@ configure_file (
 # Install the vsomeipConfig.cmake and vsomeipConfigVersion.cmake
 install (
     FILES
-    "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vsomeipConfig.cmake"
+    "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake"
     "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake"
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev

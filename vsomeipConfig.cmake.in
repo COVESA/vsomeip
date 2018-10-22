@@ -1,10 +1,14 @@
 # Config file for the vSomeIP package, defines the following variables:
-#   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
-#   VSOMEIP_LIBRARIES    - libraries to link against
+# Exports the following targets:
+#   vsomeip - CMake target for vSomeIP
+# Additionally, the following variables are defined:
+#   VSOMEIP_LIBRARIES - list of libraries to link against, contains only
+#                       "vsomeip"
 
 # Compute paths
 get_filename_component (VSOMEIP_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-set (VSOMEIP_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+# Legacy variable, no longer used but kept for compatibility
+set(VSOMEIP_INCLUDE_DIRS "")
 
 # Our library dependencies (contains definitions for IMPORTED targets)
 if (NOT TARGET vsomeip AND NOT vsomeip_BINARY_DIR)
