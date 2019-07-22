@@ -8,6 +8,8 @@
 
 #include <boost/asio/ip/multicast.hpp>
 
+#include <vsomeip/constants.hpp>
+
 #include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
@@ -25,7 +27,8 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
         std::shared_ptr< endpoint_host > _host,
         endpoint_type _local,
         boost::asio::io_service &_io,
-        configuration::endpoint_queue_limit_t _queue_limit)
+        configuration::endpoint_queue_limit_t _queue_limit,
+        std::uint32_t _udp_receive_buffer_size)
     : server_endpoint_impl<ip::udp_ext>(
             _host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE, _queue_limit),
       socket_(_io, _local.protocol()),
@@ -59,6 +62,27 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     boost::asio::socket_base::broadcast option(true);
     socket_.set_option(option, ec);
     boost::asio::detail::throw_error(ec, "broadcast option");
+
+    socket_.set_option(boost::asio::socket_base::receive_buffer_size(
+            _udp_receive_buffer_size), ec);
+    if (ec) {
+        VSOMEIP_WARNING << "udp_server_endpoint_impl:: couldn't set "
+                << "SO_RCVBUF: " << ec.message() << " to: " << std::dec
+                << _udp_receive_buffer_size << " local port: " << std::dec
+                << local_port_;
+    } else {
+        boost::asio::socket_base::receive_buffer_size its_option;
+        socket_.get_option(its_option, ec);
+        if (ec) {
+            VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't get "
+                    << "SO_RCVBUF: " << ec.message() << " local port:"
+                    << std::dec << local_port_;
+        } else {
+            VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUF is: "
+                    << std::dec << its_option.value();
+        }
+    }
+
 
 #ifdef _WIN32
     const char* optval("0001");
@@ -167,8 +191,7 @@ bool udp_server_endpoint_impl::is_joined(
 void udp_server_endpoint_impl::join(const std::string &_address) {
     bool has_received(false);
 
-    std::function<void(const std::string &)> join_func =
-            [this](const std::string &_address) {
+    auto join_func = [this](const std::string &_address) {
         try {
             bool is_v4(false);
             bool is_v6(false);
@@ -318,6 +341,41 @@ void udp_server_endpoint_impl::receive_cbk(
                     if (remaining_bytes - current_message_size > remaining_bytes) {
                         VSOMEIP_ERROR << "buffer underflow in udp client endpoint ~> abort!";
                         return;
+                    } else if (current_message_size > VSOMEIP_RETURN_CODE_POS &&
+                        (recv_buffer_[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION ||
+                         !utility::is_valid_message_type(static_cast<message_type_e>(recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])) ||
+                         !utility::is_valid_return_code(static_cast<return_code_e>(recv_buffer_[i + VSOMEIP_RETURN_CODE_POS]))
+                        )) {
+                        if (recv_buffer_[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
+                            VSOMEIP_ERROR << "use: Wrong protocol version: 0x"
+                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::uint32_t(recv_buffer_[i + VSOMEIP_PROTOCOL_VERSION_POS])
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                            // ensure to send back a message w/ wrong protocol version
+                            its_host->on_message(&recv_buffer_[i],
+                                                 VSOMEIP_SOMEIP_HEADER_SIZE + 8, this,
+                                                 _destination,
+                                                 VSOMEIP_ROUTING_CLIENT,
+                                                 its_remote_address,
+                                                 its_remote_port);
+                        } else if (!utility::is_valid_message_type(static_cast<message_type_e>(
+                                recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
+                            VSOMEIP_ERROR << "use: Invalid message type: 0x"
+                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::uint32_t(recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                        } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
+                                recv_buffer_[i + VSOMEIP_RETURN_CODE_POS]))) {
+                            VSOMEIP_ERROR << "use: Invalid return code: 0x"
+                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::uint32_t(recv_buffer_[i + VSOMEIP_RETURN_CODE_POS])
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                        }
+                        receive();
+                        return;
                     }
                     remaining_bytes -= current_message_size;
                     service_t its_service = VSOMEIP_BYTES_TO_WORD(recv_buffer_[i + VSOMEIP_SERVICE_POS_MIN],
@@ -328,14 +386,16 @@ void udp_server_endpoint_impl::receive_cbk(
                         std::memcpy(&its_client,
                             &recv_buffer_[i + VSOMEIP_CLIENT_POS_MIN],
                             sizeof(client_t));
-                        session_t its_session;
-                        std::memcpy(&its_session,
-                            &recv_buffer_[i + VSOMEIP_SESSION_POS_MIN],
-                            sizeof(session_t));
-                        clients_mutex_.lock();
-                        clients_[its_client][its_session] = remote_;
-                        endpoint_to_client_[remote_] = its_client;
-                        clients_mutex_.unlock();
+                        if (its_client != MAGIC_COOKIE_NETWORK_BYTE_ORDER) {
+                            session_t its_session;
+                            std::memcpy(&its_session,
+                                &recv_buffer_[i + VSOMEIP_SESSION_POS_MIN],
+                                sizeof(session_t));
+                            clients_mutex_.lock();
+                            clients_[its_client][its_session] = remote_;
+                            endpoint_to_client_[remote_] = its_client;
+                            clients_mutex_.unlock();
+                        }
                     } else if (its_service != VSOMEIP_SD_SERVICE
                             && utility::is_notification(recv_buffer_[i + VSOMEIP_MESSAGE_TYPE_POS])
                             && joined_group_) {
@@ -422,6 +482,22 @@ std::string udp_server_endpoint_impl::get_remote_information(
     boost::system::error_code ec;
     return _queue_iterator->first.address().to_string(ec) + ":"
             + std::to_string(_queue_iterator->first.port());
+}
+
+const std::string udp_server_endpoint_impl::get_address_port_local() const {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::string its_address_port;
+    its_address_port.reserve(21);
+    boost::system::error_code ec;
+    if (socket_.is_open()) {
+        endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
+        if (!ec) {
+            its_address_port += its_local_endpoint.address().to_string(ec);
+            its_address_port += ":";
+            its_address_port += std::to_string(its_local_endpoint.port());
+        }
+    }
+    return its_address_port;
 }
 
 } // namespace vsomeip

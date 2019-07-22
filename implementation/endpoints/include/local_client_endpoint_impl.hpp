@@ -63,6 +63,8 @@ private:
                      std::size_t _bytes);
     void set_local_port();
     std::string get_remote_information() const;
+    std::uint32_t get_max_allowed_reconnects() const;
+    void max_allowed_reconnects_reached();
 
     message_buffer_t recv_buffer_;
 };

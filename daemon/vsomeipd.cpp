@@ -10,7 +10,7 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
-
+#include <cstring>
 #include <iostream>
 
 #include <vsomeip/vsomeip.hpp>
@@ -30,6 +30,11 @@ static bool stop_application = false;
 static bool stop_sighandler = false;
 static std::condition_variable_any sighandler_condition;
 static std::recursive_mutex sighandler_mutex;
+#endif
+
+#ifndef _WIN32
+#include <sys/time.h>
+#include <sys/resource.h>
 #endif
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -109,6 +114,18 @@ int vsomeipd_process(bool _is_quiet) {
 #endif
     if (its_application->init()) {
         if (its_application->is_routing()) {
+#ifndef _WIN32
+            // raise the max number of open file descriptors to the hard limit
+            struct rlimit its_current_fd_limit;
+            if (-1 == getrlimit(RLIMIT_NOFILE, &its_current_fd_limit)) {
+                VSOMEIP_ERROR << "Couldn't read out RLIMIT_NOFILE: " << std::strerror(errno);
+            } else {
+                its_current_fd_limit.rlim_cur = its_current_fd_limit.rlim_max;
+                if (-1 == setrlimit(RLIMIT_NOFILE, &its_current_fd_limit)) {
+                    VSOMEIP_ERROR << "Couldn't set RLIMIT_NOFILE: " << std::strerror(errno);
+                }
+            }
+#endif
             its_application->start();
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
             sighandler_thread.join();
@@ -173,7 +190,7 @@ int main(int argc, char **argv) {
             return EXIT_SUCCESS;
         }
 
-        umask(0);
+        umask(0111);
 
         its_signature = setsid();
         if (its_signature < 0) {

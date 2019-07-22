@@ -1,0 +1,128 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"debug",
+        "console":"true",
+        "file":
+        {
+            "enable":"false",
+            "path":"/tmp/vsomeip.log"
+        },
+        "dlt":"false"
+    },
+    "diagnosis" : "0x63",
+    "applications":
+    [
+        {
+            "name":"vsomeipd",
+            "id" : "0x6310",
+            "plugins" :
+            [
+                {
+                    "application_plugin" : "vsomeip-security-config-plugin-mgu"
+                }
+            ]
+        }
+    ],
+    "security": {
+        "policies": [
+            {
+                "credentials": {
+                    "deny": [
+                        {
+                            "uid": [{"first" : "@TEST_UID@", "last" : "@TEST_UID@"}],
+                            "gid": [{"first" : "@TEST_GID@", "last" : "@TEST_GID@"}]
+                        }
+                    ]
+                },
+                "deny": {}
+            },
+            {
+                "credentials": {
+                    "allow": [
+                        {
+                            "uid": ["@TEST_UID@"],
+                            "gid": ["@TEST_GID@"]
+                        }
+                    ]
+                },
+                "allow" :
+                {
+                    "offers":
+                    [
+                        {
+                            "service"  : "0xF90F",
+                            "instance" : "0x01"
+                        },
+                        {
+                            "service"  : "0x0101",
+                            "instance" : "0x63"
+                        },
+                        {
+                            "service"  : "0x0103",
+                            "instance" : "0x63"
+                        }
+                    ],
+                    "requests":
+                    [
+                        {
+                            "service"  : "0xF90F",
+                            "instances" :
+                            [
+                                {
+                                    "ids" : ["0x01"],
+                                    "methods" : [ "0x01", "0x02" ]
+                                }
+                            ]
+                        },
+                        {
+                            "service"  : "0x0103",
+                            "instances" :
+                            [
+                                {
+                                    "ids" : ["0x63"],
+                                    "methods" : [ "0x03", "0x7777" ]
+                                }
+                            ]
+                        },
+                        {
+                            "service"  : "0x0101",
+                            "instances" :
+                            [
+                                {
+                                    "ids" : ["0x63"],
+                                    "methods" : [ "0x88" ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ],
+        "check_credentials" : "true"
+    },
+    "security-update-whitelist" :
+    {
+        "uids" :
+        [
+            "@TEST_UID@"
+        ],
+        "services" :
+        [
+            {"first" : "0x101", "last" : "0x103"},
+            "0xf90f"
+        ],
+        "check-whitelist" : "true"
+    },
+    "routing":"vsomeipd",
+    "routing-credentials" :
+    {
+        "uid" : "@TEST_UID@",
+        "gid" : "@TEST_GID@"
+    },
+    "service-discovery":
+    {
+        "enable":"false"
+    }
+}

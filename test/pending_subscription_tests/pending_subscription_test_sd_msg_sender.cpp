@@ -58,6 +58,7 @@ TEST_F(pending_subscription, send_multiple_subscriptions)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         std::atomic<bool> keep_receiving(true);
@@ -227,6 +228,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         const std::uint32_t expected_acks(8);
@@ -423,6 +425,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         const std::uint32_t expected_acks(2);
@@ -619,6 +622,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         const std::uint32_t expected_acks(8);
@@ -826,9 +830,11 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
     boost::asio::ip::tcp::socket tcp_socket(io_,
             boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 30490));
     tcp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    tcp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         const std::uint32_t expected_acks(8);
@@ -1047,6 +1053,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         std::atomic<bool> keep_receiving(true);
@@ -1247,9 +1254,11 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
     boost::asio::ip::tcp::socket tcp_socket(io_,
             boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 30490));
     tcp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    tcp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&](){
         const std::uint32_t expected_acks(1);
@@ -1440,6 +1449,179 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
     udp_socket.close(ec);
 }
 
+/*
+ * @test Send a message with message type 0x0 (REQUEST) to the remote SD port
+ * and check if the remote SD continues to send offers
+ */
+TEST_F(pending_subscription, send_request_to_sd_port)
+{
+    std::promise<bool> all_offers_received;
+
+    boost::asio::ip::udp::socket udp_socket(io_,
+            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::ip::multicast::enable_loopback(false));
+    udp_socket.set_option(boost::asio::ip::multicast::join_group(
+        boost::asio::ip::address::from_string("224.0.23.1").to_v4()));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
+    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+
+    std::thread receive_thread([&](){
+        std::atomic<bool> keep_receiving(true);
+        std::function<void()> receive;
+        std::vector<std::uint8_t> receive_buffer(4096);
+        std::vector<vsomeip::event_t> its_received_events;
+
+        const std::function<void(const boost::system::error_code&, std::size_t)> receive_cbk = [&](
+                const boost::system::error_code& error, std::size_t bytes_transferred) {
+            if (error) {
+                keep_receiving = false;
+                ADD_FAILURE() << __func__ << " error: " << error.message();
+                return;
+            }
+            #if 0
+            std::stringstream str;
+            for (size_t i = 0; i < bytes_transferred; i++) {
+                str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+            }
+            std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
+            #endif
+
+            static int offers_received = 0;
+            static int responses_received = 0;
+            vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
+            vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
+                                                                   receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
+            vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
+                                                                 receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+            if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
+                vsomeip::sd::message_impl sd_msg;
+                EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
+                EXPECT_EQ(1u, sd_msg.get_entries().size());
+                EXPECT_EQ(2u, sd_msg.get_options().size());
+                for (auto e : sd_msg.get_entries()) {
+                    EXPECT_TRUE(e->is_service_entry());
+                    EXPECT_EQ(vsomeip::sd::entry_type_e::OFFER_SERVICE, e->get_type());
+                    EXPECT_EQ(0xffffffu, e->get_ttl());
+                    EXPECT_EQ(pending_subscription_test::service.service_id, e->get_service());
+                    EXPECT_EQ(pending_subscription_test::service.instance_id, e->get_instance());
+                    offers_received++;
+                }
+            } else { // non-sd-message
+                vsomeip::message_impl msg;
+                EXPECT_TRUE(msg.deserialize(&its_deserializer));
+                if (msg.get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
+                    EXPECT_EQ(vsomeip::message_type_e::MT_RESPONSE, msg.get_message_type());
+                    EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
+                    EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
+                    EXPECT_EQ(0x2222, msg.get_client());
+                    responses_received++;
+                }
+            }
+
+            if (responses_received == 1) { // resonse to shutdown method was received as well
+                keep_receiving = false;
+            } else if (offers_received == 3 ) { // all multiple offers received
+                try {
+                    all_offers_received.set_value(true);
+                } catch (const std::future_error& e) {
+
+                }
+            }
+            if (!error && keep_receiving) {
+                receive();
+            }
+        };
+
+        receive = [&]() {
+            udp_socket.async_receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()),
+                    receive_cbk);
+        };
+
+        receive();
+        while(keep_receiving) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+
+    std::thread send_thread([&]() {
+        try {
+            std::uint8_t its_subscribe_message[] = {
+                0xff, 0xff, 0x81, 0x00,
+                0x00, 0x00, 0x00, 0x40, // length
+                0x00, 0x00, 0x10, 0x01,
+                0x01, 0x01, 0x00, 0x00,
+                0xc0, 0x00, 0x00, 0x00, // message type is set to 0x0 (REQUEST)
+                0x00, 0x00, 0x00, 0x20, // length entries array
+                0x06, 0x00, 0x00, 0x10,
+                0x11, 0x22, 0x00, 0x01, // service / instance
+                0x00, 0x00, 0x00, 0x03,
+                0x00, 0x00, 0x10, 0x00, // eventgroup
+                0x06, 0x00, 0x00, 0x10,
+                0x11, 0x22, 0x00, 0x01, // service / instance
+                0x00, 0x00, 0x00, 0x03,
+                0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                0x00, 0x00, 0x00, 0x0c, // length options array
+                0x00, 0x09, 0x04, 0x00,
+                0xff, 0xff, 0xff, 0xff, // ip address
+                0x00, 0x11, 0x77, 0x1a
+            };
+            boost::asio::ip::address its_local_address =
+                    boost::asio::ip::address::from_string(std::string(local_address));
+            std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
+
+            boost::asio::ip::udp::socket::endpoint_type target_sd(
+                    boost::asio::ip::address::from_string(std::string(remote_address)),
+                    30490);
+            for (int var = 0; var < 15; ++var) {
+                udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
+                ++its_subscribe_message[11];
+            }
+
+
+            if (std::future_status::timeout == all_offers_received.get_future().wait_for(std::chrono::seconds(10))) {
+                ADD_FAILURE() << "Didn't receive all Offers within time";
+            }
+
+            {
+                // call notify method (but don't expect notifications) to allow
+                // service to exit
+                std::uint8_t trigger_notifications_call[] = {
+                    0x11, 0x22, 0x42, 0x42,
+                    0x00, 0x00, 0x00, 0x08,
+                    0x22, 0x22, 0x00, 0x01,
+                    0x01, 0x00, 0x01, 0x00 };
+                boost::asio::ip::udp::socket::endpoint_type target_service(
+                        boost::asio::ip::address::from_string(std::string(remote_address)),
+                        30001);
+                udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+            }
+
+            {
+                // call shutdown method
+                std::uint8_t shutdown_call[] = {
+                    0x11, 0x22, 0x14, 0x04,
+                    0x00, 0x00, 0x00, 0x08,
+                    0x22, 0x22, 0x00, 0x01,
+                    0x01, 0x00, 0x00, 0x00 };
+                boost::asio::ip::udp::socket::endpoint_type target_service(
+                        boost::asio::ip::address::from_string(std::string(remote_address)),
+                        30001);
+                udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
+            }
+
+        } catch (...) {
+            ASSERT_FALSE(true);
+        }
+
+    });
+
+    send_thread.join();
+    receive_thread.join();
+    boost::system::error_code ec;
+    udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
+    udp_socket.close(ec);
+}
+
 #ifndef _WIN32
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
@@ -1466,6 +1648,8 @@ int main(int argc, char** argv) {
         ::testing::GTEST_FLAG(filter) = "*subscribe_resubscribe_mixed";
     } else if (its_testmode == std::string("SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE")) {
         ::testing::GTEST_FLAG(filter) = "*send_subscribe_stop_subscribe_subscribe";
+    } else if (its_testmode == std::string("REQUEST_TO_SD")) {
+        ::testing::GTEST_FLAG(filter) = "*send_request_to_sd_port";
     }
     return RUN_ALL_TESTS();
 }

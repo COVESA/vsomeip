@@ -18,7 +18,7 @@ class payload_impl: public payload {
 public:
     VSOMEIP_EXPORT payload_impl();
     VSOMEIP_EXPORT payload_impl(const byte_t *_data, uint32_t _size);
-    VSOMEIP_EXPORT payload_impl(const std::vector< byte_t > &_value);
+    VSOMEIP_EXPORT payload_impl(const std::vector< byte_t > &_data);
     VSOMEIP_EXPORT payload_impl(const payload_impl& _payload);
     VSOMEIP_EXPORT virtual ~payload_impl();
 

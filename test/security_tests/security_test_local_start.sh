@@ -4,12 +4,22 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-export VSOMEIP_CONFIGURATION=security_test_config.json
+export VSOMEIP_CONFIGURATION=security_test_local_config.json
+
+export VSOMEIP_APPLICATION_NAME=vsomeipd
+# start daemon
+../daemon/./vsomeipd &
+PID_VSOMEIPD=$!
+
+sleep 1
 
 export VSOMEIP_APPLICATION_NAME=service-sample
-./security_test_service &
+./security_test_service --local &
 
 sleep 1
 
 export VSOMEIP_APPLICATION_NAME=client-sample
-./security_test_client
+./security_test_client --local
+
+kill $PID_VSOMEIPD
+sleep 1

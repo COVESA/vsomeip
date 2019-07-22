@@ -31,7 +31,6 @@ public:
     }
 
     virtual boost::asio::io_service & get_io() = 0;
-    virtual const std::shared_ptr<configuration> get_configuration() const = 0;
 
     virtual std::shared_ptr<endpoint> create_service_discovery_endpoint(
             const std::string &_address, uint16_t _port, bool _reliable) = 0;
@@ -90,7 +89,7 @@ public:
     virtual bool has_identified(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;
 
-    virtual std::chrono::steady_clock::time_point expire_subscriptions() = 0;
+    virtual std::chrono::steady_clock::time_point expire_subscriptions(bool _force) = 0;
 
     virtual std::shared_ptr<serviceinfo> get_offered_service(
             service_t _service, instance_t _instance) const = 0;

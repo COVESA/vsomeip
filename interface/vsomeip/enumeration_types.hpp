@@ -69,6 +69,13 @@ enum class offer_type_e : uint8_t {
     OT_ALL = 0x02,
 };
 
+enum class security_update_state_e : uint8_t {
+    SU_SUCCESS = 0x00,
+    SU_NOT_ALLOWED = 0x01,
+    SU_UNKNOWN_USER_ID = 0x02,
+    SU_INVALID_FORMAT = 0x03
+};
+
 } // namespace vsomeip
 
 #endif // VSOMEIP_ENUMERATION_TYPES_HPP

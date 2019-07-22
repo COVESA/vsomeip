@@ -18,6 +18,7 @@
 
 #define VSOMEIP_SOMEIP_HEADER_SIZE              8
 #define VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE        8
+#define VSOMEIP_FULL_HEADER_SIZE                16
 
 #define VSOMEIP_SERVICE_POS_MIN                 0
 #define VSOMEIP_SERVICE_POS_MAX                 1

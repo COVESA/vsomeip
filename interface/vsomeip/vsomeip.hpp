@@ -16,5 +16,6 @@
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/trace.hpp>
 
 #endif // VSOMEIP_VSOMEIP_HPP

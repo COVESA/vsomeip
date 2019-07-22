@@ -42,7 +42,7 @@ Build Instructions
 ------------------
 Dependencies
 ~~~~~~~~~~~~
-* A C++11 enabled compiler like gcc >= 4.8 is needed.
+* A C++11 enabled compiler like gcc >= 5.2 is needed.
 * vsomeip uses cmake as buildsystem.
 * vsomeip uses Boost >= 1.55:
 ** Ubuntu 14.04:
@@ -298,12 +298,20 @@ ID).
 +
 * 'diagnosis_mask'
 +
-The diagnosis mask (2 byte) is used to control the amount of bits used for the
-diagnosis address in client identifiers. The default value is `0xFF00` meaning
+The diagnosis mask (2 byte) is used to control the maximum amount of allowed
+concurrent vsomeip clients on an ECU and the start value of the client IDs.
++
+The default value is `0xFF00` meaning
 the most significant byte of the client ID is reserved for the diagnosis
-address. Setting the mask to `0xFE00` allows to only use the 7 most
-significant bits of the client ID as a diagnosis address. This can be used to
-increase the maximum amount of concurrent active clients on an ECU.
+address and the client IDs will start with the diagnosis address as specified.
+The maximum number of clients is 255 as the Hamming weight of the inverted mask
+is 8 (2^8 = 256 - 1 (for the routing manager) = 255). The resulting client ID
+range with a diagnosis address of for example 0x45 would be 0x4501 to 0x45ff.
++
+Setting the mask to `0xFE00` doubles client ID range to 511 clients as the
+Hamming weight of the inverted mask is greater by one.  With a diagnosis address
+of 0x45 the start value of client IDs is 0x4401 as bit 8 in 0x4500 is masked
+out. This then yields a client ID range of 0x4400 to 0x45ff.
 
 * 'network'
 +
@@ -404,23 +412,26 @@ to DLT.
 *** 'channel' (optional)
 +
 The id of the channel over that the filtered messages are forwarded to DLT. If
-no channel is specified the default channel is used.
+no channel is specified the default channel (TC) is used. If you want to use a
+filter in several different channels, you can provide an array of channel ids.
 +
-IMPORTANT: If multiple filters are used, the channel MUST always be 
-specified and accordingly defined! Each filter needs its own channel!
+NOTE: If you use a positive filter with multiple channels, the same message
+will be forwared multiple times to DLT.
 +
-*** 'services (array)' (optional)
+*** 'matches' (optional)
 +
-Contains the service ids. The messages that relates to the specified services will be filtered.
+Specification of the criteria to include/exclude a message into/from the trace.
+You can either specify lists (array) or ranges of matching elements.
 +
-*** 'methods (array)' (optional)
+A list may contain single identifiers which match all messages from/to all
+instances of the corresponding service or tuples consisting of service-,
+instance- and method-identifier. 'any' may be used as a wildcard for matching
+all services, instances or methods.
 +
-Contains the method ids. The messages that relates to the specified methods will be filtered.
-+
-*** 'clients (array)' (optional)
-+
-Contains the client ids. The messages that relates to the specified clients will
-be filtered.
+A range is specified by two tuples "from" and "to", each consisting of 
+service-, instance-and method-identifier. All messages with service-, 
+instance-and method-identifiers that are greater than or equal to "from" 
+and less than or equal to "to" are matched.
 +
 *** 'type' (optional)
 +
@@ -460,6 +471,11 @@ callbacks if max_dispatchers is configured greater than 0).
 +
 The number of internal threads to process messages and events within an application.
 Valid values are 1-255. Default is 2.
++
+** 'io_thread_nice' (optional)
++
+The nice level for internal threads processing messages and events. POSIX/Linux only.
+For actual values refer to nice() documentation.
 +
 ** 'request_debounce_time' (optional)
 +
@@ -743,13 +759,28 @@ allocated buffer used to process them before the memory for the buffer is
 released and starts to grow dynamically again. This setting can be useful in
 scenarios where only a small number of the overall messages are a lot bigger
 then the rest and the memory allocated to process them should be released in a
-timely manner. If not specified via this setting the buffer sizes by default
-aren't reseted and are as big as the biggest processed message.
+timely manner. If the value is set to zero the buffer sizes aren't reseted and
+are as big as the biggest processed message. (default is 5)
 +
 Example: `buffer-shrink-threshold` is set to 50. A message with 500 bytes has to
 be processed and the buffers grow accordingly. After this message 50 consecutive
 messages smaller than 250 bytes have to be processed before the buffer size is
 reduced and starts to grow dynamically again.
+
+* `tcp-restart-aborts-max`
++
+Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake.
+After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending.
+
+* `tcp-connect-time-max`
++
+Setting to define the maximum time until the TCP client endpoint connection attempt should be finished.
+If `tcp-connect-time-max` is elapsed, the TCP client endpoint is forcely restarted if the connection attempt is still pending.
+
+* `udp-receive-buffer-size`
++
+Specifies the size of the socket receive buffer (`SO_RCVBUF`) used for
+UDP client and server endpoints in bytes. (default: 1703936)
 
 * `internal_services` (optional array)
 +
@@ -842,6 +873,25 @@ Specifies if interval timer is reset when payload change was detected.
 * `routing`
 +
 The name of the application that is responsible for the routing.
+
+* `routing-credentials`
++
+The UID / GID of the application acting as routing manager.
+(Must be specified if credentials checks are enabled using _check_credentials_ set to _true_ in order to successfully check the routing managers credentials passed on connect)
+
+** `uid`
++
+The routing managers UID.
+
+** `gid`
++
+The routing managers GID.
+
+* `shutdown_timeout`
++
+Configures the time in milliseconds local clients wait for acknowledgement of
+their deregistration from the routing manager during shutdown. Defaults to
+5000ms.
 
 * `service-discovery`
 +
@@ -949,40 +999,40 @@ repetition phase. This can be used to reduce the number of
 sent messages during startup. The default setting is _500ms_.
 +
 //Watchdog
-* anchor:config-watchdog[]'watchdog' (optional)
+* anchor:config-watchdog[]`watchdog` (optional)
 +
 The Watchdog sends periodically pings to all known local clients.
 If a client isn't responding within a configurred time/amount of pongs
 the watchdog deregisters this application/client.
 If not configured the watchdog isn't activated.
 +
-** 'enable'
+** `enable`
 +
 Specifies whether the watchdog is enabled or disabled.
 (valid values: _true, false_), (default is _false_).
 +
-** 'timeout'
+** `timeout`
 +
 Specifies the timeout in ms the watchdog gets activated if a ping
 isn't answered with a pong by a local client within that time.
 (valid values: _2 - 2^32_), (default is _5000_ ms).
 +
-** 'allowed_missing_pongs'
+** `allowed_missing_pongs`
 +
 Specifies the amount of allowed missing pongs.
 (valid values: _1 - 2^32_), (default is _3_ pongs).
 +
 //CAPI-Selective Broadcasts support
-* anchor:config-supports_selective_broadcasts[]'supports_selective_broadcasts' (optional)
+* anchor:config-supports_selective_broadcasts[]`supports_selective_broadcasts` (optional)
 +
 This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported.
 If not specified the feature can't be used and the subscription behavior of the stack is same as with
 normal events.
 +
-** 'address'
+** `address`
 +
 Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported.
-Multiple addresses can be configuered.
+Multiple addresses can be configured.
 
 Security
 --------
@@ -1010,20 +1060,27 @@ Security configuration
 The available configuration switches for the security feature are: 
 
 // Security
-* anchor:config-policy[]'security' (optional)
+* anchor:config-policy[]`security` (optional)
 +
 If specified the credential passing mechanism is activated. However no credential or security checks are done as long as _check_credentials_ isn't set to _true_, but the routing manager client ID must be configured if security tag is specified and shall not be set to 0x6300.
+If _check_credentials_ is set to _true_, the routing managers UID and GID needs to be specified using _routing-credentials_ tag.
 
-** 'check_credentials (optional)'
+** `check_credentials` (optional)
 +
 Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow.
 (valid values: _true, false_), (default is _false_).
 
-** 'policies' (array)
+** `allow_remote_clients` (optional)
++
+Specifies whether incoming remote requests / subscriptions are allowed to be sent to a local proxy / client.
+If not specified, all remote requests / subscriptions are allowed to be received by default.
+(valid values are 'true' and 'false')
+
+** `policies` (array)
 +
 Specifies the security policies. Each policy at least needs to specify _allow_ or _deny_.
 
-*** 'client' (optional)
+*** `client` (optional)
 +
 Specifies a client for which a security policy will be applied (valid value: A valid client identifier in hex: e.g. _0x1234_).
 It is also possible to specify a client identifier range to easily apply a policy to a set of clients.
@@ -1031,76 +1088,123 @@ A usecase is e.g. to allow a set of remote clients communicate with local servic
 +
 No client specification equals to any client (_0xFFFF_). Such policies are applied if a client has no specific policy.
 
-**** 'first'
+**** `first`
 +
 Specifies the first client of a range (first is included).
 (valid value: A valid client identifier in hex: e.g. _0x1234_)
 
-**** 'last'
+**** `last`
 +
 Specifies the last client id of a range (last is included).
 (valid value: A valid client identifier in hex: e.g. _0x1234_)
 
-*** 'credentials' (optional)
+*** `credential` (optional)
 +
 Specifies the credentials of the above client(s).
 If _check_credentials_ is set to _true_ the credentials for the above client(s) (if they running locally) needs to be specified correctly to ensure local socket authentification can succeed.
 This entry is optional due to the fact that remote clients needs to be configured as well to allow to communicate with local services as already mentioned above.
 For remote clients this entry should be skipped. 
 
-**** 'uid'
+**** `uid`
 +
 Specifies the LINUX user id of the above client(s) as decimal number.
 As a wildcard "any" can be used.
 
-**** 'gid'
+**** `gid`
 +
 Specifies the LINUX group id of the above client(s) as decimal number.
 As a wildcard "any" can be used.
 
-**** 'allow/deny' (optional)
+**** `allow` / `deny` (optional)
 +
 Specifies whether the LINUX user and group ids are allowed or denied for the policy.
 
-***** 'uid' (array)
+. `uid` (array)
 +
 Specifies a list of LINUX user ids. These may either be specified as decimal numbers or as ranges. Ranges
 are specified by the first and the last valid id (see example below).
 
-***** 'gid' (array)
+. `gid` (array)
 +
 Specifies a list of LINUX group ids. These may either be specified as decimal numbers or as ranges. Ranges
 are specified by the first and the last valid id (see example below).
 
-*** 'allow/deny'
+*** `allow` / `deny`
 +
 This tag specifies either _allow_ or _deny_ depending on white- or blacklisting is needed. Specifing _allow_ and _deny_ entries in one policy is therefore not allowed.
 With _allow_ a whitelisting of what is allowed can be done which means an empty _allow_ tag implies everything is denied.
 With _deny_ a blacklisting of what is allowed can be done which means an empty _deny_ tag implies everything is allowed.
 
-**** 'requests' (array)
+**** `requests` (array)
 +
-Specifies a set of serivce instance pairs which the above client(s) is allowed/denied to communicate with.
+Specifies a set of service instance pairs which the above client(s) is allowed/denied to communicate with.
 
-***** 'service'
+. `service`
 +
 Specifies a service for the _requests_.
 
-***** 'instance'
+. `instance` (deprecated)
 +
 Specifies a instance for the _requests_
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF
+which also implies a method ID range from 0x01 to 0xFFFF.
 
-**** 'offers' (array)
+. `instances` (array)
++
+Specifies a set of instance ID and method ID range pairs which are allowed/denied to communicate with.
+If the `ids` tag below is not used to specify allowed/denied requests on method ID level one can also
+only specify a a set of instance ID ranges which are allowed/denied to be requested analogous to the
+allowed/denied `offers` section.
+If no method IDs are specified, the allowed/denied methods are by default a range from 0x01 to 0xFFFF.
+
+.. `ids`
++
+Specifies a set of instance ID ranges which are allowed/denied to communicate with.
+It is also possible to specify a single instance ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.
++
+`first` - The lower bound of the instance range.
++
+`last`  - The upper bound of the instance range.
+
+.. `methods`
++
+Specifies a set of method ID ranges which are allowed/denied to communicate with.
+It is also possible to specify a single method ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from method ID 0x01 to 0xFFFF.
++
+`first` - The lower bound of the method range.
++
+`last`  - The upper bound of the method range.
+
+**** `offers` (array)
 +
 Specifies a set of service instance pairs which are allowed/denied to be offered by the above client(s).
 
-***** 'service'
+. `service`
 +
 Specifies a service for the _offers_.
 
-***** 'instance'
+. `instance` (deprecated)
 +
 Specifies a instance for the _offers_
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.
+
+. `instances` (array)
++
+Specifies a set of instance ID ranges which are allowed/denied to be offered by the above client(s)
+It is also possible to specify a single instance ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.
+
+.. `first`
++
+The lower bound of the instance range.
+
+.. `last`
++
+The upper bound of the instance range.
+
+<<<
 
 Security configuration example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1140,18 +1244,51 @@ Security configuration example
                         "gid" : [ "0", { "first" : "100", "last" : "243" }, "300"]
                     },
                     {
-                        "uid" : "55",
-                        "gid" : "55"
+                        "uid" : ["55"],
+                        "gid" : ["55"]
                     }
                  ]
              },
              "allow" :
              [
+                 "offers" :
+                 [
+                     {
+                        "service" : "0x6728",
+                        "instances" : [ "0x0001", { "first" : "0x0003", "last" : "0x0007" }, "0x0009"]
+                     },
+                     {
+                        "service" : "0x6729",
+                        "instances" : ["0x88"]
+                     },
+                     {
+                        "service" : "0x6730",
+                        "instance" : "any"
+                     }
+                 ],
                  "requests" :
                  [
                      {
                          "service" : "0x6732",
-                         "instance" : "0x0001"
+                         "instances" :
+                         [
+                             {
+                                 "ids" : [ "0x0001", { "first" : "0x0003", "last" : "0x0007" }],
+                                 "methods" : [ "0x0001", "0x0003", { "first" : "0x8001", "last" : "0x8006" } ]
+                             },
+                             {
+                                 "ids" : [ "0x0009" ],
+                                 "methods" : "any"
+                             }
+                         ]
+                     },
+                     {
+                        "service" : "0x6733",
+                        "instance" : "0x1"
+                     },
+                     {
+                        "service" : "0x6733",
+                        "instances" : [ "0x0002", { "first" : "0x0003", "last" : "0x0007" }, "0x0009"]
                      }
                  ]
              ]
@@ -1496,7 +1633,7 @@ Overview/Prerequisites
 
 The Trace Connector is used to forward the internal messages that are sent over
 the Unix Domain Sockets to DLT. +
-So a prerequisite is that DLT is installed and the module can be found in 
+Thus, it requires that DLT is installed and the DLT module can be found in the
 context of CMake.
 
 Configuration
@@ -1550,9 +1687,7 @@ Example 2 (Using Filters)
         "filters" : [
             {
                 "channel" : "MC",
-                "services" : [ "0x1234" ],
-                "methods" : [ "0x80e8" ],
-                "clients" : [ "0x1343" ],
+                "matches" : [ { "service" : "0x1234", "instance" : "any", "method" : "0x80e8" } ],
                 "type" : "positive"
             }
         ]
@@ -1561,32 +1696,29 @@ Example 2 (Using Filters)
     ...
 ----
 
-You can apply filters to the messages. In this example only the messages that
+As it is a positive filter, the example filter ensures that only messages 
+representing method '0x80e8' from instances of service '0x1234' will be
+forwarded to the DLT. If it was specified as a negative filter, all messages
+except messages representing method '0x80e8' from instances of service
+'0x1234' would be forwarded to the DLT.
 
-* are addressed to the service with the id _0x1234_
-+
-* relates to the method with the id _0x80e8_ 
-+
-* relates to the client with the id _0x1234_
+The general filter rules are:
 
-
-will be traced/forwarded to DLT. This is a kind of positive filtering. To
-exclude messages from tracing/forwarding to DLT, the filter type can be
-set to "negative". This would suppress the messages that relate to the
-specified service, method and client ids. The default filter type is
-psoitive. +
-The messages will be forwarded over the channel with the id _MC_. If
-just one filter is used, then the definition of a channel is optional.
-But if multiple filters are used, each filter needs an own channel! +
-In this example each criteria has only one expression/value but it's also possible
-to define multiple values to get a more fine-grained filter. +
-The ids of the filter criterias can be found in the appropriate _.fdepl_ files
-and in the rest of the configuration file. +
+* The default filter is a positive filter for all messages.
+* The default filter is active on a channel as long as no other positive
+filter is specified.
+* Negative filters block matching messages. Negative filters overrule
+positive filters. Thus, as soon as a messages matches a negative filter it
+will not be forwarded.
+* The identifier '0xffff' is a wildcard that matches any service, instance or method.
+The keyword 'any' can be used as a replacement for '0xffff'.
+* Wildcards must not be used within range filters.
 
 Dynamic Configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
 The Trace Connector can also be configured dynamically over its interfaces.
+You need to include '<vsomeip/trace.hpp>' to access its public interface.
 
 [float]
 Example:
@@ -1595,26 +1727,27 @@ Example:
 [source, bash]
 ----
     // get trace connector
-    std::shared_ptr<tc::trace_connector> its_trace_connector = tc::trace_connector::get();
+    std::shared_ptr<vsomeip::trace::connector> its_connector 
+	= vsomeip::trace::connector::get();
 
     // add channel
-    its_trace_connector->add_channel("MC", "My channel");
+    std::shared_ptr<vsomeip::trace::channel> its_channel
+	= its_connector->create_channel("MC", "My channel");
 
-    //add filter rule
-    tc::trace_connector::filter_rule_t its_filter_rule;
-
-    its_filter_rule[tc::filter_criteria_e::SERVICES] = { 4660 };
-
-    its_filter_rule[tc::filter_criteria_e::METHODS] = { 33000 };
-    its_filter_rule[tc::filter_criteria_e::CLIENTS] = { 4931 };
-
-    its_trace_connector->add_filter_rule("MC", its_filter_rule);
+    // add filter rule
+    vsomeip::trace::match_t its_match
+        = std::make_tuple(0x1234, 0xffff, 0x80e8);    
+    vsomeip::trace::filter_id_t its_filter_id 
+	= its_channel->add_filter(its_match, true);
 
     // init trace connector    
-    its_trace_connector->init();
+    its_connector->init();
 
     // enable trace connector
-    its_trace_connector->set_enabled(true);
+    its_connector->set_enabled(true);
+
+    // remove the filter
+    its_channel->remove_filter(its_filter_id);
 ----
 
 Tools

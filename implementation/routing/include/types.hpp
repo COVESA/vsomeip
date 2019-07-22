@@ -118,6 +118,8 @@ enum remote_subscription_state_e : std::uint8_t {
     SUBSCRIPTION_ERROR
 };
 
+typedef std::uint32_t pending_remote_offer_id_t;
+
 }
 // namespace vsomeip
 

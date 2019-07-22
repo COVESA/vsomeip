@@ -61,15 +61,20 @@ public:
         // request service of client
         app_->request_service(service_info_.service_id, service_info_.instance_id);
         app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                service_info_.eventgroup_id, 0, vsomeip::subscription_type_e::SU_RELIABLE,
+                service_info_.eventgroup_id, 0,
+                (testmode_ == malicious_data_test::test_mode_e::WRONG_HEADER_FIELDS_UDP) ?
+                        vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE :
+                        vsomeip::subscription_type_e::SU_RELIABLE,
                 service_info_.event_id);
 
         app_->start();
     }
 
     ~malicious_data_test_service() {
-        EXPECT_EQ(9u, received_events_);
-        EXPECT_EQ(9u, received_methodcalls_);
+        if (testmode_ == malicious_data_test::test_mode_e::MALICIOUS_EVENTS) {
+            EXPECT_EQ(9u, received_events_);
+            EXPECT_EQ(9u, received_methodcalls_);
+        }
         offer_thread_.join();
     }
 
@@ -153,7 +158,7 @@ private:
     std::thread offer_thread_;
 };
 
-malicious_data_test::test_mode_e its_testmode(malicious_data_test::test_mode_e::SUBSCRIBE);
+malicious_data_test::test_mode_e its_testmode(malicious_data_test::test_mode_e::MALICIOUS_EVENTS);
 
 TEST(someip_malicious_data_test, block_subscription_handler)
 {
@@ -165,6 +170,18 @@ TEST(someip_malicious_data_test, block_subscription_handler)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+    std::string its_passed_testmode = argv[1];
+    if (its_passed_testmode == std::string("MALICIOUS_EVENTS")) {
+        its_testmode = malicious_data_test::test_mode_e::MALICIOUS_EVENTS;
+    } else if (its_passed_testmode == std::string("PROTOCOL_VERSION")) {
+        its_testmode = malicious_data_test::test_mode_e::PROTOCOL_VERSION;
+    } else if (its_passed_testmode == std::string("MESSAGE_TYPE")) {
+        its_testmode = malicious_data_test::test_mode_e::MESSAGE_TYPE;
+    } else if (its_passed_testmode == std::string("RETURN_CODE")) {
+        its_testmode = malicious_data_test::test_mode_e::RETURN_CODE;
+    } else if (its_passed_testmode == std::string("WRONG_HEADER_FIELDS_UDP")) {
+        its_testmode = malicious_data_test::test_mode_e::WRONG_HEADER_FIELDS_UDP;
+    }
     return RUN_ALL_TESTS();
 }
 #endif

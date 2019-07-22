@@ -51,6 +51,7 @@ public:
     }
 protected:
     virtual void SetUp() {
+        unlink(std::string("/dev/shm").append(utility::get_shm_name(configuration_)).c_str());
         ASSERT_FALSE(file_exist(std::string("/dev/shm").append(utility::get_shm_name(configuration_))));
         ASSERT_TRUE(static_cast<bool>(configuration_));
         configuration_->load(APPLICATION_NAME_ROUTING_MANAGER);
@@ -340,8 +341,11 @@ TEST_F(client_id_utility_test,
 
 TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
     std::vector<client_t> its_client_ids;
-
-    const std::uint16_t max_possible_clients = static_cast<std::uint16_t>(~diagnosis_mask_);
+    std::uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    }
+    const std::uint16_t max_possible_clients = its_max_clients;
     // -1 for the routing manager, -2 as two predefined client IDs are present
     // in the json file which aren't assigned via autoconfiguration
     const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
@@ -352,6 +356,9 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
         if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
             its_client_ids.push_back(its_client_id);
         } else {
             ADD_FAILURE()<< "Received ILLEGAL_CLIENT "
@@ -402,7 +409,11 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
 
     // -1 for the routing manager, -2 as two predefined client IDs are present
     // in the json file which aren't assigned via autoconfiguration
-    const std::uint16_t max_possible_clients = static_cast<std::uint16_t>(~diagnosis_mask_);
+    std::uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    }
+    const std::uint16_t max_possible_clients = its_max_clients;
     const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
 
     // acquire maximum amount of client IDs
@@ -411,6 +422,9 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
         if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
             its_client_ids.push_back(its_client_id);
         } else {
             ADD_FAILURE() << "Received ILLEGAL_CLIENT "
@@ -447,6 +461,9 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
                 APPLICATION_NAME_NOT_PREDEFINED, 0x0);
         EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
         if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
             its_client_ids.push_back(its_client_id);
         } else {
             ADD_FAILURE() << "Received ILLEGAL_CLIENT "
@@ -464,6 +481,193 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
     for (const client_t c : its_client_ids) {
         utility::release_client_id(c);
     }
+}
+
+/*
+ * @test Check that the autoconfigured client IDs continue to increase even if
+ * some client IDs at the beginning of the range are already released again
+ */
+TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
+    std::vector<client_t> its_client_ids;
+
+    // -1 for the routing manager, -2 as two predefined client IDs are present
+    // in the json file which aren't assigned via autoconfiguration
+    std::uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    }
+    const std::uint16_t max_possible_clients = its_max_clients;
+    const std::uint16_t intermediate_release = 3;
+    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
+
+
+    // acquire (almost) maximum amount of client IDs
+    for (std::uint16_t i = 0; i < max_allowed_clients - intermediate_release; i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE() << "Received ILLEGAL_CLIENT "
+                    << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // release the first intermediate_release client IDs again
+    std::vector<client_t> its_intermediate_released_client_ids;
+    for (size_t i = 0; i < intermediate_release; i++ ) {
+        its_intermediate_released_client_ids.push_back(its_client_ids[i]);
+        utility::release_client_id(its_client_ids[i]);
+        its_client_ids.erase(its_client_ids.begin() + i);
+    }
+
+    // acquire some more client IDs, these should be bigger than the already acquired
+    for (std::uint16_t i = 0; i < intermediate_release; i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            EXPECT_LT(its_client_ids.back(), its_client_id);
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE() << "Received ILLEGAL_CLIENT "
+                    << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // check correct wrap around of client IDs
+    for (std::uint16_t i = 0; i < intermediate_release; i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            if (i == 0) {
+                EXPECT_GT(its_client_ids.back(), its_client_id);
+            } else {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE() << "Received ILLEGAL_CLIENT "
+                    << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // check limit is reached
+    client_t its_illegal_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_EQ(ILLEGAL_CLIENT, its_illegal_client_id);
+
+    // release every second requested client ID
+    std::vector<client_t> its_released_client_ids;
+    for (size_t i = 0; i < its_client_ids.size(); i++ ) {
+        if (i % 2) {
+            its_released_client_ids.push_back(its_client_ids[i]);
+            utility::release_client_id(its_client_ids[i]);
+        }
+    }
+    for (const client_t c : its_released_client_ids) {
+        for (auto it = its_client_ids.begin(); it != its_client_ids.end(); ) {
+            if (*it == c) {
+                it = its_client_ids.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    // acquire client IDs up to the maximum allowed amount again
+    for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE() << "Received ILLEGAL_CLIENT "
+                    << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // check limit is reached
+    its_illegal_client_id = 0xFFFF;
+    its_illegal_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_EQ(ILLEGAL_CLIENT, its_illegal_client_id);
+
+    // release all
+    for (const client_t c : its_client_ids) {
+        utility::release_client_id(c);
+    }
+}
+
+TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_id_is_assigned) {
+    std::vector<client_t> its_client_ids;
+    std::uint16_t its_max_clients(0);
+    for (int var = 0; var < __builtin_popcount(static_cast<std::uint16_t>(~diagnosis_mask_)); ++var) {
+        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    }
+    const std::uint16_t max_possible_clients = its_max_clients;
+    // -1 for the routing manager, -2 as two predefined client IDs are present
+    // in the json file which aren't assigned via autoconfiguration
+    const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(max_possible_clients - 3u);
+
+    // acquire (almost) maximum amount of client IDs
+    for (std::uint16_t i = 0; i < max_allowed_clients - 1; i++) {
+        client_t its_client_id = utility::request_client_id(configuration_,
+                APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+        EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+        if (its_client_id != ILLEGAL_CLIENT) {
+            if (i > 0) {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
+            its_client_ids.push_back(its_client_id);
+        } else {
+            ADD_FAILURE()<< "Received ILLEGAL_CLIENT "
+            << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // release a client ID
+    utility::release_client_id(its_client_ids[10]);
+
+    // requesting an ID should return the maximum possible ID
+    client_t its_max_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_NE(ILLEGAL_CLIENT, its_max_client_id);
+    its_client_ids.push_back(its_max_client_id);
+
+    // requesting an ID should work as we have released one before
+    client_t its_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+    its_client_ids.push_back(its_client_id);
+
+    // requesting an ID should not work as all IDs are in use now
+    client_t its_illegal_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_EQ(ILLEGAL_CLIENT, its_illegal_client_id);
+
+    // release another ID
+    utility::release_client_id(its_client_ids[5]);
+
+    its_client_id = utility::request_client_id(configuration_,
+            APPLICATION_NAME_NOT_PREDEFINED, 0x0);
+    EXPECT_NE(ILLEGAL_CLIENT, its_client_id);
+    its_client_ids.push_back(its_client_id);
+
+    // release all
+    for (const client_t c : its_client_ids) {
+        utility::release_client_id(c);
+    }
+    its_client_ids.clear();
 }
 
 #ifndef _WIN32

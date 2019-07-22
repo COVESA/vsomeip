@@ -72,7 +72,7 @@ public:
     void set_change_resets_cycle(bool _change_resets_cycle);
 
     // SIP_RPC_358
-    void set_update_on_change(bool _is_on);
+    void set_update_on_change(bool _is_active);
 
     // SIP_RPC_359 (epsilon change)
     void set_epsilon_change_function(const epsilon_change_func_t &_epsilon_change_func);
@@ -125,6 +125,9 @@ private:
 
     bool set_payload_helper(const std::shared_ptr<payload> &_payload, bool _force);
     void reset_payload(const std::shared_ptr<payload> &_payload);
+
+    void notify_one_unlocked(const std::shared_ptr<endpoint_definition> &_target, bool _flush);
+    void notify_one_unlocked(client_t _client, bool _flush);
 
 private:
     routing_manager *routing_;

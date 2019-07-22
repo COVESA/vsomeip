@@ -12,12 +12,22 @@
 
 FAIL=0
 
+if [ $# -lt 1 ]
+then
+    echo "Please pass a test mode to this script."
+    echo "For example: $0 MALICIOUS_EVENTS"
+    echo "Valid subscription types include:"
+    echo "            [MALICIOUS_EVENTS, PROTOCOL_VERSION, MESSAGE_TYPE, RETURN_CODE, WRONG_HEADER_FIELDS_UDP]"
+    exit 1
+fi
+TESTMODE=$1
+
 export VSOMEIP_CONFIGURATION=malicious_data_test_master.json
 # start daemon
 ../daemon/./vsomeipd &
 PID_VSOMEIPD=$!
 # Start the services
-./malicious_data_test_service &
+./malicious_data_test_service $TESTMODE &
 PID_SERIVCE=$!
 
 sleep 1
@@ -26,16 +36,16 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "Waiting for 5s"
     sleep 5
     echo "starting offer test on slave LXC offer_test_external_slave_starter.sh"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE\"" &
     echo "remote ssh pid: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name otems --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && sleep 10; ./malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@" &
+    docker run --name otems --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && sleep 10; ./malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE" &
 else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@
+** malicious_data_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in

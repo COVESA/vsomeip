@@ -25,9 +25,11 @@ public:
                              endpoint_type _remote,
                              boost::asio::io_service &_io,
                              std::uint32_t _max_message_size,
-                             std::uint32_t buffer_shrink_threshold,
+                             std::uint32_t _buffer_shrink_threshold,
                              std::chrono::milliseconds _send_timeout,
-                             configuration::endpoint_queue_limit_t _queue_limit);
+                             configuration::endpoint_queue_limit_t _queue_limit,
+                             std::uint32_t _tcp_restart_aborts_max,
+                             std::uint32_t _tcp_connect_time_max);
     virtual ~tcp_client_endpoint_impl();
 
     void start();
@@ -71,6 +73,8 @@ private:
             service_t _service, method_t _method, client_t _client, session_t _session,
             std::chrono::steady_clock::time_point _start);
     std::string get_remote_information() const;
+    std::uint32_t get_max_allowed_reconnects() const;
+    void max_allowed_reconnects_reached();
 
     const std::uint32_t recv_buffer_size_initial_;
     message_buffer_ptr_t recv_buffer_;
@@ -82,6 +86,11 @@ private:
     std::chrono::steady_clock::time_point last_cookie_sent_;
     const std::chrono::milliseconds send_timeout_;
     const std::chrono::milliseconds send_timeout_warning_;
+
+    std::uint32_t tcp_restart_aborts_max_;
+    std::uint32_t tcp_connect_time_max_;
+    std::atomic<uint32_t> aborted_restart_count_;
+    std::chrono::steady_clock::time_point connect_timepoint_;
 };
 
 } // namespace vsomeip

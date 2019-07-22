@@ -67,7 +67,7 @@ public:
     /// Get the underlying endpoint in the native type.
     data_type* data()
     {
-        return &sockaddr;
+        return reinterpret_cast<struct sockaddr*>(&sockaddr);
     }
 
     /// Get the underlying endpoint in the native type.

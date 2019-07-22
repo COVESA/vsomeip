@@ -56,10 +56,10 @@ struct subscriber_t {
 class service_discovery_impl: public service_discovery,
         public std::enable_shared_from_this<service_discovery_impl> {
 public:
-    service_discovery_impl(service_discovery_host *_host);
+    service_discovery_impl(service_discovery_host *_host,
+                           std::shared_ptr<configuration> _configuration);
     virtual ~service_discovery_impl();
 
-    std::shared_ptr<configuration> get_configuration() const;
     boost::asio::io_service & get_io();
 
     void init();
@@ -102,6 +102,10 @@ public:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _acknowledged,
             const std::shared_ptr<sd_message_identifier_t> &_sd_message_id);
+
+    void register_offer_acceptance_handler(offer_acceptance_handler_t _handler);
+    void register_reboot_notification_handler(
+            reboot_notification_handler_t _handler);
 private:
     std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
@@ -149,7 +153,9 @@ private:
 
     void process_serviceentry(std::shared_ptr<serviceentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
-            bool _unicast_flag, std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes);
+            bool _unicast_flag,
+            std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes,
+            bool _accept_offers);
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl,
@@ -210,7 +216,7 @@ private:
     void stop_subscription_expiration_timer_unlocked();
     void expire_subscriptions(const boost::system::error_code &_error);
 
-    bool check_ipv4_address(boost::asio::ip::address its_address);
+    bool check_ipv4_address(const boost::asio::ip::address& its_address) const;
 
     bool check_static_header_fields(
             const std::shared_ptr<const message> &_message) const;
@@ -346,6 +352,7 @@ private:
 private:
     boost::asio::io_service &io_;
     service_discovery_host *host_;
+    std::shared_ptr<configuration> configuration_;
 
     boost::asio::ip::address unicast_;
     uint16_t port_;
@@ -443,6 +450,12 @@ private:
     std::mutex remote_offer_types_mutex_;
     std::map<std::pair<service_t, instance_t>, remote_offer_type_e> remote_offer_types_;
     std::map<boost::asio::ip::address, std::set<std::pair<service_t, instance_t>>> remote_offers_by_ip_;
+
+    reboot_notification_handler_t reboot_notification_handler_;
+    offer_acceptance_handler_t offer_acceptance_handler_;
+
+    std::mutex offer_mutex_;
+    std::mutex check_ttl_mutex_;
 };
 
 }  // namespace sd

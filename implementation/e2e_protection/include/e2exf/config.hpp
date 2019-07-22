@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_E2EXF_CONFIG_HPP
 #define VSOMEIP_E2EXF_CONFIG_HPP
 
+#include <vsomeip/primitive_types.hpp>
 #include "../e2e/profile/profile_interface/checker.hpp"
 #include "../e2e/profile/profile_interface/protector.hpp"
 
@@ -15,12 +16,9 @@
 namespace vsomeip {
 namespace e2exf {
 
-using session_id = uint16_t;
-using instance_id = uint16_t;
+using data_identifier_t = std::pair<service_t, event_t>;
 
-using data_identifier = std::pair<session_id, instance_id>;
-
-std::ostream &operator<<(std::ostream &_os, const e2exf::data_identifier &_data_identifier);
+std::ostream &operator<<(std::ostream &_os, const e2exf::data_identifier_t &_data_identifier);
 
 } // namespace e2exf
 } // namespace vsomeip

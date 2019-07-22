@@ -25,8 +25,9 @@ runtime_impl::~runtime_impl() {
 }
 
 std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(
-        service_discovery_host *_host) const {
-    return std::make_shared < service_discovery_impl > (_host);
+        service_discovery_host *_host,
+        std::shared_ptr<configuration> _configuration) const {
+    return std::make_shared < service_discovery_impl > (_host, _configuration);
 }
 
 std::shared_ptr<message_impl> runtime_impl::create_message() const {

@@ -111,6 +111,17 @@ bool deserializer::deserialize(uint8_t *_data, std::size_t _length) {
     return true;
 }
 
+bool deserializer::deserialize(std::string& _target, std::size_t _length) {
+    if (_length > remaining_ || _length > _target.capacity()) {
+        return false;
+    }
+    _target.assign(position_, position_ + _length);
+    position_ += _length;
+    remaining_ -= _length;
+
+    return true;
+}
+
 bool deserializer::deserialize(std::vector< uint8_t >& _value) {
     if (_value.capacity() > remaining_)
         return false;

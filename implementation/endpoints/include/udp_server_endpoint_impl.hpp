@@ -26,7 +26,8 @@ public:
     udp_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                              endpoint_type _local,
                              boost::asio::io_service &_io,
-                             configuration::endpoint_queue_limit_t _queue_limit);
+                             configuration::endpoint_queue_limit_t _queue_limit,
+                             std::uint32_t _udp_receive_buffer_size);
     virtual ~udp_server_endpoint_impl();
 
     void start();
@@ -64,6 +65,8 @@ private:
     std::string get_remote_information(
             const queue_iterator_type _queue_iterator) const;
 
+    const std::string get_address_port_local() const;
+
 private:
     socket_type socket_;
     endpoint_type remote_;
@@ -75,7 +78,7 @@ private:
     std::atomic<bool> joined_group_;
 
     message_buffer_t recv_buffer_;
-    std::mutex socket_mutex_;
+    mutable std::mutex socket_mutex_;
 
     const std::uint16_t local_port_;
 };

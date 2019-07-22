@@ -30,8 +30,8 @@ struct e2e {
     }
 
 
-    e2e(uint16_t _data_id, std::string _variant, std::string _profile, uint16_t _service_id,
-        uint16_t _event_id,uint16_t _crc_offset,
+    e2e(uint16_t _data_id, std::string _variant, std::string _profile, service_t _service_id,
+        event_t _event_id,uint16_t _crc_offset,
         uint8_t  _data_id_mode, uint16_t _data_length, uint16_t _data_id_nibble_offset, uint16_t _counter_offset) :
 
         data_id(_data_id),
@@ -51,8 +51,8 @@ struct e2e {
     uint16_t data_id;
     std::string variant;
     std::string profile;
-    uint16_t service_id;
-    uint16_t event_id;
+    service_t service_id;
+    event_t event_id;
 
     //profile 1 specific config
     // [SWS_E2E_00018]

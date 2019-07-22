@@ -14,6 +14,7 @@
 #include <set>
 #include <thread>
 #include <atomic>
+#include <unordered_set>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -43,7 +44,7 @@ public:
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
-    void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
+    void on_message(const byte_t *_data, length_t _size, endpoint *_receiver,
             const boost::asio::ip::address &_destination,
             client_t _bound_client,
             const boost::asio::ip::address &_remote_address,
@@ -82,6 +83,7 @@ public:
     bool send_ping(client_t _client);
     bool is_registered(client_t _client) const;
     client_t get_client() const;
+    void handle_credentials(const client_t _client, std::set<service_data_t>& _requests);
     void handle_requests(const client_t _client, std::set<service_data_t>& _requests);
 
     void send_identify_request_command(std::shared_ptr<vsomeip::endpoint> _target,
@@ -95,11 +97,30 @@ public:
     void update_registration(client_t _client, registration_type_e _type);
 
     void print_endpoint_status() const;
+
+    bool send_provided_event_resend_request(client_t _client,
+                                            pending_remote_offer_id_t _id);
+
+    bool is_policy_cached(uint32_t _uid);
+
+    void policy_cache_add(uint32_t _uid, std::shared_ptr<payload> _payload);
+
+    void policy_cache_remove(uint32_t _uid);
+
+    bool send_update_security_policy_request(client_t _client, pending_security_update_id_t _update_id,
+                                             uint32_t _uid, std::shared_ptr<payload> _payload);
+    bool send_remove_security_policy_request(client_t _client, pending_security_update_id_t _update_id,
+                                             uint32_t _uid, uint32_t _gid);
+
+    bool send_cached_security_policies(client_t _client);
+
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
+
+    void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
 
     void inform_requesters(client_t _hoster, service_t _service,
             instance_t _instance, major_version_t _major,
@@ -137,6 +158,10 @@ private:
             major_version_t _major,
             minor_version_t _minor);
     void send_offered_services_info(const client_t _target);
+
+    void create_client_credentials_info(const client_t _target);
+    void insert_client_credentials_info(client_t _target, std::set<std::pair<uint32_t, uint32_t>> _credentials);
+    void send_client_credentials_info(const client_t _target);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
@@ -182,6 +207,12 @@ private:
 
     std::map<client_t, std::vector<byte_t>> client_routing_info_;
     std::map<client_t, std::vector<byte_t>> offered_services_info_;
+    std::map<client_t, std::vector<byte_t>> client_credentials_info_;
+
+
+    std::mutex updated_security_policies_mutex_;
+    std::map<uint32_t, std::shared_ptr<payload>> updated_security_policies_;
+
 };
 
 } // namespace vsomeip

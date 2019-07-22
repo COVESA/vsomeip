@@ -38,7 +38,8 @@ public:
 
     bool is_client() const;
     void restart(bool _force);
-    bool is_connected() const;
+    bool is_established() const;
+    void set_established(bool _established);
     void set_connected(bool _connected);
     bool send(const uint8_t *_data, uint32_t _size, bool _flush);
     bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,

@@ -61,7 +61,7 @@ public:
             instance_t _instance, event_t _event,
             const std::set<eventgroup_t> &_eventgroups,
             bool _is_field,
-            std::chrono::milliseconds _cycle, bool _change_resets_cycle_,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
             const epsilon_change_func_t &_epsilon_change_func);
     VSOMEIP_EXPORT void stop_offer_event(service_t _service,
             instance_t _instance, event_t _event);
@@ -184,6 +184,31 @@ public:
     VSOMEIP_EXPORT void register_async_subscription_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, async_subscription_handler_t _handler);
 
+    VSOMEIP_EXPORT void set_offer_acceptance_required(ip_address_t _address, const std::string _path, bool _enable);
+    VSOMEIP_EXPORT offer_acceptance_map_type_t get_offer_acceptance_required();
+
+    VSOMEIP_EXPORT void register_offer_acceptance_handler(offer_acceptance_handler_t _handler);
+
+    VSOMEIP_EXPORT void register_reboot_notification_handler(reboot_notification_handler_t _handler);
+
+    VSOMEIP_EXPORT void register_routing_ready_handler(routing_ready_handler_t _handler);
+    VSOMEIP_EXPORT void register_routing_state_handler(routing_state_handler_t _handler);
+
+    VSOMEIP_EXPORT bool update_service_configuration(service_t _service,
+                                                     instance_t _instance,
+                                                     std::uint16_t _port,
+                                                     bool _reliable,
+                                                     bool _magic_cookies_enabled,
+                                                     bool _offer);
+
+    VSOMEIP_EXPORT void update_security_policy_configuration(uint32_t _uid,
+                                                             uint32_t _gid,
+                                                             std::shared_ptr<policy> _policy,
+                                                             std::shared_ptr<payload> _payload,
+                                                             security_update_handler_t _handler);
+    VSOMEIP_EXPORT void remove_security_policy_configuration(uint32_t _uid,
+                                                             uint32_t _gid,
+                                                             security_update_handler_t _handler);
 private:
     //
     // Types

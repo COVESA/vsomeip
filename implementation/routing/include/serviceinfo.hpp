@@ -24,6 +24,7 @@ class serviceinfo {
 public:
     VSOMEIP_EXPORT serviceinfo(major_version_t _major, minor_version_t _minor,
             ttl_t _ttl, bool _is_local);
+    VSOMEIP_EXPORT serviceinfo(const serviceinfo& _other);
     VSOMEIP_EXPORT ~serviceinfo();
 
     VSOMEIP_EXPORT servicegroup * get_group() const;
@@ -36,7 +37,7 @@ public:
     VSOMEIP_EXPORT void set_ttl(ttl_t _ttl);
 
     VSOMEIP_EXPORT std::chrono::milliseconds get_precise_ttl() const;
-    VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _ttl);
+    VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
     VSOMEIP_EXPORT void set_endpoint(std::shared_ptr<endpoint> _endpoint,

@@ -1,30 +1,52 @@
 {
-    "unicast" : "localhost",
+    "unicast" : "@TEST_IP_SLAVE@",
+    "netmask" : "255.255.255.0",
     "logging" :
-    { 
+    {
         "level" : "info",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "service-sample",
             "id" : "0x1277"
         },
-        {    
-            "name" : "client-sample",
-            "id" : "0x1255"
+        {
+            "name" : "vsomeipd",
+            "id" : "0x1111"
         }
+    ],
+    "services" :
+    [
+       {
+          "service" : "0x1234",
+          "instance" : "0x5678",
+          "unicast" : "@TEST_IP_MASTER@",
+          "unreliable" : "30509"
+       },
+       {
+          "service" : "0x111",
+          "instance" : "0x5678",
+          "unicast" : "@TEST_IP_MASTER@",
+          "unreliable" : "30509"
+       },
+       {
+          "service" : "0x1234",
+          "instance" : "0x02",
+          "unicast" : "@TEST_IP_MASTER@",
+          "unreliable" : "30509"
+       }
     ],
     "security" :
     {
         "check_credentials" : "true",
+        "allow_remote_clients" : "false",
         "policies" :
         [
             {
-                "client" : "0x1277",
                 "credentials" : { "uid" : "@TEST_UID@", "gid" : "@TEST_GID@" },
                 "allow" :
                 {
@@ -36,28 +58,19 @@
                         }
                     ]
                 }
-            },
-            {
-                "client" : "0x1255",
-                "credentials" : { "uid" : "@TEST_UID@", "gid" : "@TEST_GID@" },
-                "allow" :
-                {
-                    "requests":
-                    [
-                        {
-                            "service"  : "0x1234",
-                            "instance" : "0x5678"
-                        }
-                    ]
-                }
             }
         ]
     },
-    "routing" : "service-sample",
+    "routing" : "vsomeipd",
+    "routing-credentials" :
+    {
+        "uid" : "@TEST_UID@",
+        "gid" : "@TEST_GID@"
+    },
     "service-discovery" :
     {
         "enable" : "true",
-        "multicast" : "224.244.224.245",
+        "multicast" : "224.0.0.1",
         "port" : "30490",
         "protocol" : "udp",
         "initial_delay_min" : "10",

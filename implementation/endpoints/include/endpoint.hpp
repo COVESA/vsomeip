@@ -25,7 +25,7 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
 
-    virtual bool is_connected() const = 0;
+    virtual bool is_established() const = 0;
 
     virtual bool send(const byte_t *_data, uint32_t _size,
             bool _flush = true) = 0;
@@ -57,7 +57,7 @@ public:
 
     virtual void print_status() = 0;
 
-    virtual void set_connected(bool _connected) = 0;
+    virtual void set_established(bool _established) = 0;    virtual void set_connected(bool _connected) = 0;
 };
 
 } // namespace vsomeip

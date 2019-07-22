@@ -27,6 +27,45 @@ typedef std::function< void (client_t, bool, std::function< void (const bool) > 
 typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
 typedef std::function< void () > watchdog_handler_t;
 
+struct ip_address_t {
+    union {
+        ipv4_address_t v4_;
+        ipv6_address_t v6_;
+    } address_;
+    bool is_v4_;
+
+    bool operator<(const ip_address_t& _other) const {
+        if (is_v4_ && _other.is_v4_) {
+            return address_.v4_ < _other.address_.v4_;
+        } else if (!is_v4_ && !_other.is_v4_) {
+            return address_.v6_ < _other.address_.v6_;
+        } else if (is_v4_ && !_other.is_v4_) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool operator==(const ip_address_t& _other) const {
+        if (is_v4_ && _other.is_v4_) {
+            return address_.v4_ == _other.address_.v4_;
+        } else if (!is_v4_ && !_other.is_v4_) {
+            return address_.v6_ == _other.address_.v6_;
+        } else {
+            return false;
+        }
+    }
+
+    bool operator!=(const ip_address_t& _other) const {
+        return !(*this == _other);
+    }
+
+};
+typedef std::function<bool(const ip_address_t&)> offer_acceptance_handler_t;
+typedef std::function<void(const ip_address_t&)> reboot_notification_handler_t;
+typedef std::function<void()> routing_ready_handler_t;
+typedef std::function<void(routing_state_e)> routing_state_handler_t;
+typedef std::function<void(security_update_state_e)> security_update_handler_t;
 
 } // namespace vsomeip
 

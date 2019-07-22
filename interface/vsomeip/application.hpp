@@ -23,6 +23,7 @@ namespace vsomeip {
 class configuration;
 class event;
 class payload;
+struct policy;
 
 /**
  * \defgroup vsomeip
@@ -944,7 +945,145 @@ public:
      * \param _handler Callback that shall be called.
      *
      */
-    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup, async_subscription_handler_t _handler) = 0;
+    virtual void register_async_subscription_handler(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            async_subscription_handler_t _handler) = 0;
+
+    /**
+     *  \brief Enables or disables calling of registered offer acceptance
+     *  handler for given IP address
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     *  \param _address IP address for which offer acceptance handler should be
+     *  called
+     *  \param _path Path which indicates need for offer acceptance
+     *  \param _enable enable or disable calling of offer acceptance handler
+     */
+    virtual void set_offer_acceptance_required(ip_address_t _address,
+                                               const std::string _path,
+                                               bool _enable) = 0;
+
+    /**
+     * \brief Returns all configured IP addresses which require calling of
+     * registered offer acceptance handler
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \return map with known IP addresses requiring offer acceptance handling
+     */
+    typedef std::map<ip_address_t, std::string> offer_acceptance_map_type_t;
+    virtual offer_acceptance_map_type_t get_offer_acceptance_required() = 0;
+
+    /**
+     * \brief Registers a handler which will be called upon reception of
+     * a remote offer with the offering ECU's IP address as parameter
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \param _handler The handler to be called
+     */
+    virtual void register_offer_acceptance_handler(
+            offer_acceptance_handler_t _handler) = 0;
+
+    /**
+     * \brief Registers a handler which will be called upon detection of a
+     * reboot of a remote ECU with the remote ECU's IP address as a parameter
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \param _handler The handler to be called
+     */
+    virtual void register_reboot_notification_handler(
+            reboot_notification_handler_t _handler) = 0;
+
+    /**
+     * \brief Registers a handler which will be called when the routing reached
+     * READY state.
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \param _handler The handler to be called
+     */
+    virtual void register_routing_ready_handler(
+            routing_ready_handler_t _handler) = 0;
+
+    /**
+     * \brief Registers a handler which will be called when the routing state
+     * changes.
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \param _handler The handler to be called
+     */
+    virtual void register_routing_state_handler(
+            routing_state_handler_t _handler) = 0;
+
+    /**
+     * \brief Update service configuration to offer a local service on the
+     *        network as well
+     *
+     *  This function is intended to take the necessary information to offer a
+     *  service remotely if it was offered only locally beforehand.
+     *  Precondition: The service must already be offered locally before
+     *  calling this method.
+     *  This function only has an effect if called on an application acting as
+     *  routing manager.
+     *
+     * \param _service Service identifier
+     * \param _instance Instance identifier
+     * \param _port The port number on which the service should be offered
+     * \param _reliable Offer via TCP or UDP
+     * \param _magic_cookies_enabled Flag to enable magic cookies
+     * \param _offer Offer the service or stop offering it remotely
+     */
+    virtual bool update_service_configuration(service_t _service,
+                                              instance_t _instance,
+                                              std::uint16_t _port,
+                                              bool _reliable,
+                                              bool _magic_cookies_enabled,
+                                              bool _offer) = 0;
+
+    /**
+     * \brief Update security configuration of routing manager and all local clients
+     *        The given handler gets called with "SU_SUCCESS" if the policy for UID
+     *        and GID was updated or added successfully. If not all clients did confirm
+     *        the update, SU_TIMEOUT is set.
+     *
+     * \param _uid UID of the policy
+     * \param _gid GID of the policy
+     * \param _policy The security policy to apply
+     * \param _payload serialized security policy object
+     * \param _handler handler which gets called after all clients have
+     *                 confirmed the policy update
+     */
+    virtual void update_security_policy_configuration(uint32_t _uid,
+                                                      uint32_t _gid,
+                                                      std::shared_ptr<policy> _policy,
+                                                      std::shared_ptr<payload> _payload,
+                                                      security_update_handler_t _handler) = 0;
+
+    /**
+     * \brief Remove a security configuration for routing manager and all local clients
+     *        The given handler gets called with "SU_SUCCESS" if the policy for UID
+     *        and GID was removed successfully. SU_UNKNOWN_USER_ID is set if the
+     *        UID and GID was not found. If not all clients did confirm the removal,
+     *        SU_TIMEOUT is set.
+     *
+     * \param _uid UID of the policy to remove
+     * \param _gid GID of the policy to remove
+     * \param _handler handler which gets called after all clients have
+     *                 confirmed the policy removal
+     */
+    virtual void remove_security_policy_configuration(uint32_t _uid,
+                                                      uint32_t _gid,
+                                                      security_update_handler_t _handler) = 0;
 };
 
 /** @} */

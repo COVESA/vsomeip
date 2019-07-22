@@ -30,14 +30,15 @@ public:
                              endpoint_type _local,
                              endpoint_type _remote,
                              boost::asio::io_service &_io,
-                             configuration::endpoint_queue_limit_t _queue_limit);
+                             configuration::endpoint_queue_limit_t _queue_limit,
+                             std::uint32_t _udp_receive_buffer_size);
     virtual ~udp_client_endpoint_impl();
 
     void start();
     void restart(bool _force);
 
     void receive_cbk(boost::system::error_code const &_error,
-                     std::size_t _bytes);
+                     std::size_t _bytes, message_buffer_ptr_t _recv_buffer);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
@@ -51,11 +52,12 @@ private:
     const std::string get_address_port_remote() const;
     const std::string get_address_port_local() const;
     std::string get_remote_information() const;
-
-    message_buffer_t recv_buffer_;
+    std::uint32_t get_max_allowed_reconnects() const;
+    void max_allowed_reconnects_reached();
 
     const boost::asio::ip::address remote_address_;
     const std::uint16_t remote_port_;
+    const std::uint32_t udp_receive_buffer_size_;
 };
 
 } // namespace vsomeip

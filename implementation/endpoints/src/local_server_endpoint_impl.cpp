@@ -30,7 +30,7 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         endpoint_type _local, boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
         std::uint32_t _buffer_shrink_threshold,
-        configuration::endpoint_queue_limit_t _queue_limit)
+        configuration::endpoint_queue_limit_t _queue_limit, std::uint32_t _mode)
     : local_server_endpoint_base_impl(_host, _local, _io,
                                       _max_message_size, _queue_limit),
       acceptor_(_io),
@@ -48,8 +48,11 @@ local_server_endpoint_impl::local_server_endpoint_impl(
     boost::asio::detail::throw_error(ec, "acceptor listen");
 
 #ifndef _WIN32
+    if (chmod(_local.path().c_str(), static_cast<mode_t>(_mode)) == -1) {
+        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
+    }
     if (_host->get_configuration()->is_security_enabled()) {
-        credentials::activate_credentials(acceptor_.native());
+        credentials::activate_credentials(acceptor_.native_handle());
     }
 #endif
 }
@@ -60,7 +63,7 @@ local_server_endpoint_impl::local_server_endpoint_impl(
         std::uint32_t _max_message_size,
         int native_socket,
         std::uint32_t _buffer_shrink_threshold,
-        configuration::endpoint_queue_limit_t _queue_limit)
+        configuration::endpoint_queue_limit_t _queue_limit, std::uint32_t _mode)
     : local_server_endpoint_base_impl(_host, _local, _io,
                                       _max_message_size, _queue_limit),
       acceptor_(_io),
@@ -72,8 +75,11 @@ local_server_endpoint_impl::local_server_endpoint_impl(
    boost::asio::detail::throw_error(ec, "acceptor assign native socket");
 
 #ifndef _WIN32
+    if (chmod(_local.path().c_str(), static_cast<mode_t>(_mode)) == -1) {
+       VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
+    }
     if (_host->get_configuration()->is_security_enabled()) {
-        credentials::activate_credentials(acceptor_.native());
+        credentials::activate_credentials(acceptor_.native_handle());
     }
 #endif
 }
@@ -127,6 +133,12 @@ void local_server_endpoint_impl::stop() {
         }
         connections_.clear();
     }
+#ifndef _WIN32
+    {
+        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+        client_connections_.clear();
+    }
+#endif
 }
 
 bool local_server_endpoint_impl::send_to(
@@ -178,15 +190,31 @@ bool local_server_endpoint_impl::get_default_target(
 
 void local_server_endpoint_impl::remove_connection(
         local_server_endpoint_impl::connection *_connection) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    for (auto it = connections_.begin(); it != connections_.end();) {
-        if (it->second.get() == _connection) {
-            it = connections_.erase(it);
-            break;
-        } else {
-            ++it;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        for (auto it = connections_.begin(); it != connections_.end();) {
+            if (it->second.get() == _connection) {
+                it = connections_.erase(it);
+                break;
+            } else {
+                ++it;
+            }
         }
     }
+
+#ifndef _WIN32
+    {
+        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+        for (auto it = client_connections_.begin(); it != client_connections_.end();) {
+            if (it->second.get() == _connection) {
+                it = client_connections_.erase(it);
+                break;
+            } else {
+                ++it;
+            }
+        }
+    }
+#endif
 }
 
 void local_server_endpoint_impl::accept_cbk(
@@ -196,23 +224,62 @@ void local_server_endpoint_impl::accept_cbk(
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
         start();
+    } else if (_error == boost::asio::error::no_descriptors) {
+        VSOMEIP_ERROR << "local_server_endpoint_impl::accept_cbk: "
+                << _error.message() << " (" << std::dec << _error.value()
+                << ") Will try to accept again in 1000ms";
+        std::shared_ptr<boost::asio::steady_timer> its_timer =
+                std::make_shared<boost::asio::steady_timer>(service_,
+                        std::chrono::milliseconds(1000));
+        auto its_ep = std::dynamic_pointer_cast<local_server_endpoint_impl>(
+                shared_from_this());
+        its_timer->async_wait([its_timer, its_ep]
+                               (const boost::system::error_code& _error) {
+            if (!_error) {
+                its_ep->start();
+            }
+        });
     }
 
     if (!_error) {
 #ifndef _WIN32
         auto its_host = host_.lock();
+        client_t client = 0;
         if (its_host) {
             if (its_host->get_configuration()->is_security_enabled()) {
                 std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
                 socket_type &new_connection_socket = _connection->get_socket();
-                uid_t uid(0);
-                gid_t gid(0);
-                client_t client = credentials::receive_credentials(
+                uid_t uid(0xffffffff);
+                gid_t gid(0xffffffff);
+                client = credentials::receive_credentials(
                      new_connection_socket.native(), uid, gid);
+
+                std::lock_guard<std::mutex> its_client_connection_lock(client_connections_mutex_);
+                auto found_client = client_connections_.find(client);
+                if (found_client != client_connections_.end()) {
+                    VSOMEIP_WARNING << std::hex << "vSomeIP Security: Rejecting new connection with client ID 0x" << client
+                            << " uid/gid= " << std::dec << uid << "/" << gid
+                            << " because of already existing connection using same client ID";
+                    boost::system::error_code er;
+                    new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
+                    new_connection_socket.close(er);
+                    return;
+                }
+
+                if (!its_host->get_configuration()->check_routing_credentials(client, uid, gid)) {
+                    VSOMEIP_WARNING << std::hex << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << client
+                            << " uid/gid= " << std::dec << uid << "/" << gid
+                            << " because passed credentials do not match with routing manager credentials!";
+                    boost::system::error_code er;
+                    new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
+                    new_connection_socket.close(er);
+                    return;
+                }
+
                 if (!its_host->check_credentials(client, uid, gid)) {
-                     VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                             << " received client credentials from client 0x" << client
-                             << " which violates the security policy : uid/gid="
+                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
+                             << its_host->get_client() << " received client credentials from client 0x"
+                             << client << " which violates the security policy : uid/gid="
                              << std::dec << uid << "/" << gid;
                      boost::system::error_code er;
                      new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
@@ -234,8 +301,16 @@ void local_server_endpoint_impl::accept_cbk(
         }
         if (!its_error) {
             {
-                std::lock_guard<std::mutex> its_lock(connections_mutex_);
-                connections_[remote] = _connection;
+                {
+                    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+                    connections_[remote] = _connection;
+                }
+#ifndef _WIN32
+                {
+                    std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
+                    client_connections_[client] = _connection;
+                }
+#endif
             }
             _connection->start();
         }
@@ -271,7 +346,6 @@ local_server_endpoint_impl::connection::create(
         std::uint32_t _buffer_shrink_threshold,
         boost::asio::io_service &_io_service) {
     const std::uint32_t its_initial_buffer_size = VSOMEIP_COMMAND_HEADER_SIZE
-            + VSOMEIP_MAX_LOCAL_MESSAGE_SIZE
             + static_cast<std::uint32_t>(sizeof(instance_t) + sizeof(bool)
                     + sizeof(bool));
     return ptr(new connection(_server, _max_message_size, its_initial_buffer_size,
@@ -334,6 +408,12 @@ void local_server_endpoint_impl::connection::start() {
 void local_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
+#ifndef _WIN32
+        if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
+            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
+                          << "' (" << errno << ") " << get_path_local();
+        }
+#endif
         boost::system::error_code its_error;
         socket_.shutdown(socket_.shutdown_both, its_error);
         socket_.close(its_error);
@@ -487,19 +567,33 @@ void local_server_endpoint_impl::connection::receive_cbk(
                         // start tag (4 Byte) + command (1 Byte) + client id (2 Byte)
                         // + command size (4 Byte) + data itself + stop tag (4 byte)
                         // = 15 Bytes not covered in command size.
-                        if (its_command_size && its_command_size + 15 > recv_buffer_size_) {
+                        if (its_command_size + 15 > recv_buffer_size_) {
                             missing_capacity_ = its_command_size + 15 - std::uint32_t(recv_buffer_size_);
                         } else if (recv_buffer_size_ < 11) {
                             // to little data to read out the command size
                             // minimal amount of data needed to read out command size = 11
                             missing_capacity_ = 11 - static_cast<std::uint32_t>(recv_buffer_size_);
                         } else {
+                            std::stringstream local_msg;
+                            for (std::size_t i = its_iteration_gap;
+                                    i < recv_buffer_size_ + its_iteration_gap &&
+                                    i - its_iteration_gap < 32; i++) {
+                                local_msg << std::setw(2) << std::setfill('0')
+                                    << std::hex << (int) recv_buffer_[i] << " ";
+                            }
                             VSOMEIP_ERROR << "lse::c<" << this
                                     << ">rcb: recv_buffer_size is: " << std::dec
                                     << recv_buffer_size_ << " but couldn't read "
                                     "out command size. recv_buffer_capacity: "
-                                    << recv_buffer_.capacity()
-                                    << " its_iteration_gap: " << its_iteration_gap;
+                                    << std::dec << recv_buffer_.capacity()
+                                    << " its_iteration_gap: " << std::dec
+                                    << its_iteration_gap << " bound client: 0x"
+                                    << std::hex << bound_client_ << " buffer: "
+                                    << local_msg.str();
+                            recv_buffer_size_ = 0;
+                            missing_capacity_ = 0;
+                            its_iteration_gap = 0;
+                            message_is_empty = true;
                         }
                     }
                 }
@@ -525,7 +619,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                     found_message = true;
                     its_iteration_gap = its_end + 4;
                 } else {
-                    if (!message_is_empty && its_iteration_gap) {
+                    if (its_iteration_gap) {
                         // Message not complete and not in front of the buffer!
                         // Copy last part to front for consume in future receive_cbk call!
                         for (size_t i = 0; i < recv_buffer_size_; ++i) {
@@ -545,6 +639,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                 || _error == boost::asio::error::connection_reset) {
             stop();
             its_server->remove_connection(this);
+            its_host->get_configuration()->remove_client_to_uid_gid_mapping(bound_client_);
         } else if (_error != boost::asio::error::bad_descriptor) {
             start();
         }
@@ -554,6 +649,11 @@ void local_server_endpoint_impl::connection::receive_cbk(
 void local_server_endpoint_impl::connection::set_bound_client(client_t _client) {
     bound_client_ = _client;
 }
+
+client_t local_server_endpoint_impl::connection::get_bound_client() const {
+    return bound_client_;
+}
+
 
 void local_server_endpoint_impl::connection::calculate_shrink_count() {
     if (buffer_shrink_threshold_) {
@@ -624,6 +724,12 @@ void local_server_endpoint_impl::connection::handle_recv_buffer_exception(
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
     if (socket_.is_open()) {
+#ifndef _WIN32
+        if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
+            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
+                          << "' (" << errno << ") " << get_path_local();
+        }
+#endif
         boost::system::error_code its_error;
         socket_.shutdown(socket_.shutdown_both, its_error);
         socket_.close(its_error);

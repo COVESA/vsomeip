@@ -23,17 +23,12 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_host.hpp"
 
-#ifdef USE_DLT
-#include "../../tracing/include/trace_connector.hpp"
-#endif
-
-#ifdef USE_DLT
-namespace tc {
-class trace_connector;
-} // namespace tc
-#endif
-
 namespace vsomeip {
+#ifdef USE_DLT
+namespace trace {
+class connector_impl;
+} // namespace trace
+#endif
 
 class serializer;
 
@@ -90,13 +85,15 @@ public:
 
     virtual void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force, bool _flush);
+            client_t _client, bool _force, bool _flush, bool _remote_subscriber);
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message,
             bool _flush);
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true) = 0;
+            instance_t _instance, bool _flush, bool _reliable,
+            client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
+            bool _is_valid_crc = true, bool _sent_from_remote = false) = 0;
 
     // Endpoint host ~> will be implemented by routing_manager_impl/_proxy/
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
@@ -125,6 +122,8 @@ public:
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
+    std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
+
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<serviceinfo> create_service_info(service_t _service,
@@ -133,14 +132,16 @@ protected:
 
     void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
     services_t get_services() const;
+    services_t get_services_remote() const;
     bool is_available(service_t _service, instance_t _instance, major_version_t _major);
     client_t find_local_client(service_t _service, instance_t _instance);
 
     std::shared_ptr<endpoint> create_local(client_t _client);
     std::shared_ptr<endpoint> find_or_create_local(client_t _client);
-    void remove_local(client_t _client);
+    void remove_local(client_t _client, bool _remove_uid);
     void remove_local(client_t _client,
-                      const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups);
+                      const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
+                      bool _remove_uid);
 
     std::shared_ptr<endpoint> find_local(client_t _client);
     std::shared_ptr<endpoint> find_local(service_t _service,
@@ -182,7 +183,7 @@ protected:
                                      eventgroup_t _eventgroup, event_t _event);
 
     void send_pending_notify_ones(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, client_t _client);
+            eventgroup_t _eventgroup, client_t _client, bool _remote_subscriber = false);
 
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance,
@@ -200,6 +201,23 @@ protected:
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>>
         get_subscriptions(const client_t _client);
+
+    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
+
+    bool is_response_allowed(client_t _sender, service_t _service,
+            instance_t _instance, method_t _method);
+    bool is_subscribe_to_any_event_allowed(client_t _client,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+
+    void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event, subscription_state_e _state);
+
+    subscription_state_e get_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
+
+    void erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
+
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
@@ -224,6 +242,7 @@ protected:
 
     std::mutex local_services_mutex_;
     std::map<service_t, std::map<instance_t, std::tuple< major_version_t, minor_version_t, client_t> > > local_services_;
+    std::map<service_t, std::map<instance_t, std::set<client_t> > > local_services_history_;
 
     // Eventgroups
     mutable std::mutex eventgroups_mutex_;
@@ -236,7 +255,7 @@ protected:
             std::map<instance_t, std::map<event_t, std::shared_ptr<event> > > > events_;
 
 #ifdef USE_DLT
-    std::shared_ptr<tc::trace_connector> tc_;
+    std::shared_ptr<trace::connector_impl> tc_;
 #endif
 
     struct subscription_data_t {
@@ -263,7 +282,7 @@ protected:
     std::set<subscription_data_t> pending_subscriptions_;
 
     services_t services_remote_;
-    std::mutex services_remote_mutex_;
+    mutable std::mutex services_remote_mutex_;
 
 private:
     services_t services_;
@@ -276,7 +295,18 @@ private:
         std::map<instance_t,
             std::map<eventgroup_t,
                 std::shared_ptr<message> > > > pending_notify_ones_;
-    std::mutex pending_notify_ones_mutex_;
+    std::recursive_mutex pending_notify_ones_mutex_;
+
+    std::mutex event_registration_mutex_;
+
+    std::map<client_t,
+        std::map<service_t,
+            std::map<instance_t,
+                std::map<eventgroup_t,
+                    std::map<event_t,
+                        subscription_state_e> > > > > incoming_subscription_state_;
+    std::recursive_mutex incoming_subscription_state_mutex_;
+
 };
 
 } // namespace vsomeip

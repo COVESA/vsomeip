@@ -1,0 +1,67 @@
+{
+    "unicast":"@TEST_IP_MASTER@",
+    "logging":
+    {
+        "level":"warning",
+        "console":"true",
+        "file":
+        {
+            "enable":"false",
+            "path":"/tmp/vsomeip.log"
+        },
+        "dlt":"false"
+    },
+    "diagnosis" : "0x63",
+    "applications":
+    [
+        {
+            "name":"debug_diag_job_plugin_test_service_one",
+            "id":"0x1010"
+        },
+        {
+            "name":"debug_diag_job_plugin_test_service_two",
+            "id":"0x2222"
+        },
+        {
+            "name":"vsomeipd",
+            "plugins" :
+            [
+                {
+                    "application_plugin" : "vsomeip-debug-diagnosis-plugin-mgu"
+                }
+            ]
+        }
+    ],
+    "services":
+    [
+        {
+            "service":"0x1010",
+            "instance":"0x0001",
+            "unreliable":"40001"
+        },
+        {
+            "service":"0x2020",
+            "instance":"0x0001",
+            "unreliable":"40002"
+        },
+        {
+            "service":"0xfea3",
+            "instance":"0x80",
+            "unreliable":"50000"
+        }
+    ],
+    "routing":"vsomeipd",
+    "service-discovery":
+    {
+        "enable":"true",
+        "multicast":"224.1.1.1",
+        "port":"30490",
+        "protocol":"udp",
+        "initial_delay_min" : "10",
+        "initial_delay_max" : "10",
+        "repetitions_base_delay" : "30",
+        "repetitions_max" : "3",
+        "cyclic_offer_delay" : "1000",
+        "ttl" : "3"
+    }
+}

@@ -14,6 +14,7 @@
 #include "../implementation/configuration/include/configuration.hpp"
 #include "../implementation/configuration/include/configuration_impl.hpp"
 #include "../implementation/logging/include/logger.hpp"
+#include "../implementation/configuration/include/policy.hpp"
 
 #include "../implementation/plugin/include/plugin_manager.hpp"
 
@@ -205,7 +206,7 @@ void check_file(const std::string &_config_file,
 
     // file permissions
     EXPECT_EQ(0444u, its_configuration->get_permissions_shm());
-    EXPECT_EQ(0222u, its_configuration->get_umask());
+    EXPECT_EQ(0222u, its_configuration->get_permissions_uds());
 
     // selective broadcasts
     EXPECT_TRUE(its_configuration->supports_selective_broadcasts(
@@ -215,43 +216,71 @@ void check_file(const std::string &_config_file,
     std::shared_ptr<vsomeip::cfg::trace> its_trace = its_configuration->get_trace();
     EXPECT_TRUE(its_trace->is_enabled_);
     EXPECT_TRUE(its_trace->is_sd_enabled_);
-    EXPECT_EQ(2u, its_trace->channels_.size());
-    EXPECT_EQ(2u, its_trace->filter_rules_.size());
+    EXPECT_EQ(4u, its_trace->channels_.size());
+    EXPECT_TRUE(its_trace->filters_.size() == 2u || its_trace->filters_.size() == 4u);
     for (const auto &c : its_trace->channels_) {
-        EXPECT_TRUE(c->name_ == std::string("testname") || c->name_ == std::string("testname2"));
+        EXPECT_TRUE(c->name_ == std::string("testname") || c->name_ == std::string("testname2") ||
+            c->name_ == std::string("testname3") || c->name_ == std::string("testname4"));
         if (c->name_ == std::string("testname")) {
             EXPECT_EQ(std::string("testid"), c->id_);
         } else if (c->name_ == std::string("testname2")) {
             EXPECT_EQ(std::string("testid2"), c->id_);
+        } else if (c->name_ == std::string("testname3")) {
+            EXPECT_EQ(std::string("testid3"), c->id_);
+        } else if (c->name_ == std::string("testname4")) {
+            EXPECT_EQ(std::string("testid4"), c->id_);
         }
     }
-    for (const auto &f : its_trace->filter_rules_) {
-        EXPECT_TRUE(f->channel_ == std::string("testname") || f->channel_ == std::string("testname2"));
-        if (f->channel_ == std::string("testname")) {
-            EXPECT_EQ(2u, f->services_.size());
-            EXPECT_EQ(2u, f->methods_.size());
-            EXPECT_EQ(2u, f->clients_.size());
-            for (const vsomeip::service_t s : f->services_) {
-                EXPECT_TRUE(s == vsomeip::service_t(0x1111) || s == vsomeip::service_t(2222));
+    for (const auto &f : its_trace->filters_) {
+        auto its_channel_name = f->channels_.front();
+        auto its_matches = f->matches_;
+        EXPECT_TRUE(its_channel_name == std::string("testname") || its_channel_name == std::string("testname2") ||
+            its_channel_name == std::string("testname3") || its_channel_name == std::string("testname4"));
+        if (its_channel_name == std::string("testname")) {
+            EXPECT_EQ(2u, its_matches.size());
+
+            for (const vsomeip::trace::match_t m : its_matches) {
+                EXPECT_TRUE(std::get<0>(m) == vsomeip::service_t(0x1111) ||
+                    std::get<0>(m) == vsomeip::service_t(2222));
+                EXPECT_TRUE(std::get<1>(m) == vsomeip::instance_t(0xffff));
+                EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff));
+                EXPECT_TRUE(f->is_positive_);
+                EXPECT_FALSE(f->is_range_);
             }
-            for (const vsomeip::method_t s : f->methods_) {
-                EXPECT_TRUE(s == vsomeip::method_t(0x1111) || s == vsomeip::method_t(2222));
+        } else if (its_channel_name == std::string("testname2")) {
+            EXPECT_EQ(2u, its_matches.size());
+
+            for (const vsomeip::trace::match_t m : its_matches) {
+                EXPECT_TRUE(std::get<0>(m) == vsomeip::service_t(0x3333) ||
+                    std::get<0>(m) == vsomeip::service_t(4444));
+                EXPECT_TRUE(std::get<1>(m) == vsomeip::instance_t(0xffff));
+                EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff));
+                EXPECT_FALSE(f->is_positive_);
+                EXPECT_FALSE(f->is_range_);
             }
-            for (const vsomeip::client_t s : f->clients_) {
-                EXPECT_TRUE(s == vsomeip::client_t(0x1111) || s == vsomeip::client_t(2222));
+        } else if (its_channel_name == std::string("testname3")) {
+            EXPECT_EQ(2u, its_matches.size());
+
+            for (const vsomeip::trace::match_t m : its_matches) {
+                EXPECT_TRUE(std::get<0>(m) == vsomeip::service_t(0x1111) ||
+                    std::get<0>(m) == vsomeip::service_t(0x3333));
+                EXPECT_TRUE(std::get<1>(m) == vsomeip::instance_t(0xffff));
+                EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff) ||
+                    std::get<2>(m) == vsomeip::method_t(0x8888));
+                EXPECT_FALSE(f->is_positive_);
+                EXPECT_FALSE(f->is_range_);
             }
-        } else if (f->channel_ == std::string("testname2")) {
-            EXPECT_EQ(2u, f->services_.size());
-            EXPECT_EQ(2u, f->methods_.size());
-            EXPECT_EQ(2u, f->clients_.size());
-            for (const vsomeip::service_t s : f->services_) {
-                EXPECT_TRUE(s == vsomeip::service_t(0x3333) || s == vsomeip::service_t(4444));
-            }
-            for (const vsomeip::method_t s : f->methods_) {
-                EXPECT_TRUE(s == vsomeip::method_t(0x3333) || s == vsomeip::method_t(4444));
-            }
-            for (const vsomeip::client_t s : f->clients_) {
-                EXPECT_TRUE(s == vsomeip::client_t(0x3333) || s == vsomeip::client_t(4444));
+        } else if (its_channel_name == std::string("testname4")) {
+            EXPECT_EQ(2u, its_matches.size());
+
+            for (const vsomeip::trace::match_t m : its_matches) {
+                EXPECT_TRUE(std::get<0>(m) == vsomeip::service_t(0x1111) ||
+                    std::get<0>(m) == vsomeip::service_t(0x3333));
+                EXPECT_TRUE(std::get<1>(m) == vsomeip::instance_t(0x0001));
+                EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff) ||
+                    std::get<2>(m) == vsomeip::method_t(0x8888));
+                EXPECT_FALSE(f->is_positive_);
+                EXPECT_TRUE(f->is_range_);
             }
         }
     }
@@ -471,8 +500,24 @@ void check_file(const std::string &_config_file,
     EXPECT_EQ(15001u + 16, its_configuration->get_max_message_size_reliable("10.10.10.11", 7778));
 
     // security
+    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, 0x123, 0x456));
+
+    // GID does not match
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, 0x123, 0x222));
+
+    // UID does not match
+    EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, 0x333, 0x456));
+
+    // client is not the routing manager
+    EXPECT_TRUE(its_configuration->check_routing_credentials(0x7777, 0x888, 0x999));
+
     EXPECT_TRUE(its_configuration->is_security_enabled());
     EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1234, 0x5678));
+    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1235, 0x5678));
+    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5678));
+    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5676));
+
+    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5679));
     EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1234, 0x5679));
     EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1233, 0x5679));
     EXPECT_FALSE(its_configuration->is_offer_allowed(0x1266, 0x1233, 0x5679));
@@ -482,24 +527,137 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1234, 0x5679));
     EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1300, 0x1));
     EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1300, 0x2));
+    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5678));
+    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5675));
+    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5676));
+    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5677));
+    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5679));
 
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5678));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1346, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1347, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1342, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5679));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1230, 0x5678));
-    // explicitly denied requests
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1446, 0x1234, 0x5678));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1442, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1447, 0x1234, 0x5678));
+    // explicitly allowed requests of methods / events
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5678, 0x8002));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1346, 0x1234, 0x5688, 0x8002));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8006));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8001));
+
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1347, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1342, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5677, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5700, 0x0001));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8007));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5700, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1230, 0x5678, 0x0001));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1230, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5678, 0x0002));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1446, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679, 0x0003));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5699, 0x9001));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5699, 0x9006));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1442, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1447, 0x1234, 0x5678, 0xFFFF));
+
+    // check that any method ID is allowed
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1237, 0x5678, 0x0001));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1237, 0x5678, 0xFFFF));
+
+    // check that any instance ID is allowed but only one method ID
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1238, 0x0004, 0x0001));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1238, 0x0004, 0x0002));
+
+    // DENY NOTHING policy
+    // check that ANY_METHOD is allowed in a "deny nothing" policy
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0xFFFF));
+    // check that specific method ID is allowed in a "deny nothing" policy
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0x0001));
+
+    // ALLOW NOTHING policy
+    // check that ANY_METHOD is denied in a "allow nothing" policy
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0xFFFF));
+    // check that specific method ID is denied in a "allow nothing" policy
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0x0001));
+
+    // DENY only one service instance and ANY_METHOD (0x01 - 0xFFFF) policy
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0x0001));
+
+    // allow only one service instance and ANY_METHOD policy
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0x0001));
+
+    // check request service
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1770, 0x2222, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0x00, true));
 
     EXPECT_TRUE(its_configuration->check_credentials(0x1277, 1000, 1000));
     EXPECT_FALSE(its_configuration->check_credentials(0x1277, 1001, 1001));
     EXPECT_FALSE(its_configuration->check_credentials(0x1278, 1000, 1000));
+
+    // Security update / removal whitelist
+    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1000));
+    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1001));
+    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1008));
+    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(2000));
+    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(3000));
+
+    EXPECT_FALSE(its_configuration->is_policy_removal_allowed(2001));
+    EXPECT_FALSE(its_configuration->is_policy_removal_allowed(3001));
+
+    // create a valid policy object that is on whitelist and test is_policy_update_allowed method
+    std::shared_ptr<vsomeip::policy> _policy(std::make_shared<vsomeip::policy>());
+    uint32_t its_uid = 1000;
+    uint32_t its_gid = 1000;
+
+    // policy elements
+    std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
+    std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
+
+    // fill uid and gid range
+    std::get<0>(its_uid_range) = its_uid;
+    std::get<1>(its_uid_range) = its_uid;
+    std::get<0>(its_gid_range) = its_gid;
+    std::get<1>(its_gid_range) = its_gid;
+    its_uids.insert(its_uid_range);
+    its_gids.insert(its_gid_range);
+
+    _policy->ids_.insert(std::make_pair(its_uids, its_gids));
+    _policy->allow_who_ = true;
+    _policy->allow_what_ = true;
+
+    uint16_t its_service_id = 0x1234;
+    vsomeip::ids_t its_instance_method_ranges;
+    vsomeip::ranges_t its_instance_ranges;
+    its_instance_ranges.insert(std::make_pair(0x01, 0x2));
+
+    vsomeip::ranges_t its_method_ranges;
+    its_method_ranges.insert(std::make_pair(0x01, 0x2));
+
+    _policy->services_.insert(
+            std::make_pair(its_service_id, its_instance_method_ranges));
+    EXPECT_TRUE(its_configuration->is_policy_update_allowed(1000, _policy));
+
+    // test valid policy that holds a single service id which is whitelisted
+    its_service_id = 0x7800;
+    _policy->services_.insert(
+            std::make_pair(its_service_id, its_instance_method_ranges));
+    EXPECT_TRUE(its_configuration->is_policy_update_allowed(1000, _policy));
+
+    // test invalid UID which is not whitelisted
+    EXPECT_FALSE(its_configuration->is_policy_update_allowed(2002, _policy));
+
+    // test invalid policy that additionally holds a service id which is not whitelisted
+    its_service_id = 0x8888;
+    _policy->services_.insert(
+            std::make_pair(its_service_id, its_instance_method_ranges));
+    EXPECT_FALSE(its_configuration->is_policy_update_allowed(1000, _policy));
+
+    // TCP connection setting:
+    // max TCP connect time / max allowed number of aborted TCP endpoint restarts until forced restart
+    EXPECT_EQ(its_configuration->get_max_tcp_connect_time(), 10000u);
+    EXPECT_EQ(its_configuration->get_max_tcp_restart_aborts(), 15u);
 
     // 6. Service discovery
     bool enabled = its_configuration->is_sd_enabled();

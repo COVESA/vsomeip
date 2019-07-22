@@ -22,6 +22,18 @@ serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
     ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(ttl);
 }
 
+serviceinfo::serviceinfo(const serviceinfo& _other) :
+    group_(_other.group_),
+    major_(_other.major_),
+    minor_(_other.minor_),
+    ttl_(_other.ttl_),
+    reliable_(_other.reliable_),
+    unreliable_(_other.unreliable_),
+    requesters_(_other.requesters_),
+    is_local_(_other.is_local_),
+    is_in_mainphase_(_other.is_in_mainphase_)
+    {}
+
 serviceinfo::~serviceinfo() {
 }
 

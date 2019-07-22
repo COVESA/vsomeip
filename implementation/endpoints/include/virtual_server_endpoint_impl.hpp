@@ -24,7 +24,8 @@ public:
     void start();
     void stop();
 
-    bool is_connected() const;
+    bool is_established() const;
+    void set_established(bool _established);
     void set_connected(bool _connected);
 
     bool send(const byte_t *_data, uint32_t _size, bool _flush);

@@ -40,7 +40,7 @@ public:
     void set_instance(instance_t _instance);
 
     major_version_t get_major_version() const;
-    void set_major_version(major_version_t _version);
+    void set_major_version(major_version_t _major_version);
 
     ttl_t get_ttl() const;
     void set_ttl(ttl_t _ttl);
@@ -72,7 +72,7 @@ protected:
     std::uint8_t index2_;
 
     entry_impl();
-    entry_impl(const entry_impl &entry_);
+    entry_impl(const entry_impl &_entry);
 };
 
 } // namespace sd

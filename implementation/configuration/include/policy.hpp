@@ -12,7 +12,6 @@
 #include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
-namespace cfg {
 
 typedef std::set<std::pair<uint32_t, uint32_t>> ranges_t;
 typedef std::set<std::pair<ranges_t, ranges_t>> ids_t;
@@ -23,12 +22,11 @@ struct policy {
     ids_t ids_;
     bool allow_who_;
 
-    std::set<std::pair<service_t, instance_t>> services_;
-    std::set<std::pair<service_t, instance_t>> offers_;
+    std::set<std::pair<service_t, ids_t>> services_;
+    std::set<std::pair<service_t, ranges_t>> offers_;
     bool allow_what_;
 };
 
-} // namespace cfg
 } // namespace vsomeip
 
 #endif // VSOMEIP_CFG_POLICY_HPP

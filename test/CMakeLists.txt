@@ -596,8 +596,9 @@ endif()
 if (${TEST_SECURITY})
     if(NOT ${TESTS_BAT})
         set(TEST_SECURITY_NAME security_test)
-    
         set(TEST_SECURITY_SERVICE security_test_service)
+        set(TEST_SECURITY_CLIENT security_test_client)
+
         add_executable(${TEST_SECURITY_SERVICE} security_tests/${TEST_SECURITY_SERVICE}.cpp)
         target_link_libraries(${TEST_SECURITY_SERVICE}
             vsomeip
@@ -605,28 +606,91 @@ if (${TEST_SECURITY})
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
         )
-    
+
         # Copy config file for service into $BUILDDIR/test
-        set(TEST_SECURITY_SERVICE_CONFIG_FILE ${TEST_SECURITY_NAME}_config.json)
+        set(TEST_SECURITY_LOCAL_CONFIG_FILE ${TEST_SECURITY_NAME}_local_config.json)
         configure_file(
-            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE}.in
-            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_LOCAL_CONFIG_FILE}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_LOCAL_CONFIG_FILE}
             @ONLY)
         copy_to_builddir(
-            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE}
-            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_CONFIG_FILE}
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_LOCAL_CONFIG_FILE}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_LOCAL_CONFIG_FILE}
             ${TEST_SECURITY_SERVICE}
         )
-    
-        # Copy bashscript to start service into $BUILDDIR/test
-        set(TEST_SECURITY_SERVICE_START_SCRIPT ${TEST_SECURITY_NAME}_start.sh)
+
+        # Copy service config file for external allow tests into $BUILDDIR/test
+        set(TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_SECURITY_NAME}_config_service_external_allow.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
+            @ONLY)
         copy_to_builddir(
-            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_START_SCRIPT}
-            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_START_SCRIPT}
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
             ${TEST_SECURITY_SERVICE}
         )
-    
-        set(TEST_SECURITY_CLIENT security_test_client)
+
+        # Copy client config file for external allow tests into $BUILDDIR/test
+        set(TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_SECURITY_NAME}_config_client_external_allow.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
+            @ONLY)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
+            ${TEST_SECURITY_SERVICE}
+        )
+
+        # Copy service config file for external deny tests into $BUILDDIR/test
+        set(TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY ${TEST_SECURITY_NAME}_config_service_external_deny.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
+            @ONLY)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
+            ${TEST_SECURITY_SERVICE}
+        )
+
+        # Copy client config file for external deny tests into $BUILDDIR/test
+        set(TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY ${TEST_SECURITY_NAME}_config_client_external_deny.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/conf/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}.in
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
+            @ONLY)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
+            ${TEST_SECURITY_SERVICE}
+        )
+
+        # Copy bashscript to start local test into $BUILDDIR/test
+        set(TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT ${TEST_SECURITY_NAME}_local_start.sh)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT}
+            ${TEST_SECURITY_SERVICE}
+        )
+
+        # Copy bashscript to start external tests (master) into $BUILDDIR/test
+        set(TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT ${TEST_SECURITY_NAME}_external_master_start.sh)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT}
+            ${TEST_SECURITY_SERVICE}
+        )
+
+        # Copy bashscript to start external tests (slave) into $BUILDDIR/test
+        set(TEST_SECURITY_EXTERNAL_SLAVE_START_SCRIPT ${TEST_SECURITY_NAME}_external_slave_start.sh)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_tests/${TEST_SECURITY_EXTERNAL_SLAVE_START_SCRIPT}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_EXTERNAL_SLAVE_START_SCRIPT}
+            ${TEST_SECURITY_SERVICE}
+        )
+
         add_executable(${TEST_SECURITY_CLIENT}
             security_tests/${TEST_SECURITY_CLIENT}.cpp
         )
@@ -1220,6 +1284,13 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
+        ${TEST_CLIENT_ID_UTILITY}
+    )
+
+    set(TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_discontinuous_masked_511.json)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}
         ${TEST_CLIENT_ID_UTILITY}
     )
 
@@ -2304,6 +2375,279 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# security_config_plugin_test
+##############################################################################
+if (${TEST_SECURITY})
+    if(NOT ${TESTS_BAT})
+        set(TEST_SECURITY_CONFIG_PLUGIN_NAME security_config_plugin_test)
+        set(TEST_SECURITY_CONFIG_PLUGIN_CLIENT ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_client)
+        add_executable(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
+            security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}.cpp
+        )
+
+        set(TEST_SECURITY_CONFIG_PLUGIN_SERVICE ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_service)
+        add_executable(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
+            security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}.cpp
+        )
+
+        message(STATUS "Using uid: ${TEST_UID}, gid: ${TEST_GID}")
+
+        # Copy config file for vsomeipd, client and service into $BUILDDIR/test
+        set(TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_local.json)
+        configure_file(
+            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/conf/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}.in
+            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
+            @ONLY)
+
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
+            ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
+            ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
+        )
+
+
+        # Copy bashscript to start vsomeipd and client into $BUILDDIR/test
+        set(TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_local_starter.sh)
+        copy_to_builddir(
+            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER}
+            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER}
+            ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
+            ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
+        )
+
+        target_link_libraries(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
+            vsomeip
+            ${Boost_LIBRARIES}
+            ${DL_LIBRARY}
+            ${TEST_LINK_LIBRARIES}
+        )
+
+        target_link_libraries(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
+            vsomeip
+            ${Boost_LIBRARIES}
+            ${DL_LIBRARY}
+            ${TEST_LINK_LIBRARIES}
+        )
+    endif()
+endif()
+
+#############################################################################
+# debug_diag_job_plugin_test
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBUG_DIAG_JOB_NAME debug_diag_job_plugin_test)
+
+    set(TEST_DEBUG_DIAG_JOB_SERVICE ${TEST_DEBUG_DIAG_JOB_NAME}_service)
+    add_executable(${TEST_DEBUG_DIAG_JOB_SERVICE} debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBUG_DIAG_JOB_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config file for service into $BUILDDIR/test
+    set(TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE ${TEST_DEBUG_DIAG_JOB_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/conf/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
+        ${TEST_DEBUG_DIAG_JOB_SERVICE}
+    )
+
+    # Copy bashscript to start service into $BUILDDIR/test
+    set(TEST_DEBUG_DIAG_JOB_MASTER_STARTER ${TEST_DEBUG_DIAG_JOB_NAME}_master_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER}
+        ${TEST_DEBUG_DIAG_JOB_SERVICE}
+    )
+
+    set(TEST_DEBUG_DIAG_JOB_CLIENT ${TEST_DEBUG_DIAG_JOB_NAME}_client)
+    add_executable(${TEST_DEBUG_DIAG_JOB_CLIENT}
+        debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_DEBUG_DIAG_JOB_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config file for client into $BUILDDIR/test
+    set(TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE ${TEST_DEBUG_DIAG_JOB_NAME}_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/conf/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
+        ${TEST_DEBUG_DIAG_JOB_CLIENT}
+    )
+
+    # Copy bashscript to start client into $BUILDDIR/test
+    set(TEST_DEBUG_DIAG_JOB_SLAVE_STARTER ${TEST_DEBUG_DIAG_JOB_NAME}_slave_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_SLAVE_STARTER}
+        ${TEST_DEBUG_DIAG_JOB_CLIENT}
+    )
+endif()
+
+##############################################################################
+# e2e test
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_E2E_NAME e2e_test)
+    set(TEST_E2E_SERVICE e2e_test_service)
+    set(TEST_E2E_CLIENT e2e_test_client)
+
+    add_executable(${TEST_E2E_SERVICE} e2e_tests/${TEST_E2E_SERVICE}.cpp)
+    target_link_libraries(${TEST_E2E_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    add_executable(${TEST_E2E_CLIENT}
+        e2e_tests/${TEST_E2E_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_E2E_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy service config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_NAME}_service_external.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/conf/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}.in
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_SERVICE}
+    )
+
+    # Copy client config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_NAME}_client_external.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/conf/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}.in
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (master) into $BUILDDIR/test
+    set(TEST_E2E_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_NAME}_external_master_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT}
+        ${TEST_E2E_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (slave) into $BUILDDIR/test
+    set(TEST_E2E_EXTERNAL_SLAVE_START_SCRIPT ${TEST_E2E_NAME}_external_slave_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_EXTERNAL_SLAVE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_EXTERNAL_SLAVE_START_SCRIPT}
+        ${TEST_E2E_SERVICE}
+    )
+endif()
+
+##############################################################################
+# event tests
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_EVENT_NAME event_test)
+    set(TEST_EVENT_SERVICE ${TEST_EVENT_NAME}_service)
+    set(TEST_EVENT_CLIENT ${TEST_EVENT_NAME}_client)
+
+    add_executable(${TEST_EVENT_SERVICE} event_tests/${TEST_EVENT_SERVICE}.cpp)
+    target_link_libraries(${TEST_EVENT_SERVICE}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    add_executable(${TEST_EVENT_CLIENT}
+        event_tests/${TEST_EVENT_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_EVENT_CLIENT}
+        vsomeip
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+    # Copy service config file for external allow tests into $BUILDDIR/test
+    set(TEST_EVENT_SLAVE_TCP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/conf/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_EVENT_SERVICE}
+    )
+
+    set(TEST_EVENT_SLAVE_UDP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/conf/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
+        ${TEST_EVENT_SERVICE}
+    )
+
+    set(TEST_EVENT_MASTER_CONFIG_FILE ${TEST_EVENT_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/conf/${TEST_EVENT_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_CONFIG_FILE}
+        ${TEST_EVENT_CLIENT}
+    )
+
+    # Copy bashscript to start test (master) into $BUILDDIR/test
+    set(TEST_EVENT_MASTER_START_SCRIPT ${TEST_EVENT_NAME}_master_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT}
+        ${TEST_EVENT_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (slave) into $BUILDDIR/test
+    set(TEST_EVENT_SLAVE_START_SCRIPT ${TEST_EVENT_NAME}_slave_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/event_tests/${TEST_EVENT_SLAVE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_SLAVE_START_SCRIPT}
+        ${TEST_EVENT_CLIENT}
+    )
+
+endif()
+
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -2346,6 +2690,16 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_PENDING_SUBSCRIPTION_CLIENT} gtest)
     add_dependencies(${TEST_MALICIOUS_DATA_SERVICE} gtest)
     add_dependencies(${TEST_MALICIOUS_DATA_CLIENT} gtest)
+    if (${TEST_SECURITY})
+        add_dependencies(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT} gtest)
+        add_dependencies(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE} gtest)
+    endif()
+    add_dependencies(${TEST_DEBUG_DIAG_JOB_SERVICE} gtest)
+    add_dependencies(${TEST_DEBUG_DIAG_JOB_CLIENT} gtest)
+    add_dependencies(${TEST_E2E_SERVICE} gtest)
+    add_dependencies(${TEST_E2E_CLIENT} gtest)
+    add_dependencies(${TEST_EVENT_SERVICE} gtest)
+    add_dependencies(${TEST_EVENT_CLIENT} gtest)
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -2395,6 +2749,8 @@ if(NOT ${TESTS_BAT})
     if (${TEST_SECURITY})
         add_dependencies(build_tests ${TEST_SECURITY_SERVICE})
         add_dependencies(build_tests ${TEST_SECURITY_CLIENT})
+        add_dependencies(build_tests ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT})
+        add_dependencies(build_tests ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE})
     endif()
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_CLIENT})
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
@@ -2402,6 +2758,12 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_PENDING_SUBSCRIPTION_CLIENT})
     add_dependencies(build_tests ${TEST_MALICIOUS_DATA_SERVICE})
     add_dependencies(build_tests ${TEST_MALICIOUS_DATA_CLIENT})
+    add_dependencies(build_tests ${TEST_DEBUG_DIAG_JOB_SERVICE})
+    add_dependencies(build_tests ${TEST_DEBUG_DIAG_JOB_CLIENT})
+    add_dependencies(build_tests ${TEST_E2E_SERVICE})
+    add_dependencies(build_tests ${TEST_E2E_CLIENT})
+    add_dependencies(build_tests ${TEST_EVENT_SERVICE})
+    add_dependencies(build_tests ${TEST_EVENT_CLIENT})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -2462,7 +2824,7 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
     )
-    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 480)
+    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 960)
     add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
     )
@@ -2551,21 +2913,28 @@ if(NOT ${TESTS_BAT})
     set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_511
         APPEND PROPERTY ENVIRONMENT
         "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}")
-    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_511 PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_4095
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
     set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_4095
         APPEND PROPERTY ENVIRONMENT
         "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}")
-    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_4095 PROPERTIES TIMEOUT 600)
 
     add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_127
     COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
     set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_127
         APPEND PROPERTY ENVIRONMENT
         "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}")
-    set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_127 PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_UTILITY})
+    set_property(TEST ${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511
+        APPEND PROPERTY ENVIRONMENT
+        "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}")
+    set_tests_properties(${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511 PROPERTIES TIMEOUT 120)
 
     # subscribe notify tests
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp
@@ -2835,8 +3204,19 @@ if(NOT ${TESTS_BAT})
     if (${TEST_SECURITY})
         # Security tests
         add_test(NAME ${TEST_SECURITY_NAME}
-            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_START_SCRIPT}
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT}
         )
+        add_test(NAME ${TEST_SECURITY_NAME}_external_allow
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_allow.json --allow
+        )
+        add_test(NAME ${TEST_SECURITY_NAME}_external_deny
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_deny.json --deny
+        )
+
+        # security_config_plugin_test
+        add_test(NAME ${TEST_SECURITY_CONFIG_PLUGIN_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER})
+        set_tests_properties(${TEST_SECURITY_CONFIG_PLUGIN_NAME} PROPERTIES TIMEOUT 180)
     endif()
 
     # pending subscriptions test
@@ -2868,10 +3248,57 @@ if(NOT ${TESTS_BAT})
     COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE)
     set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_stopsubscribe_subscribe PROPERTIES TIMEOUT 180)
 
+    add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_send_request_to_sd_port
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} REQUEST_TO_SD)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_send_request_to_sd_port PROPERTIES TIMEOUT 180)
+
     # malicious data test
-    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}
-    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER})
-    set_tests_properties(${TEST_MALICIOUS_DATA_NAME} PROPERTIES TIMEOUT 180)
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_events
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} MALICIOUS_EVENTS)
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_events PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_protocol_version
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} PROTOCOL_VERSION)
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_protocol_version PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_message_type
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} MESSAGE_TYPE)
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_message_type PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_return_code
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} RETURN_CODE)
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_return_code PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} WRONG_HEADER_FIELDS_UDP)
+    set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp PROPERTIES TIMEOUT 180)
+
+    # debug_diag_job_plugin_test
+    add_test(NAME ${TEST_DEBUG_DIAG_JOB_NAME}
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBUG_DIAG_JOB_NAME} PROPERTIES TIMEOUT 180)
+
+    # e2e test
+    add_test(NAME ${TEST_E2E_NAME}_external
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT} e2e_test_client_external.json)
+    set_tests_properties(${TEST_E2E_NAME}_external PROPERTIES TIMEOUT 180)
+
+    # event tests
+    add_test(NAME ${TEST_EVENT_NAME}_payload_fixed_udp
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT} PAYLOAD_FIXED UDP)
+    set_tests_properties(${TEST_EVENT_NAME}_payload_fixed_udp PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_EVENT_NAME}_payload_fixed_tcp
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT} PAYLOAD_FIXED TCP)
+    set_tests_properties(${TEST_EVENT_NAME}_payload_fixed_tcp PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_EVENT_NAME}_payload_dynamic_udp
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT} PAYLOAD_DYNAMIC UDP)
+    set_tests_properties(${TEST_EVENT_NAME}_payload_dynamic_udp PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_EVENT_NAME}_payload_dynamic_tcp
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT} PAYLOAD_DYNAMIC TCP)
+    set_tests_properties(${TEST_EVENT_NAME}_payload_dynamic_tcp PROPERTIES TIMEOUT 180)
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

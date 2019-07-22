@@ -150,37 +150,42 @@ bool eventgroupentry_impl::is_matching_subscribe(
         // read out ip options of current and _other
         std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
         std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
+        const std::size_t its_options_size = _options.size();
         for (const auto option_run : {0,1}) {
             for (const auto option_index : options_[option_run]) {
-                switch (_options[option_index]->get_type()) {
-                    case option_type_e::IP4_ENDPOINT:
-                        its_options_current.push_back(
-                                std::static_pointer_cast<ipv4_option_impl>(
-                                        _options[option_index]));
-                        break;
-                    case option_type_e::IP6_ENDPOINT:
-                        its_options_current.push_back(
-                                std::static_pointer_cast<ipv6_option_impl>(
-                                        _options[option_index]));
-                        break;
-                    default:
-                        break;
+                if (its_options_size > option_index) {
+                    switch (_options[option_index]->get_type()) {
+                        case option_type_e::IP4_ENDPOINT:
+                            its_options_current.push_back(
+                                    std::static_pointer_cast<ipv4_option_impl>(
+                                            _options[option_index]));
+                            break;
+                        case option_type_e::IP6_ENDPOINT:
+                            its_options_current.push_back(
+                                    std::static_pointer_cast<ipv6_option_impl>(
+                                            _options[option_index]));
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
             for (const auto option_index : _other.options_[option_run]) {
-                switch (_options[option_index]->get_type()) {
-                    case option_type_e::IP4_ENDPOINT:
-                        its_options_other.push_back(
-                                std::static_pointer_cast<ipv4_option_impl>(
-                                        _options[option_index]));
-                        break;
-                    case option_type_e::IP6_ENDPOINT:
-                        its_options_other.push_back(
-                                std::static_pointer_cast<ipv6_option_impl>(
-                                        _options[option_index]));
-                        break;
-                    default:
-                        break;
+                if (its_options_size > option_index) {
+                    switch (_options[option_index]->get_type()) {
+                        case option_type_e::IP4_ENDPOINT:
+                            its_options_other.push_back(
+                                    std::static_pointer_cast<ipv4_option_impl>(
+                                            _options[option_index]));
+                            break;
+                        case option_type_e::IP6_ENDPOINT:
+                            its_options_other.push_back(
+                                    std::static_pointer_cast<ipv6_option_impl>(
+                                            _options[option_index]));
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
         }

@@ -133,24 +133,30 @@ public:
                 << service_info_.service_id << "] Offering";
         offer();
 
+        if (testmode_ == pending_subscription_test::test_mode_e::REQUEST_TO_SD) {
+            // this testcase won't send valid subscriptions -> ensure to exit
+            subscription_accepted_asynchronous_ = true;
+            subscription_accepted_synchronous_ = true;
+        }
+
         while (!subscription_accepted_asynchronous_ || !subscription_accepted_synchronous_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE) {
-            async_subscription_handler_(true);
-        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE) {
-            ;
-        } else if (testmode_ == pending_subscription_test::test_mode_e::UNSUBSCRIBE) {
-            ;
-        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK) {
-            ;
-        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT) {
-            ;
-        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
-            ;
-        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE) {
-            ;
+        switch (testmode_) {
+            case pending_subscription_test::test_mode_e::SUBSCRIBE:
+                async_subscription_handler_(true);
+                break;
+            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE:
+            case pending_subscription_test::test_mode_e::UNSUBSCRIBE:
+            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK:
+            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT:
+            case pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED:
+            case pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE:
+            case pending_subscription_test::test_mode_e::REQUEST_TO_SD:
+            default:
+                break;
         }
+
         std::future<bool> itsFuture = notify_method_called_.get_future();
         if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(10))) {
             ADD_FAILURE() << "notify method wasn't called within time!";
@@ -362,6 +368,8 @@ int main(int argc, char** argv)
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED;
     } else if (its_pased_testmode == std::string("SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE")) {
         its_testmode = pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE;
+    } else if (its_pased_testmode == std::string("REQUEST_TO_SD")) {
+        its_testmode = pending_subscription_test::test_mode_e::REQUEST_TO_SD;
     }
 
     return RUN_ALL_TESTS();

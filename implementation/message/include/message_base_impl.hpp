@@ -42,10 +42,10 @@ public:
     VSOMEIP_EXPORT void set_session(session_t _session);
 
     VSOMEIP_EXPORT protocol_version_t get_protocol_version() const;
-    VSOMEIP_EXPORT void set_protocol_version(protocol_version_t _version);
+    VSOMEIP_EXPORT void set_protocol_version(protocol_version_t _protocol_version);
 
     VSOMEIP_EXPORT interface_version_t get_interface_version() const;
-    VSOMEIP_EXPORT void set_interface_version(interface_version_t _version);
+    VSOMEIP_EXPORT void set_interface_version(interface_version_t _interface_version);
 
     VSOMEIP_EXPORT message_type_e get_message_type() const;
     VSOMEIP_EXPORT void set_message_type(message_type_e _type);

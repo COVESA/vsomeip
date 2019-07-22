@@ -11,13 +11,23 @@
 #include <set>
 #include <atomic>
 
+#ifdef _WIN32
+    #include <stdlib.h>
+    #define bswap_16(x) _byteswap_ushort(x)
+    #define bswap_32(x) _byteswap_ulong(x)
+#else
+    #include <byteswap.h>
+#endif
+
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/message.hpp>
 #include "criticalsection.hpp"
+#include "../../../implementation/configuration/include/policy.hpp"
 
 namespace vsomeip {
 
 class configuration;
+struct policy;
 
 class utility {
 public:
@@ -124,13 +134,46 @@ public:
                 || _type == message_type_e::MT_UNKNOWN);
     }
 
+    static inline bool is_valid_return_code(return_code_e _code) {
+        return (_code == return_code_e::E_OK
+                || _code == return_code_e::E_NOT_OK
+                || _code == return_code_e::E_UNKNOWN_SERVICE
+                || _code == return_code_e::E_UNKNOWN_METHOD
+                || _code == return_code_e::E_NOT_READY
+                || _code == return_code_e::E_NOT_REACHABLE
+                || _code == return_code_e::E_TIMEOUT
+                || _code == return_code_e::E_WRONG_PROTOCOL_VERSION
+                || _code == return_code_e::E_WRONG_INTERFACE_VERSION
+                || _code == return_code_e::E_MALFORMED_MESSAGE
+                || _code == return_code_e::E_WRONG_MESSAGE_TYPE);
+    }
+
+    VSOMEIP_EXPORT static bool parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid, ::std::shared_ptr<policy> &_policy);
+    VSOMEIP_EXPORT static bool parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid);
+
 private:
-    static bool is_bigger_last_assigned_client_id(client_t _client, std::uint16_t _diagnosis_mask);
-    static void set_max_assigned_client_id_without_diagnosis(client_t _client);
     static void check_client_id_consistency();
+    static std::uint16_t get_max_number_of_clients(std::uint16_t _diagnosis_max);
+    static inline bool parse_range(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_first, uint16_t &_last);
+    static inline bool parse_id(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_id);
+    static inline bool get_struct_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length);
+    static inline bool get_union_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length);
+    static inline bool get_array_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length);
+    static inline bool is_range(const byte_t* &_buffer, uint32_t &_buffer_size);
+    static inline bool parse_id_item(const byte_t* &_buffer, uint32_t& parsed_ids_bytes, ranges_t& its_ranges, uint32_t &_buffer_size);
 
     static std::atomic<std::uint16_t> its_configuration_refs__;
     static std::uint16_t* used_client_ids__;
+
+    static const uint8_t uid_width_;
+    static const uint8_t gid_width_;
+    static const uint8_t id_width_;
+    static const uint8_t range_width_;
+    static const uint8_t skip_union_length_ ;
+    static const uint8_t skip_union_type_ ;
+    static const uint8_t skip_union_length_type_ ;
+    static const uint8_t skip_struct_length_;
+    static const uint8_t skip_array_length_;
 };
 
 }  // namespace vsomeip

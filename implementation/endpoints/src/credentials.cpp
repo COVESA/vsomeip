@@ -17,14 +17,16 @@ namespace vsomeip {
 void credentials::activate_credentials(const int _fd) {
     int optval = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
-        VSOMEIP_ERROR << "Activating socket option for receiving credentials failed.";
+        VSOMEIP_ERROR << "vSomeIP Security: Activating socket option for receiving "
+                      << "credentials failed.";
     }
 }
 
 void credentials::deactivate_credentials(const int _fd) {
     int optval = 0;
     if (setsockopt(_fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
-        VSOMEIP_ERROR << "Deactivating socket option for receiving credentials failed.";
+        VSOMEIP_ERROR << "vSomeIP Security: Deactivating socket option for receiving "
+                      << "credentials failed.";
     }
 }
 
@@ -62,13 +64,13 @@ client_t credentials::receive_credentials(const int _fd, uid_t& _uid, gid_t& _gi
     // Receive client_id plus ancillary data
     ssize_t nr = recvmsg(_fd, &msgh, 0);
     if (nr == -1) {
-        VSOMEIP_ERROR << "Receiving credentials failed. No data.";
+        VSOMEIP_ERROR << "vSomeIP Security: Receiving credentials failed. No data.";
     }
 
     cmhp = CMSG_FIRSTHDR(&msgh);
     if (cmhp == NULL || cmhp->cmsg_len != CMSG_LEN(sizeof(struct ucred))
             || cmhp->cmsg_level != SOL_SOCKET || cmhp->cmsg_type != SCM_CREDENTIALS) {
-        VSOMEIP_ERROR << "Receiving credentials failed. Invalid data.";
+        VSOMEIP_ERROR << "vSomeIP Security: Receiving credentials failed. Invalid data.";
     } else {
         ucredp = (struct ucred *) CMSG_DATA(cmhp);
         _uid = ucredp->uid;

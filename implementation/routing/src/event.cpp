@@ -138,7 +138,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _clie
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
             if (is_updating_on_change_) {
-                notify_one(_client, _flush);
+                notify_one_unlocked(_client, _flush);
             }
         }
     } else {
@@ -155,7 +155,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
             if (is_updating_on_change_) {
-                notify_one(_target, _flush);
+                notify_one_unlocked(_target, _flush);
             }
         }
     } else {
@@ -244,7 +244,7 @@ void event::update_cbk(boost::system::error_code const &_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
         cycle_timer_.expires_from_now(cycle_);
         notify(true);
-        std::function<void(boost::system::error_code const &)> its_handler =
+        auto its_handler =
                 std::bind(&event::update_cbk, shared_from_this(),
                         std::placeholders::_1);
         cycle_timer_.async_wait(its_handler);
@@ -261,6 +261,11 @@ void event::notify(bool _flush) {
 }
 
 void event::notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    notify_one_unlocked(_target, _flush);
+}
+
+void event::notify_one_unlocked(const std::shared_ptr<endpoint_definition> &_target, bool _flush) {
     if (is_set_) {
         routing_->send_to(_target, message_, _flush);
     } else {
@@ -270,6 +275,11 @@ void event::notify_one(const std::shared_ptr<endpoint_definition> &_target, bool
 }
 
 void event::notify_one(client_t _client, bool _flush) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    notify_one_unlocked(_client, _flush);
+}
+
+void event::notify_one_unlocked(client_t _client, bool _flush) {
     if (is_set_) {
         routing_->send(_client, message_, _flush);
     } else {
@@ -421,7 +431,7 @@ void event::set_cache_placeholder(bool _is_cache_place_holder) {
 void event::start_cycle() {
     if (std::chrono::milliseconds::zero() != cycle_) {
         cycle_timer_.expires_from_now(cycle_);
-        std::function<void(boost::system::error_code const &)> its_handler =
+        auto its_handler =
                 std::bind(&event::update_cbk, shared_from_this(),
                         std::placeholders::_1);
         cycle_timer_.async_wait(its_handler);

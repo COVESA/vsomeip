@@ -24,8 +24,12 @@ void virtual_server_endpoint_impl::start() {
 void virtual_server_endpoint_impl::stop() {
 }
 
-bool virtual_server_endpoint_impl::is_connected() const {
+bool virtual_server_endpoint_impl::is_established() const {
     return false;
+}
+
+void virtual_server_endpoint_impl::set_established(bool _established) {
+    (void) _established;
 }
 
 void virtual_server_endpoint_impl::set_connected(bool _connected) {

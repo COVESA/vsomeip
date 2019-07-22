@@ -101,6 +101,7 @@ public:
             if(!is_registered_)
             {
                 is_registered_ = true;
+                std::lock_guard<std::mutex> its_lock(mutex_);
                 blocked_ = true;
                 // "start" the run method thread
                 condition_.notify_one();

@@ -61,7 +61,9 @@ public:
             eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush = true, bool _reliable = false, bool _is_valid_crc= true);
+            instance_t _instance, bool _flush, bool _reliable,
+            client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
+            bool _is_valid_crc = true, bool _sent_from_remote = false);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message> _message, bool _flush);
@@ -82,7 +84,7 @@ public:
 
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
-    void on_message(const byte_t *_data, length_t _length, endpoint *_receiver,
+    void on_message(const byte_t *_data, length_t _size, endpoint *_receiver,
             const boost::asio::ip::address &_destination,
             client_t _bound_client,
             const boost::asio::ip::address &_remote_address,
@@ -119,7 +121,7 @@ private:
             instance_t _instance);
     void send_register_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroup,
+            const std::set<eventgroup_t> &_eventgroups,
             bool _is_field, bool _is_provided);
     void send_subscribe(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
@@ -182,6 +184,13 @@ private:
     void send_unsubscribe_ack(service_t _service, instance_t _instance,
                               eventgroup_t _eventgroup,
                               pending_subscription_id_t _subscription_id);
+
+    void resend_provided_event_registrations();
+    void send_resend_provided_event_response(pending_remote_offer_id_t _id);
+
+    void send_update_security_policy_response(pending_security_update_id_t _update_id);
+    void send_remove_security_policy_response(pending_security_update_id_t _update_id);
+    void on_update_security_credentials(const byte_t *_data, uint32_t _size);
 
 private:
     enum class inner_state_type_e : std::uint8_t {

@@ -60,6 +60,8 @@ void local_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
+    was_not_connected_ = true;
+    reconnect_counter_ = 0;
     start_connect_timer();
 }
 
@@ -139,13 +141,14 @@ void local_client_endpoint_impl::connect() {
 
         } else {
             VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
-                    << its_error.message();
-            return;
+                    << its_error.message() << " (" << std::dec << its_error.value()
+                    << ")";
+            its_connect_error = its_error;
         }
     }
     // call connect_cbk asynchronously
     try {
-        service_.post(
+        strand_.post(
                 std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
                         its_connect_error));
     } catch (const std::exception &e) {
@@ -158,13 +161,15 @@ void local_client_endpoint_impl::receive() {
     if (socket_->is_open()) {
         socket_->async_receive(
             boost::asio::buffer(recv_buffer_),
-            std::bind(
-                &local_client_endpoint_impl::receive_cbk,
-                std::dynamic_pointer_cast<
-                    local_client_endpoint_impl
-                >(shared_from_this()),
-                std::placeholders::_1,
-                std::placeholders::_2
+            strand_.wrap(
+                std::bind(
+                    &local_client_endpoint_impl::receive_cbk,
+                    std::dynamic_pointer_cast<
+                        local_client_endpoint_impl
+                    >(shared_from_this()),
+                    std::placeholders::_1,
+                    std::placeholders::_2
+                )
             )
         );
     }
@@ -232,10 +237,6 @@ void local_client_endpoint_impl::receive_cbk(
             VSOMEIP_ERROR << "Local endpoint received message ("
                           << _error.message() << ")";
         }
-        // The error handler is set only if the endpoint is hosted by the
-        // routing manager. For the routing manager proxies, the corresponding
-        // client endpoint (that connect to the same client) are removed
-        // after the proxy has received the routing info.
         error_handler_t handler;
         {
             std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
@@ -290,6 +291,10 @@ std::string local_client_endpoint_impl::get_remote_information() const {
 #endif
 }
 
+std::uint32_t local_client_endpoint_impl::get_max_allowed_reconnects() const {
+    return 13;
+}
+
 bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
                                       const byte_t *_data, uint32_t _size,
                                       bool _flush) {
@@ -317,6 +322,18 @@ bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
         send_or_start_flush_timer(_flush, queue_size_zero_on_entry);
     }
     return ret;
+}
+
+void local_client_endpoint_impl::max_allowed_reconnects_reached() {
+    VSOMEIP_ERROR << "local_client_endpoint::max_allowed_reconnects_reached: "
+            << get_remote_information();
+    error_handler_t handler;
+    {
+        std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+        handler = error_handler_;
+    }
+    if (handler)
+        handler();
 }
 
 } // namespace vsomeip

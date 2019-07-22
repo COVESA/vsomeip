@@ -46,7 +46,7 @@ private:
 
         std::map<plugin_type_e, std::map<std::string, std::shared_ptr<plugin> > > plugins_;
         std::map<plugin_type_e, std::map<std::string, void*> > handles_;
-        std::mutex plugins_mutex_;
+        std::recursive_mutex plugins_mutex_;
 
         static std::shared_ptr<plugin_manager> the_plugin_manager__;
 };

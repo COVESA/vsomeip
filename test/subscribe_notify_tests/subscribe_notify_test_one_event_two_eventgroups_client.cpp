@@ -249,8 +249,10 @@ public:
         for (int i = 0; i < 3; i++) {
             // set value
             set_field_at_service(0x1);
-            std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            {
+                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            }
 
             // subscribe
             std::unique_lock<std::mutex> its_events_lock(events_mutex_);
@@ -269,7 +271,10 @@ public:
 
             // set value again
             set_field_at_service(0x2);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            {
+                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            }
 
             wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
             check_received_events_payload(0x2);
@@ -283,7 +288,10 @@ public:
 
             // set value again
             set_field_at_service(0x3);
-            wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            {
+                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+            }
             wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
             check_received_events_payload(0x3);
             its_expected.insert({info_.event_id, 1});

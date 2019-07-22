@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TC_TRACE_HEADER_HPP
-#define VSOMEIP_TC_TRACE_HEADER_HPP
+#ifndef VSOMEIP_TRACE_HEADER_HPP
+#define VSOMEIP_TRACE_HEADER_HPP
 
 #include <memory>
 
@@ -18,7 +18,7 @@ namespace vsomeip {
 
 class endpoint;
 
-namespace tc {
+namespace trace {
 
 enum class protocol_e : uint8_t {
     local = 0x0,
@@ -27,7 +27,7 @@ enum class protocol_e : uint8_t {
     unknown = 0xFF
 };
 
-struct trace_header {
+struct header {
     bool prepare(const std::shared_ptr<endpoint> &_endpoint, bool _is_sending,
             instance_t _instance);
     bool prepare(const endpoint* _endpoint, bool _is_sending,
@@ -39,7 +39,7 @@ struct trace_header {
     byte_t data_[VSOMEIP_TRACE_HEADER_SIZE];
 };
 
-} // namespace tc
+} // namespace trace
 } // namespace vsomeip
 
-#endif // VSOMEIP_TC_TRACE_HEADER_HPP
+#endif // VSOMEIP_TRACE_HEADER_HPP

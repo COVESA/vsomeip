@@ -103,7 +103,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
         struct nlmsghdr *nlh = (struct nlmsghdr *)&recv_buffer_[0];
 
         while ((NLMSG_OK(nlh, len)) && (nlh->nlmsg_type != NLMSG_DONE)) {
-            char ifname[1024];
+            char ifname[IF_NAMESIZE];
             switch (nlh->nlmsg_type) {
                 case RTM_NEWADDR: {
                     // New Address information
@@ -356,7 +356,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
     struct rtattr *retrta;
     retrta = static_cast<struct rtattr *>(RTM_RTA(_routemsg));
     int if_index(0);
-    char if_name[1024] = "n/a";
+    char if_name[IF_NAMESIZE] = "n/a";
     char address[INET6_ADDRSTRLEN] = "n/a";
     char gateway[INET6_ADDRSTRLEN] = "n/a";
     bool matches_sd_multicast(false);

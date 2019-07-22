@@ -14,6 +14,7 @@
 
 #include <boost/array.hpp>
 #include <boost/asio/io_service.hpp>
+#include <boost/asio/strand.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/utility.hpp>
 #include <vsomeip/constants.hpp>
@@ -53,7 +54,8 @@ public:
 
     bool is_client() const;
 
-    bool is_connected() const;
+    bool is_established() const;
+    void set_established(bool _established);
     void set_connected(bool _connected);
     virtual bool get_remote_address(boost::asio::ip::address &_address) const;
     virtual std::uint16_t get_remote_port() const;
@@ -76,6 +78,7 @@ protected:
     enum class cei_state_e : std::uint8_t {
         CLOSED,
         CONNECTING,
+        CONNECTED,
         ESTABLISHED
     };
     virtual void send_queued() = 0;
@@ -98,6 +101,7 @@ protected:
     boost::asio::steady_timer connect_timer_;
     std::atomic<uint32_t> connect_timeout_;
     std::atomic<cei_state_e> state_;
+    std::atomic<std::uint32_t> reconnect_counter_;
 
     // send data
     message_buffer_ptr_t packetizer_;
@@ -110,9 +114,13 @@ protected:
 
     std::atomic<std::uint16_t> local_port_;
 
+    boost::asio::io_service::strand strand_;
+
 private:
     virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
+    virtual std::uint32_t get_max_allowed_reconnects() const = 0;
+    virtual void max_allowed_reconnects_reached() = 0;
 };
 
 } // namespace vsomeip

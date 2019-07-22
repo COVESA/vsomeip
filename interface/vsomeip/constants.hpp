@@ -37,6 +37,7 @@ const byte_t MAGIC_COOKIE_CLIENT_MESSAGE = 0x00;
 const byte_t MAGIC_COOKIE_SERVICE_MESSAGE = 0x80;
 const length_t MAGIC_COOKIE_SIZE = 0x00000008;
 const request_t MAGIC_COOKIE_REQUEST = 0xDEADBEEF;
+const client_t MAGIC_COOKIE_NETWORK_BYTE_ORDER = 0xADDE;
 const protocol_version_t MAGIC_COOKIE_PROTOCOL_VERSION = 0x01;
 const interface_version_t MAGIC_COOKIE_INTERFACE_VERSION = 0x01;
 const message_type_e MAGIC_COOKIE_CLIENT_MESSAGE_TYPE =
@@ -55,6 +56,7 @@ const event_t ANY_EVENT = 0xFFFF;
 const client_t ANY_CLIENT = 0xFFFF;
 
 const pending_subscription_id_t DEFAULT_SUBSCRIPTION = 0x0;
+const pending_security_update_id_t DEFAULT_SECURITY_UPDATE_ID = 0x0;
 
 } // namespace vsomeip
 

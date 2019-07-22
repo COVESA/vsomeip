@@ -43,7 +43,8 @@ public:
                                boost::asio::io_service &_io,
                                std::uint32_t _max_message_size,
                                std::uint32_t _buffer_shrink_threshold,
-                               configuration::endpoint_queue_limit_t _queue_limit);
+                               configuration::endpoint_queue_limit_t _queue_limit,
+                               std::uint32_t _mode);
 
     local_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
                                endpoint_type _local,
@@ -51,7 +52,8 @@ public:
                                std::uint32_t _max_message_size,
                                int native_socket,
                                std::uint32_t _buffer_shrink_threshold,
-                               configuration::endpoint_queue_limit_t _queue_limit);
+                               configuration::endpoint_queue_limit_t _queue_limit,
+                               std::uint32_t _mode);
 
     virtual ~local_server_endpoint_impl();
 
@@ -90,12 +92,14 @@ private:
         void send_queued(const queue_iterator_type _queue_iterator);
 
         void set_bound_client(client_t _client);
+        client_t get_bound_client() const;
+
         std::size_t get_recv_buffer_capacity() const;
 
     private:
         connection(std::weak_ptr<local_server_endpoint_impl> _server,
-                   std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _max_message_size,
+                   std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _buffer_shrink_threshold,
                    boost::asio::io_service &_io_service);
 
@@ -133,6 +137,10 @@ private:
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
+
+    std::mutex client_connections_mutex_;
+    std::map<client_t, connection::ptr> client_connections_;
+
     const std::uint32_t buffer_shrink_threshold_;
 
 private:

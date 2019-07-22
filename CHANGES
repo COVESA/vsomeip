@@ -1,6 +1,145 @@
 Changes
 =======
 
+v2.14.16
+- Ensure restarting of TCP connection if TCP reset is received
+  before 3 way handshake is finished
+- Reworked IPSec connection unblocking if reboot was detected
+
+v2.14.15
+- Ensure that all clients receive the security policy update
+
+v2.14.14
+- Increased the max allowed number of open file descriptors
+  from the soft limit to the hard limit for vsomeipd
+- Improved handling for EMFILE error (per-process limit of open
+  filedescriptors reached)
+- Fixed client ID assignment
+
+v2.14.13
+- Fixed race condition leading to unintended sending
+  of selective broadcasts.
+
+v2.14.12
+- Make timeout during application shutdown configurable via
+  "shutdown_timeout" json configuration file parameter
+- Fix bug leading to too fast reassignment of client IDs acquired via
+  auto-configuration in conjunction with usage of a non-continuous
+  diagnosis mask
+
+v2.14.11
+- Fixed race condition when opening shared memory
+- Fixed race condition when inserting SubscribeEventGroupACK
+  entries
+- Added prefix for security related log messages
+
+v2.14.10
+- Fixed race condition in client ID to UID mapping.
+
+v2.14.9
+- Fixed race condition in event / response validation
+  and client ID to UID mapping removal
+- Limit reconnect attempts of local client endpoints
+- Increase robustness of local server endpoint
+  in case of corrupted data stream
+
+v2.14.8
+- Handle ANY_METHOD for security policy updates
+
+v2.14.7
+- Reverted security related feature if same client connects
+  again with different credentials.
+
+v2.14.6
+- Fixed issue related to client ID reuse if security is activated
+- Use chmod instead of umask to ensure correct permissions of unix
+  domain sockets
+
+v2.14.5
+- Fixed race condition when handling security policy updates
+
+v2.14.4
+- Added whitelist feature for security policy update / removal
+- Added / improved security related checks
+
+v2.14.3
+- Prevent concurrent access to any client policies
+
+v2.14.2
+- Fix possible deadlock when receiving invalid responses from remote
+  TCP services
+- Enabled loading of UID GID specific security configuration during
+  application startup
+
+v2.14.1
+- Check header fields in udp endpoints for correct values
+- Fixed race condition in event::notify methods
+- Ensure to always resume sending if endpoints were restarted
+- Prevent possible concurrent access to receive buffer in endpoints
+- Allow or deny all remote clients via security config parameter
+- Make receive buffer size configurable for UDP client and
+  server endpoints via "udp-receive-buffer-size" parameter
+  in json configuration file
+- Fix race condition which could lead to premature resubscription if a
+  remote service was stop offered and offered again
+
+v2.14.0
+- Introduce security policy updates during runtime and extend
+  security configuration to filter on instance ID and method ID level
+  For more information see the vsomeipUserGuide.
+
+v2.13.2
+- Make I/O thread nice level configurable
+
+v2.13.1
+- Improve check of subnet mask for remote subscribers
+- Restart TCP connections if too big messages are received
+- Don't process subscriptions if IPsec connection isn't established
+- Additionally check protocol header fields in tcp endpoints as well
+- Fix race when expiring remote services
+
+v2.13.0
+- Fix handling of requests send to the service discovery port
+- Log time since routing state was set to RS_RESUMED in cyclic version
+  logger
+- Blame externally offered services if routing state is set to
+  RS_SUSPENDED
+- Prevent possible exception during application shutdown
+
+v2.12.3
+- Improve handling of broken TCP streams
+
+v2.12.2
+- Expire remote subscriptions to local services when routing state is set to
+  suspending
+
+v2.12.1
+- Fixed race condition in event registration
+
+v2.12.0
+- Improve magic cookie handling.
+- Fix possible deadlock on application shutdown
+- Fix handling of local StopOffers when duplicate service instances
+  are present in the network.
+- Make trace connector json configuration more flexible
+- Fix bug in security configuration when black listing single
+  UIDs/GIDs
+
+v2.11.1
+- Fix possible deadlock on application shutdown
+
+v2.10.22
+- Handle EPERM error (Operation not permitted) in cei::send_cbk
+- Restart TCP endpoint if a maximum number of aborted restarts
+  (due to state == CONNECTING) is reached or if a maximum allowed time since
+  the connection attempt was started has elapsed
+- Fixed missing call of subscription status handlers
+  for external fields if a following subscription
+  was done triggered by a service being stopped/expired
+- Fixed crash in vsomeip security credential check
+- Added Debian hardening compiler flags (requires GCC >= 5.2)
+- Fixed compilation with GCC 8
+
 v2.10.21
 - Improve memory usage of routing manager.
 - Improve handling of incoming SD messages with uncommon entry
@@ -58,8 +197,6 @@ v2.10.15
 v2.10.14
 - Bugfix for pending subscriptions when same port is used
   for TCP and UDP endpoint option.
-
-v2.10.13
 
 v2.10.12
 - Fix exception handling for boost logger
@@ -149,8 +286,6 @@ v2.10.5
 
 
 v2.10.4
-- Extended diagnosis plugin to handle requests for
-  "disableRxAndEnableTx" and "disableRxAndTx".
 - Catch unhandled user code exceptions thrown from called handlers.
 - Don't send SubscribeEventGroupNACK for pending subscriptions on next
   offer to reduce the amount of StopSubscribe/Subscribe messages.

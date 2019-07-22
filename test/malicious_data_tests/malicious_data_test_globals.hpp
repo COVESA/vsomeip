@@ -21,10 +21,11 @@ struct service_info {
 struct service_info service = { 0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242 };
 
 enum test_mode_e {
-    SUBSCRIBE,
-    SUBSCRIBE_UNSUBSCRIBE,
-    UNSUBSCRIBE,
-    SUBSCRIBE_UNSUBSCRIBE_NACK
+    MALICIOUS_EVENTS,
+    PROTOCOL_VERSION,
+    MESSAGE_TYPE,
+    RETURN_CODE,
+    WRONG_HEADER_FIELDS_UDP
 };
 
 }

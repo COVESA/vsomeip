@@ -5,6 +5,7 @@
 
 #ifdef _WIN32
     #include <iostream>
+    #include <intrin.h>
 #else
     #include <dlfcn.h>
     #include <signal.h>
@@ -101,9 +102,11 @@ static HANDLE its_descriptor(INVALID_HANDLE_VALUE);
 
 bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
+    const std::uint16_t its_max_clients =
+            get_max_number_of_clients(_config->get_diagnosis_mask());
 
     const size_t its_shm_size = sizeof(configuration_data_t) +
-            static_cast<std::uint16_t>(~_config->get_diagnosis_mask()) * sizeof(client_t);
+            (its_max_clients + 1) * sizeof(client_t);
 #ifdef _WIN32
     if (its_configuration_refs__ > 0) {
         assert(configuration_data_mutex != INVALID_HANDLE_VALUE);
@@ -187,9 +190,9 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 
                         the_configuration_data__->client_base_
                             = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
-                        the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
+                        the_configuration_data__->max_clients_ = its_max_clients;
                         the_configuration_data__->max_used_client_ids_index_ = 1;
-                        the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
+                        the_configuration_data__->max_assigned_client_id_ = 0x00;
                         the_configuration_data__->routing_manager_host_ = 0x0000;
                         // the clientid array starts right after the routing_manager_host_ struct member
                         used_client_ids__ = reinterpret_cast<unsigned short*>(
@@ -232,11 +235,13 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
         // shm is already mapped into the process
         its_configuration_refs__++;
     } else {
-        const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
-        int its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR | O_CREAT | O_EXCL,
+         int its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR | O_CREAT | O_EXCL,
                 static_cast<mode_t>(_config->get_permissions_shm()));
-        ::umask(previous_mask);
-        if (its_descriptor > -1) {
+         if (its_descriptor > -1) {
+            if (-1 == chmod(std::string("/dev/shm").append(utility::get_shm_name(_config)).c_str(),
+                    static_cast<mode_t>(_config->get_permissions_uds()))) {
+                VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
+            }
             if (-1 == ftruncate(its_descriptor, its_shm_size)) {
                 VSOMEIP_ERROR << "utility::auto_configuration_init: "
                         "ftruncate failed: " << std::strerror(errno);
@@ -278,9 +283,9 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 
                         the_configuration_data__->client_base_
                             = static_cast<unsigned short>((_config->get_diagnosis_address() << 8) & _config->get_diagnosis_mask());
-                        the_configuration_data__->max_clients_ = static_cast<std::uint16_t>(~_config->get_diagnosis_mask());
+                        the_configuration_data__->max_clients_ = its_max_clients;
                         the_configuration_data__->max_used_client_ids_index_ = 1;
-                        the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0x00;
+                        the_configuration_data__->max_assigned_client_id_ = 0x00;
                         the_configuration_data__->routing_manager_host_ = 0x0000;
                         // the clientid array starts right after the routing_manager_host_ struct member
                         used_client_ids__ = reinterpret_cast<unsigned short*>(
@@ -307,10 +312,18 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
                 }
             }
         } else if (errno == EEXIST) {
-            const mode_t previous_mask(::umask(static_cast<mode_t>(_config->get_umask())));
             its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
                     static_cast<mode_t>(_config->get_permissions_shm()));
-            ::umask(previous_mask);
+
+            int retry_count = 8;
+            std::chrono::milliseconds retry_delay = std::chrono::milliseconds(10);
+            while (its_descriptor == -1 && retry_count-- > 0) {
+                std::this_thread::sleep_for(retry_delay);
+                its_descriptor = shm_open(utility::get_shm_name(_config).c_str(), O_RDWR,
+                        static_cast<mode_t>(_config->get_permissions_shm()));
+                retry_delay *= 2;
+            }
+
             if (-1 == its_descriptor) {
                 VSOMEIP_ERROR << "utility::auto_configuration_init: "
                         "shm_open failed: " << std::strerror(errno);
@@ -376,8 +389,6 @@ bool utility::auto_configuration_init(const std::shared_ptr<configuration> &_con
 void utility::auto_configuration_exit(client_t _client,
         const std::shared_ptr<configuration> &_config) {
     std::unique_lock<CriticalSection> its_lock(its_local_configuration_mutex__);
-    const size_t its_shm_size = sizeof(configuration_data_t) +
-            static_cast<std::uint16_t>(~_config->get_diagnosis_mask()) * sizeof(client_t);
     if (the_configuration_data__) {
 #ifdef _WIN32
         // not manipulating data in shared memory, no need to take global mutex
@@ -412,6 +423,10 @@ void utility::auto_configuration_exit(client_t _client,
         }
 
         if (its_configuration_refs__ == 0) {
+            const std::uint16_t its_max_clients =
+                    get_max_number_of_clients(_config->get_diagnosis_mask());
+            const size_t its_shm_size = sizeof(configuration_data_t) +
+                    (its_max_clients + 1) * sizeof(client_t);
             if (-1 == ::munmap(the_configuration_data__, its_shm_size)) {
                 VSOMEIP_ERROR << "utility::auto_configuration_exit: "
                         "munmap failed: " << std::strerror(errno);
@@ -586,16 +601,20 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
 
         if (use_autoconfig) {
             if (_client == ILLEGAL_CLIENT || is_used_client_id(_client, _config)) {
-                _client = the_configuration_data__->client_base_;
+                if (the_configuration_data__->max_assigned_client_id_ != 0x00) {
+                    _client = the_configuration_data__->max_assigned_client_id_;
+                } else {
+                    _client = the_configuration_data__->client_base_;
+                }
             }
             int increase_count = 0;
-            while (is_used_client_id(_client, _config)
-                    || !is_bigger_last_assigned_client_id(_client, _config->get_diagnosis_mask())
-                    || _config->is_configured_client_id(_client)) {
-                if ((_client & the_configuration_data__->max_clients_)
-                        + 1 > the_configuration_data__->max_clients_) {
+
+            while (_client <= the_configuration_data__->max_assigned_client_id_
+                    || _config->is_configured_client_id(_client)
+                    || is_used_client_id(_client, _config)) {
+                if (_client + 1 > used_client_ids__[0] + the_configuration_data__->max_clients_) {
                     _client = the_configuration_data__->client_base_;
-                    the_configuration_data__->max_assigned_client_id_without_diagnosis_ = 0;
+                    the_configuration_data__->max_assigned_client_id_ = the_configuration_data__->client_base_;
                 } else {
                     _client++;
                     increase_count++;
@@ -614,7 +633,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration> &_confi
                     }
                 }
             }
-            set_max_assigned_client_id_without_diagnosis(_client);
+            the_configuration_data__->max_assigned_client_id_ = _client;
         }
 
         if (set_client_as_manager_host) {
@@ -731,19 +750,343 @@ void utility::set_routing_manager_host(client_t _client) {
 #endif
 }
 
-bool utility::is_bigger_last_assigned_client_id(client_t _client, std::uint16_t _diagnosis_mask) {
-    return _client
-            > ((the_configuration_data__->client_base_ & _diagnosis_mask)
-                    + the_configuration_data__->max_assigned_client_id_without_diagnosis_);
+
+inline bool utility::get_struct_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) {
+    uint32_t its_length = 0;
+    bool length_field_deployed(false);
+    // [TR_SOMEIP_00080] d If the length of the length field is not specified, a length of 0
+    // has to be assumed and no length field is in the message.
+    if (length_field_deployed) {
+        if (_buffer_size >= sizeof(uint32_t)) {
+            std::memcpy(&its_length, _buffer, sizeof(uint32_t));
+            _length = bswap_32(its_length);
+            _buffer_size -= skip_struct_length_;
+            _buffer += skip_struct_length_;
+            return true;
+        }
+    } else {
+        _length = 0;
+        return true;
+    }
+
+    return false;
 }
 
-void utility::set_max_assigned_client_id_without_diagnosis(client_t _client) {
-    const std::uint16_t its_client_id_without_diagnosis =
-            static_cast<std::uint16_t>(_client
-                    & the_configuration_data__->max_clients_);
-    the_configuration_data__->max_assigned_client_id_without_diagnosis_ =
-            static_cast<std::uint16_t>(its_client_id_without_diagnosis
-                    % the_configuration_data__->max_clients_);
+inline bool utility::get_union_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) {
+    uint32_t its_length = 0;
+
+    // [TR_SOMEIP_00125] d If the Interface Specification does not specify the length of the
+    // length field for a union, 32 bit length of the length field shall be used.
+    if (_buffer_size >= sizeof(uint32_t)) {
+        std::memcpy(&its_length, _buffer, sizeof(uint32_t));
+        _length = bswap_32(its_length);
+        _buffer_size -= skip_union_length_;
+        _buffer += skip_union_length_;
+        return true;
+    }
+    return false;
+}
+
+inline bool utility::get_array_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) {
+    uint32_t its_length = 0;
+
+    // [TR_SOMEIP_00106] d The layout of arrays with dynamic length basically is based on
+    // the layout of fixed length arrays. To determine the size of the array the serialization
+    // adds a length field (default length 32 bit) in front of the data, which counts the bytes
+    // of the array. The length does not include the size of the length field. Thus, when
+    // transporting an array with zero elements the length is set to zero.
+    if (_buffer_size >= sizeof(uint32_t)) {
+        std::memcpy(&its_length, _buffer, sizeof(uint32_t));
+        _length = bswap_32(its_length);
+        _buffer_size -= skip_array_length_;
+        _buffer += skip_array_length_;
+        return true;
+    }
+    return false;
+}
+
+inline bool utility::is_range(const byte_t* &_buffer, uint32_t &_buffer_size) {
+    uint32_t its_type = 0;
+
+    // [TR_SOMEIP_00128] If the Interface Specification does not specify the length of the
+    // type field of a union, 32 bit length of the type field shall be used.
+    if (_buffer_size >= sizeof(uint32_t)) {
+        std::memcpy(&its_type, _buffer, sizeof(uint32_t));
+        its_type = bswap_32(its_type);
+        _buffer_size -= skip_union_type_;
+        _buffer += skip_union_type_;
+        if (its_type == 0x02) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return false;
+}
+
+inline bool utility::parse_id_item(const byte_t* &_buffer, uint32_t& parsed_ids_bytes, ranges_t& its_ranges, uint32_t &_buffer_size) {
+    // get "union IdItem" length
+    uint32_t iditem_length = 0;
+    if (get_union_length(_buffer, _buffer_size, iditem_length)) {
+        // determine type of union
+        uint16_t its_first = 0;
+        uint16_t its_last = 0;
+        if (is_range(_buffer, _buffer_size)) {
+            // get range of instance IDs "struct IdRange" length
+            uint32_t range_length = 0;
+            if (get_struct_length(_buffer, _buffer_size, range_length)) {
+                // read first and last instance range
+                if (parse_range(_buffer, _buffer_size, its_first, its_last)) {
+                    its_ranges.insert(std::make_pair(its_first, its_last));
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            // a single instance ID
+            if (parse_id(_buffer, _buffer_size, its_first)) {
+                if (its_first != ANY_METHOD) {
+                    if (its_first != 0x00) {
+                        its_last = its_first;
+                        its_ranges.insert(std::make_pair(its_first, its_last));
+                    }
+                } else {
+                    its_first = 0x01;
+                    its_last = 0xFFFE;
+                    its_ranges.insert(std::make_pair(its_first, its_last));
+                }
+            }
+        }
+        parsed_ids_bytes += (skip_union_length_type_ + iditem_length);
+    }
+    return true;
+}
+
+inline bool utility::parse_range(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_first, uint16_t &_last){
+    uint16_t its_first = 0;
+    uint16_t its_last = 0;
+
+    if (_buffer_size >= sizeof(uint16_t) * 2) {
+        if (parse_id(_buffer, _buffer_size, its_first)) {
+            _first = its_first;
+        }
+        if (parse_id(_buffer, _buffer_size, its_last)) {
+            _last = its_last;
+        }
+        if (_first != _last
+                && (_first == ANY_METHOD || _last == ANY_METHOD)) {
+            return false;
+        }
+        if (_first != 0x0 && _last != 0x00
+                && _first <= _last) {
+            if (_first == ANY_METHOD &&
+                    _last == ANY_METHOD) {
+                _first = 0x01;
+                _last = 0xFFFE;
+            }
+            return true;
+        } else {
+            if (_first == 0x00 && _last > _first
+                    && _last != ANY_METHOD) {
+                _first = 0x01;
+                return true;
+            }
+            return false;
+        }
+    }
+    return false;
+}
+
+inline bool utility::parse_id(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_id) {
+    uint16_t its_id = 0;
+    if (_buffer_size >= sizeof(uint16_t)) {
+        std::memcpy(&its_id, _buffer, sizeof(uint16_t));
+        _id = bswap_16(its_id);
+        _buffer_size -= id_width_;
+        _buffer += id_width_;
+        return true;
+    }
+    return false;
+}
+
+bool utility::parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid) {
+    uint32_t its_uid = 0xffffffff;
+    uint32_t its_gid = 0xffffffff;
+
+    if (_buffer_size >= sizeof(uint32_t) * 2) {
+        std::memcpy(&its_uid, _buffer, sizeof(uint32_t));
+        _uid = bswap_32(its_uid);
+
+        std::memcpy(&its_gid, _buffer + sizeof(uint32_t), sizeof(uint32_t));
+        _gid = bswap_32(its_gid);
+
+        _buffer_size -= (uid_width_ + gid_width_);
+        _buffer += (uid_width_ + gid_width_);
+        return true;
+    }
+    return false;
+}
+
+bool utility::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid, ::std::shared_ptr<policy> &_policy) {
+    uint32_t its_uid = 0xffffffff;
+    uint32_t its_gid = 0xffffffff;
+    bool has_error(false);
+
+    // get user ID String
+    if (parse_uid_gid(_buffer, _buffer_size, its_uid, its_gid)) {
+        _uid = its_uid;
+        _gid = its_gid;
+
+        // policy elements
+        std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
+        std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
+
+        // fill uid and gid range
+        std::get<0>(its_uid_range) = its_uid;
+        std::get<1>(its_uid_range) = its_uid;
+        std::get<0>(its_gid_range) = its_gid;
+        std::get<1>(its_gid_range) = its_gid;
+        its_uids.insert(its_uid_range);
+        its_gids.insert(its_gid_range);
+
+        _policy->ids_.insert(std::make_pair(its_uids, its_gids));
+        _policy->allow_who_ = true;
+        _policy->allow_what_ = true;
+
+        // get struct AclUpdate
+        uint32_t acl_length = 0;
+        if (get_struct_length(_buffer, _buffer_size, acl_length)) {
+            // get requests array length
+            uint32_t requests_array_length = 0;
+            if (get_array_length(_buffer, _buffer_size, requests_array_length)) {
+                // loop through requests array consisting of n x "struct Request"
+                uint32_t parsed_req_bytes = 0;
+                while (parsed_req_bytes + skip_struct_length_ <= requests_array_length) {
+                    // get request struct length
+                    uint32_t req_length = 0;
+                    if (get_struct_length(_buffer, _buffer_size, req_length)) {
+                        if (req_length != 0)
+                            parsed_req_bytes += skip_struct_length_;
+
+                        uint16_t its_service_id = 0;
+                        ids_t its_instance_method_ranges;
+                        // get serviceID
+                        if (!parse_id(_buffer, _buffer_size, its_service_id)) {
+                            has_error = true;
+                        } else {
+                            if (its_service_id == 0x00
+                                    || its_service_id == 0xFFFF) {
+                                VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with service ID: 0x"
+                                        << its_service_id << " is not allowed!";
+                                return false;
+                            }
+                            // add length of serviceID
+                            parsed_req_bytes += id_width_;
+                        }
+
+                        // get instances array length
+                        uint32_t instances_array_length = 0;
+                        if (get_array_length(_buffer, _buffer_size, instances_array_length)) {
+                            // loop trough instances array consisting of n x "struct Instance"
+                            uint32_t parsed_inst_bytes = 0;
+                            while (parsed_inst_bytes + skip_struct_length_ <= instances_array_length) {
+                                // get instance struct length
+                                uint32_t inst_length = 0;
+                                if (get_struct_length(_buffer, _buffer_size, inst_length)) {
+                                    if (inst_length != 0)
+                                        parsed_inst_bytes += skip_struct_length_;
+
+                                    ranges_t its_instance_ranges;
+                                    ranges_t its_method_ranges;
+                                    // get "IdItem[] ids" array length
+                                    uint32_t ids_array_length = 0;
+                                    if (get_array_length(_buffer, _buffer_size, ids_array_length)) {
+                                        uint32_t parsed_ids_bytes = 0;
+                                        while (parsed_ids_bytes + skip_struct_length_ <= ids_array_length) {
+                                            if (!parse_id_item(_buffer, parsed_ids_bytes, its_instance_ranges, _buffer_size)) {
+                                                return false;
+                                            }
+                                        }
+                                        parsed_inst_bytes += (skip_array_length_ + ids_array_length);
+                                    }
+                                    // get "IdItem[] methods" array length
+                                    uint32_t methods_array_length = 0;
+                                    if (get_array_length(_buffer, _buffer_size, methods_array_length)) {
+                                        uint32_t parsed_method_bytes = 0;
+                                        while (parsed_method_bytes + skip_struct_length_ <= methods_array_length) {
+                                            if (!parse_id_item(_buffer, parsed_method_bytes, its_method_ranges, _buffer_size)) {
+                                                return false;
+                                            }
+                                        }
+                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
+                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
+                                        }
+                                        parsed_inst_bytes += (skip_array_length_ + methods_array_length);
+                                    }
+                                }
+                            }
+                            parsed_req_bytes += (skip_array_length_ + instances_array_length);
+                        }
+                        if (!its_instance_method_ranges.empty()) {
+                            _policy->services_.insert(
+                                    std::make_pair(its_service_id, its_instance_method_ranges));
+                        }
+                    }
+                }
+            }
+            // get offers array length
+            uint32_t offers_array_length = 0;
+            if (get_array_length(_buffer, _buffer_size, offers_array_length)){
+                // loop through offers array
+                uint32_t parsed_offers_bytes = 0;
+                while (parsed_offers_bytes + skip_struct_length_ <= offers_array_length) {
+                    // get service ID
+                    uint16_t its_service_id = 0;
+                    ranges_t its_instance_ranges;
+                    // get serviceID
+                    if (!parse_id(_buffer, _buffer_size, its_service_id)) {
+                        has_error = true;
+                    } else {
+                        if (its_service_id == 0x00
+                                || its_service_id == 0xFFFF) {
+                            VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with service ID: 0x"
+                                    << its_service_id << " is not allowed!";
+                            return false;
+                        }
+                        // add length of serviceID
+                        parsed_offers_bytes += id_width_;
+                    }
+
+                    // get "IdItem[] ids" array length
+                    uint32_t ids_array_length = 0;
+                    if (get_array_length(_buffer, _buffer_size, ids_array_length)) {
+                        uint32_t parsed_ids_bytes = 0;
+                        while (parsed_ids_bytes + skip_struct_length_ <= ids_array_length) {
+                            if (!parse_id_item(_buffer, parsed_ids_bytes, its_instance_ranges, _buffer_size)) {
+                                return false;
+                            }
+                        }
+                        parsed_offers_bytes += (skip_array_length_ + ids_array_length);
+                    }
+                    if (!its_instance_ranges.empty()) {
+                       _policy->offers_.insert(
+                               std::make_pair(its_service_id, its_instance_ranges));
+                   }
+                }
+            }
+        } else {
+            VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with empty request / offer section is not allowed!";
+            has_error = true;
+        }
+    } else {
+        VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy without UID / GID is not allowed!";
+        has_error = true;
+    }
+
+    if (!has_error)
+        return true;
+    else
+        return false;
 }
 
 void utility::check_client_id_consistency() {
@@ -766,5 +1109,31 @@ void utility::check_client_id_consistency() {
         }
     }
 }
+
+std::uint16_t utility::get_max_number_of_clients(std::uint16_t _diagnosis_max) {
+    std::uint16_t its_max_clients(0);
+    const int bits_for_clients =
+#ifdef _WIN32
+            __popcnt(
+#else
+            __builtin_popcount(
+#endif
+                    static_cast<std::uint16_t>(~_diagnosis_max));
+    for (int var = 0; var < bits_for_clients; ++var) {
+        its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
+    }
+    return its_max_clients;
+}
+
+const uint8_t utility::uid_width_ = sizeof(uint32_t);
+const uint8_t utility::gid_width_ = sizeof(uint32_t);
+const uint8_t utility::id_width_ = sizeof(uint16_t);
+const uint8_t utility::range_width_ = sizeof(uint32_t);
+
+const uint8_t utility::skip_union_length_ = sizeof(uint32_t);
+const uint8_t utility::skip_union_type_ = sizeof(uint32_t);
+const uint8_t utility::skip_union_length_type_ = sizeof(uint32_t) + sizeof(uint32_t);
+const uint8_t utility::skip_struct_length_ = sizeof(uint32_t);
+const uint8_t utility::skip_array_length_ = sizeof(uint32_t);
 
 } // namespace vsomeip

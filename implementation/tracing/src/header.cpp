@@ -5,20 +5,20 @@
 
 #include <cstring>
 
-#include "../include/trace_header.hpp"
+#include "../include/header.hpp"
 #include "../../endpoints/include/endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
 #include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip {
-namespace tc {
+namespace trace {
 
-bool trace_header::prepare(const std::shared_ptr<endpoint> &_endpoint,
+bool header::prepare(const std::shared_ptr<endpoint> &_endpoint,
         bool _is_sending, instance_t _instance) {
     return prepare(_endpoint.get(), _is_sending, _instance);
 }
 
-bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending,
+bool header::prepare(const endpoint *_endpoint, bool _is_sending,
         instance_t _instance) {
     boost::asio::ip::address its_address;
     unsigned short its_port(0);
@@ -51,9 +51,9 @@ bool trace_header::prepare(const endpoint *_endpoint, bool _is_sending,
     return true;
 }
 
-void trace_header::prepare(const boost::asio::ip::address_v4 &_address,
-                           std::uint16_t _port, protocol_e _protocol,
-                           bool _is_sending, instance_t _instance) {
+void header::prepare(const boost::asio::ip::address_v4 &_address,
+		std::uint16_t _port, protocol_e _protocol,
+		bool _is_sending, instance_t _instance) {
     unsigned long its_address_as_long = _address.to_ulong();
     data_[0] = VSOMEIP_LONG_BYTE3(its_address_as_long);
     data_[1] = VSOMEIP_LONG_BYTE2(its_address_as_long);
@@ -67,5 +67,5 @@ void trace_header::prepare(const boost::asio::ip::address_v4 &_address,
     data_[9] = VSOMEIP_WORD_BYTE0(_instance);
 }
 
-} // namespace tc
+} // namespace trace
 } // namespace vsomeip

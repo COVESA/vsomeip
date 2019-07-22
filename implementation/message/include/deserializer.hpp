@@ -29,7 +29,7 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_available() const;
     VSOMEIP_EXPORT std::size_t get_remaining() const;
-    VSOMEIP_EXPORT void set_remaining(std::size_t _length);
+    VSOMEIP_EXPORT void set_remaining(std::size_t _remaining);
 
     // to be used by applications to deserialize a message
     VSOMEIP_EXPORT message * deserialize_message();
@@ -41,6 +41,7 @@ public:
     VSOMEIP_EXPORT bool deserialize(uint32_t& _value,
             bool _omit_last_byte = false);
     VSOMEIP_EXPORT bool deserialize(uint8_t *_data, std::size_t _length);
+    VSOMEIP_EXPORT bool deserialize(std::string& _target, std::size_t _length);
     VSOMEIP_EXPORT bool deserialize(std::vector<uint8_t>& _value);
 
     VSOMEIP_EXPORT bool look_ahead(std::size_t _index, uint8_t &_value) const;

@@ -19,6 +19,7 @@
 #include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../service_discovery/include/defines.hpp"
 
 namespace vsomeip {
 
@@ -54,12 +55,17 @@ void server_endpoint_impl<Protocol>::restart(bool _force) {
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::is_connected() const {
+bool server_endpoint_impl<Protocol>::is_established() const {
     return true;
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::set_connected(bool _connected) {    (void) _connected;}
+void server_endpoint_impl<Protocol>::set_established(bool _established) {    (void) _established;}
+
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::set_connected(bool _connected) {
+    (void) _connected;
+}
 template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8_t *_data,
         uint32_t _size, bool _flush) {
 #if 0
@@ -102,6 +108,16 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint
                 VSOMEIP_WARNING << "server_endpoint::send: session_id 0x"
                         << std::hex << its_session
                         << " not found for client 0x" << its_client;
+                const method_t its_method =
+                        VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
+                                             _data[VSOMEIP_METHOD_POS_MAX]);
+                if (its_service == VSOMEIP_SD_SERVICE
+                        && its_method == VSOMEIP_SD_METHOD) {
+                    VSOMEIP_ERROR << "Clearing clients map as a request was "
+                            "received on SD port";
+                    clients_.clear();
+                    is_valid_target = get_default_target(its_service, its_target);
+                }
             }
         } else {
             is_valid_target = get_default_target(its_service, its_target);

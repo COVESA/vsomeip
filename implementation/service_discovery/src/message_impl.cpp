@@ -196,17 +196,17 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
     uint32_t entries_length = uint32_t(entries_.size() * VSOMEIP_SOMEIP_SD_ENTRY_SIZE);
     is_successful = is_successful && _to->serialize(entries_length);
 
-    for (auto it = entries_.begin(); it != entries_.end(); ++it)
-        is_successful = is_successful && (*it)->serialize(_to);
+    for (const auto& its_entry : entries_)
+        is_successful = is_successful && its_entry && its_entry->serialize(_to);
 
     uint32_t options_length = 0;
-    for (auto its_option : options_)
-        options_length += its_option->get_length()
-                + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE;
+    for (const auto& its_option : options_)
+        options_length += its_option ? its_option->get_length()
+                + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE : 0;
     is_successful = is_successful && _to->serialize(options_length);
 
-    for (auto its_option : options_)
-        is_successful = is_successful && its_option->serialize(_to);
+    for (const auto& its_option : options_)
+        is_successful = is_successful && its_option && its_option->serialize(_to);
 
     return is_successful;
 }
@@ -231,6 +231,14 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
 
     // backup the current remaining length
     uint32_t save_remaining = uint32_t(_from->get_remaining());
+    if (!is_successful) {
+        // couldn't deserialize entries length
+        return is_successful;
+    } else if (entries_length > save_remaining) {
+        // not enough data available to deserialize entries array
+        is_successful = false;
+        return is_successful;
+    }
 
     // set remaining bytes to length of entries array
     _from->set_remaining(entries_length);

@@ -21,7 +21,7 @@
     "file-permissions" :
     {
         "permissions-shm" : "0444",
-        "umask" : "0222"
+        "permissions-uds" : "0222"
     },
     "supports_selective_broadcasts" :
     {
@@ -40,21 +40,51 @@
             {
                 "name" : "testname2",
                 "id" : "testid2"
+            },
+            {
+                "name" : "testname3",
+                "id" : "testid3"
+            },
+            {
+                "name" : "testname4",
+                "id" : "testid4"
             }
         ],
         "filters" :
         [
             {
                "channel" : "testname",
-               "services" : ["0x1111",2222],
-               "methods" : ["0x1111",2222],
-               "clients" : ["0x1111",2222]
+               "matches" : [ "0x1111", 2222 ],
+               "type" : "positive"
             },
             {
                "channel" : "testname2",
-               "services" : ["0x3333",4444],
-               "methods" : ["0x3333",4444],
-               "clients" : ["0x3333",4444]
+               "matches" : [ "0x3333", 4444 ],
+               "type" : "negative"
+            },
+            {
+               "channel" : "testname3",
+               "matches" : [ "0x1111", { "service" : "0x3333", "instance" : "0xffff", "method" : "0x8888" } ],
+               "type" : "negative"
+            },
+            {
+               "channel" : "testname4",
+               "matches" :
+               {
+                    "from" :
+                    {
+                        "service" : "0x1111",
+                        "instance" : "0x0001",
+                        "method" : "0xffff"
+                    },
+                    "to" :
+                    {
+                        "service" : "0x3333",
+                        "instance" : "0x0001",
+                        "method" : "0x8888"
+                    }
+                },
+               "type" : "negative"
             }
         ]
     },
@@ -229,6 +259,8 @@
             "reliable" : [ 40000, 40001 ]
         }
     ],
+    "tcp-restart-aborts-max" : "15",
+    "tcp-connect-time-max" : "10000",
     "max-payload-size-local" : "15000",
     "max-payload-size-reliable" : "17000",
     "buffer-shrink-threshold" : "11",
@@ -274,6 +306,10 @@
                         {
                             "service"  : "0x1235",
                             "instance" : "0x5678"
+                        },
+                        {
+                            "service" : "0x1236",
+                            "instances" : [{ "first" : "0x5676", "last" : "0x5677"}, "5678"]
                         }
                     ]
                 }
@@ -286,7 +322,30 @@
                     [
                         {
                             "service"  : "0x1234",
-                            "instance" : "0x5678"
+                            "instances" : [
+                                {
+                                    "ids" : ["0x5678", { "first" : "0x5679", "last" : "0x5699"}],
+                                    "methods" : [ "0x0001", { "first" : "0x8001", "last" : "0x8006" }]
+                                }
+                            ]
+                        },
+                        {
+                            "service"  : "0x1237",
+                            "instances" : [
+                                {
+                                    "ids" : ["0x5678"],
+                                    "methods" : "any"
+                                }
+                            ]
+                        },
+                        {
+                            "service"  : "0x1238",
+                            "instances" : [
+                                {
+                                    "ids" : "any",
+                                    "methods" : ["0x0001"]
+                                }
+                            ]
                         }
                     ]
                 }
@@ -299,7 +358,12 @@
                     [
                         {
                             "service"  : "0x1234",
-                            "instance" : "0x5678"
+                            "instances" : [
+                                {
+                                    "ids" : ["0x5678", { "first" : "0x5679", "last" : "0x5699"}],
+                                    "methods" : [ "0x0002", { "first" : "0x9001", "last" : "0x9006" }]
+                                }
+                            ]
                         }
                     ],
                     "offers":
@@ -311,13 +375,87 @@
                         {
                             "service"  : "0x1235",
                             "instance" : "0x5678"
+                        },
+                        {
+                            "service" : "0x1236",
+                            "instances" : [{ "first" : "0x5675", "last" : "0x5677"}, "5678"]
+                        }
+                    ]
+                }
+            },
+            {
+                "client" : "0x1550",
+                "deny" :
+                {
+                }
+            },
+            {
+                "client" : "0x1660",
+                "allow" :
+                {
+                }
+            },
+            {
+                "client" : "0x1770",
+                "deny" :
+                {
+                    "requests":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instances" : [
+                                {
+                                    "ids" : ["0x5678"],
+                                    "methods" : "any"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "client" : "0x1880",
+                "allow" :
+                {
+                    "requests":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instances" : [
+                                {
+                                    "ids" : ["0x5678"],
+                                    "methods" : "any"
+                                }
+                            ]
                         }
                     ]
                 }
             }
         ]
     },
+    "security-update-whitelist" :
+    {
+        "uids" :
+        [
+            {"first" : "1000", "last" : "1008"},
+            {"first" : "1100", "last" : "1200"},
+            "2000",
+            "3000"
+        ],
+        "services" :
+        [
+            {"first" : "0x1234", "last" : "0x1238"},
+            {"first" : "0x2000", "last" : "0x2500"},
+            "0x7800"
+        ],
+        "check-whitelist" : "true"
+    },
     "routing" : "my_application",
+    "routing-credentials" :
+    {
+        "uid" : "0x123",
+        "gid" : "0x456"
+    },
     "service-discovery" :
     {
         "enable" : "true",

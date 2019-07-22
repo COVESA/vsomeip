@@ -98,7 +98,7 @@ public:
     void forced_initial_events_add(forced_initial_events_t _entry);
     const std::vector<forced_initial_events_t> forced_initial_events_get();
 
-    void set_initial_events_required(bool _initial_events);
+    void set_initial_events_required(bool _initial_events_required);
     bool initial_events_required() const;
 
 private:

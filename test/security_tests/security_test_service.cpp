@@ -5,6 +5,9 @@
 
 #include "security_test_service.hpp"
 
+static bool is_remote_test = false;
+static bool remote_client_allowed = true;
+
 security_test_service::security_test_service() :
     app_(vsomeip::runtime::get()->create_application()),
     is_registered_(false),
@@ -34,6 +37,31 @@ bool security_test_service::init() {
     app_->register_state_handler(
             std::bind(&security_test_service::on_state, this,
                     std::placeholders::_1));
+
+    // offer allowed field 0x8001 eventgroup 0x01
+    std::set<vsomeip::eventgroup_t> its_eventgroups;
+    its_eventgroups.insert(0x01);
+
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                static_cast<vsomeip::event_t>(0x8001), its_eventgroups, true);
+
+    // also offer field 0x8002 which is not allowed to be received by client
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                static_cast<vsomeip::event_t>(0x8002), its_eventgroups, true);
+
+    // set value to fields
+    std::shared_ptr<vsomeip::payload> its_payload =
+            vsomeip::runtime::get()->create_payload();
+    vsomeip::byte_t its_data[2] = {static_cast<vsomeip::byte_t>((vsomeip_test::TEST_SERVICE_SERVICE_ID & 0xFF00) >> 8),
+            static_cast<vsomeip::byte_t>((vsomeip_test::TEST_SERVICE_SERVICE_ID & 0xFF))};
+    its_payload->set_data(its_data, 2);
+
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+            static_cast<vsomeip::event_t>(0x8001), its_payload);
+
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+            static_cast<vsomeip::event_t>(0x8002), its_payload);
+
     return true;
 }
 
@@ -56,6 +84,12 @@ void security_test_service::join_offer_thread() {
 
 void security_test_service::offer() {
     app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+
+    // try to offer a not allowed instance ID 0x02 (client requesting the service should not get available)
+    app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, 0x02);
+
+    // try to offer a not allowed service ID 0x111 (client requesting the service should not get available)
+    app_->offer_service(0x111, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
 }
 
 void security_test_service::stop_offer() {
@@ -83,12 +117,12 @@ void security_test_service::on_state(vsomeip::state_type_e _state) {
 
 void security_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request) {
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
-    ASSERT_EQ(vsomeip_test::TEST_SERVICE_METHOD_ID, _request->get_method());
+    ASSERT_EQ(vsomeip_test::TEST_SERVICE_INSTANCE_ID, _request->get_instance());
 
     VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
         << std::setfill('0') << std::hex << _request->get_client() << "/"
         << std::setw(4) << std::setfill('0') << std::hex
-        << _request->get_session() << "]";
+        << _request->get_session() << "] method: " << _request->get_method() ;
 
     // send response
     std::shared_ptr<vsomeip::message> its_response =
@@ -115,9 +149,17 @@ void security_test_service::run() {
         condition_.wait(its_lock);
 
    offer();
+
+   // do not wait for the shutdown method to be called
+   if (is_remote_test && !remote_client_allowed) {
+       std::this_thread::sleep_for(std::chrono::milliseconds(250 * vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS + 10000));
+       VSOMEIP_INFO << "Shutdown the service after timeout as remote client is not allowed by policy to call shutdown method!";
+       stop();
+   }
+
 }
 
-TEST(someip_security_test, basic_request_response) {
+TEST(someip_security_test, basic_subscribe_request_response) {
     security_test_service test_service;
     if (test_service.init()) {
         test_service.start();
@@ -127,6 +169,44 @@ TEST(someip_security_test, basic_request_response) {
 
 #ifndef _WIN32
 int main(int argc, char** argv) {
+
+    std::string test_remote("--remote");
+    std::string test_local("--local");
+    std::string test_allow_remote_client("--allow");
+    std::string test_deny_remote_client("--deny");
+    std::string help("--help");
+
+    int i = 1;
+    while (i < argc)
+    {
+        if(test_remote == argv[i])
+        {
+            is_remote_test = true;
+        }
+        else if(test_local == argv[i])
+        {
+            is_remote_test = false;
+        }
+        else if(test_allow_remote_client == argv[i])
+        {
+            remote_client_allowed = true;
+        }
+        else if(test_deny_remote_client == argv[i])
+        {
+            remote_client_allowed = false;
+        }
+        else if(help == argv[i])
+        {
+            VSOMEIP_INFO << "Parameters:\n"
+            << "--remote: Run test between two hosts\n"
+            << "--local: Run test locally\n"
+            << "--allow: test is started with a policy that allows remote messages sent by this test client to the service\n"
+            << "--deny: test is started with a policy that denies remote messages sent by this test client to the service\n"
+            << "--help: print this help";
+        }
+        i++;
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

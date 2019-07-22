@@ -15,6 +15,7 @@
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/handler.hpp>
+#include "types.hpp"
 
 namespace vsomeip {
 
@@ -62,7 +63,9 @@ public:
             bool _flush) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable, bool _is_valid_crc = true) = 0;
+            instance_t _instance, bool _flush, bool _reliable,
+            client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
+            bool _is_valid_crc = true, bool _sent_from_remote = false) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             std::shared_ptr<message>, bool _flush) = 0;
@@ -94,7 +97,7 @@ public:
 
     virtual void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force, bool _flush) = 0;
+            client_t _client, bool _force, bool _flush, bool _remote_subscriber) = 0;
 
     virtual void on_identify_response(client_t _client, service_t _service,
             instance_t _instance, bool _reliable) = 0;

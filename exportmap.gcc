@@ -40,6 +40,7 @@ global:
         vsomeip::sd::runtime::*;
         *vsomeip::utility;
         vsomeip::utility::is*;
+        vsomeip::utility::parse*;
         *vsomeip::plugin_manager;
         vsomeip::plugin_manager::*;
     }; 

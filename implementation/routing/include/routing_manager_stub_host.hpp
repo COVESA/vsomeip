@@ -61,7 +61,8 @@ public:
             pending_subscription_id_t _unsubscription_id) = 0;
 
     virtual bool on_message(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _size, bool _reliable, bool _is_valid_crc = true) = 0;
+            const byte_t *_data, length_t _size, bool _reliable, client_t _bound_client,
+            bool _is_valid_crc = true, bool _is_from_remote = false) = 0;
 
     virtual void on_notification(client_t _client,
             service_t _service, instance_t _instance,
@@ -78,7 +79,7 @@ public:
 
     virtual std::shared_ptr<endpoint> find_or_create_local(
             client_t _client) = 0;
-    virtual void remove_local(client_t _client) = 0;
+    virtual void remove_local(client_t _client, bool _remove_local) = 0;
 
     virtual boost::asio::io_service & get_io() = 0;
     virtual client_t get_client() const = 0;
@@ -91,6 +92,15 @@ public:
     virtual void handle_client_error(client_t _client) = 0;
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
+
+    virtual void on_resend_provided_events_response(pending_remote_offer_id_t _id) = 0;
+
+    virtual void on_security_update_response(pending_security_update_id_t _id, client_t _client) = 0;
+
+    virtual std::set<client_t> find_local_clients(service_t _service, instance_t _instance) = 0;
+
+    virtual bool is_subscribe_to_any_event_allowed(client_t _client,
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 };
 
 } // namespace vsomeip

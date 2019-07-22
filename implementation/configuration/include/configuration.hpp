@@ -24,6 +24,7 @@
 
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "e2e.hpp"
+#include "policy.hpp"
 
 #include "debounce.hpp"
 
@@ -38,10 +39,22 @@ public:
     virtual ~configuration() {}
 
     virtual bool load(const std::string &_name) = 0;
+    virtual bool remote_offer_info_add(service_t _service,
+                                       instance_t _instance,
+                                       std::uint16_t _port,
+                                       bool _reliable,
+                                       bool _magic_cookies_enabled) = 0;
+    virtual bool remote_offer_info_remove(service_t _service,
+                                          instance_t _instance,
+                                          std::uint16_t _port,
+                                          bool _reliable,
+                                          bool _magic_cookies_enabled,
+                                          bool* _still_offered_remote) = 0;
 
     virtual const std::string &get_network() const = 0;
 
     virtual const boost::asio::ip::address & get_unicast_address() const = 0;
+    virtual const boost::asio::ip::address& get_netmask() const = 0;
     virtual unsigned short get_diagnosis_address() const = 0;
     virtual std::uint16_t get_diagnosis_mask() const = 0;
     virtual bool is_v4() const = 0;
@@ -84,6 +97,7 @@ public:
     virtual std::size_t get_max_dispatchers(const std::string &_name) const = 0;
     virtual std::size_t get_max_dispatch_time(const std::string &_name) const = 0;
     virtual std::size_t get_io_thread_count(const std::string &_name) const = 0;
+    virtual int get_io_thread_nice_level(const std::string &_name) const = 0;
     virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
@@ -124,7 +138,7 @@ public:
     virtual uint32_t get_allowed_missing_pongs() const = 0;
 
     // File permissions
-    virtual std::uint32_t get_umask() const = 0;
+    virtual std::uint32_t get_permissions_uds() const = 0;
     virtual std::uint32_t get_permissions_shm() const = 0;
 
     virtual bool log_version() const = 0;
@@ -133,11 +147,19 @@ public:
     // Security
     virtual bool is_security_enabled() const = 0;
     virtual bool is_client_allowed(client_t _client, service_t _service,
-            instance_t _instance) const = 0;
+            instance_t _instance, method_t _method, bool _is_request_service = false) const = 0;
     virtual bool is_offer_allowed(client_t _client, service_t _service,
             instance_t _instance) const = 0;
     virtual bool check_credentials(client_t _client,
             uint32_t _uid, uint32_t _gid) = 0;
+    virtual bool store_client_to_uid_gid_mapping(client_t _client, uint32_t _uid, uint32_t _gid) = 0;
+    virtual void store_uid_gid_to_client_mapping(uint32_t _uid, uint32_t _gid, client_t _client) = 0;
+
+    virtual bool get_client_to_uid_gid_mapping(client_t _client,
+            std::pair<uint32_t, uint32_t> &_uid_gid) = 0;
+    virtual bool remove_client_to_uid_gid_mapping(client_t _client) = 0;
+    virtual bool get_uid_gid_to_client_mapping(std::pair<uint32_t, uint32_t> _uid_gid,
+            std::set<client_t> &_clients) = 0;
 
     // Plugins
     virtual std::map<plugin_type_e, std::set<std::string>> get_plugins(
@@ -146,7 +168,7 @@ public:
     virtual void set_configuration_path(const std::string &_path) = 0;
 
     //E2E
-    virtual std::map<e2exf::data_identifier, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const = 0;
+    virtual std::map<e2exf::data_identifier_t, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const = 0;
     virtual bool is_e2e_enabled() const = 0;
 
     virtual bool log_memory() const = 0;
@@ -170,6 +192,39 @@ public:
     virtual endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
+
+    virtual std::uint32_t get_max_tcp_restart_aborts() const = 0;
+    virtual std::uint32_t get_max_tcp_connect_time() const = 0;
+
+    // Offer acceptance
+    virtual bool offer_acceptance_required(
+            const boost::asio::ip::address& _address) const = 0;
+    virtual void set_offer_acceptance_required(
+            const boost::asio::ip::address& _address, const std::string& _path,
+            bool _enable) = 0;
+    virtual std::map<boost::asio::ip::address, std::string> get_offer_acceptance_required() = 0;
+
+    // Security policy
+    virtual void update_security_policy(uint32_t _uid, uint32_t _gid, ::std::shared_ptr<policy> _policy) = 0;
+    virtual bool remove_security_policy(uint32_t _uid, uint32_t _gid) = 0;
+
+    virtual void add_security_credentials(uint32_t _uid, uint32_t _gid,
+            ::std::shared_ptr<policy> _credentials_policy, client_t _client) = 0;
+
+    virtual bool is_remote_client_allowed() const = 0;
+
+    virtual bool is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const = 0;
+
+    virtual bool is_policy_removal_allowed(uint32_t _uid) const = 0;
+
+    virtual std::uint32_t get_udp_receive_buffer_size() const = 0;
+
+    virtual bool is_audit_mode_enabled() const = 0;
+
+    virtual bool check_routing_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
+
+    // routing shutdown timeout
+    virtual std::uint32_t get_shutdown_timeout() const = 0;
 };
 
 } // namespace vsomeip

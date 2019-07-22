@@ -38,10 +38,12 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           state_(cei_state_e::CLOSED),
+          reconnect_counter_(0),
           packetizer_(std::make_shared<message_buffer_t>()),
           queue_size_(0),
           was_not_connected_(false),
-          local_port_(0) {
+          local_port_(0),
+          strand_(_io) {
 }
 
 template<typename Protocol>
@@ -54,22 +56,38 @@ bool client_endpoint_impl<Protocol>::is_client() const {
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::is_connected() const {
+bool client_endpoint_impl<Protocol>::is_established() const {
     return state_ == cei_state_e::ESTABLISHED;
 }
 
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::set_established(bool _established) {
+    if (_established) {
+        if (state_ != cei_state_e::CONNECTING) {
+            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            if (socket_->is_open()) {
+                state_ = cei_state_e::ESTABLISHED;
+            } else {
+                state_ = cei_state_e::CLOSED;
+            }
+        }
+    } else {
+        state_ = cei_state_e::CLOSED;
+    }}
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
     if (_connected) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         if (socket_->is_open()) {
-            state_ = cei_state_e::ESTABLISHED;
+            state_ = cei_state_e::CONNECTED;
         } else {
             state_ = cei_state_e::CLOSED;
         }
     } else {
         state_ = cei_state_e::CLOSED;
-    }}
+    }
+}
+
 template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -159,7 +177,8 @@ bool client_endpoint_impl<Protocol>::flush() {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::connect_cbk(
         boost::system::error_code const &_error) {
-    if (_error == boost::asio::error::operation_aborted) {
+    if (_error == boost::asio::error::operation_aborted
+            || endpoint_impl<Protocol>::sending_blocked_) {
         // endpoint was stopped
         shutdown_and_close_socket(false);
         return;
@@ -173,7 +192,12 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                 state_ = cei_state_e::CLOSED;
                 its_host->on_disconnect(this->shared_from_this());
             }
-            start_connect_timer();
+            if (get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED ||
+                get_max_allowed_reconnects() >= ++reconnect_counter_) {
+                start_connect_timer();
+            } else {
+                max_allowed_reconnects_reached();
+            }
             // Double the timeout as long as the maximum allowed is larger
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
                 connect_timeout_ = (connect_timeout_ << 1);
@@ -183,13 +207,8 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                 connect_timer_.cancel();
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
+            reconnect_counter_ = 0;
             set_local_port();
-            if (state_ != cei_state_e::ESTABLISHED) {
-                its_host->on_connect(this->shared_from_this());
-            }
-
-            receive();
-
             if (was_not_connected_) {
                 was_not_connected_ = false;
                 std::lock_guard<std::mutex> its_lock(mutex_);
@@ -199,6 +218,10 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                             << get_remote_information();
                 }
             }
+            if (state_ != cei_state_e::ESTABLISHED) {
+                its_host->on_connect(this->shared_from_this());
+            }
+            receive();
         }
     }
 }
@@ -269,8 +292,17 @@ void client_endpoint_impl<Protocol>::send_cbk(
         shutdown_and_close_socket(true);
         connect();
     } else if (_error == boost::asio::error::not_connected
-            || _error == boost::asio::error::bad_descriptor) {
+            || _error == boost::asio::error::bad_descriptor
+            || _error == boost::asio::error::no_permission) {
         state_ = cei_state_e::CLOSED;
+        if (_error == boost::asio::error::no_permission) {
+            VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
+                    << " (" << std::dec << _error.value() << ") "
+                    << get_remote_information();
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            queue_.clear();
+            queue_size_ = 0;
+        }
         was_not_connected_ = true;
         shutdown_and_close_socket(true);
         connect();
@@ -332,6 +364,12 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _recreate_socket) {
     local_port_ = 0;
     if (socket_->is_open()) {
+#ifndef _WIN32
+        if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
+            VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '" << std::string(std::strerror(errno))
+                          << "' (" << errno << ") " << get_remote_information();
+        }
+#endif
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
         socket_->close(its_error);

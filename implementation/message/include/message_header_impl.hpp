@@ -18,7 +18,7 @@ class message_base;
 class message_header_impl: virtual public serializable {
 public:
     VSOMEIP_EXPORT message_header_impl();
-    VSOMEIP_EXPORT message_header_impl(const message_header_impl& header);
+    VSOMEIP_EXPORT message_header_impl(const message_header_impl& _header);
 
     VSOMEIP_EXPORT bool serialize(serializer *_to) const;
     VSOMEIP_EXPORT bool deserialize(deserializer *_from);

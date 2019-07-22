@@ -11,6 +11,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/handler.hpp>
 #include "../../routing/include/serviceinfo.hpp"
 #include "../../endpoints/include/endpoint.hpp"
 #include "../include/service_discovery_host.hpp"
@@ -26,7 +27,6 @@ public:
     virtual ~service_discovery() {
     }
 
-    virtual std::shared_ptr<configuration> get_configuration() const = 0;
     virtual boost::asio::io_service & get_io() = 0;
 
     virtual void init() = 0;
@@ -72,6 +72,11 @@ public:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             client_t _client, bool _accepted,
             const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) = 0;
+
+    virtual void register_offer_acceptance_handler(
+            vsomeip::offer_acceptance_handler_t _handler) = 0;
+    virtual void register_reboot_notification_handler(
+            reboot_notification_handler_t _handler) = 0;
 };
 
 } // namespace sd
