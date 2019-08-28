@@ -124,6 +124,9 @@ public:
 
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
 
+    void erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event);
+
 protected:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<serviceinfo> create_service_info(service_t _service,
@@ -215,8 +218,6 @@ protected:
     subscription_state_e get_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event);
 
-    void erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, event_t _event);
 
 private:
     std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
