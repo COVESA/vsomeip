@@ -42,7 +42,7 @@ enum class return_code_e : uint8_t {
     E_WRONG_PROTOCOL_VERSION = 0x07,
     E_WRONG_INTERFACE_VERSION = 0x08,
     E_MALFORMED_MESSAGE = 0x09,
-    E_WRONG_MESSAGE_TYPE = 0xA,
+    E_WRONG_MESSAGE_TYPE = 0x0A,
     E_UNKNOWN = 0xFF
 };
 
