@@ -132,6 +132,16 @@ void logger_impl::enable_file(const std::string &_path) {
     if (file_sink_)
         return;
 
+    char stamp[6 + 1] = { 0 };
+    time_t t = time(NULL);
+    struct tm tm_info;
+    localtime_r(&t, &tm_info);
+    sprintf(stamp, "%02d%02d%02d",
+                   tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec);
+
+    std::stringstream path("");
+    path << _path << "." << stamp << ".log";
+
     auto vsomeip_log_format = expressions::stream
             << expressions::format_date_time<boost::posix_time::ptime>(
                     "TimeStamp", "%Y-%m-%d %H:%M:%S.%f") << " ["
@@ -142,7 +152,7 @@ void logger_impl::enable_file(const std::string &_path) {
             sinks::text_ostream_backend>();
     backend->add_stream(
             boost::shared_ptr<std::ostream>(
-                    boost::make_shared<std::ofstream>(_path)));
+                    boost::make_shared<std::ofstream>(path.str())));
 
     file_sink_ = boost::make_shared<sink_t>(backend);
     file_sink_->set_formatter(vsomeip_log_format);
