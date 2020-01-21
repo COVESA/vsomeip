@@ -377,7 +377,7 @@ else()
                                -a version=${VSOMEIP_VERSION}
                                -b html
                                -o documentation/vsomeipUserGuide.html
-                               ${PROJECT_BINARY_DIR}/../documentation/vsomeipUserGuide)
+                               ${PROJECT_SOURCE_DIR}/documentation/vsomeipUserGuide)
 endif()
 
 ##############################################################################
