@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "application_test_globals.hpp"
 

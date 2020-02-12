@@ -3,9 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #include "../include/channel_impl.hpp"
-#include "../../logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace trace {
 
 const filter_id_t FILTER_ID_ERROR(0);
@@ -231,7 +231,7 @@ void channel_impl::remove_filter(filter_id_t _id) {
     negative_.erase(_id);
 }
 
-filter_id_t channel_impl::add_filter_intern(filter_func_t _func, bool _is_positive) {
+filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, bool _is_positive) {
     filter_id_t its_id = current_filter_id_.fetch_add(1);
 
     std::lock_guard<std::mutex> its_lock(mutex_);
@@ -270,4 +270,4 @@ bool channel_impl::matches(
 }
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3

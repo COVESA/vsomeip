@@ -5,7 +5,7 @@
 
 #include "../include/message_element_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 message_element_impl::message_element_impl() {
@@ -21,4 +21,4 @@ void message_element_impl::set_owning_message(message_impl *_owner) {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

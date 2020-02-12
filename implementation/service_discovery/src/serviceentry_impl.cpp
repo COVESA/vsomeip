@@ -7,7 +7,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 serviceentry_impl::serviceentry_impl() {
@@ -25,7 +25,7 @@ void serviceentry_impl::set_minor_version(minor_version_t _version) {
     minor_version_ = _version;
 }
 
-bool serviceentry_impl::serialize(vsomeip::serializer *_to) const {
+bool serviceentry_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = entry_impl::serialize(_to);
 
     is_successful = is_successful
@@ -38,7 +38,7 @@ bool serviceentry_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool serviceentry_impl::deserialize(vsomeip::deserializer *_from) {
+bool serviceentry_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = entry_impl::deserialize(_from);
 
     uint8_t tmp_major_version(0);
@@ -57,4 +57,4 @@ bool serviceentry_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

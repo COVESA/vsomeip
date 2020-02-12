@@ -6,11 +6,11 @@
 #include <ostream>
 #include "../../../e2e_protection/include/e2exf/config.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::ostream &operator<<(std::ostream &_os, const e2exf::data_identifier_t &_data_identifier) {
     _os << _data_identifier.first << _data_identifier.second;
     return _os;
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

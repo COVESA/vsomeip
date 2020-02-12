@@ -67,18 +67,21 @@ endfunction()
 ##############################################################################
 # configuration-test
 ##############################################################################
-if(NOT ${TESTS_BAT})    
+if(NOT ${TESTS_BAT})
     set(TEST_CONFIGURATION configuration-test)
 
-    add_executable(${TEST_CONFIGURATION} configuration_tests/configuration-test.cpp)
+    add_executable(${TEST_CONFIGURATION}
+        configuration_tests/configuration-test.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/plugin/src/plugin_manager_impl.cpp
+    )
     target_link_libraries(${TEST_CONFIGURATION}
-        vsomeip
-        vsomeip-cfg
+        vsomeip3
+        vsomeip3-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
-    
+
     # The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
     # from the config folder into the test folder in the builddirectory
     # This makes it possible to call the configuration test within the build directory
@@ -101,7 +104,7 @@ if(NOT ${TESTS_BAT})
 
     add_executable(${TEST_APPLICATION} application_tests/${TEST_APPLICATION}.cpp)
     target_link_libraries(${TEST_APPLICATION}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -110,7 +113,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_SINGLE_PROCESS_NAME ${TEST_APPLICATION}_single_process)
     add_executable(${TEST_APPLICATION_SINGLE_PROCESS_NAME} application_tests/${TEST_APPLICATION_SINGLE_PROCESS_NAME}.cpp)
     target_link_libraries(${TEST_APPLICATION_SINGLE_PROCESS_NAME}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -119,7 +122,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_APPLICATION_AVAILABILITY_NAME ${TEST_APPLICATION}_availability)
     add_executable(${TEST_APPLICATION_AVAILABILITY_NAME} application_tests/${TEST_APPLICATION_AVAILABILITY_NAME}.cpp)
     target_link_libraries(${TEST_APPLICATION_AVAILABILITY_NAME}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -176,7 +179,7 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_STARTER}
         ${TEST_APPLICATION}
     )
-    
+
     set(TEST_APPLICATION_SINGLE_PROCESS_STARTER ${TEST_APPLICATION}_single_process_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
@@ -198,7 +201,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_CLIENT ${TEST_MAGIC_COOKIES_NAME}_client)
     add_executable(${TEST_MAGIC_COOKIES_CLIENT} magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT}.cpp)
     target_link_libraries(${TEST_MAGIC_COOKIES_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
@@ -208,7 +211,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_SERVICE ${TEST_MAGIC_COOKIES_NAME}_service)
     add_executable(${TEST_MAGIC_COOKIES_SERVICE} magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE}.cpp)
     target_link_libraries(${TEST_MAGIC_COOKIES_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
@@ -268,7 +271,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_HEADER_FACTORY header_factory_test)
     add_executable(${TEST_HEADER_FACTORY} header_factory_tests/header_factory_test.cpp)
     target_link_libraries(${TEST_HEADER_FACTORY}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
@@ -281,7 +284,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_HEADER_FACTORY_CLIENT header_factory_test_client)
     add_executable(${TEST_HEADER_FACTORY_CLIENT} header_factory_tests/${TEST_HEADER_FACTORY_CLIENT}.cpp)
     target_link_libraries(${TEST_HEADER_FACTORY_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
@@ -305,7 +308,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_HEADER_FACTORY_SERVICE header_factory_test_service)
     add_executable(${TEST_HEADER_FACTORY_SERVICE} header_factory_tests/${TEST_HEADER_FACTORY_SERVICE}.cpp)
     target_link_libraries(${TEST_HEADER_FACTORY_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
@@ -343,7 +346,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_LOCAL_ROUTING_SERVICE local_routing_test_service)
     add_executable(${TEST_LOCAL_ROUTING_SERVICE} routing_tests/${TEST_LOCAL_ROUTING_SERVICE}.cpp)
     target_link_libraries(${TEST_LOCAL_ROUTING_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -366,7 +369,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_LOCAL_ROUTING_CLIENT local_routing_test_client)
     add_executable(${TEST_LOCAL_ROUTING_CLIENT} routing_tests/${TEST_LOCAL_ROUTING_CLIENT}.cpp)
     target_link_libraries(${TEST_LOCAL_ROUTING_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -402,7 +405,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_ROUTING_SERVICE external_local_routing_test_service)
     add_executable(${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE} routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}.cpp)
     target_link_libraries(${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -460,7 +463,7 @@ else()
     set(TEST_LOCAL_ROUTING_SERVICE local_routing_test_service)
     add_executable(${TEST_LOCAL_ROUTING_SERVICE} routing_tests/${TEST_LOCAL_ROUTING_SERVICE}.cpp)
     target_link_libraries(${TEST_LOCAL_ROUTING_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -483,7 +486,7 @@ else()
     set(TEST_LOCAL_ROUTING_CLIENT local_routing_test_client)
     add_executable(${TEST_LOCAL_ROUTING_CLIENT} routing_tests/${TEST_LOCAL_ROUTING_CLIENT}.cpp)
     target_link_libraries(${TEST_LOCAL_ROUTING_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -524,7 +527,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_RESTART_ROUTING_SERVICE restart_routing_test_service)
     add_executable(${TEST_RESTART_ROUTING_SERVICE} restart_routing_tests/${TEST_RESTART_ROUTING_SERVICE}.cpp)
     target_link_libraries(${TEST_RESTART_ROUTING_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -551,7 +554,7 @@ if(NOT ${TESTS_BAT})
         restart_routing_tests/${TEST_RESTART_ROUTING_CLIENT}.cpp
     )
     target_link_libraries(${TEST_RESTART_ROUTING_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -601,7 +604,7 @@ if (${TEST_SECURITY})
 
         add_executable(${TEST_SECURITY_SERVICE} security_tests/${TEST_SECURITY_SERVICE}.cpp)
         target_link_libraries(${TEST_SECURITY_SERVICE}
-            vsomeip
+            vsomeip3
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
@@ -695,7 +698,7 @@ if (${TEST_SECURITY})
             security_tests/${TEST_SECURITY_CLIENT}.cpp
         )
         target_link_libraries(${TEST_SECURITY_CLIENT}
-            vsomeip
+            vsomeip3
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
@@ -713,7 +716,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_PAYLOAD_SERVICE payload_test_service)
     add_executable(${TEST_PAYLOAD_SERVICE} payload_tests/${TEST_PAYLOAD_SERVICE}.cpp)
     target_link_libraries(${TEST_PAYLOAD_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -741,7 +744,7 @@ if(NOT ${TESTS_BAT})
         payload_tests/stopwatch.cpp
     )
     target_link_libraries(${TEST_PAYLOAD_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -892,7 +895,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_BIG_PAYLOAD_SERVICE big_payload_test_service)
     add_executable(${TEST_BIG_PAYLOAD_SERVICE} big_payload_tests/${TEST_BIG_PAYLOAD_SERVICE}.cpp)
     target_link_libraries(${TEST_BIG_PAYLOAD_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -901,7 +904,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_BIG_PAYLOAD_CLIENT big_payload_test_client)
     add_executable(${TEST_BIG_PAYLOAD_CLIENT} big_payload_tests/${TEST_BIG_PAYLOAD_CLIENT}.cpp)
     target_link_libraries(${TEST_BIG_PAYLOAD_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1058,6 +1061,27 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
         ${TEST_BIG_PAYLOAD_SERVICE}
     )
+    # Copy config file for UDP client and service into $BUILDDIR/test
+    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_service.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+        ${TEST_BIG_PAYLOAD_SERVICE}
+    )
+    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_client.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+        ${TEST_BIG_PAYLOAD_CLIENT}
+    )
 
     # Copy bashscript to start client local to $BUILDDIR/test
     set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
@@ -1091,6 +1115,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL big_payload_test_external_limited_general)
     set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL big_payload_test_external_queue_limited_general)
     set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC big_payload_test_external_queue_limited_specific)
+    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP big_payload_test_external_udp)
     set(TEST_EXTERNAL_BIG_PAYLOAD_STARTER ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_starter.sh)
     copy_to_builddir(${PROJECT_SOURCE_DIR}/test/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
         ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
@@ -1121,7 +1146,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_CLIENT_ID_SERVICE ${TEST_CLIENT_ID_NAME}_service)
     add_executable(${TEST_CLIENT_ID_SERVICE} client_id_tests/${TEST_CLIENT_ID_NAME}_service.cpp)
     target_link_libraries(${TEST_CLIENT_ID_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1132,8 +1157,8 @@ if(NOT ${TESTS_BAT})
         client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp
         ${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
     target_link_libraries(${TEST_CLIENT_ID_UTILITY}
-        vsomeip
-        vsomeip-cfg
+        vsomeip3
+        vsomeip3-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1315,7 +1340,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_SUBSCRIBE_NOTIFY_SERVICE ${TEST_SUBSCRIBE_NOTIFY_NAME}_service)
     add_executable(${TEST_SUBSCRIBE_NOTIFY_SERVICE} subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_NAME}_service.cpp)
     target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1370,6 +1395,30 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
@@ -1415,6 +1464,30 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+    )
+
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
@@ -1490,27 +1563,27 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
-    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE
-        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master.json)
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master_udp.json)
     configure_file(
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
-        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
-    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE
-        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave.json)
+    set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE
+        ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave_udp.json)
     configure_file(
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
         @ONLY)
     copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
-        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
+        ${PROJECT_SOURCE_DIR}/test/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
     )
 
@@ -1552,13 +1625,13 @@ if(NOT ${TESTS_BAT})
 
     # subscribe_notify_test_one_event_two_eventgroups
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME subscribe_notify_test_one_event_two_eventgroups)
-    
+
     # service
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_service)
     add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
         subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}.cpp)
     target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1568,7 +1641,7 @@ if(NOT ${TESTS_BAT})
     add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
         subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}.cpp)
     target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1631,12 +1704,12 @@ if(NOT ${TESTS_BAT})
     set(TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_service)
     add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE} subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_service.cpp)
     target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
-    
+
     # Copy config files for test into $BUILDDIR/test
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master.json)
@@ -1736,7 +1809,7 @@ if(NOT ${TESTS_BAT})
         cpu_load_tests/cpu_load_measurer.cpp
     )
     target_link_libraries(${TEST_CPU_LOAD_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1771,7 +1844,7 @@ if(NOT ${TESTS_BAT})
         cpu_load_tests/cpu_load_measurer.cpp
     )
     target_link_libraries(${TEST_CPU_LOAD_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1820,16 +1893,16 @@ if(NOT ${TESTS_BAT})
     set(TEST_INITIAL_EVENT_SERVICE ${TEST_INITIAL_EVENT_NAME}_service)
     add_executable(${TEST_INITIAL_EVENT_SERVICE} initial_event_tests/${TEST_INITIAL_EVENT_NAME}_service.cpp)
     target_link_libraries(${TEST_INITIAL_EVENT_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
-    
+
     set(TEST_INITIAL_EVENT_CLIENT ${TEST_INITIAL_EVENT_NAME}_client)
     add_executable(${TEST_INITIAL_EVENT_CLIENT} initial_event_tests/${TEST_INITIAL_EVENT_NAME}_client.cpp)
     target_link_libraries(${TEST_INITIAL_EVENT_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1838,7 +1911,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_INITIAL_EVENT_AVAILABILITY_CHECKER ${TEST_INITIAL_EVENT_NAME}_availability_checker)
     add_executable(${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER} initial_event_tests/${TEST_INITIAL_EVENT_NAME}_availability_checker.cpp)
     target_link_libraries(${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1847,7 +1920,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_INITIAL_EVENT_STOP_SERVICE ${TEST_INITIAL_EVENT_NAME}_stop_service)
     add_executable(${TEST_INITIAL_EVENT_STOP_SERVICE} initial_event_tests/${TEST_INITIAL_EVENT_NAME}_stop_service.cpp)
     target_link_libraries(${TEST_INITIAL_EVENT_STOP_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -1891,6 +1964,19 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_SERVICE}
     )
 
+    # Copy config files for test into $BUILDDIR/test
+    set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
@@ -1900,6 +1986,18 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${TEST_INITIAL_EVENT_SERVICE}
     )
 
@@ -1948,6 +2046,30 @@ if(NOT ${TESTS_BAT})
     copy_to_builddir(
         ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
+        ${TEST_INITIAL_EVENT_SERVICE}
+    )
+
+    set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
+        ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${TEST_INITIAL_EVENT_SERVICE}
     )
 
@@ -2068,7 +2190,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_SERVICE ${TEST_OFFER_NAME}_service)
     add_executable(${TEST_OFFER_SERVICE} offer_tests/${TEST_OFFER_NAME}_service.cpp)
     target_link_libraries(${TEST_OFFER_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2077,7 +2199,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_CLIENT ${TEST_OFFER_NAME}_client)
     add_executable(${TEST_OFFER_CLIENT} offer_tests/${TEST_OFFER_NAME}_client.cpp)
     target_link_libraries(${TEST_OFFER_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2086,7 +2208,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_SERVICE_EXTERNAL ${TEST_OFFER_NAME}_service_external)
     add_executable(${TEST_OFFER_SERVICE_EXTERNAL} offer_tests/${TEST_OFFER_NAME}_service_external.cpp)
     target_link_libraries(${TEST_OFFER_SERVICE_EXTERNAL}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2105,7 +2227,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_SERVICE ${TEST_OFFER_BIG_NAME}_service)
     add_executable(${TEST_OFFER_BIG_SERVICE} offer_tests/${TEST_OFFER_BIG_NAME}_service.cpp)
     target_link_libraries(${TEST_OFFER_BIG_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2114,7 +2236,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_CLIENT ${TEST_OFFER_BIG_NAME}_client)
     add_executable(${TEST_OFFER_BIG_CLIENT} offer_tests/${TEST_OFFER_BIG_NAME}_client.cpp)
     target_link_libraries(${TEST_OFFER_BIG_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2223,7 +2345,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFERED_SERVICES_INFO_SERVICE ${TEST_OFFERED_SERVICES_INFO_NAME}_service)
     add_executable(${TEST_OFFERED_SERVICES_INFO_SERVICE} offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_NAME}_service.cpp)
     target_link_libraries(${TEST_OFFERED_SERVICES_INFO_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2232,7 +2354,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFERED_SERVICES_INFO_CLIENT ${TEST_OFFERED_SERVICES_INFO_NAME}_client)
     add_executable(${TEST_OFFERED_SERVICES_INFO_CLIENT} offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_NAME}_client.cpp)
     target_link_libraries(${TEST_OFFERED_SERVICES_INFO_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2262,7 +2384,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_PENDING_SUBSCRIPTION_SERVICE ${TEST_PENDING_SUBSCRIPTION_NAME}_service)
     add_executable(${TEST_PENDING_SUBSCRIPTION_SERVICE} pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_NAME}_service.cpp)
     target_link_libraries(${TEST_PENDING_SUBSCRIPTION_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2286,8 +2408,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
-        vsomeip
-        vsomeip-sd
+        vsomeip3
+        vsomeip3-sd
     )
 
     # copy starter scripts into builddir
@@ -2322,7 +2444,7 @@ if(NOT ${TESTS_BAT})
     set(TEST_MALICIOUS_DATA_SERVICE ${TEST_MALICIOUS_DATA_NAME}_service)
     add_executable(${TEST_MALICIOUS_DATA_SERVICE} malicious_data_tests/${TEST_MALICIOUS_DATA_NAME}_service.cpp)
     target_link_libraries(${TEST_MALICIOUS_DATA_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2346,8 +2468,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
-        vsomeip
-        vsomeip-sd
+        vsomeip3
+        vsomeip3-sd
     )
 
     # copy starter scripts into builddir
@@ -2375,132 +2497,6 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
-# security_config_plugin_test
-##############################################################################
-if (${TEST_SECURITY})
-    if(NOT ${TESTS_BAT})
-        set(TEST_SECURITY_CONFIG_PLUGIN_NAME security_config_plugin_test)
-        set(TEST_SECURITY_CONFIG_PLUGIN_CLIENT ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_client)
-        add_executable(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
-            security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}.cpp
-        )
-
-        set(TEST_SECURITY_CONFIG_PLUGIN_SERVICE ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_service)
-        add_executable(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
-            security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}.cpp
-        )
-
-        message(STATUS "Using uid: ${TEST_UID}, gid: ${TEST_GID}")
-
-        # Copy config file for vsomeipd, client and service into $BUILDDIR/test
-        set(TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_local.json)
-        configure_file(
-            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/conf/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}.in
-            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
-            @ONLY)
-
-        copy_to_builddir(
-            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
-            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_CONFIG_FILE}
-            ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
-            ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
-        )
-
-
-        # Copy bashscript to start vsomeipd and client into $BUILDDIR/test
-        set(TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER ${TEST_SECURITY_CONFIG_PLUGIN_NAME}_local_starter.sh)
-        copy_to_builddir(
-            ${PROJECT_SOURCE_DIR}/test/security_config_plugin_tests/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER}
-            ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER}
-            ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
-            ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
-        )
-
-        target_link_libraries(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT}
-            vsomeip
-            ${Boost_LIBRARIES}
-            ${DL_LIBRARY}
-            ${TEST_LINK_LIBRARIES}
-        )
-
-        target_link_libraries(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE}
-            vsomeip
-            ${Boost_LIBRARIES}
-            ${DL_LIBRARY}
-            ${TEST_LINK_LIBRARIES}
-        )
-    endif()
-endif()
-
-#############################################################################
-# debug_diag_job_plugin_test
-##############################################################################
-
-if(NOT ${TESTS_BAT})
-    set(TEST_DEBUG_DIAG_JOB_NAME debug_diag_job_plugin_test)
-
-    set(TEST_DEBUG_DIAG_JOB_SERVICE ${TEST_DEBUG_DIAG_JOB_NAME}_service)
-    add_executable(${TEST_DEBUG_DIAG_JOB_SERVICE} debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SERVICE}.cpp)
-    target_link_libraries(${TEST_DEBUG_DIAG_JOB_SERVICE}
-        vsomeip
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
-
-    # Copy config file for service into $BUILDDIR/test
-    set(TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE ${TEST_DEBUG_DIAG_JOB_NAME}_master.json)
-    configure_file(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/conf/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
-        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_CONFIG_FILE}
-        ${TEST_DEBUG_DIAG_JOB_SERVICE}
-    )
-
-    # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_DEBUG_DIAG_JOB_MASTER_STARTER ${TEST_DEBUG_DIAG_JOB_NAME}_master_starter.sh)
-    copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER}
-        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER}
-        ${TEST_DEBUG_DIAG_JOB_SERVICE}
-    )
-
-    set(TEST_DEBUG_DIAG_JOB_CLIENT ${TEST_DEBUG_DIAG_JOB_NAME}_client)
-    add_executable(${TEST_DEBUG_DIAG_JOB_CLIENT}
-        debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_CLIENT}.cpp
-    )
-    target_link_libraries(${TEST_DEBUG_DIAG_JOB_CLIENT}
-        vsomeip
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
-
-    # Copy config file for client into $BUILDDIR/test
-    set(TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE ${TEST_DEBUG_DIAG_JOB_NAME}_slave.json)
-    configure_file(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/conf/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}.in
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
-        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_SLAVE_CONFIG_FILE}
-        ${TEST_DEBUG_DIAG_JOB_CLIENT}
-    )
-
-    # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_DEBUG_DIAG_JOB_SLAVE_STARTER ${TEST_DEBUG_DIAG_JOB_NAME}_slave_starter.sh)
-    copy_to_builddir(
-        ${PROJECT_SOURCE_DIR}/test/debug_diag_job_plugin_tests/${TEST_DEBUG_DIAG_JOB_SLAVE_STARTER}
-        ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_SLAVE_STARTER}
-        ${TEST_DEBUG_DIAG_JOB_CLIENT}
-    )
-endif()
-
-##############################################################################
 # e2e test
 ##############################################################################
 
@@ -2511,7 +2507,7 @@ if(NOT ${TESTS_BAT})
 
     add_executable(${TEST_E2E_SERVICE} e2e_tests/${TEST_E2E_SERVICE}.cpp)
     target_link_libraries(${TEST_E2E_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2521,7 +2517,7 @@ if(NOT ${TESTS_BAT})
         e2e_tests/${TEST_E2E_CLIENT}.cpp
     )
     target_link_libraries(${TEST_E2E_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2579,7 +2575,7 @@ if(NOT ${TESTS_BAT})
 
     add_executable(${TEST_EVENT_SERVICE} event_tests/${TEST_EVENT_SERVICE}.cpp)
     target_link_libraries(${TEST_EVENT_SERVICE}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2589,7 +2585,7 @@ if(NOT ${TESTS_BAT})
         event_tests/${TEST_EVENT_CLIENT}.cpp
     )
     target_link_libraries(${TEST_EVENT_CLIENT}
-        vsomeip
+        vsomeip3
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
@@ -2646,6 +2642,367 @@ if(NOT ${TESTS_BAT})
 
 endif()
 
+##############################################################################
+# npdu-test
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_NPDU_NAME npdu_test)
+
+    set(TEST_NPDU_DAEMON npdu_test_rmd)
+    set(TEST_NPDU_DAEMON_CLIENT ${TEST_NPDU_DAEMON}_client_side)
+    add_executable(${TEST_NPDU_DAEMON_CLIENT} npdu_tests/${TEST_NPDU_DAEMON}.cpp)
+    set_target_properties(${TEST_NPDU_DAEMON_CLIENT} PROPERTIES COMPILE_FLAGS -DRMD_CLIENT_SIDE)
+    target_link_libraries(${TEST_NPDU_DAEMON_CLIENT}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_DAEMON_SERVICE ${TEST_NPDU_DAEMON}_service_side)
+    add_executable(${TEST_NPDU_DAEMON_SERVICE} npdu_tests/${TEST_NPDU_DAEMON}.cpp)
+    set_target_properties(${TEST_NPDU_DAEMON_SERVICE} PROPERTIES COMPILE_FLAGS -DRMD_SERVICE_SIDE)
+    target_link_libraries(${TEST_NPDU_DAEMON_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    ##############################################################################
+
+    set(TEST_NPDU_SERVICE npdu_test_service)
+
+    set(TEST_NPDU_SERVICE_ONE npdu_test_service_1)
+    add_executable(${TEST_NPDU_SERVICE_ONE} npdu_tests/${TEST_NPDU_SERVICE}.cpp)
+    set_target_properties(${TEST_NPDU_SERVICE_ONE} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=0)
+    target_link_libraries(${TEST_NPDU_SERVICE_ONE}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_SERVICE_TWO npdu_test_service_2)
+    add_executable(${TEST_NPDU_SERVICE_TWO} npdu_tests/${TEST_NPDU_SERVICE}.cpp)
+    set_target_properties(${TEST_NPDU_SERVICE_TWO} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=1)
+    target_link_libraries(${TEST_NPDU_SERVICE_TWO}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_SERVICE_THREE npdu_test_service_3)
+    add_executable(${TEST_NPDU_SERVICE_THREE} npdu_tests/${TEST_NPDU_SERVICE}.cpp)
+    set_target_properties(${TEST_NPDU_SERVICE_THREE} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=2)
+    target_link_libraries(${TEST_NPDU_SERVICE_THREE}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_SERVICE_FOUR npdu_test_service_4)
+    add_executable(${TEST_NPDU_SERVICE_FOUR} npdu_tests/${TEST_NPDU_SERVICE}.cpp)
+    set_target_properties(${TEST_NPDU_SERVICE_FOUR} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=3)
+    target_link_libraries(${TEST_NPDU_SERVICE_FOUR}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config file for service w/o npdu into $BUILDDIR/test
+    set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_no_npdu.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        ${TEST_NPDU_SERVICE_ONE}
+    )
+
+    # Copy bashscript to start service w/o npdu into $BUILDDIR/test
+    set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_no_npdu_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_SERVICE_START_SCRIPT}
+        ${TEST_NPDU_SERVICE_ONE}
+    )
+
+    # Copy config file for service with npdu into $BUILDDIR/test
+    set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_npdu.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_SERVICE_CONFIG_FILE}
+        ${TEST_NPDU_SERVICE_ONE}
+    )
+
+    # Copy bashscript to start service with npdu into $BUILDDIR/test
+    set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_npdu_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_SERVICE_START_SCRIPT}
+        ${TEST_NPDU_SERVICE_ONE}
+    )
+
+    ##############################################################################
+
+    set(TEST_NPDU_CLIENT npdu_test_client)
+
+    set(TEST_NPDU_CLIENT_ONE npdu_test_client_1)
+    add_executable(${TEST_NPDU_CLIENT_ONE} npdu_tests/${TEST_NPDU_CLIENT}.cpp)
+    target_link_libraries(${TEST_NPDU_CLIENT_ONE}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_CLIENT_TWO npdu_test_client_2)
+    add_executable(${TEST_NPDU_CLIENT_TWO} npdu_tests/${TEST_NPDU_CLIENT}.cpp)
+    target_link_libraries(${TEST_NPDU_CLIENT_TWO}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_CLIENT_THREE npdu_test_client_3)
+    add_executable(${TEST_NPDU_CLIENT_THREE} npdu_tests/${TEST_NPDU_CLIENT}.cpp)
+    target_link_libraries(${TEST_NPDU_CLIENT_THREE}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_NPDU_CLIENT_FOUR npdu_test_client_4)
+    add_executable(${TEST_NPDU_CLIENT_FOUR} npdu_tests/${TEST_NPDU_CLIENT}.cpp)
+    target_link_libraries(${TEST_NPDU_CLIENT_FOUR}
+        vsomeip3
+        vsomeip3-cfg
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy config files for client w/o npdu into $BUILDDIR/test
+    set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_no_npdu.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        ${TEST_NPDU_CLIENT_ONE}
+    )
+
+    # Copy bashscript to start client w/o npdu into $BUILDDIR/test
+    set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_no_npdu_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_CLIENT_START_SCRIPT}
+        ${TEST_NPDU_CLIENT_ONE}
+    )
+
+    # Copy config file for client with npdu into $BUILDDIR/test
+    set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_npdu.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_CLIENT_CONFIG_FILE}
+        ${TEST_NPDU_CLIENT_ONE}
+    )
+
+    # Copy bashscript to start client with npdu into $BUILDDIR/test
+    set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_npdu_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_CLIENT_START_SCRIPT}
+        ${TEST_NPDU_CLIENT_ONE}
+    )
+
+    ##############################################################################
+
+    set(TEST_NPDU_STARTER ${TEST_NPDU_NAME}_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/npdu_tests/${TEST_NPDU_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_STARTER}
+        ${TEST_NPDU_DAEMON_CLIENT}
+    )
+endif()
+
+##############################################################################
+# someip tp tests
+##############################################################################
+
+if(NOT ${TESTS_BAT})
+    set(TEST_SOMEIPTP_NAME someip_tp_test)
+    set(TEST_SOMEIPTP_SERVICE ${TEST_SOMEIPTP_NAME}_service)
+
+    add_executable(${TEST_SOMEIPTP_SERVICE} someip_tp_tests/${TEST_SOMEIPTP_SERVICE}.cpp)
+    target_link_libraries(${TEST_SOMEIPTP_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    file(GLOB sd_sources
+        "../implementation/service_discovery/src/*entry*.cpp"
+        "../implementation/service_discovery/src/*option*.cpp"
+        "../implementation/service_discovery/src/*message*.cpp"
+    )
+    set(TEST_SOMEIPTP_CLIENT ${TEST_SOMEIPTP_NAME}_msg_sender)
+    add_executable(${TEST_SOMEIPTP_CLIENT}
+        someip_tp_tests/${TEST_SOMEIPTP_CLIENT}.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/deserializer.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/message_impl.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/endpoints/src/tp.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/endpoints/src/tp_reassembler.cpp
+        ${PROJECT_SOURCE_DIR}/implementation/endpoints/src/tp_message.cpp
+        ${sd_sources}
+    )
+
+    target_link_libraries(${TEST_SOMEIPTP_CLIENT}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip3
+        vsomeip3-sd
+    )
+
+    # Copy service config file for external allow tests into $BUILDDIR/test
+    set(TEST_SOMEIPTP_MASTER_CONFIG_FILE ${TEST_SOMEIPTP_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
+        ${TEST_SOMEIPTP_CLIENT}
+    )
+
+    # Copy bashscript to start test (master) into $BUILDDIR/test
+    set(TEST_SOMEIPTP_MASTER_START_SCRIPT ${TEST_SOMEIPTP_NAME}_master_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_START_SCRIPT}.in
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
+        ${TEST_SOMEIPTP_SERVICE}
+    )
+endif()
+
+##############################################################################
+# second IP address tests
+##############################################################################
+
+if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
+    set(TEST_SECOND_ADDRESS_NAME second_address_test)
+    set(TEST_SECOND_ADDRESS_SERVICE ${TEST_SECOND_ADDRESS_NAME}_service)
+    set(TEST_SECOND_ADDRESS_CLIENT ${TEST_SECOND_ADDRESS_NAME}_client)
+
+    add_executable(${TEST_SECOND_ADDRESS_SERVICE}
+        second_address_tests/${TEST_SECOND_ADDRESS_SERVICE}.cpp
+    )
+    target_link_libraries(${TEST_SECOND_ADDRESS_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    add_executable(${TEST_SECOND_ADDRESS_CLIENT}
+        second_address_tests/${TEST_SECOND_ADDRESS_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_SECOND_ADDRESS_CLIENT}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_service_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/conf/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
+        ${TEST_SECOND_ADDRESS_SERVICE}
+    )
+
+    set(TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_slave_client.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
+        ${TEST_SECOND_ADDRESS_CLIENT}
+    )
+
+    set(TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_client.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/conf/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
+        ${TEST_SECOND_ADDRESS_CLIENT}
+    )
+
+    set(TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_slave_service_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
+        ${TEST_SECOND_ADDRESS_SERVICE}
+    )
+
+    set(TEST_SECOND_ADDRESS_MASTER_START_SCRIPT ${TEST_SECOND_ADDRESS_NAME}_master_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT}
+        ${TEST_SECOND_ADDRESS_SERVICE}
+    )
+
+    set(TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT ${TEST_SECOND_ADDRESS_NAME}_slave_starter.sh)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}.in
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
+        ${TEST_SECOND_ADDRESS_CLIENT}
+    )
+endif()
 
 ##############################################################################
 # Add for every test a dependency to gtest
@@ -2691,15 +3048,29 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_MALICIOUS_DATA_SERVICE} gtest)
     add_dependencies(${TEST_MALICIOUS_DATA_CLIENT} gtest)
     if (${TEST_SECURITY})
-        add_dependencies(${TEST_SECURITY_CONFIG_PLUGIN_CLIENT} gtest)
-        add_dependencies(${TEST_SECURITY_CONFIG_PLUGIN_SERVICE} gtest)
+        add_dependencies(${TEST_SECURITY_SERVICE} gtest)
+        add_dependencies(${TEST_SECURITY_CLIENT} gtest)
     endif()
-    add_dependencies(${TEST_DEBUG_DIAG_JOB_SERVICE} gtest)
-    add_dependencies(${TEST_DEBUG_DIAG_JOB_CLIENT} gtest)
     add_dependencies(${TEST_E2E_SERVICE} gtest)
     add_dependencies(${TEST_E2E_CLIENT} gtest)
     add_dependencies(${TEST_EVENT_SERVICE} gtest)
     add_dependencies(${TEST_EVENT_CLIENT} gtest)
+    add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)
+    add_dependencies(${TEST_NPDU_SERVICE_TWO} gtest)
+    add_dependencies(${TEST_NPDU_SERVICE_THREE} gtest)
+    add_dependencies(${TEST_NPDU_SERVICE_FOUR} gtest)
+    add_dependencies(${TEST_NPDU_CLIENT_ONE} gtest)
+    add_dependencies(${TEST_NPDU_CLIENT_TWO} gtest)
+    add_dependencies(${TEST_NPDU_CLIENT_THREE} gtest)
+    add_dependencies(${TEST_NPDU_CLIENT_FOUR} gtest)
+    add_dependencies(${TEST_NPDU_DAEMON_CLIENT} gtest)
+    add_dependencies(${TEST_NPDU_DAEMON_SERVICE} gtest)
+    add_dependencies(${TEST_SOMEIPTP_CLIENT} gtest)
+    add_dependencies(${TEST_SOMEIPTP_SERVICE} gtest)
+    if(${TEST_SECOND_ADDRESS})
+        add_dependencies(${TEST_SECOND_ADDRESS_CLIENT} gtest)
+        add_dependencies(${TEST_SECOND_ADDRESS_SERVICE} gtest)
+    endif()
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -2749,8 +3120,6 @@ if(NOT ${TESTS_BAT})
     if (${TEST_SECURITY})
         add_dependencies(build_tests ${TEST_SECURITY_SERVICE})
         add_dependencies(build_tests ${TEST_SECURITY_CLIENT})
-        add_dependencies(build_tests ${TEST_SECURITY_CONFIG_PLUGIN_CLIENT})
-        add_dependencies(build_tests ${TEST_SECURITY_CONFIG_PLUGIN_SERVICE})
     endif()
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_CLIENT})
     add_dependencies(build_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
@@ -2758,18 +3127,33 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_PENDING_SUBSCRIPTION_CLIENT})
     add_dependencies(build_tests ${TEST_MALICIOUS_DATA_SERVICE})
     add_dependencies(build_tests ${TEST_MALICIOUS_DATA_CLIENT})
-    add_dependencies(build_tests ${TEST_DEBUG_DIAG_JOB_SERVICE})
-    add_dependencies(build_tests ${TEST_DEBUG_DIAG_JOB_CLIENT})
     add_dependencies(build_tests ${TEST_E2E_SERVICE})
     add_dependencies(build_tests ${TEST_E2E_CLIENT})
     add_dependencies(build_tests ${TEST_EVENT_SERVICE})
     add_dependencies(build_tests ${TEST_EVENT_CLIENT})
+    add_dependencies(build_tests ${TEST_NPDU_SERVICE_ONE})
+    add_dependencies(build_tests ${TEST_NPDU_SERVICE_TWO})
+    add_dependencies(build_tests ${TEST_NPDU_SERVICE_THREE})
+    add_dependencies(build_tests ${TEST_NPDU_SERVICE_FOUR})
+    add_dependencies(build_tests ${TEST_NPDU_CLIENT_ONE})
+    add_dependencies(build_tests ${TEST_NPDU_CLIENT_TWO})
+    add_dependencies(build_tests ${TEST_NPDU_CLIENT_THREE})
+    add_dependencies(build_tests ${TEST_NPDU_CLIENT_FOUR})
+    add_dependencies(build_tests ${TEST_NPDU_DAEMON_CLIENT})
+    add_dependencies(build_tests ${TEST_NPDU_DAEMON_SERVICE})
+    add_dependencies(build_tests ${TEST_SOMEIPTP_CLIENT})
+    add_dependencies(build_tests ${TEST_SOMEIPTP_SERVICE})
+    if(${TEST_SECOND_ADDRESS})
+        add_dependencies(build_tests ${TEST_SECOND_ADDRESS_CLIENT})
+        add_dependencies(build_tests ${TEST_SECOND_ADDRESS_SERVICE})
+    endif()
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
 endif()
 
-
+# some tests require the routingmanagerd
+add_dependencies(build_tests routingmanagerd)
 
 ##############################################################################
 # Add tests
@@ -2888,6 +3272,11 @@ if(NOT ${TESTS_BAT})
     )
     set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC} PROPERTIES TIMEOUT 120)
 
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} UDP
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP} PROPERTIES TIMEOUT 120)
+
     # client id tests
     add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
@@ -2938,55 +3327,39 @@ if(NOT ${TESTS_BAT})
 
     # subscribe notify tests
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
-    
+
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE} SAME_SERVICE_ID)
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp
@@ -2999,24 +3372,16 @@ if(NOT ${TESTS_BAT})
 
     # subscribe notify one id tests
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
     set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER} PREFER_TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
-    set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
 
     # cpu load tests
     add_test(NAME ${TEST_CPU_LOAD_NAME}
@@ -3026,159 +3391,111 @@ if(NOT ${TESTS_BAT})
 
     # initial event tests
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_same_service_id_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID MULTIPLE_EVENTS)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID MULTIPLE_EVENTS)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_udp PROPERTIES TIMEOUT 120)
-
-    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} PREFER_TCP ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_prefer_tcp PROPERTIES TIMEOUT 120)
-
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY SERVICE_OFFERED_TCP_AND_UDP)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp PROPERTIES TIMEOUT 120)
 
     add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} TCP_AND_UDP ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
     # offer tests
@@ -3191,12 +3508,12 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_BIG_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_BIG_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_BIG_NAME} PROPERTIES TIMEOUT 360)
-    
+
     # offered services info tets
     add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER})
-    set_tests_properties(${TEST_OFFERED_SERVICES_INFO_NAME}_local PROPERTIES TIMEOUT 180)  
-    
+    set_tests_properties(${TEST_OFFERED_SERVICES_INFO_NAME}_local PROPERTIES TIMEOUT 180)
+
     # Restart-Routing tests
     add_test(NAME ${TEST_RESTART_ROUTING_NAME}
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_RESTART_ROUTING_STARTER}
@@ -3212,11 +3529,6 @@ if(NOT ${TESTS_BAT})
         add_test(NAME ${TEST_SECURITY_NAME}_external_deny
             COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_deny.json --deny
         )
-
-        # security_config_plugin_test
-        add_test(NAME ${TEST_SECURITY_CONFIG_PLUGIN_NAME}
-        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECURITY_CONFIG_PLUGIN_LOCAL_STARTER})
-        set_tests_properties(${TEST_SECURITY_CONFIG_PLUGIN_NAME} PROPERTIES TIMEOUT 180)
     endif()
 
     # pending subscriptions test
@@ -3273,10 +3585,14 @@ if(NOT ${TESTS_BAT})
     COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_MALICIOUS_DATA_MASTER_STARTER} WRONG_HEADER_FIELDS_UDP)
     set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp PROPERTIES TIMEOUT 180)
 
-    # debug_diag_job_plugin_test
-    add_test(NAME ${TEST_DEBUG_DIAG_JOB_NAME}
-    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_DEBUG_DIAG_JOB_MASTER_STARTER})
-    set_tests_properties(${TEST_DEBUG_DIAG_JOB_NAME} PROPERTIES TIMEOUT 180)
+    # npdu tests
+    add_test(NAME ${TEST_NPDU_NAME}_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_STARTER} UDP sync)
+    set_tests_properties(${TEST_NPDU_NAME}_udp PROPERTIES TIMEOUT 840)
+
+    add_test(NAME ${TEST_NPDU_NAME}_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_STARTER} TCP sync)
+    set_tests_properties(${TEST_NPDU_NAME}_tcp PROPERTIES TIMEOUT 840)
 
     # e2e test
     add_test(NAME ${TEST_E2E_NAME}_external
@@ -3299,6 +3615,43 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_EVENT_NAME}_payload_dynamic_tcp
     COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_EVENT_MASTER_START_SCRIPT} PAYLOAD_DYNAMIC TCP)
     set_tests_properties(${TEST_EVENT_NAME}_payload_dynamic_tcp PROPERTIES TIMEOUT 180)
+
+    # SOME/IP-TP tests
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_in_sequence
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} IN_SEQUENCE)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_in_sequence PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_mixed
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} MIXED)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_mixed PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_incomplete
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} INCOMPLETE)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_incomplete PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_duplicate
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} DUPLICATE)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_duplicate PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_overlap
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} OVERLAP)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_overlap PROPERTIES TIMEOUT 180)
+
+    add_test(NAME ${TEST_SOMEIPTP_NAME}_overlap_front_back
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SOMEIPTP_MASTER_START_SCRIPT} OVERLAP_FRONT_BACK)
+    set_tests_properties(${TEST_SOMEIPTP_NAME}_overlap_front_back PROPERTIES TIMEOUT 180)
+
+    if(${TEST_SECOND_ADDRESS})
+        add_test(NAME ${TEST_SECOND_ADDRESS_NAME}_second_ip_address_service_udp
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} SERVICE UDP
+        )
+        set_tests_properties(${TEST_SECOND_ADDRESS_NAME}_second_ip_address_service_udp PROPERTIES TIMEOUT 180)
+
+        add_test(NAME ${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp
+            COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} CLIENT UDP
+        )
+        set_tests_properties(${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp PROPERTIES TIMEOUT 180)
+    endif()
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

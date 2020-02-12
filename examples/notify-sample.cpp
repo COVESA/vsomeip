@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <mutex>
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -62,8 +63,12 @@ public:
                 SAMPLE_INSTANCE_ID,
                 SAMPLE_EVENT_ID,
                 its_groups,
-                true);
-        payload_ = vsomeip::runtime::get()->create_payload();
+                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+        {
+            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            payload_ = vsomeip::runtime::get()->create_payload();
+        }
 
         blocked_ = true;
         condition_.notify_one();
@@ -120,17 +125,23 @@ public:
     void on_get(const std::shared_ptr<vsomeip::message> &_message) {
         std::shared_ptr<vsomeip::message> its_response
             = vsomeip::runtime::get()->create_response(_message);
-        its_response->set_payload(payload_);
-        app_->send(its_response, true);
+        {
+            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            its_response->set_payload(payload_);
+        }
+        app_->send(its_response);
     }
 
     void on_set(const std::shared_ptr<vsomeip::message> &_message) {
-        payload_ = _message->get_payload();
-
         std::shared_ptr<vsomeip::message> its_response
             = vsomeip::runtime::get()->create_response(_message);
-        its_response->set_payload(payload_);
-        app_->send(its_response, true);
+        {
+            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            payload_ = _message->get_payload();
+            its_response->set_payload(payload_);
+        }
+
+        app_->send(its_response);
         app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
                      SAMPLE_EVENT_ID, payload_);
     }
@@ -176,10 +187,13 @@ public:
                 for (uint32_t i = 0; i < its_size; ++i)
                     its_data[i] = static_cast<uint8_t>(i);
 
-                payload_->set_data(its_data, its_size);
+                {
+                    std::lock_guard<std::mutex> its_lock(payload_mutex_);
+                    payload_->set_data(its_data, its_size);
 
-                std::cout << "Setting event (Length=" << std::dec << its_size << ")." << std::endl;
-                app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, payload_);
+                    std::cout << "Setting event (Length=" << std::dec << its_size << ")." << std::endl;
+                    app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, payload_);
+                }
 
                 its_size++;
 
@@ -203,6 +217,7 @@ private:
     std::condition_variable notify_condition_;
     bool is_offered_;
 
+    std::mutex payload_mutex_;
     std::shared_ptr<vsomeip::payload> payload_;
 
     // blocked_ / is_offered_ must be initialized before starting the threads!

@@ -36,6 +36,10 @@ big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _
             expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES / 2;
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC;
             break;
+        case big_payload_test::test_mode::UDP:
+            expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES;
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_UDP;
+            break;
         default:
             expected_messages_ = big_payload_test::BIG_PAYLOAD_TEST_NUMBER_MESSAGES;
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
@@ -122,68 +126,13 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
             << std::setw(4) << std::setfill('0') << std::hex
             << _request->get_session() << "] size: " << std::dec
             << _request->get_payload()->get_length();
-
-    static vsomeip::session_t last_session(0);
-    ASSERT_GT(_request->get_session(), last_session);
-    last_session = _request->get_session();
-    if (test_mode_ == big_payload_test::test_mode::RANDOM) {
-        ASSERT_LT(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
-    } else {
-        ASSERT_EQ(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
-    }
-    bool check(true);
-    vsomeip::length_t len = _request->get_payload()->get_length();
-    vsomeip::byte_t* datap = _request->get_payload()->get_data();
-    for(unsigned int i = 0; i < len; ++i) {
-        check = check && datap[i] == big_payload_test::DATA_CLIENT_TO_SERVICE;
-    }
-    if(!check) {
-        GTEST_FATAL_FAILURE_("wrong data transmitted");
-    }
-
-    number_of_received_messages_++;
-
-    // send response
-    std::shared_ptr<vsomeip::message> its_response =
-            vsomeip::runtime::get()->create_response(_request);
-
-    std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()
-    ->create_payload();
-    std::vector<vsomeip::byte_t> its_payload_data;
-    if (test_mode_ == big_payload_test::test_mode::RANDOM) {
-        its_payload_data.assign(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM,
-                big_payload_test::DATA_SERVICE_TO_CLIENT);
-    } else if (test_mode_ == big_payload_test::test_mode::LIMITED
-            || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
-            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-        if (number_of_received_messages_ % 2) {
-            // try to send to big response for half of the received messsages.
-            // this way the client will only get replies for a fourth of his sent
-            // requests as he tries to sent to big data for every second request
-            // as well
-            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 1,
-                    big_payload_test::DATA_SERVICE_TO_CLIENT);
-        } else {
-            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
-                    big_payload_test::DATA_SERVICE_TO_CLIENT);
-        }
-    } else {
-        its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
-                big_payload_test::DATA_SERVICE_TO_CLIENT);
-    }
-
-    its_payload->set_data(its_payload_data);
-    its_response->set_payload(its_payload);
-
-    app_->send(its_response, true);
-
-    if(number_of_received_messages_ == expected_messages_) {
-        ASSERT_EQ(expected_messages_, number_of_received_messages_);
+    {
         std::lock_guard<std::mutex> its_lock(mutex_);
-        blocked_ = true;
+        incoming_requests_.push(_request);
         condition_.notify_one();
     }
+
+
 }
 
 void big_payload_test_service::run()
@@ -198,16 +147,87 @@ void big_payload_test_service::run()
 
         // wait for shutdown
         blocked_ = false;
-        while (!blocked_) {
-            condition_.wait(its_lock);
+        while (!blocked_ || !incoming_requests_.empty()) {
+            if (incoming_requests_.empty()) {
+                condition_.wait(its_lock);
+            }
+            auto _request = incoming_requests_.front();
+            incoming_requests_.pop();
+            number_of_received_messages_++;
+            its_lock.unlock();
+
+            static vsomeip::session_t last_session(0);
+            ASSERT_GT(_request->get_session(), last_session);
+            last_session = _request->get_session();
+            if (test_mode_ == big_payload_test::test_mode::RANDOM) {
+                EXPECT_LT(_request->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+            } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+                EXPECT_EQ(big_payload_test::BIG_PAYLOAD_SIZE_UDP, _request->get_payload()->get_length());
+            } else {
+                EXPECT_EQ(big_payload_test::BIG_PAYLOAD_SIZE, _request->get_payload()->get_length());
+            }
+            bool check(true);
+            vsomeip::length_t len = _request->get_payload()->get_length();
+            vsomeip::byte_t* datap = _request->get_payload()->get_data();
+            for(unsigned int i = 0; i < len; ++i) {
+                check = check && datap[i] == big_payload_test::DATA_CLIENT_TO_SERVICE;
+            }
+            if(!check) {
+                GTEST_FATAL_FAILURE_("wrong data transmitted");
+            }
+
+            // send response
+            std::shared_ptr<vsomeip::message> its_response =
+                    vsomeip::runtime::get()->create_response(_request);
+
+            std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()
+            ->create_payload();
+            std::vector<vsomeip::byte_t> its_payload_data;
+            if (test_mode_ == big_payload_test::test_mode::RANDOM) {
+                its_payload_data.assign(static_cast<unsigned int>(std::rand()) % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM,
+                        big_payload_test::DATA_SERVICE_TO_CLIENT);
+            } else if (test_mode_ == big_payload_test::test_mode::LIMITED
+                    || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+                    || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+                    || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
+                if (number_of_received_messages_ % 2) {
+                    // try to send to big response for half of the received messsages.
+                    // this way the client will only get replies for a fourth of his sent
+                    // requests as he tries to sent to big data for every second request
+                    // as well
+                    its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 1,
+                            big_payload_test::DATA_SERVICE_TO_CLIENT);
+                } else {
+                    its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                            big_payload_test::DATA_SERVICE_TO_CLIENT);
+                }
+            } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE_UDP,
+                        big_payload_test::DATA_SERVICE_TO_CLIENT);
+            } else {
+                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
+                        big_payload_test::DATA_SERVICE_TO_CLIENT);
+            }
+
+            its_payload->set_data(its_payload_data);
+            its_response->set_payload(its_payload);
+
+            app_->send(its_response);
+
+            if(number_of_received_messages_ == expected_messages_) {
+                ASSERT_EQ(expected_messages_, number_of_received_messages_);
+                blocked_ = true;
+            }
+            its_lock.lock();
         }
     }
     std::this_thread::sleep_for(std::chrono::seconds(3));
     if (test_mode_ == big_payload_test::test_mode::LIMITED
             || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-        ASSERT_EQ(number_of_received_messages_, expected_messages_);
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC
+            || test_mode_ == big_payload_test::test_mode::UDP) {
+        EXPECT_EQ(expected_messages_, number_of_received_messages_);
     }
     stop();
 }
@@ -239,6 +259,8 @@ int main(int argc, char** argv)
             test_mode = big_payload_test::test_mode::QUEUE_LIMITED_GENERAL;
         } else if (std::string("QUEUELIMITEDSPECIFIC") == std::string(argv[1])) {
             test_mode = big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC;
+        } else if (std::string("UDP") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::UDP;
         }
     }
     return RUN_ALL_TESTS();

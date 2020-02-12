@@ -6,7 +6,7 @@
 #include "../../../e2e_protection/include/buffer/buffer.hpp"
 #include <iomanip>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::ostream &operator<<(std::ostream &_os, const e2e_buffer &_buffer) {
     for (auto b : _buffer) {
@@ -19,4 +19,4 @@ std::ostream &operator<<(std::ostream &_os, const e2e_buffer &_buffer) {
     return _os;
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

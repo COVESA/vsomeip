@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,7 +7,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 protection_option_impl::protection_option_impl() {
@@ -20,11 +20,18 @@ protection_option_impl::protection_option_impl() {
 protection_option_impl::~protection_option_impl() {
 }
 
-bool protection_option_impl::operator ==(
-        const protection_option_impl &_other) const {
-    return (option_impl::operator ==(_other)
-            && counter_ == _other.counter_
-            && crc_ == _other.crc_);
+bool
+protection_option_impl::operator ==(const option_impl &_other) const {
+    bool is_equal(option_impl::operator ==(_other));
+
+    if (is_equal) {
+        const protection_option_impl &its_other
+            = dynamic_cast<const protection_option_impl &>(_other);
+        is_equal = (counter_ == its_other.counter_
+                && crc_ == its_other.crc_);
+    }
+
+    return is_equal;
 }
 
 alive_counter_t protection_option_impl::get_alive_counter() const {
@@ -43,7 +50,7 @@ void protection_option_impl::set_crc(crc_t _crc) {
     crc_ = _crc;
 }
 
-bool protection_option_impl::serialize(vsomeip::serializer *_to) const {
+bool protection_option_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = option_impl::serialize(_to);
     is_successful = is_successful
             && _to->serialize(static_cast<uint32_t>(counter_));
@@ -52,7 +59,7 @@ bool protection_option_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool protection_option_impl::deserialize(vsomeip::deserializer *_from) {
+bool protection_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from);
 
     uint32_t its_alive_counter = 0;
@@ -67,4 +74,4 @@ bool protection_option_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

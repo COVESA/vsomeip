@@ -3,14 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_RUNTIME_IMPL_HPP
-#define VSOMEIP_RUNTIME_IMPL_HPP
+#ifndef VSOMEIP_V3_RUNTIME_IMPL_HPP_
+#define VSOMEIP_V3_RUNTIME_IMPL_HPP_
 
 #include <vsomeip/runtime.hpp>
 #include <map>
 #include <mutex>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class runtime_impl: public runtime {
 public:
@@ -43,15 +43,13 @@ public:
     void remove_application( const std::string &_name);
 
 private:
-    static std::shared_ptr<runtime> the_runtime_;
     static std::map<std::string, std::string> properties_;
 
     std::map<std::string, std::weak_ptr<application>> applications_;
 
     mutable std::mutex applications_mutex_;
-    static uint32_t postfix_id;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_RUNTIME_IMPL_HPP
+#endif // VSOMEIP_V3_RUNTIME_IMPL_HPP_

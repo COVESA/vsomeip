@@ -13,9 +13,10 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <queue>
 
 #include "big_payload_test_globals.hpp"
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 
 class big_payload_test_service
@@ -43,6 +44,7 @@ private:
     std::thread offer_thread_;
     std::uint32_t expected_messages_;
     vsomeip::service_t service_id_;
+    std::queue<std::shared_ptr<vsomeip::message>> incoming_requests_;
 };
 
 #endif /* BIGPAYLOADTESTSERVICE_HPP_ */

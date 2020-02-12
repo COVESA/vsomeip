@@ -14,7 +14,7 @@
 #include <atomic>
 
 #include <gtest/gtest.h>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -68,15 +68,26 @@ public:
         // one of the events is in both eventgroups
         its_groups.insert(info_.eventgroup_id);
         app_->offer_event(info_.service_id, info_.instance_id,
-                info_.event_id, its_groups, true);
+                info_.event_id, its_groups, vsomeip::event_type_e::ET_FIELD,
+                std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         app_->offer_event(info_.service_id, info_.instance_id,
-                 static_cast<vsomeip::event_t>(info_.event_id + 2), its_groups, true);
+                 static_cast<vsomeip::event_t>(info_.event_id + 2),
+                 its_groups, vsomeip::event_type_e::ET_FIELD,
+                 std::chrono::milliseconds::zero(),
+                 false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         its_groups.erase(info_.eventgroup_id);
         its_groups.insert(static_cast<vsomeip::eventgroup_t>(info_.eventgroup_id + 1));
         app_->offer_event(info_.service_id, info_.instance_id,
-                static_cast<vsomeip::event_t>(info_.event_id + 1), its_groups, true);
+                static_cast<vsomeip::event_t>(info_.event_id + 1),
+                its_groups, vsomeip::event_type_e::ET_FIELD,
+                std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         app_->offer_event(info_.service_id, info_.instance_id,
-                static_cast<vsomeip::event_t>(info_.event_id + 2), its_groups, true);
+                static_cast<vsomeip::event_t>(info_.event_id + 2),
+                its_groups, vsomeip::event_type_e::ET_FIELD,
+                std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         payload_ = vsomeip::runtime::get()->create_payload();
 
         return true;
@@ -125,7 +136,7 @@ public:
         std::shared_ptr<vsomeip::message> its_response
             = vsomeip::runtime::get()->create_response(_message);
         its_response->set_payload(payload_);
-        app_->send(its_response, true);
+        app_->send(its_response);
         {
             std::lock_guard<std::mutex> its_lock(shutdown_mutex_);
             wait_for_shutdown_ = false;
@@ -138,14 +149,14 @@ public:
             = vsomeip::runtime::get()->create_response(_message);
         payload_ = _message->get_payload();
         its_response->set_payload(payload_);
-        app_->send(its_response, true);
+        app_->send(its_response);
         app_->notify(info_.service_id, info_.instance_id, info_.event_id, payload_);
         app_->notify(info_.service_id, info_.instance_id, static_cast<vsomeip::event_t>(info_.event_id + 1), payload_);
         app_->notify(info_.service_id, info_.instance_id, static_cast<vsomeip::event_t>(info_.event_id + 2), payload_);
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_message) {
-        app_->send(vsomeip::runtime::get()->create_response(_message),true);
+        app_->send(vsomeip::runtime::get()->create_response(_message));
     }
 
     void wait_for_shutdown() {

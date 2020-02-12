@@ -10,12 +10,8 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-if [ $# -lt 2 ]
+if [ $# -lt 1 ]
 then
-    echo "Please pass a subscription method to this script."
-    echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_slave.json"
-    echo "Valid subscription types include:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
     echo "Please pass a json file to this script."
     echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_slave.json"
     echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
@@ -23,31 +19,10 @@ then
     exit 1
 fi
 
-PASSED_SUBSCRIPTION_TYPE=$1
-PASSED_JSON_FILE=$2
+PASSED_JSON_FILE=$1
 # Remove processed options from $@
-shift 2
+shift 1
 REMAINING_OPTIONS=$@
-
-# Make sure only valid subscription types are passed to the script
-SUBSCRIPTION_TYPES="TCP_AND_UDP PREFER_UDP PREFER_TCP UDP TCP"
-VALID=0
-for valid_subscription_type in $SUBSCRIPTION_TYPES
-do
-    if [ $valid_subscription_type == $PASSED_SUBSCRIPTION_TYPE ]
-    then
-        VALID=1
-    fi
-done
-
-if [ $VALID -eq 0 ]
-then
-    echo "Invalid subscription type passed, valid types are:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
-    echo "Exiting"
-    exit 1
-fi
-
 
 FAIL=0
 
@@ -72,7 +47,7 @@ unset VSOMEIP_APPLICATION_NAME
 CLIENT_PIDS=()
 
 # Start first client which subscribes remotely
-./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE DONT_EXIT $REMAINING_OPTIONS &
+./initial_event_test_client 9000 DONT_EXIT $REMAINING_OPTIONS &
 FIRST_PID=$!
 
 # remove SUBSCRIBE_ONLY_ONCE parameter from $REMAINING_OPTIONS to ensure the
@@ -90,7 +65,7 @@ wait $PID_AVAILABILITY_CHECKER
 sleep 2;
 for client_number in $(seq 9001 9011)
 do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE STRICT_CHECKING $REMAINING_OPTIONS &
+   ./initial_event_test_client $client_number STRICT_CHECKING $REMAINING_OPTIONS &
    CLIENT_PIDS+=($!)
 done
 

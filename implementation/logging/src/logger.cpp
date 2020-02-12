@@ -5,10 +5,10 @@
 
 #include "../include/logger_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::shared_ptr<logger> logger::get() {
     return logger_impl::get();
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3l

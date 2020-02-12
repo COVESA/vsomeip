@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_MESSAGE_BASE_IMPL_HPP
-#define VSOMEIP_MESSAGE_BASE_IMPL_HPP
+#ifndef VSOMEIP_V3_MESSAGE_BASE_IMPL_HPP
+#define VSOMEIP_V3_MESSAGE_BASE_IMPL_HPP
 
 #include <boost/thread.hpp>
 
@@ -13,7 +13,7 @@
 
 #include "message_header_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class message_base_impl
         : virtual public message_base {
@@ -56,22 +56,18 @@ public:
     VSOMEIP_EXPORT bool is_reliable() const;
     VSOMEIP_EXPORT void set_reliable(bool _is_reliable);
 
-    VSOMEIP_EXPORT virtual bool is_initial() const;
-    VSOMEIP_EXPORT virtual void set_initial(bool _is_initial);
+    VSOMEIP_EXPORT bool is_initial() const;
+    VSOMEIP_EXPORT void set_initial(bool _is_initial);
 
     VSOMEIP_EXPORT message * get_owner() const;
     VSOMEIP_EXPORT void set_owner(message *_owner);
-
-    VSOMEIP_EXPORT bool is_valid_crc() const;
-    VSOMEIP_EXPORT void set_is_valid_crc(bool _is_valid_crc);
 
 protected: // members
     message_header_impl header_;
     bool is_reliable_;
     bool is_initial_;
-    bool is_valid_crc_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_INTERNAL_MESSAGE_BASE_IMPL_HPP
+#endif // VSOMEIP_V3_MESSAGE_BASE_IMPL_HPP

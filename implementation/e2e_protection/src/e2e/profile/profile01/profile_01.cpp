@@ -10,7 +10,7 @@
 #include <string>
 #include <iomanip>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace e2e {
 namespace profile01 {
 
@@ -88,7 +88,7 @@ uint8_t profile_01::compute_crc(const profile_config &_config, const e2e_buffer 
     // Compute the area after CRC, if  CRC is not the last byte. Start with  the byte after CRC, finish with the last byte of Data.
     if ((_config.crc_offset_) < (_config.data_length_ / 8) - 1) {
         // CRC = Crc_CalculateCRC8 (& Data[Config->CRCOffset/8 + 1], (Config->DataLength / 8 - Config->CRCOffset / 8 - 1), CRC, FALSE)
-        computed_crc = e2e_crc::calculate_profile_01(buffer_view(_buffer, _config.crc_offset_ + 1, _buffer.size()), computed_crc);
+        computed_crc = e2e_crc::calculate_profile_01(buffer_view(_buffer, static_cast<size_t>(_config.crc_offset_ + 1), _buffer.size()), computed_crc);
     }
 
     // CRC = CRC ^ 0xFF
@@ -107,4 +107,4 @@ bool profile_01::is_buffer_length_valid(const profile_config &_config, const e2e
 
 } // namespace profile01
 } // namespace e2e
-} // namespace vsomeip
+} // namespace vsomeip_v3

@@ -3,12 +3,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_MESSAGE_IMPL_HPP
-#define VSOMEIP_MESSAGE_IMPL_HPP
+#ifndef VSOMEIP_V3_MESSAGE_IMPL_HPP
+#define VSOMEIP_V3_MESSAGE_IMPL_HPP
 
 #include <memory>
 
 #include <vsomeip/export.hpp>
+#include <vsomeip/primitive_types.hpp>
 #include "message_base_impl.hpp"
 
 #  if _MSC_VER >= 1300
@@ -21,7 +22,7 @@
 #    pragma warning( disable : 4250 )
 #  endif
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class payload;
 
@@ -41,10 +42,23 @@ public:
     VSOMEIP_EXPORT bool serialize(serializer *_to) const;
     VSOMEIP_EXPORT bool deserialize(deserializer *_from);
 
+    VSOMEIP_EXPORT uint8_t get_check_result() const;
+    VSOMEIP_EXPORT void set_check_result(uint8_t _check_result);
+    VSOMEIP_EXPORT bool is_valid_crc() const;
+
+    VSOMEIP_EXPORT uid_t get_uid() const;
+    VSOMEIP_EXPORT void set_uid(uid_t _uid);
+
+    VSOMEIP_EXPORT gid_t get_gid() const;
+    VSOMEIP_EXPORT void set_gid(gid_t _gid);
+
 protected: // members
     std::shared_ptr< payload > payload_;
+    uint8_t check_result_;
+    uid_t uid_;
+    gid_t gid_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_MESSAGE_IMPL_HPP
+#endif // VSOMEIP_V3_MESSAGE_IMPL_HPP

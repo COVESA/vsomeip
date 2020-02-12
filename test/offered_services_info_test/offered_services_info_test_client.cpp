@@ -17,8 +17,13 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
-#include "../../implementation/configuration/include/internal.hpp"
+#include <vsomeip/internal/logger.hpp>
+
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif
 
 #include "offered_services_info_test_globals.hpp"
 
@@ -38,11 +43,9 @@ public:
             remote_service_info_(_remote_service_info),
             operation_mode_(_mode),
             app_(vsomeip::runtime::get()->create_application("offered_services_info_test_client")),
-            service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
             wait_for_stop_(true),
-            last_received_counter_(0),
             last_received_response_(std::chrono::steady_clock::now()),
             number_received_responses_(0),
             stop_thread_(std::bind(&offered_services_info_test_client::wait_for_stop, this)),
@@ -273,7 +276,6 @@ private:
     struct offer_test::service_info remote_service_info_;
     operation_mode_e operation_mode_;
     std::shared_ptr<vsomeip::application> app_;
-    bool service_available_;
 
     bool wait_until_registered_;
     bool wait_until_service_available_;
@@ -284,7 +286,6 @@ private:
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
 
-    std::uint32_t last_received_counter_;
     std::chrono::steady_clock::time_point last_received_response_;
     std::atomic<std::uint32_t> number_received_responses_;
     std::promise<void> all_callbacks_received_;

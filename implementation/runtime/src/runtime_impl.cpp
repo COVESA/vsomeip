@@ -10,11 +10,9 @@
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/payload_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::map<std::string, std::string> runtime_impl::properties_;
-std::shared_ptr<runtime> runtime_impl::the_runtime_ = std::make_shared<runtime_impl>();
-uint32_t runtime_impl::postfix_id = 0;
 
 std::string runtime_impl::get_property(const std::string &_name) {
     auto found_property = properties_.find(_name);
@@ -28,6 +26,7 @@ void runtime_impl::set_property(const std::string &_name, const std::string &_va
 }
 
 std::shared_ptr<runtime> runtime_impl::get() {
+    static std::shared_ptr<runtime> the_runtime_ = std::make_shared<runtime_impl>();
     return the_runtime_;
 }
 
@@ -36,6 +35,7 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
+    static std::uint32_t postfix_id = 0;
     std::lock_guard<std::mutex> its_lock(applications_mutex_);
     std::string its_name_ = _name;
     auto found_application = applications_.find(_name);
@@ -128,4 +128,4 @@ void runtime_impl::remove_application(
     }
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

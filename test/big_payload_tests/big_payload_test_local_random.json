@@ -16,12 +16,12 @@
         {
             "name":"big_payload_test_service",
             "id":"0x1277",
-            "max_dispatch_time" : "5000"
+            "max_dispatchers" : "0"
         },
         {
             "name":"big_payload_test_client",
             "id":"0x1344",
-            "max_dispatch_time" : "5000"
+            "max_dispatchers" : "0"
         }
     ],
     "services":

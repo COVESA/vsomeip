@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_DEFINES_HPP
-#define VSOMEIP_DEFINES_HPP
+#ifndef VSOMEIP_V3_DEFINES_HPP_
+#define VSOMEIP_V3_DEFINES_HPP_
 
 #define VSOMEIP_PROTOCOL_VERSION                0x1
 
@@ -38,4 +38,4 @@
 #define VSOMEIP_RETURN_CODE_POS                 15
 #define VSOMEIP_PAYLOAD_POS                     16
 
-#endif // VSOMEIP_DEFINES_HPP
+#endif // VSOMEIP_V3_DEFINES_HPP_

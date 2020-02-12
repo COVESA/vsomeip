@@ -5,10 +5,10 @@
 
 #include <cstdint>
 
-#ifndef VSOMEIP_SD_ENUMERATION_TYPES_HPP
-#define VSOMEIP_SD_ENUMERATION_TYPES_HPP
+#ifndef VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP
+#define VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 enum class option_type_e
@@ -20,6 +20,7 @@ enum class option_type_e
     IP6_ENDPOINT = 0x6,
     IP4_MULTICAST = 0x14,
     IP6_MULTICAST = 0x16,
+    SELECTIVE = 0x20,
     UNKNOWN = 0xFF
 };
 
@@ -47,6 +48,6 @@ enum class layer_four_protocol_e
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_ENUMERATION_TYPES_HPP
+#endif // VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP

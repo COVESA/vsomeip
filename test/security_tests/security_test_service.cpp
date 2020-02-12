@@ -43,11 +43,15 @@ bool security_test_service::init() {
     its_eventgroups.insert(0x01);
 
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8001), its_eventgroups, true);
+                static_cast<vsomeip::event_t>(0x8001), its_eventgroups,
+                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
     // also offer field 0x8002 which is not allowed to be received by client
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8002), its_eventgroups, true);
+                static_cast<vsomeip::event_t>(0x8002), its_eventgroups,
+                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
     // set value to fields
     std::shared_ptr<vsomeip::payload> its_payload =
@@ -128,7 +132,7 @@ void security_test_service::on_message(const std::shared_ptr<vsomeip::message>& 
     std::shared_ptr<vsomeip::message> its_response =
             vsomeip::runtime::get()->create_response(_request);
 
-    app_->send(its_response, true);
+    app_->send(its_response);
 
     number_of_received_messages_++;
     if(number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS) {

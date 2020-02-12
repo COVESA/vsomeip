@@ -4,14 +4,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../../../../../e2e_protection/include/e2e/profile/profile01/protector.hpp"
-#include "../../../../../logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <iomanip>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace e2e {
 namespace profile01 {
 
@@ -76,4 +76,4 @@ void protector::increment_counter(void) {
 
 } // namespace profile01
 } // namespace e2e
-} // namespace vsomeip
+} // namespace vsomeip_v3

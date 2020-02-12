@@ -22,7 +22,7 @@ elif [ "$COMMUNICATIONMODE" = "UDP" ]; then
 fi
 
 
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 ./event_test_service &

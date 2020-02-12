@@ -115,7 +115,7 @@ public:
         resp->set_payload(resp_pl);
 
         // Send the response back
-        app_->send(resp, true);
+        app_->send(resp);
         // we have finished
         terminate();
     }

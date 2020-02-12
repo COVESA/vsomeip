@@ -1,15 +1,15 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_MESSAGE_IMPL_HPP
-#define VSOMEIP_SD_MESSAGE_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_MESSAGE_IMPL_HPP_
+#define VSOMEIP_V3_SD_MESSAGE_IMPL_HPP_
 
-#include <memory>
-#include <vector>
 #include <atomic>
+#include <memory>
 #include <mutex>
+#include <vector>
 
 #include <vsomeip/message.hpp>
 
@@ -27,7 +27,7 @@
 #    pragma warning( disable : 4250 )
 #  endif
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 class entry_impl;
@@ -40,16 +40,18 @@ class ipv4_option_impl;
 class ipv6_option_impl;
 class load_balancing_option_impl;
 class protection_option_impl;
+class selective_option_impl;
 
-class message_impl: public vsomeip::message, public vsomeip::message_base_impl {
+class message_impl
+        : public vsomeip_v3::message, public vsomeip_v3::message_base_impl {
 public:
     typedef std::vector<std::shared_ptr<entry_impl>> entries_t;
     typedef std::vector<std::shared_ptr<option_impl>> options_t;
     struct forced_initial_events_t {
-        std::shared_ptr<vsomeip::endpoint_definition> target_;
-        vsomeip::service_t service_;
-        vsomeip::instance_t instance_;
-        vsomeip::eventgroup_t eventgroup_;
+        std::shared_ptr<vsomeip_v3::endpoint_definition> target_;
+        vsomeip_v3::service_t service_;
+        vsomeip_v3::instance_t instance_;
+        vsomeip_v3::eventgroup_t eventgroup_;
     };
     message_impl();
     virtual ~message_impl();
@@ -57,43 +59,42 @@ public:
     length_t get_length() const;
     void set_length(length_t _length);
 
+    length_t get_size() const;
+
     bool get_reboot_flag() const;
     void set_reboot_flag(bool _is_set);
 
     bool get_unicast_flag() const;
     void set_unicast_flag(bool _is_set);
 
-    std::shared_ptr<eventgroupentry_impl> create_eventgroup_entry();
-    std::shared_ptr<serviceentry_impl> create_service_entry();
-
-    std::shared_ptr<configuration_option_impl> create_configuration_option();
-    std::shared_ptr<ipv4_option_impl> create_ipv4_option(bool _is_multicast);
-    std::shared_ptr<ipv6_option_impl> create_ipv6_option(bool _is_multicast);
-    std::shared_ptr<load_balancing_option_impl> create_load_balancing_option();
-    std::shared_ptr<protection_option_impl> create_protection_option();
+    bool has_entry() const;
+    bool has_option() const;
 
     const entries_t & get_entries() const;
     const options_t & get_options() const;
 
+    bool add_entry_data(const std::shared_ptr<entry_impl> &_entry,
+            const std::vector<std::shared_ptr<option_impl> > &_options,
+            const std::shared_ptr<entry_impl> &_other = nullptr);
+
+    std::shared_ptr<option_impl> find_option(
+            const std::shared_ptr<option_impl> &_option) const;
+
     int16_t get_option_index(const std::shared_ptr<option_impl> &_option) const;
+    std::shared_ptr<option_impl> get_option(int16_t _index) const;
     uint32_t get_options_length();
 
     std::shared_ptr<payload> get_payload() const;
     void set_payload(std::shared_ptr<payload> _payload);
 
-    bool serialize(vsomeip::serializer *_to) const;
-    bool deserialize(vsomeip::deserializer *_from);
+    uint8_t get_check_result() const;
+    void set_check_result(uint8_t _check_result);
+    bool is_valid_crc() const;
+
+    bool serialize(vsomeip_v3::serializer *_to) const;
+    bool deserialize(vsomeip_v3::deserializer *_from);
 
     length_t get_someip_length() const;
-
-    std::uint8_t get_number_required_acks() const;
-    std::uint8_t get_number_contained_acks() const;
-    void set_number_required_acks(std::uint8_t _required_acks);
-    void increase_number_required_acks(std::uint8_t _amount = 1);
-    void decrease_number_required_acks(std::uint8_t _amount = 1);
-    void increase_number_contained_acks();
-    bool all_required_acks_contained() const;
-    std::unique_lock<std::mutex> get_message_lock();
 
     void forced_initial_events_add(forced_initial_events_t _entry);
     const std::vector<forced_initial_events_t> forced_initial_events_get();
@@ -101,9 +102,12 @@ public:
     void set_initial_events_required(bool _initial_events_required);
     bool initial_events_required() const;
 
+    uid_t get_uid() const;
+    gid_t get_gid() const;
+
 private:
-    entry_impl * deserialize_entry(vsomeip::deserializer *_from);
-    option_impl * deserialize_option(vsomeip::deserializer *_from);
+    entry_impl * deserialize_entry(vsomeip_v3::deserializer *_from);
+    option_impl * deserialize_option(vsomeip_v3::deserializer *_from);
 
 private:
     flags_t flags_;
@@ -111,17 +115,13 @@ private:
 
     entries_t entries_;
     options_t options_;
-    std::atomic<std::uint8_t> number_required_acks_;
-    std::atomic<std::uint8_t> number_contained_acks_;
+
     std::mutex message_mutex_;
 
-    std::mutex forced_initial_events_mutex_;
-    std::vector<forced_initial_events_t> forced_initial_events_info_;
-
-    std::atomic<bool> initial_events_required_;
+    std::uint32_t current_message_size_;
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_INTERNAL_SD_MESSAGE_IMPL_HPP
+#endif // VSOMEIP_V3_SD_MESSAGE_IMPL_HPP_

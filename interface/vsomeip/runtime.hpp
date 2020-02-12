@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_RUNTIME_HPP
-#define VSOMEIP_RUNTIME_HPP
+#ifndef VSOMEIP_V3_RUNTIME_HPP
+#define VSOMEIP_V3_RUNTIME_HPP
 
 #include <memory>
 #include <string>
@@ -13,7 +13,7 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class application;
 class message;
@@ -211,6 +211,6 @@ public:
 
 /** @} */
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_RUNTIME_HPP
+#endif // VSOMEIP_V3_RUNTIME_HPP_

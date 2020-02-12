@@ -3,12 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_PLUGIN_HPP
-#define VSOMEIP_PLUGIN_HPP
+#ifndef VSOMEIP_V3_PLUGIN_HPP_
+#define VSOMEIP_V3_PLUGIN_HPP_
 
 #include <memory>
 
-#if WIN32
+#if _WIN32
     #if VSOMEIP_DLL_COMPILATION_PLUGIN
         #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
     #else
@@ -20,7 +20,7 @@
 
 #define VSOMEIP_PLUGIN_INIT_SYMBOL "vsomeip_plugin_init"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 enum class plugin_type_e : uint8_t {
     APPLICATION_PLUGIN,
@@ -79,11 +79,11 @@ private:
 
 #define VSOMEIP_PLUGIN(class_name) \
     extern "C" { \
-        VSOMEIP_EXPORT vsomeip::create_plugin_func vsomeip_plugin_init() { \
+        VSOMEIP_EXPORT vsomeip_v3::create_plugin_func vsomeip_plugin_init() { \
             return class_name::get_plugin; \
         } \
     }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_PLUGIN_HPP
+#endif // VSOMEIP_V3_PLUGIN_HPP_

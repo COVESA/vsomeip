@@ -4,25 +4,27 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <sstream>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/event.hpp"
 #include "../include/routing_manager.hpp"
-#include "../../configuration/include/internal.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../message/include/payload_impl.hpp"
 
-namespace vsomeip {
+#include "../../endpoints/include/endpoint_definition.hpp"
+
+namespace vsomeip_v3 {
 
 event::event(routing_manager *_routing, bool _is_shadow) :
         routing_(_routing),
         message_(runtime::get()->create_notification()),
-        is_field_(false),
+        type_(event_type_e::ET_EVENT),
         cycle_timer_(_routing->get_io()),
         cycle_(std::chrono::milliseconds::zero()),
         change_resets_cycle_(false),
@@ -33,8 +35,7 @@ event::event(routing_manager *_routing, bool _is_shadow) :
         is_cache_placeholder_(false),
         epsilon_change_func_(std::bind(&event::compare, this,
                 std::placeholders::_1, std::placeholders::_2)),
-        is_reliable_(false),
-        remote_notification_pending_(false) {
+        reliability_(reliability_type_e::RT_UNKNOWN) {
 }
 
 service_t event::get_service() const {
@@ -69,12 +70,16 @@ void event::set_event(event_t _event) {
     message_->set_method(_event); // TODO: maybe we should check for the leading 0-bit
 }
 
-bool event::is_field() const {
-    return (is_field_);
+event_type_e event::get_type() const {
+    return (type_);
 }
 
-void event::set_field(bool _is_field) {
-    is_field_ = _is_field;
+void event::set_type(const event_type_e _type) {
+    type_ = _type;
+}
+
+bool event::is_field() const {
+    return (type_ == event_type_e::ET_FIELD);
 }
 
 bool event::is_provided() const {
@@ -109,8 +114,7 @@ bool event::set_payload_dont_notify(const std::shared_ptr<payload> &_payload) {
     return true;
 }
 
-void event::set_payload(const std::shared_ptr<payload> &_payload,
-        bool _force, bool _flush) {
+void event::set_payload(const std::shared_ptr<payload> &_payload, bool _force) {
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
@@ -119,7 +123,7 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
                 if (change_resets_cycle_)
                     stop_cycle();
 
-                notify(_flush);
+                notify();
 
                 if (change_resets_cycle_)
                     start_cycle();
@@ -132,13 +136,13 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
 }
 
 void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
-            bool _force, bool _flush) {
+            bool _force) {
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
             if (is_updating_on_change_) {
-                notify_one_unlocked(_client, _flush);
+                notify_one_unlocked(_client);
             }
         }
     } else {
@@ -148,20 +152,40 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _clie
 }
 
 void event::set_payload(const std::shared_ptr<payload> &_payload,
-            const std::shared_ptr<endpoint_definition> _target,
-            bool _force, bool _flush) {
+        const client_t _client,
+        const std::shared_ptr<endpoint_definition>& _target,
+        bool _force) {
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (is_provided_) {
         if (set_payload_helper(_payload, _force)) {
             reset_payload(_payload);
             if (is_updating_on_change_) {
-                notify_one_unlocked(_target, _flush);
+                notify_one_unlocked(_client, _target);
             }
         }
     } else {
         VSOMEIP_INFO << "Can't set payload for event " << std::hex
                 << message_->get_method() << " as it isn't provided";
     }
+}
+
+bool event::set_payload_notify_pending(const std::shared_ptr<payload> &_payload) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    if (!is_set_ && is_provided_) {
+        reset_payload(_payload);
+
+        // Send pending initial events.
+        for (const auto &its_target : pending_) {
+            message_->set_session(routing_->get_session());
+            routing_->send_to(VSOMEIP_ROUTING_CLIENT,
+                    its_target, message_);
+        }
+        pending_.clear();
+
+        return true;
+    }
+
+    return false;
 }
 
 void event::unset_payload(bool _force) {
@@ -209,7 +233,7 @@ const std::set<eventgroup_t> event::get_eventgroups() const {
     std::set<eventgroup_t> its_eventgroups;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        for (const auto e : eventgroups_) {
+        for (const auto& e : eventgroups_) {
             its_eventgroups.insert(e.first);
         }
     }
@@ -243,7 +267,7 @@ void event::update_cbk(boost::system::error_code const &_error) {
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
         cycle_timer_.expires_from_now(cycle_);
-        notify(true);
+        notify();
         auto its_handler =
                 std::bind(&event::update_cbk, shared_from_this(),
                         std::placeholders::_1);
@@ -251,47 +275,70 @@ void event::update_cbk(boost::system::error_code const &_error) {
     }
 }
 
-void event::notify(bool _flush) {
+void event::notify() {
     if (is_set_) {
-        routing_->send(VSOMEIP_ROUTING_CLIENT, message_, _flush);
+        message_->set_session(routing_->get_session());
+        routing_->send(VSOMEIP_ROUTING_CLIENT, message_);
     } else {
-        VSOMEIP_INFO << "Notify event " << std::hex << message_->get_method()
-                << "failed. Event payload not set!";
+        VSOMEIP_INFO << __func__
+                << ": Notifying " << std::hex << get_event()
+                << " failed. Event payload not (yet) set!";
     }
 }
 
-void event::notify_one(const std::shared_ptr<endpoint_definition> &_target, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
-    notify_one_unlocked(_target, _flush);
-}
-
-void event::notify_one_unlocked(const std::shared_ptr<endpoint_definition> &_target, bool _flush) {
-    if (is_set_) {
-        routing_->send_to(_target, message_, _flush);
+void event::notify_one(client_t _client,
+        const std::shared_ptr<endpoint_definition> &_target) {
+    if (_target) {
+        std::lock_guard<std::mutex> its_lock(mutex_);
+        notify_one_unlocked(_client, _target);
     } else {
-        VSOMEIP_INFO << "Notify one event " << std::hex << message_->get_method()
-                << "failed. Event payload not set!";
+        VSOMEIP_WARNING << __func__
+                << ": Notifying " << std::hex << get_event()
+                << " failed. Target undefined";
     }
 }
 
-void event::notify_one(client_t _client, bool _flush) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
-    notify_one_unlocked(_client, _flush);
+void event::notify_one_unlocked(client_t _client,
+        const std::shared_ptr<endpoint_definition> &_target) {
+    if (_target) {
+        if (is_set_) {
+            message_->set_session(routing_->get_session());
+            routing_->send_to(_client, _target, message_);
+        } else {
+            VSOMEIP_INFO << __func__
+                    << ": Notifying " << std::hex << get_event()
+                    << " failed. Event payload not (yet) set!";
+            pending_.insert(_target);
+        }
+    } else {
+        VSOMEIP_WARNING << __func__
+                << ": Notifying " << std::hex << get_event()
+                << " failed. Target undefined";
+    }
 }
 
-void event::notify_one_unlocked(client_t _client, bool _flush) {
+void event::notify_one(client_t _client) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    notify_one_unlocked(_client);
+}
+
+void event::notify_one_unlocked(client_t _client) {
     if (is_set_) {
-        routing_->send(_client, message_, _flush);
+        message_->set_session(routing_->get_session());
+        routing_->send(_client, message_);
     } else {
-        VSOMEIP_INFO << "Notify one event " << std::hex << message_->get_method()
-                << " to client " << _client << " failed. Event payload not set!";
+        VSOMEIP_INFO << __func__
+                << ": Notifying "
+                << std::hex << message_->get_method()
+                << " to client " << _client
+                << " failed. Event payload not set!";
     }
 }
 
 bool event::set_payload_helper(const std::shared_ptr<payload> &_payload, bool _force) {
     std::shared_ptr<payload> its_payload = message_->get_payload();
-    bool is_change(!is_field_);
-    if (is_field_) {
+    bool is_change(type_ != event_type_e::ET_FIELD);
+    if (!is_change) {
         is_change = _force || epsilon_change_func_(its_payload, _payload);
     }
     return is_change;
@@ -357,7 +404,7 @@ bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _for
     } else {
         VSOMEIP_WARNING << __func__ << ": Didnt' insert client "
                 << std::hex << std::setw(4) << std::setfill('0') << _client
-                << "to eventgroup 0x"
+                << " to eventgroup 0x"
                 << std::hex << std::setw(4) << std::setfill('0') << _eventgroup;
     }
     return ret;
@@ -480,20 +527,20 @@ bool event::is_subscribed(client_t _client) {
     return false;
 }
 
-bool event::is_reliable() const {
-    return is_reliable_;
+reliability_type_e
+event::get_reliability() const {
+    return reliability_;
 }
 
-void event::set_reliable(bool _is_reliable) {
-    is_reliable_ = _is_reliable;
+void
+event::set_reliability(const reliability_type_e _reliability) {
+    reliability_ = _reliability;
 }
 
-bool event::get_remote_notification_pending() {
-    return remote_notification_pending_;
+void
+event::remove_pending(const std::shared_ptr<endpoint_definition> &_target) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    pending_.erase(_target);
 }
 
-void event::set_remote_notification_pending(bool _value) {
-    remote_notification_pending_ = _value;
-}
-
-} // namespace vsomeip
+} // namespace vsomeip_v3

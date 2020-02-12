@@ -14,8 +14,8 @@ vsomeip
 :data-uri:
 
 Copyright
-+++++++++
-Copyright (C) 2015-2017, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
++++++++
+Copyright (C) 2015-2019, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 License
 +++++++
@@ -81,6 +81,16 @@ make
 make install
 ----
 
+Compilation with predefined base path
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To predefine the base path, the path that is used to create the local sockets, 
+call cmake like:
+[source,bash]
+----
+cmake -DBASE_PATH=<YOUR BASE PATH> ..
+----
+The default base path is /tmp.
+
 Compilation with predefined unicast and/or diagnosis address
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To predefine the unicast address, call cmake like:
@@ -95,6 +105,24 @@ To predefine the diagnosis address, call cmake like:
 cmake -DDIAGNOSIS_ADDRESS=<YOUR DIAGNOSIS ADDRESS> ..
 ----
 The diagnosis address is a single byte value.
+
+Compilation with custom default configuration folder
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To change the default configuration folder, call cmake like:
+[source,bash]
+----
+cmake -DDEFAULT_CONFIGURATION_FOLDER=<DEFAULT CONFIGURATION FOLDER> ..
+----
+The default configuration folder is /etc/vsomeip.
+
+Compilation with custom default configuration file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To change the default configuration file, call cmake like:
+[source,bash]
+----
+cmake -DDEFAULT_CONFIGURATION_FILE=<DEFAULT CONFIGURATION FILE> ..
+----
+The default configuration file is /etc/vsomeip.json.
 
 Compilation with signal handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,6 +142,24 @@ to be ready to send/receive messages, call cmake like:
 [source,bash]
 ----
 cmake -DROUTING_READY_MESSAGE=<YOUR MESSAGE> ..
+----
+
+Compilation with configuration overlays
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To compile vsomeip with configuration overlays enabled, call cmake
+like:
+[source,bash]
+----
+cmake -DENABLE_CONFIGURATION_OVERLAYS=1 ..
+----
+
+Compilation with vSomeIP 2 compatibility layer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To compile vsomeip with enabled vSomeIP 2 compatibility layer, call
+cmake like:
+[source,bash]
+----
+cmake -DENABLE_COMPAT=1 ..
 ----
 
 Compilation of examples
@@ -289,6 +335,10 @@ The IP address of the host system.
 +
 The netmask to specify the subnet of the host system.
 +
+* 'device' (optional)
++
+If specified, IP endpoints will be bound to this device.
++
 * 'diagnosis'
 +
 The diagnosis address (byte) that will be used to build client identifiers. The
@@ -457,15 +507,15 @@ case the low byte must be different from zero. Thus, if the diagnosis address is
 values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte 
 different from the diagnosis address. 
 +
-** 'max_dispatchers'
+** 'max_dispatchers' (optional)
 +
-The maximum number of threads that shall be used to execute the application callbacks.
+The maximum number of threads that shall be used to execute the application callbacks. Default is 10.
 +
-** 'max_dispatch_time'
+** 'max_dispatch_time' (optional)
 +
-The maximum time that an application callback may consume before the callback is
+The maximum time in ms that an application callback may consume before the callback is
 considered to be blocked (and an additional thread is used to execute pending
-callbacks if max_dispatchers is configured greater than 0).
+callbacks if max_dispatchers is configured greater than 0). The default value if not specified is 100ms.
 +
 ** 'threads' (optional)
 +
@@ -484,6 +534,30 @@ the routing manager. If an application requests many services in short same time
 the load of sent messages to the routing manager and furthermore the replies from the
 routing manager (which contains the routing info for the requested service if available)
 can be heavily reduced. The default value if not specified is 10ms.
++
+** 'plugins' (optional array)
++
+Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
++
+*** 'name'
++
+The name of the plug-in.
++
+*** 'type'
++
+The plug-in type (valid values: _application_plugin_).
++
+An application plug-in extends the functionality on application level. It gets informed
+by vsomeip over the basic application states (INIT/START/STOP) and can, based on these
+notifications, access the standard "application"-API via the runtime.
++
+** 'overlay' (optional)
++
+Contains the path to a configuration that overwrites specific configuration elements
+(unicast, netmask, device, network, diagnosis address & mask, service discovery) for the 
+application. This allows to manage different network addresses from a single process.
++
+NOTE: This feature is only available if vsomeip was compiled with ENABLE_CONFIGURATION_OVERLAYS.
 +
 * `services` (array)
 +
@@ -590,6 +664,33 @@ number of subscribers is lower than the threshold and by multicast if the number
 of subscribers is greater or equal. This means, a threshold of 1 will lead to all events
 being sent by multicast. The default value is _0_.  
 
+** `debounce-times` (object)
++
+Used to configure the nPDU feature. This is described in detail in 
+<<npdu,vSomeIP nPDU feature>>.
+
+** `someip-tp` (object)
++
+Used to configure the SOME/IP-TP feature. There's an example available at
+<<someiptp, SOME/IP-TP>>.
+
+*** `service-to-client` (array)
++
+Contains the IDs for responses, fields and events which are sent from the node
+to a remote client which can be segmented via SOME/IP-TP if they exceed the
+maximum message size for UDP communication. If an ID isn't listed here the
+message will otherwise be dropped if the maximum message size is exceeded.
+
+*** `client-to-service` (array)
++
+Contains the IDs for requests, which are sent from the node
+to a remote service which can be segmented via SOME/IP-TP if they exceed the
+maximum message size for UDP communication. If an ID isn't listed here the
+message will otherwise be dropped if the maximum message size is exceeded.
+Please note that the unicast key has to be set to the remote IP address of the
+offering node for this setting to take effect.
+
+
 * `clients` (array)
 +
 The client-side ports that shall be used to connect to a specific service.
@@ -695,6 +796,14 @@ limited via this setting.
 The maximum allowed payload size for TCP communication in
 bytes. By default the payload size for TCP communication is
 unlimited. It can be limited via this setting.
+
+* `max-payload-size-unreliable`
++
+The maximum allowed payload size for UDP communication via SOME/IP-TP in
+bytes. By default the payload size for UDP via SOME/IP-TP communication is
+unlimited. It can be limited via this setting. This setting only applies for
+SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400
+bytes applies). See <<someiptp, SOME/IP-TP>> for an example configuration.
 
 * `endpoint-queue-limits` (array)
 +
@@ -893,6 +1002,12 @@ Configures the time in milliseconds local clients wait for acknowledgement of
 their deregistration from the routing manager during shutdown. Defaults to
 5000ms.
 
+* `warn_fill_level`
++
+The routing manager regulary checks the fill level of the send buffers to its
+clients. This variable defines the minimum fill level in percent that leads to
+a warning being logged. Defaults to 67.
+
 * `service-discovery`
 +
 Contains settings related to the Service Discovery of the host application.
@@ -1023,7 +1138,7 @@ Specifies the amount of allowed missing pongs.
 (valid values: _1 - 2^32_), (default is _3_ pongs).
 +
 //CAPI-Selective Broadcasts support
-* anchor:config-supports_selective_broadcasts[]`supports_selective_broadcasts` (optional)
+* anchor:config-supports_selective_broadcasts[]`supports_selective_broadcasts` (optional array)
 +
 This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported.
 If not specified the feature can't be used and the subscription behavior of the stack is same as with
@@ -1038,17 +1153,17 @@ Security
 --------
 vsomeip has a security implementation based on UNIX credentials.
 If activated every local connection is authenticated during connect using the standard UNIX credential passing mechanism.
-During authentification a client transfers its client identifier together with its credentials (UID / GID) to the server which is then matched against the configuration.
+During authentication a client transfers its client identifier together with its credentials (UID / GID) to the server which is then matched against the configuration.
 If received credentials don't match the policy the socket will be immediately closed by the server and an message is logged.
 If accepted the client identifier is bound to the receiving socket and can therefore be used to do further security checks on incoming messages (vsomeip messages as well as internal commands).
 
 In general clients can be configured to be allowed/denied to request (means communicate with) and offer different service instances.
-Every incoming vsomeip message (request/response/notifcation) as well as offer service requests or local subscriptions are then checked against the policy.
+Every incoming vsomeip message (request/response/notification) as well as offer service requests or local subscriptions are then checked against the policy.
 If an incoming vsomeip message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.
 
 Furthermore if an application receives informations about other clients/services in the system, it must be received from the authenticated routing manager. 
 This is to avoid malicious applications faking the routing manager and therefore being able to wrongly inform other clients about services running on the system.
-Therefore, whenever the "security" tag is specified, the routing manager (e.g. vsomeipd) must be a configured application with a fixed client identifier. 
+Therefore, whenever the "security" tag is specified, the routing manager (e.g. routingmanagerd/vsomeipd) must be a configured application with a fixed client identifier. 
 See chapter "Configuration File Structure" on how to configure an application to use a specific client identifier.
 
 Credential passing is only possible via Unix-Domain-Sockets and therefore only available for local communication.
@@ -1080,39 +1195,19 @@ If not specified, all remote requests / subscriptions are allowed to be received
 +
 Specifies the security policies. Each policy at least needs to specify _allow_ or _deny_.
 
-*** `client` (optional)
+*** `credentials`
 +
-Specifies a client for which a security policy will be applied (valid value: A valid client identifier in hex: e.g. _0x1234_).
-It is also possible to specify a client identifier range to easily apply a policy to a set of clients.
-A usecase is e.g. to allow a set of remote clients communicate with local services offered remote.
-+
-No client specification equals to any client (_0xFFFF_). Such policies are applied if a client has no specific policy.
-
-**** `first`
-+
-Specifies the first client of a range (first is included).
-(valid value: A valid client identifier in hex: e.g. _0x1234_)
-
-**** `last`
-+
-Specifies the last client id of a range (last is included).
-(valid value: A valid client identifier in hex: e.g. _0x1234_)
-
-*** `credential` (optional)
-+
-Specifies the credentials of the above client(s).
-If _check_credentials_ is set to _true_ the credentials for the above client(s) (if they running locally) needs to be specified correctly to ensure local socket authentification can succeed.
-This entry is optional due to the fact that remote clients needs to be configured as well to allow to communicate with local services as already mentioned above.
-For remote clients this entry should be skipped. 
+Specifies the credentials for which a security policy will be applied.
+If _check_credentials_ is set to _true_ the credentials of a local application needs to be specified correctly to ensure local socket authentication can succeed.
 
 **** `uid`
 +
-Specifies the LINUX user id of the above client(s) as decimal number.
+Specifies the LINUX user id of the client application as decimal number.
 As a wildcard "any" can be used.
 
 **** `gid`
 +
-Specifies the LINUX group id of the above client(s) as decimal number.
+Specifies the LINUX group id of the client application as decimal number.
 As a wildcard "any" can be used.
 
 **** `allow` / `deny` (optional)
@@ -1137,7 +1232,7 @@ With _deny_ a blacklisting of what is allowed can be done which means an empty _
 
 **** `requests` (array)
 +
-Specifies a set of service instance pairs which the above client(s) is allowed/denied to communicate with.
+Specifies a set of service instance pairs which the above client application using the credentials above is allowed/denied to communicate with.
 
 . `service`
 +
@@ -1179,7 +1274,7 @@ As a wildcard "any" can be used which means a range from method ID 0x01 to 0xFFF
 
 **** `offers` (array)
 +
-Specifies a set of service instance pairs which are allowed/denied to be offered by the above client(s).
+Specifies a set of service instance pairs which are allowed/denied to be offered by the client application using the credentials above.
 
 . `service`
 +
@@ -1192,7 +1287,7 @@ As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xF
 
 . `instances` (array)
 +
-Specifies a set of instance ID ranges which are allowed/denied to be offered by the above client(s)
+Specifies a set of instance ID ranges which are allowed/denied to be offered by the client application using the credentials above.
 It is also possible to specify a single instance ID as array element without giving an upper / lower range bound.
 As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.
 
@@ -1345,25 +1440,23 @@ Every client running locally needs to have at least its own credentials configur
 Practically that means if a client requests its identifier over the autoconfiguration for which no credentials are configured (at least it isn't known which client identifier is used beforehand) it is impossible for that client to establish a connection to a server endpoint.
 However if the credentials for all clients are same it's possible to configure them for the overall (or DIAGNOSIS_ADDRESS) client identifier range to mix autoconfiguration together with activated security.
 
-vsomeipd
---------
-The vsomeipd is a minimal vsomeip application intended to offer routing manager
-functionality on a node where one system wide configuration file is present.
-
-The vsomeipd uses the application name `vsomeipd` by default. This name can be
-overridden by specifying `-DROUTING=$DESIRED_NAME` during the cmake call.
+routingmanagerd
+---------------
+The routingmanagerd is a minimal vsomeip application intended to offer routing
+manager functionality on a node where one system wide configuration file is
+present. It can be found in the examples folder.
 
 Example: Starting the daemon on a system where the system wide configuration is
 stored under `/etc/vsomeip.json`:
 [source, bash]
 ----
-VSOMEIP_CONFIGURATION=/etc/vsomeip.json ./vsomeipd
+VSOMEIP_CONFIGURATION=/etc/vsomeip.json ./routingmanagerd
 ----
 
 When using the daemon it should be ensured that:
 
-* In the system wide configuration file the vsomeipd is defined as
-  routing manager, meaning it contains the line `"routing" : "vsomeipd"`.
+* In the system wide configuration file the routingmanagerd is defined as
+  routing manager, meaning it contains the line `"routing" : "routingmanagerd"`.
   If the default name is overridden the entry has to be adapted accordingly.
   The system wide configuration file should contain the information about all
   other offered services on the system as well.
@@ -1750,6 +1843,422 @@ Example:
     its_channel->remove_filter(its_filter_id);
 ----
 
+anchor:npdu[]
+
+vsomeip nPDU feature
+------------------
+
+This is the add-on documentation for the nPDU feature, aka. _Zugverfahren_.
+
+The nPDU feature can be used to reduce network load as it enables the vsomeip
+stack to combine multiple vsomeip messages in one single ethernet frame.
+
+Some general _important_ things regarding the nPDU feature first:
+
+* Due to its nature the nPDU feature trades lower network load for speed.
+* As the nPDU feature requires some settings which are not transmitted
+through the service discovery, it's *not* sufficient anymore to have an json
+file without a "services" section on the client side.
+* As the client- and server-endpoints of a node are managed by the routing
+ manager (which is the application entered at "routing" in the json file)
+ the nPDU feature settings *always* have to be defined in the json file used by
+ the application acting as routing manager.
+* The nPDU feature timings are defined in milliseconds.
+* Node internal communication over UNIX domain sockets is not affected by the
+  nPDU feature.
+* If the debounce times configuration for a method in the json file is missing
+  or incomplete the default values are used: 2ms debounce time and 5ms max
+  retention time. The global default values can be overwritten via the
+  `npdu-default-timings` json object.
+
+Configuration
+~~~~~~~~~~~~~
+There are two parameters specific for the nPDU feature:
+
+* *debounce time*: minimal time between sending a message to the same method of
+  a remote service over the same connection (src/dst address + src/dst port).
+* *max retention time*: the maximum time which a message to the same method of a
+  remote service over the same connection (src/dst address + src/dst port) is
+  allowed to be buffered on sender side.
+
+For more information please see the corresponding requirement documents.
+
+
+The nPDU feature specific settings are configured in the json file in the 
+"services" section on service level in a special _debounce-times_ section:
+
+[source, bash]
+----
+[...]
+"services":
+[
+    {
+        "service":"0x1000",
+        "instance":"0x0001",
+        "unreliable":"30509",
+        "debounce-times":
+        {
+            // nPDU feature configuration for this
+            // service here
+        }
+    }
+],
+[...]
+----
+
+Additionally nPDU default timings can be configured globally.
+
+The global default timings can be overwritten via the `npdu-default-timings`
+json object. For example the following configuration snippet shows how to set
+all default timings to zero:
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.9",
+    [...]
+    "npdu-default-timings" : {
+        "debounce-time-request" : "0",
+        "debounce-time-response" : "0",
+        "max-retention-time-request" : "0",
+        "max-retention-time-response" : "0"
+    },
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
+
+Example 1: One service with one method offered over UDP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* The service is hosted on IP: 192.168.1.9.
+* The service is offered on port 30509 via UDP.
+* The service has the ID 0x1000
+* The method has the ID 0x0001
+* The client accesses the service from IP: 192.168.1.77
+
+Service side
+++++++++++++
+
+* Debounce time for responses should have a:
+** debounce time of 10 milliseconds
+** maximum retention time of 100 milliseconds
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.9",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unreliable":"30509",
+            "debounce-times":
+            {
+                "responses": {
+                    "0x1001" : {
+                        "debounce-time":"10",
+                        "maximum-retention-time":"100"
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+Client side
+++++++++++++
+
+* Debounce time for requests to the service on 192.168.1.9 should have a:
+** debounce time of 20 milliseconds
+** maximum retention time of 200 milliseconds
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.77",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unicast":"192.168.1.9", // required to mark service as external
+            "unreliable":"30509",
+            "debounce-times":
+            {
+                "requests": {
+                    "0x1001" : {
+                        "debounce-time":"20",
+                        "maximum-retention-time":"200"
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
+Example 2: One service with two methods offered over UDP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* The service is hosted on IP: 192.168.1.9.
+* The service is offered on port 30509 via UDP.
+* The service has the ID 0x1000
+* The method has the ID 0x0001
+* The second method has the ID 0x0002
+* The client accesses the service from IP: 192.168.1.77
+
+Service side
+++++++++++++
+
+* Debounce time for responses should have a:
+** debounce time of 10 milliseconds for method 0x1001 and 20 for 0x1002
+** maximum retention time of 100 milliseconds for method 0x1001 and 200 for 0x1002
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.9",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unreliable":"30509",
+            "debounce-times":
+            {
+                "responses": {
+                    "0x1001" : {
+                        "debounce-time":"10",
+                        "maximum-retention-time":"100"
+                    },
+                    "0x1002" : {
+                        "debounce-time":"20",
+                        "maximum-retention-time":"200"
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+Client side
+++++++++++++
+
+* Debounce time for requests to the service on 192.168.1.9 should have a:
+** debounce time of 20 milliseconds for method 0x1001 and 40 for 0x1002
+** maximum retention time of 200 milliseconds for method 0x1001 and 400 for 0x1002
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.77",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unicast":"192.168.1.9", // required to mark service as external
+            "unreliable":"30509",
+            "debounce-times":
+            {
+                "requests": {
+                    "0x1001" : {
+                        "debounce-time":"20",
+                        "maximum-retention-time":"200"
+                    },
+                    "0x1002" : {
+                        "debounce-time":"40",
+                        "maximum-retention-time":"400"
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
+Example 3: One service with one method offered over UDP and TCP
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* The service is hosted on IP: 192.168.1.9.
+* The service is offered on port 30509 via UDP.
+* The service is offered on port 30510 via TCP.
+* The service has the ID 0x1000
+* The method has the ID 0x0001
+* The client accesses the service from IP: 192.168.1.77
+
+Service side
+++++++++++++
+
+* Debounce time for responses should have a:
+** debounce time of 10 milliseconds
+** maximum retention time of 100 milliseconds
+** TCP should use the same settings as UDP
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.9",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unreliable":"30509",
+            "reliable":
+            {
+                "port":"30510",
+                "enable-magic-cookies":"false"
+            },
+            "debounce-times":
+            {
+                "responses": {
+                    "0x1001" : {
+                        "debounce-time":"10",
+                        "maximum-retention-time":"100",
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+Client side
+++++++++++++
+
+* Debounce time for requests to the service on 192.168.1.9 should have a:
+** debounce time of 20 milliseconds
+** maximum retention time of 200 milliseconds
+** TCP should use the same settings as UDP
+
+[source, bash]
+----
+{
+    "unicast":"192.168.1.77",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x0001",
+            "unicast":"192.168.1.9", // required to mark service as external
+            "unreliable":"30509",
+            "reliable":
+            {
+                "port":"30510",
+                "enable-magic-cookies":"false"
+            },
+            "debounce-times":
+            {
+                "requests": {
+                    "0x1001" : {
+                        "debounce-time":"20",
+                        "maximum-retention-time":"200",
+                    }
+                }
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
+
+anchor:someiptp[]
+
+SOME/IP TP
+----------
+With SOME/IP Transport Protocol (TP) it is possible to transport messages which
+exceed the UDP payload size limit of 1400 byte. If enabled the message is
+segmented and send in multiple UDP datagrams.
+
+Example configuration:
+
+* Service 0x1111/0x1 is hosted on 192.168.0.1 on UDP port 40000
+* Client is running on 192.168.0.100
+* The service has two methods with ID: 0x1 and 0x2 which require large requests
+  and large responses. Additionally the service offers a field with ID 0x8001
+  which requires a large payloads as well.
+* The maximum payload size on service side should be limited to 5000 bytes.
+
+Configuration service side:
+[source, bash]
+----
+{
+    "unicast":"192.168.0.1",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x1",
+            "unreliable":"40000",
+            "someip-tp": {
+                "service-to-client": [
+                    "0x1", "0x2", "0x8001"
+                ]
+            }
+        }
+    ],
+    "max-payload-size-unreliable" : "5000",
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
+Configuration client side:
+
+[source, bash]
+----
+{
+    "unicast":"192.168.0.100",
+    "logging": { [...] },
+    "applications": [ [...] ],
+    "services":
+    [
+        {
+            "service":"0x1000",
+            "instance":"0x1",
+            "unicast":"192.168.0.1", // required to mark service as external
+            "unreliable":"40000", // required to mark service as external
+            "someip-tp": {
+                "client-to-service": [
+                    "0x1", "0x2"
+                ]
+            }
+        }
+    ],
+    "routing":"[...]",
+    "service-discovery": { [...] }
+}
+----
+
 Tools
 -----
 
@@ -1766,11 +2275,11 @@ be printed.
 * The complete message has to be passed in hexadecimal notation.
 * See the `--help` parameter for available options.
 * If `vsomeip_ctrl` is used to send messages to a remote service and no
- `vsomeipd` is running on the local machine, make sure to pass a json
+ `routingmanagerd` is running on the local machine, make sure to pass a json
  configuration file where `vsomeip_ctrl` is set as routing manager via
  environment variable.
 * If `vsomeip_ctrl` is used to send messages to a local service and no
- `vsomeipd` is running on the local machine, make sure to use the same json
+ `routingmanagerd` is running on the local machine, make sure to use the same json
  configuration file as the local service.
 
 Example: Calling method with method id 0x80e8 on service with service id 0x1234,

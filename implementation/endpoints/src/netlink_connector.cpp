@@ -11,12 +11,13 @@
 #include <boost/asio/read.hpp>
 #include<sstream>
 
+#include <vsomeip/internal/logger.hpp>
+
 #include "../include/netlink_connector.hpp"
-#include "../../logging/include/logger.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-void netlink_connector::register_net_if_changes_handler(net_if_changed_handler_t _handler) {
+void netlink_connector::register_net_if_changes_handler(const net_if_changed_handler_t& _handler) {
     handler_ = _handler;
 }
 
@@ -65,7 +66,9 @@ void netlink_connector::start() {
                 handler_(true, "n/a", true);
                 handler_(false, "n/a", true);
             }
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
             return;
+#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
         }
 
         send_ifa_request();
@@ -109,8 +112,8 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                     // New Address information
                     struct ifaddrmsg *ifa = (ifaddrmsg *)NLMSG_DATA(nlh);
                     if (has_address(ifa, IFA_PAYLOAD(nlh), address)) {
-                        net_if_index_for_address_ = ifa->ifa_index;
-                        auto its_if = net_if_flags_.find(ifa->ifa_index);
+                        net_if_index_for_address_ = static_cast<int>(ifa->ifa_index);
+                        auto its_if = net_if_flags_.find(static_cast<int>(ifa->ifa_index));
                         if (its_if != net_if_flags_.end()) {
                             if ((its_if->second & IFF_UP) &&
                                     (its_if->second & IFF_RUNNING)) {
@@ -141,13 +144,13 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                         if ((ifi->ifi_flags & IFF_UP) &&
                             (ifi->ifi_flags & IFF_RUNNING)) {
                             if (handler_) {
-                                if_indextoname(ifi->ifi_index,ifname);
+                                if_indextoname(static_cast<unsigned int>(ifi->ifi_index),ifname);
                                 handler_(true, ifname, true);
                                 send_rt_request();
                             }
                         } else {
                             if (handler_) {
-                                if_indextoname(ifi->ifi_index,ifname);
+                                if_indextoname(static_cast<unsigned int>(ifi->ifi_index),ifname);
                                 handler_(true, ifname, false);
                             }
                         }
@@ -368,7 +371,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
                 inet_ntop(AF_INET, RTA_DATA(retrta), address, sizeof(address));
                 std::uint32_t netmask(0);
                 for (int i = 31; i > 31 - _routemsg->rtm_dst_len; i--) {
-                    netmask |= (1 << i);
+                    netmask |= static_cast<std::uint32_t>(1 << i);
                 }
                 const std::uint32_t dst_addr = ntohl(*((std::uint32_t *)RTA_DATA(retrta)));
                 const std::uint32_t dst_net = (dst_addr & netmask);
@@ -380,18 +383,22 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
                 std::uint32_t netmask2[4] = {0,0,0,0};
                 for (int i = 127; i > 127 - _routemsg->rtm_dst_len; i--) {
                     if (i > 95) {
-                        netmask2[0] |= (1 << (i-96));
+                        netmask2[0] |= static_cast<std::uint32_t>(1 << (i-96));
                     } else if (i > 63) {
-                        netmask2[1] |= (1 << (i-63));
+                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-63));
                     } else if (i > 31) {
-                        netmask2[2] |= (1 << (i-32));
+                        netmask2[2] |= static_cast<std::uint32_t>(1 << (i-32));
                     } else {
-                        netmask2[3] |= (1 << i);
+                        netmask2[3] |= static_cast<std::uint32_t>(1 << i);
                     }
                 }
 
                 for (int i = 0; i < 4; i++) {
+#ifndef ANDROID
                     const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
+#else
+                    const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6_u.u6_addr32[i]);
+#endif
                     const std::uint32_t sd = ntohl(reinterpret_cast<std::uint32_t*>(multicast_address_.to_v6().to_bytes().data())[i]);
                     const std::uint32_t dst_net = dst & netmask2[i];
                     const std::uint32_t sd_net = sd & netmask2[i];
@@ -403,7 +410,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
             }
         } else if (retrta->rta_type == RTA_OIF) {
             if_index = *(int *)(RTA_DATA(retrta));
-            if_indextoname(if_index,if_name);
+            if_indextoname(static_cast<unsigned int>(if_index),if_name);
         } else if (retrta->rta_type == RTA_GATEWAY) {
             size_t rtattr_length = RTA_PAYLOAD(retrta);
             if (rtattr_length == 4) {
@@ -432,7 +439,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
     return false;
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif
+#endif // #ifndef _WIN32
 

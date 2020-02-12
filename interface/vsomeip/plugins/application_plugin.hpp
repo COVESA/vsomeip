@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_APPLICATION_PLUGIN_HPP
-#define VSOMEIP_APPLICATION_PLUGIN_HPP
+#ifndef VSOMEIP_V3_APPLICATION_PLUGIN_HPP_
+#define VSOMEIP_V3_APPLICATION_PLUGIN_HPP_
 
 #include <string>
 #include <memory>
@@ -14,7 +14,7 @@
 // Version should be incremented on breaking API change
 #define VSOMEIP_APPLICATION_PLUGIN_VERSION              1
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 enum class application_plugin_state_e : uint8_t {
     STATE_INITIALIZED,
@@ -37,6 +37,6 @@ public:
             const application_plugin_state_e _app_state) = 0;
 };
 
-}
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_APPLICATION_PLUGIN_HPP
+#endif // VSOMEIP_V3_APPLICATION_PLUGIN_HPP_

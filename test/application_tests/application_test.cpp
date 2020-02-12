@@ -250,6 +250,8 @@ protected:
     void TearDown() {
         shutdown_thread_.join();
         app_->stop();
+        app_.reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -283,15 +285,23 @@ protected:
     void send_shutdown_message() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while(!is_registered_) {
-                cv_.wait(its_lock);
+            while (!is_registered_) {
+                if (std::cv_status::timeout
+                        == cv_.wait_for(its_lock, std::chrono::seconds(10))) {
+                    ADD_FAILURE()<< "Application wasn't registered in time!";
+                    is_registered_ = true;
+                }
             }
             app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                     vsomeip_test::TEST_SERVICE_INSTANCE_ID);
             app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                     vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-            while(!is_available_) {
-                cv_.wait(its_lock);
+            while (!is_available_) {
+                if (std::cv_status::timeout
+                        == cv_.wait_for(its_lock, std::chrono::seconds(10))) {
+                    ADD_FAILURE()<< "Service didn't become available in time!";
+                    is_available_ = true;
+                }
             }
         }
 
@@ -316,6 +326,7 @@ protected:
     void SetUp() {
         is_registered_ = false;
         is_available_ = false;
+        exception_method_called_ = false;
 
         app_ = runtime::get()->create_application("application_test");
         if (!app_->init()) {
@@ -352,6 +363,8 @@ protected:
     void TearDown() {
         shutdown_thread_.join();
         app_->stop();
+        app_.reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -385,6 +398,11 @@ protected:
     void on_message_exception(const std::shared_ptr<message>& _request)
     {
         (void)_request;
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            exception_method_called_ = true;
+            cv_.notify_one();
+        }
         throw std::invalid_argument("something went terribly wrong");
     }
 
@@ -409,7 +427,13 @@ protected:
         r->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         r->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN+1);
         app_->send(r);
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            while (!exception_method_called_) {
+                cv_.wait(its_lock);
+            }
+        }
 
 
         //shutdown test
@@ -421,6 +445,7 @@ protected:
 
     bool is_registered_;
     bool is_available_;
+    bool exception_method_called_;
     std::shared_ptr<application> app_;
     std::condition_variable cv_;
     std::mutex mutex_;

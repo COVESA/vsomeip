@@ -19,7 +19,7 @@
 class payload_test_service
 {
 public:
-    payload_test_service(bool _use_tcp);
+    payload_test_service();
     bool init();
     void start();
     void stop();
@@ -34,8 +34,6 @@ public:
 private:
     std::shared_ptr<vsomeip::application> app_;
     bool is_registered_;
-    bool use_tcp_;
-    bool use_static_routing_;
 
     std::mutex mutex_;
     std::condition_variable condition_;

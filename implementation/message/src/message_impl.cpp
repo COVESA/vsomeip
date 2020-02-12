@@ -8,12 +8,18 @@
 #include <vsomeip/runtime.hpp>
 
 #include "../include/message_impl.hpp"
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 message_impl::message_impl()
-    : payload_(runtime::get()->create_payload()) {
+    : payload_(runtime::get()->create_payload()),
+      check_result_(0), uid_(ANY_UID), gid_(ANY_GID) {
 }
 
 message_impl::~message_impl() {
@@ -47,4 +53,32 @@ bool message_impl::deserialize(deserializer *_from) {
     return is_successful;
 }
 
-} // namespace vsomeip
+uint8_t message_impl::get_check_result() const {
+    return check_result_;
+}
+
+void message_impl::set_check_result(uint8_t _check_result) {
+    check_result_ = _check_result;
+}
+
+bool message_impl::is_valid_crc() const {
+    return (check_result_ == 0);
+}
+
+uid_t message_impl::get_uid() const {
+    return uid_;
+}
+
+void message_impl::set_uid(uid_t _uid) {
+    uid_ = _uid;
+}
+
+uid_t message_impl::get_gid() const {
+    return gid_;
+}
+
+void message_impl::set_gid(gid_t _gid) {
+    gid_ = _gid;
+}
+
+} // namespace vsomeip_v3

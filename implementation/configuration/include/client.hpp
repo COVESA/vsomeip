@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_CFG_CLIENT_HPP
-#define VSOMEIP_CFG_CLIENT_HPP
+#ifndef VSOMEIP_V3_CFG_CLIENT_HPP
+#define VSOMEIP_V3_CFG_CLIENT_HPP
 
 #include <map>
 #include <memory>
@@ -12,7 +12,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace cfg {
 
 struct client {
@@ -29,6 +29,6 @@ struct client {
 };
 
 } // namespace cfg
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_CFG_CLIENT_HPP
+#endif // VSOMEIP_V3_CFG_CLIENT_HPP

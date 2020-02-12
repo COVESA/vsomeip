@@ -93,7 +93,7 @@ public:
             // Send the request to the service. Response will be delivered to the
             // registered message handler
             std::cout << "Sending: " << str << std::endl;
-            app_->send(rq, true);
+            app_->send(rq);
         }
     }
 

@@ -8,7 +8,7 @@
 
 #include <Windows.h>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
     struct CriticalSection::Impl final {
         CRITICAL_SECTION m_criticalSection;
@@ -36,6 +36,6 @@ namespace vsomeip {
         LeaveCriticalSection(&m_impl->m_criticalSection);
     }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
 #endif

@@ -12,9 +12,9 @@
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
 
-VSOMEIP_PLUGIN(vsomeip::sd::runtime_impl)
+VSOMEIP_PLUGIN(vsomeip_v3::sd::runtime_impl)
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 runtime_impl::runtime_impl()
@@ -24,28 +24,11 @@ runtime_impl::runtime_impl()
 runtime_impl::~runtime_impl() {
 }
 
-std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(
-        service_discovery_host *_host,
+std::shared_ptr<service_discovery>
+runtime_impl::create_service_discovery(service_discovery_host *_host,
         std::shared_ptr<configuration> _configuration) const {
-    return std::make_shared < service_discovery_impl > (_host, _configuration);
-}
-
-std::shared_ptr<message_impl> runtime_impl::create_message() const {
-    std::shared_ptr < message_impl > its_message =
-            std::make_shared<message_impl>();
-    its_message->set_service(VSOMEIP_SD_SERVICE);
-    its_message->set_instance(VSOMEIP_SD_INSTANCE);
-    its_message->set_method(VSOMEIP_SD_METHOD);
-    its_message->set_client(VSOMEIP_SD_CLIENT);
-    // session must be set dynamically
-    its_message->set_protocol_version(protocol_version);
-    its_message->set_interface_version(interface_version);
-    its_message->set_message_type(message_type);
-    its_message->set_return_code(return_code);
-    // reboot flag must be set dynamically
-    its_message->set_unicast_flag(true);
-    return its_message;
+    return std::make_shared<service_discovery_impl>(_host, _configuration);
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

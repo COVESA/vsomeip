@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "malicious_data_test_globals.hpp"
 
@@ -43,7 +43,7 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
         app_->request_event(service_info_.service_id, service_info_.instance_id,
-                    service_info_.event_id, its_eventgroups, false);
+                    service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT);
         app_->register_message_handler(vsomeip::ANY_SERVICE,
                 vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
                 std::bind(&malicious_data_test_service::on_shutdown_method_called, this,
@@ -62,9 +62,6 @@ public:
         app_->request_service(service_info_.service_id, service_info_.instance_id);
         app_->subscribe(service_info_.service_id, service_info_.instance_id,
                 service_info_.eventgroup_id, 0,
-                (testmode_ == malicious_data_test::test_mode_e::WRONG_HEADER_FIELDS_UDP) ?
-                        vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE :
-                        vsomeip::subscription_type_e::SU_RELIABLE,
                 service_info_.event_id);
 
         app_->start();

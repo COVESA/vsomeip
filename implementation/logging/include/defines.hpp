@@ -6,9 +6,6 @@
 #ifndef LOGGING_DEFINES_HPP_
 #define LOGGING_DEFINES_HPP_
 
-#define VSOMEIP_LOG_DEFAULT_APPLICATION_ID          "VSIP"
-#define VSOMEIP_LOG_DEFAULT_APPLICATION_NAME        "vSomeIP application|SysInfra|IPC"
-
 #define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
 #define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
 

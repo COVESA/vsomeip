@@ -4,8 +4,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/vsomeip.hpp>
-#include "../implementation/configuration/include/internal.hpp"
-#include "../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
+
 #include "../implementation/service_discovery/include/constants.hpp"
 #include "../implementation/utility/include/byteorder.hpp"
 
@@ -22,7 +22,7 @@ namespace vsomeip_ctrl {
 class vsomeip_sender {
 public:
     vsomeip_sender(bool _use_tcp,
-                   std::vector<vsomeip::byte_t> _user_message,
+                   const std::vector<vsomeip::byte_t>& _user_message,
                    vsomeip::instance_t _instance) :
         use_tcp_(_use_tcp),
         user_message_(_user_message),
@@ -350,7 +350,7 @@ static void print_help(char* binary_name) {
     "Please note: the fields client id and session id in the provided message\n"
     "will be overwritten by the stack with the required values\n"
     "Please further make sure to use the same configuration file\n"
-    "as the target service, if the system is not using vsomeipd" << std::endl;
+    "as the target service, if the system is not using routingmanagerd" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -397,7 +397,7 @@ int main(int argc, char** argv) {
             }
             if(instance_str.length() < 4) {
                 while(instance_str.size() != 4) {
-                    instance_str = "0" + instance_str;
+                    instance_str = std::string("0") += instance_str;
                 }
             }
             vsomeip::byte_t high(0x0);

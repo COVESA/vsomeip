@@ -1,17 +1,18 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <algorithm>
 
+#include <vsomeip/internal/logger.hpp>
+
 #include "../include/entry_impl.hpp"
 #include "../include/message_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
-#include "../../logging/include/logger.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 // TODO: throw exception if this constructor is used
@@ -91,25 +92,30 @@ const std::vector<uint8_t> & entry_impl::get_options(uint8_t _run) const {
 }
 
 void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option) {
-    uint8_t option_index = uint8_t(get_owning_message()->get_option_index(_option));
-    if (options_[0].empty() ||
-            options_[0][0] == option_index + 1 ||
-            options_[0][options_[0].size() - 1] + 1 == option_index) {
-        options_[0].push_back(option_index);
-        std::sort(options_[0].begin(), options_[0].end());
-        num_options_[0]++;
-    } else if (options_[1].empty() ||
-            options_[1][0] == option_index + 1 ||
-            options_[1][options_[1].size() - 1] + 1 == option_index) {
-        options_[1].push_back(option_index);
-        std::sort(options_[1].begin(), options_[1].end());
-        num_options_[1]++;
+    int16_t i = get_owning_message()->get_option_index(_option);
+    if (i > -1 && i < 256) {
+        uint8_t its_index = static_cast<uint8_t>(i);
+        if (options_[0].empty() ||
+                options_[0][0] == its_index + 1 ||
+                options_[0][options_[0].size() - 1] + 1 == its_index) {
+            options_[0].push_back(its_index);
+            std::sort(options_[0].begin(), options_[0].end());
+            num_options_[0]++;
+        } else if (options_[1].empty() ||
+                options_[1][0] == its_index + 1 ||
+                options_[1][options_[1].size() - 1] + 1 == its_index) {
+            options_[1].push_back(its_index);
+            std::sort(options_[1].begin(), options_[1].end());
+            num_options_[1]++;
+        } else {
+            VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of endpoint options reached!";
+        }
     } else {
-        VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of endpoint options reached!";
+        VSOMEIP_ERROR << "Option could not be found.";
     }
 }
 
-bool entry_impl::serialize(vsomeip::serializer *_to) const {
+bool entry_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = (0 != _to
             && _to->serialize(static_cast<uint8_t>(type_)));
 
@@ -136,7 +142,7 @@ bool entry_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool entry_impl::deserialize(vsomeip::deserializer *_from) {
+bool entry_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = (0 != _from);
 
     uint8_t its_type(0);
@@ -186,4 +192,4 @@ uint8_t entry_impl::get_num_options(uint8_t _run) const {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

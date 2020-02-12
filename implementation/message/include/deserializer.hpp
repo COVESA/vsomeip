@@ -3,17 +3,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_DESERIALIZER_HPP
-#define VSOMEIP_DESERIALIZER_HPP
+#ifndef VSOMEIP_V3_DESERIALIZER_HPP
+#define VSOMEIP_V3_DESERIALIZER_HPP
 
 #include <vector>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-class message;
+class message_impl;
 
 class deserializer {
 public:
@@ -32,7 +32,7 @@ public:
     VSOMEIP_EXPORT void set_remaining(std::size_t _remaining);
 
     // to be used by applications to deserialize a message
-    VSOMEIP_EXPORT message * deserialize_message();
+    VSOMEIP_EXPORT message_impl *deserialize_message();
 
     // to be used (internally) by objects to deserialize their members
     // Note: this needs to be encapsulated!
@@ -63,6 +63,6 @@ private:
 
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_DESERIALIZER_HPP
+#endif // VSOMEIP_V3_DESERIALIZER_HPP

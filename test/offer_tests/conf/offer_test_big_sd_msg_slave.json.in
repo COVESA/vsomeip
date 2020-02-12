@@ -321,7 +321,7 @@
         {"service":"0x12B","instance":"0x1","unreliable":"30299","reliable":{"port":"30299","enable-magic-cookies":"false"}},
         {"service":"0x12C","instance":"0x1","unreliable":"30300","reliable":{"port":"30300","enable-magic-cookies":"false"}}
     ],
-    "routing":"vsomeipd",
+    "routing":"routingmanagerd",
     "service-discovery":
     {
         "enable":"true",

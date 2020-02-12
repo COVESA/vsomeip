@@ -35,10 +35,8 @@ public:
 private:
     std::shared_ptr<vsomeip::application> app_;
     std::shared_ptr<vsomeip::message> request_;
-    bool use_tcp_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool running_;
     bool blocked_;
     bool is_available_;
     std::uint32_t number_of_messages_to_send_;

@@ -98,6 +98,7 @@ void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::mess
         if (received_responses_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
             VSOMEIP_WARNING << std::hex << app_->get_client()
                     << ": Received all messages ~> going down!";
+            all_responses_received_.set_value();
         }
     }
 }
@@ -116,14 +117,18 @@ void routing_restart_test_client::run() {
         request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
         request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
-        app_->send(request, true);
+        app_->send(request);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS,
-            received_responses_);
+    if (std::future_status::ready == all_responses_received_.get_future().wait_for(std::chrono::milliseconds(10000))) {
+        EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS,
+                received_responses_);
+        VSOMEIP_WARNING << "Received all answers";
+    } else {
+        ADD_FAILURE() << "Didn't receive all responses within time";
+    }
 
     stop();
 }
@@ -140,7 +145,7 @@ void routing_restart_test_client::shutdown_service() {
     request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->send(request,true);
+    app_->send(request);
 }
 
 TEST(someip_restart_routing_test, request_response_over_restart)

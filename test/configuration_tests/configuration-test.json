@@ -24,9 +24,9 @@
         "permissions-uds" : "0222"
     },
     "supports_selective_broadcasts" :
-    {
-       "address" : "160.160.160.160"
-    },
+    [
+       "160.160.160.160"
+    ],
     "tracing" :
     {
         "enable" : "true",
@@ -100,10 +100,12 @@
             "plugins" :
             [
                 {
-                    "application_plugin" : "testlibraryname"
+                    "name" : "testlibraryname",
+                    "type" : "application_plugin"
                 },
                 {
-                    "intentionally_wrong_plugin" : "wrong"
+                    "name" : "wrongtestlibraryname",
+                    "type" : "intentionally_wrong_plugin"
                 }
             ]
         },
@@ -293,7 +295,6 @@
         "policies" :
         [
             {
-                "client" : "0x1277",
                 "credentials" : { "uid" : "1000", "gid" : "1000" },
                 "allow" :
                 {
@@ -315,7 +316,7 @@
                 }
             },
             {
-                "client" : { "first" : "0x1343", "last" : "0x1346" },
+                "credentials" : { "uid" : "2000", "gid" : "2000" },
                 "allow" :
                 {
                     "requests":
@@ -351,7 +352,7 @@
                 }
             },
             {
-                "client" : { "first" : "0x1443", "last" : "0x1446" },
+                "credentials" : { "uid" : "4000", "gid" : "4000" },
                 "deny" :
                 {
                     "requests":
@@ -384,19 +385,19 @@
                 }
             },
             {
-                "client" : "0x1550",
+                "credentials" : { "uid" : "5000", "gid" : "5000" },
                 "deny" :
                 {
                 }
             },
             {
-                "client" : "0x1660",
+                "credentials" : { "uid" : "6000", "gid" : "6000" },
                 "allow" :
                 {
                 }
             },
             {
-                "client" : "0x1770",
+                "credentials" : { "uid" : "7000", "gid" : "7000" },
                 "deny" :
                 {
                     "requests":
@@ -414,7 +415,7 @@
                 }
             },
             {
-                "client" : "0x1880",
+                "credentials" : { "uid" : "8000", "gid" : "8000" },
                 "allow" :
                 {
                     "requests":
@@ -429,6 +430,23 @@
                             ]
                         }
                     ]
+                }
+            },
+            {
+                "credentials" : {
+                    "allow": [
+                        {
+                            "uid": [
+                                "9000"
+                            ],
+                            "gid": [
+                                "9000"
+                            ]
+                        }
+                    ]
+                },
+                "deny" :
+                {
                 }
             }
         ]

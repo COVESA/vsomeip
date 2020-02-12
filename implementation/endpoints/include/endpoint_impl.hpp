@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ENDPOINT_IMPL_HPP
-#define VSOMEIP_ENDPOINT_IMPL_HPP
+#ifndef VSOMEIP_V3_ENDPOINT_IMPL_HPP_
+#define VSOMEIP_V3_ENDPOINT_IMPL_HPP_
 
 #include <map>
 #include <memory>
@@ -18,36 +18,32 @@
 #include "endpoint.hpp"
 #include "../../configuration/include/configuration.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint_host;
+class routing_host;
 
 template<typename Protocol>
 class endpoint_impl: public virtual endpoint {
 public:
     typedef typename Protocol::endpoint endpoint_type;
 
-    endpoint_impl(std::shared_ptr<endpoint_host> _adapter,
-                  endpoint_type _local,
+    endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                  const std::shared_ptr<routing_host>& _routing_host,
+                  const endpoint_type& _local,
                   boost::asio::io_service &_io,
                   std::uint32_t _max_message_size,
-                  configuration::endpoint_queue_limit_t _queue_limit);
+                  configuration::endpoint_queue_limit_t _queue_limit,
+                  const std::shared_ptr<configuration>& _configuration);
     virtual ~endpoint_impl();
 
     void enable_magic_cookies();
 
-    // Dummy implementations as we only need these for UDP (servers)
-    // TODO: redesign
-    void join(const std::string &);
-    void leave(const std::string &);
-
     void add_default_target(service_t, const std::string &, uint16_t);
     void remove_default_target(service_t);
 
-    // Dummy implementations as we only need these for server endpoints
-    // TODO: redesign
-    std::uint16_t get_local_port() const;
-    bool is_reliable() const;
+    virtual std::uint16_t get_local_port() const = 0;
+    virtual bool is_reliable() const = 0;
 
     void increment_use_count();
     void decrement_use_count();
@@ -55,6 +51,8 @@ public:
 
     void register_error_handler(error_handler_t _error_handler);
     virtual void print_status() = 0;
+
+    virtual size_t get_queue_size() const = 0;
 
 public:
     // required
@@ -66,11 +64,18 @@ protected:
     uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
 
 protected:
+    enum class cms_ret_e : uint8_t {
+        MSG_TOO_BIG,
+        MSG_OK,
+        MSG_WAS_SPLIT
+    };
+
     // Reference to service context
     boost::asio::io_service &service_;
 
-    // Reference to host
-    std::weak_ptr<endpoint_host> host_;
+    // References to hosts
+    std::weak_ptr<endpoint_host> endpoint_host_;
+    std::weak_ptr<routing_host> routing_host_;
 
     bool is_supporting_magic_cookies_;
     std::atomic<bool> has_enabled_magic_cookies_;
@@ -80,7 +85,7 @@ protected:
 
     std::uint32_t max_message_size_;
 
-    uint32_t use_count_;
+    std::atomic<uint32_t> use_count_;
 
     std::atomic<bool> sending_blocked_;
 
@@ -91,8 +96,12 @@ protected:
     std::mutex error_handler_mutex_;
 
     const configuration::endpoint_queue_limit_t queue_limit_;
+
+    std::shared_ptr<configuration> configuration_;
+
+    bool is_supporting_someip_tp_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_ENDPOINT_IMPL_HPP
+#endif // VSOMEIP_V3_ENDPOINT_IMPL_HPP_

@@ -10,7 +10,7 @@
 #include "../include/serializer.hpp"
 #include "../include/deserializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 message_header_impl::message_header_impl()
     : service_(0x0), method_(0x0), length_(0x0),
@@ -77,4 +77,4 @@ void message_header_impl::set_owner(message_base *_owner) {
     owner_ = _owner;
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

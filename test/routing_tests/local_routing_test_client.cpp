@@ -8,7 +8,6 @@
 local_routing_test_client::local_routing_test_client(bool _use_tcp) :
                 app_(vsomeip::runtime::get()->create_application()),
                 request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-                running_(true),
                 blocked_(false),
                 is_available_(false),
                 number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
@@ -130,7 +129,7 @@ void local_routing_test_client::run()
 
     for (uint32_t i = 0; i < number_of_messages_to_send_; i++)
     {
-        app_->send(request_, true);
+        app_->send(request_);
         VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
                 << std::hex << request_->get_client() << "/" << std::setw(4)
                 << std::setfill('0') << std::hex << request_->get_session()

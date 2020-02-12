@@ -17,17 +17,15 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "subscribe_notify_one_test_globals.hpp"
 
 
 class subscribe_notify_one_test_service {
 public:
-    subscribe_notify_one_test_service(struct subscribe_notify_one_test::service_info _service_info,
-                                  vsomeip::subscription_type_e _subscription_type) :
+    subscribe_notify_one_test_service(struct subscribe_notify_one_test::service_info _service_info) :
             service_info_(_service_info),
-            subscription_type_(_subscription_type),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
             wait_until_other_services_available_(true),
@@ -51,7 +49,9 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
-                service_info_.event_id, its_eventgroups, false);
+                service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_SELECTIVE_EVENT,
+                std::chrono::milliseconds::zero(), false, true, nullptr,
+                vsomeip::reliability_type_e::RT_UNKNOWN);
 
         app_->register_message_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.method_id,
@@ -63,7 +63,8 @@ public:
         app_->register_subscription_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.eventgroup_id,
                 std::bind(&subscribe_notify_one_test_service::on_subscription, this,
-                        std::placeholders::_1, std::placeholders::_2));
+                        std::placeholders::_1, std::placeholders::_2,
+                        std::placeholders::_3, std::placeholders::_4));
 
         // register availability for all other services and request their event.
         for(const auto& i : subscribe_notify_one_test::service_infos) {
@@ -81,19 +82,19 @@ public:
                             std::placeholders::_1, std::placeholders::_2,
                             std::placeholders::_3));
 
-            app_->request_service(i.service_id, i.instance_id, vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR, true);
+            app_->request_service(i.service_id, i.instance_id, vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR);
 
             auto handler = std::bind(&subscribe_notify_one_test_service::on_subscription_state_change, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-            app_->register_subscription_status_handler(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::ANY_EVENT, handler, true);
+            app_->register_subscription_status_handler(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
             app_->register_subscription_status_handler(vsomeip::ANY_SERVICE, i.instance_id, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
             app_->register_subscription_status_handler(i.service_id, vsomeip::ANY_INSTANCE, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
             app_->register_subscription_status_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, i.eventgroup_id, vsomeip::ANY_EVENT, handler);
 
             std::set<vsomeip::eventgroup_t> its_eventgroups;
             its_eventgroups.insert(i.eventgroup_id);
-            app_->request_event(i.service_id, i.instance_id, i.event_id, its_eventgroups, false);
+            app_->request_event(i.service_id, i.instance_id, i.event_id, its_eventgroups, vsomeip::event_type_e::ET_SELECTIVE_EVENT);
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_notification_[std::make_pair(i.service_id, i.method_id)] = 0;
@@ -112,11 +113,12 @@ public:
     }
 
     void stop_offer() {
+        app_->stop_offer_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id);
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
     }
 
     void on_state(vsomeip::state_type_e _state) {
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
+        VSOMEIP_DEBUG << "Application " << app_->get_name() << " is "
         << (_state == vsomeip::state_type_e::ST_REGISTERED ?
                 "registered." : "deregistered.");
 
@@ -134,7 +136,7 @@ public:
             if(its_service != other_services_available_.end()) {
                 if(its_service->second != _is_available) {
                 its_service->second = true;
-                VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+                VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                         << service_info_.service_id << "] Service ["
                 << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
                 << "] is available.";
@@ -164,14 +166,18 @@ public:
             subscription_state_handler_called_++;
         } else {
             subscription_error_occured_ = true;
-            VSOMEIP_WARNING << std::hex << app_->get_client()
+            VSOMEIP_ERROR << std::hex << app_->get_client()
                     << " : on_subscription_state_change: for service " << std::hex
                     << _service << " received a subscription error!";
         }
+
     }
 
-    bool on_subscription(vsomeip::client_t _client, bool _subscribed) {
+    bool on_subscription(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+        (void)_uid;
+        (void)_gid;
         std::lock_guard<std::mutex> its_subscribers_lock(subscribers_mutex_);
+
         // check if all other services have subscribed:
         // -1 for placeholder in array and -1 for the service itself
         if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2) {
@@ -187,9 +193,10 @@ public:
         VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id << "] " << "Client: " << _client
                 << " subscribed, now have " << std::dec << subscribers_.size()
-                << " subscribers" ;
+                << " subscribers. Expecting " << std::dec
+                << subscribe_notify_one_test::service_infos.size() - 2;
 
-        if(subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2)
+        if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2)
         {
             // notify the notify thread to start sending out notifications
             std::lock_guard<std::mutex> its_lock(notify_mutex_);
@@ -212,7 +219,7 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_message) {
-        if(_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
+        if (_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
 
             other_services_received_notification_[std::make_pair(_message->get_service(),
                                                              _message->get_method())]++;
@@ -229,21 +236,7 @@ public:
             << std::dec << other_services_received_notification_[std::make_pair(_message->get_service(),
                                                                     _message->get_method())] << ")";
 
-
-            bool notify(false);
-            switch(subscription_type_) {
-                case vsomeip::subscription_type_e::SU_UNRELIABLE:
-                case vsomeip::subscription_type_e::SU_RELIABLE:
-                case vsomeip::subscription_type_e::SU_PREFER_UNRELIABLE:
-                case vsomeip::subscription_type_e::SU_PREFER_RELIABLE:
-                case vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE:
-                    if (all_notifications_received()) {
-                        notify = true;
-                    }
-                    break;
-            }
-
-            if(notify) {
+            if (all_notifications_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
@@ -319,7 +312,7 @@ public:
 
             ++subscribe_count;
             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id,
-                            vsomeip::DEFAULT_MAJOR, subscription_type_);
+                            vsomeip::DEFAULT_MAJOR);
 
             VSOMEIP_DEBUG << "[" << std::hex << service_info_.service_id
             << "] subscribing to Service/Instance/Eventgroup ["
@@ -342,7 +335,7 @@ public:
             // 4 * subscribe count cause we installed three additional wild-card handlers
             ASSERT_EQ(subscribe_count * 4, subscription_state_handler_called_);
         } else {
-            VSOMEIP_WARNING << "Subscription state handler check skipped: CallCount="
+            VSOMEIP_ERROR << "Subscription state handler check skipped: CallCount="
                     << std::dec << subscription_state_handler_called_;
         }
     }
@@ -359,9 +352,6 @@ public:
         // remote node no matter how many clients subscribed to this eventgroup
         // on the remote node
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Starting to notify";
 
         for(uint32_t i = 0; i < subscribe_notify_one_test::notifications_to_send; i++) {
             std::shared_ptr<vsomeip::payload> its_payload =
@@ -389,7 +379,7 @@ public:
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id
                 << "] Received notifications from all other services, going down";
 
@@ -426,8 +416,8 @@ public:
                     || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
-            app_->register_subscription_status_handler(i.service_id, i.instance_id,
-                    i.eventgroup_id, vsomeip::ANY_EVENT, nullptr);
+            app_->unregister_subscription_status_handler(i.service_id, i.instance_id,
+                    i.eventgroup_id, vsomeip::ANY_EVENT);
             app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
             app_->release_event(i.service_id, i.instance_id, i.event_id);
             app_->release_service(i.service_id, i.instance_id);
@@ -439,7 +429,6 @@ public:
 
 private:
     subscribe_notify_one_test::service_info service_info_;
-    vsomeip::subscription_type_e subscription_type_;
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
     std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_notification_;
@@ -468,45 +457,25 @@ private:
     std::mutex subscribers_mutex_;
 };
 
-static int service_number;
-static vsomeip::subscription_type_e subscription_type;
+static unsigned long service_number;
 
 TEST(someip_subscribe_notify_one_test, send_ten_notifications_to_service)
 {
     subscribe_notify_one_test_service its_sample(
-            subscribe_notify_one_test::service_infos[service_number], subscription_type);
+            subscribe_notify_one_test::service_infos[service_number]);
 }
 
 #ifndef _WIN32
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
-    if(argc < 3) {
+    if(argc < 2) {
         std::cerr << "Please specify a service number and subscription type, like: " << argv[0] << " 2 UDP" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
-        std::cerr << "Valid subscription types include:" << std::endl;
-        std::cerr << "[TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]" << std::endl;
         return 1;
     }
 
-    service_number = std::stoi(std::string(argv[1]), nullptr);
-
-    if(std::string("TCP_AND_UDP") == std::string(argv[2])) {
-        subscription_type = vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE;
-    } else if(std::string("PREFER_UDP") == std::string(argv[2])) {
-        subscription_type = vsomeip::subscription_type_e::SU_PREFER_UNRELIABLE;
-    } else if(std::string("PREFER_TCP") == std::string(argv[2])) {
-        subscription_type = vsomeip::subscription_type_e::SU_PREFER_RELIABLE;
-    } else if(std::string("UDP") == std::string(argv[2])) {
-        subscription_type = vsomeip::subscription_type_e::SU_UNRELIABLE;
-    } else if(std::string("TCP") == std::string(argv[2])) {
-        subscription_type = vsomeip::subscription_type_e::SU_RELIABLE;
-    } else {
-        std::cerr << "Wrong subscription type passed, exiting" << std::endl;
-        std::cerr << "Valid subscription types include:" << std::endl;
-        std::cerr << "[TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]" << std::endl;
-        return 1;
-    }
+    service_number = std::stoul(std::string(argv[1]), nullptr);
     return RUN_ALL_TESTS();
 }
 #endif

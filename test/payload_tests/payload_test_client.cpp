@@ -86,7 +86,7 @@ void payload_test_client::shutdown_service()
     request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->send(request_,true);
+    app_->send(request_);
 }
 
 void payload_test_client::join_sender_thread()
@@ -151,7 +151,7 @@ void payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _r
             all_msg_acknowledged_ = true;
             all_msg_acknowledged_cv_.notify_one();
         }
-        else if(number_of_acknowledged_messages_ % sliding_window_size == 0)
+        else if(number_of_acknowledged_messages_ % sliding_window_size_ == 0)
         {
             std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
             all_msg_acknowledged_ = true;
@@ -259,7 +259,7 @@ void payload_test_client::send_messages_sync(std::unique_lock<std::mutex>& lk)
             number_of_sent_messages_ < number_of_messages_to_send_;
             number_of_sent_messages_++, number_of_sent_messages_total_++)
     {
-        app_->send(request_, true);
+        app_->send(request_);
         // wait until the send messages has been acknowledged
         // as long we wait lk is released; after wait returns lk is reacquired
         all_msg_acknowledged_cv_.wait(lk, [&]
@@ -275,9 +275,9 @@ void payload_test_client::send_messages_async(std::unique_lock<std::mutex>& lk)
             number_of_sent_messages_ < number_of_messages_to_send_;
             number_of_sent_messages_++, number_of_sent_messages_total_++)
     {
-        app_->send(request_, true);
+        app_->send(request_);
 
-        if((number_of_sent_messages_+1) % sliding_window_size == 0)
+        if((number_of_sent_messages_+1) % sliding_window_size_ == 0)
         {
             // wait until all send messages have been acknowledged
             // as long we wait lk is released; after wait returns lk is reacquired

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,7 +7,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 load_balancing_option_impl::load_balancing_option_impl() {
@@ -20,11 +20,18 @@ load_balancing_option_impl::load_balancing_option_impl() {
 load_balancing_option_impl::~load_balancing_option_impl() {
 }
 
-bool load_balancing_option_impl::operator ==(
-        const load_balancing_option_impl &_other) const {
-    return (option_impl::operator ==(_other)
-            && priority_ == _other.priority_
-            && priority_ == _other.weight_);
+bool
+load_balancing_option_impl::operator ==(const option_impl &_other) const {
+    bool is_equal(option_impl::operator ==(_other));
+
+    if (is_equal) {
+        const load_balancing_option_impl &its_other
+            = dynamic_cast<const load_balancing_option_impl &>(_other);
+        is_equal = (priority_ == its_other.priority_
+            && priority_ == its_other.weight_);
+    }
+
+    return is_equal;
 }
 
 priority_t load_balancing_option_impl::get_priority() const {
@@ -43,7 +50,7 @@ void load_balancing_option_impl::set_weight(weight_t _weight) {
     weight_ = _weight;
 }
 
-bool load_balancing_option_impl::serialize(vsomeip::serializer *_to) const {
+bool load_balancing_option_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = option_impl::serialize(_to);
     is_successful = is_successful
             && _to->serialize(static_cast<uint16_t>(priority_));
@@ -52,7 +59,7 @@ bool load_balancing_option_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool load_balancing_option_impl::deserialize(vsomeip::deserializer *_from) {
+bool load_balancing_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from);
 
     uint16_t tmp_priority = 0;
@@ -67,4 +74,4 @@ bool load_balancing_option_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

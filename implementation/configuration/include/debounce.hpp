@@ -3,12 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_CFG_DEBOUNCE_HPP
-#define VSOMEIP_CFG_DEBOUNCE_HPP
+#ifndef VSOMEIP_V3_CFG_DEBOUNCE_HPP
+#define VSOMEIP_V3_CFG_DEBOUNCE_HPP
 
 #include <map>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace cfg {
 
 // Messages are forwarded either because their value differs from the
@@ -34,6 +34,6 @@ struct debounce {
 };
 
 } // namespace cfg
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_CFG_DEBOUNCE_HPP
+#endif // VSOMEIP_V3_CFG_DEBOUNCE_HPP

@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_NETLINK_CONNECTOR_HPP
-#define VSOMEIP_NETLINK_CONNECTOR_HPP
+#ifndef VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
+#define VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
 
 #ifndef _WIN32
 
@@ -15,12 +15,13 @@
 #include <map>
 #include <mutex>
 
-#include <boost/asio/ip/address.hpp>
+#include <boost/asio/io_service.hpp>
 #include <boost/asio/basic_raw_socket.hpp>
+#include <boost/asio/ip/address.hpp>
 
 #include "../../endpoints/include/buffer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 template <typename Protocol>
 class nl_endpoint {
@@ -34,15 +35,15 @@ public:
     {
         sockaddr.nl_family = PF_NETLINK;
         sockaddr.nl_groups = 0;
-        sockaddr.nl_pid = getpid();
+        sockaddr.nl_pid = static_cast<unsigned int>(getpid());
     }
 
     /// Construct an endpoint using the specified path name.
     nl_endpoint(int group, int pid=getpid())
     {
         sockaddr.nl_family = PF_NETLINK;
-        sockaddr.nl_groups = group;
-        sockaddr.nl_pid = pid;
+        sockaddr.nl_groups = static_cast<unsigned int>(group);
+        sockaddr.nl_pid = static_cast<unsigned int>(pid);
     }
 
     /// Copy constructor.
@@ -85,6 +86,7 @@ public:
     /// Set the underlying size of the endpoint in the native type.
     void resize(std::size_t size)
     {
+        (void)size;
     /* nothing we can do here */
     }
 
@@ -144,7 +146,7 @@ public:
     }
     ~netlink_connector() {}
 
-    void register_net_if_changes_handler(net_if_changed_handler_t _handler);
+    void register_net_if_changes_handler(const net_if_changed_handler_t& _handler);
     void unregister_net_if_changes_handler();
 
     void start();
@@ -180,8 +182,8 @@ private:
     boost::asio::ip::address multicast_address_;
 };
 
-}
+} // namespace vsomeip_v3
 
 #endif // NOT _WIN32
 
-#endif // VSOMEIP_NETLINK_CONNECTOR_HPP
+#endif // VSOMEIP_V3_NETLINK_CONNECTOR_HPP_

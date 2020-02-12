@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "offer_test_globals.hpp"
 
@@ -25,11 +25,11 @@ class offer_test_service {
 public:
     offer_test_service(struct offer_test::service_info _service_info) :
             service_info_(_service_info),
-            // service with number 1 uses "vsomeipd" as application name
+            // service with number 1 uses "routingmanagerd" as application name
             // this way the same json file can be reused for all local tests
-            // including the ones with vsomeipd
+            // including the ones with routingmanagerd
             app_(vsomeip::runtime::get()->create_application(
-                        (service_number == "1") ? "vsomeipd" :
+                        (service_number == "1") ? "routingmanagerd" :
                                 "offer_test_service" + service_number)),
             wait_until_registered_(true),
             wait_until_service_available_(true),

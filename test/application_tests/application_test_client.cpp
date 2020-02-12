@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "application_test_globals.hpp"
 
@@ -26,7 +26,6 @@ public:
     application_test_client(struct application_test::service_info _service_info) :
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application("client")),
-            service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
             wait_for_stop_(true),
@@ -164,12 +163,14 @@ public:
                 << " responses. Delta: " << sent_requests_ - received_responses_;
         std::uint32_t counter(0);
         if (check) {
-            while(sent_requests_ < received_responses_) {
+            while(sent_requests_ == 0 || sent_requests_ < received_responses_) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 if(++counter > 50) {
                     break;
                 }
             }
+            EXPECT_GT(sent_requests_, 0u);
+            EXPECT_GT(received_responses_, 0u);
             EXPECT_EQ(sent_requests_, received_responses_);
         }
         stop_condition_.notify_one();
@@ -178,7 +179,6 @@ public:
 private:
     struct application_test::service_info service_info_;
     std::shared_ptr<vsomeip::application> app_;
-    bool service_available_;
 
     bool wait_until_registered_;
     bool wait_until_service_available_;

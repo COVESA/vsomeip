@@ -3,41 +3,46 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP
-#define VSOMEIP_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP
+#ifndef VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
+#define VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
+
+#include <boost/asio/io_service.hpp>
 
 #include <vsomeip/primitive_types.hpp>
 
 #include "../include/endpoint.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-class virtual_server_endpoint_impl : public endpoint {
+class virtual_server_endpoint_impl : public endpoint, public std::enable_shared_from_this<virtual_server_endpoint_impl> {
 public:
     virtual_server_endpoint_impl(
             const std::string &_address,
             uint16_t _port,
-            bool _reliable);
+            bool _reliable,
+            boost::asio::io_service& _service);
 
     virtual ~virtual_server_endpoint_impl();
 
     void start();
+    void prepare_stop(endpoint::prepare_stop_handler_t _handler,
+                      service_t _service);
     void stop();
 
     bool is_established() const;
+    bool is_established_or_connected() const;
     void set_established(bool _established);
     void set_connected(bool _connected);
 
-    bool send(const byte_t *_data, uint32_t _size, bool _flush);
+    bool send(const byte_t *_data, uint32_t _size);
     bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
-              uint32_t _size, bool _flush);
+              uint32_t _size);
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
-            const byte_t *_data, uint32_t _size, bool _flush);
+            const byte_t *_data, uint32_t _size);
+    bool send_error(const std::shared_ptr<endpoint_definition> _target,
+            const byte_t *_data, uint32_t _size);
     void enable_magic_cookies();
     void receive();
-
-    void join(const std::string &_address);
-    void leave(const std::string &_address);
 
     void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port);
@@ -58,14 +63,17 @@ public:
     void register_error_handler(error_handler_t _handler);
     void print_status();
 
+    size_t get_queue_size() const;
+
 private:
     std::string address_;
     uint16_t port_;
     bool reliable_;
 
     uint32_t use_count_;
+    boost::asio::io_service& service_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP
+#endif // VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_

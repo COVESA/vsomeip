@@ -75,10 +75,10 @@ wait $CLIENT_PID || ((FAIL+=1))
 # to finish the test successfully
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external local payload on slave LXC"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./external_local_payload_test_client_external_start.sh\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./external_local_payload_test_client_external_start.sh\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name elptclaes $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_payload_test_client_external_start.sh" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_payload_test_client_external_start.sh" &
 else
 cat <<End-of-message
 *******************************************************************************
@@ -128,11 +128,6 @@ check_tcp_udp_sockets_are_open $SERIVCE_PID 2
 # Fail gets incremented if either client or service exit
 # with a non-zero exit code
 wait $SERIVCE_PID || ((FAIL+=1))
-
-if [ ! -z "$USE_DOCKER" ]; then
-    docker wait elptclaes
-    docker rm elptclaes
-fi
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open TCP/UDP sockets

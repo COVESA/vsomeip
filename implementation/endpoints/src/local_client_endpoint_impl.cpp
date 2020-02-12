@@ -9,31 +9,35 @@
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
 #include "../include/local_client_endpoint_impl.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../include/local_server_endpoint_impl.hpp"
-#include "../../configuration/include/configuration.hpp"
+#include "../../routing/include/routing_host.hpp"
+#include "../../security/include/security.hpp"
 
 // Credentials
 #ifndef _WIN32
 #include "../include/credentials.hpp"
 #endif
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 local_client_endpoint_impl::local_client_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host,
-        endpoint_type _remote,
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _remote,
         boost::asio::io_service &_io,
-        std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit)
-    : local_client_endpoint_base_impl(_host, _remote, _remote, _io,
-                                      _max_message_size, _queue_limit),
+        const std::shared_ptr<configuration>& _configuration)
+    : local_client_endpoint_base_impl(_endpoint_host, _routing_host, _remote,
+                                      _remote, _io,
+                                      _configuration->get_max_message_size_local(),
+                                      _configuration->get_endpoint_queue_limit_local(),
+                                      _configuration),
                                       // Using _remote for the local(!) endpoint is ok,
                                       // because we have no bind for local endpoints!
-      recv_buffer_(1,0) {
+      recv_buffer_(VSOMEIP_ASSIGN_CLIENT_ACK_COMMAND_SIZE + 8,0) {
     is_supporting_magic_cookies_ = false;
 }
 
@@ -124,12 +128,10 @@ void local_client_endpoint_impl::connect() {
 // Credentials
 #ifndef _WIN32
             if (!its_connect_error) {
-                auto its_host = host_.lock();
+                auto its_host = endpoint_host_.lock();
                 if (its_host) {
-                    if (its_host->get_configuration()->is_security_enabled()) {
-                        credentials::send_credentials(socket_->native(),
-                                its_host->get_client());
-                    }
+                    credentials::send_credentials(socket_->native_handle(),
+                            its_host->get_client());
                 }
             } else {
                 VSOMEIP_WARNING << "local_client_endpoint::connect: Couldn't "
@@ -175,6 +177,32 @@ void local_client_endpoint_impl::receive() {
     }
 }
 
+// this overrides client_endpoint_impl::send to disable the pull method
+// for local communication
+bool local_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    bool ret(true);
+    const bool queue_size_zero_on_entry(queue_.empty());
+    if (endpoint_impl::sending_blocked_ ||
+        check_message_size(nullptr, _size) != cms_ret_e::MSG_OK ||
+        !check_packetizer_space(_size) ||
+        !check_queue_limit(_data, _size)) {
+        ret = false;
+    } else {
+#if 0
+        std::stringstream msg;
+        msg << "lce::send: ";
+        for (uint32_t i = 0; i < _size; i++)
+            msg << std::hex << std::setw(2) << std::setfill('0')
+                << (int)_data[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+        train_.buffer_->insert(train_.buffer_->end(), _data, _data + _size);
+        queue_train(queue_size_zero_on_entry);
+    }
+    return ret;
+}
+
 void local_client_endpoint_impl::send_queued() {
     static const byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
     static const byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
@@ -186,15 +214,6 @@ void local_client_endpoint_impl::send_queued() {
     } else {
         return;
     }
-
-#if 0
-std::stringstream msg;
-msg << "lce<" << this << ">::sq: ";
-for (std::size_t i = 0; i < its_buffer->size(); i++)
-    msg << std::setw(2) << std::setfill('0') << std::hex
-        << (int)(*its_buffer)[i] << " ";
-VSOMEIP_INFO << msg.str();
-#endif
 
     bufs.push_back(boost::asio::buffer(its_start_tag));
     bufs.push_back(boost::asio::buffer(*its_buffer));
@@ -218,12 +237,22 @@ VSOMEIP_INFO << msg.str();
     }
 }
 
+void local_client_endpoint_impl::get_configured_times_from_endpoint(
+        service_t _service, method_t _method,
+        std::chrono::nanoseconds *_debouncing,
+        std::chrono::nanoseconds *_maximum_retention) const {
+    (void)_service;
+    (void)_method;
+    (void)_debouncing;
+    (void)_maximum_retention;
+    VSOMEIP_ERROR << "local_client_endpoint_impl::get_configured_times_from_endpoint called.";
+}
+
 void local_client_endpoint_impl::send_magic_cookie() {
 }
 
 void local_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
-    (void)_bytes;
     if (_error) {
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
@@ -245,6 +274,31 @@ void local_client_endpoint_impl::receive_cbk(
         if (handler)
             handler();
     } else {
+
+#if 0
+        std::stringstream msg;
+        msg << "lce<" << this << ">::recv: ";
+        for (std::size_t i = 0; i < recv_buffer_.size(); i++)
+            msg << std::setw(2) << std::setfill('0') << std::hex
+                << (int)recv_buffer_[i] << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+
+        // We only handle a single message here. Check whether the message
+        // format matches what we do expect.
+        if (_bytes == VSOMEIP_ASSIGN_CLIENT_ACK_COMMAND_SIZE + 8
+                && recv_buffer_[0] == 0x67 && recv_buffer_[1] == 0x37
+                && recv_buffer_[2] == 0x6d && recv_buffer_[3] == 0x07
+                && recv_buffer_[4] == VSOMEIP_ASSIGN_CLIENT_ACK
+                && recv_buffer_[13] == 0x07 && recv_buffer_[14] == 0x6d
+                && recv_buffer_[15] == 0x37 && recv_buffer_[16] == 0x67) {
+
+            auto its_routing_host = routing_host_.lock();
+            if (its_routing_host)
+                its_routing_host->on_message(&recv_buffer_[4],
+                        static_cast<length_t>(recv_buffer_.size() - 8), this);
+        }
+
         receive();
     }
 }
@@ -291,21 +345,41 @@ std::string local_client_endpoint_impl::get_remote_information() const {
 #endif
 }
 
+
+bool local_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) {
+    if (train_.buffer_->size() + _size < train_.buffer_->size()) {
+        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
+        return false;
+    }
+    if (train_.buffer_->size() + _size > max_message_size_
+            && !train_.buffer_->empty()) {
+        queue_.push_back(train_.buffer_);
+        queue_size_ += train_.buffer_->size();
+        train_.buffer_ = std::make_shared<message_buffer_t>();
+    }
+    return true;
+}
+
+bool local_client_endpoint_impl::is_reliable() const {
+    return false;
+}
+
 std::uint32_t local_client_endpoint_impl::get_max_allowed_reconnects() const {
     return 13;
 }
 
 bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
-                                      const byte_t *_data, uint32_t _size,
-                                      bool _flush) {
+                                      const byte_t *_data, uint32_t _size) {
     std::lock_guard<std::mutex> its_lock(mutex_);
     bool ret(true);
     const bool queue_size_zero_on_entry(queue_.empty());
 
+    const std::uint32_t its_complete_size = static_cast<std::uint32_t>(
+                                                    _cmd_header.size() + _size);
     if (endpoint_impl::sending_blocked_ ||
-        !check_message_size(static_cast<std::uint32_t>(_cmd_header.size() + _size)) ||
-        !check_packetizer_space(static_cast<std::uint32_t>(_cmd_header.size() + _size))||
-        !check_queue_limit(_data, static_cast<std::uint32_t>(_cmd_header.size() + _size))) {
+        check_message_size(nullptr, its_complete_size) != cms_ret_e::MSG_OK ||
+        !check_packetizer_space(its_complete_size)||
+        !check_queue_limit(_data, its_complete_size)) {
         ret = false;
     } else {
 #if 0
@@ -316,12 +390,19 @@ bool local_client_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
         << (int)_data[i] << " ";
         VSOMEIP_INFO << msg.str();
 #endif
-        packetizer_->reserve(_cmd_header.size() + _size);
-        packetizer_->insert(packetizer_->end(), _cmd_header.begin(), _cmd_header.end());
-        packetizer_->insert(packetizer_->end(), _data, _data + _size);
-        send_or_start_flush_timer(_flush, queue_size_zero_on_entry);
+        train_.buffer_->reserve(its_complete_size);
+        train_.buffer_->insert(train_.buffer_->end(), _cmd_header.begin(), _cmd_header.end());
+        train_.buffer_->insert(train_.buffer_->end(), _data, _data + _size);
+        queue_train(queue_size_zero_on_entry);
     }
     return ret;
+}
+
+bool local_client_endpoint_impl::tp_segmentation_enabled(
+        service_t _service, method_t _method) const {
+    (void)_service;
+    (void)_method;
+    return false;
 }
 
 void local_client_endpoint_impl::max_allowed_reconnects_reached() {
@@ -336,4 +417,4 @@ void local_client_endpoint_impl::max_allowed_reconnects_reached() {
         handler();
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

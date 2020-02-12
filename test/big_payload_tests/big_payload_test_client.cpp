@@ -10,7 +10,6 @@ big_payload_test_client::big_payload_test_client(
         bool _use_tcp, big_payload_test::test_mode _test_mode) :
         app_(vsomeip::runtime::get()->create_application("big_payload_test_client")),
         request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-        running_(true),
         blocked_(false),
         is_available_(false),
         test_mode_(_test_mode),
@@ -36,6 +35,9 @@ big_payload_test_client::big_payload_test_client(
             break;
         case big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC:
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC;
+            break;
+        case big_payload_test::test_mode::UDP:
+            service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID_UDP;
             break;
         default:
             service_id_ = big_payload_test::TEST_SERVICE_SERVICE_ID;
@@ -81,7 +83,10 @@ void big_payload_test_client::stop()
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-        ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+        EXPECT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+    } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        EXPECT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_);
     }
     app_->clear_all_handler();
     app_->stop();
@@ -93,9 +98,11 @@ void big_payload_test_client::join_sender_thread(){
             || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-        ASSERT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+        EXPECT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
+    } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+        EXPECT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
     } else {
-        ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
+        EXPECT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
     }
 }
 
@@ -145,6 +152,8 @@ void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>
 
     if(test_mode_ == big_payload_test::test_mode::RANDOM) {
         ASSERT_LT(_response->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+    } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+        EXPECT_EQ(big_payload_test::BIG_PAYLOAD_SIZE_UDP, _response->get_payload()->get_length());
     } else {
         ASSERT_EQ(_response->get_payload()->get_length(), big_payload_test::BIG_PAYLOAD_SIZE);
     }
@@ -200,7 +209,7 @@ void big_payload_test_client::run()
     for (unsigned int i = 0; i < number_of_messages_to_send_; i++)
     {
         if (test_mode_ == big_payload_test::test_mode::RANDOM) {
-            unsigned int datasize(std::rand() % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
+            unsigned int datasize(static_cast<unsigned int>(std::rand()) % big_payload_test::BIG_PAYLOAD_SIZE_RANDOM);
             its_payload_data.assign(datasize, big_payload_test::DATA_CLIENT_TO_SERVICE);
         } else if (test_mode_ == big_payload_test::test_mode::LIMITED
                 || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
@@ -214,13 +223,16 @@ void big_payload_test_client::run()
                 its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
                         big_payload_test::DATA_CLIENT_TO_SERVICE);
             }
+        } else if (test_mode_ == big_payload_test::test_mode::UDP) {
+            its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE_UDP,
+                    big_payload_test::DATA_CLIENT_TO_SERVICE);
         } else {
             its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE,
                     big_payload_test::DATA_CLIENT_TO_SERVICE);
         }
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
-        app_->send(request_, true);
+        app_->send(request_);
         if (test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
                 || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -244,10 +256,10 @@ void big_payload_test_client::run()
                     || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
                     || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
                     || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-                ASSERT_EQ(number_of_messages_to_send_ / 4,
+                EXPECT_EQ(number_of_messages_to_send_ / 4,
                         number_of_acknowledged_messages_);
             } else {
-                ASSERT_EQ(number_of_sent_messages_,
+                EXPECT_EQ(number_of_sent_messages_,
                         number_of_acknowledged_messages_);
             }
         }
@@ -259,7 +271,7 @@ static big_payload_test::test_mode test_mode(big_payload_test::test_mode::UNKNOW
 
 TEST(someip_big_payload_test, send_ten_messages_to_service)
 {
-    bool use_tcp = true;
+    bool use_tcp = (test_mode != big_payload_test::test_mode::UDP);
     big_payload_test_client test_client_(use_tcp, test_mode);
     if (test_client_.init()) {
         test_client_.start();
@@ -282,6 +294,8 @@ int main(int argc, char** argv)
             test_mode = big_payload_test::test_mode::QUEUE_LIMITED_GENERAL;
         } else if (std::string("QUEUELIMITEDSPECIFIC") == std::string(argv[1])) {
             test_mode = big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC;
+        } else if (std::string("UDP") == std::string(argv[1])) {
+            test_mode = big_payload_test::test_mode::UDP;
         }
     }
     return RUN_ALL_TESTS();

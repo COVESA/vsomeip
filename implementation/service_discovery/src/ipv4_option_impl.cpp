@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,23 +11,34 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
-ipv4_option_impl::ipv4_option_impl(bool _is_multicast) :
-        address_({0}) {
+ipv4_option_impl::ipv4_option_impl()
+    : address_({0}) {
     length_ = (1 + 4 + 1 + 1 + 2);
-    type_ = (
-            _is_multicast ?
-                    option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
+}
+
+ipv4_option_impl::ipv4_option_impl(const boost::asio::ip::address &_address,
+        const uint16_t _port, const bool _is_reliable)
+    : ip_option_impl(_port, _is_reliable), address_(_address.to_v4().to_bytes()) {
+    type_ = (_address.is_multicast() ?
+        option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
+    length_ = (1 + 4 + 1 + 1 + 2);
 }
 
 ipv4_option_impl::~ipv4_option_impl() {
 }
 
-bool ipv4_option_impl::operator ==(const ipv4_option_impl &_other) const {
-    return (ip_option_impl::operator ==(_other)
-            && address_ == _other.address_);
+bool
+ipv4_option_impl::operator ==(const option_impl &_other) const {
+    bool is_equal(ip_option_impl::operator ==(_other));
+    if (is_equal) {
+        const ipv4_option_impl &its_other
+            = dynamic_cast<const ipv4_option_impl &>(_other);
+        is_equal = (address_ == its_other.address_);
+    }
+    return is_equal;
 }
 
 const ipv4_address_t & ipv4_option_impl::get_address() const {
@@ -36,13 +47,17 @@ const ipv4_address_t & ipv4_option_impl::get_address() const {
 
 void ipv4_option_impl::set_address(const ipv4_address_t &_address) {
     address_ = _address;
+
+    boost::asio::ip::address_v4 its_address(_address);
+    type_ = (its_address.is_multicast() ?
+            option_type_e::IP4_MULTICAST : option_type_e::IP4_ENDPOINT);
 }
 
 bool ipv4_option_impl::is_multicast() const {
     return (type_ == option_type_e::IP4_MULTICAST);
 }
 
-bool ipv4_option_impl::serialize(vsomeip::serializer *_to) const {
+bool ipv4_option_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = option_impl::serialize(_to);
     _to->serialize(&address_[0], uint32_t(address_.size()));
     _to->serialize(protocol::reserved_byte);
@@ -51,7 +66,7 @@ bool ipv4_option_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool ipv4_option_impl::deserialize(vsomeip::deserializer *_from) {
+bool ipv4_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from)
                             && length_ == VSOMEIP_SD_IPV4_OPTION_LENGTH;
     uint8_t its_reserved(static_cast<std::uint8_t>(layer_four_protocol_e::UNKNOWN));
@@ -71,5 +86,4 @@ bool ipv4_option_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 } // namespace sd
-} // namespace vsomeip
-
+} // namespace vsomeip_v3

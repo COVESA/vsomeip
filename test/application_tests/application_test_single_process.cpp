@@ -11,14 +11,14 @@
 TEST(someip_application_test_single_process, notify_increasing_counter)
 {
     // start application acting as daemon (rm_stub)
-    application_test_daemon its_daemon;
+    auto its_daemon = std::make_shared<application_test_daemon>();
 
     // start receiver service (rm_proxy)
     application_test_service its_receiver(application_test::service);
 
     // stop the daemon (rm_stub goes away)
-    its_daemon.stop();
-
+    its_daemon->stop();
+    its_daemon.reset();
     // restart client which tries to communicate with service multiple times
     // thus it will always be the new routing manager
     for (int var = 0; var < 10; ++var) {

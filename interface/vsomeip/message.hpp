@@ -3,14 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_MESSAGE_HPP
-#define VSOMEIP_MESSAGE_HPP
+#ifndef VSOMEIP_V3_MESSAGE_HPP_
+#define VSOMEIP_V3_MESSAGE_HPP_
 
 #include <memory>
 
 #include <vsomeip/message_base.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class payload;
 
@@ -43,10 +43,35 @@ public:
      * \brief Set the message payload.
      */
     virtual void set_payload(std::shared_ptr<payload> _payload) = 0;
+
+    /**
+     * \brief Get e2e protection check result.
+     */
+    VSOMEIP_EXPORT virtual uint8_t get_check_result() const = 0;
+
+    /**
+     * \brief Set e2e protection check result.
+     */
+    VSOMEIP_EXPORT virtual void set_check_result(uint8_t _check_result) = 0;
+
+    /**
+     * \brief Return whether or not the CRC value received is valid.
+     */
+    VSOMEIP_EXPORT virtual bool is_valid_crc() const = 0;
+
+    /**
+     * \brief Return uid of the message sender.
+     */
+    VSOMEIP_EXPORT virtual uid_t get_uid() const = 0;
+
+    /**
+     * \brief Return gid of the message sender.
+     */
+    VSOMEIP_EXPORT virtual gid_t get_gid() const = 0;
 };
 
 /** @} */
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_MESSAGE_HPP
+#endif // VSOMEIP_V3_MESSAGE_HPP_

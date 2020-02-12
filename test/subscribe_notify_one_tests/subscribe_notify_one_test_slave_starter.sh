@@ -10,49 +10,25 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-if [ $# -lt 2 ]
+if [ $# -lt 1 ]
 then
-    echo "Please pass a subscription method to this script."
-    echo "For example: $0 UDP subscribe_notify_one_test_diff_client_ids_diff_ports_slave.json"
-    echo "Valid subscription types include:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
     echo "Please pass a json file to this script."
-    echo "For example: $0 UDP subscribe_notify_one_test_diff_client_ids_diff_ports_slave.json"
+    echo "For example: $0 subscribe_notify_one_test_diff_client_ids_diff_ports_slave.json"
     exit 1
 fi
-
-# Make sure only valid subscription types are passed to the script
-SUBSCRIPTION_TYPES="TCP_AND_UDP PREFER_UDP PREFER_TCP UDP TCP"
-VALID=0
-for valid_subscription_type in $SUBSCRIPTION_TYPES
-do
-    if [ $valid_subscription_type == $1 ]
-    then
-        VALID=1
-    fi
-done
-
-if [ $VALID -eq 0 ]
-then
-    echo "Invalid subscription type passed, valid types are:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
-    echo "Exiting"
-    exit 1
-fi
-
 
 FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_four
-export VSOMEIP_CONFIGURATION=$2
+export VSOMEIP_CONFIGURATION=$1
 ./subscribe_notify_one_test_service 4 $1 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_five
-export VSOMEIP_CONFIGURATION=$2
+export VSOMEIP_CONFIGURATION=$1
 ./subscribe_notify_one_test_service 5 $1 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_six
-export VSOMEIP_CONFIGURATION=$2
+export VSOMEIP_CONFIGURATION=$1
 ./subscribe_notify_one_test_service 6 $1 &
 
 # Wait until all applications are finished

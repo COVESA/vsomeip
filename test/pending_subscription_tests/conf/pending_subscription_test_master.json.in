@@ -29,10 +29,21 @@
             {
                 "port":"40001",
                 "enable-magic-cookies":"false"
-            }
+            },
+            "events" :
+            [
+                {
+                    "event" : "0x1111",
+                    "is_reliable" : "false"
+                },
+                {
+                    "event" : "0x1112",
+                    "is_reliable" : "false"
+                }
+            ]
         }
     ],
-    "routing":"vsomeipd",
+    "routing":"routingmanagerd",
     "service-discovery":
     {
         "enable":"true",

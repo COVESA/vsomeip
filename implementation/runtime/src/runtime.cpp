@@ -7,7 +7,7 @@
 
 #include "../include/runtime_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::string runtime::get_property(const std::string &_name) {
     return runtime_impl::get_property(_name);
@@ -21,4 +21,4 @@ std::shared_ptr<runtime> runtime::get() {
     return runtime_impl::get();
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

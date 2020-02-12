@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_PAYLOAD_HPP
-#define VSOMEIP_PAYLOAD_HPP
+#ifndef VSOMEIP_V3_PAYLOAD_HPP_
+#define VSOMEIP_V3_PAYLOAD_HPP_
 
 #include <vector>
 
@@ -14,7 +14,7 @@
 #include <vsomeip/internal/deserializable.hpp>
 #include <vsomeip/internal/serializable.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 /**
  *
@@ -101,6 +101,6 @@ public:
 
 /** @} */
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_PAYLOAD_HPP
+#endif // VSOMEIP_V3_PAYLOAD_HPP_

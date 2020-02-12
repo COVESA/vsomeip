@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "client_id_test_globals.hpp"
 
@@ -248,7 +248,7 @@ static int service_number;
 TEST(someip_client_id_test, send_ten_messages_to_service)
 {
     client_id_test_service its_sample(
-            client_id_test::service_infos[service_number]);
+            client_id_test::service_infos[static_cast<size_t>(service_number)]);
 }
 
 #ifndef _WIN32

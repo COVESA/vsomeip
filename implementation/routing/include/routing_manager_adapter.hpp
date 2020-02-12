@@ -3,10 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ROUTING_MANAGER_ADAPTER
-#define VSOMEIP_ROUTING_MANAGER_ADAPTER
+#ifndef VSOMEIP_V3_ROUTING_MANAGER_ADAPTER_
+#define VSOMEIP_V3_ROUTING_MANAGER_ADAPTER_
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class routing_manager;
 
@@ -19,6 +19,6 @@ public:
     virtual void process_command(const byte_t *_data, length_t _length) = 0;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_ROUTING_MANAGER_ADAPTER_HPP
+#endif // VSOMEIP_V3_ROUTING_MANAGER_ADAPTER_HPP_

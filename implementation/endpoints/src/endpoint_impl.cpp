@@ -7,32 +7,39 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/udp_ext.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
+#include <boost/asio/local/stream_protocol_ext.hpp>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
+#include "../../routing/include/routing_host.hpp"
 #include "../include/endpoint_impl.hpp"
-#include "../../logging/include/logger.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 template<typename Protocol>
 endpoint_impl<Protocol>::endpoint_impl(
-        std::shared_ptr<endpoint_host> _host,
-        endpoint_type _local,
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _local,
         boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit)
+        configuration::endpoint_queue_limit_t _queue_limit,
+        const std::shared_ptr<configuration>& _configuration)
     : service_(_io),
-      host_(_host),
+      endpoint_host_(_endpoint_host),
+      routing_host_(_routing_host),
       is_supporting_magic_cookies_(false),
       has_enabled_magic_cookies_(false),
       max_message_size_(_max_message_size),
       use_count_(0),
       sending_blocked_(false),
       local_(_local),
-      queue_limit_(_queue_limit) {
+      queue_limit_(_queue_limit),
+      configuration_(_configuration),
+      is_supporting_someip_tp_(false) {
 }
 
 template<typename Protocol>
@@ -93,30 +100,12 @@ uint32_t endpoint_impl<Protocol>::find_magic_cookie(
 }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::join(const std::string &) {
-}
-
-template<typename Protocol>
-void endpoint_impl<Protocol>::leave(const std::string &) {
-}
-
-template<typename Protocol>
 void endpoint_impl<Protocol>::add_default_target(
         service_t, const std::string &, uint16_t) {
 }
 
 template<typename Protocol>
 void endpoint_impl<Protocol>::remove_default_target(service_t) {
-}
-
-template<typename Protocol>
-std::uint16_t endpoint_impl<Protocol>::get_local_port() const {
-    return 0;
-}
-
-template<typename Protocol>
-bool endpoint_impl<Protocol>::is_reliable() const {
-    return false;
 }
 
 template<typename Protocol>
@@ -141,13 +130,13 @@ void endpoint_impl<Protocol>::register_error_handler(error_handler_t _error_hand
     this->error_handler_ = _error_handler;
 }
 
-
 // Instantiate template
 #ifndef _WIN32
 template class endpoint_impl<boost::asio::local::stream_protocol>;
+template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 template class endpoint_impl<boost::asio::ip::tcp>;
 template class endpoint_impl<boost::asio::ip::udp>;
 template class endpoint_impl<boost::asio::ip::udp_ext>;
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

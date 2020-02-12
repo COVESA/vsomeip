@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_LOGGER_IMPL_HPP
-#define VSOMEIP_LOGGER_IMPL_HPP
+#ifndef VSOMEIP_V3_LOGGER_IMPL_HPP
+#define VSOMEIP_V3_LOGGER_IMPL_HPP
 
 #include <memory>
 #include <string>
@@ -14,10 +14,11 @@
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
 
-#include "logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 #include "dlt_sink_backend.hpp"
+#include "android_sink_backend.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class configuration;
 
@@ -29,6 +30,8 @@ typedef boost::log::sinks::synchronous_sink<
         boost::log::sinks::text_ostream_backend> sink_t;
 typedef boost::log::sinks::synchronous_sink<
         dlt_sink_backend> dlt_sink_t;
+typedef boost::log::sinks::synchronous_sink<
+        android_sink_backend> android_sink_t;
 
 class logger_impl: public logger {
 public:
@@ -51,6 +54,9 @@ private:
                     const std::string &_context_id);
     void disable_dlt();
 
+    void enable_android();
+    void disable_android();
+
 private:
     boost::log::sources::severity_logger_mt<
             boost::log::trivial::severity_level> logger_;
@@ -59,12 +65,13 @@ private:
     boost::shared_ptr<sink_t> console_sink_;
     boost::shared_ptr<sink_t> file_sink_;
     boost::shared_ptr<dlt_sink_t> dlt_sink_;
+    boost::shared_ptr<android_sink_t> android_sink_;
     boost::log::core_ptr log_core_;
 
 private:
     void use_null_logger();
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_INTERNAL_LOG_OWNER_HPP
+#endif // VSOMEIP_V3_LOGGER_IMPL_HPP

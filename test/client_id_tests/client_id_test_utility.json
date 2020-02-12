@@ -31,5 +31,5 @@
             "id":"0x7411"
         }
     ],
-    "routing":"vsomeipd"
+    "routing":"routingmanagerd"
 }

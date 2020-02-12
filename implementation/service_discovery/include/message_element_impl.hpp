@@ -1,12 +1,12 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_MESSAGE_ELEMENT_IMPL_HPP
-#define VSOMEIP_SD_MESSAGE_ELEMENT_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_MESSAGE_ELEMENT_IMPL_HPP_
+#define VSOMEIP_V3_SD_MESSAGE_ELEMENT_IMPL_HPP_
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 class message_impl;
@@ -23,6 +23,7 @@ protected:
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_MESSAGE_ELEMENT_IMPL_HPP
+#endif // VSOMEIP_V3_SD_MESSAGE_ELEMENT_IMPL_HPP_
+

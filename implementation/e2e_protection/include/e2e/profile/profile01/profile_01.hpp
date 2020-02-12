@@ -3,13 +3,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_E2E_PROFILE01_PROFILE01_HPP
-#define VSOMEIP_E2E_PROFILE01_PROFILE01_HPP
+#ifndef VSOMEIP_V3_E2E_PROFILE01_PROFILE01_HPP
+#define VSOMEIP_V3_E2E_PROFILE01_PROFILE01_HPP
 
 #include <cstdint>
 #include "../../../buffer/buffer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace e2e {
 namespace profile01 {
 
@@ -51,6 +51,6 @@ struct profile_config {
 
 } // namespace profile01
 } // namespace e2e
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_E2E_PROFILE01_PROFILE01_HPP
+#endif // VSOMEIP_V3_E2E_PROFILE01_PROFILE01_HPP

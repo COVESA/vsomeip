@@ -31,56 +31,29 @@
         {
             "service":"0x1111",
             "instance":"0x0001",
-            "unreliable":"30000",
             "reliable":
             {
                 "port":"40000",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x1111",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         },
         {
             "service":"0x2222",
             "instance":"0x0001",
-            "unreliable":"30000",
             "reliable":
             {
                 "port":"40000",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x2222",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         },
         {
             "service":"0x3333",
             "instance":"0x0001",
-            "unreliable":"30000",
             "reliable":
             {
                 "port":"40000",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x3333",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         }
     ],
     "routing":"subscribe_notify_test_service_one",

@@ -4,46 +4,77 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <algorithm>
+#include <iomanip>
 
 #include <vsomeip/constants.hpp>
-
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/eventgroupinfo.hpp"
 #include "../include/event.hpp"
+#include "../include/remote_subscription.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
-#include "../../logging/include/logger.hpp"
-#include "../../configuration/include/internal.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-eventgroupinfo::eventgroupinfo() :
-        major_(DEFAULT_MAJOR),
-        ttl_(DEFAULT_TTL),
-        port_(ILLEGAL_PORT),
-        threshold_(0),
-        has_reliable_(false),
-        has_unreliable_(false),
-        subscription_id_(DEFAULT_SUBSCRIPTION) {
+eventgroupinfo::eventgroupinfo()
+    : service_(0),
+      instance_(0),
+      eventgroup_(0),
+      major_(DEFAULT_MAJOR),
+      ttl_(DEFAULT_TTL),
+      port_(ILLEGAL_PORT),
+      threshold_(0),
+      id_(PENDING_SUBSCRIPTION_ID),
+      reliability_(reliability_type_e::RT_UNKNOWN) {
 }
 
-eventgroupinfo::eventgroupinfo(major_version_t _major, ttl_t _ttl) :
-        major_(_major),
-        ttl_(_ttl),
-        port_(ILLEGAL_PORT),
-        threshold_(0),
-        has_reliable_(false),
-        has_unreliable_(false),
-        subscription_id_(DEFAULT_SUBSCRIPTION) {
+eventgroupinfo::eventgroupinfo(
+        const service_t _service, const instance_t _instance,
+        const eventgroup_t _eventgroup, const major_version_t _major,
+        const ttl_t _ttl)
+    : service_(_service),
+      instance_(_instance),
+      eventgroup_(_eventgroup),
+      major_(_major),
+      ttl_(_ttl),
+      port_(ILLEGAL_PORT),
+      threshold_(0),
+      id_(PENDING_SUBSCRIPTION_ID),
+      reliability_(reliability_type_e::RT_UNKNOWN) {
 }
 
 eventgroupinfo::~eventgroupinfo() {
+}
+
+service_t eventgroupinfo::get_service() const {
+    return service_;
+}
+
+void eventgroupinfo::set_service(const service_t _service) {
+    service_ = _service;
+}
+
+instance_t eventgroupinfo::get_instance() const {
+    return instance_;
+}
+
+void eventgroupinfo::set_instance(const instance_t _instance) {
+    instance_ = _instance;
+}
+
+eventgroup_t eventgroupinfo::get_eventgroup() const {
+    return eventgroup_;
+}
+
+void eventgroupinfo::set_eventgroup(const eventgroup_t _eventgroup) {
+    eventgroup_ = _eventgroup;
 }
 
 major_version_t eventgroupinfo::get_major() const {
     return major_;
 }
 
-void eventgroupinfo::set_major(major_version_t _major) {
+void eventgroupinfo::set_major(const major_version_t _major) {
     major_ = _major;
 }
 
@@ -51,7 +82,7 @@ ttl_t eventgroupinfo::get_ttl() const {
     return ttl_;
 }
 
-void eventgroupinfo::set_ttl(ttl_t _ttl) {
+void eventgroupinfo::set_ttl(const ttl_t _ttl) {
     ttl_ = _ttl;
 }
 
@@ -89,133 +120,56 @@ const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
     return events_;
 }
 
-void eventgroupinfo::add_event(std::shared_ptr<event> _event) {
+void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.insert(_event);
-    _event->is_reliable() ? has_reliable_ = true : has_unreliable_ = true;
+
+    switch (_event->get_reliability()) {
+    case reliability_type_e::RT_RELIABLE:
+        if (reliability_ == reliability_type_e::RT_UNRELIABLE) {
+            reliability_ = reliability_type_e::RT_BOTH;
+        } else if (reliability_ != reliability_type_e::RT_BOTH) {
+            reliability_ = reliability_type_e::RT_RELIABLE;
+        }
+        break;
+    case reliability_type_e::RT_UNRELIABLE:
+        if (reliability_ == reliability_type_e::RT_RELIABLE) {
+            reliability_ = reliability_type_e::RT_BOTH;
+        } else if (reliability_ != reliability_type_e::RT_BOTH) {
+            reliability_ = reliability_type_e::RT_UNRELIABLE;
+        }
+        break;
+    case reliability_type_e::RT_BOTH:
+        reliability_ = reliability_type_e::RT_BOTH;
+        break;
+    default:
+        ;
+    }
 }
 
-void eventgroupinfo::remove_event(std::shared_ptr<event> _event) {
+void eventgroupinfo::remove_event(const std::shared_ptr<event>& _event) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.erase(_event);
 }
 
-void eventgroupinfo::get_reliability(bool& _has_reliable, bool& _has_unreliable) const {
-    _has_reliable = has_reliable_;
-    _has_unreliable = has_unreliable_;
+reliability_type_e eventgroupinfo::get_reliability() const {
+    return reliability_;
 }
 
-const std::list<eventgroupinfo::target_t> eventgroupinfo::get_targets() const {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    return targets_;
-}
+uint32_t
+eventgroupinfo::get_unreliable_target_count() const {
+    uint32_t its_count(0);
 
-uint32_t eventgroupinfo::get_unreliable_target_count() const {
-    uint32_t _count(0);
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    for (auto i = targets_.begin(); i != targets_.end(); i++) {
-       if (!i->endpoint_->is_reliable()) {
-           _count++;
-       }
-    }
-    return _count;
-}
-
-void eventgroupinfo::add_multicast_target(const eventgroupinfo::target_t &_multicast_target) {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
-    if (std::find(multicast_targets_.begin(), multicast_targets_.end(), _multicast_target)
-            == multicast_targets_.end()) {
-        multicast_targets_.push_back(_multicast_target);
-    }
-}
-
-void eventgroupinfo::clear_multicast_targets() {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
-    multicast_targets_.clear();
-}
-
-const std::list<eventgroupinfo::target_t> eventgroupinfo::get_multicast_targets() const {
-    std::lock_guard<std::mutex> its_lock(multicast_targets_mutex_);
-    return multicast_targets_;
-}
-
-bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    std::size_t its_size = targets_.size();
-    if (std::find(targets_.begin(), targets_.end(), _target) == targets_.end()) {
-        targets_.push_back(_target);
-    }
-    return (its_size != targets_.size());
-}
-
-bool eventgroupinfo::add_target(const eventgroupinfo::target_t &_target,
-                                const eventgroupinfo::target_t &_subscriber) {
-    bool found(false);
-    bool add(false);
-    bool ret(false);
-    {
-        std::lock_guard<std::mutex> its_lock(targets_mutex_);
-        std::size_t its_size = targets_.size();
-
-        for (auto i = targets_.begin(); i != targets_.end(); i++) {
-            if (i->endpoint_->get_address() == _subscriber.endpoint_->get_address() &&
-                    i->endpoint_->get_port() == _subscriber.endpoint_->get_port() &&
-                    i->endpoint_->is_reliable() == _subscriber.endpoint_->is_reliable()) {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
-            targets_.push_back(_subscriber);
-            add = true;
-        }
-        ret = (its_size != targets_.size());
-    }
-    if (add) {
-        add_multicast_target(_target);
-    }
-    return ret;
-}
-
-bool eventgroupinfo::update_target(
-        const std::shared_ptr<endpoint_definition> &_target,
-        const std::chrono::steady_clock::time_point &_expiration) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    bool updated_target(false);
-
-    for (auto i = targets_.begin(); i != targets_.end(); i++) {
-        if (i->endpoint_->get_address() == _target->get_address() &&
-                i->endpoint_->get_port() == _target->get_port() &&
-                i->endpoint_->is_reliable() == _target->is_reliable() ) {
-            i->expiration_ = _expiration;
-            updated_target = true;
-            break;
-        }
-    }
-    return updated_target;
-}
-
-bool eventgroupinfo::remove_target(
-        const std::shared_ptr<endpoint_definition> &_target) {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    std::size_t its_size = targets_.size();
-
-    for (auto i = targets_.begin(); i != targets_.end(); i++) {
-        if (i->endpoint_->get_address() == _target->get_address() &&
-                      i->endpoint_->get_port() == _target->get_port() &&
-                      i->endpoint_->is_reliable() == _target->is_reliable()) {
-            targets_.erase(i);
-            break;
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    for (const auto &s : subscriptions_) {
+        auto its_subscription = s.second;
+        if (!its_subscription->get_parent()
+                && its_subscription->get_unreliable()) {
+            its_count++;
         }
     }
 
-    return (its_size != targets_.size());
-}
-
-void eventgroupinfo::clear_targets() {
-    std::lock_guard<std::mutex> its_lock(targets_mutex_);
-    targets_.clear();
+    return its_count;
 }
 
 uint8_t eventgroupinfo::get_threshold() const {
@@ -226,127 +180,179 @@ void eventgroupinfo::set_threshold(uint8_t _threshold) {
     threshold_ = _threshold;
 }
 
-std::unique_lock<std::mutex> eventgroupinfo::get_subscription_lock() {
-    return std::unique_lock<std::mutex>(subscription_mutex_);
+std::set<std::shared_ptr<remote_subscription> >
+eventgroupinfo::get_remote_subscriptions() const {
+    std::set<std::shared_ptr<remote_subscription> > its_subscriptions;
+
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    for (const auto &i : subscriptions_)
+        its_subscriptions.insert(i.second);
+
+    return its_subscriptions;
 }
 
-pending_subscription_id_t eventgroupinfo::add_pending_subscription(
-        pending_subscription_t _pending_subscription) {
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
-    if (++subscription_id_ == DEFAULT_SUBSCRIPTION) {
-        subscription_id_++;
-    }
-    _pending_subscription.pending_subscription_id_ = subscription_id_;
-    pending_subscriptions_[subscription_id_] = _pending_subscription;
+bool
+eventgroupinfo::update_remote_subscription(
+        const std::shared_ptr<remote_subscription> &_subscription,
+        const std::chrono::steady_clock::time_point &_expiration,
+        std::set<client_t> &_changed, remote_subscription_id_t &_id,
+        const bool _is_subscribe) {
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
 
-    const auto remote_address_port = std::make_tuple(
-            _pending_subscription.subscriber_->get_address(),
-            _pending_subscription.subscriber_->get_port(),
-            _pending_subscription.subscriber_->is_reliable());
+    for (const auto& its_item : subscriptions_) {
+        if (its_item.second->equals(_subscription)) {
+            // update existing subscription
+            _changed = its_item.second->update(
+                _subscription->get_clients(), _expiration, _is_subscribe);
+            _id = its_item.second->get_id();
 
-    auto found_address = pending_subscriptions_by_remote_.find(remote_address_port);
-    if (found_address != pending_subscriptions_by_remote_.end()) {
-        found_address->second.push_back(subscription_id_);
-        VSOMEIP_WARNING << __func__ << " num pending subscriptions: "
-                << std::dec << found_address->second.size();
-        return DEFAULT_SUBSCRIPTION;
-    } else {
-        pending_subscriptions_by_remote_[remote_address_port].push_back(subscription_id_);
-    }
-    return subscription_id_;
-}
+            // Copy acknowledgment states from existing subscription
+            for (const auto its_client : _subscription->get_clients()) {
+                _subscription->set_client_state(its_client,
+                        its_item.second->get_client_state(its_client));
+            }
 
-std::vector<pending_subscription_t> eventgroupinfo::remove_pending_subscription(
-        pending_subscription_id_t _subscription_id) {
-    std::vector<pending_subscription_t> its_pending_subscriptions;
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
-    const auto found_pending_subscription = pending_subscriptions_.find(
-            _subscription_id);
-    if (found_pending_subscription != pending_subscriptions_.end()) {
-        pending_subscription_t its_pending_sub = found_pending_subscription->second;
-        const auto remote_address_port = std::make_tuple(
-                its_pending_sub.subscriber_->get_address(),
-                its_pending_sub.subscriber_->get_port(),
-                its_pending_sub.subscriber_->is_reliable());
-        const bool removed_is_subscribe = (found_pending_subscription->second.ttl_ > 0);
-
-        // check if more (un)subscriptions to this eventgroup arrived from the
-        //  same remote during the time the current pending subscription was processed
-        auto found_remote = pending_subscriptions_by_remote_.find(remote_address_port);
-        if (found_remote != pending_subscriptions_by_remote_.end()) {
-            if (found_remote->second.size()
-                    && found_remote->second.front() == _subscription_id) {
-                pending_subscriptions_.erase(found_pending_subscription);
-                found_remote->second.erase(found_remote->second.begin());
-
-                // return removed (un)subscription as first element
-                its_pending_subscriptions.push_back(its_pending_sub);
-
-                // retrieve all pending (un)subscriptions which arrived during
-                // the time the rm_proxy answered the currently processed subscription
-                for (auto iter = found_remote->second.begin();
-                        iter != found_remote->second.end();) {
-                    const auto other_pen_sub = pending_subscriptions_.find(*iter);
-                    if (other_pen_sub != pending_subscriptions_.end()) {
-                        const bool queued_is_subscribe = (other_pen_sub->second.ttl_ > 0);
-                        if (removed_is_subscribe) {
-                            its_pending_subscriptions.push_back(other_pen_sub->second);
-                            if (!queued_is_subscribe) {
-                                // unsubscribe was queued and needs to be sent to
-                                // rm_proxy first before continuing processing
-                                // following queued (un)subscriptions
-                                break;
-                            } else {
-                                iter = found_remote->second.erase(iter);
-                                pending_subscriptions_.erase(other_pen_sub);
-                            }
-                        } else {
-                            if (queued_is_subscribe) {
-                                // subscribe was queued and needs to be sent to
-                                // rm_proxy first before continuing processing
-                                // following queued (un)subscriptions
-                                its_pending_subscriptions.push_back(other_pen_sub->second);
-                                break;
-                            } else {
-                                // further queued unsubscriptions can be ignored
-                                iter = found_remote->second.erase(iter);
-                                pending_subscriptions_.erase(other_pen_sub);
-                            }
+            if (_is_subscribe) {
+                if (!_changed.empty()) {
+                    // New clients:
+                    // Let this be a child subscription
+                    _subscription->set_parent(its_item.second);
+                    update_id();
+                    _subscription->set_id(id_);
+                    subscriptions_[id_] = _subscription;
+                } else {
+                    if (!_subscription->is_pending()) {
+                        if (!_subscription->force_initial_events()) {
+                            _subscription->set_initial(false);
                         }
                     } else {
-                        VSOMEIP_ERROR << __func__ << " didn't find queued subscription: "
-                                << *iter;
-                        ++iter;
+                        its_item.second->set_answers(
+                                its_item.second->get_answers() + 1);
                     }
                 }
-
-                if (found_remote->second.empty()) {
-                    pending_subscriptions_by_remote_.erase(found_remote);
-                }
             } else {
-                boost::system::error_code ec;
-                VSOMEIP_WARNING << __func__ << " Subscriptions were answered in "
-                        << " in wrong order by rm_proxy! ["
-                        << " subscriber: " << std::get<0>(remote_address_port).to_string(ec)
-                        << ":" << std::dec << std::get<1>(remote_address_port);
-                // found_pending_subscription isn't deleted from
-                // pending_subscriptions_ map in this case to ensure answer
-                // sequence of SD messages.
-                its_pending_subscriptions.clear();
+                if (its_item.second->is_pending()) {
+                    for (const auto &its_event : events_)
+                        its_event->remove_pending(
+                                its_item.second->get_subscriber());
+                }
             }
+
+            return true;
         }
-    } else {
-        VSOMEIP_ERROR << __func__ << " didn't find pending_subscription: "
-                << _subscription_id;
     }
-    return its_pending_subscriptions;
+
+    return false;
 }
 
+remote_subscription_id_t
+eventgroupinfo::add_remote_subscription(
+        const std::shared_ptr<remote_subscription> &_subscription) {
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    update_id();
 
-void eventgroupinfo::clear_pending_subscriptions() {
-    std::lock_guard<std::mutex> its_lock(pending_subscriptions_mutex_);
-    pending_subscriptions_.clear();
-    pending_subscriptions_by_remote_.clear();
+    _subscription->set_id(id_);
+    subscriptions_[id_] = _subscription;
+
+    return id_;
 }
 
-}  // namespace vsomeip
+std::shared_ptr<remote_subscription>
+eventgroupinfo::get_remote_subscription(
+        const remote_subscription_id_t _id) {
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+
+    auto find_subscription = subscriptions_.find(_id);
+    if (find_subscription != subscriptions_.end())
+        return find_subscription->second;
+
+    return nullptr;
+}
+
+void
+eventgroupinfo::remove_remote_subscription(
+        const remote_subscription_id_t _id) {
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    subscriptions_.erase(_id);
+}
+
+std::set<std::shared_ptr<endpoint_definition> >
+eventgroupinfo::get_unicast_targets() const {
+    std::set<std::shared_ptr<endpoint_definition>> its_targets;
+
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    for (const auto &s : subscriptions_) {
+        const auto its_reliable = s.second->get_reliable();
+        if (its_reliable)
+            its_targets.insert(its_reliable);
+        const auto its_unreliable = s.second->get_unreliable();
+        if (its_unreliable)
+            its_targets.insert(its_unreliable);
+    }
+
+    return its_targets;
+}
+
+std::set<std::shared_ptr<endpoint_definition> >
+eventgroupinfo::get_multicast_targets() const {
+    std::set<std::shared_ptr<endpoint_definition>> its_targets;
+    return its_targets;
+}
+
+bool eventgroupinfo::is_selective() const {
+    /* Selective eventgroups always contain a single event */
+    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    if (events_.size() != 1)
+        return false;
+
+    return ((*events_.begin())->get_type()
+            == event_type_e::ET_SELECTIVE_EVENT);
+}
+
+void
+eventgroupinfo::update_id() {
+    id_++;
+    if (id_ == PENDING_SUBSCRIPTION_ID)
+        id_ = 1;
+}
+
+void
+eventgroupinfo::send_initial_events(
+        const std::shared_ptr<endpoint_definition> &_reliable,
+        const std::shared_ptr<endpoint_definition> &_unreliable) const {
+    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    for (const auto &its_event : events_) {
+        if (its_event && its_event->get_type() == event_type_e::ET_FIELD) {
+#ifndef VSOMEIP_ENABLE_COMPAT
+            const auto its_reliability = its_event->get_reliability();
+            switch (its_reliability) {
+            case reliability_type_e::RT_RELIABLE:
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+                break;
+            case reliability_type_e::RT_UNRELIABLE:
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+                break;
+            case reliability_type_e::RT_BOTH:
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+                break;
+            default:
+                VSOMEIP_WARNING << __func__ << "Event reliability unknown: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << service_ << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << instance_ << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << eventgroup_ << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_event->get_event() << "]";
+            }
+#else
+            if (_reliable) {
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+            }
+            if (_unreliable) {
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+            }
+#endif
+        }
+    }
+}
+
+}  // namespace vsomeip_v3

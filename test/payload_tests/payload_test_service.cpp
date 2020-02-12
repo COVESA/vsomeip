@@ -6,13 +6,12 @@
 #include "payload_test_service.hpp"
 
 // this variables are changed via cmdline parameters
-static bool use_tcp = false;
+
 static bool check_payload = true;
 
-payload_test_service::payload_test_service(bool _use_tcp) :
+payload_test_service::payload_test_service() :
                 app_(vsomeip::runtime::get()->create_application()),
                 is_registered_(false),
-                use_tcp_(_use_tcp),
                 blocked_(false),
                 number_of_received_messages_(0),
                 offer_thread_(std::bind(&payload_test_service::run, this))
@@ -130,7 +129,7 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
     std::shared_ptr<vsomeip::message> its_response =
             vsomeip::runtime::get()->create_response(_request);
 
-    app_->send(its_response, true);
+    app_->send(its_response);
 }
 
 void payload_test_service::on_message_shutdown(
@@ -152,7 +151,7 @@ void payload_test_service::run()
 
 TEST(someip_payload_test, send_response_for_every_request)
 {
-    payload_test_service test_service(use_tcp);
+    payload_test_service test_service;
     if (test_service.init()) {
         test_service.start();
         test_service.join_offer_thread();

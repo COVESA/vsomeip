@@ -10,13 +10,15 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
-
+#include <vsomeip/internal/logger.hpp>
 #include "../implementation/configuration/include/configuration.hpp"
-#include "../implementation/configuration/include/configuration_impl.hpp"
-#include "../implementation/logging/include/logger.hpp"
-#include "../implementation/configuration/include/policy.hpp"
 
-#include "../implementation/plugin/include/plugin_manager.hpp"
+#include "../../implementation/plugin/include/plugin_manager_impl.hpp"
+#include "../../implementation/configuration/include/configuration_impl.hpp"
+#include "../../implementation/configuration/include/configuration_plugin.hpp"
+#include "../../implementation/security/include/security_impl.hpp"
+
+namespace vsomeip = vsomeip_v3;
 
 #define CONFIGURATION_FILE              "configuration-test.json"
 #define DEPRECATED_CONFIGURATION_FILE   "configuration-test-deprecated.json"
@@ -125,23 +127,34 @@ void check_file(const std::string &_config_file,
                 const std::string &_expected_protocol,
                 const std::string &_expected_multicast,
                 uint16_t _expected_port,
-                int32_t _expected_initial_delay_min,
-                int32_t _expected_initial_delay_max,
+                uint32_t _expected_initial_delay_min,
+                uint32_t _expected_initial_delay_max,
                 int32_t _expected_repetitions_base_delay,
                 uint8_t _expected_repetitions_max,
                 vsomeip::ttl_t _expected_ttl,
                 vsomeip::ttl_t _expected_cyclic_offer_delay,
                 vsomeip::ttl_t _expected_request_response_delay) {
 
-    // 0. Create configuration object
+
+    // 0. Set environment variable to config file and load it
+#ifndef _WIN32
+    setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
+#else
+    _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()
+#endif
+
+    // 1. Create configuration object
     std::shared_ptr<vsomeip::configuration> its_configuration;
-    auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(
+    auto its_plugin = vsomeip::plugin_manager_impl::get()->get_plugin(
             vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
     if (its_plugin) {
-        its_configuration = std::dynamic_pointer_cast<vsomeip::configuration>(its_plugin);
+        auto its_configuration_plugin
+            = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(its_plugin);
+        if (its_configuration_plugin)
+            its_configuration = its_configuration_plugin->get_configuration(EXPECTED_ROUTING_MANAGER_HOST);
     }
 
-    // 1. Did we get a configuration object?
+    // 2. Did we get a configuration object?
     if (0 == its_configuration) {
         ADD_FAILURE() << "No configuration object. "
                 "Either memory overflow or loading error detected!";
@@ -153,14 +166,6 @@ void check_file(const std::string &_config_file,
     vsomeip::cfg::configuration_impl* its_new_config =
             new vsomeip::cfg::configuration_impl(its_copied_config);
     delete its_new_config;
-
-    // 2. Set environment variable to config file and load it
-#ifndef _WIN32
-    setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
-#else
-    _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()
-#endif
-    its_configuration->load(EXPECTED_ROUTING_MANAGER_HOST);
 
     its_configuration->set_configuration_path("/my/test/path");
 
@@ -309,13 +314,13 @@ void check_file(const std::string &_config_file,
     std::map<vsomeip::plugin_type_e, std::set<std::string>> its_plugins =
             its_configuration->get_plugins(EXPECTED_ROUTING_MANAGER_HOST);
     EXPECT_EQ(1u, its_plugins.size());
-    for (const auto plugin : its_plugins) {
+    for (const auto& plugin : its_plugins) {
         EXPECT_EQ(vsomeip::plugin_type_e::APPLICATION_PLUGIN, plugin.first);
-        for (auto its_library : plugin.second)
+        for (const auto& its_library : plugin.second)
             EXPECT_EQ(std::string("libtestlibraryname.so." + std::to_string(VSOMEIP_APPLICATION_PLUGIN_VERSION)), its_library);
     }
     EXPECT_EQ(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, its_plugin->get_plugin_type());
-    EXPECT_EQ("vsomeip cfg plugin", its_plugin->get_plugin_name());
+    EXPECT_EQ("vsomeip-configuration-plugin", its_plugin->get_plugin_name());
     EXPECT_EQ(1u, its_plugin->get_plugin_version());
 
 
@@ -511,100 +516,102 @@ void check_file(const std::string &_config_file,
     // client is not the routing manager
     EXPECT_TRUE(its_configuration->check_routing_credentials(0x7777, 0x888, 0x999));
 
-    EXPECT_TRUE(its_configuration->is_security_enabled());
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1234, 0x5678));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1235, 0x5678));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5678));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5676));
+    auto its_security = vsomeip::security_impl::get();
+    EXPECT_TRUE(its_security->is_enabled());
+    EXPECT_TRUE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1234, 0x5678));
+    EXPECT_TRUE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1235, 0x5678));
+    EXPECT_TRUE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1236, 0x5678));
+    EXPECT_TRUE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1236, 0x5676));
 
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1236, 0x5679));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1234, 0x5679));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1277, 0x1233, 0x5679));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1266, 0x1233, 0x5679));
+    EXPECT_FALSE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1236, 0x5679));
+    EXPECT_FALSE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1234, 0x5679));
+    EXPECT_FALSE(its_security->is_offer_allowed(1000, 1000, 0x1277, 0x1233, 0x5679));
+    EXPECT_FALSE(its_security->is_offer_allowed(1001, 1001, 0x1266, 0x1233, 0x5679));
     // explicitly denied offers
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1234, 0x5678));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1235, 0x5678));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1234, 0x5679));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1300, 0x1));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1300, 0x2));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5678));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5675));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5676));
-    EXPECT_FALSE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5677));
-    EXPECT_TRUE(its_configuration->is_offer_allowed(0x1443, 0x1236, 0x5679));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1234, 0x5678));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1235, 0x5678));
+    EXPECT_TRUE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1234, 0x5679));
+    EXPECT_TRUE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1300, 0x1));
+    EXPECT_TRUE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1300, 0x2));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1236, 0x5678));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1236, 0x5675));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1236, 0x5676));
+    EXPECT_FALSE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1236, 0x5677));
+    EXPECT_TRUE(its_security->is_offer_allowed(4000, 4000, 0x1443, 0x1236, 0x5679));
 
     // explicitly allowed requests of methods / events
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5678, 0x0001));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5678, 0x8002));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1346, 0x1234, 0x5688, 0x8002));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8006));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8001));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5678, 0x8002));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1346, 0x1234, 0x5688, 0x8002));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5699, 0x8006));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5699, 0x8001));
 
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1347, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1342, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5677, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5700, 0x0001));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5699, 0x8007));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1234, 0x5700, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1230, 0x5678, 0x0001));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1230, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5678, 0x0002));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1446, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679, 0x0003));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5679, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5699, 0x9001));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1443, 0x1234, 0x5699, 0x9006));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1442, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1447, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(2001, 2001, 0x1347, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(2001, 2001, 0x1342, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5677, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5700, 0x0001));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5699, 0x8007));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1234, 0x5700, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1230, 0x5678, 0x0001));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1230, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(4000, 4000, 0x1443, 0x1234, 0x5678, 0x0002));
+    EXPECT_FALSE(its_security->is_client_allowed(4000, 4000, 0x1446, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_security->is_client_allowed(4000, 4000, 0x1443, 0x1234, 0x5679, 0x0003));
+    EXPECT_FALSE(its_security->is_client_allowed(4000, 4000, 0x1443, 0x1234, 0x5679, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(4000, 4000, 0x1443, 0x1234, 0x5699, 0x9001));
+    EXPECT_FALSE(its_security->is_client_allowed(4000, 4000, 0x1443, 0x1234, 0x5699, 0x9006));
+    EXPECT_FALSE(its_security->is_client_allowed(4001, 4001, 0x1442, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(4001, 4001, 0x1447, 0x1234, 0x5678, 0xFFFF));
 
     // check that any method ID is allowed
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1237, 0x5678, 0x0001));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1237, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1237, 0x5678, 0x0001));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1237, 0x5678, 0xFFFF));
 
     // check that any instance ID is allowed but only one method ID
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1343, 0x1238, 0x0004, 0x0001));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1343, 0x1238, 0x0004, 0x0002));
+    EXPECT_TRUE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1238, 0x0004, 0x0001));
+    EXPECT_FALSE(its_security->is_client_allowed(2000, 2000, 0x1343, 0x1238, 0x0004, 0x0002));
 
     // DENY NOTHING policy
     // check that ANY_METHOD is allowed in a "deny nothing" policy
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_security->is_client_allowed(5000, 5000, 0x1550, 0x1234, 0x5678, 0xFFFF));
     // check that specific method ID is allowed in a "deny nothing" policy
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_security->is_client_allowed(5000, 5000, 0x1550, 0x1234, 0x5678, 0x0001));
 
     // ALLOW NOTHING policy
     // check that ANY_METHOD is denied in a "allow nothing" policy
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(6000, 6000, 0x1660, 0x1234, 0x5678, 0xFFFF));
     // check that specific method ID is denied in a "allow nothing" policy
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0x0001));
+    EXPECT_FALSE(its_security->is_client_allowed(6000, 6000, 0x1660, 0x1234, 0x5678, 0x0001));
 
     // DENY only one service instance and ANY_METHOD (0x01 - 0xFFFF) policy
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0x0001));
+    EXPECT_FALSE(its_security->is_client_allowed(7000, 7000, 0x1770, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_FALSE(its_security->is_client_allowed(7000, 7000, 0x1770, 0x1234, 0x5678, 0x0001));
 
     // allow only one service instance and ANY_METHOD policy
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0xFFFF));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0x0001));
+    EXPECT_TRUE(its_security->is_client_allowed(8000, 8000, 0x1880, 0x1234, 0x5678, 0xFFFF));
+    EXPECT_TRUE(its_security->is_client_allowed(8000, 8000, 0x1880, 0x1234, 0x5678, 0x0001));
 
     // check request service
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1550, 0x1234, 0x5678, 0x00, true));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1660, 0x1234, 0x5678, 0x00, true));
-    EXPECT_FALSE(its_configuration->is_client_allowed(0x1770, 0x1234, 0x5678, 0x00, true));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1770, 0x2222, 0x5678, 0x00, true));
-    EXPECT_TRUE(its_configuration->is_client_allowed(0x1880, 0x1234, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_security->is_client_allowed(5000, 5000, 0x1550, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_security->is_client_allowed(6000, 6000, 0x1660, 0x1234, 0x5678, 0x00, true));
+    EXPECT_FALSE(its_security->is_client_allowed(7000, 7000, 0x1770, 0x1234, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_security->is_client_allowed(7000, 7000, 0x1770, 0x2222, 0x5678, 0x00, true));
+    EXPECT_TRUE(its_security->is_client_allowed(8000, 8000, 0x1880, 0x1234, 0x5678, 0x00, true));
 
-    EXPECT_TRUE(its_configuration->check_credentials(0x1277, 1000, 1000));
-    EXPECT_FALSE(its_configuration->check_credentials(0x1277, 1001, 1001));
-    EXPECT_FALSE(its_configuration->check_credentials(0x1278, 1000, 1000));
+    EXPECT_TRUE(its_security->check_credentials(0x1277, 1000, 1000));
+    EXPECT_FALSE(its_security->check_credentials(0x1277, 1001, 1001));
+    EXPECT_TRUE(its_security->check_credentials(0x1278, 1000, 1000));
+    EXPECT_TRUE(its_security->check_credentials(0x1278, 9000, 9000));
 
     // Security update / removal whitelist
-    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1000));
-    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1001));
-    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(1008));
-    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(2000));
-    EXPECT_TRUE(its_configuration->is_policy_removal_allowed(3000));
+    EXPECT_TRUE(its_security->is_policy_removal_allowed(1000));
+    EXPECT_TRUE(its_security->is_policy_removal_allowed(1001));
+    EXPECT_TRUE(its_security->is_policy_removal_allowed(1008));
+    EXPECT_TRUE(its_security->is_policy_removal_allowed(2000));
+    EXPECT_TRUE(its_security->is_policy_removal_allowed(3000));
 
-    EXPECT_FALSE(its_configuration->is_policy_removal_allowed(2001));
-    EXPECT_FALSE(its_configuration->is_policy_removal_allowed(3001));
+    EXPECT_FALSE(its_security->is_policy_removal_allowed(2001));
+    EXPECT_FALSE(its_security->is_policy_removal_allowed(3001));
 
     // create a valid policy object that is on whitelist and test is_policy_update_allowed method
     std::shared_ptr<vsomeip::policy> _policy(std::make_shared<vsomeip::policy>());
@@ -637,22 +644,22 @@ void check_file(const std::string &_config_file,
 
     _policy->services_.insert(
             std::make_pair(its_service_id, its_instance_method_ranges));
-    EXPECT_TRUE(its_configuration->is_policy_update_allowed(1000, _policy));
+    EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
 
     // test valid policy that holds a single service id which is whitelisted
     its_service_id = 0x7800;
     _policy->services_.insert(
             std::make_pair(its_service_id, its_instance_method_ranges));
-    EXPECT_TRUE(its_configuration->is_policy_update_allowed(1000, _policy));
+    EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
 
     // test invalid UID which is not whitelisted
-    EXPECT_FALSE(its_configuration->is_policy_update_allowed(2002, _policy));
+    EXPECT_FALSE(its_security->is_policy_update_allowed(2002, _policy));
 
     // test invalid policy that additionally holds a service id which is not whitelisted
     its_service_id = 0x8888;
     _policy->services_.insert(
             std::make_pair(its_service_id, its_instance_method_ranges));
-    EXPECT_FALSE(its_configuration->is_policy_update_allowed(1000, _policy));
+    EXPECT_FALSE(its_security->is_policy_update_allowed(1000, _policy));
 
     // TCP connection setting:
     // max TCP connect time / max allowed number of aborted TCP endpoint restarts until forced restart
@@ -665,8 +672,8 @@ void check_file(const std::string &_config_file,
     uint16_t port = its_configuration->get_sd_port();
     std::string multicast = its_configuration->get_sd_multicast();
 
-    int32_t initial_delay_min = its_configuration->get_sd_initial_delay_min();
-    int32_t initial_delay_max = its_configuration->get_sd_initial_delay_max();
+    uint32_t initial_delay_min = its_configuration->get_sd_initial_delay_min();
+    uint32_t initial_delay_max = its_configuration->get_sd_initial_delay_max();
     int32_t repetitions_base_delay = its_configuration->get_sd_repetitions_base_delay();
     uint8_t repetitions_max = its_configuration->get_sd_repetitions_max();
     vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
@@ -678,16 +685,16 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(check<std::string>(multicast, _expected_multicast, "SD MULTICAST"));
     EXPECT_TRUE(check<uint16_t>(port, _expected_port, "SD PORT"));
 
-    EXPECT_TRUE(check<int32_t>(initial_delay_min, _expected_initial_delay_min, "SD INITIAL DELAY MIN"));
-    EXPECT_TRUE(check<int32_t>(initial_delay_max, _expected_initial_delay_max, "SD INITIAL DELAY MAX"));
+    EXPECT_TRUE(check<uint32_t>(initial_delay_min, _expected_initial_delay_min, "SD INITIAL DELAY MIN"));
+    EXPECT_TRUE(check<uint32_t>(initial_delay_max, _expected_initial_delay_max, "SD INITIAL DELAY MAX"));
     EXPECT_TRUE(check<int32_t>(repetitions_base_delay, _expected_repetitions_base_delay, "SD REPETITION BASE DELAY"));
     EXPECT_TRUE(check<uint8_t>(repetitions_max,_expected_repetitions_max, "SD REPETITION MAX"));
     EXPECT_TRUE(check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL"));
-    EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, _expected_cyclic_offer_delay, "SD CYCLIC OFFER DELAY"));
-    EXPECT_TRUE(check<int32_t>(request_response_delay, _expected_request_response_delay, "SD RESPONSE REQUEST DELAY"));
+    EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, static_cast<int32_t>(_expected_cyclic_offer_delay), "SD CYCLIC OFFER DELAY"));
+    EXPECT_TRUE(check<int32_t>(request_response_delay, static_cast<int32_t>(_expected_request_response_delay), "SD RESPONSE REQUEST DELAY"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
 
-    ASSERT_TRUE(vsomeip::plugin_manager::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
+    ASSERT_TRUE(vsomeip::plugin_manager_impl::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
 }
 
 TEST(configuration_test, check_config_file) {

@@ -6,10 +6,13 @@
 cmake_minimum_required (VERSION 2.8.12)
 project (vsomeip)
 
-set (VSOMEIP_MAJOR_VERSION 2)
-set (VSOMEIP_MINOR_VERSION 14)
-set (VSOMEIP_PATCH_VERSION 16)
-set (VSOMEIP_HOTFIX_VERSION 0)
+set (VSOMEIP_NAME vsomeip3)
+set (VSOMEIP_COMPAT_NAME vsomeip)
+
+set (VSOMEIP_MAJOR_VERSION 3)
+set (VSOMEIP_MINOR_VERSION 1)
+set (VSOMEIP_PATCH_VERSION 7)
+set (VSOMEIP_HOTFIX_VERSION 1)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
@@ -35,7 +38,7 @@ set (INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header f
 if (WIN32 AND NOT CYGWIN)
     set (DEF_INSTALL_CMAKE_DIR CMake)
 else ()
-    set (DEF_INSTALL_CMAKE_DIR lib/cmake/vsomeip)
+    set (DEF_INSTALL_CMAKE_DIR lib/cmake/${VSOMEIP_NAME})
 endif ()
 
 set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
@@ -77,14 +80,49 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS_CXX_FLAGS "-pthread")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
+################################################################################
+# Options
+################################################################################
+
+# DLT
+if (DISABLE_DLT)
+set (VSOMEIP_ENABLE_DLT 0)
+else ()
+set (VSOMEIP_ENABLE_DLT 1)
+endif ()
+
 # Signal handling
 if (ENABLE_SIGNAL_HANDLING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
-include_directories(
-    "interface" 
-)
+# Thread sanitizer
+if (ENABLE_THREAD_SANITIZER)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif ()
+
+# Configuration overlays
+if (ENABLE_CONFIGURATION_OVERLAYS)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_CONFIGURATION_OVERLAYS")
+endif ()
+
+# Compatibility
+if (ENABLE_COMPAT)
+set (VSOMEIP_ENABLE_COMPAT 1)
+else ()
+set (VSOMEIP_ENABLE_COMPAT 0)
+endif ()
+
+# Multiple routing managers
+if (ENABLE_MULTIPLE_ROUTING_MANAGERS)
+set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 1)
+else ()
+set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 0)
+endif ()
+
+################################################################################
+# Dependencies
+################################################################################
 
 # Threads
 find_package(Threads REQUIRED)
@@ -106,12 +144,33 @@ else()
   MESSAGE( STATUS "Boost was not found!")
 endif()
 
-# DLT
+# cmake 3.15 introduced a new variable and a new format for the old one
+if (DEFINED Boost_VERSION_MACRO)
+  set(VSOMEIP_BOOST_VERSION ${Boost_VERSION_MACRO})
+else()
+  set(VSOMEIP_BOOST_VERSION ${Boost_VERSION})
+endif()
+
+message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
+if (${VSOMEIP_BOOST_VERSION} GREATER 107200)
+message( ERROR "boost version ${VSOMEIP_BOOST_VERSION} is not (yet) supported. Latest supported version is 1.72.0" )
+elseif(${VSOMEIP_BOOST_VERSION} GREATER 106999)
+set(VSOMEIP_BOOST_HELPER implementation/helper/1.70)
+elseif(${VSOMEIP_BOOST_VERSION} GREATER 106599)
+set(VSOMEIP_BOOST_HELPER implementation/helper/1.66)
+else()
+set(VSOMEIP_BOOST_HELPER implementation/helper/1.55)
+endif()
+
 find_package(PkgConfig)
+
+# DLT
+if(VSOMEIP_ENABLE_DLT EQUAL 1)
 pkg_check_modules(DLT "automotive-dlt >= 2.11")
-IF(DLT_FOUND) 
+if(DLT_FOUND) 
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
-ENDIF(DLT_FOUND)
+endif(DLT_FOUND)
+endif()
 
 # SystemD
 pkg_check_modules(SystemD "libsystemd")
@@ -121,34 +180,24 @@ MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
 endif(NOT SystemD_FOUND)
 
+# Multiple routing managers
+if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS")
+endif ()
+
+################################################################################
+# Directories
+################################################################################
+
 include_directories(
-    include
-    implementation/helper
+    interface
+    ${VSOMEIP_BOOST_HELPER}
     ${DLT_INCLUDE_DIRS}
 )
 
 link_directories(
     ${DLT_LIBDIR}
 )
-
-# Base library
-file(GLOB vsomeip_SRC
-    "implementation/endpoints/src/*.cpp"
-    "implementation/logging/src/*.cpp"
-    "implementation/tracing/src/*.cpp"
-    "implementation/message/src/*.cpp"
-    "implementation/routing/src/*.cpp"
-    "implementation/runtime/src/*.cpp"
-    "implementation/utility/src/*.cpp"
-    "implementation/plugin/src/*.cpp"
-)
-
-file(GLOB_RECURSE vsomeip_e2e_SRC
-    "implementation/e2e_protection/src/*.cpp"
-)
-
-list(SORT vsomeip_SRC)
-list(SORT vsomeip_e2e_SRC)
 
 if (${VSOMEIP_HOTFIX_VERSION} EQUAL 0)
 add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
@@ -171,43 +220,127 @@ else()
     set(USE_RT "rt")
 endif()
 
-add_library(vsomeip SHARED ${vsomeip_SRC} ${vsomeip_e2e_SRC})
-set_target_properties (vsomeip PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+################################################################################
+# Configuration library
+################################################################################
+file(GLOB ${VSOMEIP_NAME}-cfg_SRC
+    "implementation/configuration/src/*.cpp"
+)
+list(SORT ${VSOMEIP_NAME}-cfg_SRC)
+if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
+    add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
+    set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+    if (MSVC)
+        set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    endif()
+
+    target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+endif ()
+
+################################################################################
+# Base library
+################################################################################
+file(GLOB ${VSOMEIP_NAME}_SRC
+    "implementation/endpoints/src/*.cpp"
+    "implementation/logging/src/*.cpp"
+    "implementation/tracing/src/*.cpp"
+    "implementation/message/src/*.cpp"
+    "implementation/plugin/src/*.cpp"
+    "implementation/routing/src/*.cpp"
+    "implementation/runtime/src/*.cpp"
+    "implementation/security/src/*.cpp"
+    "implementation/utility/src/*.cpp"
+)
+if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
+list(APPEND ${VSOMEIP_NAME}_SRC ${${VSOMEIP_NAME}-cfg_SRC})
+endif()
+list(SORT ${VSOMEIP_NAME}_SRC)
+
+add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
+set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+if (MSVC)
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+endif ()
+target_include_directories(${VSOMEIP_NAME} INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>)
 # PRIVATE means the listed libraries won't be included in the "link interface",
-# meaning the exported vsomeipTargets.cmake targets won't try to link against
+# meaning the exported vsomeip3Targets.cmake targets won't try to link against
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(vsomeip PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
-# Configuration library
-file(GLOB vsomeip-cfg_SRC
-    "implementation/configuration/src/*.cpp"
-)
-list(SORT vsomeip-cfg_SRC)
-
-add_library(vsomeip-cfg SHARED ${vsomeip-cfg_SRC})
-set_target_properties (vsomeip-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-target_link_libraries(vsomeip-cfg vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
-
-# Service-Discovery library
-file(GLOB vsomeip-sd_SRC
+################################################################################
+# Service Discovery library
+################################################################################
+file(GLOB ${VSOMEIP_NAME}-sd_SRC
     "implementation/service_discovery/src/*.cpp"
 )
-list(SORT vsomeip-sd_SRC)
+list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
-add_library(vsomeip-sd SHARED ${vsomeip-sd_SRC})
-set_target_properties (vsomeip-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-target_link_libraries(vsomeip-sd vsomeip ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
+add_library(${VSOMEIP_NAME}-sd SHARED ${${VSOMEIP_NAME}-sd_SRC})
+set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
-    set_target_properties(vsomeip-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
-    set_target_properties(vsomeip-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
-    set_target_properties(vsomeip PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
-endif()
+    set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+endif ()
 
+target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+
+################################################################################
+# E2E library
+################################################################################
+file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
+    "implementation/e2e_protection/src/*.cpp"
+)
+list(SORT ${VSOMEIP_NAME}-e2e_SRC)
+
+add_library(${VSOMEIP_NAME}-e2e SHARED ${${VSOMEIP_NAME}-e2e_SRC})
+set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+if (MSVC)
+    set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+endif ()
+
+target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+################################################################################
+# Compatibility library
+################################################################################
+if (VSOMEIP_ENABLE_COMPAT EQUAL 1)
+set (VSOMEIP_COMPAT_MAJOR_VERSION 2)
+set (VSOMEIP_COMPAT_VERSION ${VSOMEIP_COMPAT_MAJOR_VERSION}.99.99)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_COMPAT")
+
+file(GLOB_RECURSE ${VSOMEIP_COMPAT_NAME}_SRC
+    "implementation/compat/logging/src/*.cpp"
+    "implementation/compat/message/src/*.cpp"
+    "implementation/compat/runtime/src/*.cpp"
+)
+list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
+
+add_library(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+set_target_properties (${VSOMEIP_COMPAT_NAME} PROPERTIES VERSION ${VSOMEIP_COMPAT_VERSION} SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION})
+if (MSVC)
+    set_target_properties(${VSOMEIP_COMPAT_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+endif ()
+
+target_include_directories(
+    ${VSOMEIP_COMPAT_NAME}
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}> # for headers when building
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
+    $<INSTALL_INTERFACE:include/compat> # for clients in install mode
+)
+target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+endif ()
+
+################################################################################
 # Configuration files
-
+################################################################################
 set(EXAMPLE_CONFIG_FILES
     "config/vsomeip.json"
     "config/vsomeip-local.json"
@@ -217,8 +350,14 @@ set(EXAMPLE_CONFIG_FILES
     "config/vsomeip-udp-service.json"
 )
 
-###################################################################################################
-set (VSOMEIP_DIAGNOSIS_ADDRESS "0x00")
+################################################################################
+# Configuration parameters
+################################################################################
+set (VSOMEIP_BASE_PATH "/tmp")
+if (BASE_PATH)
+set (VSOMEIP_BASE_PATH ${BASE_PATH})
+endif ()
+set (VSOMEIP_DIAGNOSIS_ADDRESS "0x01")
 if (DIAGNOSIS_ADDRESS)
 set (VSOMEIP_DIAGNOSIS_ADDRESS ${DIAGNOSIS_ADDRESS})
 endif ()
@@ -226,20 +365,24 @@ set (VSOMEIP_UNICAST_ADDRESS "127.0.0.1")
 if (UNICAST_ADDRESS)
 set (VSOMEIP_UNICAST_ADDRESS ${UNICAST_ADDRESS})
 endif ()
-set (VSOMEIP_ROUTING "vsomeipd")
-if (ROUTING)
-set (VSOMEIP_ROUTING ${ROUTING})
-endif ()
 set (VSOMEIP_ROUTING_READY_MESSAGE "SOME/IP routing ready.")
 if (ROUTING_READY_MESSAGE)
 set (VSOMEIP_ROUTING_READY_MESSAGE ${ROUTING_READY_MESSAGE})
 endif ()
+
+set(DEFAULT_CONFIGURATION_FOLDER "/etc/vsomeip" CACHE PATH "Default configuration folder")
+message(STATUS "Default configuration folder: ${DEFAULT_CONFIGURATION_FOLDER}")
+
+set(DEFAULT_CONFIGURATION_FILE "/etc/vsomeip.json" CACHE FILEPATH "Default configuration file")
+message(STATUS "Default configuration file: ${DEFAULT_CONFIGURATION_FILE}")
+
+message("Predefined base path: ${VSOMEIP_BASE_PATH}")
 message("Predefined unicast address: ${VSOMEIP_UNICAST_ADDRESS}")
 message("Predefined diagnosis address: ${VSOMEIP_DIAGNOSIS_ADDRESS}")
-message("Predefined routing application: ${VSOMEIP_ROUTING}")
 
-###################################################################################################
-
+################################################################################
+# Installation
+################################################################################
 set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
 file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.hpp"  )
@@ -251,9 +394,9 @@ foreach ( file ${vsomeip_INCLUDE} )
 endforeach()
 
 install (
-    TARGETS vsomeip 
+    TARGETS ${VSOMEIP_NAME} 
     # IMPORTANT: Add the vsomeip library to the "export-set"
-    EXPORT vsomeipTargets
+    EXPORT vsomeip3Targets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT
     ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
@@ -261,60 +404,93 @@ install (
 )
 
 install (
-    TARGETS vsomeip-cfg
+    TARGETS ${VSOMEIP_NAME}-e2e
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
 
+if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
 install (
-    TARGETS vsomeip-sd
+    TARGETS ${VSOMEIP_NAME}-cfg
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
+endif ()
+
+install (
+    TARGETS ${VSOMEIP_NAME}-sd
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+)
+
+if (VSOMEIP_ENABLE_COMPAT EQUAL 1)
+install (
+    TARGETS ${VSOMEIP_COMPAT_NAME}
+    EXPORT vsomeipTargets
+    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+)
+
+export (TARGETS ${VSOMEIP_COMPAT_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
+export (PACKAGE ${VSOMEIP_COMPAT_NAME})
+
+configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake" @ONLY)
+configure_file (vsomeipConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake" @ONLY)
+
+set (COMPAT_INSTALL_CMAKE_DIR "lib/cmake/${VSOMEIP_COMPAT_NAME}")
+
+install (
+    EXPORT vsomeipTargets
+    DESTINATION "${COMPAT_INSTALL_CMAKE_DIR}"
+    COMPONENT dev
+)
+
+install (
+    FILES
+    "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake"
+    "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake"
+    DESTINATION "${COMPAT_INSTALL_CMAKE_DIR}"
+    COMPONENT dev
+)
+
+configure_file(vsomeip.pc.in ${PROJECT_BINARY_DIR}/vsomeip.pc @ONLY)
+install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkgconfig)
+
+endif ()
 
 install (
   FILES ${EXAMPLE_CONFIG_FILES} DESTINATION etc/vsomeip COMPONENT config
 )
 
 # Add all targets to the build-tree export set
-export (TARGETS vsomeip FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
+export (TARGETS ${VSOMEIP_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeip3Targets.cmake")
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
-export (PACKAGE vsomeip)
+export (PACKAGE ${VSOMEIP_NAME})
 
-# Create the vsomeipConfig.cmake and vsomeipConfigVersion files
-file (RELATIVE_PATH REL_INCLUDE_DIR "${ABSOLUTE_INSTALL_CMAKE_DIR}" "${ABSOLUTE_INSTALL_INCLUDE_DIR}")
+# Create the vsomeip3Config.cmake and vsomeip3ConfigVersion files
+configure_file (vsomeip3Config.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake" @ONLY)
+configure_file (vsomeip3ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake" @ONLY)
 
-# ... for the build tree
-set (CONF_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/interface" "${PROJECT_BINARY_DIR}")
-configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake" @ONLY)
-
-# ... for the install tree
-set (CONF_INCLUDE_DIRS "\${VSOMEIP_CMAKE_DIR}/${REL_INCLUDE_DIR}")
-configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vsomeipConfig.cmake" @ONLY)
-
-# ... for both
-configure_file (vsomeipConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake" @ONLY)
-
-# confugure internal.hpp for correct version number
+# configure internal.hpp for correct version number
 configure_file (
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp.in"
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp"
 )
 
-# Install the vsomeipConfig.cmake and vsomeipConfigVersion.cmake
+# Install the vsomeip3Config.cmake and vsomeip3ConfigVersion.cmake
 install (
     FILES
-    "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/vsomeipConfig.cmake"
-    "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake"
+    "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake"
+    "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake"
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev
 )
 
 # Install the export set for use with the install-tree
 install (
-    EXPORT vsomeipTargets
+    EXPORT vsomeip3Targets
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev
 )
@@ -383,15 +559,14 @@ endif()
 ##############################################################################
 # create pkg-config file
 if(NOT WIN32)
-        configure_file(vsomeip.pc.in ${PROJECT_BINARY_DIR}/vsomeip.pc @ONLY)
-        install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkgconfig)
+        configure_file(vsomeip3.pc.in ${PROJECT_BINARY_DIR}/vsomeip3.pc @ONLY)
+        install(FILES ${PROJECT_BINARY_DIR}/vsomeip3.pc DESTINATION lib/pkgconfig)
 endif()
 
 ##############################################################################
-# build daemon (Non-Windows only)
+# build routing manager daemon (Non-Windows only)
 if (NOT MSVC)
-add_custom_target( daemon )
-add_subdirectory( daemon )
+add_subdirectory( examples/routingmanagerd )
 endif()
 
 # build tools
@@ -401,17 +576,6 @@ add_subdirectory( tools )
 # build examples
 add_custom_target( examples )
 add_subdirectory( examples EXCLUDE_FROM_ALL )
-
-# build plugins located directly in the build tree
-# (Non-Windows only)
-if (NOT MSVC)
-    if(EXISTS "${PROJECT_SOURCE_DIR}/plugins/CMakeLists.txt")
-       # build plugins if available
-       message("Plugins CMakeList.txt found: Build plugins")
-       add_subdirectory( plugins )
-    endif()
-endif()
-
 
 ##############################################################################
 # Test section
@@ -469,6 +633,20 @@ if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
                     "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125")
 endif()
 
+SET(TEST_IP_SLAVE_SECOND "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
+    "The second IP address of the interface which will act as test slave")
+set(TEST_SECOND_ADDRESS "OFF" CACHE BOOL
+    "Controls whether second address tests should run or not")
+
+if(${TEST_IP_SLAVE_SECOND} STREQUAL ${TEST_IP_DEFAULT_VALUE})
+    message(WARNING "TEST_IP_SLAVE_SECOND isn't set. "
+                    "Test with more than one IP address on same interface is not enabled."
+                    "Please specify them via for example "
+                    "-TEST_IP_SLAVE_SECOND=10.0.3.126")
+else()
+    set(TEST_SECOND_ADDRESS "ON")
+endif()
+
 SET(TEST_UID_DEFAULT_VALUE "123456789")
 SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING
     "The User ID of the user running the test: Needed for security")
@@ -489,8 +667,8 @@ if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
 endif()
 
 add_custom_target(build_tests)
-add_dependencies(build_tests vsomeip)
-add_dependencies(build_tests vsomeip-sd)
+add_dependencies(build_tests vsomeip3)
+add_dependencies(build_tests vsomeip3-sd)
 
 set(CMAKE_CTEST_COMMAND ctest -V)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})

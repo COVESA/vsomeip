@@ -17,6 +17,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <future>
 
 class routing_restart_test_client {
 public:
@@ -45,6 +46,7 @@ private:
     std::thread sender_;
 
     std::atomic<std::uint32_t> received_responses_;
+    std::promise<void> all_responses_received_;
 };
 
 #endif // RESTART_ROUTING_TEST_CLIENT_HPP

@@ -18,7 +18,7 @@ TESTMODE=$1
 COMMUNICATIONMODE=$2
 
 export VSOMEIP_CONFIGURATION=event_test_master.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 ./event_test_client $TESTMODE $COMMUNICATIONMODE &
@@ -28,7 +28,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting offer test on slave LXC offer_test_external_slave_starter.sh"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./event_test_slave_starter.sh $COMMUNICATIONMODE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./event_test_slave_starter.sh $COMMUNICATIONMODE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker run --name otems --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && sleep 10; ./event_test_slave_starter.sh $COMMUNICATIONMODE" &
 else

@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "event_test_globals.hpp"
 
@@ -41,7 +41,9 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
-                    service_info_.event_id, its_eventgroups, false);
+                    service_info_.event_id, its_eventgroups,
+                    vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
+                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         app_->register_message_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.shutdown_method_id,
                 std::bind(&event_test_service::on_shutdown_method_called, this,
@@ -53,7 +55,8 @@ public:
         app_->register_subscription_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.eventgroup_id,
                 std::bind(&event_test_service::subscription_handler,
-                          this, std::placeholders::_1, std::placeholders::_2));
+                          this, std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, std::placeholders::_4));
 
         app_->start();
     }
@@ -147,7 +150,9 @@ public:
         }
     }
 
-    bool subscription_handler(vsomeip::client_t _client, bool _subscribed) {
+    bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
+        (void)_uid;
+        (void)_gid;
         VSOMEIP_INFO << __func__ << ": client: 0x" << std::hex << _client
                 << ((_subscribed) ? " subscribed" : "unsubscribed");
         client_subscribed_ = _subscribed;

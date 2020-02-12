@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_MESSAGE_BASE_HPP
-#define VSOMEIP_MESSAGE_BASE_HPP
+#ifndef VSOMEIP_V3_MESSAGE_BASE_HPP_
+#define VSOMEIP_V3_MESSAGE_BASE_HPP_
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -13,7 +13,7 @@
 #include <vsomeip/internal/deserializable.hpp>
 #include <vsomeip/internal/serializable.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 /**
  *
@@ -193,20 +193,8 @@ public:
      */
     VSOMEIP_EXPORT virtual void set_initial(bool _is_initial) = 0;
 
-    /**
-     * \brief Return whether or not the CRC value received is valid.
-     */
-    VSOMEIP_EXPORT virtual bool is_valid_crc() const = 0;
-
-    /**
-     * \brief Set whether or not the CRC value received is valid.
-     */
-    VSOMEIP_EXPORT virtual void set_is_valid_crc(bool _is_valid_crc) = 0;
-
 };
 
-/** @} */
+} // namespace vsomeip_v3
 
-} // namespace vsomeip
-
-#endif // VSOMEIP_MESSAGE_BASE_HPP
+#endif // VSOMEIP_V3_MESSAGE_BASE_HPP_

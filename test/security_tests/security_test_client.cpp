@@ -92,18 +92,16 @@ void security_test_client::on_state(vsomeip::state_type_e _state) {
         its_eventgroups.insert(0x01);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8001),
-                its_eventgroups, true);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8002),
-                its_eventgroups, true);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
 
         app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01,
-                vsomeip::DEFAULT_MAJOR, vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
-                               static_cast<vsomeip::event_t>(0x8001));
+                vsomeip::DEFAULT_MAJOR, static_cast<vsomeip::event_t>(0x8001));
 
         app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01,
-                vsomeip::DEFAULT_MAJOR, vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
-                               static_cast<vsomeip::event_t>(0x8002));
+                vsomeip::DEFAULT_MAJOR, static_cast<vsomeip::event_t>(0x8002));
     }
 }
 
@@ -184,11 +182,11 @@ void security_test_client::run() {
         request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 
         // send a request which is allowed by policy -> expect answer
-        app_->send(request, true);
+        app_->send(request);
 
         // send a request with a not allowed method ID -> expect no answer
         request->set_method(0x888);
-        app_->send(request, true);
+        app_->send(request);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
@@ -222,7 +220,7 @@ void security_test_client::shutdown_service() {
     request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->send(request,true);
+    app_->send(request);
 }
 
 TEST(someip_security_test, basic_subscribe_request_response)

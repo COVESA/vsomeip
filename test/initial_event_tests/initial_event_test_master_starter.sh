@@ -10,57 +10,33 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-if [ $# -lt 2 ]
+if [ $# -lt 1 ]
 then
-    echo "Please pass a subscription method to this script."
-    echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_master.json"
-    echo "Valid subscription types include:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
     echo "Please pass a json file to this script."
-    echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_master.json"
+    echo "For example: $0 initial_event_test_diff_client_ids_diff_ports_master.json"
     echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
     echo "To ensure the first client only subscribes to one event pass SUBSCRIBE_ONLY_ONE as third/fourth parameter"
     exit 1
 fi
 
-PASSED_SUBSCRIPTION_TYPE=$1
-PASSED_JSON_FILE=$2
+PASSED_JSON_FILE=$1
 # Remove processed options from $@
-shift 2
+shift 1
 REMAINING_OPTIONS="$@"
-
-# Make sure only valid subscription types are passed to the script
-SUBSCRIPTION_TYPES="TCP_AND_UDP PREFER_UDP PREFER_TCP UDP TCP"
-VALID=0
-for valid_subscription_type in $SUBSCRIPTION_TYPES
-do
-    if [ $valid_subscription_type == $PASSED_SUBSCRIPTION_TYPE ]
-    then
-        VALID=1
-    fi
-done
-
-if [ $VALID -eq 0 ]
-then
-    echo "Invalid subscription type passed, valid types are:"
-    echo "            [TCP_AND_UDP, PREFER_UDP, PREFER_TCP, UDP, TCP]"
-    echo "Exiting"
-    exit 1
-fi
 
 print_starter_message () {
 
 if [ ! -z "$USE_LXC_TEST" ]; then
-    echo "starting initial event test on slave LXC with params $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
+    echo "starting initial event test on slave LXC with params $CLIENT_JSON_FILE $REMAINING_OPTIONS"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name ietms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
 else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** initial_event_test_slave_starter.sh $PASSED_SUBSCRIPTION_TYPE $CLIENT_JSON_FILE $REMAINING_OPTIONS
+** initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in
@@ -100,7 +76,7 @@ unset VSOMEIP_APPLICATION_NAME
 CLIENT_PIDS=()
 
 # Start first client which subscribes remotely
-./initial_event_test_client 9000 $PASSED_SUBSCRIPTION_TYPE DONT_EXIT $REMAINING_OPTIONS &
+./initial_event_test_client 9000 DONT_EXIT $REMAINING_OPTIONS &
 FIRST_PID=$!
 
 # Start availability checker in order to wait until the services on the remote
@@ -125,7 +101,7 @@ sleep 2
 
 for client_number in $(seq 9001 9011)
 do
-   ./initial_event_test_client $client_number $PASSED_SUBSCRIPTION_TYPE STRICT_CHECKING $REMAINING_OPTIONS &
+   ./initial_event_test_client $client_number STRICT_CHECKING $REMAINING_OPTIONS &
    CLIENT_PIDS+=($!)
 done
 
@@ -152,11 +128,6 @@ kill $PID_SERVICE_ONE
 
 sleep 1
 echo ""
-
-if [ ! -z "$USE_DOCKER" ]; then
-    docker stop ietms
-    docker rm ietms
-fi
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]

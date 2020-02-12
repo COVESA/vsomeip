@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TRACE_HEADER_HPP
-#define VSOMEIP_TRACE_HEADER_HPP
+#ifndef VSOMEIP_V3_TRACE_HEADER_HPP_
+#define VSOMEIP_V3_TRACE_HEADER_HPP_
 
 #include <memory>
 
@@ -14,7 +14,7 @@
 
 #define VSOMEIP_TRACE_HEADER_SIZE 10
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint;
 
@@ -40,6 +40,6 @@ struct header {
 };
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_TRACE_HEADER_HPP
+#endif // VSOMEIP_V3_TRACE_HEADER_HPP_

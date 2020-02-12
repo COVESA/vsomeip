@@ -5,28 +5,17 @@
 
 #include "../include/subscription.hpp"
 
-namespace vsomeip {
+#include <vsomeip/internal/logger.hpp>
+
+namespace vsomeip_v3 {
 namespace sd {
-
-subscription::subscription(major_version_t _major, ttl_t _ttl,
-        std::shared_ptr<endpoint> _reliable,
-        std::shared_ptr<endpoint> _unreliable,
-        subscription_type_e _subscription_type,
-        uint8_t _counter)
-        : major_(_major), ttl_(_ttl),
-          reliable_(_reliable), unreliable_(_unreliable),
-          is_acknowledged_(true),
-          tcp_connection_established_(false),
-          udp_connection_established_(false),
-          subscription_type_(_subscription_type),
-          counter_(_counter) {
-}
-
-subscription::~subscription() {
-}
 
 major_version_t subscription::get_major() const {
     return major_;
+}
+
+void subscription::set_major(major_version_t _major) {
+    major_ = _major;
 }
 
 ttl_t subscription::get_ttl() const {
@@ -41,7 +30,7 @@ std::shared_ptr<endpoint> subscription::get_endpoint(bool _reliable) const {
     return (_reliable ? reliable_ : unreliable_);
 }
 
-void subscription::set_endpoint(std::shared_ptr<endpoint> _endpoint,
+void subscription::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
         bool _reliable) {
     if (_reliable)
         reliable_ = _endpoint;
@@ -49,12 +38,29 @@ void subscription::set_endpoint(std::shared_ptr<endpoint> _endpoint,
         unreliable_ = _endpoint;
 }
 
-bool subscription::is_acknowledged() const {
-    return is_acknowledged_;
+bool subscription::is_selective() const {
+    return is_selective_;
+}
+void subscription::set_selective(const bool _is_selective) {
+    is_selective_ = _is_selective;
 }
 
-void subscription::set_acknowledged(bool _is_acknowledged) {
-    is_acknowledged_ = _is_acknowledged;
+subscription_state_e
+subscription::get_state(const client_t _client) const {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    auto found_client = clients_.find(_client);
+    if (found_client != clients_.end())
+        return found_client->second;
+    return subscription_state_e::ST_UNKNOWN;
+}
+
+void
+subscription::set_state(
+        const client_t _client, const subscription_state_e _state) {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    auto found_client = clients_.find(_client);
+    if (found_client != clients_.end())
+        found_client->second = _state;
 }
 
 bool subscription::is_tcp_connection_established() const {
@@ -71,13 +77,44 @@ void subscription::set_udp_connection_established(bool _is_established) {
     udp_connection_established_ = _is_established;
 }
 
-subscription_type_e subscription::get_subscription_type() const {
-    return subscription_type_;
+bool
+subscription::add_client(const client_t _client) {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    auto find_client = clients_.find(_client);
+    if (find_client != clients_.end())
+        return false;
+
+    clients_[_client] = subscription_state_e::ST_UNKNOWN;
+    return true;
 }
 
-uint8_t subscription::get_counter() const {
-    return counter_;
+bool
+subscription::remove_client(const client_t _client) {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    auto its_size = clients_.size();
+    clients_.erase(_client);
+    return (its_size > clients_.size());
+}
+
+std::set<client_t> subscription::get_clients() const {
+    std::set<client_t> its_clients;
+    {
+        std::lock_guard<std::mutex> its_lock(clients_mutex_);
+        for (const auto its_item : clients_)
+            its_clients.insert(its_item.first);
+    }
+    return its_clients;
+}
+
+bool subscription::has_client() const {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    return (clients_.size() > 0);
+}
+
+bool subscription::has_client(const client_t _client) const {
+    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    return (clients_.find(_client) != clients_.end());
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

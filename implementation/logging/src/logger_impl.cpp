@@ -45,7 +45,7 @@ namespace attributes = boost::log::attributes;
 
 using namespace boost::log::trivial;
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::shared_ptr<logger_impl> & logger_impl::get() {
     static std::shared_ptr<logger_impl> the_logger__ = std::make_shared<
@@ -70,10 +70,14 @@ void logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     logging::core::get()->set_filter(
             logging::trivial::severity >= get()->loglevel_);
 
-    if (_configuration->has_console_log())
+    if (_configuration->has_console_log()) {
         get()->enable_console();
-    else
+#ifdef ANDROID
+        get()->enable_android();
+#endif
+    } else {
         get()->disable_console();
+    }
 
     if (_configuration->has_file_log())
         get()->enable_file(_configuration->get_logfile());
@@ -176,6 +180,22 @@ void logger_impl::disable_dlt() {
         logging::core::get()->remove_sink(dlt_sink_);
 }
 
+void logger_impl::enable_android() {
+#ifdef ANDROID
+    if (android_sink_)
+        return;
+
+    boost::shared_ptr<android_sink_backend> backend = boost::make_shared<android_sink_backend>();
+    android_sink_ = boost::make_shared<android_sink_t>(backend);
+    logging::core::get()->add_sink(android_sink_);
+#endif
+}
+
+void logger_impl::disable_android() {
+    if (android_sink_)
+        logging::core::get()->remove_sink(android_sink_);
+}
+
 void logger_impl::use_null_logger() {
     boost::shared_ptr<sinks::text_ostream_backend> backend = boost::make_shared<
             sinks::text_ostream_backend>();
@@ -187,5 +207,5 @@ void logger_impl::use_null_logger() {
     logging::core::get()->add_sink(file_sink_);
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 

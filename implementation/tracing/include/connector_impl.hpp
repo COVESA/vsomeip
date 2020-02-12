@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TC_TRACE_CONNECTOR_HPP
-#define VSOMEIP_TC_TRACE_CONNECTOR_HPP
+#ifndef VSOMEIP_V3_TRACE_CONNECTOR_HPP_
+#define VSOMEIP_V3_TRACE_CONNECTOR_HPP_
 
 #ifdef USE_DLT
 #include <dlt/dlt.h>
@@ -24,10 +24,10 @@
 #include "header.hpp"
 #include "../../endpoints/include/buffer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 namespace cfg {
-	struct trace;
+    struct trace;
 }
 
 namespace trace {
@@ -53,7 +53,7 @@ public:
     VSOMEIP_EXPORT bool is_sd_message(const byte_t *_data, uint16_t _data_size) const;
 
     VSOMEIP_EXPORT std::shared_ptr<channel> add_channel(const std::string &_id,
-			const std::string &_description);
+            const std::string &_description);
     VSOMEIP_EXPORT bool remove_channel(const std::string &_id);
     VSOMEIP_EXPORT std::shared_ptr<channel> get_channel(const std::string &_id) const;
 
@@ -63,19 +63,18 @@ public:
 private:
     bool is_enabled_;
     bool is_sd_enabled_;
-    bool is_initialized_;
 
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;
     mutable std::mutex channels_mutex_;
 
 #ifdef USE_DLT
-	std::map<std::string, std::shared_ptr<DltContext>> contexts_;
+    std::map<std::string, std::shared_ptr<DltContext>> contexts_;
     mutable std::mutex contexts_mutex_;
 #endif
 
 };
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
 #endif // VSOMEIP_TC_TRACE_CONNECTOR_HPP

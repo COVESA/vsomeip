@@ -22,7 +22,7 @@
             "reliable" : { "port":"30509", "enable-magic-cookies":"false" }
         }
     ],
-    "routing" : "vsomeipd",
+    "routing" : "routingmanagerd",
     "service-discovery" :
     {
         "enable":"true",

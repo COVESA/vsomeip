@@ -3,15 +3,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_MESSAGE_HEADER_IMPL_HPP
-#define VSOMEIP_MESSAGE_HEADER_IMPL_HPP
+#ifndef VSOMEIP_V3_MESSAGE_HEADER_IMPL_HPP
+#define VSOMEIP_V3_MESSAGE_HEADER_IMPL_HPP
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/internal/serializable.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class message_base;
 
@@ -42,6 +42,6 @@ public:
     message_base *owner_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_MESSAGE_HEADER_IMPL_HPP
+#endif // VSOMEIP_V3_MESSAGE_HEADER_IMPL_HPP

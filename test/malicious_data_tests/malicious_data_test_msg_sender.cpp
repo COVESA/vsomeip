@@ -92,7 +92,7 @@ TEST_F(malicious_data, send_malicious_events)
                 vsomeip::sd::message_impl sd_msg;
                 EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
                 EXPECT_EQ(1u, sd_msg.get_entries().size());
-                for (auto e : sd_msg.get_entries()) {
+                for (const auto& e : sd_msg.get_entries()) {
                     if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP) {
                         EXPECT_TRUE(e->is_eventgroup_entry());
                         EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
@@ -321,7 +321,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
                     EXPECT_EQ(1u, sd_msg.get_entries().size());
-                    for (auto e : sd_msg.get_entries()) {
+                    for (const auto& e : sd_msg.get_entries()) {
                         if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP && !client_subscribed) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
@@ -543,6 +543,13 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                     std::size_t bytes_transferred = tcp_socket2.receive(
                             boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
+                        #if 0
+                        std::stringstream str;
+                        for (size_t i = 0; i < bytes_transferred; i++) {
+                            str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                        }
+                        std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
+                        #endif
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
                         std::shared_ptr<vsomeip::message> its_message(its_deserializer.deserialize_message());
                         EXPECT_EQ(0x3345, its_message->get_service());
@@ -701,7 +708,7 @@ TEST_F(malicious_data, send_wrong_message_type)
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
                     EXPECT_EQ(1u, sd_msg.get_entries().size());
-                    for (auto e : sd_msg.get_entries()) {
+                    for (const auto& e : sd_msg.get_entries()) {
                         if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP && !client_subscribed) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
@@ -1000,7 +1007,7 @@ TEST_F(malicious_data, send_wrong_return_code)
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
                     EXPECT_EQ(1u, sd_msg.get_entries().size());
-                    for (auto e : sd_msg.get_entries()) {
+                    for (const auto& e : sd_msg.get_entries()) {
                         if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP && !client_subscribed) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
@@ -1304,7 +1311,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
                     EXPECT_EQ(1u, sd_msg.get_entries().size());
-                    for (auto e : sd_msg.get_entries()) {
+                    for (const auto& e : sd_msg.get_entries()) {
                         if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP && !client_subscribed) {
                             EXPECT_TRUE(e->is_eventgroup_entry());
                             EXPECT_EQ(vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP, e->get_type());
@@ -1345,7 +1352,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                                         std::static_pointer_cast<vsomeip::sd::serviceentry_impl>(e);
                                 EXPECT_EQ(0u, its_casted_entry->get_minor_version());
                             }
-                            for (const auto op : sd_msg.get_options()) {
+                            for (const auto& op : sd_msg.get_options()) {
                                 EXPECT_EQ(op->get_type(), vsomeip::sd::option_type_e::IP4_ENDPOINT);
                                 EXPECT_EQ(op->get_length(), 9u);
                                 if (op->get_type() == vsomeip::sd::option_type_e::IP4_ENDPOINT) {

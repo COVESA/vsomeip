@@ -3,12 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef ENDPOINTS_INCLUDE_CREDENTIALS_HPP_
-#define ENDPOINTS_INCLUDE_CREDENTIALS_HPP_
+#ifndef VSOMEIP_V3_ENDPOINTS_INCLUDE_CREDENTIALS_HPP_
+#define VSOMEIP_V3_ENDPOINTS_INCLUDE_CREDENTIALS_HPP_
 
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class credentials {
 public:
@@ -21,6 +21,6 @@ public:
     static void send_credentials(const int _fd, client_t _client);
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif /* ENDPOINTS_INCLUDE_CREDENTIALS_HPP_ */
+#endif // VSOMEIP_V3_ENDPOINTS_INCLUDE_CREDENTIALS_HPP_

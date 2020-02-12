@@ -17,7 +17,13 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
+
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 #include "offered_services_info_test_globals.hpp"
 
@@ -32,13 +38,12 @@ public:
     offer_test_service(struct offer_test::service_info _service_info, struct offer_test::service_info _remote_service_info) :
             service_info_(_service_info),
             remote_service_info_(_remote_service_info),
-            // service with number 1 uses "vsomeipd" as application name
+            // service with number 1 uses "routingmanagerd" as application name
             // this way the same json file can be reused for all local tests
-            // including the ones with vsomeipd
+            // including the ones with routingmanagerd
             app_(vsomeip::runtime::get()->create_application(
-                        (service_number == "1") ? "vsomeipd" :
+                        (service_number == "1") ? "routingmanagerd" :
                                 "offered_services_info_test_service" + service_number)),
-            counter_(0),
             wait_until_registered_(true),
             shutdown_method_called_(false),
             offer_thread_(std::bind(&offer_test_service::run, this)) {
@@ -230,7 +235,6 @@ private:
     struct offer_test::service_info service_info_;
     struct offer_test::service_info remote_service_info_;
     std::shared_ptr<vsomeip::application> app_;
-    std::uint32_t counter_;
 
     bool wait_until_registered_;
     std::mutex mutex_;

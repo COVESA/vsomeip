@@ -15,7 +15,7 @@
 #include <cmath> // for isfinite
 
 #include "cpu_load_test_globals.hpp"
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 #include "cpu_load_measurer.hpp"
 
 // for getpid
@@ -31,7 +31,7 @@ public:
                     blocked_(false),
                     number_of_received_messages_(0),
                     number_of_received_messages_total_(0),
-                    load_measurer_(::getpid()),
+                    load_measurer_(static_cast<std::uint32_t>(::getpid())),
                     offer_thread_(std::bind(&cpu_load_test_service::run, this))
     {
     }
@@ -118,7 +118,7 @@ public:
         number_of_received_messages_++;
         number_of_received_messages_total_++;
         // send response
-        app_->send(vsomeip::runtime::get()->create_response(_request), true);
+        app_->send(vsomeip::runtime::get()->create_response(_request));
     }
 
     void on_message_start_measuring(const std::shared_ptr<vsomeip::message>& _request)

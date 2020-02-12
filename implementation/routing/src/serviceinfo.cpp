@@ -5,11 +5,14 @@
 
 #include "../include/serviceinfo.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
-                         ttl_t _ttl, bool _is_local)
+serviceinfo::serviceinfo(service_t _service, instance_t _instance,
+        major_version_t _major, minor_version_t _minor,
+        ttl_t _ttl, bool _is_local)
     : group_(0),
+      service_(_service),
+      instance_(_instance),
       major_(_major),
       minor_(_minor),
       ttl_(0),
@@ -24,6 +27,8 @@ serviceinfo::serviceinfo(major_version_t _major, minor_version_t _minor,
 
 serviceinfo::serviceinfo(const serviceinfo& _other) :
     group_(_other.group_),
+    service_(_other.service_),
+    instance_(_other.instance_),
     major_(_other.major_),
     minor_(_other.minor_),
     ttl_(_other.ttl_),
@@ -43,6 +48,14 @@ servicegroup * serviceinfo::get_group() const {
 
 void serviceinfo::set_group(servicegroup *_group) {
   group_ = _group;
+}
+
+service_t serviceinfo::get_service() const {
+    return service_;
+}
+
+instance_t serviceinfo::get_instance() const {
+    return instance_;
 }
 
 major_version_t serviceinfo::get_major() const {
@@ -80,7 +93,7 @@ std::shared_ptr<endpoint> serviceinfo::get_endpoint(bool _reliable) const {
   return (_reliable ? reliable_ : unreliable_);
 }
 
-void serviceinfo::set_endpoint(std::shared_ptr<endpoint> _endpoint,
+void serviceinfo::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
                                bool _reliable) {
   std::lock_guard<std::mutex> its_lock(endpoint_mutex_);
   if (_reliable) {
@@ -117,5 +130,4 @@ void serviceinfo::set_is_in_mainphase(bool _in_mainphase) {
     is_in_mainphase_ = _in_mainphase;
 }
 
-}  // namespace vsomeip
-
+}  // namespace vsomeip_v3

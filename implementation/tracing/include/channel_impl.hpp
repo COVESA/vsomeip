@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TRACING_CHANNEL_IMPL_HPP_
-#define VSOMEIP_TRACING_CHANNEL_IMPL_HPP_
+#ifndef VSOMEIP_V3_TRACE_CHANNEL_IMPL_HPP_
+#define VSOMEIP_V3_TRACE_CHANNEL_IMPL_HPP_
 
 #include <atomic>
 #include <functional>
@@ -14,7 +14,7 @@
 
 #include <vsomeip/trace.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace trace {
 
 typedef std::function<bool (service_t, instance_t, method_t)> filter_func_t;
@@ -44,7 +44,7 @@ public:
     bool matches(service_t _service, instance_t _instance, method_t _method);
 
 private:
-    filter_id_t add_filter_intern(filter_func_t _func, bool _is_positive);
+    filter_id_t add_filter_intern(const filter_func_t& _func, bool _is_positive);
 
     std::string id_;
     std::string name_;
@@ -57,6 +57,6 @@ private:
 };
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_TRACING_CHANNEL_IMPL_HPP_
+#endif // VSOMEIP_V3_TRACE_CHANNEL_IMPL_HPP_

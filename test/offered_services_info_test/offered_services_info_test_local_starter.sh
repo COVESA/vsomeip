@@ -31,8 +31,8 @@ End-of-message
 # Array for client pids
 CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offered_services_info_test_local.json
-# Start the services (vsomeipd as app name)
-./offered_services_info_test_service 1 & #vsomeipd as app name
+# Start the services (routingmanagerd as app name)
+./offered_services_info_test_service 1 & #routingmanagerd as app name
 PID_SERVICE_ONE=$!
 ./offered_services_info_test_client METHODCALL &
 CLIENT_PIDS+=($!)

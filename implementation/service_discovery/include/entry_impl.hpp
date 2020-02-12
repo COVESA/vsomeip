@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_ENTRY_IMPL_HPP
-#define VSOMEIP_SD_ENTRY_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_ENTRY_IMPL_HPP
+#define VSOMEIP_V3_SD_ENTRY_IMPL_HPP
 
 #include <memory>
 #include <vector>
@@ -17,7 +17,7 @@
 
 #define VSOMEIP_MAX_OPTION_RUN    2
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class deserializer;
 
@@ -53,8 +53,8 @@ public:
 
     void set_type(entry_type_e _type);
 
-    virtual bool serialize(vsomeip::serializer *_to) const;
-    virtual bool deserialize(vsomeip::deserializer *_from);
+    virtual bool serialize(vsomeip_v3::serializer *_to) const;
+    virtual bool deserialize(vsomeip_v3::deserializer *_from);
 
     uint8_t get_num_options(uint8_t _run) const;
 
@@ -76,6 +76,6 @@ protected:
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_ENTRY_IMPL_HPP
+#endif // VSOMEIP_V3_SD_ENTRY_IMPL_HPP

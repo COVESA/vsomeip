@@ -21,7 +21,7 @@ echo "----------------------------------------------"
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_autoconfig.json
 
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 sleep 2
@@ -53,15 +53,15 @@ CLIENT4_PID=$!
 
 sleep 2
 echo "----------------------------------------------"
-echo "       let vsomeipd crash (kill -9)           "
+echo "       let routingmanagerd crash (kill -9)           "
 echo "----------------------------------------------"
 kill -9 $DAEMON_PID
 echo "----------------------------------------------"
-echo "             restart vsomeipd                 "
+echo "             restart routingmanagerd                 "
 echo "----------------------------------------------"
 sleep 2
 
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 wait $SERIVCE_PID || ((FAIL+=1))
@@ -156,7 +156,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 # Start the service
@@ -191,16 +191,16 @@ CLIENT4_PID=$!
 
 sleep 2
 echo "----------------------------------------------"
-echo "       let vsomeipd crash (kill -9)           "
+echo "       let routingmanagerd crash (kill -9)           "
 echo "----------------------------------------------"
 kill -9 $DAEMON_PID
 echo "----------------------------------------------"
-echo "            restart vsomeipd                  "
+echo "            restart routingmanagerd                  "
 echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 wait $SERIVCE_PID || ((FAIL+=1))
@@ -230,7 +230,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 # Start the service
@@ -265,7 +265,7 @@ CLIENT4_PID=$!
 
 sleep 2
 echo "----------------------------------------------"
-echo "       let vsomeipd crash (kill -9)           "
+echo "       let routingmanagerd crash (kill -9)           "
 echo "----------------------------------------------"
 kill -9 $DAEMON_PID
 sleep 1
@@ -274,12 +274,12 @@ echo "       let service crash (kill -9)            "
 echo "----------------------------------------------"
 kill -9 $SERIVCE_PID
 echo "----------------------------------------------"
-echo "                restart vsomeipd              "
+echo "                restart routingmanagerd              "
 echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 
 echo "----------------------------------------------"

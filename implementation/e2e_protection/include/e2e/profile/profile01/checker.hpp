@@ -3,13 +3,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_E2E_PROFILE01_CHECKER_HPP
-#define VSOMEIP_E2E_PROFILE01_CHECKER_HPP
+#ifndef VSOMEIP_V3_E2E_PROFILE01_CHECKER_HPP
+#define VSOMEIP_V3_E2E_PROFILE01_CHECKER_HPP
 
 #include "../profile01/profile_01.hpp"
 #include "../profile_interface/checker.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace e2e {
 namespace profile01 {
 
@@ -23,7 +23,7 @@ class profile_01_checker final : public e2e::profile_interface::checker {
             config_(_config) {}
 
     virtual void check(const e2e_buffer &_buffer,
-                       e2e::profile_interface::generic_check_status &_generic_check_status) override final;
+                       e2e::profile_interface::check_status_t &_generic_check_status) override final;
 
 private:
     profile_config config_;
@@ -33,6 +33,6 @@ private:
 
 } // namespace profile01
 } // namespace e2e
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_E2E_PROFILE01_CHECKER_HPP
+#endif // VSOMEIP_V3_E2E_PROFILE01_CHECKER_HPP

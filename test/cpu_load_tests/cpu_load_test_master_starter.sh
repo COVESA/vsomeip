@@ -19,9 +19,9 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting cpu load test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip/test; ./cpu_load_test_slave_starter.sh"' &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./cpu_load_test_slave_starter.sh"' &
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name cltms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./cpu_load_test_slave_starter.sh" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./cpu_load_test_slave_starter.sh" &
 else
 cat <<End-of-message
 *******************************************************************************
@@ -65,11 +65,6 @@ do
     # with a non-zero exit code
     wait $job || FAIL=$(($FAIL+1))
 done
-
-if [ ! -z "$USE_DOCKER" ]; then
-    docker stop cltms
-    docker rm cltms
-fi
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]

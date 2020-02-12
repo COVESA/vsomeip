@@ -18,7 +18,7 @@
              "id" : "0x6666"
         }
     ],
-    "routing":"vsomeipd",
+    "routing":"routingmanagerd",
     "service-discovery":
     {
         "enable":"true",

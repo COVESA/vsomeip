@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TCP_CLIENT_ENDPOINT_IMPL_HPP
-#define VSOMEIP_TCP_CLIENT_ENDPOINT_IMPL_HPP
+#ifndef VSOMEIP_V3_TCP_CLIENT_ENDPOINT_IMPL_HPP_
+#define VSOMEIP_V3_TCP_CLIENT_ENDPOINT_IMPL_HPP_
 
 #include <boost/asio/ip/tcp.hpp>
 #include <chrono>
@@ -12,7 +12,7 @@
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 typedef client_endpoint_impl<
             boost::asio::ip::tcp
@@ -20,16 +20,12 @@ typedef client_endpoint_impl<
 
 class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
-    tcp_client_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-                             endpoint_type _local,
-                             endpoint_type _remote,
+    tcp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                             const std::shared_ptr<routing_host>& _routing_host,
+                             const endpoint_type& _local,
+                             const endpoint_type& _remote,
                              boost::asio::io_service &_io,
-                             std::uint32_t _max_message_size,
-                             std::uint32_t _buffer_shrink_threshold,
-                             std::chrono::milliseconds _send_timeout,
-                             configuration::endpoint_queue_limit_t _queue_limit,
-                             std::uint32_t _tcp_restart_aborts_max,
-                             std::uint32_t _tcp_connect_time_max);
+                             const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_client_endpoint_impl();
 
     void start();
@@ -42,16 +38,20 @@ public:
     void print_status();
 
     void send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
-                  message_buffer_ptr_t _sent_msg);
+                  const message_buffer_ptr_t& _sent_msg);
 private:
     void send_queued();
+    void get_configured_times_from_endpoint(
+            service_t _service, method_t _method,
+            std::chrono::nanoseconds *_debouncing,
+            std::chrono::nanoseconds *_maximum_retention) const;
     bool is_magic_cookie(const message_buffer_ptr_t& _recv_buffer,
                          size_t _offset) const;
     void send_magic_cookie(message_buffer_ptr_t &_buffer);
 
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes,
-                     message_buffer_ptr_t  _recv_buffer,
+                     const message_buffer_ptr_t&  _recv_buffer,
                      std::size_t _recv_buffer_size);
 
     void connect();
@@ -71,8 +71,11 @@ private:
             const boost::system::error_code& _error,
             std::size_t _bytes_transferred, std::size_t _bytes_to_send,
             service_t _service, method_t _method, client_t _client, session_t _session,
-            std::chrono::steady_clock::time_point _start);
+            const std::chrono::steady_clock::time_point _start);
     std::string get_remote_information() const;
+    std::shared_ptr<struct timing> get_timing(
+            const service_t& _service, const instance_t& _instance) const;
+    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 
@@ -93,6 +96,6 @@ private:
     std::chrono::steady_clock::time_point connect_timepoint_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_TCP_CLIENT_ENDPOINT_IMPL_HPP
+#endif // VSOMEIP_V3_TCP_CLIENT_ENDPOINT_IMPL_HPP_

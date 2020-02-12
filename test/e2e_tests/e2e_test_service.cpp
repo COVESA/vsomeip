@@ -59,7 +59,9 @@ bool e2e_test_service::init() {
 
     // profile01 CRC8 Event ID: 0x8001
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8001), its_eventgroups, true);
+                static_cast<vsomeip::event_t>(0x8001), its_eventgroups,
+                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
@@ -74,7 +76,9 @@ bool e2e_test_service::init() {
 
     // custom profile CRC32 Event ID: 0x8002
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8002), its_eventgroups_2, true);
+                static_cast<vsomeip::event_t>(0x8002), its_eventgroups_2,
+                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
@@ -154,7 +158,7 @@ void e2e_test_service::on_message(const std::shared_ptr<vsomeip::message>& _requ
     if (_request->get_method() == vsomeip_test::TEST_SERVICE_METHOD_ID) {
         its_vsomeip_payload->set_data(payloads_profile_01_[received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
         its_response->set_payload(its_vsomeip_payload);
-        app_->send(its_response, true);
+        app_->send(its_response);
 
         // set value to field which gets filled by e2e protection with CRC on sending
         vsomeip::byte_t its_data[8] = {0x00, 0x00, (uint8_t)received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID], 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -166,7 +170,7 @@ void e2e_test_service::on_message(const std::shared_ptr<vsomeip::message>& _requ
         //send fixed payload for custom profile CRC32
         its_vsomeip_payload->set_data(payloads_custom_profile_[received_requests_counters_[0x6543] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
         its_response->set_payload(its_vsomeip_payload);
-        app_->send(its_response, true);
+        app_->send(its_response);
 
         // set value to field which gets filled by e2e protection with 4 byte CRC 32 on sending
         vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, (uint8_t)received_requests_counters_[0x6543], 0x32};

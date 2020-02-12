@@ -25,12 +25,12 @@ fi
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
-** Now running same tests with vsomeipd
+** Now running same tests with routingmanagerd
 *******************************************************************************
 *******************************************************************************
 End-of-message
 export VSOMEIP_CONFIGURATION=application_test_no_dispatch_threads_daemon.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 ./application_test
 if [ $? -ne 0 ]
@@ -42,7 +42,7 @@ kill $DAEMON_PID
 wait $DAEMON_PID
 
 export VSOMEIP_CONFIGURATION=application_test_daemon.json
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 DAEMON_PID=$!
 ./application_test
 if [ $? -ne 0 ]

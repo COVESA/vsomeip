@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "pending_subscription_test_globals.hpp"
 
@@ -44,14 +44,19 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
         app_->offer_event(service_info_.service_id, 0x1,
-                    service_info_.event_id, its_eventgroups, true);
+                    service_info_.event_id,
+                    its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                    std::chrono::milliseconds::zero(),
+                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
         its_eventgroups.clear();
         its_eventgroups.insert(static_cast<vsomeip::eventgroup_t>(_service_info.eventgroup_id+1u));
 
         app_->offer_event(service_info_.service_id, 0x1,
                 static_cast<vsomeip::event_t>(service_info_.event_id+1u),
-                its_eventgroups, true);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                std::chrono::milliseconds::zero(),
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
 
         app_->register_message_handler(vsomeip::ANY_SERVICE,
                 vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
@@ -66,11 +71,13 @@ public:
         app_->register_async_subscription_handler(service_info_.service_id,
                 0x1, service_info_.eventgroup_id,
                 std::bind(&pending_subscription_test_service::subscription_handler_async,
-                          this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+                          this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                          std::placeholders::_4, std::placeholders::_5));
         app_->register_subscription_handler(service_info_.service_id,
                 0x1, static_cast<vsomeip::eventgroup_t>(service_info_.eventgroup_id+1u),
                 std::bind(&pending_subscription_test_service::subscription_handler,
-                          this, std::placeholders::_1, std::placeholders::_2));
+                          this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                          std::placeholders::_4));
         app_->start();
     }
 
@@ -158,7 +165,7 @@ public:
         }
 
         std::future<bool> itsFuture = notify_method_called_.get_future();
-        if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(10))) {
+        if (std::future_status::timeout == itsFuture.wait_for(std::chrono::seconds(30))) {
             ADD_FAILURE() << "notify method wasn't called within time!";
         } else {
             EXPECT_TRUE(itsFuture.get());
@@ -170,8 +177,10 @@ public:
         stop();
     }
 
-    void subscription_handler_async(vsomeip::client_t _client, bool _subscribed,
-                                    std::function<void(const bool)> _cbk) {
+    void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid,
+                                    bool _subscribed, const std::function<void(const bool)>& _cbk) {
+        (void)_uid;
+        (void)_gid;
         VSOMEIP_WARNING << __func__ << " " << std::hex << _client << " subscribed." << _subscribed;
         if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE) {
             async_subscription_handler_ = _cbk;
@@ -225,7 +234,7 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
             _cbk(true);
-            if (count_subscribe == 16 || count_unsubscribe == 14) {
+            if (count_subscribe == 8 || count_unsubscribe == 7) {
                 subscription_accepted_asynchronous_ = true;
             }
         } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED) {
@@ -248,8 +257,10 @@ public:
         }
     }
 
-    bool subscription_handler(vsomeip::client_t _client, bool _subscribed) {
+    bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_subscribed;
+        (void)_uid;
+        (void)_gid;
         bool ret(false);
         VSOMEIP_WARNING << __func__ << " " << std::hex << _client << " subscribed. " << _subscribed;
         if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE) {
@@ -300,10 +311,11 @@ public:
             static int count_subscribed = 0;
             static int count_unsubscribe = 0;
             _subscribed ? count_subscribed++ : count_unsubscribe++;
+
             if (count_subscribed == 1) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
-            if (count_subscribed == 16 && count_unsubscribe == 14) {
+            if (count_subscribed == 8 && count_unsubscribe == 7) {
                 subscription_accepted_synchronous_ = true;
             }
             ret = true;

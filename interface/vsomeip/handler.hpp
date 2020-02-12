@@ -3,26 +3,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_HANDLER_HPP
-#define VSOMEIP_HANDLER_HPP
+#ifndef VSOMEIP_V3_HANDLER_HPP_
+#define VSOMEIP_V3_HANDLER_HPP_
 
 #include <functional>
 #include <memory>
+#include <tuple>
 
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class message;
 
 typedef std::function< void (state_type_e) > state_handler_t;
 typedef std::function< void (const std::shared_ptr< message > &) > message_handler_t;
 typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
-typedef std::function< bool (client_t, bool) > subscription_handler_t;
+typedef std::function< bool (client_t, uid_t, gid_t, bool) > subscription_handler_t;
 typedef std::function< void (const uint16_t) > error_handler_t;
 typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
                              const event_t, const uint16_t) > subscription_status_handler_t;
-typedef std::function< void (client_t, bool, std::function< void (const bool) > )> async_subscription_handler_t;
+typedef std::function< void (client_t, uid_t, gid_t, bool, std::function< void (const bool) > )> async_subscription_handler_t;
 
 typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
 typedef std::function< void () > watchdog_handler_t;
@@ -61,12 +62,27 @@ struct ip_address_t {
     }
 
 };
-typedef std::function<bool(const ip_address_t&)> offer_acceptance_handler_t;
+
+struct remote_info_t {
+    ip_address_t ip_;
+    std::uint16_t port_;
+    std::uint16_t first_;
+    std::uint16_t last_;
+    bool is_range_;
+
+    bool operator<(const remote_info_t& _other) const {
+        return std::tie(ip_, port_, first_, last_, is_range_) <
+                std::tie(_other.ip_, _other.port_, _other.first_, _other.last_,
+                         _other.is_range_);
+    }
+};
+
+typedef std::function<bool(const remote_info_t&)> sd_acceptance_handler_t;
 typedef std::function<void(const ip_address_t&)> reboot_notification_handler_t;
 typedef std::function<void()> routing_ready_handler_t;
 typedef std::function<void(routing_state_e)> routing_state_handler_t;
 typedef std::function<void(security_update_state_e)> security_update_handler_t;
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_HANDLER_HPP
+#endif // VSOMEIP_V3_HANDLER_HPP_

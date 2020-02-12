@@ -7,7 +7,7 @@
 
 #include "../include/endpoint_definition.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 std::map<std::tuple<service_t, instance_t, boost::asio::ip::address, uint16_t, bool>,
          std::shared_ptr<endpoint_definition> > endpoint_definition::definitions_;
@@ -63,4 +63,4 @@ void endpoint_definition::set_remote_port(uint16_t _port) {
 }
 
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

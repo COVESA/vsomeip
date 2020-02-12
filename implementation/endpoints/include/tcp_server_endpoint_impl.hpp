@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TCP_SERVER_ENDPOINT_IMPL_HPP
-#define VSOMEIP_TCP_SERVER_ENDPOINT_IMPL_HPP
+#ifndef VSOMEIP_V3_TCP_SERVER_ENDPOINT_IMPL_HPP_
+#define VSOMEIP_V3_TCP_SERVER_ENDPOINT_IMPL_HPP_
 
 #include <map>
 #include <memory>
@@ -17,7 +17,7 @@
 
 #include <chrono>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 typedef server_endpoint_impl<
             boost::asio::ip::tcp
@@ -26,31 +26,34 @@ typedef server_endpoint_impl<
 class tcp_server_endpoint_impl: public tcp_server_endpoint_base_impl {
 
 public:
-    tcp_server_endpoint_impl(std::shared_ptr<endpoint_host> _host,
-                             endpoint_type _local,
+    tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                             const std::shared_ptr<routing_host>& _routing_host,
+                             const endpoint_type& _local,
                              boost::asio::io_service &_io,
-                             std::uint32_t _max_message_size,
-                             std::uint32_t _buffer_shrink_threshold,
-                             std::chrono::milliseconds _send_timeout,
-                             configuration::endpoint_queue_limit_t _queue_limit);
+                             const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_server_endpoint_impl();
 
     void start();
     void stop();
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target,
-                 const byte_t *_data, uint32_t _size, bool _flush);
+                 const byte_t *_data, uint32_t _size);
+    bool send_error(const std::shared_ptr<endpoint_definition> _target,
+                const byte_t *_data, uint32_t _size);
     void send_queued(const queue_iterator_type _queue_iterator);
+    void send_queued_sync(const queue_iterator_type _queue_iterator);
+    void get_configured_times_from_endpoint(
+            service_t _service, method_t _method,
+            std::chrono::nanoseconds *_debouncing,
+            std::chrono::nanoseconds *_maximum_retention) const;
 
-    VSOMEIP_EXPORT bool is_established(std::shared_ptr<endpoint_definition> _endpoint);
+    VSOMEIP_EXPORT bool is_established(const std::shared_ptr<endpoint_definition>& _endpoint);
 
     bool get_default_target(service_t, endpoint_type &) const;
 
     std::uint16_t get_local_port() const;
     bool is_reliable() const;
     bool is_local() const;
-
-    client_t get_client(std::shared_ptr<endpoint_definition> _endpoint);
 
     // dummies to implement endpoint_impl interface
     // TODO: think about a better design!
@@ -62,7 +65,7 @@ private:
     public:
         typedef std::shared_ptr<connection> ptr;
 
-        static ptr create(std::weak_ptr<tcp_server_endpoint_impl> _server,
+        static ptr create(const std::weak_ptr<tcp_server_endpoint_impl>& _server,
                           std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold,
                           bool _magic_cookies_enabled,
@@ -76,13 +79,14 @@ private:
         void receive();
 
         void send_queued(const queue_iterator_type _queue_iterator);
+        void send_queued_sync(const queue_iterator_type _queue_iterator);
 
         void set_remote_info(const endpoint_type &_remote);
         const std::string get_address_port_remote() const;
         std::size_t get_recv_buffer_capacity() const;
 
     private:
-        connection(std::weak_ptr<tcp_server_endpoint_impl> _server,
+        connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server,
                    std::uint32_t _max_message_size,
                    std::uint32_t _recv_buffer_size_initial,
                    std::uint32_t _buffer_shrink_threshold,
@@ -100,7 +104,7 @@ private:
                 const boost::system::error_code& _error,
                 std::size_t _bytes_transferred, std::size_t _bytes_to_send,
                 service_t _service, method_t _method, client_t _client, session_t _session,
-                std::chrono::steady_clock::time_point _start);
+                const std::chrono::steady_clock::time_point _start);
         void stop_and_remove_connection();
 
         std::mutex socket_mutex_;
@@ -136,12 +140,14 @@ private:
 
 private:
     void remove_connection(connection *_connection);
-    void accept_cbk(connection::ptr _connection,
+    void accept_cbk(const connection::ptr& _connection,
                     boost::system::error_code const &_error);
     std::string get_remote_information(
             const queue_iterator_type _queue_iterator) const;
+    std::string get_remote_information(const endpoint_type& _remote) const;
+    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_TCP_SERVER_ENDPOINT_IMPL_HPP
+#endif // VSOMEIP_V3_TCP_SERVER_ENDPOINT_IMPL_HPP_

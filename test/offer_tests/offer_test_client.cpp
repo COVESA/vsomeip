@@ -16,8 +16,13 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
-#include "../../implementation/configuration/include/internal.hpp"
+#include <vsomeip/internal/logger.hpp>
+
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 #include "offer_test_globals.hpp"
 
@@ -32,7 +37,6 @@ public:
             service_info_(_service_info),
             operation_mode_(_mode),
             app_(vsomeip::runtime::get()->create_application("offer_test_client")),
-            service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
             wait_for_stop_(true),
@@ -68,11 +72,10 @@ public:
             its_eventgroups.insert(service_info_.eventgroup_id);
             app_->request_event(service_info_.service_id,
                     service_info_.instance_id, service_info_.event_id,
-                    its_eventgroups, false);
+                    its_eventgroups, vsomeip::event_type_e::ET_EVENT);
 
             app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                    service_info_.eventgroup_id, vsomeip::DEFAULT_MAJOR,
-                    vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
+                    service_info_.eventgroup_id, vsomeip::DEFAULT_MAJOR);
         }
 
         app_->start();
@@ -124,10 +127,10 @@ public:
         vsomeip::byte_t *d = its_payload->get_data();
         static std::uint32_t number_received_notifications(0);
         std::uint32_t counter(0);
-        counter |= d[0] << 24;
-        counter |= d[1] << 16;
-        counter |= d[2] << 8;
-        counter |= d[3];
+        counter |= static_cast<std::uint32_t>(d[0] << 24);
+        counter |= static_cast<std::uint32_t>(d[0] << 16);
+        counter = counter | static_cast<std::uint32_t>((d[2] << 8));
+        counter = counter | static_cast<std::uint32_t>(d[3]);
 
         VSOMEIP_DEBUG
         << "Received a notification with Client/Session [" << std::setw(4)
@@ -227,7 +230,6 @@ private:
     struct offer_test::service_info service_info_;
     operation_mode_e operation_mode_;
     std::shared_ptr<vsomeip::application> app_;
-    bool service_available_;
 
     bool wait_until_registered_;
     bool wait_until_service_available_;

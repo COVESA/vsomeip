@@ -10,6 +10,7 @@
 
 namespace big_payload_test {
     constexpr std::uint32_t BIG_PAYLOAD_SIZE = 1024*600;
+    constexpr std::uint32_t BIG_PAYLOAD_SIZE_UDP = 1024*30;
     constexpr std::uint32_t BIG_PAYLOAD_SIZE_RANDOM = 1024*1024*10;
     constexpr vsomeip::byte_t DATA_SERVICE_TO_CLIENT = 0xAA;
     constexpr vsomeip::byte_t DATA_CLIENT_TO_SERVICE = 0xFF;
@@ -23,6 +24,7 @@ namespace big_payload_test {
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED_GENERAL = 0x1237;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_GENERAL = 0x1238;
     constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC = 0x1239;
+    constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_UDP = 0x1240;
 
     constexpr vsomeip::service_t TEST_SERVICE_INSTANCE_ID = 0x1;
     constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
@@ -33,6 +35,7 @@ namespace big_payload_test {
         LIMITED_GENERAL,
         QUEUE_LIMITED_GENERAL,
         QUEUE_LIMITED_SPECIFIC,
+        UDP,
         UNKNOWN
     };
 }

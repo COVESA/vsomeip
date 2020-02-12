@@ -1,10 +1,10 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICE_DISCOVERY_IMPL
-#define VSOMEIP_SERVICE_DISCOVERY_IMPL
+#ifndef VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_
+#define VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_
 
 #include <map>
 #include <memory>
@@ -16,16 +16,19 @@
 
 #include <boost/asio/steady_timer.hpp>
 
-#include "service_discovery.hpp"
+#include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../routing/include/types.hpp"
+#include "../../routing/include/remote_subscription.hpp"
+
+#include "service_discovery.hpp"
 #include "ip_option_impl.hpp"
 #include "ipv4_option_impl.hpp"
 #include "ipv6_option_impl.hpp"
 #include "deserializer.hpp"
-#include "../../configuration/include/configuration.hpp"
+#include "message_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint;
 class serializer;
@@ -35,29 +38,29 @@ namespace sd {
 class entry_impl;
 class eventgroupentry_impl;
 class option_impl;
+class remote_subscription_ack;
 class request;
 class serviceentry_impl;
 class service_discovery_host;
 class subscription;
 
-typedef std::map<service_t, std::map<instance_t, std::shared_ptr<request> > > requests_t;
+typedef std::map<service_t,
+            std::map<instance_t,
+                std::shared_ptr<request>
+            >
+        > requests_t;
 
-struct subscriber_t {
-    std::shared_ptr<endpoint_definition> subscriber;
-    std::shared_ptr<endpoint_definition> target;
-    std::shared_ptr<sd_message_identifier_t> response_message_id_;
-    std::shared_ptr<eventgroupinfo> eventgroupinfo_;
-    vsomeip::ttl_t ttl_;
-    vsomeip::major_version_t major_;
-    std::uint16_t reserved_;
-    std::uint8_t counter_;
+struct entry_data_t {
+    std::shared_ptr<entry_impl> entry_;
+    std::vector<std::shared_ptr<option_impl> > options_;
+    std::shared_ptr<entry_impl> other_;
 };
 
 class service_discovery_impl: public service_discovery,
         public std::enable_shared_from_this<service_discovery_impl> {
 public:
     service_discovery_impl(service_discovery_host *_host,
-                           std::shared_ptr<configuration> _configuration);
+                           const std::shared_ptr<configuration>& _configuration);
     virtual ~service_discovery_impl();
 
     boost::asio::io_service & get_io();
@@ -71,13 +74,11 @@ public:
     void release_service(service_t _service, instance_t _instance);
 
     void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client,
-            subscription_type_e _subscription_type);
+            eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl,
+            client_t _client);
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
-    void unsubscribe_client(service_t _service, instance_t _instance,
-                            client_t _client);
 
     bool send(bool _is_announcing);
 
@@ -87,23 +88,20 @@ public:
 
     void on_endpoint_connected(
             service_t _service, instance_t _instance,
-            const std::shared_ptr<const vsomeip::endpoint> &_endpoint);
+            const std::shared_ptr<endpoint> &_endpoint);
 
-    void offer_service(service_t _service, instance_t _instance,
-                                   std::shared_ptr<serviceinfo> _info);
-    void stop_offer_service(service_t _service, instance_t _instance,
-                            std::shared_ptr<serviceinfo> _info);
+    void offer_service(const std::shared_ptr<serviceinfo> &_info);
+    void stop_offer_service(const std::shared_ptr<serviceinfo> &_info);
 
     void set_diagnosis_mode(const bool _activate);
 
     bool get_diagnosis_mode();
 
-    void remote_subscription_acknowledge(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            client_t _client, bool _acknowledged,
-            const std::shared_ptr<sd_message_identifier_t> &_sd_message_id);
 
-    void register_offer_acceptance_handler(offer_acceptance_handler_t _handler);
+    void update_remote_subscription(
+            const std::shared_ptr<remote_subscription> &_subscription);
+
+    void register_sd_acceptance_handler(sd_acceptance_handler_t _handler);
     void register_reboot_notification_handler(
             reboot_notification_handler_t _handler);
 private:
@@ -114,55 +112,43 @@ private:
             const boost::asio::ip::address &_destination,
             bool _reboot_flag, session_t _session);
 
-    void insert_option(std::shared_ptr<message_impl> &_message,
-            std::shared_ptr<entry_impl> _entry,
-            const boost::asio::ip::address &_address, uint16_t _port,
-            bool _is_reliable);
-    void insert_find_entries(std::shared_ptr<message_impl> &_message,
-                             const requests_t &_requests, uint32_t _start,
-                             uint32_t &_size, bool &_done);
-    void insert_offer_entries(std::shared_ptr<message_impl> &_message,
-                              const services_t &_services, uint32_t &_start,
-                              uint32_t _size, bool &_done, bool _ignore_phase);
-    bool insert_offer_service(std::shared_ptr<message_impl> _message,
-                              service_t _service, instance_t _instance,
-                              const std::shared_ptr<const serviceinfo> &_info,
-                              uint32_t &_size);
+    void insert_find_entries(std::vector<std::shared_ptr<message_impl> > &_messages,
+                             const requests_t &_requests);
+    void insert_offer_entries(std::vector<std::shared_ptr<message_impl> > &_messages,
+                              const services_t &_services, bool _ignore_phase);
+    void insert_offer_service(std::vector<std::shared_ptr<message_impl> > &_messages,
+                              const std::shared_ptr<const serviceinfo> &_info);
     enum remote_offer_type_e : std::uint8_t {
         RELIABLE_UNRELIABLE,
         RELIABLE,
         UNRELIABLE,
         UNKNOWN = 0xff
     };
-    bool insert_subscription(std::shared_ptr<message_impl> &_message,
+
+    entry_data_t create_eventgroup_entry(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription,
+            const std::shared_ptr<subscription> &_subscription,
             remote_offer_type_e _offer_type);
-    bool insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription,
-            remote_offer_type_e _offer_type);
-    void insert_subscription_ack(std::shared_ptr<message_impl> &_message,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+
+    void insert_subscription_ack(
+            const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
             const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
-            uint8_t _counter, major_version_t _major, uint16_t _reserved,
-            const std::shared_ptr<endpoint_definition> &_target = nullptr);
-    void insert_subscription_nack(std::shared_ptr<message_impl> &_message, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            uint8_t _counter, major_version_t _major, uint16_t _reserved);
+            const std::shared_ptr<endpoint_definition> &_target = nullptr,
+            const client_t _client = VSOMEIP_ROUTING_CLIENT);
 
     void process_serviceentry(std::shared_ptr<serviceentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
-            bool _unicast_flag,
-            std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes,
-            bool _accept_offers);
+            bool _unicast_flag, std::vector<std::shared_ptr<message_impl> > &_resubscribes,
+            bool _received_via_mcast, bool _accept_offers);
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl,
             const boost::asio::ip::address &_reliable_address,
             uint16_t _reliable_port,
             const boost::asio::ip::address &_unreliable_address,
-            uint16_t _unreliable_port, std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes);
+            uint16_t _unreliable_port,
+            std::vector<std::shared_ptr<message_impl> > &_resubscribes,
+            bool _received_via_mcast);
     void send_offer_service(
             const std::shared_ptr<const serviceinfo> &_info, service_t _service,
             instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -176,11 +162,9 @@ private:
     void process_eventgroupentry(
             std::shared_ptr<eventgroupentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
-            std::shared_ptr < message_impl > &its_message_response,
+            std::shared_ptr<remote_subscription_ack> &_acknowledgement,
             const boost::asio::ip::address &_destination,
-            const std::shared_ptr<sd_message_identifier_t> &_message_id,
-            bool _is_stop_subscribe_subscribe,
-            bool _force_initial_events);
+            bool _is_stop_subscribe_subscribe, bool _force_initial_events);
     void handle_eventgroup_subscription(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
@@ -188,22 +172,30 @@ private:
             bool _is_first_reliable,
             const boost::asio::ip::address &_second_address, uint16_t _second_port,
             bool _is_second_reliable,
-            std::shared_ptr < message_impl > &its_message,
-            const std::shared_ptr<sd_message_identifier_t> &_message_id,
-            bool _is_stop_subscribe_subscribe,
-            bool _force_initial_events);
+            std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+            bool _is_stop_subscribe_subscribe, bool _force_initial_events,
+            const std::set<client_t> &_clients,
+            const std::shared_ptr<eventgroupinfo>& _info);
     void handle_eventgroup_subscription_ack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter,
+            const std::set<client_t> &_clients,
             const boost::asio::ip::address &_address, uint16_t _port);
     void handle_eventgroup_subscription_nack(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, uint8_t _counter);
-    void serialize_and_send(std::shared_ptr<message_impl> _message,
+            instance_t _instance, eventgroup_t _eventgroup, uint8_t _counter,
+            const std::set<client_t> &_clients);
+
+    bool send(const std::vector<std::shared_ptr<message_impl>> &_messages);
+    bool serialize_and_send(
+            const std::vector<std::shared_ptr<message_impl>> &_messages,
             const boost::asio::ip::address &_address);
+
+    void update_acknowledgement(
+            const std::shared_ptr<remote_subscription_ack> &_acknowledgement);
 
     bool is_tcp_connected(service_t _service,
             instance_t _instance,
-            std::shared_ptr<vsomeip::endpoint_definition> its_endpoint);
+            const std::shared_ptr<endpoint_definition>& its_endpoint);
 
     void start_ttl_timer();
     void stop_ttl_timer();
@@ -221,33 +213,14 @@ private:
     bool check_static_header_fields(
             const std::shared_ptr<const message> &_message) const;
     bool check_layer_four_protocol(
-            const std::shared_ptr<const ip_option_impl> _ip_option) const;
-    void get_subscription_endpoints(std::shared_ptr<endpoint>& _unreliable,
-                                    std::shared_ptr<endpoint>& _reliable,
-                                    boost::asio::ip::address* _address,
-                                    bool* _has_address,
-                                    service_t _service, instance_t _instance,
-                                    client_t _client) const;
+            const std::shared_ptr<const ip_option_impl>& _ip_option) const;
 
-    void send_subscriptions(service_t _service, instance_t _instance, client_t _client, bool _reliable);
-
-    template<class Option, typename AddressType>
-    std::shared_ptr<option_impl> find_existing_option(
-            std::shared_ptr<message_impl> &_message,
-            AddressType _address, uint16_t _port,
-            layer_four_protocol_e _protocol,
-            option_type_e _option_type);
-    template<class Option, typename AddressType>
-    bool check_message_for_ip_option_and_assign_existing(
-            std::shared_ptr<message_impl> &_message,
-            std::shared_ptr<entry_impl> _entry, AddressType _address,
-            uint16_t _port, layer_four_protocol_e _protocol,
-            option_type_e _option_type);
-    template<class Option, typename AddressType>
-    void assign_ip_option_to_entry(std::shared_ptr<Option> _option,
-                                   AddressType _address, uint16_t _port,
-                                   layer_four_protocol_e _protocol,
-                                   std::shared_ptr<entry_impl> _entry);
+    void get_subscription_endpoints(service_t _service, instance_t _instance,
+            std::shared_ptr<endpoint>& _reliable,
+            std::shared_ptr<endpoint>& _unreliable) const;
+    void get_subscription_address(const std::shared_ptr<endpoint> &_reliable,
+            const std::shared_ptr<endpoint> &_unreliable,
+            boost::asio::ip::address &_address) const;
 
     std::shared_ptr<request> find_request(service_t _service, instance_t _instance);
 
@@ -261,71 +234,57 @@ private:
 
     void on_repetition_phase_timer_expired(
             const boost::system::error_code &_error,
-            std::shared_ptr<boost::asio::steady_timer> _timer,
+            const std::shared_ptr<boost::asio::steady_timer>& _timer,
             std::uint8_t _repetition, std::uint32_t _last_delay);
     void on_find_repetition_phase_timer_expired(
             const boost::system::error_code &_error,
-            std::shared_ptr<boost::asio::steady_timer> _timer,
+            const std::shared_ptr<boost::asio::steady_timer>& _timer,
             std::uint8_t _repetition, std::uint32_t _last_delay);
     void move_offers_into_main_phase(
             const std::shared_ptr<boost::asio::steady_timer> &_timer);
 
-    void fill_message_with_offer_entries(
-            std::shared_ptr<runtime> _runtime,
-            std::shared_ptr<message_impl> _message,
-            std::vector<std::shared_ptr<message_impl>> &_messages,
-            const services_t &_offers, bool _ignore_phase);
-
-    void fill_message_with_find_entries(
-            std::shared_ptr<runtime> _runtime,
-            std::shared_ptr<message_impl> _message,
-            std::vector<std::shared_ptr<message_impl>> &_messages,
-            const requests_t &_requests);
-
-    bool serialize_and_send_messages(
-            const std::vector<std::shared_ptr<message_impl>> &_messages);
-
-    bool send_stop_offer(service_t _service, instance_t _instance,
-                         std::shared_ptr<serviceinfo> _info);
+    bool send_stop_offer(const std::shared_ptr<serviceinfo>& _info);
 
     void start_main_phase_timer();
     void on_main_phase_timer_expired(const boost::system::error_code &_error);
 
 
     void send_uni_or_multicast_offerservice(
-            service_t _service, instance_t _instance, major_version_t _major,
-            minor_version_t _minor,
             const std::shared_ptr<const serviceinfo> &_info,
             bool _unicast_flag);
     bool last_offer_shorter_half_offer_delay_ago();
     void send_unicast_offer_service(
-            const std::shared_ptr<const serviceinfo> &_info, service_t _service,
-            instance_t _instance, major_version_t _major,
-            minor_version_t _minor);
+            const std::shared_ptr<const serviceinfo> &_info);
     void send_multicast_offer_service(
-            const std::shared_ptr<const serviceinfo>& _info, service_t _service,
-            instance_t _instance, major_version_t _major,
-            minor_version_t _minor);
+            const std::shared_ptr<const serviceinfo>& _info);
 
     bool check_source_address(const boost::asio::ip::address &its_source_address) const;
 
-    void update_subscription_expiration_timer(const std::shared_ptr<message_impl> &_message);
+    void update_subscription_expiration_timer(
+            const std::vector<std::shared_ptr<message_impl> > &_messages);
 
-    void remote_subscription_acknowledge_subscriber(
+    void remote_subscription_acknowledge(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged);
+            const std::shared_ptr<remote_subscription> &_subscription);
 
-    void remote_subscription_not_acknowledge_subscriber(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged);
+    bool check_stop_subscribe_subscribe(
+            message_impl::entries_t::const_iterator _iter,
+            message_impl::entries_t::const_iterator _end,
+            const message_impl::options_t &_options) const;
 
-    void remote_subscription_not_acknowledge_all(service_t _service, instance_t _instance);
+    bool has_opposite(
+            message_impl::entries_t::const_iterator _iter,
+            message_impl::entries_t::const_iterator _end,
+            const message_impl::options_t &_options) const;
 
-    void remote_subscription_not_acknowledge_all();
+    bool has_same(
+            message_impl::entries_t::const_iterator _iter,
+            message_impl::entries_t::const_iterator _end,
+            const message_impl::options_t &_options) const;
 
-    bool check_stop_subscribe_subscribe(message_impl::entries_t::const_iterator _iter,
-                                        message_impl::entries_t::const_iterator _end,
-                                        const message_impl::options_t& _options) const;
+    bool is_subscribed(
+            const std::shared_ptr<eventgroupentry_impl> &_entry,
+            const message_impl::options_t &_options) const;
 
     configuration::ttl_factor_t get_ttl_factor(
             service_t _service, instance_t _instance,
@@ -333,8 +292,11 @@ private:
     void on_last_msg_received_timer_expired(const boost::system::error_code &_error);
     void stop_last_msg_received_timer();
 
+    remote_offer_type_e get_remote_offer_type(
+            service_t _service, instance_t _instance) const;
+    remote_offer_type_e get_remote_offer_type(
+            const std::shared_ptr<subscription> &_subscription) const;
 
-    remote_offer_type_e get_remote_offer_type(service_t _service, instance_t _instance);
     bool update_remote_offer_type(service_t _service, instance_t _instance,
                                   remote_offer_type_e _offer_type,
                                   const boost::asio::ip::address &_reliable_address,
@@ -343,11 +305,33 @@ private:
                                   const boost::asio::ip::address &_address);
     void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address);
 
-    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
-            std::shared_ptr<endpoint_definition>>>
-                get_eventgroups_requiring_initial_events(
-                        const std::shared_ptr<message_impl>& _response) const;
+    std::shared_ptr<subscription> create_subscription(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            major_version_t _major, ttl_t _ttl,
+            const std::shared_ptr<endpoint> &_reliable,
+            const std::shared_ptr<endpoint> &_unreliable);
 
+    std::shared_ptr<remote_subscription> get_remote_subscription(
+            const service_t _service, const instance_t _instance,
+            const eventgroup_t _eventgroup);
+
+    void send_subscription_ack(
+            const std::shared_ptr<remote_subscription_ack> &_acknowledgement);
+
+    std::shared_ptr<option_impl> create_ip_option(
+            const boost::asio::ip::address &_address, uint16_t _port,
+            bool _is_reliable) const;
+
+    void send_subscription(const std::shared_ptr<subscription> &_subscription,
+            const service_t _service, const instance_t _instance,
+            const eventgroup_t _eventgroup, const client_t _client);
+
+    void add_entry_data(std::vector<std::shared_ptr<message_impl>> &_messages,
+            const entry_data_t &_data);
+
+    void add_entry_data_to_remote_subscription_ack_msg(
+            const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
+            const entry_data_t &_data);
 
 private:
     boost::asio::io_service &io_;
@@ -365,10 +349,12 @@ private:
     requests_t requested_;
     std::mutex requested_mutex_;
     std::map<service_t,
-            std::map<instance_t,
-                    std::map<eventgroup_t,
-                        std::map<client_t,
-                            std::shared_ptr<subscription> > > > > subscribed_;
+        std::map<instance_t,
+            std::map<eventgroup_t,
+                std::shared_ptr<subscription>
+            >
+        >
+    > subscribed_;
     std::mutex subscribed_mutex_;
 
     std::mutex serialize_mutex_;
@@ -434,10 +420,11 @@ private:
     std::atomic<bool> is_diagnosis_;
 
     std::mutex pending_remote_subscriptions_mutex_;
-    std::map<service_t,
-            std::map<instance_t,
-                    std::map<eventgroup_t,
-                            std::map<client_t, std::vector<std::shared_ptr<subscriber_t>>>>>> pending_remote_subscriptions_;
+    std::map<std::shared_ptr<remote_subscription>,
+        std::shared_ptr<remote_subscription_ack>
+    > pending_remote_subscriptions_;
+    std::mutex acknowledgement_mutex_;
+
     std::mutex response_mutex_;
 
     configuration::ttl_map_t ttl_factor_offers_;
@@ -447,18 +434,19 @@ private:
     boost::asio::steady_timer last_msg_received_timer_;
     std::chrono::milliseconds last_msg_received_timer_timeout_;
 
-    std::mutex remote_offer_types_mutex_;
+    mutable std::mutex remote_offer_types_mutex_;
     std::map<std::pair<service_t, instance_t>, remote_offer_type_e> remote_offer_types_;
     std::map<boost::asio::ip::address, std::set<std::pair<service_t, instance_t>>> remote_offers_by_ip_;
 
     reboot_notification_handler_t reboot_notification_handler_;
-    offer_acceptance_handler_t offer_acceptance_handler_;
+    sd_acceptance_handler_t sd_acceptance_handler_;
 
     std::mutex offer_mutex_;
     std::mutex check_ttl_mutex_;
 };
 
 }  // namespace sd
-}  // namespace vsomeip
+}  // namespace vsomeip_v3
 
-#endif // VSOMEIP_SERVICE_DISCOVERY_IMPL
+#endif // VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_
+

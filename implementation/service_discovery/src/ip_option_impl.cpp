@@ -4,27 +4,41 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/constants.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/ip_option_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+
+namespace vsomeip_v3 {
 namespace sd {
 
-ip_option_impl::ip_option_impl() :
-        protocol_(layer_four_protocol_e::UNKNOWN),
-        port_(0xFFFF) {
+ip_option_impl::ip_option_impl()
+    : protocol_(layer_four_protocol_e::UNKNOWN), port_(0) {
+}
+
+ip_option_impl::ip_option_impl(const uint16_t _port, const bool _is_reliable)
+    : protocol_(_is_reliable ?
+          layer_four_protocol_e::TCP : layer_four_protocol_e::UDP),
+      port_(_port) {
 }
 
 ip_option_impl::~ip_option_impl() {
 }
 
-bool ip_option_impl::operator ==(const ip_option_impl &_other) const {
-    return (option_impl::operator ==(_other)
-            && protocol_ == _other.protocol_
-            && port_ == _other.port_);
+bool
+ip_option_impl::operator ==(const option_impl &_other) const {
+    bool is_equal(option_impl::operator ==(_other));
+
+    if (is_equal) {
+        const ip_option_impl &its_other
+            = dynamic_cast<const ip_option_impl &>(_other);
+        is_equal = (protocol_ == its_other.protocol_
+                && port_ == its_other.port_);
+    }
+    return is_equal;
 }
 
 unsigned short ip_option_impl::get_port() const {
@@ -45,5 +59,4 @@ void ip_option_impl::set_layer_four_protocol(
 }
 
 } // namespace sd
-} // namespace vsomeip
-
+} // namespace vsomeip_v3

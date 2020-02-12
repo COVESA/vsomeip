@@ -3,10 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_TRACE_ENUMERATION_TYPES_HPP
-#define VSOMEIP_TRACE_ENUMERATION_TYPES_HPP
+#ifndef VSOMEIP_V3_TRACE_ENUMERATION_TYPES_HPP_
+#define VSOMEIP_V3_TRACE_ENUMERATION_TYPES_HPP_
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace trace {
 
 enum class filter_type_e : uint8_t {
@@ -15,6 +15,6 @@ enum class filter_type_e : uint8_t {
 };
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_TC_ENUMERATION_TYPES_HPP
+#endif // VSOMEIP_V3_TRACE_ENUMERATION_TYPES_HPP_

@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ROUTING_MANAGER
-#define VSOMEIP_ROUTING_MANAGER
+#ifndef VSOMEIP_V3_ROUTING_MANAGER_
+#define VSOMEIP_V3_ROUTING_MANAGER_
 
 #include <memory>
 #include <set>
@@ -17,12 +17,13 @@
 #include <vsomeip/handler.hpp>
 #include "types.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint;
 class endpoint_definition;
 class event;
 class payload;
+class security;
 
 class routing_manager {
 public:
@@ -31,6 +32,8 @@ public:
 
     virtual boost::asio::io_service & get_io() = 0;
     virtual client_t get_client() const = 0;
+    virtual void set_client(const client_t &_client) = 0;
+    virtual session_t get_session() = 0;
 
     virtual void init() = 0;
     virtual void start() = 0;
@@ -46,38 +49,41 @@ public:
 
     virtual void request_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, bool _use_exclusive_proxy) = 0;
+            minor_version_t _minor) = 0;
 
     virtual void release_service(client_t _client, service_t _service,
             instance_t _instance) = 0;
 
-    virtual void subscribe(client_t _client, service_t _service,
+    virtual void subscribe(client_t _client, uid_t _uid, gid_t _gid, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, event_t _event,
-            subscription_type_e _subscription_type) = 0;
+            major_version_t _major, event_t _event) = 0;
 
-    virtual void unsubscribe(client_t _client, service_t _service,
+    virtual void unsubscribe(client_t _client, uid_t _uid, gid_t _gid, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
-    virtual bool send(client_t _client, std::shared_ptr<message> _message,
-            bool _flush) = 0;
+    virtual bool send(client_t _client, std::shared_ptr<message> _message) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _flush, bool _reliable,
+            instance_t _instance, bool _reliable,
             client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
-            bool _is_valid_crc = true, bool _sent_from_remote = false) = 0;
+            credentials_t _credentials = {ANY_UID, ANY_GID},
+            uint8_t _status_check = 0, bool _sent_from_remote = false) = 0;
+
+    virtual bool send_to(const client_t _client,
+            const std::shared_ptr<endpoint_definition> &_target,
+            std::shared_ptr<message>) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            std::shared_ptr<message>, bool _flush) = 0;
+            const byte_t *_data, uint32_t _size, instance_t _instance) = 0;
 
-    virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size, instance_t _instance,
-            bool _flush) = 0;
-
-    virtual void register_event(client_t _client, service_t _service,
-            instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups, bool _is_field,
+    virtual void register_event(client_t _client,
+            service_t _service, instance_t _instance,
+            event_t _notifier,
+            const std::set<eventgroup_t> &_eventgroups,
+            const event_type_e _type,
+            reliability_type_e _reliability,
             std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            bool _update_on_change,
             epsilon_change_func_t _epsilon_change_func,
             bool _is_provided, bool _is_shadow = false,
             bool _is_cache_placeholder = false) = 0;
@@ -93,20 +99,21 @@ public:
 
     virtual void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            bool _force, bool _flush) = 0;
+            bool _force) = 0;
 
     virtual void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force, bool _flush, bool _remote_subscriber) = 0;
-
-    virtual void on_identify_response(client_t _client, service_t _service,
-            instance_t _instance, bool _reliable) = 0;
+            client_t _client, bool _force
+#ifdef VSOMEIP_ENABLE_COMPAT
+            , bool _remote_subscriber
+#endif
+            ) = 0;
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 };
 
-}  // namespace vsomeip
+}  // namespace vsomeip_v3
 
-#endif
+#endif // VSOMEIP_V3_ROUTING_MANAGER_

@@ -3,15 +3,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERIALIZER_HPP
-#define VSOMEIP_SERIALIZER_HPP
+#ifndef VSOMEIP_V3_SERIALIZER_HPP
+#define VSOMEIP_V3_SERIALIZER_HPP
 
 #include <vector>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class serializable;
 
@@ -45,6 +45,6 @@ private:
     std::uint32_t buffer_shrink_threshold_;
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SERIALIZER_IMPL_HPP
+#endif // VSOMEIP_V3_SERIALIZER_IMPL_HPP

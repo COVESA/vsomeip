@@ -22,7 +22,7 @@
             "unreliable" : "30509"
         }
     ],
-    "routing" : "vsomeipd",
+    "routing" : "routingmanagerd",
     "service-discovery" :
     {
         "enable":"true",

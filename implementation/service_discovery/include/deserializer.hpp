@@ -3,17 +3,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_DESERIALIZER_HPP
-#define VSOMEIP_SD_DESERIALIZER_HPP
+#ifndef VSOMEIP_V3_SD_DESERIALIZER_HPP
+#define VSOMEIP_V3_SD_DESERIALIZER_HPP
 
 #include "../../message/include/deserializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 class message_impl;
 
-class deserializer: public vsomeip::deserializer {
+class deserializer
+        : public vsomeip_v3::deserializer {
 public:
     deserializer(std::uint32_t _shrink_buffer_threshold);
     deserializer(uint8_t *_data, std::size_t _length,
@@ -25,6 +26,6 @@ public:
 };
 
 } // namespace sd
-} // vsomeip
+} // vsomeip_v3
 
-#endif // VSOMEIP_SD_DESERIALIZER_HPP
+#endif // VSOMEIP_V3_SD_DESERIALIZER_HPP

@@ -21,7 +21,6 @@ class magic_cookies_test_client {
 public:
     magic_cookies_test_client()
         : app_(new vsomeip::application_impl("")),
-          is_available_(false),
           is_blocked_(false),
           sent_messages_good_(8),
           sent_messages_bad_(7),
@@ -53,7 +52,8 @@ public:
         app_->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 std::bind(&magic_cookies_test_client::on_availability,
                           this,
-                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+                          vsomeip::DEFAULT_MAJOR, vsomeip::DEFAULT_MINOR);
     }
 
     void start() {
@@ -72,8 +72,7 @@ public:
             VSOMEIP_INFO << "Client registration done.";
             app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
                                   vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                                  vsomeip::ANY_MAJOR, vsomeip::ANY_MINOR,
-                                  false);
+                                  vsomeip::ANY_MAJOR, vsomeip::ANY_MINOR);
         }
     }
 
@@ -162,49 +161,49 @@ public:
 
         // Test sequence
         its_good_payload_data[11] = 0x01;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x02;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x03;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x04;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x05;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x06;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x07;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x08;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x09;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x0A;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x0B;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x0C;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x0D;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_bad_payload_data[11] = 0x0E;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         std::this_thread::sleep_for(std::chrono::seconds(11));
         its_good_payload_data[11] = 0x0F;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true, true);
+        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
 
         while (wait_for_replies_) {
             if(std::cv_status::timeout ==
@@ -222,7 +221,6 @@ private:
     std::shared_ptr< vsomeip::application_impl > app_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool is_available_;
     bool is_blocked_;
     const std::uint32_t sent_messages_good_;
     const std::uint32_t sent_messages_bad_;

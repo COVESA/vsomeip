@@ -8,7 +8,7 @@
 #include <string>
 #include <iomanip>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 /**
  * Calculates the crc over the provided range.
@@ -178,5 +178,5 @@ const uint32_t e2e_crc::lookup_table_profile_custom_[256] = {
         0xB3667A2EU, 0xC4614AB8U, 0x5D681B02U, 0x2A6F2B94U, 0xB40BBE37U, 0xC30C8EA1U, 0x5A05DF1BU, 0x2D02EF8DU
 };
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 

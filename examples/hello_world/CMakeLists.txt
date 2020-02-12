@@ -9,9 +9,9 @@ project (vSomeIPHelloWorld)
 # This will get us acces to
 #   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
 #   VSOMEIP_LIBRARIES    - libraries to link against
-find_package(vsomeip)
-if (NOT vsomeip_FOUND)
-    message("vsomeip was not found. Please specify vsomeip_DIR")
+find_package(${VSOMEIP_NAME})
+if (NOT ${VSOMEIP_NAME}_FOUND)
+    message("${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR")
 endif()
 
 find_package(Threads REQUIRED)

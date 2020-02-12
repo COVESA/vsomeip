@@ -2,8 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef VSOMEIP_TRACE_HPP_
-#define VSOMEIP_TRACE_HPP_
+
+#ifndef VSOMEIP_V3_TRACE_HPP_
+#define VSOMEIP_V3_TRACE_HPP_
 
 #include <memory>
 #include <vector>
@@ -11,7 +12,7 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 /**
  * \defgroup vsomeip
  *
@@ -153,29 +154,29 @@ public:
  */
 class connector {
 public:
-	/**
-	 * \brief Get access to the connector.
-	 *
-	 * \return Shared pointer to the singleton object.
-	 */
+    /**
+     * \brief Get access to the connector.
+     *
+     * \return Shared pointer to the singleton object.
+     */
     static std::shared_ptr<connector> get();
 
     virtual ~connector() {};
 
-	/**
-	 * \brief Add a trace channel to the connector.
-	 *
-	 * Creates a trace channel with the given identifier and name
-	 * and adds it to the connector.
-	 *
-	 * \param _id Id of the trace channel.
-	 * \param _name Name of the trace channel
-	 *
-	 * \return Shared pointer to the created trace channel or
-	 * nullptr if the trace channel could not be created because
-	 * another trace channel with the given identifier does
-	 * already exist.
-	 */
+    /**
+     * \brief Add a trace channel to the connector.
+     *
+     * Creates a trace channel with the given identifier and name
+     * and adds it to the connector.
+     *
+     * \param _id Id of the trace channel.
+     * \param _name Name of the trace channel
+     *
+     * \return Shared pointer to the created trace channel or
+     * nullptr if the trace channel could not be created because
+     * another trace channel with the given identifier does
+     * already exist.
+     */
     virtual std::shared_ptr<channel> add_channel(
             const std::string &_id,
             const std::string &_name) = 0;
@@ -203,7 +204,7 @@ public:
      * of the default trace channel.
      *
      * \return Shared pointer to the created trace channel or
-	 * nullptr if the trace channel does not exist.
+     * nullptr if the trace channel does not exist.
      */
     virtual std::shared_ptr<channel> get_channel(
             const std::string &_id = VSOMEIP_TC_DEFAULT_CHANNEL_ID) const = 0;
@@ -213,6 +214,6 @@ public:
 
 /** @} */
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_CONSTANTS_HPP
+#endif // VSOMEIP_V3_CONSTANTS_HPP_

@@ -10,7 +10,7 @@
 #include "../../endpoints/include/client_endpoint.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace trace {
 
 bool header::prepare(const std::shared_ptr<endpoint> &_endpoint,
@@ -52,8 +52,8 @@ bool header::prepare(const endpoint *_endpoint, bool _is_sending,
 }
 
 void header::prepare(const boost::asio::ip::address_v4 &_address,
-		std::uint16_t _port, protocol_e _protocol,
-		bool _is_sending, instance_t _instance) {
+        std::uint16_t _port, protocol_e _protocol,
+        bool _is_sending, instance_t _instance) {
     unsigned long its_address_as_long = _address.to_ulong();
     data_[0] = VSOMEIP_LONG_BYTE3(its_address_as_long);
     data_[1] = VSOMEIP_LONG_BYTE2(its_address_as_long);
@@ -68,4 +68,4 @@ void header::prepare(const boost::asio::ip::address_v4 &_address,
 }
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3

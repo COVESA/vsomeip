@@ -11,7 +11,7 @@
         },
         "dlt":"false"
     },
-    "diagnosis":"0x63",
+    "diagnosis":"0x62",
     "diagnosis_mask":"0xFE00",
     "applications":
     [
@@ -32,5 +32,5 @@
             "id":"0x7411"
         }
     ],
-    "routing":"vsomeipd"
+    "routing":"routingmanagerd"
 }

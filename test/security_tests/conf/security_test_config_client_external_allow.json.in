@@ -15,7 +15,7 @@
             "id" : "0x1255"
         },
         {
-            "name" : "vsomeipd",
+            "name" : "routingmanagerd",
             "id" : "0x2222"
         }
     ],
@@ -67,7 +67,7 @@
             }
         ]
     },
-    "routing" : "vsomeipd",
+    "routing" : "routingmanagerd",
     "routing-credentials" :
     {
         "uid" : "@TEST_UID@",

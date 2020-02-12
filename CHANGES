@@ -1,17 +1,113 @@
 Changes
 =======
 
+v3.1.7
+- Fix stop subscribes when a service is released
+- Improve handling of time stamps when processing subscriptions
+- Log queued data instead of socket fill levels
+- Ensure all shutdown steps are executed (even in case of exceptions)
+
+v3.1.6
+- Fix possible busy loop when expiring subscriptions
+- Use set of serializers to avoid deadlock situation
+- Improve client identifier handling 
+    - Check whether corresponding socket is available
+    - Implement retry if a client identifier cannot be used
+- Log buffer fill levels if they exceed a configurable threshold (default=67%). 
+
+v3.1.5
+- Ensure subscriptions to remote services are correctly reset when
+  services are no longer available.
+- Fix race condition when inserting new subscriptions.
+- Fix accessing of security module during library shutdown.
+
+v3.1.4
+- Ensure to only mark remote services offered via UDP and TCP as
+  available when both endpoints are marked as connected to prevent TCP
+  connection restarting by the service discovery.
+- Fix possible deadlock when expiring a remote subscription and
+  sending the corresponding event at the same time.
+- Fix nullptr access in service discovery when receiving a
+  subscription for an unknown eventgroup.
+- Add new cmake variables DEFAULT_CONFIGURATION_FOLDER and
+  DEFAULT_CONFIGURATION_FILE which can be used to change the default
+  configuration folder and file at compile time (see vsomeipUserGuide
+  for more information)
+- Fix race condition leading to not accepting service offers from
+  a local client when the same service was offered and stop offered in
+  a high frequency
+
+v3.1.3
+- Set client ID to 0x0 for SOME/IP SD messages
+
+v3.1.2
+- Fix bug in vSomeIP 2 compatibility layer which lead to offering
+  selective events as normal events in conjunction with
+  CommonAPI-SomeIP mainloop integration when a proxy was build to a
+  stub through the same CommonAPI connection ID in the same binary.
+
+v3.1.1
+- Ensure sending StopOffers for services specified with a different
+  protocol than someip in the configuration.
+- Add support for boost v1.70 and v1.71.
+
+v3.1.0
+- Integrate changes of 2.14.12 - 2.14.18
+- Add get_uid and get_gid methods to message class
+- Add reliability parameter to application::offer_event and
+  application::request_event methods
+- Add vSomeIP 2 compatibility layer.
+- Fix crash when expiring a reliable-only subscription
+- Fix Android compile errors
+- Fix bug in service discovery offer acceptance handling which led to
+  only checking the first service entry of an incoming SD message via
+  the registered handler.
+- Deactivate adherence to NPDU debounce time between SOME/IP-TP
+  segments of the same message.
+- Fix less than operator of remote_info_t which lead to
+  application::get_sd_acceptance_required() always returning a map
+  with only one erroneous element
+- Fix SD startup on Windows
+- Fix heap-use-after-free in server endpoints
+
+v3.0.0
+- Cleanup of application interface
+    - Removed (un)register_subscription_error_handler methods. The
+      functionality is now offered through the
+      (un)register_subscription_status_handler methods.
+    - All methods concerning events/fields now use a new event_type_e
+      enum to specify the event type.
+    - The subscription_type_e parameter was removed from the subscribe
+      method. The way the remote service is offered now determines the
+      subscription type.
+    - The offer_acceptance* methods were renamed to sd_acceptance*.
+    - The flush parameter was removed from the send method
+    - Removed notify and notify_one methods which used the flush
+      parameter.
+- Added SOME/IP-TP functionality. Please see the vsomeipUserGuide for
+  more information.
+- Added nPDU functionality. Please see the vsomeipUserGuide for more
+  information
+- E2E protection is now implemented as plugin
+- Added Android support
+- Internal improvements and bugfixes
+
+v2.14.18
+- Fix bug leading to not sending out FindService entries after a
+  resume from Suspend-to-RAM, if the service was already known at the
+  time of the request.
+
+v2.14.17
+- Performance improvements for request-service message handling
+
 v2.14.16
 - Ensure restarting of TCP connection if TCP reset is received
   before 3 way handshake is finished
-- Reworked IPSec connection unblocking if reboot was detected
 
 v2.14.15
 - Ensure that all clients receive the security policy update
 
 v2.14.14
-- Increased the max allowed number of open file descriptors
-  from the soft limit to the hard limit for vsomeipd
 - Improved handling for EMFILE error (per-process limit of open
   filedescriptors reached)
 - Fixed client ID assignment
@@ -64,6 +160,7 @@ v2.14.4
 
 v2.14.3
 - Prevent concurrent access to any client policies
+- Updated ACL plugin interface
 
 v2.14.2
 - Fix possible deadlock when receiving invalid responses from remote
@@ -77,6 +174,7 @@ v2.14.1
 - Ensure to always resume sending if endpoints were restarted
 - Prevent possible concurrent access to receive buffer in endpoints
 - Allow or deny all remote clients via security config parameter
+- Adapt security config plugin to updated ACL interface
 - Make receive buffer size configurable for UDP client and
   server endpoints via "udp-receive-buffer-size" parameter
   in json configuration file
@@ -87,6 +185,7 @@ v2.14.0
 - Introduce security policy updates during runtime and extend
   security configuration to filter on instance ID and method ID level
   For more information see the vsomeipUserGuide.
+- Make IPsec plugin more robust against libdavici communication loss
 
 v2.13.2
 - Make I/O thread nice level configurable
@@ -99,12 +198,21 @@ v2.13.1
 - Fix race when expiring remote services
 
 v2.13.0
+- Update debug_diagnosis_plugin and add update_service_configuration
+  method to public application interface. This enables offering of
+  service instances on the network which are only offered locally by
+  default. The changes done through the new method are not persistent
+  over reboots.
 - Fix handling of requests send to the service discovery port
 - Log time since routing state was set to RS_RESUMED in cyclic version
   logger
 - Blame externally offered services if routing state is set to
   RS_SUSPENDED
 - Prevent possible exception during application shutdown
+
+v2.12.4
+- Improve handling of reboot detection in IPsec plugin if the
+  same ipsec connection is still used after reboot.
 
 v2.12.3
 - Improve handling of broken TCP streams
@@ -117,6 +225,7 @@ v2.12.1
 - Fixed race condition in event registration
 
 v2.12.0
+- Improve error handling and STR behaviour of IPsec plugin.
 - Improve magic cookie handling.
 - Fix possible deadlock on application shutdown
 - Fix handling of local StopOffers when duplicate service instances
@@ -125,8 +234,18 @@ v2.12.0
 - Fix bug in security configuration when black listing single
   UIDs/GIDs
 
+v2.11.2
+- Ensure service availability if IPSec plugin is activated but IPsec
+  not configured correctly.
+
 v2.11.1
+- Improve handling of slow remote ECUs in IPsec plugin
 - Fix possible deadlock on application shutdown
+
+v2.11.0
+- Added IPsec plugin.
+  The compilation of the plugin has to be explicitly enabled when calling cmake.
+  Example: cmake -DPLUGIN_IPSEC_BUILD=1 ..
 
 v2.10.22
 - Handle EPERM error (Operation not permitted) in cei::send_cbk
@@ -189,17 +308,24 @@ v2.10.17
 - Fix bug leading to usage of client port outside of configured range
 
 v2.10.16
+- Added changes for diagnosis mode plugin (as in v2.10.14)
 - Only map shared memory for client IDs once per process
 
 v2.10.15
+- Reverted diagnosis mode plugin (as in v2.10.11)
 - Fix remote event caching
 
 v2.10.14
+- Added changes for diagnosis mode plugin.
 - Bugfix for pending subscriptions when same port is used
   for TCP and UDP endpoint option.
 
+v2.10.13
+- Reverted diagnosis mode plugin
+
 v2.10.12
 - Fix exception handling for boost logger
+- Update diagnosis mode plugin
 
 v2.10.11
 - Fix client ID handling for remote selective subscriptions
@@ -286,6 +412,8 @@ v2.10.5
 
 
 v2.10.4
+- Extended diagnosis plugin to handle requests for
+  "disableRxAndEnableTx" and "disableRxAndTx".
 - Catch unhandled user code exceptions thrown from called handlers.
 - Don't send SubscribeEventGroupNACK for pending subscriptions on next
   offer to reduce the amount of StopSubscribe/Subscribe messages.

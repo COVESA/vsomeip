@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +7,14 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
+#include <vsomeip/internal/logger.hpp>
+
+// internal[_android.hpp] must be included before defines.hpp
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
@@ -17,24 +25,30 @@
 #include "../include/ipv6_option_impl.hpp"
 #include "../include/load_balancing_option_impl.hpp"
 #include "../include/protection_option_impl.hpp"
+#include "../include/selective_option_impl.hpp"
 #include "../include/message_impl.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/payload_impl.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 message_impl::message_impl() :
     flags_(0x0),
     options_length_(0x0),
-    number_required_acks_(0x0),
-    number_contained_acks_(0x0),
-    initial_events_required_(false) {
-    header_.service_ = 0xFFFF;
-    header_.method_ = 0x8100;
-    header_.protocol_version_ = 0x01;
+    current_message_size_(VSOMEIP_SOMEIP_SD_EMPTY_MESSAGE_SIZE) {
+    header_.service_ = VSOMEIP_SD_SERVICE;
+    header_.instance_ = VSOMEIP_SD_INSTANCE;
+    header_.method_ = VSOMEIP_SD_METHOD;
+    header_.client_ = VSOMEIP_SD_CLIENT;
+    // session must be set dynamically
+    header_.protocol_version_ = protocol_version;
+    header_.interface_version_ = interface_version;
+    header_.type_ = message_type;
+    header_.code_ = return_code;
+
+    set_unicast_flag(true);
 }
 
 message_impl::~message_impl() {
@@ -50,11 +64,15 @@ length_t message_impl::get_length() const {
     current_length += VSOMEIP_SOMEIP_SD_OPTION_LENGTH_SIZE;
     if(options_.size()) {
         for (size_t i = 0; i < options_.size(); ++i) {
-            current_length += (options_[i]->get_length()
+            current_length += static_cast<length_t>(options_[i]->get_length()
                     + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE);
         }
     }
     return current_length;
+}
+
+length_t message_impl::get_size() const {
+    return current_message_size_;
 }
 
 #define VSOMEIP_REBOOT_FLAG 0x80
@@ -83,73 +101,70 @@ void message_impl::set_unicast_flag(bool _is_set) {
         flags_ &= flags_t(~VSOMEIP_UNICAST_FLAG);
 }
 
+bool
+message_impl::add_entry_data(const std::shared_ptr<entry_impl> &_entry,
+        const std::vector<std::shared_ptr<option_impl> > &_options,
+        const std::shared_ptr<entry_impl> &_other) {
+    std::uint32_t its_entry_size = VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
+    std::map<const std::shared_ptr<option_impl>, bool> its_options;
+
+    if (_other) {
+        its_entry_size += VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
+    }
+
+    // TODO: Check whether it is possible to express the options
+    // by the two runs. If there are more than two options, it
+    // might be necessary to copy an option, which then increases
+    // the size...
+
+    for (const std::shared_ptr<option_impl> &its_option : _options) {
+        const auto its_existing_option = find_option(its_option);
+        if (!its_existing_option) {
+            its_entry_size += its_option->get_size();
+            its_options[its_option] = true;
+        } else {
+            its_options[its_existing_option] = false;
+        }
+    }
+
+    if (current_message_size_ + its_entry_size > VSOMEIP_MAX_UDP_SD_PAYLOAD)
+        return false;
+
+    entries_.push_back(_entry);
+    _entry->set_owning_message(this);
+    for (const auto &its_option : its_options) {
+        if (its_option.second) {
+            options_.push_back(its_option.first);
+            its_option.first->set_owning_message(this);
+        }
+        _entry->assign_option(its_option.first);
+    }
+
+    if (_other) {
+        entries_.push_back(_other);
+        _other->set_owning_message(this);
+        for (const auto &its_option : its_options) {
+            _other->assign_option(its_option.first);
+        }
+    }
+
+    current_message_size_ += its_entry_size;
+
+    return true;
+}
+
+bool
+message_impl::has_entry() const {
+    return (0 < entries_.size());
+}
+
+bool
+message_impl::has_option() const {
+    return (0 < options_.size());
+}
+
 void message_impl::set_length(length_t _length) {
     (void)_length;
-}
-
-std::shared_ptr<eventgroupentry_impl> message_impl::create_eventgroup_entry() {
-    std::shared_ptr < eventgroupentry_impl
-            > its_entry(std::make_shared<eventgroupentry_impl>());
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_entry->set_owning_message(this);
-    entries_.push_back(its_entry);
-    return its_entry;
-}
-
-std::shared_ptr<serviceentry_impl> message_impl::create_service_entry() {
-    std::shared_ptr < serviceentry_impl
-            > its_entry(std::make_shared<serviceentry_impl>());
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_entry->set_owning_message(this);
-    entries_.push_back(its_entry);
-    return its_entry;
-}
-
-std::shared_ptr<configuration_option_impl> message_impl::create_configuration_option() {
-    std::shared_ptr < configuration_option_impl
-            > its_option(std::make_shared<configuration_option_impl>());
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_option->set_owning_message(this);
-    options_.push_back(its_option);
-    return its_option;
-}
-
-std::shared_ptr<ipv4_option_impl> message_impl::create_ipv4_option(
-        bool _is_multicast) {
-    std::shared_ptr < ipv4_option_impl
-            > its_option(std::make_shared < ipv4_option_impl > (_is_multicast));
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_option->set_owning_message(this);
-    options_.push_back(its_option);
-    return its_option;
-}
-
-std::shared_ptr<ipv6_option_impl> message_impl::create_ipv6_option(
-        bool _is_multicast) {
-    std::shared_ptr < ipv6_option_impl
-            > its_option(std::make_shared < ipv6_option_impl > (_is_multicast));
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_option->set_owning_message(this);
-    options_.push_back(its_option);
-    return its_option;
-}
-
-std::shared_ptr<load_balancing_option_impl> message_impl::create_load_balancing_option() {
-    std::shared_ptr < load_balancing_option_impl
-            > its_option(std::make_shared<load_balancing_option_impl>());
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_option->set_owning_message(this);
-    options_.push_back(its_option);
-    return its_option;
-}
-
-std::shared_ptr<protection_option_impl> message_impl::create_protection_option() {
-    std::shared_ptr < protection_option_impl
-            > its_option(std::make_shared<protection_option_impl>());
-    //TODO: throw OutOfMemoryException if allocation fails
-    its_option->set_owning_message(this);
-    options_.push_back(its_option);
-    return its_option;
 }
 
 const message_impl::entries_t & message_impl::get_entries() const {
@@ -160,18 +175,35 @@ const message_impl::options_t & message_impl::get_options() const {
     return options_;
 }
 
-// TODO: throw exception to signal "OptionNotFound"
+std::shared_ptr<option_impl>
+message_impl::find_option(const std::shared_ptr<option_impl> &_option) const {
+    for (auto its_option : options_) {
+        if (its_option->equals(_option))
+            return its_option;
+    }
+    return nullptr;
+}
+
 int16_t message_impl::get_option_index(
         const std::shared_ptr<option_impl> &_option) const {
     int16_t i = 0;
 
     while (i < int16_t(options_.size())) {
-        if (options_[i] == _option)
+        if (options_[static_cast<options_t::size_type>(i)] == _option)
             return i;
         i++;
     }
-
     return -1;
+}
+
+std::shared_ptr<option_impl>
+message_impl::get_option(int16_t _index) const {
+    if (_index > -1) {
+        size_t its_index = static_cast<size_t>(_index);
+        if (its_index < options_.size())
+            return options_[its_index];
+    }
+    return nullptr;
 }
 
 uint32_t message_impl::get_options_length() {
@@ -186,9 +218,19 @@ void message_impl::set_payload(std::shared_ptr<payload> _payload) {
     (void)_payload;
 }
 
-bool message_impl::serialize(vsomeip::serializer *_to) const {
-    bool is_successful = header_.serialize(_to);
+uint8_t message_impl::get_check_result() const {
+    return 1;
+}
+void message_impl::set_check_result(uint8_t _check_result) {
+    (void)_check_result;
+}
 
+bool message_impl::is_valid_crc() const {
+    return false;
+}
+
+bool message_impl::serialize(vsomeip_v3::serializer *_to) const {
+    bool is_successful = header_.serialize(_to);
     is_successful = is_successful && _to->serialize(flags_);
     is_successful = is_successful
             && _to->serialize(protocol::reserved_long, true);
@@ -201,8 +243,8 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
 
     uint32_t options_length = 0;
     for (const auto& its_option : options_)
-        options_length += its_option ? its_option->get_length()
-                + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE : 0;
+        options_length += its_option ? static_cast<uint32_t>(its_option->get_length()
+                + VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE) : 0;
     is_successful = is_successful && _to->serialize(options_length);
 
     for (const auto& its_option : options_)
@@ -211,7 +253,7 @@ bool message_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool message_impl::deserialize(vsomeip::deserializer *_from) {
+bool message_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful;
     bool option_is_successful(true);
 
@@ -248,16 +290,6 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
         std::shared_ptr < entry_impl > its_entry(deserialize_entry(_from));
         if (its_entry) {
             entries_.push_back(its_entry);
-            if (its_entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP
-                    && its_entry->get_ttl() > 0) {
-                const std::uint8_t num_options =
-                        static_cast<std::uint8_t>(
-                                its_entry->get_num_options(1) +
-                                its_entry->get_num_options(2));
-                number_required_acks_ =
-                        static_cast<std::uint8_t>(number_required_acks_
-                                + num_options);
-            }
         } else {
             is_successful = false;
         }
@@ -287,11 +319,11 @@ bool message_impl::deserialize(vsomeip::deserializer *_from) {
             option_is_successful = false;
         }
     }
-
+    current_message_size_ = 0;
     return is_successful;
 }
 
-entry_impl * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
+entry_impl * message_impl::deserialize_entry(vsomeip_v3::deserializer *_from) {
     entry_impl *deserialized_entry = 0;
     uint8_t tmp_entry_type;
 
@@ -334,7 +366,7 @@ entry_impl * message_impl::deserialize_entry(vsomeip::deserializer *_from) {
     return deserialized_entry;
 }
 
-option_impl * message_impl::deserialize_option(vsomeip::deserializer *_from) {
+option_impl * message_impl::deserialize_option(vsomeip_v3::deserializer *_from) {
     option_impl *deserialized_option = 0;
     uint8_t tmp_option_type;
 
@@ -355,16 +387,15 @@ option_impl * message_impl::deserialize_option(vsomeip::deserializer *_from) {
             deserialized_option = new protection_option_impl;
             break;
         case option_type_e::IP4_ENDPOINT:
-            deserialized_option = new ipv4_option_impl(false);
-            break;
         case option_type_e::IP4_MULTICAST:
-            deserialized_option = new ipv4_option_impl(true);
+            deserialized_option = new ipv4_option_impl;
             break;
         case option_type_e::IP6_ENDPOINT:
-            deserialized_option = new ipv6_option_impl(false);
-            break;
         case option_type_e::IP6_MULTICAST:
-            deserialized_option = new ipv6_option_impl(true);
+            deserialized_option = new ipv6_option_impl;
+            break;
+        case option_type_e::SELECTIVE:
+            deserialized_option = new selective_option_impl;
             break;
 
         default:
@@ -387,56 +418,14 @@ length_t message_impl::get_someip_length() const {
     return header_.length_;
 }
 
-std::uint8_t message_impl::get_number_required_acks() const {
-    return number_required_acks_;
+uid_t message_impl::get_uid() const {
+    return ANY_UID;
 }
 
-std::uint8_t message_impl::get_number_contained_acks() const {
-    return number_contained_acks_;
+gid_t message_impl::get_gid() const {
+    return ANY_GID;
 }
 
-void message_impl::set_number_required_acks(std::uint8_t _required_acks) {
-    number_required_acks_ = _required_acks;
-}
-
-void message_impl::increase_number_required_acks(std::uint8_t _amount) {
-    number_required_acks_ += _amount;
-}
-
-void message_impl::decrease_number_required_acks(std::uint8_t _amount) {
-    number_required_acks_ -= _amount;
-}
-
-void message_impl::increase_number_contained_acks() {
-    number_contained_acks_++;
-}
-
-bool message_impl::all_required_acks_contained() const {
-    return number_contained_acks_ >= number_required_acks_;
-}
-
-std::unique_lock<std::mutex> message_impl::get_message_lock() {
-    return std::unique_lock<std::mutex>(message_mutex_);
-}
-
-void message_impl::forced_initial_events_add(forced_initial_events_t _entry) {
-    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
-    forced_initial_events_info_.push_back(_entry);
-}
-
-const std::vector<message_impl::forced_initial_events_t>
-message_impl::forced_initial_events_get() {
-    std::lock_guard<std::mutex> its_lock(forced_initial_events_mutex_);
-    return forced_initial_events_info_;
-}
-
-void message_impl::set_initial_events_required(bool _initial_events_required) {
-    initial_events_required_ = _initial_events_required;
-}
-
-bool message_impl::initial_events_required() const {
-    return initial_events_required_;
-}
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

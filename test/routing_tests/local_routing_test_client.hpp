@@ -37,7 +37,6 @@ private:
     std::shared_ptr<vsomeip::message> request_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool running_;
     bool blocked_;
     bool is_available_;
     std::uint32_t number_of_messages_to_send_;

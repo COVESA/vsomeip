@@ -17,7 +17,7 @@
 #include <atomic>
 
 #include "big_payload_test_globals.hpp"
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 class big_payload_test_client
 {
@@ -39,7 +39,6 @@ private:
     std::shared_ptr<vsomeip::message> request_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    bool running_;
     bool blocked_;
     bool is_available_;
     big_payload_test::test_mode test_mode_;

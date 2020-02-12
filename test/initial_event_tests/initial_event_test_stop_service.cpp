@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "initial_event_test_globals.hpp"
 
@@ -146,15 +146,18 @@ public:
             << std::setw(4) << std::setfill('0') << std::hex
             << _message->get_session() << "] shutdown method called";
 
+
+            VSOMEIP_ERROR << "stop_service::" << __func__
+                          << ": (1)";
             std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            VSOMEIP_ERROR << "stop_service::" << __func__
+                          << ": (2)";
             wait_for_stop_ = false;
             stop_condition_.notify_one();
         }
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Running";
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
             while (wait_until_registered_) {
@@ -198,11 +201,14 @@ public:
     }
 
     void wait_for_stop() {
+        static int its_call_number(0);
+        its_call_number++;
+
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id
                 << "] shutdown method was called, going down";
         while(!called_other_node_) {

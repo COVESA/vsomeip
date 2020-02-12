@@ -16,8 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
-#include "../../implementation/configuration/include/internal.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "offer_test_globals.hpp"
 
@@ -26,7 +25,6 @@ public:
     offer_test_big_sd_msg_client(struct offer_test::service_info _service_info) :
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application("offer_test_big_sd_msg_client")),
-            service_available_(false),
             wait_until_registered_(true),
             wait_until_service_available_(true),
             wait_until_subscribed_(true),
@@ -55,13 +53,12 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(offer_test::big_msg_eventgroup_id);
         for (std::uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
-            app_->request_service(s,0x1,0x1,0x1,false);
+            app_->request_service(s,0x1,0x1,0x1);
             app_->request_event(s,0x1, offer_test::big_msg_event_id,
-                    its_eventgroups, false);
+                    its_eventgroups, vsomeip::event_type_e::ET_EVENT);
             app_->subscribe(s, 0x1,offer_test::big_msg_eventgroup_id, 0x1,
-                    vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
                     offer_test::big_msg_event_id);
-            services_available_subribed_[s] = std::make_pair(false,false);
+            services_available_subribed_[s] = std::make_pair(false,0);
             app_->register_subscription_status_handler(s,0x1,
                     offer_test::big_msg_eventgroup_id,
                     offer_test::big_msg_event_id,
@@ -132,11 +129,17 @@ public:
             std::lock_guard<std::mutex> its_lock(mutex_);
             auto found_service = services_available_subribed_.find(_service);
             if (found_service != services_available_subribed_.end()) {
-                found_service->second.second = true;
+                found_service->second.second++;
+                if (found_service->second.second > 1) {
+                    ADD_FAILURE() << "Registered subscription status handler was "
+                            "called " << std::dec << found_service->second.second
+                            << " times for service: " << std::hex
+                            << found_service->first;
+                }
                 if (std::all_of(services_available_subribed_.cbegin(),
                                 services_available_subribed_.cend(),
                                 [](const services_available_subribed_t::value_type& v) {
-                                    return v.second.second;
+                                    return v.second.second == 1;
                                 }
                 )) {
                     VSOMEIP_WARNING << "************************************************************";
@@ -203,7 +206,6 @@ public:
 private:
     struct offer_test::service_info service_info_;
     std::shared_ptr<vsomeip::application> app_;
-    bool service_available_;
 
     bool wait_until_registered_;
     bool wait_until_service_available_;
@@ -215,7 +217,7 @@ private:
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
 
-    typedef std::map<vsomeip::service_t,std::pair<bool, bool>> services_available_subribed_t;
+    typedef std::map<vsomeip::service_t,std::pair<bool, std::uint32_t>> services_available_subribed_t;
     services_available_subribed_t services_available_subribed_;
     std::thread stop_thread_;
     std::thread send_thread_;

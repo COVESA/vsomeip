@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,33 +7,43 @@
 #include <sstream>
 
 #include <boost/asio/ip/multicast.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
+#include "../include/tp.hpp"
+#include "../../routing/include/routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host,
-        endpoint_type _local,
-        endpoint_type _remote,
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _local,
+        const endpoint_type& _remote,
         boost::asio::io_service &_io,
-        configuration::endpoint_queue_limit_t _queue_limit,
-        std::uint32_t _udp_receive_buffer_size)
-    : udp_client_endpoint_base_impl(_host, _local, _remote, _io,
-            VSOMEIP_MAX_UDP_MESSAGE_SIZE, _queue_limit),
+        const std::shared_ptr<configuration>& _configuration)
+    : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local,
+                                    _remote, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
+                                    _configuration->get_endpoint_queue_limit(
+                                            _remote.address().to_string(),
+                                            _remote.port()),
+                                    _configuration),
       remote_address_(_remote.address()),
       remote_port_(_remote.port()),
-      udp_receive_buffer_size_(_udp_receive_buffer_size) {
+      udp_receive_buffer_size_(_configuration->get_udp_receive_buffer_size()),
+      tp_reassembler_(std::make_shared<tp::tp_reassembler>(
+              _configuration->get_max_message_size_unreliable(), _io)) {
+    is_supporting_someip_tp_ = true;
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
-    std::shared_ptr<endpoint_host> its_host = host_.lock();
+    std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
     if (its_host) {
         its_host->release_port(local_.port(), false);
     }
+    tp_reassembler_->stop();
 }
 
 bool udp_client_endpoint_impl::is_local() const {
@@ -74,6 +84,17 @@ void udp_client_endpoint_impl::connect() {
             }
         }
 
+#ifndef _WIN32
+        // If specified, bind to device
+        std::string its_device(configuration_->get_device());
+        if (its_device != "") {
+            if (setsockopt(socket_->native_handle(),
+                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size()) == -1) {
+                VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\"";
+            }
+        }
+#endif
+
         // In case a client endpoint port was configured,
         // bind to it before connecting
         if (local_.port() != ILLEGAL_PORT) {
@@ -94,6 +115,7 @@ void udp_client_endpoint_impl::connect() {
                 return;
             }
         }
+
         state_ = cei_state_e::CONNECTING;
         socket_->async_connect(
             remote_,
@@ -170,6 +192,15 @@ void udp_client_endpoint_impl::send_queued() {
     }
 }
 
+void udp_client_endpoint_impl::get_configured_times_from_endpoint(
+        service_t _service, method_t _method,
+        std::chrono::nanoseconds *_debouncing,
+        std::chrono::nanoseconds *_maximum_retention) const {
+    configuration_->get_configured_timing_requests(_service,
+            remote_address_.to_string(), remote_port_, _method,
+            _debouncing, _maximum_retention);
+}
+
 void udp_client_endpoint_impl::receive() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (!socket_->is_open()) {
@@ -178,7 +209,7 @@ void udp_client_endpoint_impl::receive() {
     message_buffer_ptr_t its_buffer = std::make_shared<message_buffer_t>(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
     socket_->async_receive_from(
         boost::asio::buffer(*its_buffer),
-        remote_,
+        const_cast<endpoint_type&>(remote_),
         strand_.wrap(
             std::bind(
                 &udp_client_endpoint_impl::receive_cbk,
@@ -222,12 +253,12 @@ std::uint16_t udp_client_endpoint_impl::get_remote_port() const {
 
 void udp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes,
-        message_buffer_ptr_t _recv_buffer) {
+        const message_buffer_ptr_t& _recv_buffer) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
         return;
     }
-    std::shared_ptr<endpoint_host> its_host = host_.lock();
+    std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
 #if 0
         std::stringstream msg;
@@ -256,7 +287,7 @@ void udp_client_endpoint_impl::receive_cbk(
                     return;
                 } else if (current_message_size > VSOMEIP_RETURN_CODE_POS &&
                     ((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION ||
-                     !utility::is_valid_message_type(static_cast<message_type_e>((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])) ||
+                     !utility::is_valid_message_type(tp::tp::tp_flag_unset((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])) ||
                      !utility::is_valid_return_code(static_cast<return_code_e>((*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS]))
                     )) {
                     if ((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
@@ -270,9 +301,10 @@ void udp_client_endpoint_impl::receive_cbk(
                                              VSOMEIP_SOMEIP_HEADER_SIZE + 8, this,
                                              boost::asio::ip::address(),
                                              VSOMEIP_ROUTING_CLIENT,
+                                             std::make_pair(ANY_UID, ANY_GID),
                                              remote_address_,
                                              remote_port_);
-                    } else if (!utility::is_valid_message_type(static_cast<message_type_e>(
+                    } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(
                             (*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
                         VSOMEIP_ERROR << "uce: Invalid message type: 0x"
                                 << std::hex << std::setw(2) << std::setfill('0')
@@ -289,13 +321,28 @@ void udp_client_endpoint_impl::receive_cbk(
                     }
                     receive();
                     return;
+                } else if (tp::tp::tp_flag_is_set((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])) {
+                    const auto res = tp_reassembler_->process_tp_message(
+                            &(*_recv_buffer)[i], current_message_size,
+                            remote_address_, remote_port_);
+                    if (res.first) {
+                        its_host->on_message(&res.second[0],
+                                static_cast<std::uint32_t>(res.second.size()),
+                                this, boost::asio::ip::address(),
+                                VSOMEIP_ROUTING_CLIENT,
+                                std::make_pair(ANY_UID, ANY_GID),
+                                remote_address_,
+                                remote_port_);
+                    }
+                } else {
+                    its_host->on_message(&(*_recv_buffer)[i], current_message_size,
+                            this, boost::asio::ip::address(),
+                            VSOMEIP_ROUTING_CLIENT,
+                            std::make_pair(ANY_UID, ANY_GID),
+                            remote_address_,
+                            remote_port_);
                 }
                 remaining_bytes -= current_message_size;
-
-                its_host->on_message(&(*_recv_buffer)[i], current_message_size,
-                        this, boost::asio::ip::address(),
-                        VSOMEIP_ROUTING_CLIENT, remote_address_,
-                        remote_port_);
             } else {
                 VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad "
                         "length field. Message size: " << current_message_size
@@ -371,6 +418,16 @@ std::string udp_client_endpoint_impl::get_remote_information() const {
             + std::to_string(remote_.port());
 }
 
+bool udp_client_endpoint_impl::tp_segmentation_enabled(service_t _service,
+                                                       method_t _method) const {
+    return configuration_->tp_segment_messages_client_to_service(_service,
+            remote_address_.to_string(), remote_port_, _method);
+}
+
+bool udp_client_endpoint_impl::is_reliable() const {
+    return false;
+}
+
 std::uint32_t udp_client_endpoint_impl::get_max_allowed_reconnects() const {
     return MAX_RECONNECTS_UNLIMITED;
 }
@@ -379,4 +436,4 @@ void udp_client_endpoint_impl::max_allowed_reconnects_reached() {
     return;
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

@@ -16,16 +16,16 @@ set(EXAMPLE_CONFIG_FILES
 
 # Examples
 add_executable(request-sample request-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(request-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+target_link_libraries(request-sample ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(response-sample response-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(response-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+target_link_libraries(response-sample ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(subscribe-sample subscribe-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(subscribe-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+target_link_libraries(subscribe-sample ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_executable(notify-sample notify-sample.cpp ${EXAMPLE_CONFIG_FILES})
-target_link_libraries(notify-sample vsomeip ${Boost_LIBRARIES} ${DL_LIBRARY})
+target_link_libraries(notify-sample ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY})
 
 add_dependencies(examples request-sample response-sample subscribe-sample notify-sample)
 

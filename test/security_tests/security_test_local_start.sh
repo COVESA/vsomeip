@@ -6,9 +6,9 @@
 
 export VSOMEIP_CONFIGURATION=security_test_local_config.json
 
-export VSOMEIP_APPLICATION_NAME=vsomeipd
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 sleep 1

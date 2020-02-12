@@ -130,7 +130,7 @@ void external_local_routing_test_service::on_message(
     std::shared_ptr<vsomeip::message> its_response =
             vsomeip::runtime::get()->create_response(_request);
 
-    app_->send(its_response, true);
+    app_->send(its_response);
 
     if(number_received_messages_local_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND
             && number_received_messages_external_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND)

@@ -9,13 +9,13 @@
 #include <iomanip>
 #include <sstream>
 #endif
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/message_impl.hpp"
 #include "../include/deserializer.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 deserializer::deserializer(std::uint32_t _buffer_shrink_threshold)
     : position_(data_.begin()),
@@ -104,8 +104,8 @@ bool deserializer::deserialize(uint8_t *_data, std::size_t _length) {
     if (_length > remaining_)
         return false;
 
-    std::memcpy(_data, &data_[position_ - data_.begin()], _length);
-    position_ += _length;
+    std::memcpy(_data, &data_[static_cast<std::vector<byte_t>::size_type>(position_ - data_.begin())], _length);
+    position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
     remaining_ -= _length;
 
     return true;
@@ -126,8 +126,9 @@ bool deserializer::deserialize(std::vector< uint8_t >& _value) {
     if (_value.capacity() > remaining_)
         return false;
 
-    _value.assign(position_, position_ + _value.capacity());
-    position_ += _value.capacity();
+    _value.assign(position_, position_
+            + static_cast<std::vector<byte_t>::difference_type>(_value.capacity()));
+    position_ += static_cast<std::vector<byte_t>::difference_type>(_value.capacity());
     remaining_ -= _value.capacity();
 
     return true;
@@ -137,7 +138,7 @@ bool deserializer::look_ahead(std::size_t _index, uint8_t &_value) const {
     if (_index >= data_.size())
         return false;
 
-    _value = *(position_ + _index);
+    _value = *(position_ + static_cast<std::vector<byte_t>::difference_type>(_index));
 
     return true;
 }
@@ -146,7 +147,8 @@ bool deserializer::look_ahead(std::size_t _index, uint16_t &_value) const {
     if (_index+1 >= data_.size())
         return false;
 
-    std::vector< uint8_t >::iterator i = position_ + _index;
+    std::vector< uint8_t >::iterator i = position_ +
+            static_cast<std::vector<byte_t>::difference_type>(_index);
     _value = VSOMEIP_BYTES_TO_WORD(*i, *(i+1));
 
     return true;
@@ -156,13 +158,13 @@ bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
     if (_index+3 >= data_.size())
         return false;
 
-    std::vector< uint8_t >::const_iterator i = position_ + _index;
+    std::vector< uint8_t >::const_iterator i = position_ + static_cast<std::vector<byte_t>::difference_type>(_index);
     _value = VSOMEIP_BYTES_TO_LONG(*i, *(i+1), *(i+2), *(i+3));
 
     return true;
 }
 
-message * deserializer::deserialize_message() {
+message_impl * deserializer::deserialize_message() {
     message_impl* deserialized_message = new message_impl;
     if (0 != deserialized_message) {
         if (false == deserialized_message->deserialize(this)) {
@@ -179,7 +181,7 @@ void deserializer::set_data(const byte_t *_data,  std::size_t _length) {
     if (0 != _data) {
         data_.assign(_data, _data + _length);
         position_ = data_.begin();
-        remaining_ = data_.end() - position_;
+        remaining_ = static_cast<std::vector<byte_t>::size_type>(data_.end() - position_);
     } else {
         data_.clear();
         position_ = data_.end();
@@ -188,15 +190,15 @@ void deserializer::set_data(const byte_t *_data,  std::size_t _length) {
 }
 
 void deserializer::append_data(const byte_t *_data, std::size_t _length) {
-    std::size_t offset = (position_ - data_.begin());
+    std::vector<byte_t>::difference_type offset = (position_ - data_.begin());
     data_.insert(data_.end(), _data, _data + _length);
     position_ = data_.begin() + offset;
     remaining_ += _length;
 }
 
 void deserializer::drop_data(std::size_t _length) {
-    if (position_ + _length < data_.end())
-        position_ += _length;
+    if (position_ + static_cast<std::vector<byte_t>::difference_type>(_length) < data_.end())
+        position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
     else
         position_ = data_.end();
 }
@@ -232,4 +234,4 @@ void deserializer::show() const {
 }
 #endif
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

@@ -17,7 +17,7 @@
 #include <atomic>
 
 #include "cpu_load_test_globals.hpp"
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 #include "cpu_load_measurer.hpp"
 
 // for getpid
@@ -212,14 +212,14 @@ private:
 
 
     void send_messages_sync(std::unique_lock<std::mutex>& lk, std::uint32_t _messages_to_send) {
-        cpu_load_measurer c(::getpid());
+        cpu_load_measurer c(static_cast<std::uint32_t>(::getpid()));
         send_service_start_measuring(true);
         c.start();
         for (number_of_sent_messages_ = 0;
                 number_of_sent_messages_ < _messages_to_send;
                 number_of_sent_messages_++, number_of_sent_messages_total_++)
         {
-            app_->send(request_, true);
+            app_->send(request_);
             // wait until the send messages has been acknowledged
             while(wait_for_all_msg_acknowledged_) {
                 all_msg_acknowledged_cv_.wait(lk);
@@ -237,14 +237,14 @@ private:
     }
 
     void send_messages_async(std::unique_lock<std::mutex>& lk, std::uint32_t _messages_to_send) {
-        cpu_load_measurer c(::getpid());
+        cpu_load_measurer c(static_cast<std::uint32_t>(::getpid()));
         send_service_start_measuring(true);
         c.start();
         for (number_of_sent_messages_ = 0;
                 number_of_sent_messages_ < _messages_to_send;
                 number_of_sent_messages_++, number_of_sent_messages_total_++)
         {
-            app_->send(request_, true);
+            app_->send(request_);
             if((number_of_sent_messages_+1) % sliding_window_size_ == 0)
             {
                 // wait until all send messages have been acknowledged

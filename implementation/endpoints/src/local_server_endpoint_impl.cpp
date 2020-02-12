@@ -10,31 +10,37 @@
 #include <sys/types.h>
 #include <boost/asio/write.hpp>
 
-#include "../include/endpoint_host.hpp"
-#include "../include/local_server_endpoint_impl.hpp"
+#include <vsomeip/internal/logger.hpp>
 
-#include "../../logging/include/logger.hpp"
+#include "../include/endpoint_host.hpp"
+#include "../../routing/include/routing_host.hpp"
+#include "../include/local_server_endpoint_impl.hpp"
+#include "../../security/include/security.hpp"
 #include "../../utility/include/byteorder.hpp"
-#include "../../configuration/include/internal.hpp"
 #include "../../configuration/include/configuration.hpp"
+#include "../../utility/include/utility.hpp"
 
 // Credentials
 #ifndef _WIN32
 #include "../include/credentials.hpp"
 #endif
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 local_server_endpoint_impl::local_server_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host,
-        endpoint_type _local, boost::asio::io_service &_io,
-        std::uint32_t _max_message_size,
-        std::uint32_t _buffer_shrink_threshold,
-        configuration::endpoint_queue_limit_t _queue_limit, std::uint32_t _mode)
-    : local_server_endpoint_base_impl(_host, _local, _io,
-                                      _max_message_size, _queue_limit),
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _local, boost::asio::io_service &_io,
+        const std::shared_ptr<configuration>& _configuration,
+        bool _is_routing_endpoint)
+    : local_server_endpoint_base_impl(_endpoint_host, _routing_host, _local,
+                                      _io,
+                                      _configuration->get_max_message_size_local(),
+                                      _configuration->get_endpoint_queue_limit_local(),
+                                      _configuration),
       acceptor_(_io),
-      buffer_shrink_threshold_(_buffer_shrink_threshold) {
+      buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
+      is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
     boost::system::error_code ec;
@@ -48,26 +54,28 @@ local_server_endpoint_impl::local_server_endpoint_impl(
     boost::asio::detail::throw_error(ec, "acceptor listen");
 
 #ifndef _WIN32
-    if (chmod(_local.path().c_str(), static_cast<mode_t>(_mode)) == -1) {
+    if (chmod(_local.path().c_str(),
+            static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
-    if (_host->get_configuration()->is_security_enabled()) {
-        credentials::activate_credentials(acceptor_.native_handle());
-    }
+    credentials::activate_credentials(acceptor_.native_handle());
 #endif
 }
 
 local_server_endpoint_impl::local_server_endpoint_impl(
-        std::shared_ptr< endpoint_host > _host,
-        endpoint_type _local, boost::asio::io_service &_io,
-        std::uint32_t _max_message_size,
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _local, boost::asio::io_service &_io,
         int native_socket,
-        std::uint32_t _buffer_shrink_threshold,
-        configuration::endpoint_queue_limit_t _queue_limit, std::uint32_t _mode)
-    : local_server_endpoint_base_impl(_host, _local, _io,
-                                      _max_message_size, _queue_limit),
+        const std::shared_ptr<configuration>& _configuration,
+        bool _is_routing_endpoint)
+    : local_server_endpoint_base_impl(_endpoint_host, _routing_host, _local, _io,
+                                      _configuration->get_max_message_size_local(),
+                                      _configuration->get_endpoint_queue_limit_local(),
+                                      _configuration),
       acceptor_(_io),
-      buffer_shrink_threshold_(_buffer_shrink_threshold) {
+      buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
+      is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
    boost::system::error_code ec;
@@ -75,12 +83,11 @@ local_server_endpoint_impl::local_server_endpoint_impl(
    boost::asio::detail::throw_error(ec, "acceptor assign native socket");
 
 #ifndef _WIN32
-    if (chmod(_local.path().c_str(), static_cast<mode_t>(_mode)) == -1) {
+    if (chmod(_local.path().c_str(),
+            static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
-    if (_host->get_configuration()->is_security_enabled()) {
-        credentials::activate_credentials(acceptor_.native_handle());
-    }
+    credentials::activate_credentials(acceptor_.native_handle());
 #endif
 }
 
@@ -133,49 +140,63 @@ void local_server_endpoint_impl::stop() {
         }
         connections_.clear();
     }
-#ifndef _WIN32
-    {
-        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
-        client_connections_.clear();
-    }
+}
+
+bool local_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
+#if 0
+    std::stringstream msg;
+    msg << "lse::send ";
+    for (uint32_t i = 0; i < _size; i++)
+        msg << std::setw(2) << std::setfill('0') << std::hex << (int)_data[i] << " ";
+    VSOMEIP_INFO << msg.str();
 #endif
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    if (endpoint_impl::sending_blocked_) {
+        return false;
+    }
+
+    client_t its_client;
+    std::memcpy(&its_client, &_data[7], sizeof(its_client));
+
+    connection::ptr its_connection;
+    {
+        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        const auto its_iterator = connections_.find(its_client);
+        if (its_iterator == connections_.end()) {
+            return false;
+        } else {
+            its_connection = its_iterator->second;
+        }
+    }
+
+    auto its_buffer = std::make_shared<message_buffer_t>();
+    its_buffer->insert(its_buffer->end(), _data, _data + _size);
+    its_connection->send_queued(its_buffer);
+
+    return true;
 }
 
 bool local_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size, bool _flush) {
+        const byte_t *_data, uint32_t _size) {
     (void)_target;
     (void)_data;
     (void)_size;
-    (void)_flush;
+    return false;
+}
+
+bool local_server_endpoint_impl::send_error(
+        const std::shared_ptr<endpoint_definition> _target,
+        const byte_t *_data, uint32_t _size) {
+    (void)_target;
+    (void)_data;
+    (void)_size;
     return false;
 }
 
 void local_server_endpoint_impl::send_queued(
         const queue_iterator_type _queue_iterator) {
-    connection::ptr its_connection;
-    {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        auto connection_iterator = connections_.find(_queue_iterator->first);
-        if (connection_iterator != connections_.end()) {
-            connection_iterator->second->send_queued(_queue_iterator);
-            its_connection = connection_iterator->second;
-        } else {
-            VSOMEIP_INFO << "Didn't find connection: "
-#ifdef _WIN32
-                    << _queue_iterator->first.address().to_string() << ":" << std::dec
-                    << static_cast<std::uint16_t>(_queue_iterator->first.port())
-#else
-                    << _queue_iterator->first.path()
-#endif
-                    << " dropping outstanding messages (" << std::dec
-                    << _queue_iterator->second.second.size() << ").";
-            queues_.erase(_queue_iterator->first);
-        }
-    }
-    if (its_connection) {
-        its_connection->send_queued(_queue_iterator);
-    }
+    (void)_queue_iterator;
 }
 
 void local_server_endpoint_impl::receive() {
@@ -188,38 +209,29 @@ bool local_server_endpoint_impl::get_default_target(
     return false;
 }
 
-void local_server_endpoint_impl::remove_connection(
-        local_server_endpoint_impl::connection *_connection) {
-    {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        for (auto it = connections_.begin(); it != connections_.end();) {
-            if (it->second.get() == _connection) {
-                it = connections_.erase(it);
-                break;
-            } else {
-                ++it;
-            }
-        }
+bool local_server_endpoint_impl::add_connection(const client_t &_client,
+        const std::shared_ptr<connection> &_connection) {
+    bool ret = false;
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    auto find_connection = connections_.find(_client);
+    if (find_connection == connections_.end()) {
+        connections_[_client] = _connection;
+        ret = true;
+    } else {
+        VSOMEIP_WARNING << "Attempt to add already existing "
+            "connection to client " << std::hex << _client;
     }
+    return ret;
+}
 
-#ifndef _WIN32
-    {
-        std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
-        for (auto it = client_connections_.begin(); it != client_connections_.end();) {
-            if (it->second.get() == _connection) {
-                it = client_connections_.erase(it);
-                break;
-            } else {
-                ++it;
-            }
-        }
-    }
-#endif
+void local_server_endpoint_impl::remove_connection(
+        const client_t &_client) {
+    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    connections_.erase(_client);
 }
 
 void local_server_endpoint_impl::accept_cbk(
-        connection::ptr _connection, boost::system::error_code const &_error) {
-
+        const connection::ptr& _connection, boost::system::error_code const &_error) {
     if (_error != boost::asio::error::bad_descriptor
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
@@ -243,40 +255,46 @@ void local_server_endpoint_impl::accept_cbk(
 
     if (!_error) {
 #ifndef _WIN32
-        auto its_host = host_.lock();
+        auto its_host = endpoint_host_.lock();
         client_t client = 0;
-        if (its_host) {
-            if (its_host->get_configuration()->is_security_enabled()) {
-                std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
-                socket_type &new_connection_socket = _connection->get_socket();
-                uid_t uid(0xffffffff);
-                gid_t gid(0xffffffff);
-                client = credentials::receive_credentials(
-                     new_connection_socket.native(), uid, gid);
 
-                std::lock_guard<std::mutex> its_client_connection_lock(client_connections_mutex_);
-                auto found_client = client_connections_.find(client);
-                if (found_client != client_connections_.end()) {
-                    VSOMEIP_WARNING << std::hex << "vSomeIP Security: Rejecting new connection with client ID 0x" << client
-                            << " uid/gid= " << std::dec << uid << "/" << gid
-                            << " because of already existing connection using same client ID";
-                    boost::system::error_code er;
-                    new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
-                    new_connection_socket.close(er);
-                    return;
+        socket_type &new_connection_socket = _connection->get_socket();
+        uid_t uid(ANY_UID);
+        gid_t gid(ANY_GID);
+        client = credentials::receive_credentials(
+             new_connection_socket.native_handle(), uid, gid);
+
+        if (its_host && security::get()->is_enabled()) {
+            if (!configuration_->check_routing_credentials(client, uid, gid)) {
+                VSOMEIP_WARNING << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << std::hex << client
+                        << " uid/gid= " << std::dec << uid << "/" << gid
+                        << " because passed credentials do not match with routing manager credentials!";
+                boost::system::error_code er;
+                new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
+                new_connection_socket.close(er);
+                return;
+            }
+
+            if (is_routing_endpoint_) {
+                // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> check later
+                _connection->set_bound_uid_gid(uid, gid);
+            } else {
+                {
+                    std::lock_guard<std::mutex> its_connection_lock(connections_mutex_);
+                    // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> check later
+                    const auto found_client = connections_.find(client);
+                    if (found_client != connections_.end()) {
+                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
+                                << its_host->get_client() << " is rejecting new connection with client ID 0x"
+                                << client << " uid/gid= " << std::dec << uid << "/" << gid
+                                << " because of already existing connection using same client ID";
+                        boost::system::error_code er;
+                        new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
+                        new_connection_socket.close(er);
+                        return;
+                    }
                 }
-
-                if (!its_host->get_configuration()->check_routing_credentials(client, uid, gid)) {
-                    VSOMEIP_WARNING << std::hex << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << client
-                            << " uid/gid= " << std::dec << uid << "/" << gid
-                            << " because passed credentials do not match with routing manager credentials!";
-                    boost::system::error_code er;
-                    new_connection_socket.shutdown(new_connection_socket.shutdown_both, er);
-                    new_connection_socket.close(er);
-                    return;
-                }
-
-                if (!its_host->check_credentials(client, uid, gid)) {
+                if (!security::get()->check_credentials(client, uid, gid)) {
                      VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                              << its_host->get_client() << " received client credentials from client 0x"
                              << client << " which violates the security policy : uid/gid="
@@ -286,34 +304,16 @@ void local_server_endpoint_impl::accept_cbk(
                      new_connection_socket.close(er);
                      return;
                 }
+                // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> set later
                 _connection->set_bound_client(client);
-                credentials::deactivate_credentials(new_connection_socket.native());
+                add_connection(client, _connection);
             }
+        } else {
+            security::get()->store_client_to_uid_gid_mapping(client, uid, gid);
+            security::get()->store_uid_gid_to_client_mapping(uid, gid, client);
         }
 #endif
-
-        boost::system::error_code its_error;
-        endpoint_type remote;
-        {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
-            socket_type &new_connection_socket = _connection->get_socket();
-            remote = new_connection_socket.remote_endpoint(its_error);
-        }
-        if (!its_error) {
-            {
-                {
-                    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-                    connections_[remote] = _connection;
-                }
-#ifndef _WIN32
-                {
-                    std::lock_guard<std::mutex> its_lock(client_connections_mutex_);
-                    client_connections_[client] = _connection;
-                }
-#endif
-            }
-            _connection->start();
-        }
+        _connection->start();
     }
 }
 
@@ -322,7 +322,7 @@ void local_server_endpoint_impl::accept_cbk(
 ///////////////////////////////////////////////////////////////////////////////
 
 local_server_endpoint_impl::connection::connection(
-        std::weak_ptr<local_server_endpoint_impl> _server,
+        const std::shared_ptr<local_server_endpoint_impl>& _server,
         std::uint32_t _max_message_size,
         std::uint32_t _initial_recv_buffer_size,
         std::uint32_t _buffer_shrink_threshold,
@@ -336,12 +336,21 @@ local_server_endpoint_impl::connection::connection(
       missing_capacity_(0),
       shrink_count_(0),
       buffer_shrink_threshold_(_buffer_shrink_threshold),
-      bound_client_(VSOMEIP_ROUTING_CLIENT) {
+      bound_client_(VSOMEIP_CLIENT_UNSET),
+#ifndef _WIN32
+      bound_uid_(ANY_UID),
+      bound_gid_(ANY_GID),
+#endif
+      assigned_client_(false) {
+    if (_server->is_routing_endpoint_ &&
+            !security::get()->is_enabled()) {
+        assigned_client_ = true;
+    }
 }
 
 local_server_endpoint_impl::connection::ptr
 local_server_endpoint_impl::connection::create(
-        std::weak_ptr<local_server_endpoint_impl> _server,
+        const std::shared_ptr<local_server_endpoint_impl>& _server,
         std::uint32_t _max_message_size,
         std::uint32_t _buffer_shrink_threshold,
         boost::asio::io_service &_io_service) {
@@ -393,6 +402,19 @@ void local_server_endpoint_impl::connection::start() {
             // don't start receiving again
             return;
         }
+#ifndef _WIN32
+        socket_.async_receive(
+            boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
+            std::bind(
+                &local_server_endpoint_impl::connection::receive_cbk,
+                shared_from_this(),
+                std::placeholders::_1,
+                std::placeholders::_2,
+                std::placeholders::_3,
+                std::placeholders::_4
+            )
+        );
+#else
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
             std::bind(
@@ -402,6 +424,7 @@ void local_server_endpoint_impl::connection::start() {
                 std::placeholders::_2
             )
         );
+#endif
     }
 }
 
@@ -421,11 +444,7 @@ void local_server_endpoint_impl::connection::stop() {
 }
 
 void local_server_endpoint_impl::connection::send_queued(
-        const queue_iterator_type _queue_iterator) {
-
-    // TODO: We currently do _not_ use the send method of the local server
-    // endpoints. If we ever need it, we need to add the "start tag", "data",
-    // "end tag" sequence here.
+        const message_buffer_ptr_t& _buffer) {
     std::shared_ptr<local_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_TRACE << "local_server_endpoint_impl::connection::send_queued "
@@ -433,24 +452,32 @@ void local_server_endpoint_impl::connection::send_queued(
         return;
     }
 
-    message_buffer_ptr_t its_buffer = _queue_iterator->second.second.front();
+    static const byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
+    static const byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
+    std::vector<boost::asio::const_buffer> bufs;
+
 #if 0
         std::stringstream msg;
         msg << "lse::sq: ";
-        for (std::size_t i = 0; i < its_buffer->size(); i++)
+        for (std::size_t i = 0; i < _buffer->size(); i++)
             msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int)(*its_buffer)[i] << " ";
+                << (int)(*_buffer)[i] << " ";
         VSOMEIP_INFO << msg.str();
 #endif
+
+    bufs.push_back(boost::asio::buffer(its_start_tag));
+    bufs.push_back(boost::asio::buffer(*_buffer));
+    bufs.push_back(boost::asio::buffer(its_end_tag));
+
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         boost::asio::async_write(
             socket_,
-            boost::asio::buffer(*its_buffer),
+            bufs,
             std::bind(
-                &local_server_endpoint_base_impl::send_cbk,
-                its_server,
-                _queue_iterator,
+                &local_server_endpoint_impl::connection::send_cbk,
+                shared_from_this(),
+                _buffer,
                 std::placeholders::_1,
                 std::placeholders::_2
             )
@@ -458,191 +485,290 @@ void local_server_endpoint_impl::connection::send_queued(
     }
 }
 
-void local_server_endpoint_impl::connection::receive_cbk(
-        boost::system::error_code const &_error, std::size_t _bytes) {
+client_t local_server_endpoint_impl::assign_client(
+        const byte_t *_data, uint32_t _size) {
+    client_t its_client(VSOMEIP_CLIENT_UNSET);
+    std::string its_name;
+    uint32_t its_name_length;
 
-    if (_error == boost::asio::error::operation_aborted) {
-        // connection was stopped
-        return;
+    if (_size >= VSOMEIP_COMMAND_PAYLOAD_POS) {
+        std::memcpy(&its_client, &_data[VSOMEIP_COMMAND_CLIENT_POS], sizeof(its_client));
+        std::memcpy(&its_name_length, &_data[VSOMEIP_COMMAND_SIZE_POS_MIN],
+            sizeof(its_name_length));
+
+        if (its_name_length > 0)
+            its_name.assign(reinterpret_cast<const char *>(
+                    &_data[VSOMEIP_COMMAND_PAYLOAD_POS]), its_name_length);
     }
+
+    its_client = utility::request_client_id(configuration_, its_name, its_client);
+
+    return its_client;
+}
+
+void local_server_endpoint_impl::get_configured_times_from_endpoint(
+        service_t _service,
+        method_t _method, std::chrono::nanoseconds *_debouncing,
+        std::chrono::nanoseconds *_maximum_retention) const {
+    (void)_service;
+    (void)_method;
+    (void)_debouncing;
+    (void)_maximum_retention;
+    VSOMEIP_ERROR << "local_server_endpoint_impl::get_configured_times_from_endpoint.";
+}
+
+void local_server_endpoint_impl::connection::send_cbk(const message_buffer_ptr_t _buffer,
+        boost::system::error_code const &_error, std::size_t _bytes) {
+    (void)_buffer;
+    (void)_bytes;
+    if (_error)
+        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message();
+}
+
+void local_server_endpoint_impl::connection::receive_cbk(
+        boost::system::error_code const &_error, std::size_t _bytes
+#ifndef _WIN32
+        , std::uint32_t const &_uid, std::uint32_t const &_gid
+#endif
+        )
+{
     std::shared_ptr<local_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_TRACE << "local_server_endpoint_impl::connection::receive_cbk "
                 " couldn't lock server_";
         return;
     }
-    std::shared_ptr<endpoint_host> its_host = its_server->host_.lock();
-    if (its_host) {
-        std::size_t its_start = 0;
-        std::size_t its_end = 0;
-        std::size_t its_iteration_gap = 0;
-        std::uint32_t its_command_size = 0;
 
-        if (!_error && 0 < _bytes) {
-    #if 0
-            std::stringstream msg;
-            msg << "lse::c<" << this << ">rcb: ";
-            for (std::size_t i = 0; i < _bytes + recv_buffer_size_; i++)
-                msg << std::setw(2) << std::setfill('0') << std::hex
-                    << (int) (recv_buffer_[i]) << " ";
-            VSOMEIP_INFO << msg.str();
-    #endif
+    std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
+    if (!its_host)
+        return;
 
-            if (recv_buffer_size_ + _bytes < recv_buffer_size_) {
-                VSOMEIP_ERROR << "receive buffer overflow in local server endpoint ~> abort!";
+    if (_error == boost::asio::error::operation_aborted) {
+        if (its_server->is_routing_endpoint_ &&
+                bound_client_ != VSOMEIP_CLIENT_UNSET) {
+            utility::release_client_id(bound_client_);
+            set_bound_client(VSOMEIP_CLIENT_UNSET);
+        }
+
+        // connection was stopped
+        return;
+    }
+
+    std::size_t its_start = 0;
+    std::size_t its_end = 0;
+    std::size_t its_iteration_gap = 0;
+    std::uint32_t its_command_size = 0;
+
+    if (!_error && 0 < _bytes) {
+#if 0
+        std::stringstream msg;
+        msg << "lse::c<" << this << ">rcb: ";
+        for (std::size_t i = 0; i < _bytes + recv_buffer_size_; i++)
+            msg << std::setw(2) << std::setfill('0') << std::hex
+                << (int) (recv_buffer_[i]) << " ";
+        VSOMEIP_INFO << msg.str();
+#endif
+
+        if (recv_buffer_size_ + _bytes < recv_buffer_size_) {
+            VSOMEIP_ERROR << "receive buffer overflow in local server endpoint ~> abort!";
+            return;
+        }
+        recv_buffer_size_ += _bytes;
+
+        bool message_is_empty(false);
+        bool found_message(false);
+
+        do {
+            found_message = false;
+            message_is_empty = false;
+
+            its_start = 0 + its_iteration_gap;
+            if (its_start + 3 < its_start) {
+                VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
                 return;
             }
-            recv_buffer_size_ += _bytes;
+            while (its_start + 3 < recv_buffer_size_ + its_iteration_gap &&
+                (recv_buffer_[its_start] != 0x67 ||
+                recv_buffer_[its_start+1] != 0x37 ||
+                recv_buffer_[its_start+2] != 0x6d ||
+                recv_buffer_[its_start+3] != 0x07)) {
+                its_start++;
+            }
 
-            bool message_is_empty(false);
-            bool found_message(false);
+            if (its_start + 3 == recv_buffer_size_ + its_iteration_gap) {
+                message_is_empty = true;
+            } else {
+                its_start += 4;
+            }
 
-            do {
-                found_message = false;
-                message_is_empty = false;
+            if (!message_is_empty) {
+                if (its_start + 6 < recv_buffer_size_ + its_iteration_gap) {
+                    its_command_size = VSOMEIP_BYTES_TO_LONG(
+                                    recv_buffer_[its_start + 6],
+                                    recv_buffer_[its_start + 5],
+                                    recv_buffer_[its_start + 4],
+                                    recv_buffer_[its_start + 3]);
 
-                its_start = 0 + its_iteration_gap;
-                if (its_start + 3 < its_start) {
+                    its_end = its_start + 6 + its_command_size;
+                } else {
+                    its_end = its_start;
+                }
+                if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
+                        && its_command_size > max_message_size_) {
+                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                    VSOMEIP_ERROR << "Received a local message which exceeds "
+                          << "maximum message size (" << std::dec << its_command_size
+                          << ") aborting! local: " << get_path_local() << " remote: "
+                          << get_path_remote();
+                    recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
+                    recv_buffer_.shrink_to_fit();
+                    return;
+                }
+                if (its_end + 3 < its_end) {
                     VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
                     return;
                 }
-                while (its_start + 3 < recv_buffer_size_ + its_iteration_gap &&
-                    (recv_buffer_[its_start] != 0x67 ||
-                    recv_buffer_[its_start+1] != 0x37 ||
-                    recv_buffer_[its_start+2] != 0x6d ||
-                    recv_buffer_[its_start+3] != 0x07)) {
-                    its_start++;
+                while (its_end + 3 < recv_buffer_size_ + its_iteration_gap &&
+                    (recv_buffer_[its_end] != 0x07 ||
+                    recv_buffer_[its_end+1] != 0x6d ||
+                    recv_buffer_[its_end+2] != 0x37 ||
+                    recv_buffer_[its_end+3] != 0x67)) {
+                    its_end ++;
                 }
-
-                if (its_start + 3 == recv_buffer_size_ + its_iteration_gap) {
-                    message_is_empty = true;
-                } else {
-                    its_start += 4;
+                if (its_end + 4 < its_end) {
+                    VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
+                    return;
                 }
-
-                if (!message_is_empty) {
-                    if (its_start + 6 < recv_buffer_size_ + its_iteration_gap) {
-                        its_command_size = VSOMEIP_BYTES_TO_LONG(
-                                        recv_buffer_[its_start + 6],
-                                        recv_buffer_[its_start + 5],
-                                        recv_buffer_[its_start + 4],
-                                        recv_buffer_[its_start + 3]);
-
-                        its_end = its_start + 6 + its_command_size;
+                // check if we received a full message
+                if (recv_buffer_size_ + its_iteration_gap < its_end + 4
+                        || recv_buffer_[its_end] != 0x07
+                        || recv_buffer_[its_end+1] != 0x6d
+                        || recv_buffer_[its_end+2] != 0x37
+                        || recv_buffer_[its_end+3] != 0x67) {
+                    // command (1 Byte) + client id (2 Byte)
+                    // + command size (4 Byte) + data itself + stop tag (4 byte)
+                    // = 11 Bytes not covered in command size.
+                    if (its_start - its_iteration_gap + its_command_size + 11 > recv_buffer_size_) {
+                        missing_capacity_ =
+                                std::uint32_t(its_start) - std::uint32_t(its_iteration_gap)
+                                + its_command_size + 11 - std::uint32_t(recv_buffer_size_);
+                    } else if (recv_buffer_size_ < 11) {
+                        // to little data to read out the command size
+                        // minimal amount of data needed to read out command size = 11
+                        missing_capacity_ = 11 - static_cast<std::uint32_t>(recv_buffer_size_);
                     } else {
-                        its_end = its_start;
-                    }
-                    if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
-                            && its_command_size > max_message_size_) {
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                        VSOMEIP_ERROR << "Received a local message which exceeds "
-                              << "maximum message size (" << std::dec << its_command_size
-                              << ") aborting! local: " << get_path_local() << " remote: "
-                              << get_path_remote();
-                        recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
-                        recv_buffer_.shrink_to_fit();
-                        return;
-                    }
-                    if (its_end + 3 < its_end) {
-                        VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
-                        return;
-                    }
-                    while (its_end + 3 < recv_buffer_size_ + its_iteration_gap &&
-                        (recv_buffer_[its_end] != 0x07 ||
-                        recv_buffer_[its_end+1] != 0x6d ||
-                        recv_buffer_[its_end+2] != 0x37 ||
-                        recv_buffer_[its_end+3] != 0x67)) {
-                        its_end ++;
-                    }
-                    if (its_end + 4 < its_end) {
-                        VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
-                        return;
-                    }
-                    // check if we received a full message
-                    if (recv_buffer_size_ + its_iteration_gap < its_end + 4
-                            || recv_buffer_[its_end] != 0x07
-                            || recv_buffer_[its_end+1] != 0x6d
-                            || recv_buffer_[its_end+2] != 0x37
-                            || recv_buffer_[its_end+3] != 0x67) {
-                        // start tag (4 Byte) + command (1 Byte) + client id (2 Byte)
-                        // + command size (4 Byte) + data itself + stop tag (4 byte)
-                        // = 15 Bytes not covered in command size.
-                        if (its_command_size + 15 > recv_buffer_size_) {
-                            missing_capacity_ = its_command_size + 15 - std::uint32_t(recv_buffer_size_);
-                        } else if (recv_buffer_size_ < 11) {
-                            // to little data to read out the command size
-                            // minimal amount of data needed to read out command size = 11
-                            missing_capacity_ = 11 - static_cast<std::uint32_t>(recv_buffer_size_);
-                        } else {
-                            std::stringstream local_msg;
-                            for (std::size_t i = its_iteration_gap;
-                                    i < recv_buffer_size_ + its_iteration_gap &&
-                                    i - its_iteration_gap < 32; i++) {
-                                local_msg << std::setw(2) << std::setfill('0')
-                                    << std::hex << (int) recv_buffer_[i] << " ";
-                            }
-                            VSOMEIP_ERROR << "lse::c<" << this
-                                    << ">rcb: recv_buffer_size is: " << std::dec
-                                    << recv_buffer_size_ << " but couldn't read "
-                                    "out command size. recv_buffer_capacity: "
-                                    << std::dec << recv_buffer_.capacity()
-                                    << " its_iteration_gap: " << std::dec
-                                    << its_iteration_gap << " bound client: 0x"
-                                    << std::hex << bound_client_ << " buffer: "
-                                    << local_msg.str();
-                            recv_buffer_size_ = 0;
-                            missing_capacity_ = 0;
-                            its_iteration_gap = 0;
-                            message_is_empty = true;
+                        std::stringstream local_msg;
+                        for (std::size_t i = its_iteration_gap;
+                                i < recv_buffer_size_ + its_iteration_gap &&
+                                i - its_iteration_gap < 32; i++) {
+                            local_msg << std::setw(2) << std::setfill('0')
+                                << std::hex << (int) recv_buffer_[i] << " ";
                         }
+                        VSOMEIP_ERROR << "lse::c<" << this
+                                << ">rcb: recv_buffer_size is: " << std::dec
+                                << recv_buffer_size_ << " but couldn't read "
+                                "out command size. recv_buffer_capacity: "
+                                << std::dec << recv_buffer_.capacity()
+                                << " its_iteration_gap: " << std::dec
+                                << its_iteration_gap << " bound client: 0x"
+                                << std::hex << bound_client_ << " buffer: "
+                                << local_msg.str();
+                        recv_buffer_size_ = 0;
+                        missing_capacity_ = 0;
+                        its_iteration_gap = 0;
+                        message_is_empty = true;
                     }
                 }
+            }
 
-                if (!message_is_empty &&
-                    its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
+            if (!message_is_empty &&
+                its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
+
+                if (its_server->is_routing_endpoint_
+                        && recv_buffer_[its_start] == VSOMEIP_ASSIGN_CLIENT) {
+                    client_t its_client = its_server->assign_client(
+                            &recv_buffer_[its_start], uint32_t(its_end - its_start));
+#ifndef _WIN32
+                    if (security::get()->is_enabled()) {
+                        if (!its_server->add_connection(its_client, shared_from_this())) {
+                            VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                                    << " is rejecting new connection with client ID 0x" << its_client
+                                    << " uid/gid= " << std::dec << bound_uid_ << "/" << bound_gid_
+                                    << " because of already existing connection using same client ID";
+                            stop();
+                            return;
+                        } else if (!security::get()->check_credentials(
+                                its_client, bound_uid_, bound_gid_)) {
+                            VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                                    << " received client credentials from client 0x" << its_client
+                                    << " which violates the security policy : uid/gid="
+                                    << std::dec << bound_uid_ << "/" << bound_gid_;
+                            its_server->remove_connection(its_client);
+                            utility::release_client_id(its_client);
+                            stop();
+                            return;
+                        } else {
+                            set_bound_client(its_client);
+                        }
+                    } else
+#endif
+                    {
+                        set_bound_client(its_client);
+                        its_server->add_connection(its_client, shared_from_this());
+                    }
+                    its_server->send_client_identifier(its_client);
+                    assigned_client_ = true;
+                } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
+#ifndef _WIN32
+                    credentials_t its_credentials = std::make_pair(_uid, _gid);
+#else
+                    credentials_t its_credentials = std::make_pair(ANY_UID, ANY_GID);
+#endif
                     its_host->on_message(&recv_buffer_[its_start],
                                          uint32_t(its_end - its_start), its_server.get(),
-                                         boost::asio::ip::address(), bound_client_);
-
-                    #if 0
-                            std::stringstream local_msg;
-                            local_msg << "lse::c<" << this << ">rcb::thunk: ";
-                            for (std::size_t i = its_start; i < its_end; i++)
-                                local_msg << std::setw(2) << std::setfill('0') << std::hex
-                                    << (int) recv_buffer_[i] << " ";
-                            VSOMEIP_INFO << local_msg.str();
-                    #endif
-                    calculate_shrink_count();
-                    recv_buffer_size_ -= (its_end + 4 - its_iteration_gap);
-                    missing_capacity_ = 0;
-                    its_command_size = 0;
-                    found_message = true;
-                    its_iteration_gap = its_end + 4;
+                                         boost::asio::ip::address(), bound_client_, its_credentials);
                 } else {
-                    if (its_iteration_gap) {
-                        // Message not complete and not in front of the buffer!
-                        // Copy last part to front for consume in future receive_cbk call!
-                        for (size_t i = 0; i < recv_buffer_size_; ++i) {
-                            recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
-                        }
-                        // Still more capacity needed after shifting everything to front?
-                        if (missing_capacity_ &&
-                                missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
-                            missing_capacity_ = 0;
-                        }
+                    VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                            << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message";
+                }
+                #if 0
+                        std::stringstream local_msg;
+                        local_msg << "lse::c<" << this << ">rcb::thunk: ";
+                        for (std::size_t i = its_start; i < its_end; i++)
+                            local_msg << std::setw(2) << std::setfill('0') << std::hex
+                                << (int) recv_buffer_[i] << " ";
+                        VSOMEIP_INFO << local_msg.str();
+                #endif
+                calculate_shrink_count();
+                recv_buffer_size_ -= (its_end + 4 - its_iteration_gap);
+                missing_capacity_ = 0;
+                its_command_size = 0;
+                found_message = true;
+                its_iteration_gap = its_end + 4;
+            } else {
+                if (its_iteration_gap) {
+                    // Message not complete and not in front of the buffer!
+                    // Copy last part to front for consume in future receive_cbk call!
+                    for (size_t i = 0; i < recv_buffer_size_; ++i) {
+                        recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
+                    }
+                    // Still more capacity needed after shifting everything to front?
+                    if (missing_capacity_ &&
+                            missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
+                        missing_capacity_ = 0;
                     }
                 }
-            } while (recv_buffer_size_ > 0 && found_message);
-        }
+            }
+        } while (recv_buffer_size_ > 0 && found_message);
+    }
 
-        if (_error == boost::asio::error::eof
-                || _error == boost::asio::error::connection_reset) {
-            stop();
-            its_server->remove_connection(this);
-            its_host->get_configuration()->remove_client_to_uid_gid_mapping(bound_client_);
-        } else if (_error != boost::asio::error::bad_descriptor) {
-            start();
-        }
+    if (_error == boost::asio::error::eof
+            || _error == boost::asio::error::connection_reset) {
+        stop();
+        its_server->remove_connection(bound_client_);
+        security::get()->remove_client_to_uid_gid_mapping(bound_client_);
+    } else if (_error != boost::asio::error::bad_descriptor) {
+        start();
     }
 }
 
@@ -654,6 +780,12 @@ client_t local_server_endpoint_impl::connection::get_bound_client() const {
     return bound_client_;
 }
 
+#ifndef _WIN32
+void local_server_endpoint_impl::connection::set_bound_uid_gid(uid_t _uid, gid_t _gid) {
+    bound_uid_ = _uid;
+    bound_gid_ = _gid;
+}
+#endif
 
 void local_server_endpoint_impl::connection::calculate_shrink_count() {
     if (buffer_shrink_threshold_) {
@@ -717,9 +849,9 @@ void local_server_endpoint_impl::connection::handle_recv_buffer_exception(
     }
 
     its_message << " Last 16 Bytes captured: ";
-    for (int i = 15; recv_buffer_size_ > 15 && i >= 0; i--) {
+    for (int i = 15; recv_buffer_size_ > 15u && i >= 0; i--) {
         its_message << std::setw(2) << std::setfill('0') << std::hex
-            << (int) (recv_buffer_[i]) << " ";
+            << (int) (recv_buffer_[static_cast<size_t>(i)]) << " ";
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
@@ -736,7 +868,7 @@ void local_server_endpoint_impl::connection::handle_recv_buffer_exception(
     }
     std::shared_ptr<local_server_endpoint_impl> its_server = server_.lock();
     if (its_server) {
-        its_server->remove_connection(this);
+        its_server->remove_connection(bound_client_);
     }
 }
 
@@ -762,25 +894,18 @@ void local_server_endpoint_impl::print_status() {
             << std::dec << queues_.size();
     for (const auto &c : its_connections) {
 #ifndef _WIN32
-        std::string its_remote_path(c.first.path());
+        std::string its_remote_path; // TODO: construct the path
 #else
         std::string its_remote_path("");
 #endif
-        std::size_t its_data_size(0);
-        std::size_t its_queue_size(0);
+
         std::size_t its_recv_size(0);
         {
             std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
-        auto found_queue = queues_.find(c.first);
-        if (found_queue != queues_.end()) {
-            its_queue_size = found_queue->second.second.size();
-            its_data_size = found_queue->second.first;
-        }
+
         VSOMEIP_INFO << "status lse: client: " << its_remote_path
-                << " queue: " << std::dec << its_queue_size
-                << " data: " << std::dec << its_data_size
                 << " recv_buffer: " << std::dec << its_recv_size;
     }
 }
@@ -791,8 +916,69 @@ std::string local_server_endpoint_impl::get_remote_information(
     return _queue_iterator->first.address().to_string(ec) + ":"
             + std::to_string(_queue_iterator->first.port());
 #else
-    return _queue_iterator->first.path();
+    (void)_queue_iterator;
+    return "local";
 #endif
 }
 
-} // namespace vsomeip
+std::string local_server_endpoint_impl::get_remote_information(
+        const endpoint_type& _remote) const {
+#ifdef _WIN32
+    boost::system::error_code ec;
+    return _remote.address().to_string(ec) + ":"
+            + std::to_string(_remote.port());
+#else
+    (void)_remote;
+    return "local";
+#endif
+}
+
+bool local_server_endpoint_impl::is_reliable() const {
+    return false;
+}
+
+std::uint16_t local_server_endpoint_impl::get_local_port() const {
+    return 0;
+}
+
+bool local_server_endpoint_impl::check_packetizer_space(
+        queue_iterator_type _queue_iterator, message_buffer_ptr_t* _packetizer,
+        std::uint32_t _size) {
+    if ((*_packetizer)->size() + _size < (*_packetizer)->size()) {
+        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
+        return false;
+    }
+    if ((*_packetizer)->size() + _size > max_message_size_
+            && !(*_packetizer)->empty()) {
+        _queue_iterator->second.second.push_back(*_packetizer);
+        _queue_iterator->second.first += (*_packetizer)->size();
+        *_packetizer = std::make_shared<message_buffer_t>();
+    }
+    return true;
+}
+
+void
+local_server_endpoint_impl::send_client_identifier(
+        const client_t &_client) {
+    byte_t its_command[] = {
+            VSOMEIP_ASSIGN_CLIENT_ACK,
+            0x0, 0x0, // client
+            0x2, 0x0, 0x0, 0x0, // size
+            0x0, 0x0 // assigned client
+    };
+
+    std::memcpy(its_command+7, &_client, sizeof(_client));
+
+    send(its_command, sizeof(its_command));
+}
+
+
+bool local_server_endpoint_impl::tp_segmentation_enabled(
+        service_t _service, method_t _method) const {
+    (void)_service;
+    (void)_method;
+    return false;
+}
+
+
+} // namespace vsomeip_v3

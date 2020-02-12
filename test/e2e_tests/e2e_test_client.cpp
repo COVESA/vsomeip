@@ -78,12 +78,10 @@ void e2e_test_client::on_state(vsomeip::state_type_e _state) {
 
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8001),
-                its_eventgroups, true);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8002),
-                its_eventgroups_2, true);
-        app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01);
-        app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x02);
+                its_eventgroups_2, vsomeip::event_type_e::ET_FIELD);
     }
 }
 
@@ -109,6 +107,10 @@ void e2e_test_client::on_availability(vsomeip::service_t _service,
         }
         else if(_is_available && !is_available_) {
             is_available_ = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01);
+            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x02);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             condition_.notify_one();
         }
     }
@@ -206,13 +208,13 @@ void e2e_test_client::run() {
         // protected answer holding a fixed payload (profile 01 CRC8)
         // this call triggers also an event 0x8001 which holds a calculated payload
         request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
-        app_->send(request, true);
+        app_->send(request);
 
         // send a request which is not e2e protected and expect an
         // protected answer holding a fixed payload (custom profile CRC32)
         // this call triggers also an event 0x8002 which holds a calculated payload
         request->set_method(0x6543);
-        app_->send(request, true);
+        app_->send(request);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
@@ -231,7 +233,7 @@ void e2e_test_client::shutdown_service() {
     request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN);
-    app_->send(request,true);
+    app_->send(request);
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     // expect 10 x response messages for both method IDs and events for both Event IDs

@@ -14,7 +14,7 @@
 
 namespace expressions = boost::log::expressions;
 
-namespace vsomeip
+namespace vsomeip_v3
 {
 
 dlt_sink_backend::dlt_sink_backend(const std::string &_app_id,
@@ -67,4 +67,4 @@ DltLogLevelType dlt_sink_backend::level_as_dlt(logging::trivial::severity_level 
 }
 #endif
 
-} /* namespace vsomeip */
+} // namespace vsomeip_v3

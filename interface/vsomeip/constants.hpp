@@ -3,15 +3,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_CONSTANTS_HPP
-#define VSOMEIP_CONSTANTS_HPP
+#ifndef VSOMEIP_V3_CONSTANTS_HPP_
+#define VSOMEIP_V3_CONSTANTS_HPP_
 
 #include <string>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 const major_version_t DEFAULT_MAJOR = 0x00;
 const minor_version_t DEFAULT_MINOR = 0x00000000;
@@ -20,6 +20,7 @@ const ttl_t DEFAULT_TTL = 0xFFFFFF; // "until next reboot"
 const std::string DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t DEFAULT_PORT = 30500;
 const uint16_t ILLEGAL_PORT = 0xFFFF;
+const uint16_t ANY_PORT = 0;
 
 const uint16_t NO_TRACE_FILTER_EXPRESSION = 0x0000;
 
@@ -32,12 +33,13 @@ const minor_version_t ANY_MINOR = 0xFFFFFFFF;
 const eventgroup_t DEFAULT_EVENTGROUP = 0x0001;
 
 const client_t ILLEGAL_CLIENT = 0x0000;
+const method_t INVALID_METHOD = 0x0000;
 
 const byte_t MAGIC_COOKIE_CLIENT_MESSAGE = 0x00;
 const byte_t MAGIC_COOKIE_SERVICE_MESSAGE = 0x80;
 const length_t MAGIC_COOKIE_SIZE = 0x00000008;
 const request_t MAGIC_COOKIE_REQUEST = 0xDEADBEEF;
-const client_t MAGIC_COOKIE_NETWORK_BYTE_ORDER = 0xADDE;
+const client_t MAGIC_COOKIE_CLIENT = 0xDEAD;
 const protocol_version_t MAGIC_COOKIE_PROTOCOL_VERSION = 0x01;
 const interface_version_t MAGIC_COOKIE_INTERFACE_VERSION = 0x01;
 const message_type_e MAGIC_COOKIE_CLIENT_MESSAGE_TYPE =
@@ -55,9 +57,10 @@ const byte_t SERVICE_COOKIE[] = { 0xFF, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x00,
 const event_t ANY_EVENT = 0xFFFF;
 const client_t ANY_CLIENT = 0xFFFF;
 
-const pending_subscription_id_t DEFAULT_SUBSCRIPTION = 0x0;
+const int VSOMEIP_ALL = -1;
+
 const pending_security_update_id_t DEFAULT_SECURITY_UPDATE_ID = 0x0;
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_CONSTANTS_HPP
+#endif // VSOMEIP_V3_CONSTANTS_HPP_

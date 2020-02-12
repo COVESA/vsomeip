@@ -26,22 +26,21 @@
 #include "../include/event.hpp"
 #include "../include/eventgroup.hpp"
 #include "../include/service.hpp"
-#include "../include/internal.hpp"
 #include "../../logging/include/logger_impl.hpp"
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../plugin/include/plugin_manager.hpp"
+#include "../../security/include/security.hpp"
 
-VSOMEIP_PLUGIN(vsomeip::cfg::configuration_impl)
-
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace cfg {
 
 configuration_impl::configuration_impl()
-    : plugin_impl("vsomeip cfg plugin", 1, plugin_type_e::CONFIGURATION_PLUGIN),
+    : default_unicast_("local"),
       is_loaded_(false),
       is_logging_loaded_(false),
+      is_overlay_(false),
       diagnosis_(VSOMEIP_DIAGNOSIS_ADDRESS),
       diagnosis_mask_(0xFF00),
       has_console_log_(true),
@@ -64,6 +63,7 @@ configuration_impl::configuration_impl()
       max_configured_message_size_(0),
       max_local_message_size_(0),
       max_reliable_message_size_(0),
+      max_unreliable_message_size_(0),
       buffer_shrink_threshold_(VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD),
       trace_(std::make_shared<trace>()),
       watchdog_(std::make_shared<watchdog>()),
@@ -71,11 +71,6 @@ configuration_impl::configuration_impl()
       log_version_interval_(10),
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
-      policy_enabled_(false),
-      check_credentials_(false),
-      check_routing_credentials_(false),
-      allow_remote_clients_(true),
-      check_whitelist_(false),
       network_("vsomeip"),
       e2e_enabled_(false),
       log_memory_(false),
@@ -89,6 +84,10 @@ configuration_impl::configuration_impl()
       has_issued_methods_warning_(false),
       has_issued_clients_warning_(false),
       udp_receive_buffer_size_(VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE),
+      npdu_default_debounce_requ_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
+      npdu_default_debounce_resp_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
+      npdu_default_max_retention_requ_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
+      npdu_default_max_retention_resp_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
       shutdown_timeout_(VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
@@ -97,14 +96,16 @@ configuration_impl::configuration_impl()
 }
 
 configuration_impl::configuration_impl(const configuration_impl &_other)
-    : plugin_impl("vsomeip cfg plugin", 1, plugin_type_e::CONFIGURATION_PLUGIN),
-      std::enable_shared_from_this<configuration_impl>(_other),
+    : std::enable_shared_from_this<configuration_impl>(_other),
+      default_unicast_(_other.default_unicast_),
       is_loaded_(_other.is_loaded_),
       is_logging_loaded_(_other.is_logging_loaded_),
+      is_overlay_(_other.is_overlay_),
       mandatory_(_other.mandatory_),
       max_configured_message_size_(_other.max_configured_message_size_),
       max_local_message_size_(_other.max_local_message_size_),
       max_reliable_message_size_(_other.max_reliable_message_size_),
+      max_unreliable_message_size_(_other.max_unreliable_message_size_),
       buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
       permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
@@ -113,6 +114,10 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       tcp_restart_aborts_max_(_other.tcp_restart_aborts_max_),
       tcp_connect_time_max_(_other.tcp_connect_time_max_),
       udp_receive_buffer_size_(_other.udp_receive_buffer_size_),
+      npdu_default_debounce_requ_(_other.npdu_default_debounce_requ_),
+      npdu_default_debounce_resp_(_other.npdu_default_debounce_resp_),
+      npdu_default_max_retention_requ_(_other.npdu_default_max_retention_requ_),
+      npdu_default_max_retention_resp_(_other.npdu_default_max_retention_resp_),
       shutdown_timeout_(_other.shutdown_timeout_) {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
@@ -122,6 +127,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     unicast_ = _other.unicast_;
     netmask_ = _other.netmask_;
+    device_ = _other.device_;
     diagnosis_ = _other.diagnosis_;
     diagnosis_mask_ = _other.diagnosis_mask_;
 
@@ -161,15 +167,6 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = _other.is_configured_[i];
 
-    policies_ = _other.policies_;
-    any_client_policies_ = _other.any_client_policies_;
-    ids_ = _other.ids_;
-    policy_enabled_ = _other.policy_enabled_;
-    check_credentials_ = _other.check_credentials_;
-    check_routing_credentials_ = _other.check_routing_credentials_;
-    allow_remote_clients_ = _other.allow_remote_clients_;
-    check_whitelist_ = _other.check_whitelist_;
-
     network_ = _other.network_;
     configuration_path_ = _other.configuration_path_;
 
@@ -187,7 +184,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     debounces_ = _other.debounces_;
     endpoint_queue_limits_ = _other.endpoint_queue_limits_;
 
-    offer_acceptance_required_ips_ = _other.offer_acceptance_required_ips_;
+    sd_acceptance_required_ips_ = _other.sd_acceptance_required_ips_;
 
     has_issued_methods_warning_ = _other.has_issued_methods_warning_;
     has_issued_clients_warning_ = _other.has_issued_clients_warning_;
@@ -257,8 +254,8 @@ bool configuration_impl::load(const std::string &_name) {
     std::set<std::string> its_failed;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::vector<element> its_mandatory_elements;
-    std::vector<element> its_optional_elements;
+    std::vector<configuration_element> its_mandatory_elements;
+    std::vector<configuration_element> its_optional_elements;
 
     // Dummy initialization; maybe we'll find no logging configuration
     logger_impl::init(shared_from_this());
@@ -299,15 +296,16 @@ bool configuration_impl::load(const std::string &_name) {
             VSOMEIP_INFO << "Using configuration folder: \"" << i << "\".";
     }
 
-    if (policy_enabled_ && check_credentials_)
-        VSOMEIP_INFO << "Security configuration is active.";
-
-    if (policy_enabled_ && !check_credentials_)
-        VSOMEIP_INFO << "Security configuration is active but in audit mode (allow all)";
-
     is_loaded_ = true;
 
     return is_loaded_;
+}
+
+bool
+configuration_impl::check_routing_credentials(
+        client_t _client, uint32_t _uid, uint32_t _gid) const {
+    return (_client != get_id(routing_host_)) ||
+            security::get()->check_routing_credentials(_client, _uid, _gid);
 }
 
 bool configuration_impl::remote_offer_info_add(service_t _service,
@@ -327,7 +325,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
         _reliable ?
                 its_service->reliable_ = _port :
                 its_service->unreliable_ = _port;
-        its_service->unicast_address_ = "local";
+        its_service->unicast_address_ = default_unicast_;
         its_service->multicast_address_ = "";
         its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
@@ -406,11 +404,11 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
 }
 
 void configuration_impl::read_data(const std::set<std::string> &_input,
-        std::vector<element> &_elements, std::set<std::string> &_failed,
+        std::vector<configuration_element> &_elements, std::set<std::string> &_failed,
         bool _mandatory_only) {
     for (auto i : _input) {
         if (utility::is_file(i)) {
-            if (is_mandatory(i) != _mandatory_only) {
+            if (is_mandatory(i) == _mandatory_only) {
                 boost::property_tree::ptree its_tree;
                 try {
                     boost::property_tree::json_parser::read_json(i, its_tree);
@@ -430,7 +428,7 @@ void configuration_impl::read_data(const std::set<std::string> &_input,
                     j++) {
                 auto its_file_path = j->path();
                 if (!boost::filesystem::is_directory(its_file_path)) {
-                    std::string its_name = its_file_path.string();
+                    const std::string& its_name = its_file_path.string();
                     if (is_mandatory(its_name) == _mandatory_only) {
                         boost::property_tree::ptree its_tree;
                         try {
@@ -448,12 +446,12 @@ void configuration_impl::read_data(const std::set<std::string> &_input,
 }
 
 
-bool configuration_impl::load_data(const std::vector<element> &_elements,
+bool configuration_impl::load_data(const std::vector<configuration_element> &_elements,
         bool _load_mandatory, bool _load_optional) {
     // Load logging configuration data
     std::set<std::string> its_warnings;
     if (!is_logging_loaded_) {
-        for (auto e : _elements)
+        for (const auto& e : _elements)
             is_logging_loaded_
                 = load_logging(e, its_warnings) || is_logging_loaded_;
 
@@ -468,7 +466,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
     bool has_applications(false);
     if (_load_mandatory) {
         // Load mandatory configuration data
-        for (auto e : _elements) {
+        for (const auto& e : _elements) {
             has_routing = load_routing(e) || has_routing;
             has_applications = load_applications(e) || has_applications;
             load_network(e);
@@ -478,19 +476,19 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
             load_endpoint_queue_sizes(e);
             load_tcp_restart_settings(e);
             load_permissions(e);
-            load_policies(e);
+            load_security(e);
             load_tracing(e);
             load_udp_receive_buffer_size(e);
-            load_security_update_whitelist(e);
-            load_routing_credentials(e);
         }
     }
 
     if (_load_optional) {
-        for (auto e : _elements) {
+        for (const auto& e : _elements) {
             load_unicast_address(e);
             load_netmask(e);
+            load_device(e);
             load_service_discovery(e);
+            load_npdu_default_timings(e);
             load_services(e);
             load_internal_services(e);
             load_clients(e);
@@ -498,7 +496,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
             load_selective_broadcasts_support(e);
             load_e2e(e);
             load_debounce(e);
-            load_offer_acceptance_required(e);
+            load_sd_acceptance_required(e);
         }
     }
 
@@ -506,7 +504,7 @@ bool configuration_impl::load_data(const std::vector<element> &_elements,
 }
 
 bool configuration_impl::load_logging(
-        const element &_element, std::set<std::string> &_warnings) {
+        const configuration_element &_element, std::set<std::string> &_warnings) {
     try {
         auto its_logging = _element.tree_.get_child("logging");
         for (auto i = its_logging.begin(); i != its_logging.end(); ++i) {
@@ -601,7 +599,8 @@ bool configuration_impl::load_logging(
     return true;
 }
 
-bool configuration_impl::load_routing(const element &_element) {
+bool
+configuration_impl::load_routing(const configuration_element &_element) {
     try {
         auto its_routing = _element.tree_.get_child("routing");
         if (is_configured_[ET_ROUTING]) {
@@ -617,54 +616,9 @@ bool configuration_impl::load_routing(const element &_element) {
     return true;
 }
 
-bool configuration_impl::load_routing_credentials(const element &_element) {
+bool
+configuration_impl::load_applications(const configuration_element &_element) {
     try {
-        auto its_routing_cred = _element.tree_.get_child("routing-credentials");
-        if (is_configured_[ET_ROUTING_CREDENTIALS]) {
-            VSOMEIP_WARNING << "vSomeIP Security: Multiple definitions of routing-credentials."
-                    << " Ignoring definition from " << _element.name_;
-        } else {
-            for (auto i = its_routing_cred.begin();
-                    i != its_routing_cred.end();
-                    ++i) {
-                std::string its_key(i->first);
-                std::string its_value(i->second.data());
-                std::stringstream its_converter;
-                if (its_key == "uid") {
-                    uint32_t its_uid(0);
-                    if (its_value.find("0x") == 0) {
-                        its_converter << std::hex << its_value;
-                    } else {
-                        its_converter << std::dec << its_value;
-                    }
-                    its_converter >> its_uid;
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-                    std::get<0>(routing_credentials_) = its_uid;
-                } else if (its_key == "gid") {
-                    uint32_t its_gid(0);
-                    if (its_value.find("0x") == 0) {
-                        its_converter << std::hex << its_value;
-                    } else {
-                        its_converter << std::dec << its_value;
-                    }
-                    its_converter >> its_gid;
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-                    std::get<1>(routing_credentials_) = its_gid;
-                }
-            }
-            check_routing_credentials_ = true;
-            is_configured_[ET_ROUTING_CREDENTIALS] = true;
-        }
-    } catch (...) {
-        return false;
-    }
-    return true;
-}
-
-
-bool configuration_impl::load_applications(const element &_element) {
-    try {
-        std::stringstream its_converter;
         auto its_applications = _element.tree_.get_child("applications");
         for (auto i = its_applications.begin();
                 i != its_applications.end();
@@ -680,13 +634,14 @@ bool configuration_impl::load_applications(const element &_element) {
 void configuration_impl::load_application_data(
         const boost::property_tree::ptree &_tree, const std::string &_file_name) {
     std::string its_name("");
-    client_t its_id(0);
+    client_t its_id(VSOMEIP_CLIENT_UNSET);
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
     std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_IO_THREAD_NICE_LEVEL);
+    std::string its_overlay;
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -727,42 +682,14 @@ void configuration_impl::load_application_data(
                 its_request_debounce_time = 10000;
             }
         } else if (its_key == "plugins") {
-            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
-                for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                    std::string its_inner_key(n->first);
-                    std::string its_inner_value(n->second.data());
-    #ifdef _WIN32
-                    std::string library(its_inner_value);
-                    library += ".dll";
-    #else
-                    std::string library("lib");
-                    library += its_inner_value;
-                    library += ".so";
-    #endif
-                    if (its_inner_key == "application_plugin") {
-    #ifndef _WIN32
-                        library += ".";
-                        library += std::to_string(std::uint32_t(VSOMEIP_APPLICATION_PLUGIN_VERSION));
-    #endif
-                        plugins[plugin_type_e::APPLICATION_PLUGIN].insert(library);
-                    } else if (its_inner_key == "configuration_plugin") {
-    #ifndef _WIN32
-                        library += ".";
-                        library += std::to_string(std::uint32_t(VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION));
-    #endif
-                        plugins[plugin_type_e::PRE_CONFIGURATION_PLUGIN].insert(library);
-                    } else {
-                        VSOMEIP_WARNING << "Unknown plug-in type ("
-                                << its_inner_key << ") configured for client: "
-                                << its_name;
-                    }
-                }
-            }
+            plugins = load_plugins(i->second, its_name);
+        } else if (its_key == "overlay") {
+            its_overlay = its_value;
         }
     }
     if (its_name != "") {
         if (applications_.find(its_name) == applications_.end()) {
-            if (its_id > 0) {
+            if (its_id != VSOMEIP_CLIENT_UNSET) {
                 if (!is_configured_client_id(its_id)) {
                     client_identifiers_.insert(its_id);
                 } else {
@@ -770,13 +697,14 @@ void configuration_impl::load_application_data(
                             << " client identifier " << std::hex << its_id
                             << ". Ignoring the configuration for application "
                             << its_name;
-                    its_id = 0;
+                    its_id = VSOMEIP_CLIENT_UNSET;
                 }
             }
             applications_[its_name]
                 = std::make_tuple(its_id, its_max_dispatchers,
                         its_max_dispatch_time, its_io_thread_count,
-                        its_request_debounce_time, plugins, its_io_thread_nice_level);
+                        its_request_debounce_time, plugins, its_io_thread_nice_level,
+                        its_overlay);
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -785,9 +713,86 @@ void configuration_impl::load_application_data(
     }
 }
 
-void configuration_impl::load_tracing(const element &_element) {
+std::map<plugin_type_e, std::set<std::string>> configuration_impl::load_plugins(
+        const boost::property_tree::ptree &_tree,
+        const std::string& _application_name) {
+    std::map<plugin_type_e, std::set<std::string>> its_plugins;
+    std::string its_name("");
+    std::string its_type;
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        bool its_configured[ET_MAX] = { 0 };
+        for (auto l = i->second.begin(); l != i->second.end(); ++l) {
+            std::string its_inner_key(l->first);
+            std::string its_inner_value(l->second.data());
+
+            if (its_inner_key == "name") {
+                if (its_configured[ET_PLUGIN_NAME]) {
+                    VSOMEIP_WARNING << "Multiple definitions of plugins.name."
+                            << " Ignoring definition from " << its_inner_value;
+                } else {
+                    its_name = its_inner_value;
+                    its_configured[ET_PLUGIN_NAME] = true;
+                }
+            } else if (its_inner_key == "type") {
+                if (its_configured[ET_PLUGIN_TYPE]) {
+                    VSOMEIP_WARNING << "Multiple definitions of plugins.type."
+                            << " Ignoring definition from " << its_inner_value;
+                } else {
+                    its_type = its_inner_value;
+                    its_configured[ET_PLUGIN_TYPE] = true;
+                }
+            } else {
+                //support old config format (type : name)
+                plugin_config_data_t its_plugin_data = {
+                        its_inner_value, its_inner_key };
+                add_plugin(its_plugins, its_plugin_data, _application_name);
+            }
+        }
+
+        if (its_configured[ET_PLUGIN_NAME] && its_configured[ET_PLUGIN_TYPE]) {
+            plugin_config_data_t its_plugin_data = {
+                    its_name, its_type };
+            add_plugin(its_plugins, its_plugin_data, _application_name);
+        }
+    }
+
+    return its_plugins;
+}
+
+void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string>> &_plugins,
+        const plugin_config_data_t &_plugin_data,
+        const std::string& _application_name) {
+
+#ifdef _WIN32
+    std::string its_library(_plugin_data.name_);
+    its_library += ".dll";
+#else
+    std::string its_library("lib");
+    its_library += _plugin_data.name_;
+    its_library += ".so";
+#endif
+
+    if (_plugin_data.type_ == "application_plugin") {
+#ifndef _WIN32
+        its_library += ".";
+        its_library += (VSOMEIP_APPLICATION_PLUGIN_VERSION + '0');
+#endif
+        _plugins[plugin_type_e::APPLICATION_PLUGIN].insert(its_library);
+    } else if (_plugin_data.type_ == "configuration_plugin") {
+#ifndef _WIN32
+        its_library += ".";
+        its_library += (VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION + '0');
+#endif
+        _plugins[plugin_type_e::PRE_CONFIGURATION_PLUGIN].insert(its_library);
+    } else {
+        VSOMEIP_WARNING << "Unknown plug-in type ("
+            << _plugin_data.type_ << ") configured for client: "
+            << _application_name;
+    }
+}
+
+void configuration_impl::load_tracing(const configuration_element &_element) {
     try {
-        std::stringstream its_converter;
         auto its_trace_configuration = _element.tree_.get_child("tracing");
         for(auto i = its_trace_configuration.begin();
                 i != its_trace_configuration.end();
@@ -900,7 +905,7 @@ void configuration_impl::load_trace_filter_expressions(
         std::shared_ptr<trace_filter> &_filter) {
     if (_criteria == "services") {
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            vsomeip::trace::match_t its_match;
+            vsomeip_v3::trace::match_t its_match;
             load_trace_filter_match(i->second, its_match);
             _filter->matches_.push_back(its_match);
         }
@@ -916,7 +921,7 @@ void configuration_impl::load_trace_filter_expressions(
         }
     } else if (_criteria == "matches") {
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            vsomeip::trace::match_t its_match;
+            vsomeip_v3::trace::match_t its_match;
             load_trace_filter_match(i->second, its_match);
             if (i->first == "from") {
                 _filter->is_range_ = true;
@@ -931,11 +936,11 @@ void configuration_impl::load_trace_filter_expressions(
 
 void configuration_impl::load_trace_filter_match(
         const boost::property_tree::ptree &_data,
-        vsomeip::trace::match_t &_match) {
+        vsomeip_v3::trace::match_t &_match) {
     std::stringstream its_converter;
 
     if (_data.size() == 0) {
-        std::string its_value(_data.data());
+        const std::string& its_value(_data.data());
         service_t its_service(ANY_SERVICE);
         if (its_value.find("0x") == 0) {
             its_converter << std::hex << its_value;
@@ -997,10 +1002,10 @@ void configuration_impl::load_trace_filter_match(
     }
 }
 
-void configuration_impl::load_unicast_address(const element &_element) {
+void configuration_impl::load_unicast_address(const configuration_element &_element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("unicast");
-        if (is_configured_[ET_UNICAST]) {
+        if (!is_overlay_ && is_configured_[ET_UNICAST]) {
             VSOMEIP_WARNING << "Multiple definitions for unicast."
                     "Ignoring definition from " << _element.name_;
         } else {
@@ -1012,10 +1017,10 @@ void configuration_impl::load_unicast_address(const element &_element) {
     }
 }
 
-void configuration_impl::load_netmask(const element &_element) {
+void configuration_impl::load_netmask(const configuration_element &_element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("netmask");
-        if (is_configured_[ET_NETMASK]) {
+        if (!is_overlay_ && is_configured_[ET_NETMASK]) {
             VSOMEIP_WARNING << "Multiple definitions for netmask."
                     "Ignoring definition from " << _element.name_;
         } else {
@@ -1027,10 +1032,25 @@ void configuration_impl::load_netmask(const element &_element) {
     }
 }
 
-void configuration_impl::load_network(const element &_element) {
+void configuration_impl::load_device(const configuration_element &_element) {
+    try {
+        std::string its_value = _element.tree_.get<std::string>("device");
+        if (!is_overlay_ && is_configured_[ET_DEVICE]) {
+            VSOMEIP_WARNING << "Multiple definitions for device."
+                    "Ignoring definition from " << _element.name_;
+        } else {
+            device_ = its_value;
+            is_configured_[ET_DEVICE] = true;
+        }
+    } catch (...) {
+        // intentionally left empty!
+    }
+}
+
+void configuration_impl::load_network(const configuration_element &_element) {
     try {
         std::string its_value(_element.tree_.get<std::string>("network"));
-        if (is_configured_[ET_NETWORK]) {
+        if (!is_overlay_ && is_configured_[ET_NETWORK]) {
             VSOMEIP_WARNING << "Multiple definitions for network."
                     "Ignoring definition from " << _element.name_;
         } else {
@@ -1042,10 +1062,10 @@ void configuration_impl::load_network(const element &_element) {
     }
 }
 
-void configuration_impl::load_diagnosis_address(const element &_element) {
+void configuration_impl::load_diagnosis_address(const configuration_element &_element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("diagnosis");
-        if (is_configured_[ET_DIAGNOSIS]) {
+        if (!is_overlay_ && is_configured_[ET_DIAGNOSIS]) {
             VSOMEIP_WARNING << "Multiple definitions for diagnosis."
                     "Ignoring definition from " << _element.name_;
         } else {
@@ -1060,7 +1080,7 @@ void configuration_impl::load_diagnosis_address(const element &_element) {
             is_configured_[ET_DIAGNOSIS] = true;
         }
         std::string its_mask = _element.tree_.get<std::string>("diagnosis_mask");
-        if (is_configured_[ET_DIAGNOSIS_MASK]) {
+        if (!is_overlay_ && is_configured_[ET_DIAGNOSIS_MASK]) {
             VSOMEIP_WARNING << "Multiple definitions for diagnosis_mask."
                     "Ignoring definition from " << _element.name_;
         } else {
@@ -1074,12 +1094,20 @@ void configuration_impl::load_diagnosis_address(const element &_element) {
             its_converter >> diagnosis_mask_;
             is_configured_[ET_DIAGNOSIS_MASK] = true;
         }
+        if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
+               && (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_)
+                   != static_cast<std::uint16_t>(diagnosis_ << 8)) {
+            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! "
+                    "Client IDs will start at 0x" << std::hex <<
+                    (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_)
+                    << " not at 0x" << static_cast<std::uint16_t>(diagnosis_ << 8);
+        }
     } catch (...) {
         // intentionally left empty
     }
 }
 
-void configuration_impl::load_shutdown_timeout(const element &_element) {
+void configuration_impl::load_shutdown_timeout(const configuration_element &_element) {
     const std::string shutdown_timeout("shutdown_timeout");
     try {
         if (_element.tree_.get_child_optional(shutdown_timeout)) {
@@ -1105,7 +1133,7 @@ void configuration_impl::load_shutdown_timeout(const element &_element) {
 }
 
 void configuration_impl::load_service_discovery(
-        const element &_element) {
+        const configuration_element &_element) {
     try {
         auto its_service_discovery = _element.tree_.get_child("service-discovery");
         for (auto i = its_service_discovery.begin();
@@ -1114,7 +1142,7 @@ void configuration_impl::load_service_discovery(
             std::string its_value(i->second.data());
             std::stringstream its_converter;
             if (its_key == "enable") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_ENABLE]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_ENABLE]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.enabled."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1122,7 +1150,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_ENABLE] = true;
                 }
             } else if (its_key == "multicast") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_MULTICAST]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_MULTICAST]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.multicast."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1130,7 +1158,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_MULTICAST] = true;
                 }
             } else if (its_key == "port") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_PORT]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_PORT]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.port."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1143,7 +1171,7 @@ void configuration_impl::load_service_discovery(
                     }
                 }
             } else if (its_key == "protocol") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_PROTOCOL]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_PROTOCOL]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.protocol."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1151,7 +1179,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_PROTOCOL] = true;
                 }
             } else if (its_key == "initial_delay_min") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_min."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1160,7 +1188,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN] = true;
                 }
             } else if (its_key == "initial_delay_max") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_max."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1169,7 +1197,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX] = true;
                 }
             } else if (its_key == "repetitions_base_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_base_delay."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1178,7 +1206,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY] = true;
                 }
             } else if (its_key == "repetitions_max") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_max."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1191,18 +1219,22 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX] = true;
                 }
             } else if (its_key == "ttl") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_TTL]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_TTL]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl."
                             " Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << its_value;
                     its_converter >> sd_ttl_;
                     // We do _not_ accept 0 as this would mean "STOP OFFER"
-                    if (sd_ttl_ == 0) sd_ttl_ = VSOMEIP_SD_DEFAULT_TTL;
+                    if (sd_ttl_ == 0) {
+                        VSOMEIP_WARNING << "TTL=0 is not allowed. Using default ("
+                                << std::dec << VSOMEIP_SD_DEFAULT_TTL << ")";
+                        sd_ttl_ = VSOMEIP_SD_DEFAULT_TTL;
+                    }
                     else is_configured_[ET_SERVICE_DISCOVERY_TTL] = true;
                 }
             } else if (its_key == "cyclic_offer_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.cyclic_offer_delay."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1211,7 +1243,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY] = true;
                 }
             } else if (its_key == "request_response_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay."
                             " Ignoring definition from " << _element.name_;
                 } else {
@@ -1220,7 +1252,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY] = true;
                 }
             } else if (its_key == "offer_debounce_time") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.offer_debounce."
                     " Ignoring definition from " << _element.name_;
                 } else {
@@ -1229,7 +1261,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME] = true;
                 }
             } else if (its_key == "ttl_factor_offers") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_offers."
                     " Ignoring definition from " << _element.name_;
                 } else {
@@ -1237,7 +1269,7 @@ void configuration_impl::load_service_discovery(
                     is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS] = true;
                 }
             } else if (its_key == "ttl_factor_subscriptions") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS]) {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_subscriptions."
                     " Ignoring definition from " << _element.name_;
                 } else {
@@ -1288,12 +1320,51 @@ void configuration_impl::load_delays(
     }
 }
 
-void configuration_impl::load_services(const element &_element) {
+void configuration_impl::load_npdu_default_timings(const configuration_element &_element) {
+    const std::string ndt("npdu-default-timings");
+    const std::string dreq("debounce-time-request");
+    const std::string dres("debounce-time-response");
+    const std::string rreq("max-retention-time-request");
+    const std::string rresp("max-retention-time-response");
+    try {
+        if (_element.tree_.get_child_optional(ndt)) {
+            if (!is_overlay_ && is_configured_[ET_NPDU_DEFAULT_TIMINGS]) {
+                VSOMEIP_WARNING << "Multiple definitions of " << ndt
+                        << " Ignoring definition from " << _element.name_;
+            } else {
+                for (const auto& e : _element.tree_.get_child(ndt)) {
+                    std::chrono::nanoseconds its_time(0);
+                    try {
+                        its_time = std::chrono::nanoseconds(
+                                std::strtoull(e.second.data().c_str(), NULL, 10)
+                                * 1000000);
+                    } catch (const std::exception& e) {
+                        continue;
+                    }
+                    if (e.first.data() == dreq) {
+                        npdu_default_debounce_requ_ = its_time;
+                    } else if (e.first.data() == dres) {
+                        npdu_default_debounce_resp_ = its_time;
+                    } else if (e.first.data() == rreq) {
+                        npdu_default_max_retention_requ_ = its_time;
+                    } else if (e.first.data() == rresp) {
+                        npdu_default_max_retention_resp_ = its_time;
+                    }
+                }
+                is_configured_[ET_NPDU_DEFAULT_TIMINGS] = true;
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
+void configuration_impl::load_services(const configuration_element &_element) {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
-            load_service(i->second, "local");
+            load_service(i->second, default_unicast_);
     } catch (...) {
         try {
             auto its_servicegroups = _element.tree_.get_child("servicegroups");
@@ -1308,7 +1379,7 @@ void configuration_impl::load_services(const element &_element) {
 void configuration_impl::load_servicegroup(
         const boost::property_tree::ptree &_tree) {
     try {
-        std::string its_unicast_address("local");
+        std::string its_unicast_address(default_unicast_);
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -1393,6 +1464,10 @@ void configuration_impl::load_service(
                 load_event(its_service, i->second);
             } else if (its_key == "eventgroups") {
                 load_eventgroup(its_service, i->second);
+            } else if (its_key == "debounce-times") {
+                load_npdu_debounce_times_configuration(its_service, i->second);
+            } else if (its_key == "someip-tp") {
+                load_someip_tp(its_service, i->second);
             } else {
                 // Trim "its_value"
                 if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
@@ -1427,6 +1502,40 @@ void configuration_impl::load_service(
             if (use_magic_cookies) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
             }
+
+            if (its_service->unicast_address_ == default_unicast_) {
+                // local services
+                if(its_service->reliable_ != ILLEGAL_PORT) {
+                    services_by_ip_port_[unicast_.to_string()]
+                                        [its_service->reliable_]
+                                        [its_service->service_] = its_service;
+                }
+                if (its_service->unreliable_ != ILLEGAL_PORT) {
+                    services_by_ip_port_[unicast_.to_string()]
+                                        [its_service->unreliable_]
+                                        [its_service->service_] = its_service;
+                    // This is necessary as all udp server endpoints listen on
+                    // INADDR_ANY instead of a specific address
+                    services_by_ip_port_[boost::asio::ip::address_v4::any().to_string()]
+                                        [its_service->unreliable_]
+                                        [its_service->service_] = its_service;
+                    services_by_ip_port_[boost::asio::ip::address_v6::any().to_string()]
+                                        [its_service->unreliable_]
+                                        [its_service->service_] = its_service;
+                }
+            } else {
+                // remote services
+                if (its_service->reliable_ != ILLEGAL_PORT) {
+                    services_by_ip_port_[its_service->unicast_address_]
+                                        [its_service->reliable_]
+                                        [its_service->service_] = its_service;
+                }
+                if (its_service->unreliable_ != ILLEGAL_PORT) {
+                    services_by_ip_port_[its_service->unicast_address_]
+                                        [its_service->unreliable_]
+                                        [its_service->service_] = its_service;
+                }
+            }
         }
     } catch (...) {
         // Intentionally left empty
@@ -1439,7 +1548,7 @@ void configuration_impl::load_event(
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         event_t its_event_id(0);
         bool its_is_field(false);
-        bool its_is_reliable(false);
+        reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
 
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
             std::string its_key(j->first);
@@ -1455,7 +1564,10 @@ void configuration_impl::load_event(
             } else if (its_key == "is_field") {
                 its_is_field = (its_value == "true");
             } else if (its_key == "is_reliable") {
-                its_is_reliable = (its_value == "true");
+                if (its_value == "true")
+                    its_reliability = reliability_type_e::RT_RELIABLE;
+                else
+                    its_reliability = reliability_type_e::RT_UNRELIABLE;
             }
         }
 
@@ -1467,8 +1579,23 @@ void configuration_impl::load_event(
                         << _service->instance_ << "."
                         << its_event_id << "]";
             } else {
+                // If event reliability type was not configured,
+                if (its_reliability == reliability_type_e::RT_UNKNOWN) {
+                    if (_service->reliable_ != ILLEGAL_PORT) {
+                        its_reliability = reliability_type_e::RT_RELIABLE;
+                    } else if (_service->unreliable_ != ILLEGAL_PORT) {
+                        its_reliability = reliability_type_e::RT_UNRELIABLE;
+                    }
+                    VSOMEIP_WARNING << "Reliability type for event ["
+                        << std::hex << _service->service_ << "."
+                        << _service->instance_ << "."
+                        << its_event_id << "] was not configured Using : "
+                        << ((its_reliability == reliability_type_e::RT_RELIABLE)
+                                ? "RT_RELIABLE" : "RT_UNRELIABLE");
+                }
+
                 std::shared_ptr<event> its_event = std::make_shared<event>(
-                        its_event_id, its_is_field, its_is_reliable);
+                        its_event_id, its_is_field, its_reliability);
                 _service->events_[its_event_id] = its_event;
             }
         }
@@ -1534,7 +1661,7 @@ void configuration_impl::load_eventgroup(
                             its_event = find_event->second;
                         } else {
                             its_event = std::make_shared<event>(its_event_id,
-                            false, false);
+                                            false, reliability_type_e::RT_UNRELIABLE);
                         }
                         if (its_event) {
                             its_event->groups_.push_back(its_eventgroup);
@@ -1552,7 +1679,7 @@ void configuration_impl::load_eventgroup(
     }
 }
 
-void configuration_impl::load_internal_services(const element &_element) {
+void configuration_impl::load_internal_services(const configuration_element &_element) {
     try {
         auto optional = _element.tree_.get_child_optional("internal_services");
         if (!optional) {
@@ -1623,7 +1750,7 @@ void configuration_impl::load_internal_services(const element &_element) {
     }
 }
 
-void configuration_impl::load_clients(const element &_element) {
+void configuration_impl::load_clients(const configuration_element &_element) {
     try {
         auto its_clients = _element.tree_.get_child("clients");
         for (auto i = its_clients.begin(); i != its_clients.end(); ++i)
@@ -1731,7 +1858,7 @@ std::pair<uint16_t,uint16_t> configuration_impl::load_client_port_range(
     return its_port_range;
 }
 
-void configuration_impl::load_watchdog(const element &_element) {
+void configuration_impl::load_watchdog(const configuration_element &_element) {
     try {
         auto its_service_discovery = _element.tree_.get_child("watchdog");
         for (auto i = its_service_discovery.begin();
@@ -1771,36 +1898,34 @@ void configuration_impl::load_watchdog(const element &_element) {
     }
 }
 
-void configuration_impl::load_payload_sizes(const element &_element) {
+void configuration_impl::load_payload_sizes(const configuration_element &_element) {
     const std::string payload_sizes("payload-sizes");
     const std::string max_local_payload_size("max-payload-size-local");
     const std::string buffer_shrink_threshold("buffer-shrink-threshold");
     const std::string max_reliable_payload_size("max-payload-size-reliable");
+    const std::string max_unreliable_payload_size("max-payload-size-unreliable");
     try {
-        if (_element.tree_.get_child_optional(max_local_payload_size)) {
-            auto mpsl = _element.tree_.get_child(max_local_payload_size);
-            std::string s(mpsl.data());
-            try {
-                // add 16 Byte for the SOME/IP header
-                max_local_message_size_ = static_cast<std::uint32_t>(std::stoul(
-                        s.c_str(), NULL, 10) + 16);
-            } catch (const std::exception &e) {
-                VSOMEIP_ERROR<< __func__ << ": " << max_local_payload_size
-                        << " " << e.what();
+        for (const auto& s : { max_local_payload_size,
+                max_reliable_payload_size, max_unreliable_payload_size }) {
+            if (_element.tree_.get_child_optional(s)) {
+                const std::string size_str(_element.tree_.get_child(s).data());
+                try {
+                    // add 16 Byte for the SOME/IP header
+                    const std::uint32_t its_size = static_cast<std::uint32_t>(
+                            std::stoul(size_str.c_str(), NULL, 10) + 16);
+                    if (s == max_local_payload_size) {
+                        max_local_message_size_ = its_size;
+                    } else if (s == max_reliable_payload_size) {
+                        max_reliable_message_size_ = its_size;
+                    } else if (s == max_unreliable_payload_size) {
+                        max_unreliable_message_size_ = its_size;
+                    }
+                } catch (const std::exception &e) {
+                    VSOMEIP_ERROR<< __func__ << ": " << s << " " << e.what();
+                }
             }
         }
-        if (_element.tree_.get_child_optional(max_reliable_payload_size)) {
-            auto mpsl = _element.tree_.get_child(max_reliable_payload_size);
-            std::string s(mpsl.data());
-            try {
-                // add 16 Byte for the SOME/IP header
-                max_reliable_message_size_ = static_cast<std::uint32_t>(std::stoul(
-                        s.c_str(), NULL, 10) + 16);
-            } catch (const std::exception &e) {
-                VSOMEIP_ERROR<< __func__ << ": " << max_reliable_payload_size
-                        << " " << e.what();
-            }
-        }
+
         if (_element.tree_.get_child_optional(buffer_shrink_threshold)) {
             auto bst = _element.tree_.get_child(buffer_shrink_threshold);
             std::string s(bst.data());
@@ -1841,9 +1966,8 @@ void configuration_impl::load_payload_sizes(const element &_element) {
                                 NULL, 10));
                         std::string s(j->second.get_child(max_payload_size).data());
                         // add 16 Byte for the SOME/IP header
-                        its_message_size = static_cast<std::uint32_t>(std::stoul(
-                                s.c_str(),
-                                NULL, 10) + 16);
+                        its_message_size = static_cast<std::uint32_t>(
+                                std::stoul(s.c_str(), NULL, 10) + 16);
                     } catch (const std::exception &e) {
                         VSOMEIP_ERROR << __func__ << ":" << e.what();
                     }
@@ -1881,12 +2005,24 @@ void configuration_impl::load_payload_sizes(const element &_element) {
                         << "local message distribution.";
                 max_local_message_size_ = max_reliable_message_size_;
             }
+            if (max_local_message_size_ != 0
+                    && max_unreliable_message_size_ != 0
+                    && max_unreliable_message_size_ > max_local_message_size_) {
+                VSOMEIP_WARNING << max_local_payload_size << " ("
+                        << max_local_message_size_ - 16 << ") is configured"
+                        << " smaller than " << max_unreliable_payload_size << " ("
+                        << max_unreliable_message_size_ - 16 << "). "
+                        << max_local_payload_size << " will be increased to "
+                        << max_unreliable_message_size_ - 16 << " to ensure "
+                        << "local message distribution.";
+                max_local_message_size_ = max_unreliable_message_size_;
+            }
         }
     } catch (...) {
     }
 }
 
-void configuration_impl::load_permissions(const element &_element) {
+void configuration_impl::load_permissions(const configuration_element &_element) {
     const std::string file_permissions("file-permissions");
     try {
         if (_element.tree_.get_child_optional(file_permissions)) {
@@ -1911,631 +2047,20 @@ void configuration_impl::load_permissions(const element &_element) {
     }
 }
 
-void configuration_impl::load_selective_broadcasts_support(const element &_element) {
+void configuration_impl::load_security(const configuration_element &_element) {
+    security::get()->load(_element);
+}
+
+void configuration_impl::load_selective_broadcasts_support(const configuration_element &_element) {
     try {
         auto its_service_discovery = _element.tree_.get_child("supports_selective_broadcasts");
         for (auto i = its_service_discovery.begin();
                 i != its_service_discovery.end(); ++i) {
-            std::string its_key(i->first);
             std::string its_value(i->second.data());
-            std::stringstream its_converter;
-            if (its_key == "address") {
-                supported_selective_addresses.insert(its_value);
-            }
+            supported_selective_addresses.insert(its_value);
         }
     } catch (...) {
     }
-}
-
-
-
-void configuration_impl::load_policies(const element &_element) {
-#ifdef _WIN32
-        return;
-#endif
-    try {
-        auto optional = _element.tree_.get_child_optional("security");
-        if (!optional) {
-            return;
-        }
-        policy_enabled_ = true;
-        auto found_policy = _element.tree_.get_child("security");
-        for (auto its_security = found_policy.begin();
-                its_security != found_policy.end(); ++its_security) {
-            if (its_security->first == "check_credentials") {
-                if (its_security->second.data() == "true") {
-                    check_credentials_ = true;
-                } else {
-                    check_credentials_ = false;
-                }
-            } else if (its_security->first == "allow_remote_clients")  {
-                if (its_security->second.data() == "true") {
-                    allow_remote_clients_ = true;
-                } else {
-                    allow_remote_clients_ = false;
-                }
-            } else if (its_security->first == "policies") {
-                for (auto its_policy = its_security->second.begin();
-                        its_policy != its_security->second.end(); ++its_policy) {
-                    load_policy(its_policy->second);
-                }
-            }
-        }
-    } catch (...) {
-    }
-}
-
-void configuration_impl::load_policy(const boost::property_tree::ptree &_tree) {
-    client_t client = 0x0;
-    std::shared_ptr<policy> policy(std::make_shared<policy>());
-    bool has_been_inserted(false);
-    bool allow_deny_set(false);
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        if (i->first == "client") {
-            std::string value = i->second.data();
-            if (value == "") {
-                client_t firstClient(ILLEGAL_CLIENT);
-                client_t lastClient(ILLEGAL_CLIENT);
-                for (auto n = i->second.begin();
-                        n != i->second.end(); ++n) {
-                    if (n->first == "first") {
-                        std::stringstream its_converter;
-                        std::string value = n->second.data();
-                        its_converter << std::hex << value;
-                        its_converter >> firstClient;
-                    } else if (n->first == "last") {
-                        std::stringstream its_converter;
-                        std::string value = n->second.data();
-                        its_converter << std::hex << value;
-                        its_converter >> lastClient;
-                    }
-                }
-                if (firstClient < lastClient && lastClient != ANY_CLIENT) {
-                    uint32_t overrides(0);
-                    for (client_t c = firstClient; c <= lastClient; ++c) {
-                        if (find_client_id_policy(c)) {
-                            overrides++;
-                        }
-                    }
-                    if (overrides) {
-                        VSOMEIP_WARNING << std::hex << "Security configuration: "
-                                << "for client range 0x" << firstClient
-                                << " - 0x" << lastClient
-                                << " will be ignored as it would override an already existing policy of "
-                                << std::dec << overrides << " clients!";
-                    } else {
-                        std::lock_guard<std::mutex> its_lock(policies_mutex_);
-                        policies_[std::make_pair(firstClient, lastClient)] = policy;
-                    }
-                    has_been_inserted = true;
-                } else {
-                    VSOMEIP_WARNING << std::hex << "Security configuration: "
-                            << "Client range have to be ascending, \"first\"=0x"
-                            << firstClient << " : \"last\"=0x" << lastClient
-                            << " ~> Skip policy.";
-                }
-            } else {
-                std::stringstream its_converter;
-                its_converter << std::hex << value;
-                its_converter >> client;
-                if (client != 0x0) {
-                    if (find_client_id_policy(client)) {
-                        VSOMEIP_WARNING << std::hex << "Security configuration for client "
-                                << client
-                                << " will be ignored as it would overwrite an already existing policy!";
-                    } else {
-                        std::lock_guard<std::mutex> its_lock(policies_mutex_);
-                        policies_[std::make_pair(client, client)] = policy;
-                    }
-                    has_been_inserted= true;
-                }
-            }
-        } else if (i->first == "credentials") {
-            std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
-            ranges_t its_uid_ranges, its_gid_ranges;
-
-            bool has_uid(false), has_gid(false);
-            bool has_uid_range(false), has_gid_range(false);
-            for (auto n = i->second.begin();
-                    n != i->second.end(); ++n) {
-                std::string its_key(n->first);
-                std::string its_value(n->second.data());
-                if (its_key == "uid") {
-                    if(n->second.data().empty()) {
-                        load_ranges(n->second, its_uid_ranges);
-                        has_uid_range = true;
-                    } else {
-                        if (its_value != "any") {
-                            uint32_t its_uid;
-                            std::stringstream its_converter;
-                            its_converter << std::dec << its_value;
-                            its_converter >> its_uid;
-                            std::get<0>(its_uid_range) = its_uid;
-                            std::get<1>(its_uid_range) = its_uid;
-                        } else {
-                            std::get<0>(its_uid_range) = 0;
-                            std::get<1>(its_uid_range) = 0xFFFFFFFF;
-                        }
-                        has_uid = true;
-                    }
-                } else if (its_key == "gid") {
-                    if(n->second.data().empty()) {
-                        load_ranges(n->second, its_gid_ranges);
-                        has_gid_range = true;
-                    } else {
-                        if (its_value != "any") {
-                            uint32_t its_gid;
-                            std::stringstream its_converter;
-                            its_converter << std::dec << its_value;
-                            its_converter >> its_gid;
-                            std::get<0>(its_gid_range) = its_gid;
-                            std::get<1>(its_gid_range) = its_gid;
-                        } else {
-                            std::get<0>(its_gid_range) = 0;
-                            std::get<1>(its_gid_range) = 0xFFFFFFFF;
-                        }
-                        has_gid = true;
-                    }
-                } else if (its_key == "allow" || its_key == "deny") {
-                    policy->allow_who_ = (its_key == "allow");
-                    load_credential(n->second, policy->ids_);
-                }
-            }
-
-            if (has_uid && has_gid) {
-                std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
-
-                its_uids.insert(its_uid_range);
-                its_gids.insert(its_gid_range);
-
-                policy->allow_who_ = true;
-                policy->ids_.insert(std::make_pair(its_uids, its_gids));
-            }
-            if (has_uid_range && has_gid_range) {
-                policy->allow_who_ = true;
-                policy->ids_.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
-            }
-        } else if (i->first == "allow") {
-            if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"allow\" tag overrides "
-                        << "already set \"deny\" tag. "
-                        << "Either \"deny\" or \"allow\" is allowed.";
-            }
-            allow_deny_set = true;
-            policy->allow_what_ = true;
-            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
-                if (l->first == "requests") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ids_t its_instance_method_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                ranges_t its_instance_ranges;
-                                ranges_t its_method_ranges;
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                        its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                                its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                            } else if (k->first == "instances") { // new instances definition
-                                for (auto p = k->second.begin(); p != k->second.end(); ++p) {
-                                    ranges_t its_instance_ranges;
-                                    ranges_t its_method_ranges;
-                                    for (auto m = p->second.begin(); m != p->second.end(); ++m) {
-                                        if (m->first == "ids") {
-                                            load_instance_ranges(m->second, its_instance_ranges);
-                                        } else if (m->first == "methods") {
-                                            load_instance_ranges(m->second, its_method_ranges);
-                                        }
-                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
-                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                                        }
-                                    }
-                                }
-                                if (its_instance_method_ranges.empty()) {
-                                    ranges_t its_legacy_instance_ranges;
-                                    ranges_t its_legacy_method_ranges;
-                                    its_legacy_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    // try to only load instance ranges with any method to be allowed
-                                    load_instance_ranges(k->second, its_legacy_instance_ranges);
-                                    if (!its_legacy_instance_ranges.empty() && !its_legacy_method_ranges.empty()) {
-                                        its_instance_method_ranges.insert(std::make_pair(its_legacy_instance_ranges,
-                                            its_legacy_method_ranges));
-                                    }
-                                }
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            policy->services_.insert(
-                                    std::make_pair(service, its_instance_method_ranges));
-                        }
-                    }
-                } else if (l->first == "offers") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ranges_t its_instance_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                            } else if (k->first == "instances") { // new instances definition
-                                load_instance_ranges(k->second, its_instance_ranges);
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_ranges.empty()) {
-                            policy->offers_.insert(
-                                    std::make_pair(service, its_instance_ranges));
-                        }
-                    }
-                }
-            }
-        } else if (i->first == "deny") {
-            if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
-                        << "already set \"allow\" tag. "
-                        << "Either \"deny\" or \"allow\" is allowed.";
-            }
-            allow_deny_set = true;
-            policy->allow_what_ = false;
-            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
-                if (l->first == "requests") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ids_t its_instance_method_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                ranges_t its_instance_ranges;
-                                ranges_t its_method_ranges;
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                        its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                                its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                            } else if (k->first == "instances") { // new instances definition
-                                for (auto p = k->second.begin(); p != k->second.end(); ++p) {
-                                    ranges_t its_instance_ranges;
-                                    ranges_t its_method_ranges;
-                                    for (auto m = p->second.begin(); m != p->second.end(); ++m) {
-                                        if (m->first == "ids") {
-                                            load_instance_ranges(m->second, its_instance_ranges);
-                                        } else if (m->first == "methods") {
-                                            load_instance_ranges(m->second, its_method_ranges);
-                                        }
-                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
-                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                                        }
-                                    }
-                                }
-                                if (its_instance_method_ranges.empty()) {
-                                    ranges_t its_legacy_instance_ranges;
-                                    ranges_t its_legacy_method_ranges;
-                                    its_legacy_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    // try to only load instance ranges with any method to be allowed
-                                    load_instance_ranges(k->second, its_legacy_instance_ranges);
-                                    if (!its_legacy_instance_ranges.empty() && !its_legacy_method_ranges.empty()) {
-                                        its_instance_method_ranges.insert(std::make_pair(its_legacy_instance_ranges,
-                                            its_legacy_method_ranges));
-                                    }
-                                }
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            policy->services_.insert(
-                                    std::make_pair(service, its_instance_method_ranges));
-                        }
-                    }
-                }
-                if (l->first == "offers") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ranges_t its_instance_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                            } else if (k->first == "instances") { // new instances definition
-                                load_instance_ranges(k->second, its_instance_ranges);
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_ranges.empty()) {
-                            policy->offers_.insert(
-                                    std::make_pair(service, its_instance_ranges));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (!has_been_inserted) {
-        std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-        any_client_policies_.push_back(policy);
-    }
-}
-
-void configuration_impl::load_credential(
-        const boost::property_tree::ptree &_tree, ids_t &_ids) {
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        ranges_t its_uid_ranges, its_gid_ranges;
-        for (auto j = i->second.begin(); j != i->second.end(); ++j) {
-            std::string its_key(j->first);
-            if (its_key == "uid") {
-                load_ranges(j->second, its_uid_ranges);
-            } else if (its_key == "gid") {
-                load_ranges(j->second, its_gid_ranges);
-            } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
-                        << "Malformed credential (contains illegal key \""
-                        << its_key << "\"";
-            }
-        }
-
-        _ids.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
-    }
-}
-
-void configuration_impl::load_security_update_whitelist(const element &_element) {
-#ifdef _WIN32
-        return;
-#endif
-    try {
-        auto optional = _element.tree_.get_child_optional("security-update-whitelist");
-        if (!optional) {
-            return;
-        }
-        auto found_whitelist = _element.tree_.get_child("security-update-whitelist");
-        for (auto its_whitelist = found_whitelist.begin();
-                its_whitelist != found_whitelist.end(); ++its_whitelist) {
-
-            if (its_whitelist->first == "uids") {
-                {
-                    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
-                    load_ranges(its_whitelist->second, uid_whitelist_);
-                }
-            } else if (its_whitelist->first == "services") {
-                {
-                    std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
-                    load_service_ranges(its_whitelist->second, service_interface_whitelist_);
-                }
-            } else if (its_whitelist->first == "check-whitelist") {
-                if (its_whitelist->second.data() == "true") {
-                    check_whitelist_ = true;
-                } else {
-                    check_whitelist_ = false;
-                }
-            }
-        }
-    } catch (...) {
-    }
-}
-
-void configuration_impl::load_ranges(
-        const boost::property_tree::ptree &_tree, ranges_t &_range) {
-    ranges_t its_ranges;
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            uint32_t its_id;
-            std::stringstream its_converter;
-            its_converter << std::dec << its_data.data();
-            its_converter >> its_id;
-            its_ranges.insert(std::make_pair(its_id, its_id));
-        } else {
-            uint32_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFFFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::dec << j->second.data();
-                        its_converter >> its_first;
-                    }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFFFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::dec << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
-                }
-            }
-
-            if (has_first && has_last) {
-                its_ranges.insert(std::make_pair(its_first, its_last));
-            }
-        }
-    }
-
-    _range = its_ranges;
-}
-
-void configuration_impl::load_instance_ranges(
-        const boost::property_tree::ptree &_tree, ranges_t &_range) {
-    ranges_t its_ranges;
-    std::string key(_tree.data());
-    if (key == "any") {
-        its_ranges.insert(std::make_pair(0x01, 0xFFFF));
-        _range = its_ranges;
-        return;
-    }
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            uint32_t its_id = 0x0;
-            std::stringstream its_converter;
-            its_converter << std::hex << its_data.data();
-            its_converter >> its_id;
-            if (its_id != 0x0) {
-                its_ranges.insert(std::make_pair(its_id, its_id));
-            }
-        } else {
-            uint32_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_first;
-                    }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
-                }
-            }
-
-            if (has_first && has_last) {
-                if( its_last > its_first) {
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                }
-            }
-        }
-    }
-
-    _range = its_ranges;
-}
-
-void configuration_impl::load_service_ranges(
-        const boost::property_tree::ptree &_tree, std::set<std::pair<service_t, service_t>> &_ranges) {
-    std::set<std::pair<service_t, service_t>> its_ranges;
-    std::string key(_tree.data());
-    if (key == "any") {
-        its_ranges.insert(std::make_pair(0x01, 0xFFFF));
-        _ranges = its_ranges;
-        return;
-    }
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            service_t its_id = 0x0;
-            std::stringstream its_converter;
-            its_converter << std::hex << its_data.data();
-            its_converter >> its_id;
-            if (its_id != 0x0) {
-                its_ranges.insert(std::make_pair(its_id, its_id));
-            }
-        } else {
-            service_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_first;
-                    }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security interface whitelist configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
-                }
-            }
-
-            if (has_first && has_last) {
-                if( its_last >= its_first) {
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                }
-            }
-        }
-    }
-
-    _ranges = its_ranges;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2544,11 +2069,12 @@ void configuration_impl::load_service_ranges(
 void configuration_impl::set_magic_cookies_unicast_address() {
     // get services with static routing that have magic cookies enabled
     std::map<std::string, std::set<uint16_t> > its_magic_cookies_ = magic_cookies_;
-    its_magic_cookies_.erase("local");
+    its_magic_cookies_.erase(default_unicast_);
 
     //set unicast address of host for all services without static routing
-    its_magic_cookies_[get_unicast_address().to_string()].insert(magic_cookies_["local"].begin(),
-            magic_cookies_["local"].end());
+    its_magic_cookies_[get_unicast_address().to_string()].insert(
+            magic_cookies_[default_unicast_].begin(),
+            magic_cookies_[default_unicast_].end());
     magic_cookies_.clear();
     magic_cookies_ = its_magic_cookies_;
 }
@@ -2592,11 +2118,15 @@ const boost::asio::ip::address& configuration_impl::get_netmask() const {
     return netmask_;
 }
 
-unsigned short configuration_impl::get_diagnosis_address() const {
+const std::string &configuration_impl::get_device() const {
+    return device_;
+}
+
+diagnosis_t configuration_impl::get_diagnosis_address() const {
     return diagnosis_;
 }
 
-std::uint16_t configuration_impl::get_diagnosis_mask() const {
+diagnosis_t configuration_impl::get_diagnosis_mask() const {
     return diagnosis_mask_;
 }
 
@@ -2636,7 +2166,7 @@ std::string configuration_impl::get_unicast_address(service_t _service,
         its_unicast_address = its_service->unicast_address_;
     }
 
-    if (its_unicast_address == "local" || its_unicast_address == "") {
+    if (its_unicast_address == default_unicast_ || its_unicast_address == "") {
             its_unicast_address = get_unicast_address().to_string();
     }
     return its_unicast_address;
@@ -2662,6 +2192,50 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service,
         its_unreliable = its_service->unreliable_;
 
     return its_unreliable;
+}
+
+void configuration_impl::get_configured_timing_requests(
+        service_t _service, std::string _ip_target,
+        std::uint16_t _port_target, method_t _method,
+        std::chrono::nanoseconds *_debounce_time,
+        std::chrono::nanoseconds *_max_retention_time) const {
+    if (_debounce_time == nullptr || _max_retention_time == nullptr) {
+        return;
+    }
+    service *its_service = find_service_by_ip_port(_service, _ip_target,
+            _port_target);
+    if (its_service) {
+        auto find_method = its_service->debounce_times_requests_.find(_method);
+        if (find_method != its_service->debounce_times_requests_.end()) {
+            *_debounce_time = find_method->second[0];
+            *_max_retention_time = find_method->second[1];
+            return;
+        }
+    }
+    *_debounce_time = npdu_default_debounce_requ_;
+    *_max_retention_time = npdu_default_max_retention_requ_;
+}
+
+void configuration_impl::get_configured_timing_responses(
+        service_t _service, std::string _ip_service,
+        std::uint16_t _port_service, method_t _method,
+        std::chrono::nanoseconds *_debounce_time,
+        std::chrono::nanoseconds *_max_retention_time) const {
+    if (_debounce_time == nullptr || _max_retention_time == nullptr) {
+        return;
+    }
+    service *its_service = find_service_by_ip_port(_service, _ip_service,
+            _port_service);
+    if (its_service) {
+        auto find_method = its_service->debounce_times_responses_.find(_method);
+        if (find_method != its_service->debounce_times_responses_.end()) {
+            *_debounce_time = find_method->second[0];
+            *_max_retention_time = find_method->second[1];
+            return;
+        }
+    }
+    *_debounce_time = npdu_default_debounce_resp_;
+    *_max_retention_time  = npdu_default_max_retention_resp_;
 }
 
 bool configuration_impl::is_someip(service_t _service,
@@ -2708,6 +2282,7 @@ bool configuration_impl::get_client_port(
     if (!is_configured) {
         // Neither specific not generic configurarion available,
         // use dynamic port configuration!
+        _client_port = 0;
         return true;
     }
 
@@ -2739,7 +2314,7 @@ const std::string & configuration_impl::get_routing_host() const {
 }
 
 client_t configuration_impl::get_id(const std::string &_name) const {
-    client_t its_client = 0;
+    client_t its_client(VSOMEIP_CLIENT_UNSET);
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -2813,8 +2388,8 @@ std::set<std::pair<service_t, instance_t> >
 configuration_impl::get_remote_services() const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     std::set<std::pair<service_t, instance_t> > its_remote_services;
-    for (auto i : services_) {
-        for (auto j : i.second) {
+    for (const auto& i : services_) {
+        for (const auto& j : i.second) {
             if (is_remote(j.second)) {
                 its_remote_services.insert(std::make_pair(i.first, j.first));
             }
@@ -2825,7 +2400,7 @@ configuration_impl::get_remote_services() const {
 
 bool configuration_impl::is_mandatory(const std::string &_name) const {
     std::set<std::string> its_candidates;
-    for (auto m : mandatory_) {
+    for (const auto& m : mandatory_) {
         if (m.size() <= _name.size()) {
             its_candidates.insert(m);
         }
@@ -2834,7 +2409,7 @@ bool configuration_impl::is_mandatory(const std::string &_name) const {
     if (its_candidates.empty())
         return false;
 
-    for (auto c : its_candidates) {
+    for (const auto& c : its_candidates) {
         if (std::equal(c.rbegin(), c.rend(), _name.rbegin())) {
             return true;
         }
@@ -2879,8 +2454,8 @@ void configuration_impl::trim(std::string &_s) {
     );
 }
 
-bool configuration_impl::is_remote(std::shared_ptr<service> _service) const {
-    return  (_service->unicast_address_ != "local" &&
+bool configuration_impl::is_remote(const std::shared_ptr<service>& _service) const {
+    return  (_service->unicast_address_ != default_unicast_ &&
             _service->unicast_address_ != "" &&
             _service->unicast_address_ != unicast_.to_string() &&
             _service->unicast_address_ != VSOMEIP_UNICAST_ADDRESS);
@@ -2945,23 +2520,39 @@ bool configuration_impl::find_port(uint16_t &_port, uint16_t _remote, bool _reli
     return is_configured;
 }
 
-bool configuration_impl::is_event_reliable(service_t _service,
+reliability_type_e
+configuration_impl::get_event_reliability(service_t _service,
         instance_t _instance, event_t _event) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
-    bool is_reliable(false);
+    reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service) {
         auto its_event = its_service->events_.find(_event);
         if (its_event != its_service->events_.end()) {
-            return its_event->second->is_reliable_;
-        } else {
-            if (its_service->reliable_ != ILLEGAL_PORT &&
-                    its_service->unreliable_ == ILLEGAL_PORT) {
-                is_reliable = true;
-            }
+            its_reliability = its_event->second->reliability_;
         }
     }
-    return is_reliable;
+    return its_reliability;
+}
+
+reliability_type_e
+configuration_impl::get_service_reliability(service_t _service,
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service) {
+        if (its_service->reliable_ != ILLEGAL_PORT) {
+            if (its_service->unreliable_ != ILLEGAL_PORT) {
+                its_reliability = reliability_type_e::RT_BOTH;
+            } else {
+                its_reliability = reliability_type_e::RT_RELIABLE;
+            }
+        } else {
+            its_reliability = reliability_type_e::RT_UNRELIABLE;
+        }
+    }
+    return its_reliability;
 }
 
 std::shared_ptr<service> configuration_impl::find_service(service_t _service,
@@ -2978,6 +2569,22 @@ std::shared_ptr<service> configuration_impl::find_service_unlocked(service_t _se
         auto find_instance = find_service->second.find(_instance);
         if (find_instance != find_service->second.end()) {
             its_service = find_instance->second;
+        }
+    }
+    return its_service;
+}
+
+service* configuration_impl::find_service_by_ip_port(
+        service_t _service, const std::string& _ip, std::uint16_t _port) const {
+    service *its_service(0);
+    auto find_ip = services_by_ip_port_.find(_ip);
+    if(find_ip != services_by_ip_port_.end()) {
+        auto find_port = find_ip->second.find(_port);
+        if(find_port != find_ip->second.end()) {
+            auto find_service = find_port->second.find(_service);
+            if(find_service != find_port->second.end()) {
+                its_service = find_service->second.get();
+            }
         }
     }
     return its_service;
@@ -3036,6 +2643,11 @@ std::uint32_t configuration_impl::get_max_message_size_reliable(
                     VSOMEIP_MAX_TCP_MESSAGE_SIZE) : max_reliable_message_size_;
 }
 
+std::uint32_t configuration_impl::get_max_message_size_unreliable() const {
+    return (max_unreliable_message_size_ == 0) ?
+            MESSAGE_SIZE_UNLIMITED :  max_unreliable_message_size_;
+}
+
 std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
     return buffer_shrink_threshold_;
 }
@@ -3087,11 +2699,11 @@ const std::string & configuration_impl::get_sd_protocol() const {
     return sd_protocol_;
 }
 
-int32_t configuration_impl::get_sd_initial_delay_min() const {
+uint32_t configuration_impl::get_sd_initial_delay_min() const {
     return sd_initial_delay_min_;
 }
 
-int32_t configuration_impl::get_sd_initial_delay_max() const {
+uint32_t configuration_impl::get_sd_initial_delay_max() const {
     return sd_initial_delay_max_;
 }
 
@@ -3144,420 +2756,6 @@ std::uint32_t configuration_impl::get_permissions_shm() const {
     return permissions_shm_;
 }
 
-bool configuration_impl::is_security_enabled() const {
-    return policy_enabled_;
-}
-
-bool configuration_impl::is_audit_mode_enabled() const {
-    return check_credentials_;
-}
-
-bool configuration_impl::check_credentials(client_t _client, uint32_t _uid,
-        uint32_t _gid) {
-    if (!policy_enabled_) {
-        return true;
-    }
-
-    std::vector<std::shared_ptr<policy> > its_policies;
-    bool has_id(false);
-    auto found_policy = find_client_id_policy(_client);
-    if (found_policy) {
-        its_policies.push_back(found_policy);
-    } else {
-        std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-        its_policies = any_client_policies_;
-    }
-
-    for (const auto &p : its_policies) {
-        for (auto its_credential : p->ids_) {
-            bool has_uid(false), has_gid(false);
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
-
-            if (has_uid && has_gid) {
-                has_id = true;
-                break;
-            }
-        }
-
-        if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
-            if (!store_client_to_uid_gid_mapping(_client,_uid, _gid)) {
-                std::string security_mode_text = "!";
-                if (!check_credentials_) {
-                    security_mode_text = " but will be allowed due to audit mode is active!";
-                }
-
-                VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                        << " with UID/GID=" << std::dec << _uid << "/" << _gid
-                        << " : Check credentials failed as existing credentials would be overwritten"
-                        << security_mode_text;
-
-                return !check_credentials_;
-            }
-            store_uid_gid_to_client_mapping(_uid, _gid, _client);
-            return true;
-        }
-    }
-
-    std::string security_mode_text = " ~> Skip!";
-    if (!check_credentials_) {
-        security_mode_text = " but will be allowed due to audit mode is active!";
-    }
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                 << " with UID/GID=" << std::dec << _uid << "/" << _gid
-                 << " : Check credentials failed" << security_mode_text;
-
-
-    return !check_credentials_;
-}
-
-bool configuration_impl::is_client_allowed(client_t _client, service_t _service,
-        instance_t _instance, method_t _method, bool _is_request_service) const {
-    if (!policy_enabled_) {
-        return true;
-    }
-
-    uint32_t its_uid(0xffffffff), its_gid(0xffffffff);
-    bool must_apply(true);
-    std::vector<std::shared_ptr<policy> > its_policies;
-    auto found_policy = find_client_id_policy(_client);
-    if (found_policy)
-        its_policies.push_back(found_policy);
-    else {
-        must_apply = false;
-        {
-            std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-            its_policies = any_client_policies_;
-        }
-
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
-        auto found_id = ids_.find(_client);
-        if (found_id != ids_.end()) {
-            its_uid = found_id->second.first;
-            its_gid = found_id->second.second;
-        } else {
-            std::string security_mode_text = " ~> Skip!";
-            if (!check_credentials_) {
-                security_mode_text = " but will be allowed due to audit mode is active!";
-            }
-            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                    << " : Cannot determine uid/gid. Therefore it isn't allowed to communicate to service/instance "
-                    << _service << "/" << _instance
-                    << security_mode_text;
-
-            return !check_credentials_;
-        }
-    }
-
-    for (const auto &p : its_policies) {
-        bool has_uid(false), has_gid(false), has_service(false), has_instance_id(false), has_method_id(false);
-        if (must_apply) {
-            has_uid = has_gid = p->allow_who_;
-        } else {
-            for (auto its_credential : p->ids_) {
-                has_uid = has_gid = false;
-                for (auto its_range : std::get<0>(its_credential)) {
-                    if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
-                        has_uid = true;
-                        break;
-                    }
-                }
-                for (auto its_range : std::get<1>(its_credential)) {
-                    if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
-                        has_gid = true;
-                        break;
-                    }
-                }
-
-                if (has_uid && has_gid)
-                    break;
-            }
-        }
-
-        for (auto its_offer : p->services_) {
-            if (std::get<0>(its_offer) == _service) {
-                for (auto its_ids : std::get<1>(its_offer)) {
-                    has_service = has_instance_id = has_method_id = false;
-                    for (auto its_instance_range : std::get<0>(its_ids)) {
-                        if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
-                            has_instance_id = true;
-                            break;
-                        }
-                    }
-                    if (!_is_request_service) {
-                        for (auto its_method_range : std::get<1>(its_ids)) {
-                            if (std::get<0>(its_method_range) <= _method && _method <= std::get<1>(its_method_range)) {
-                                has_method_id = true;
-                                break;
-                            }
-                        }
-                    } else {
-                        // handle VSOMEIP_REQUEST_SERVICE
-                        has_method_id = true;
-                    }
-
-                    if (has_instance_id && has_method_id) {
-                        has_service = true;
-                        break;
-                    }
-                }
-                if (has_service)
-                    break;
-            }
-        }
-
-        if ((has_uid && has_gid && p->allow_who_) || ((!has_uid || !has_gid) && !p->allow_who_)) {
-            if (p->allow_what_) {
-                // allow policy
-                if (has_service) {
-                    return true;
-                }
-            } else {
-                // deny policy
-                // allow client if the service / instance / !ANY_METHOD was not found
-                if ((!has_service && (_method != ANY_METHOD))
-                        // allow client if the service / instance / ANY_METHOD was not found
-                        // and it is a "deny nothing" policy
-                        || (!has_service && (_method == ANY_METHOD) && p->services_.empty())) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    std::string security_mode_text = " ~> Skip!";
-    if (!check_credentials_) {
-        security_mode_text = " but will be allowed due to audit mode is active!";
-    }
-
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-            << " with UID/GID=" << std::dec << its_uid << "/" << its_gid
-            << " : Isn't allowed to communicate with service/instance/(method / event) " << std::hex
-            << _service << "/" << _instance << "/" << _method
-            << security_mode_text;
-
-    return !check_credentials_;
-}
-
-bool configuration_impl::is_offer_allowed(client_t _client, service_t _service,
-        instance_t _instance) const {
-    if (!policy_enabled_) {
-        return true;
-    }
-
-    uint32_t its_uid(0xffffffff), its_gid(0xffffffff);
-    bool must_apply(true);
-    std::vector<std::shared_ptr<policy> > its_policies;
-    auto found_policy = find_client_id_policy(_client);
-    if (found_policy)
-        its_policies.push_back(found_policy);
-    else {
-        must_apply = false;
-        {
-            std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-            its_policies = any_client_policies_;
-        }
-
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
-        auto found_id = ids_.find(_client);
-        if (found_id != ids_.end()) {
-            its_uid = found_id->second.first;
-            its_gid = found_id->second.second;
-        } else {
-            std::string audit_mode_text = " ~> Skip offer!";
-            if (!check_credentials_) {
-                audit_mode_text = " but will be allowed due to audit mode is active!";
-            }
-
-            VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-                    << " : Cannot determine uid/gid. Therefore it isn't allowed to offer service/instance "
-                    << _service << "/" << _instance << audit_mode_text;
-
-            return !check_credentials_;
-        }
-    }
-
-    for (const auto &p : its_policies) {
-        bool has_uid(false), has_gid(false), has_offer(false);
-        if (must_apply) {
-            has_uid = has_gid = p->allow_who_;
-        } else {
-            for (auto its_credential : p->ids_) {
-                has_uid = has_gid = false;
-                for (auto its_range : std::get<0>(its_credential)) {
-                    if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
-                        has_uid = true;
-                        break;
-                    }
-                }
-                for (auto its_range : std::get<1>(its_credential)) {
-                    if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
-                        has_gid = true;
-                        break;
-                    }
-                }
-
-                if (has_uid && has_gid)
-                    break;
-            }
-        }
-
-        for (auto its_offer : p->offers_) {
-            has_offer = false;
-            if (std::get<0>(its_offer) == _service) {
-                for (auto its_instance_range : std::get<1>(its_offer)) {
-                    if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
-                        has_offer = true;
-                        break;
-                    }
-                }
-                if (has_offer)
-                    break;
-            }
-        }
-
-        if ((has_uid && has_gid && p->allow_who_) || ((!has_uid || !has_gid) && !p->allow_who_)) {
-            if (p->allow_what_ == has_offer) {
-                return true;
-            }
-        }
-    }
-
-    std::string security_mode_text = " ~> Skip offer!";
-    if (!check_credentials_) {
-        security_mode_text = " but will be allowed due to audit mode is active!";
-    }
-
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-            << " with UID/GID=" << std::dec << its_uid << "/" << its_gid
-            << " isn't allowed to offer service/instance " << std::hex
-            << _service << "/" << _instance
-            << security_mode_text;
-
-
-    return !check_credentials_;
-}
-
-bool configuration_impl::store_client_to_uid_gid_mapping(client_t _client,
-                                                         uint32_t _uid, uint32_t _gid) {
-    {
-        // store the client -> (uid, gid) mapping
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
-        auto found_client = ids_.find(_client);
-        if (found_client != ids_.end()) {
-            if (found_client->second != std::make_pair(_uid, _gid)) {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
-                        << std::hex << _client << " with UID/GID="
-                        << std::dec << _uid << "/" << _gid << " : Overwriting existing credentials UID/GID="
-                        << std::dec << std::get<0>(found_client->second) << "/"
-                        << std::get<1>(found_client->second);
-                found_client->second = std::make_pair(_uid, _gid);
-                return true;
-            }
-        } else {
-            ids_[_client] = std::make_pair(_uid, _gid);
-        }
-        return true;
-    }
-}
-
-bool configuration_impl::get_client_to_uid_gid_mapping(client_t _client, std::pair<uint32_t, uint32_t> &_uid_gid) {
-    {
-        // get the UID / GID of the client
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
-        if (ids_.find(_client) != ids_.end()) {
-            _uid_gid = ids_[_client];
-            return true;
-        }
-        return false;
-    }
-}
-
-bool configuration_impl::remove_client_to_uid_gid_mapping(client_t _client) {
-    std::pair<uint32_t, uint32_t> its_uid_gid;
-    bool client_removed(false);
-    bool uid_gid_removed(false);
-    {
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
-        auto found_client = ids_.find(_client);
-        if (found_client != ids_.end()) {
-            its_uid_gid = found_client->second;
-            ids_.erase(found_client);
-            client_removed = true;
-        }
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
-        if (client_removed) {
-            auto found_uid_gid = uid_to_clients_.find(its_uid_gid);
-            if (found_uid_gid != uid_to_clients_.end()) {
-               auto its_client = found_uid_gid->second.find(_client);
-               if (its_client != found_uid_gid->second.end()) {
-                   found_uid_gid->second.erase(its_client);
-                   if (found_uid_gid->second.empty()) {
-                       uid_to_clients_.erase(found_uid_gid);
-                   }
-                   uid_gid_removed = true;
-               }
-            }
-        } else {
-            for (auto its_uid_gid = uid_to_clients_.begin();
-                    its_uid_gid != uid_to_clients_.end(); ++its_uid_gid) {
-                auto its_client = its_uid_gid->second.find(_client);
-                if (its_client != its_uid_gid->second.end()) {
-                    its_uid_gid->second.erase(its_client);
-                    if (its_uid_gid->second.empty()) {
-                        uid_to_clients_.erase(its_uid_gid);
-                    }
-                    uid_gid_removed = true;
-                    break;
-                }
-            }
-        }
-    }
-    return (client_removed && uid_gid_removed);
-}
-
-void configuration_impl::store_uid_gid_to_client_mapping(uint32_t _uid, uint32_t _gid,
-        client_t _client) {
-    {
-        // store the uid gid to clients mapping
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
-        std::set<client_t> mapped_clients;
-        if (uid_to_clients_.find(std::make_pair(_uid, _gid)) != uid_to_clients_.end()) {
-            mapped_clients = uid_to_clients_[std::make_pair(_uid, _gid)];
-            mapped_clients.insert(_client);
-            uid_to_clients_[std::make_pair(_uid, _gid)] = mapped_clients;
-        } else {
-            mapped_clients.insert(_client);
-            uid_to_clients_[std::make_pair(_uid, _gid)] = mapped_clients;
-        }
-    }
-}
-
-bool configuration_impl::get_uid_gid_to_client_mapping(std::pair<uint32_t, uint32_t> _uid_gid,
-        std::set<client_t> &_clients) {
-    {
-        // get the clients corresponding to uid, gid
-        std::lock_guard<std::mutex> its_lock(uid_to_clients_mutex_);
-        if (uid_to_clients_.find(_uid_gid) != uid_to_clients_.end()) {
-            _clients = uid_to_clients_[_uid_gid];
-            return true;
-        }
-        return false;
-    }
-}
-
 std::map<plugin_type_e, std::set<std::string>> configuration_impl::get_plugins(
             const std::string &_name) const {
     std::map<plugin_type_e, std::set<std::string>> result;
@@ -3578,7 +2776,7 @@ bool configuration_impl::is_e2e_enabled() const {
     return e2e_enabled_;
 }
 
-void configuration_impl::load_e2e(const element &_element) {
+void configuration_impl::load_e2e(const configuration_element &_element) {
 #ifdef _WIN32
         return;
 #endif
@@ -3614,15 +2812,10 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
     service_t service_id(0);
     event_t event_id(0);
 
-    uint16_t crc_offset(0);
-    uint8_t  data_id_mode(0);
-    uint16_t data_length(0);
-    uint16_t data_id_nibble_offset(12); // data id nibble behind 4 bit counter value
-    uint16_t counter_offset(8); // counter field behind CRC8
+    e2e::custom_parameters_t custom_parameters;
 
     for (auto l = _tree.begin(); l != _tree.end(); ++l) {
         std::stringstream its_converter;
-        uint16_t tmp;
         if (l->first == "data_id" && data_id == 0) {
             std::string value = l->second.data();
             if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
@@ -3655,28 +2848,8 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
             std::string value = l->second.data();
             its_converter << value;
             its_converter >> profile;
-        } else if (l->first == "crc_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> crc_offset;
-        }  else if (l->first == "counter_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> counter_offset;
-        } else if (l->first == "data_id_mode") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> tmp;
-            data_id_mode = static_cast<uint8_t>(tmp);
-        } else if (l->first == "data_id_nibble_offset") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> data_id_nibble_offset;
-        }
-        else if (l->first == "data_length") {
-            std::string value = l->second.data();
-            its_converter << value;
-            its_converter >> data_length;
+        } else {
+            custom_parameters[l->first.data()] = l->second.data();
         }
     }
     e2e_configuration_[std::make_pair(service_id, event_id)] = std::make_shared<cfg::e2e>(
@@ -3685,11 +2858,7 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
         profile,
         service_id,
         event_id,
-        crc_offset,
-        data_id_mode,
-        data_length,
-        data_id_nibble_offset,
-        counter_offset
+        std::move(custom_parameters)
     );
 }
 
@@ -3780,7 +2949,8 @@ configuration_impl::get_endpoint_queue_limit_local() const {
     return endpoint_queue_limit_local_;
 }
 
-void configuration_impl::load_endpoint_queue_sizes(const element &_element) {
+void
+configuration_impl::load_endpoint_queue_sizes(const configuration_element &_element) {
     const std::string endpoint_queue_limits("endpoint-queue-limits");
     const std::string endpoint_queue_limit_external("endpoint-queue-limit-external");
     const std::string endpoint_queue_limit_local("endpoint-queue-limit-local");
@@ -3838,13 +3008,13 @@ void configuration_impl::load_endpoint_queue_sizes(const element &_element) {
                 const std::string port("port");
                 const std::string queue_size_limit("queue-size-limit");
 
-                for (const auto i : _element.tree_.get_child(endpoint_queue_limits)) {
+                for (const auto& i : _element.tree_.get_child(endpoint_queue_limits)) {
                     if (!i.second.get_child_optional(unicast)
                             || !i.second.get_child_optional(ports)) {
                         continue;
                     }
                     std::string its_unicast(i.second.get_child(unicast).data());
-                    for (const auto j : i.second.get_child(ports)) {
+                    for (const auto& j : i.second.get_child(ports)) {
 
                         if (!j.second.get_child_optional(port)
                                 || !j.second.get_child_optional(queue_size_limit)) {
@@ -3878,7 +3048,8 @@ void configuration_impl::load_endpoint_queue_sizes(const element &_element) {
     }
 }
 
-void configuration_impl::load_debounce(const element &_element) {
+void
+configuration_impl::load_debounce(const configuration_element &_element) {
     try {
         auto its_debounce = _element.tree_.get_child("debounce");
         for (auto i = its_debounce.begin(); i != its_debounce.end(); ++i) {
@@ -3888,8 +3059,8 @@ void configuration_impl::load_debounce(const element &_element) {
     }
 }
 
-void configuration_impl::load_service_debounce(
-        const boost::property_tree::ptree &_tree) {
+void
+configuration_impl::load_service_debounce(const boost::property_tree::ptree &_tree) {
     service_t its_service(0);
     instance_t its_instance(0);
     std::map<event_t, std::shared_ptr<debounce>> its_debounces;
@@ -4034,25 +3205,26 @@ void configuration_impl::load_event_debounce_ignore(
     }
 }
 
-void configuration_impl::load_offer_acceptance_required(
-        const element &_element) {
-    const std::string oar("offer_acceptance_required");
+void
+configuration_impl::load_sd_acceptance_required(
+        const configuration_element &_element) {
+    const std::string sar("sd_acceptance_required");
     try {
-        std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
-        if (_element.tree_.get_child_optional(oar)) {
-            if (is_configured_[ET_OFFER_ACCEPTANCE_REQUIRED]) {
-                VSOMEIP_WARNING << "Multiple definitions of " << oar
+        std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+        if (_element.tree_.get_child_optional(sar)) {
+            if (is_configured_[ET_SD_ACCEPTANCE_REQUIRED]) {
+                VSOMEIP_WARNING << "Multiple definitions of " << sar
                         << " Ignoring definition from " << _element.name_;
             } else {
-                for (const auto& ipe : _element.tree_.get_child(oar)) {
+                for (const auto& ipe : _element.tree_.get_child(sar)) {
                     boost::system::error_code ec;
                     boost::asio::ip::address its_address =
                             boost::asio::ip::address::from_string(ipe.first.data(), ec);
                     if (!its_address.is_unspecified()) {
-                        offer_acceptance_required_ips_[its_address] = ipe.second.data();
+                        sd_acceptance_required_ips_[{its_address, ANY_PORT}] = ipe.second.data();
                     }
                 }
-                is_configured_[ET_OFFER_ACCEPTANCE_REQUIRED] = true;
+                is_configured_[ET_SD_ACCEPTANCE_REQUIRED] = true;
             }
         }
     } catch (...) {
@@ -4060,7 +3232,128 @@ void configuration_impl::load_offer_acceptance_required(
     }
 }
 
-void configuration_impl::load_udp_receive_buffer_size(const element &_element) {
+bool configuration_impl::load_npdu_debounce_times_configuration(
+        const std::shared_ptr<service>& _service,
+        const boost::property_tree::ptree &_tree) {
+    bool is_loaded(true);
+    try {
+        for (const auto& i : _tree) {
+            const std::string its_key(i.first);
+            if (its_key == "requests") {
+                if (!load_npdu_debounce_times_for_service(_service, true, i.second)) {
+                    is_loaded = false;
+                }
+            } else if (its_key == "responses") {
+                if (!load_npdu_debounce_times_for_service(_service, false, i.second)) {
+                    is_loaded = false;
+                }
+            }
+        }
+    } catch (...) {
+        is_loaded = false;
+    }
+    return is_loaded;
+}
+
+bool configuration_impl::load_npdu_debounce_times_for_service(
+        const std::shared_ptr<service>& _service, bool _is_request,
+        const boost::property_tree::ptree &_tree) {
+    const std::string dtime("debounce-time");
+    const std::string rtime("maximum-retention-time");
+
+    bool is_loaded(true);
+    try {
+        std::stringstream its_converter;
+        for (const auto& i : _tree) {
+            const std::string its_method_str(i.first.data());
+            if (its_method_str.size()) {
+                method_t its_method = 0xFFFF;
+                if (its_method_str.size() > 1 && its_method_str[0] == '0'
+                        && its_method_str[1] == 'x') {
+                    its_converter << std::hex << its_method_str;
+                } else {
+                    its_converter << std::dec << its_method_str;
+                }
+                its_converter >> its_method;
+                its_converter.str("");
+                its_converter.clear();
+
+                std::chrono::nanoseconds its_debounce_time(
+                        npdu_default_debounce_requ_);
+                std::chrono::nanoseconds its_retention_time(
+                        npdu_default_max_retention_requ_);
+                for (const auto& j : i.second) {
+                    const std::string& key = j.first;
+                    const std::uint64_t value = std::strtoull(
+                                                        j.second.data().c_str(),
+                                                        NULL, 10) * 1000000;
+                    if (key == dtime) {
+                        its_debounce_time = std::chrono::nanoseconds(value);
+                    } else if (key == rtime) {
+                        its_retention_time = std::chrono::nanoseconds(value);
+                    }
+                }
+                if (_is_request) {
+                    _service->debounce_times_requests_[its_method]
+                            = {its_debounce_time, its_retention_time};
+                } else {
+                    _service->debounce_times_responses_[its_method]
+                            = { its_debounce_time, its_retention_time};
+                }
+            }
+        }
+    } catch (...) {
+        is_loaded = false;
+    }
+    return is_loaded;
+}
+
+void configuration_impl::load_someip_tp(
+        const std::shared_ptr<service>& _service,
+        const boost::property_tree::ptree &_tree) {
+    try {
+        for (const auto& i : _tree) {
+            const std::string its_key(i.first);
+            if (its_key == "client-to-service") {
+                load_someip_tp_for_service(_service, i.second, true);
+            } else if (its_key == "service-to-client") {
+                load_someip_tp_for_service(_service, i.second, false);
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
+void configuration_impl::load_someip_tp_for_service(
+        const std::shared_ptr<service>& _service,
+        const boost::property_tree::ptree &_tree, bool _is_request) {
+    try {
+        std::stringstream its_converter;
+        for (const auto& method : _tree) {
+            method_t its_method = 0xFFFF;
+            const std::string its_value(method.second.data());
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> its_method;
+            its_converter.str("");
+            its_converter.clear();
+            if (_is_request) {
+                _service->tp_segment_messages_client_to_service_.insert(its_method);
+            } else {
+                _service->tp_segment_messages_service_to_client_.insert(its_method);
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
+void
+configuration_impl::load_udp_receive_buffer_size(const configuration_element &_element) {
     const std::string urbs("udp-receive-buffer-size");
     try {
         if (_element.tree_.get_child_optional(urbs)) {
@@ -4098,7 +3391,8 @@ std::shared_ptr<debounce> configuration_impl::get_debounce(
     return nullptr;
 }
 
-void configuration_impl::load_tcp_restart_settings(const element &_element) {
+void
+configuration_impl::load_tcp_restart_settings(const configuration_element &_element) {
     const std::string tcp_restart_aborts_max("tcp-restart-aborts-max");
     const std::string tcp_connect_time_max("tcp-connect-time-max");
 
@@ -4154,240 +3448,102 @@ std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
     return tcp_connect_time_max_;
 }
 
-bool configuration_impl::offer_acceptance_required(
-        const boost::asio::ip::address& _address) const {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
-    return offer_acceptance_required_ips_.find(_address)
-            != offer_acceptance_required_ips_.end();
+bool configuration_impl::sd_acceptance_required(
+        const boost::asio::ip::address& _address, std::uint16_t _port) const {
+    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    return sd_acceptance_required_ips_.find({_address, _port})
+            != sd_acceptance_required_ips_.end();
 }
 
-void configuration_impl::set_offer_acceptance_required(
-        const boost::asio::ip::address& _address, const std::string& _path,
-        bool _enable) {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
+void configuration_impl::set_sd_acceptance_required(
+        const boost::asio::ip::address& _address, std::uint16_t _port,
+        const std::string& _path, bool _enable) {
+    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
     if (_enable) {
-        const auto found_address = offer_acceptance_required_ips_.find(_address);
-        if (found_address != offer_acceptance_required_ips_.end()) {
+        const auto found_address = sd_acceptance_required_ips_.find({_address, _port});
+        if (found_address != sd_acceptance_required_ips_.end()) {
             boost::system::error_code ec;
             VSOMEIP_WARNING << __func__ << " configuration for: "
-                    << found_address->first.to_string(ec) << " -> "
-                    << found_address->second << " already configured."
+                    << found_address->first.first.to_string(ec) << ":"
+                    << std::dec << _port << " -> "
+                    << found_address->first.second << " already configured."
                     << " Won't update with: "<< _path;
         } else {
-            offer_acceptance_required_ips_[_address] = _path;
+            sd_acceptance_required_ips_[{_address, _port}] = _path;
         }
     } else {
-        offer_acceptance_required_ips_.erase(_address);
+        sd_acceptance_required_ips_.erase({_address, _port});
     }
 }
 
-std::map<boost::asio::ip::address, std::string>
-configuration_impl::get_offer_acceptance_required() {
-    std::lock_guard<std::mutex> its_lock(offer_acceptance_required_ips_mutex_);
-    return offer_acceptance_required_ips_;
+configuration::sd_acceptance_required_map_t configuration_impl::get_sd_acceptance_required() {
+    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    return sd_acceptance_required_ips_;
 }
 
 std::uint32_t configuration_impl::get_udp_receive_buffer_size() const {
     return udp_receive_buffer_size_;
 }
 
-std::shared_ptr<policy> configuration_impl::find_client_id_policy(client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(policies_mutex_);
-    for (auto client_id_pair : policies_) {
-        if (std::get<0>(client_id_pair.first) <= _client
-                && _client <= std::get<1>(client_id_pair.first)) {
-            return client_id_pair.second;
-        }
+bool configuration_impl::tp_segment_messages_client_to_service(
+        service_t _service, std::string _ip_target, std::uint16_t _port_target,
+        method_t _method) const {
+    bool ret(false);
+    const service* const its_service = find_service_by_ip_port(_service,
+            _ip_target, _port_target);
+    if (its_service) {
+        ret = (its_service->tp_segment_messages_client_to_service_.find(_method)
+                != its_service->tp_segment_messages_client_to_service_.end());
     }
-    return nullptr;
+    return ret;
 }
 
-bool configuration_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-    bool was_removed(false);
-    if (!any_client_policies_.empty()) {
-        std::vector<std::shared_ptr<policy>>::iterator p_it = any_client_policies_.begin();
-        while (p_it != any_client_policies_.end()) {
-            bool has_uid(false), has_gid(false);
-            for (auto its_credential : p_it->get()->ids_) {
-                has_uid = has_gid = false;
-                for (auto its_range : std::get<0>(its_credential)) {
-                    if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                        has_uid = true;
-                        break;
-                    }
-                }
-                for (auto its_range : std::get<1>(its_credential)) {
-                    if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                        has_gid = true;
-                        break;
-                    }
-                }
-                // only remove "credentials allow" policies to prevent removal of
-                // blacklist configured in file
-                if (has_uid && has_gid && p_it->get()->allow_who_) {
-                    was_removed = true;
-                    break;
-                }
-            }
-            if (was_removed) {
-                p_it = any_client_policies_.erase(p_it);
-                break;
-            } else {
-                ++p_it;
-            }
-        }
+bool configuration_impl::tp_segment_messages_service_to_client(
+        service_t _service, std::string _ip_service,
+        std::uint16_t _port_service, method_t _method) const {
+    bool ret(false);
+    const service* const its_service = find_service_by_ip_port(_service,
+            _ip_service, _port_service);
+    if (its_service) {
+        ret = (its_service->tp_segment_messages_service_to_client_.find(_method)
+                != its_service->tp_segment_messages_service_to_client_.end());
     }
-    return was_removed;
+    return ret;
 }
 
-void configuration_impl::update_security_policy(uint32_t _uid, uint32_t _gid, ::std::shared_ptr<policy> _policy) {
-    remove_security_policy(_uid, _gid);
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-    any_client_policies_.push_back(_policy);
+#ifdef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
+bool
+configuration_impl::has_overlay(const std::string &_name) const {
+    auto its_application = applications_.find(_name);
+    return (its_application != applications_.end()
+            && !std::get<7>(its_application->second).empty());
 }
 
-void configuration_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
-        ::std::shared_ptr<policy> _credentials_policy, client_t _client) {
+void
+configuration_impl::load_overlay(const std::string &_name) {
+    std::set<std::string> its_input;
+    std::vector<element> its_elements;
+    std::set<std::string> its_failed;
 
-    bool was_found(false);
-    std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-    for (auto its_policy : any_client_policies_) {
-        bool has_uid(false), has_gid(false);
-        for (auto its_credential : its_policy->ids_) {
-            has_uid = has_gid = false;
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
-            if (has_uid && has_gid && its_policy->allow_who_) {
-                was_found = true;
-                break;
-            }
-        }
-        if (was_found) {
-            break;
-        }
-    }
-    // Do not add the new (credentials-only-policy) if a allow credentials policy with same credentials was found
-    if (!was_found) {
-        any_client_policies_.push_back(_credentials_policy);
-        VSOMEIP_INFO << __func__ << " Added security credentials at client: 0x"
-                << std::hex << _client << std::dec << " with UID: " << _uid << " GID: " << _gid;
+    auto its_application = applications_.find(_name);
+    if (its_application != applications_.end()) {
+        std::string its_overlay(std::get<7>(its_application->second));
+
+        its_input.insert(its_overlay);
+        read_data(its_input, its_elements, its_failed, false);
+
+        for (const auto f : its_failed)
+            VSOMEIP_ERROR << "Reading configuration data from " << f << " failed!";
+
+        is_overlay_ = true;
+        load_data(its_elements, true, true);
     }
 }
-
-bool configuration_impl::is_remote_client_allowed() const {
-    if (!check_credentials_) {
-        return true;
-    }
-    return allow_remote_clients_;
-}
-
-bool configuration_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
-    bool uid_allowed(false);
-    {
-        std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
-        for (auto its_uid_range : uid_whitelist_) {
-            if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
-                uid_allowed = true;
-                break;
-            }
-        }
-    }
-
-    if (uid_allowed) {
-        std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
-        for (auto its_request : _policy->services_) {
-            auto its_requested_service = std::get<0>(its_request);
-            bool has_service(false);
-            for (auto its_service_range : service_interface_whitelist_) {
-                if (std::get<0>(its_service_range) <= its_requested_service
-                        && its_requested_service <= std::get<1>(its_service_range)) {
-                    has_service = true;
-                    break;
-                }
-            }
-            if (!has_service) {
-                if (!check_whitelist_) {
-                    VSOMEIP_INFO << "vSomeIP Security: Policy update requesting service ID: "
-                            << std::hex << its_requested_service
-                            << " is not allowed, but will be allowed due to whitelist audit mode is active!";
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Policy update requesting service ID: "
-                            << std::hex << its_requested_service
-                            << " is not allowed! -> ignore update";
-                }
-                return !check_whitelist_;
-            }
-        }
-        return true;
-    } else {
-        if (!check_whitelist_) {
-            VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
-                    << " is not allowed, but will be allowed due to whitelist audit mode is active!";
-        } else {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
-                    << " is not allowed! -> ignore update";
-        }
-        return !check_whitelist_;
-    }
-}
-
-bool configuration_impl::is_policy_removal_allowed(uint32_t _uid) const {
-    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
-    for (auto its_uid_range : uid_whitelist_) {
-        if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
-            return true;
-        }
-    }
-
-    if (!check_whitelist_) {
-        VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid
-                << " is not allowed, but will be allowed due to whitelist audit mode is active!";
-    } else {
-        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid
-                << " is not allowed! -> ignore removal";
-    }
-    return !check_whitelist_;
-}
-
-bool configuration_impl::check_routing_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const {
-    if (_client != get_id(routing_host_)) {
-        return true;
-    } else {
-        std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-        if ( std::get<0>(routing_credentials_) == _uid
-                && std::get<1>(routing_credentials_) == _gid) {
-            return true;
-        }
-    }
-
-    std::string security_mode_text = "!";
-    if (!check_routing_credentials_) {
-        security_mode_text = " but will be allowed due to audit mode is active!";
-    }
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x"
-            << std::hex << _client << " and UID/GID=" << std::dec << _uid
-            << "/" << _gid << " : Check routing credentials failed as "
-            << "configured routing manager credentials "
-            << "do not match with routing manager credentials"
-            << security_mode_text;
-
-    return !check_routing_credentials_;
-}
+#endif // VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
 
 std::uint32_t configuration_impl::get_shutdown_timeout() const {
     return shutdown_timeout_;
 }
 
 }  // namespace config
-}  // namespace vsomeip
+}  // namespace vsomeip_v3

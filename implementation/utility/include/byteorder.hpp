@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_BYTEORDER_HPP
-#define VSOMEIP_BYTEORDER_HPP
+#ifndef VSOMEIP_V3_BYTEORDER_HPP
+#define VSOMEIP_V3_BYTEORDER_HPP
 
 #if defined(LINUX)
 #include <endian.h>
@@ -55,4 +55,4 @@
 
 #endif
 
-#endif // VSOMEIP_BYTEORDER_HPP
+#endif // VSOMEIP_V3_BYTEORDER_HPP_

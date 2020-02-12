@@ -16,8 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
-#include "../../implementation/configuration/include/internal.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "event_test_globals.hpp"
 
@@ -64,7 +63,7 @@ public:
         its_eventgroups.insert(service_info_.eventgroup_id);
         app_->request_event(service_info_.service_id,
                 service_info_.instance_id, service_info_.event_id,
-                its_eventgroups, false);
+                its_eventgroups, vsomeip::event_type_e::ET_EVENT);
         app_->register_subscription_status_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.eventgroup_id,
                 service_info_.event_id,
@@ -73,8 +72,7 @@ public:
                           std::placeholders::_3, std::placeholders::_4,
                           std::placeholders::_5));
         app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                service_info_.eventgroup_id, vsomeip::DEFAULT_MAJOR,
-                vsomeip::subscription_type_e::SU_RELIABLE_AND_UNRELIABLE);
+                service_info_.eventgroup_id);
 
         app_->start();
     }

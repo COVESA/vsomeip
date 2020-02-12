@@ -15,31 +15,33 @@
 #include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/defines.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
-#include "../../configuration/include/internal.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::client_endpoint_impl(
-        std::shared_ptr<endpoint_host> _host,
-        endpoint_type _local,
-        endpoint_type _remote,
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host,
+        const endpoint_type& _local,
+        const endpoint_type& _remote,
         boost::asio::io_service &_io,
         std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit)
-        : endpoint_impl<Protocol>(_host, _local, _io, _max_message_size, _queue_limit),
+        configuration::endpoint_queue_limit_t _queue_limit,
+        const std::shared_ptr<configuration>& _configuration)
+        : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io,
+                _max_message_size, _queue_limit, _configuration),
           socket_(new socket_type(_io)), remote_(_remote),
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           state_(cei_state_e::CLOSED),
           reconnect_counter_(0),
-          packetizer_(std::make_shared<message_buffer_t>()),
+          train_(_io),
           queue_size_(0),
           was_not_connected_(false),
           local_port_(0),
@@ -61,6 +63,12 @@ bool client_endpoint_impl<Protocol>::is_established() const {
 }
 
 template<typename Protocol>
+bool client_endpoint_impl<Protocol>::is_established_or_connected() const {
+    return (state_ == cei_state_e::ESTABLISHED
+            || state_ == cei_state_e::CONNECTED);
+}
+
+template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_established(bool _established) {
     if (_established) {
         if (state_ != cei_state_e::CONNECTING) {
@@ -73,7 +81,9 @@ void client_endpoint_impl<Protocol>::set_established(bool _established) {
         }
     } else {
         state_ = cei_state_e::CLOSED;
-    }}
+    }
+}
+
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
     if (_connected) {
@@ -88,7 +98,15 @@ void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
     }
 }
 
-template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::prepare_stop(
+        endpoint::prepare_stop_handler_t _handler, service_t _service) {
+    (void) _handler;
+    (void) _service;
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::stop() {
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
@@ -108,51 +126,219 @@ template<typename Protocol>void client_endpoint_impl<Protocol>::stop() {
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send_to(
         const std::shared_ptr<endpoint_definition> _target, const byte_t *_data,
-        uint32_t _size, bool _flush) {
+        uint32_t _size) {
     (void)_target;
     (void)_data;
     (void)_size;
-    (void)_flush;
-
     VSOMEIP_ERROR << "Clients endpoints must not be used to "
             << "send to explicitely specified targets";
     return false;
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::send(const uint8_t *_data,
-        uint32_t _size, bool _flush) {
+bool client_endpoint_impl<Protocol>::send_error(
+        const std::shared_ptr<endpoint_definition> _target, const byte_t *_data,
+        uint32_t _size) {
+    (void)_target;
+    (void)_data;
+    (void)_size;
+    VSOMEIP_ERROR << "Clients endpoints must not be used to "
+            << "send errors to explicitly specified targets";
+    return false;
+}
+
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) {
     std::lock_guard<std::mutex> its_lock(mutex_);
-    bool ret(true);
+    bool must_depart(false);
     const bool queue_size_zero_on_entry(queue_.empty());
-    if (endpoint_impl<Protocol>::sending_blocked_ ||
-        !check_message_size(_size) ||
-        !check_packetizer_space(_size) ||
-        !check_queue_limit(_data, _size)) {
-        ret = false;
-    } else {
 #if 0
-        std::stringstream msg;
-        msg << "cei::send: ";
-        for (uint32_t i = 0; i < _size; i++)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-        << (int)_data[i] << " ";
-        VSOMEIP_INFO << msg.str();
+    std::stringstream msg;
+    msg << "cei::send: ";
+    for (uint32_t i = 0; i < _size; i++)
+    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    VSOMEIP_DEBUG << msg.str();
 #endif
-        packetizer_->insert(packetizer_->end(), _data, _data + _size);
-        send_or_start_flush_timer(_flush, queue_size_zero_on_entry);
+
+    if (endpoint_impl<Protocol>::sending_blocked_ ||
+        !check_queue_limit(_data, _size)) {
+        return false;
     }
-    return ret;
+    switch (check_message_size(_data, _size)) {
+        case endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT:
+            return true;
+            break;
+        case endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG:
+            return false;
+            break;
+        case endpoint_impl<Protocol>::cms_ret_e::MSG_OK:
+        default:
+            break;
+    }
+
+    // STEP 1: Determine elapsed time and update the departure time and cancel the departure timer
+    train_.update_departure_time_and_stop_departure();
+
+    // STEP 3: Get configured timings
+    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+            _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+    std::chrono::nanoseconds its_debouncing(0), its_retention(0);
+    get_configured_times_from_endpoint(its_service, its_method,
+                                       &its_debouncing, &its_retention);
+
+    // STEP 4: Check if the passenger enters an empty train
+    const std::pair<service_t, method_t> its_identifier = std::make_pair(
+            its_service, its_method);
+    if (train_.passengers_.empty()) {
+        train_.departure_ = its_retention;
+    } else {
+        // STEP 4.1: Check whether the current train already contains the message
+        if (train_.passengers_.end() != train_.passengers_.find(its_identifier)) {
+            must_depart = true;
+        } else {
+            // STEP 5: Check whether the current message fits into the current train
+            if (train_.buffer_->size() + _size > endpoint_impl<Protocol>::max_message_size_) {
+                must_depart = true;
+            } else {
+                // STEP 6: Check debouncing time
+                if (its_debouncing > train_.minimal_max_retention_time_) {
+                    // train's latest departure would already undershot new
+                    // passenger's debounce time
+                    must_depart = true;
+                } else {
+                    if (its_debouncing > train_.departure_) {
+                        // train departs earlier as the new passenger's debounce
+                        // time allows
+                        must_depart = true;
+                    } else {
+                        // STEP 7: Check maximum retention time
+                        if (its_retention < train_.minimal_debounce_time_) {
+                            // train's earliest departure would already exceed
+                            // the new passenger's retention time.
+                            must_depart = true;
+                        } else {
+                            if (its_retention < train_.departure_) {
+                                train_.departure_ = its_retention;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // STEP 8: if necessary, send current buffer and create a new one
+    if (must_depart) {
+        // STEP 8.1: check if debounce time would be undershot here if the train
+        // departs. Block sending until train is allowed to depart.
+        wait_until_debounce_time_reached();
+        train_.passengers_.clear();
+        queue_train(queue_size_zero_on_entry);
+        train_.last_departure_ = std::chrono::steady_clock::now();
+        train_.departure_ = its_retention;
+        train_.minimal_debounce_time_ = std::chrono::nanoseconds::max();
+        train_.minimal_max_retention_time_ = std::chrono::nanoseconds::max();
+    }
+
+    // STEP 9: insert current message buffer
+    train_.buffer_->insert(train_.buffer_->end(), _data, _data + _size);
+    train_.passengers_.insert(its_identifier);
+    // STEP 9.1: update the trains minimal debounce time if necessary
+    if (its_debouncing < train_.minimal_debounce_time_) {
+        train_.minimal_debounce_time_ = its_debouncing;
+    }
+    // STEP 9.2: update the trains minimal maximum retention time if necessary
+    if (its_retention < train_.minimal_max_retention_time_) {
+        train_.minimal_max_retention_time_ = its_retention;
+    }
+
+    // STEP 10: restart timer with current departure time
+#ifndef _WIN32
+    train_.departure_timer_->expires_from_now(train_.departure_);
+#else
+    train_.departure_timer_->expires_from_now(
+            std::chrono::duration_cast<
+                std::chrono::steady_clock::duration>(train_.departure_));
+#endif
+    train_.departure_timer_->async_wait(
+            std::bind(&client_endpoint_impl<Protocol>::flush_cbk,
+                      this->shared_from_this(), std::placeholders::_1));
+
+    return true;
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::send_segments(
+        const tp::tp_split_messages_t &_segments) {
+    if (_segments.size() == 0) {
+        return;
+    }
+    const bool queue_size_zero_on_entry(queue_.empty());
+
+    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN],
+            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MAX]);
+    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+            (*(_segments[0]))[VSOMEIP_METHOD_POS_MIN],
+            (*(_segments[0]))[VSOMEIP_METHOD_POS_MAX]);
+    std::chrono::nanoseconds its_debouncing(0), its_retention(0);
+    get_configured_times_from_endpoint(its_service, its_method,
+                                       &its_debouncing, &its_retention);
+    // update the trains minimal debounce time if necessary
+    if (its_debouncing < train_.minimal_debounce_time_) {
+        train_.minimal_debounce_time_ = its_debouncing;
+    }
+    // update the trains minimal maximum retention time if necessary
+    if (its_retention < train_.minimal_max_retention_time_) {
+        train_.minimal_max_retention_time_ = its_retention;
+    }
+
+    // We only need to respect the debouncing. There is no need to wait for further
+    // messages as we will send several now anyway.
+    if (!train_.passengers_.empty()) {
+        wait_until_debounce_time_reached();
+        train_.passengers_.clear();
+        queue_train(queue_size_zero_on_entry);
+        train_.last_departure_ = std::chrono::steady_clock::now();
+        train_.departure_ = its_retention;
+        train_.minimal_debounce_time_ = std::chrono::nanoseconds::max();
+        train_.minimal_max_retention_time_ = std::chrono::nanoseconds::max();
+    }
+    const bool queue_size_still_zero(queue_.empty());
+    for (const auto& s : _segments) {
+        queue_.emplace_back(s);
+        queue_size_ += s->size();
+    }
+
+    if (queue_size_still_zero && !queue_.empty()) { // no writing in progress
+        // respect minimal debounce time
+        wait_until_debounce_time_reached();
+        // ignore retention time and send immediately as the train is full anyway
+        send_queued();
+    }
+    train_.last_departure_ = std::chrono::steady_clock::now();
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::wait_until_debounce_time_reached() const {
+    const std::chrono::nanoseconds time_since_last_departure =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now() - train_.last_departure_);
+    if (time_since_last_departure < train_.minimal_debounce_time_) {
+        std::this_thread::sleep_for(
+                train_.minimal_debounce_time_ - time_since_last_departure);
+    }
 }
 
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send(const std::vector<byte_t>& _cmd_header,
-                                      const byte_t *_data, uint32_t _size,
-                                      bool _flush) {
+                                      const byte_t *_data, uint32_t _size) {
     (void) _cmd_header;
     (void) _data;
     (void) _size;
-    (void) _flush;
     return false;
 }
 
@@ -160,13 +346,12 @@ template<typename Protocol>
 bool client_endpoint_impl<Protocol>::flush() {
     bool is_successful(true);
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (!packetizer_->empty()) {
-        queue_.push_back(packetizer_);
-        queue_size_ += packetizer_->size();
-        packetizer_ = std::make_shared<message_buffer_t>();
-        if (queue_.size() == 1) { // no writing in progress
-            send_queued();
-        }
+    if (!train_.buffer_->empty()) {
+        queue_train(!queue_.size());
+        train_.last_departure_ = std::chrono::steady_clock::now();
+        train_.passengers_.clear();
+        train_.minimal_debounce_time_ = std::chrono::nanoseconds::max();
+        train_.minimal_max_retention_time_ = std::chrono::nanoseconds::max();
     } else {
         is_successful = false;
     }
@@ -183,7 +368,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(
         shutdown_and_close_socket(false);
         return;
     }
-    std::shared_ptr<endpoint_host> its_host = this->host_.lock();
+    std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
             shutdown_and_close_socket(true);
@@ -237,7 +422,7 @@ void client_endpoint_impl<Protocol>::wait_connect_cbk(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::send_cbk(
         boost::system::error_code const &_error, std::size_t _bytes,
-        message_buffer_ptr_t _sent_msg) {
+        const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -307,7 +492,9 @@ void client_endpoint_impl<Protocol>::send_cbk(
         shutdown_and_close_socket(true);
         connect();
     } else if (_error == boost::asio::error::operation_aborted) {
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message();
         // endpoint was stopped
+        endpoint_impl<Protocol>::sending_blocked_ = true;
         shutdown_and_close_socket(false);
     } else if (_error == boost::system::errc::destination_address_required) {
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
@@ -366,8 +553,9 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
     if (socket_->is_open()) {
 #ifndef _WIN32
         if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '" << std::string(std::strerror(errno))
-                          << "' (" << errno << ") " << get_remote_information();
+            VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
+                    << std::string(std::strerror(errno))
+                    << "' (" << errno << ") " << get_remote_information();
         }
 #endif
         boost::system::error_code its_error;
@@ -407,30 +595,29 @@ void client_endpoint_impl<Protocol>::start_connect_timer() {
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::check_message_size(
+        const std::uint8_t * const _data, std::uint32_t _size) {
+    typename endpoint_impl<Protocol>::cms_ret_e ret(endpoint_impl<Protocol>::cms_ret_e::MSG_OK);
     if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
             && _size > endpoint_impl<Protocol>::max_message_size_) {
+        if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
+            const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                    _data[VSOMEIP_SERVICE_POS_MIN],
+                    _data[VSOMEIP_SERVICE_POS_MAX]);
+            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                    _data[VSOMEIP_METHOD_POS_MIN],
+                    _data[VSOMEIP_METHOD_POS_MAX]);
+            if (tp_segmentation_enabled(its_service, its_method)) {
+                send_segments(tp::tp::tp_split_message(_data, _size));
+                return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
+            }
+        }
         VSOMEIP_ERROR << "cei::check_message_size: Dropping to big message ("
                 << std::dec << _size << " Bytes). Maximum allowed message size is: "
                 << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
-        return false;
+        ret = endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
     }
-    return true;
-}
-
-template<typename Protocol>
-bool client_endpoint_impl<Protocol>::check_packetizer_space(std::uint32_t _size) {
-    if (packetizer_->size() + _size < packetizer_->size()) {
-        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
-        return false;
-    }
-    if (packetizer_->size() + _size > endpoint_impl<Protocol>::max_message_size_
-            && !packetizer_->empty()) {
-        queue_.push_back(packetizer_);
-        queue_size_ += packetizer_->size();
-        packetizer_ = std::make_shared<message_buffer_t>();
-    }
-    return true;
+    return ret;
 }
 
 template<typename Protocol>
@@ -448,7 +635,7 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
             // (lowbyte service ID + highbyte methoid)
             // [(Command + lowerbyte sender's client ID).
             //  highbyte sender's client ID + lowbyte command size.
-            //  lowbyte methodid + highbyte vsomeipd length]
+            //  lowbyte methodid + highbyte vsomeip length]
             its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
                                                 _data[VSOMEIP_SERVICE_POS_MAX]);
             its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
@@ -473,28 +660,19 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::send_or_start_flush_timer(
-        bool _flush, bool _queue_size_zero_on_entry) {
-    if (_flush) {
-        flush_timer_.cancel();
-        queue_.push_back(packetizer_);
-        queue_size_ += packetizer_->size();
-        packetizer_ = std::make_shared<message_buffer_t>();
-
-        if (_queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
-            send_queued();
-        }
-    } else {
-        flush_timer_.expires_from_now(
-                std::chrono::milliseconds(VSOMEIP_DEFAULT_FLUSH_TIMEOUT)); // TODO: use config variable
-        flush_timer_.async_wait(
-            std::bind(
-                &client_endpoint_impl<Protocol>::flush_cbk,
-                this->shared_from_this(),
-                std::placeholders::_1
-            )
-        );
+void client_endpoint_impl<Protocol>::queue_train(bool _queue_size_zero_on_entry) {
+    queue_.push_back(train_.buffer_);
+    queue_size_ += train_.buffer_->size();
+    train_.buffer_ = std::make_shared<message_buffer_t>();
+    if (_queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
+        send_queued();
     }
+}
+
+template<typename Protocol>
+size_t client_endpoint_impl<Protocol>::get_queue_size() const {
+    std::lock_guard<std::mutex> its_lock(mutex_);
+    return queue_size_;
 }
 
 // Instantiate template
@@ -503,5 +681,6 @@ template class client_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;
 template class client_endpoint_impl<boost::asio::ip::udp>;
-}  // namespace vsomeip
+
+}  // namespace vsomeip_v3
 

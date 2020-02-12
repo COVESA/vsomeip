@@ -14,7 +14,7 @@
             "id" : "0x9999"
         }
     ],
-    "routing" : "vsomeipd",
+    "routing" : "routingmanagerd",
     "service-discovery" :
     {
         "enable":"true",

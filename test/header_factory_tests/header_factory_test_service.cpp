@@ -120,7 +120,7 @@ void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::mess
     std::shared_ptr<vsomeip::message> its_response =
             vsomeip::runtime::get()->create_response(_request);
 
-    app_->send(its_response, true);
+    app_->send(its_response);
 
     if(number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND)
     {

@@ -24,9 +24,9 @@ ALLOW_DENY=$2
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=$1
-export VSOMEIP_APPLICATION_NAME=vsomeipd
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_CONFIGURATION=$1
@@ -37,7 +37,7 @@ PID_CLIENT=$!
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external security test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip/test; ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2\"" &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker run --name citms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2" &
 else

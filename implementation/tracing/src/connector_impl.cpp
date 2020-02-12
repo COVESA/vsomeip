@@ -4,16 +4,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/constants.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
-#include "../../configuration/include/internal.hpp"
 #include "../../configuration/include/trace.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace trace {
 
 const char *VSOMEIP_TC_DEFAULT_CHANNEL_ID = "TC";
@@ -25,8 +24,7 @@ std::shared_ptr<connector_impl> connector_impl::get() {
 
 connector_impl::connector_impl() :
     is_enabled_(false),
-    is_sd_enabled_(false),
-    is_initialized_(false) {
+    is_sd_enabled_(false) {
 
     channels_[VSOMEIP_TC_DEFAULT_CHANNEL_ID]
         = std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID,
@@ -223,4 +221,4 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
 }
 
 } // namespace trace
-} // namespace vsomeip
+} // namespace vsomeip_v3

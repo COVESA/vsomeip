@@ -9,10 +9,14 @@
 
 #include "../include/credentials.hpp"
 
+#include <vsomeip/internal/logger.hpp>
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
 #include "../../configuration/include/internal.hpp"
-#include "../../logging/include/logger.hpp"
+#endif
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 void credentials::activate_credentials(const int _fd) {
     int optval = 1;
@@ -105,7 +109,7 @@ void credentials::send_credentials(const int _fd, client_t _client) {
     }
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif
+#endif // #ifndef _WIN32
 

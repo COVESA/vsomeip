@@ -1,17 +1,19 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_EVENTGROUPENTRY_IMPL_HPP
-#define VSOMEIP_SD_EVENTGROUPENTRY_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_EVENTGROUPENTRY_IMPL_HPP_
+#define VSOMEIP_V3_SD_EVENTGROUPENTRY_IMPL_HPP_
 
 #include "entry_impl.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "message_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
+
+class selective_option_impl;
 
 class eventgroupentry_impl: public entry_impl {
 public:
@@ -28,8 +30,8 @@ public:
     uint8_t get_counter() const;
     void set_counter(uint8_t _counter);
 
-    bool serialize(vsomeip::serializer *_to) const;
-    bool deserialize(vsomeip::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer *_to) const;
+    bool deserialize(vsomeip_v3::deserializer *_from);
 
     bool operator==(const eventgroupentry_impl& _other) const {
         return (ttl_ == _other.ttl_ &&
@@ -44,11 +46,13 @@ public:
                 counter_ == _other.counter_);
     }
 
-    bool is_matching_subscribe(const eventgroupentry_impl& _other,
-                               const message_impl::options_t& _options) const;
+    bool matches(const eventgroupentry_impl &_other,
+                 const message_impl::options_t &_options) const;
 
     void add_target(const std::shared_ptr<endpoint_definition> &_target);
     std::shared_ptr<endpoint_definition> get_target(bool _reliable) const;
+
+    std::shared_ptr<selective_option_impl> get_selective_option() const;
 
 private:
     eventgroup_t eventgroup_;
@@ -63,6 +67,7 @@ private:
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_INTERNAL_SD_EVENTGROUPENTRY_IMPL_HPP
+#endif // VSOMEIP_V3_SD_EVENTGROUPENTRY_IMPL_HPP_
+

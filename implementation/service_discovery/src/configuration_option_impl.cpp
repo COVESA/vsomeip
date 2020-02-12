@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 configuration_option_impl::configuration_option_impl() {
@@ -20,10 +20,17 @@ configuration_option_impl::configuration_option_impl() {
 configuration_option_impl::~configuration_option_impl() {
 }
 
-bool configuration_option_impl::operator ==(
-        const configuration_option_impl &_other) const {
-    return (option_impl::operator ==(_other)
-            && configuration_ == _other.configuration_);
+bool
+configuration_option_impl::operator ==(const option_impl &_other) const {
+    bool is_equal(option_impl::operator ==(_other));
+
+    if (is_equal) {
+        const configuration_option_impl &its_other
+            = dynamic_cast<const configuration_option_impl &>(_other);
+        is_equal = (configuration_ == its_other.configuration_);
+    }
+
+    return is_equal;
 }
 
 void configuration_option_impl::add_item(const std::string &_key,
@@ -42,14 +49,14 @@ void configuration_option_impl::remove_item(const std::string &_key) {
 
 std::vector<std::string> configuration_option_impl::get_keys() const {
     std::vector < std::string > l_keys;
-    for (auto elem : configuration_)
+    for (const auto& elem : configuration_)
         l_keys.push_back(elem.first);
     return l_keys;
 }
 
 std::vector<std::string> configuration_option_impl::get_values() const {
     std::vector < std::string > l_values;
-    for (auto elem : configuration_)
+    for (const auto& elem : configuration_)
         l_values.push_back(elem.second);
     return l_values;
 }
@@ -63,7 +70,7 @@ std::string configuration_option_impl::get_value(
     return l_value;
 }
 
-bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
+bool configuration_option_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful;
     std::string configuration_string;
 
@@ -86,7 +93,7 @@ bool configuration_option_impl::serialize(vsomeip::serializer *_to) const {
     return is_successful;
 }
 
-bool configuration_option_impl::deserialize(vsomeip::deserializer *_from) {
+bool configuration_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = option_impl::deserialize(_from);
     uint8_t l_itemLength = 0;
     std::string l_item(256, 0), l_key, l_value;
@@ -123,4 +130,4 @@ bool configuration_option_impl::deserialize(vsomeip::deserializer *_from) {
 }
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

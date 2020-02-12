@@ -54,7 +54,7 @@ public:
                 SAMPLE_INSTANCE_ID,
                 SAMPLE_EVENT_ID,
                 its_groups,
-                true);
+                vsomeip::event_type_e::ET_FIELD);
         app_->subscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
 
         return true;
@@ -121,7 +121,7 @@ public:
                 its_get->set_instance(SAMPLE_INSTANCE_ID);
                 its_get->set_method(SAMPLE_GET_METHOD_ID);
                 its_get->set_reliable(use_tcp_);
-                app_->send(its_get, true);
+                app_->send(its_get);
             }
 
             if ((its_payload->get_length() % 8) == 0) {
@@ -139,7 +139,7 @@ public:
                     = vsomeip::runtime::get()->create_payload();
                 its_set_payload->set_data(its_data, sizeof(its_data));
                 its_set->set_payload(its_set_payload);
-                app_->send(its_set, true);
+                app_->send(its_set);
             }
         }
     }

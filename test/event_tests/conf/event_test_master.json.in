@@ -19,7 +19,7 @@
             "max_dispatch_time" : "1000"
         }
     ],
-    "routing":"vsomeipd",
+    "routing":"routingmanagerd",
     "service-discovery":
     {
         "enable":"true",

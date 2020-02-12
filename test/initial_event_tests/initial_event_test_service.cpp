@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 #include "initial_event_test_globals.hpp"
 
@@ -42,7 +42,10 @@ public:
         its_eventgroups.insert(service_info_.eventgroup_id);
         for (std::uint16_t i = 0; i < events_to_offer_; i++) {
             app_->offer_event(service_info_.service_id, service_info_.instance_id,
-                    static_cast<vsomeip::event_t>(service_info_.event_id + i), its_eventgroups, true);
+                    static_cast<vsomeip::event_t>(service_info_.event_id + i),
+                    its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                    std::chrono::milliseconds::zero(), false, true, nullptr,
+                    vsomeip::reliability_type_e::RT_UNKNOWN);
         }
 
         // set value to field
@@ -103,7 +106,7 @@ private:
     std::thread offer_thread_;
 };
 
-static int service_number;
+static unsigned long service_number;
 static bool use_same_service_id;
 static std::uint32_t offer_multiple_events;
 
@@ -131,7 +134,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    service_number = std::stoi(std::string(argv[1]), nullptr);
+    service_number = std::stoul(std::string(argv[1]), nullptr);
 
     offer_multiple_events = 1;
     use_same_service_id = false;

@@ -6,12 +6,11 @@
 #include "../include/message_impl.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 message_base_impl::message_base_impl()
     : is_reliable_(false),
-      is_initial_(false),
-      is_valid_crc_(true) {
+      is_initial_(false) {
     header_.set_owner(this);
 }
 
@@ -115,17 +114,9 @@ void message_base_impl::set_reliable(bool _is_reliable) {
 bool message_base_impl::is_initial() const {
     return is_initial_;
 }
+
 void message_base_impl::set_initial(bool _is_initial) {
     is_initial_ = _is_initial;
 }
 
-bool message_base_impl::is_valid_crc() const {
-    return is_valid_crc_;
-}
-
-void message_base_impl::set_is_valid_crc(bool _is_valid_crc) {
-    is_valid_crc_ = _is_valid_crc;
-}
-
-
-} // namespace vsomeip
+} // namespace vsomeip_v3

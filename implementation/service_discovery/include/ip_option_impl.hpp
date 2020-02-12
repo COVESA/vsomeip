@@ -1,23 +1,25 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_IP_OPTION_IMPL_HPP
-#define VSOMEIP_SD_IP_OPTION_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_IP_OPTION_IMPL_HPP_
+#define VSOMEIP_V3_SD_IP_OPTION_IMPL_HPP_
 
 #include <vsomeip/primitive_types.hpp>
 
 #include "option_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
-class ip_option_impl: public option_impl {
+class ip_option_impl
+        : public option_impl {
 public:
     ip_option_impl();
+    ip_option_impl(const uint16_t _port, const bool _is_reliable);
     virtual ~ip_option_impl();
-    virtual bool operator ==(const ip_option_impl &_other) const;
+    virtual bool operator ==(const option_impl &_other) const;
 
     uint16_t get_port() const;
     void set_port(uint16_t _port);
@@ -27,8 +29,8 @@ public:
 
     virtual bool is_multicast() const = 0;
 
-    virtual bool serialize(vsomeip::serializer *_to) const = 0;
-    virtual bool deserialize(vsomeip::deserializer *_from) = 0;
+    virtual bool serialize(vsomeip_v3::serializer *_to) const = 0;
+    virtual bool deserialize(vsomeip_v3::deserializer *_from) = 0;
 
 protected:
     layer_four_protocol_e protocol_;
@@ -36,6 +38,7 @@ protected:
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_IP_OPTION_IMPL_HPP
+#endif // VSOMEIP_V3_SD_IP_OPTION_IMPL_HPP_
+

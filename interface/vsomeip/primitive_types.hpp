@@ -3,13 +3,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_PRIMITIVE_TYPES_HPP
-#define VSOMEIP_PRIMITIVE_TYPES_HPP
+#ifndef VSOMEIP_V3_PRIMITIVE_TYPES_HPP_
+#define VSOMEIP_V3_PRIMITIVE_TYPES_HPP_
 
 #include <array>
 #include <cstdint>
 
-namespace vsomeip {
+#ifndef _WIN32
+#include <sys/types.h>
+#endif
+
+namespace vsomeip_v3 {
 
 typedef uint32_t message_t;
 typedef uint16_t service_t;
@@ -34,6 +38,7 @@ typedef uint8_t protocol_version_t;
 typedef uint8_t interface_version_t;
 
 typedef uint8_t byte_t;
+typedef uint16_t diagnosis_t;
 
 // Addresses
 typedef std::array<byte_t, 4> ipv4_address_t;
@@ -43,12 +48,18 @@ typedef std::string trace_channel_t;
 
 typedef std::string trace_filter_type_t;
 
-typedef std::uint16_t pending_subscription_id_t;
-
 typedef std::uint32_t pending_remote_offer_id_t;
 
 typedef std::uint32_t pending_security_update_id_t;
 
-} // namespace vsomeip
+#ifdef _WIN32
+    typedef std::uint32_t uid_t;
+    typedef std::uint32_t gid_t;
+#else
+    typedef ::uid_t uid_t;
+    typedef ::uid_t gid_t;
+#endif
 
-#endif // VSOMEIP_PRIMITIVE_TYPES_HPP
+} // namespace vsomeip_v3
+
+#endif // VSOMEIP_V3_PRIMITIVE_TYPES_HPP

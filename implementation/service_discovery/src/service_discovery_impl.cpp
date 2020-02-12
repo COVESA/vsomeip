@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +7,9 @@
 
 #include <random>
 #include <forward_list>
+#include <thread>
+
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
@@ -15,7 +18,9 @@
 #include "../include/eventgroupentry_impl.hpp"
 #include "../include/ipv4_option_impl.hpp"
 #include "../include/ipv6_option_impl.hpp"
+#include "../include/selective_option_impl.hpp"
 #include "../include/message_impl.hpp"
+#include "../include/remote_subscription_ack.hpp"
 #include "../include/request.hpp"
 #include "../include/runtime.hpp"
 #include "../include/service_discovery_host.hpp"
@@ -23,51 +28,50 @@
 #include "../include/serviceentry_impl.hpp"
 #include "../include/subscription.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
 #include "../../endpoints/include/endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_server_endpoint_impl.hpp"
-#include "../../logging/include/logger.hpp"
 #include "../../message/include/serializer.hpp"
+#include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../../routing/include/eventgroupinfo.hpp"
 #include "../../routing/include/serviceinfo.hpp"
-#include "../../plugin/include/plugin_manager.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
-service_discovery_impl::service_discovery_impl(service_discovery_host *_host,
-                                               std::shared_ptr<configuration> _configuration)
-        : io_(_host->get_io()),
-          host_(_host),
-          configuration_(_configuration),
-          port_(VSOMEIP_SD_DEFAULT_PORT),
-          reliable_(false),
-          serializer_(std::make_shared<serializer>(
-                          configuration_->get_buffer_shrink_threshold())),
-          deserializer_(std::make_shared<deserializer>(
-                          configuration_->get_buffer_shrink_threshold())),
-          ttl_timer_(_host->get_io()),
-          ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2),
-          ttl_(VSOMEIP_SD_DEFAULT_TTL),
-          subscription_expiration_timer_(_host->get_io()),
-          max_message_size_(VSOMEIP_MAX_UDP_SD_PAYLOAD),
-          initial_delay_(0),
-          offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
-          repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
-          repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
-          cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
-          offer_debounce_timer_(_host->get_io()),
-          find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
-          find_debounce_timer_(_host->get_io()),
-          main_phase_timer_(_host->get_io()),
-          is_suspended_(false),
-          is_diagnosis_(false),
-          last_msg_received_timer_(_host->get_io()),
-          last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY +
+service_discovery_impl::service_discovery_impl(
+        service_discovery_host *_host,
+        const std::shared_ptr<configuration>& _configuration)
+    : io_(_host->get_io()),
+      host_(_host),
+      configuration_(_configuration),
+      port_(VSOMEIP_SD_DEFAULT_PORT),
+      reliable_(false),
+      serializer_(std::make_shared<serializer>(
+                      configuration_->get_buffer_shrink_threshold())),
+      deserializer_(std::make_shared<deserializer>(
+                      configuration_->get_buffer_shrink_threshold())),
+      ttl_timer_(_host->get_io()),
+      ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2),
+      ttl_(VSOMEIP_SD_DEFAULT_TTL),
+      subscription_expiration_timer_(_host->get_io()),
+      max_message_size_(VSOMEIP_MAX_UDP_SD_PAYLOAD),
+      initial_delay_(0),
+      offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+      repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
+      repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
+      cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
+      offer_debounce_timer_(_host->get_io()),
+      find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
+      find_debounce_timer_(_host->get_io()),
+      main_phase_timer_(_host->get_io()),
+      is_suspended_(false),
+      is_diagnosis_(false),
+      last_msg_received_timer_(_host->get_io()),
+      last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY +
                                            (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)) {
     // TODO: cleanup start condition!
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
@@ -76,12 +80,16 @@ service_discovery_impl::service_discovery_impl(service_discovery_host *_host,
 service_discovery_impl::~service_discovery_impl() {
 }
 
-boost::asio::io_service & service_discovery_impl::get_io() {
+boost::asio::io_service &
+service_discovery_impl::get_io() {
     return io_;
 }
 
-void service_discovery_impl::init() {
-    runtime_ = std::dynamic_pointer_cast<sd::runtime>(plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY));
+void
+service_discovery_impl::init() {
+    runtime_ = std::dynamic_pointer_cast<sd::runtime>(
+            plugin_manager::get()->get_plugin(
+                    plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY));
 
     unicast_ = configuration_->get_unicast_address();
     sd_multicast_ = configuration_->get_sd_multicast();
@@ -96,16 +104,10 @@ void service_discovery_impl::init() {
     ttl_ = configuration_->get_sd_ttl();
 
     // generate random initial delay based on initial delay min and max
-    std::int32_t initial_delay_min =
+    std::uint32_t initial_delay_min =
             configuration_->get_sd_initial_delay_min();
-    if (initial_delay_min < 0) {
-        initial_delay_min = VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN;
-    }
-    std::int32_t initial_delay_max =
+    std::uint32_t initial_delay_max =
             configuration_->get_sd_initial_delay_max();
-    if (initial_delay_max < 0) {
-        initial_delay_max = VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX;
-    }
     if (initial_delay_min > initial_delay_max) {
         const std::uint32_t tmp(initial_delay_min);
         initial_delay_min = initial_delay_max;
@@ -134,7 +136,8 @@ void service_discovery_impl::init() {
             + (cyclic_offer_delay_ / 10);
 }
 
-void service_discovery_impl::start() {
+void
+service_discovery_impl::start() {
     if (!endpoint_) {
         endpoint_ = host_->create_service_discovery_endpoint(
                 sd_multicast_, port_, reliable_);
@@ -160,9 +163,15 @@ void service_discovery_impl::start() {
                 i.second->set_sent_counter(0);
             }
         }
-        if (endpoint_) {
+        if (endpoint_ && !reliable_) {
             // rejoin multicast group
-            endpoint_->join(sd_multicast_);
+#ifndef ANDROID
+            reinterpret_cast<udp_server_endpoint_impl*>(
+                    endpoint_.get())->join(sd_multicast_);
+#else
+            dynamic_cast<udp_server_endpoint_impl*>(
+                    endpoint_.get())->join(sd_multicast_);
+#endif
         }
     }
     is_suspended_ = false;
@@ -172,31 +181,35 @@ void service_discovery_impl::start() {
     start_ttl_timer();
 }
 
-void service_discovery_impl::stop() {
+void
+service_discovery_impl::stop() {
     is_suspended_ = true;
     stop_ttl_timer();
     stop_last_msg_received_timer();
 }
 
-void service_discovery_impl::request_service(service_t _service,
-        instance_t _instance, major_version_t _major, minor_version_t _minor,
+void
+service_discovery_impl::request_service(
+        service_t _service, instance_t _instance,
+        major_version_t _major, minor_version_t _minor,
         ttl_t _ttl) {
     std::lock_guard<std::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
     if (find_service != requested_.end()) {
         auto find_instance = find_service->second.find(_instance);
         if (find_instance == find_service->second.end()) {
-            find_service->second[_instance] = std::make_shared < request
-                    > (_major, _minor, _ttl);
+            find_service->second[_instance]
+                = std::make_shared<request>(_major, _minor, _ttl);
         }
     } else {
-        requested_[_service][_instance] = std::make_shared < request
-                > (_major, _minor, _ttl);
+        requested_[_service][_instance]
+            = std::make_shared<request>(_major, _minor, _ttl);
     }
 }
 
-void service_discovery_impl::release_service(service_t _service,
-        instance_t _instance) {
+void
+service_discovery_impl::release_service(
+        service_t _service, instance_t _instance) {
     std::lock_guard<std::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
     if (find_service != requested_.end()) {
@@ -217,10 +230,11 @@ service_discovery_impl::find_request(service_t _service, instance_t _instance) {
     return nullptr;
 }
 
-void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, client_t _client,
-        subscription_type_e _subscription_type) {
-    uint8_t subscribe_count(0);
+void
+service_discovery_impl::subscribe(
+        service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, major_version_t _major,
+        ttl_t _ttl, client_t _client) {
     {
         std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
@@ -229,285 +243,268 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
             if (found_instance != found_service->second.end()) {
                 auto found_eventgroup = found_instance->second.find(_eventgroup);
                 if (found_eventgroup != found_instance->second.end()) {
-                    auto found_client = found_eventgroup->second.find(_client);
-                    if (found_client != found_eventgroup->second.end()) {
-                        if (found_client->second->get_major() != _major) {
-                            VSOMEIP_ERROR
-                                    << "Subscriptions to different versions of the same "
-                                            "service instance are not supported!";
+                    auto its_subscription = found_eventgroup->second;
+                    if (its_subscription->get_major() != _major) {
+                        VSOMEIP_ERROR
+                                << "Subscriptions to different versions of the same "
+                                        "service instance are not supported!";
+                    } else if (its_subscription->is_selective()) {
+                        if (its_subscription->add_client(_client)) {
+                            its_subscription->set_state(_client,
+                                    subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                            send_subscription(its_subscription,
+                                    _service, _instance, _eventgroup,
+                                    _client);
                         }
-                        return;
                     }
+                    return;
+                }
+            }
+        }
+    }
+
+    std::shared_ptr<endpoint> its_reliable, its_unreliable;
+        get_subscription_endpoints(_service, _instance,
+                its_reliable, its_unreliable);
+
+    {
+        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+
+        // New subscription
+        std::shared_ptr<subscription> its_subscription
+            = create_subscription(
+                    _service, _instance, _eventgroup, _major,
+                    _ttl, its_reliable, its_unreliable);
+
+        if (!its_subscription) {
+            VSOMEIP_ERROR << __func__
+                    << ": creating subscription failed!";
+            return;
+        }
+
+        subscribed_[_service][_instance][_eventgroup] = its_subscription;
+
+        its_subscription->add_client(_client);
+        its_subscription->set_state(_client,
+                subscription_state_e::ST_NOT_ACKNOWLEDGED);
+
+        send_subscription(its_subscription,
+                _service, _instance, _eventgroup,
+                _client);
+    }
+}
+
+void
+service_discovery_impl::send_subscription(
+        const std::shared_ptr<subscription> &_subscription,
+        const service_t _service, const instance_t _instance,
+        const eventgroup_t _eventgroup,
+        const client_t _client) {
+    auto its_reliable = _subscription->get_endpoint(true);
+    auto its_unreliable = _subscription->get_endpoint(false);
+
+    boost::asio::ip::address its_address;
+    get_subscription_address(its_reliable, its_unreliable, its_address);
+
+    if (!its_address.is_unspecified()) {
+        entry_data_t its_data;
+
+        const remote_offer_type_e its_offer_type
+            = get_remote_offer_type(_service, _instance);
+        if (its_offer_type == remote_offer_type_e::UNRELIABLE &&
+                !its_reliable && its_unreliable) {
+            if (its_unreliable->is_established()) {
+                its_data = create_eventgroup_entry(_service, _instance,
+                        _eventgroup, _subscription, its_offer_type);
+            } else {
+                _subscription->set_udp_connection_established(false);
+            }
+        } else if (its_offer_type == remote_offer_type_e::RELIABLE &&
+                its_reliable && !its_unreliable) {
+            if (its_reliable->is_established()) {
+                its_data = create_eventgroup_entry(_service, _instance,
+                        _eventgroup, _subscription, its_offer_type);
+            } else {
+                _subscription->set_tcp_connection_established(false);
+            }
+        } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE &&
+                its_reliable && its_unreliable) {
+            if (its_reliable->is_established() && its_unreliable->is_established()) {
+                its_data = create_eventgroup_entry(_service, _instance,
+                        _eventgroup, _subscription, its_offer_type);
+            } else {
+                if (!its_reliable->is_established()) {
+                    _subscription->set_tcp_connection_established(false);
+                }
+                if (!its_unreliable->is_established()) {
+                    _subscription->set_udp_connection_established(false);
                 }
             }
         }
 
-        const uint8_t max_parallel_subscriptions = 16; // 4Bit Counter field
-        subscribe_count = static_cast<uint8_t>(subscribed_[_service][_instance][_eventgroup].size());
-        if (subscribe_count >= max_parallel_subscriptions) {
-            VSOMEIP_WARNING << "Too many parallel subscriptions (max.16) on same event group: "
-                            << std::hex << _eventgroup << std::dec;
+        if (its_data.entry_) {
+            if (_subscription->is_selective()) {
+                auto its_selective_option = std::make_shared<selective_option_impl>();
+                (void)its_selective_option->add_client(_client);
+
+                its_data.options_.push_back(its_selective_option);
+            }
+
+            // TODO: Implement a simple path, that sends a single message
+            auto its_current_message = std::make_shared<message_impl>();
+            std::vector<std::shared_ptr<message_impl> > its_messages;
+            its_messages.push_back(its_current_message);
+
+            add_entry_data(its_messages, its_data);
+
+            serialize_and_send(its_messages, its_address);
+        }
+    }
+}
+
+void
+service_discovery_impl::get_subscription_endpoints(
+        service_t _service, instance_t _instance,
+        std::shared_ptr<endpoint> &_reliable,
+        std::shared_ptr<endpoint> &_unreliable) const {
+    _unreliable = host_->find_or_create_remote_client(
+            _service, _instance, false, VSOMEIP_ROUTING_CLIENT);
+    _reliable = host_->find_or_create_remote_client(
+            _service, _instance, true, VSOMEIP_ROUTING_CLIENT);
+}
+
+void
+service_discovery_impl::get_subscription_address(
+        const std::shared_ptr<endpoint> &_reliable,
+        const std::shared_ptr<endpoint> &_unreliable,
+        boost::asio::ip::address &_address) const {
+    if (_reliable) {
+        auto its_client_endpoint
+            = std::dynamic_pointer_cast<client_endpoint>(_reliable);
+        if (its_client_endpoint) {
+            its_client_endpoint->get_remote_address(_address);
             return;
         }
     }
-
-    std::shared_ptr < endpoint > its_unreliable;
-    std::shared_ptr < endpoint > its_reliable;
-    bool has_address(false);
-    boost::asio::ip::address its_address;
-
-    get_subscription_endpoints(its_unreliable, its_reliable,
-            &its_address, &has_address, _service, _instance, _client);
-
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime) {
-        return;
-    }
-    std::shared_ptr<message_impl> its_message = its_runtime->create_message();
-    {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-        // New subscription
-        std::shared_ptr < subscription > its_subscription = std::make_shared
-                < subscription > (_major, _ttl, its_reliable, its_unreliable,
-                        _subscription_type, subscribe_count);
-        subscribed_[_service][_instance][_eventgroup][_client] = its_subscription;
-        if (has_address) {
-
-            if (_client != VSOMEIP_ROUTING_CLIENT) {
-                if (its_subscription->get_endpoint(true) &&
-                        !host_->has_identified(_client, _service, _instance, true)) {
-                    return;
-                }
-                if (its_subscription->get_endpoint(false) &&
-                        !host_->has_identified(_client, _service, _instance, false)) {
-                    return;
-                }
-            }
-
-            const remote_offer_type_e its_offer_type = get_remote_offer_type(
-                    _service, _instance);
-
-            if (its_offer_type == remote_offer_type_e::UNRELIABLE &&
-                    !its_subscription->get_endpoint(true) &&
-                    its_subscription->get_endpoint(false)) {
-                if (its_subscription->get_endpoint(false)->is_established()) {
-                    insert_subscription(its_message,
-                            _service, _instance,
-                            _eventgroup,
-                            its_subscription, its_offer_type);
-                } else {
-                    its_subscription->set_udp_connection_established(false);
-                }
-            } else if (its_offer_type == remote_offer_type_e::RELIABLE &&
-                    its_subscription->get_endpoint(true) &&
-                    !its_subscription->get_endpoint(false)) {
-                if (its_subscription->get_endpoint(true)->is_established()) {
-                    insert_subscription(its_message,
-                            _service, _instance,
-                            _eventgroup,
-                            its_subscription, its_offer_type);
-                } else {
-                    its_subscription->set_tcp_connection_established(false);
-                }
-            } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE &&
-                    its_subscription->get_endpoint(true) &&
-                    its_subscription->get_endpoint(false)) {
-                if (its_subscription->get_endpoint(true)->is_established() &&
-                        its_subscription->get_endpoint(false)->is_established()) {
-                    insert_subscription(its_message,
-                            _service, _instance,
-                            _eventgroup,
-                            its_subscription, its_offer_type);
-                } else {
-                    if (!its_subscription->get_endpoint(true)->is_established()) {
-                        its_subscription->set_tcp_connection_established(false);
-                    }
-                    if (!its_subscription->get_endpoint(false)->is_established()) {
-                        its_subscription->set_udp_connection_established(false);
-                    }
-                }
-            }
-
-            if(0 < its_message->get_entries().size()) {
-                its_subscription->set_acknowledged(false);
-            }
-        }
-    }
-    if (has_address && its_message->get_entries().size()
-            && its_message->get_options().size()) {
-        serialize_and_send(its_message, its_address);
-    }
-}
-
-void service_discovery_impl::get_subscription_endpoints(
-        std::shared_ptr<endpoint>& _unreliable,
-        std::shared_ptr<endpoint>& _reliable, boost::asio::ip::address* _address,
-        bool* _has_address,
-        service_t _service, instance_t _instance, client_t _client) const {
-    _reliable = host_->find_or_create_remote_client(_service, _instance,
-            true, _client);
-    _unreliable = host_->find_or_create_remote_client(_service,
-            _instance, false, _client);
     if (_unreliable) {
-        std::shared_ptr<client_endpoint> its_client_endpoint =
-                std::dynamic_pointer_cast<client_endpoint>(_unreliable);
+        auto its_client_endpoint
+            = std::dynamic_pointer_cast<client_endpoint>(_unreliable);
         if (its_client_endpoint) {
-            *_has_address = its_client_endpoint->get_remote_address(
-                    *_address);
-        }
-    }
-    if (_reliable) {
-        std::shared_ptr<client_endpoint> its_client_endpoint =
-                std::dynamic_pointer_cast<client_endpoint>(_reliable);
-        if (its_client_endpoint) {
-            *_has_address = *_has_address
-                    || its_client_endpoint->get_remote_address(
-                            *_address);
+            its_client_endpoint->get_remote_address(_address);
         }
     }
 }
 
-void service_discovery_impl::unsubscribe(service_t _service,
+void
+service_discovery_impl::unsubscribe(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, client_t _client) {
     std::shared_ptr < runtime > its_runtime = runtime_.lock();
-    if(!its_runtime) {
-        return;
-    }
-    std::shared_ptr < message_impl > its_message = its_runtime->create_message();
-    boost::asio::ip::address its_address;
-    bool has_address(false);
-    {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-        std::shared_ptr < subscription > its_subscription;
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const remote_offer_type_e its_offer_type = get_remote_offer_type(
-                        _service, _instance);
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto found_client = found_eventgroup->second.find(_client);
-                    if (found_client != found_eventgroup->second.end()) {
-                        its_subscription = found_client->second;
-                        its_subscription->set_ttl(0);
-                        found_eventgroup->second.erase(_client);
-                        auto endpoint = its_subscription->get_endpoint(false);
-                        if (endpoint) {
-                            std::shared_ptr<client_endpoint> its_client_endpoint =
-                                    std::dynamic_pointer_cast<client_endpoint>(
-                                            endpoint);
-                            if (its_client_endpoint) {
-                                has_address =
-                                        its_client_endpoint->get_remote_address(
-                                                its_address);
-                            }
-                        } else {
-                            endpoint = its_subscription->get_endpoint(true);
-                            if (endpoint) {
-                                std::shared_ptr<client_endpoint> its_client_endpoint =
-                                        std::dynamic_pointer_cast<
-                                                client_endpoint>(endpoint);
-                                if (its_client_endpoint) {
-                                    has_address =
-                                            its_client_endpoint->get_remote_address(
-                                                    its_address);
-                                }
-                            } else {
-                                return;
-                            }
-                        }
-                        insert_subscription(its_message, _service, _instance,
-                                _eventgroup, its_subscription, its_offer_type);
-                    }
-                }
-            }
-        }
-    }
-    if (has_address && its_message->get_entries().size()
-            && its_message->get_options().size()) {
-        serialize_and_send(its_message, its_address);
-    }
-}
-
-void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            found_instance->second.clear();
-        }
-    }
-}
-
-void service_discovery_impl::unsubscribe_client(service_t _service,
-                                                instance_t _instance,
-                                                client_t _client) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
     if (!its_runtime) {
         return;
     }
-    std::shared_ptr < message_impl > its_message = its_runtime->create_message();
+
+    auto its_current_message = std::make_shared<message_impl>();
+
     boost::asio::ip::address its_address;
-    bool has_address(false);
     {
         std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-        std::shared_ptr < subscription > its_subscription;
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
-                const remote_offer_type_e its_offer_type = get_remote_offer_type(
-                        _service, _instance);
-                for (auto &found_eventgroup : found_instance->second) {
-                    auto found_client = found_eventgroup.second.find(_client);
-                    if (found_client != found_eventgroup.second.end()) {
-                        its_subscription = found_client->second;
-                        its_subscription->set_ttl(0);
-                        found_eventgroup.second.erase(_client);
-                        if (!has_address) {
-                            auto endpoint = its_subscription->get_endpoint(
-                                    false);
-                            if (endpoint) {
-                                std::shared_ptr<client_endpoint> its_client_endpoint =
-                                        std::dynamic_pointer_cast<
-                                                client_endpoint>(endpoint);
-                                if (its_client_endpoint) {
-                                    has_address =
-                                            its_client_endpoint->get_remote_address(
-                                                    its_address);
-                                }
-                            } else {
-                                endpoint = its_subscription->get_endpoint(true);
-                                if (endpoint) {
-                                    std::shared_ptr<client_endpoint> its_client_endpoint =
-                                            std::dynamic_pointer_cast<
-                                                    client_endpoint>(endpoint);
-                                    if (its_client_endpoint) {
-                                        has_address =
-                                                its_client_endpoint->get_remote_address(
-                                                        its_address);
-                                    }
-                                } else {
-                                    return;
-                                }
-                            }
+                auto found_eventgroup = found_instance->second.find(_eventgroup);
+                if (found_eventgroup != found_instance->second.end()) {
+                    auto its_subscription = found_eventgroup->second;
+                    if (its_subscription->remove_client(_client)) {
+                        auto its_reliable = its_subscription->get_endpoint(true);
+                        auto its_unreliable = its_subscription->get_endpoint(false);
+                        get_subscription_address(
+                                its_reliable, its_unreliable, its_address);
+                        if (!its_subscription->has_client()) {
+                            its_subscription->set_ttl(0);
+                        } else if (its_subscription->is_selective()) {
+                            auto its_major = its_subscription->get_major();
+
+                            // create a dummy subscription object to unsubscribe
+                            // the single client.
+                            its_subscription = std::make_shared<subscription>();
+                            its_subscription->set_major(its_major);
+                            its_subscription->set_ttl(0);
+                            its_subscription->set_selective(true);
+                            its_subscription->add_client(_client);
+                            its_subscription->set_endpoint(its_reliable, true);
+                            its_subscription->set_endpoint(its_unreliable, false);
                         }
-                        insert_subscription(its_message, _service, _instance,
-                                found_eventgroup.first, its_subscription, its_offer_type);
+                    }
+
+                    const remote_offer_type_e its_offer_type
+                        = get_remote_offer_type(its_subscription);
+
+                    auto its_data = create_eventgroup_entry(_service, _instance,
+                        _eventgroup, its_subscription, its_offer_type);
+                    if (its_data.entry_) {
+                        its_current_message->add_entry_data(its_data.entry_, its_data.options_);
+                    }
+
+                    // Finally update the subscriptions
+                    if (!its_subscription->has_client()) {
+                        found_instance->second.erase(found_eventgroup);
+                        if (found_instance->second.size() == 0) {
+                            found_service->second.erase(found_instance);
+                        }
                     }
                 }
             }
         }
     }
-    if (has_address && its_message->get_entries().size()
-            && its_message->get_options().size()) {
-        serialize_and_send(its_message, its_address);
-    }
+
+    std::vector<std::shared_ptr<message_impl> > its_messages;
+    its_messages.push_back(its_current_message);
+
+    serialize_and_send(its_messages, its_address);
 }
 
-std::pair<session_t, bool> service_discovery_impl::get_session(
+void
+service_discovery_impl::unsubscribe_all(
+        service_t _service, instance_t _instance) {
+
+    auto its_current_message = std::make_shared<message_impl>();;
+    boost::asio::ip::address its_address;
+    const remote_offer_type_e its_offer_type
+        = get_remote_offer_type(_service, _instance);
+
+    {
+        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        auto found_service = subscribed_.find(_service);
+        if (found_service != subscribed_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                for (auto &its_eventgroup : found_instance->second) {
+                    auto its_subscription = its_eventgroup.second;
+                    its_subscription->set_ttl(0);
+                    auto its_data = create_eventgroup_entry(_service, _instance,
+                            its_eventgroup.first, its_subscription, its_offer_type);
+                    auto its_reliable = its_subscription->get_endpoint(true);
+                    auto its_unreliable = its_subscription->get_endpoint(false);
+                    get_subscription_address(
+                            its_reliable, its_unreliable, its_address);
+                    if (its_data.entry_) {
+                        its_current_message->add_entry_data(its_data.entry_, its_data.options_);
+                    }
+                }
+                found_instance->second.clear();
+            }
+        }
+    }
+
+    std::vector<std::shared_ptr<message_impl> > its_messages;
+    its_messages.push_back(its_current_message);
+
+    serialize_and_send(its_messages, its_address);
+}
+
+std::pair<session_t, bool>
+service_discovery_impl::get_session(
         const boost::asio::ip::address &_address) {
     std::pair<session_t, bool> its_session;
     auto found_session = sessions_sent_.find(_address);
@@ -519,7 +516,8 @@ std::pair<session_t, bool> service_discovery_impl::get_session(
     return its_session;
 }
 
-void service_discovery_impl::increment_session(
+void
+service_discovery_impl::increment_session(
         const boost::asio::ip::address &_address) {
     auto found_session = sessions_sent_.find(_address);
     if (found_session != sessions_sent_.end()) {
@@ -530,7 +528,8 @@ void service_discovery_impl::increment_session(
     }
 }
 
-bool service_discovery_impl::is_reboot(
+bool
+service_discovery_impl::is_reboot(
         const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_destination,
         bool _reboot_flag, session_t _session) {
@@ -603,149 +602,17 @@ bool service_discovery_impl::is_reboot(
     return result;
 }
 
-template<class Option, typename AddressType>
-std::shared_ptr<option_impl> service_discovery_impl::find_existing_option(
-    std::shared_ptr<message_impl> &_message,
-    AddressType _address,
-    uint16_t _port, layer_four_protocol_e _protocol,
-    option_type_e _option_type) {
-    if (_message->get_options().size() > 0) {
-        std::uint16_t option_length(0x0);
-        if(_option_type == option_type_e::IP4_ENDPOINT ||
-           _option_type == option_type_e::IP4_MULTICAST) {
-            option_length = 0x9;
-        } else if(_option_type == option_type_e::IP6_ENDPOINT ||
-                  _option_type == option_type_e::IP6_MULTICAST) {
-            option_length = 0x15;
-        } else { // unsupported option type
-            return nullptr;
-        }
-
-        bool is_multicast(false);
-        if(_option_type == option_type_e::IP4_MULTICAST ||
-           _option_type == option_type_e::IP6_MULTICAST) {
-            is_multicast = true;
-        }
-
-        std::vector<std::shared_ptr<option_impl>> its_options =
-                _message->get_options();
-        for (const std::shared_ptr<option_impl>& opt : its_options) {
-            if (opt->get_length() == option_length &&
-                opt->get_type() == _option_type &&
-                std::static_pointer_cast<ip_option_impl>(opt)->get_layer_four_protocol() == _protocol &&
-                std::static_pointer_cast<ip_option_impl>(opt)->get_port() == _port &&
-                std::static_pointer_cast<Option>(opt)->is_multicast() == is_multicast &&
-                std::static_pointer_cast<Option>(opt)->get_address() == _address) {
-                return opt;
-            }
-        }
-    }
-    return nullptr;
-}
-template<class Option, typename AddressType>
-bool service_discovery_impl::check_message_for_ip_option_and_assign_existing(
-        std::shared_ptr<message_impl> &_message,
-        std::shared_ptr<entry_impl> _entry, AddressType _address,
-        uint16_t _port, layer_four_protocol_e _protocol,
-        option_type_e _option_type) {
-
-    std::shared_ptr<option_impl> its_option
-        = find_existing_option<Option, AddressType>(_message, _address, _port, _protocol, _option_type);
-    if (its_option) {
-        _entry->assign_option(its_option);
-        return true;
-    }
-    return false;
-}
-
-template<class Option, typename AddressType>
-void service_discovery_impl::assign_ip_option_to_entry(
-        std::shared_ptr<Option> _option, AddressType _address,
-        uint16_t _port, layer_four_protocol_e _protocol,
-        std::shared_ptr<entry_impl> _entry) {
-    if (_option) {
-        _option->set_address(_address);
-        _option->set_port(_port);
-        _option->set_layer_four_protocol(_protocol);
-        _entry->assign_option(_option);
-    }
-}
-
-void service_discovery_impl::insert_option(
-        std::shared_ptr<message_impl> &_message,
-        std::shared_ptr<entry_impl> _entry,
-        const boost::asio::ip::address &_address, uint16_t _port,
-        bool _is_reliable) {
-    layer_four_protocol_e its_protocol =
-            _is_reliable ? layer_four_protocol_e::TCP :
-                    layer_four_protocol_e::UDP;
-    bool entry_assigned(false);
-
-    if (unicast_ == _address) {
-        if (unicast_.is_v4()) {
-            ipv4_address_t its_address = unicast_.to_v4().to_bytes();
-            entry_assigned = check_message_for_ip_option_and_assign_existing<
-                    ipv4_option_impl, ipv4_address_t>(_message, _entry,
-                    its_address, _port, its_protocol,
-                    option_type_e::IP4_ENDPOINT);
-            if(!entry_assigned) {
-                std::shared_ptr < ipv4_option_impl > its_option =
-                        _message->create_ipv4_option(false);
-                assign_ip_option_to_entry<ipv4_option_impl, ipv4_address_t>(
-                        its_option, its_address, _port, its_protocol, _entry);
-            }
-        } else {
-            ipv6_address_t its_address = unicast_.to_v6().to_bytes();
-            entry_assigned = check_message_for_ip_option_and_assign_existing<
-                    ipv6_option_impl, ipv6_address_t>(_message, _entry,
-                    its_address, _port, its_protocol,
-                    option_type_e::IP6_ENDPOINT);
-            if(!entry_assigned) {
-                std::shared_ptr < ipv6_option_impl > its_option =
-                        _message->create_ipv6_option(false);
-                assign_ip_option_to_entry<ipv6_option_impl, ipv6_address_t>(
-                        its_option, its_address, _port, its_protocol, _entry);
-            }
-        }
-    } else {
-        if (_address.is_v4()) {
-            ipv4_address_t its_address = _address.to_v4().to_bytes();
-            entry_assigned = check_message_for_ip_option_and_assign_existing<
-                    ipv4_option_impl, ipv4_address_t>(_message, _entry,
-                    its_address, _port, its_protocol,
-                    option_type_e::IP4_MULTICAST);
-            if(!entry_assigned) {
-                std::shared_ptr < ipv4_option_impl > its_option =
-                        _message->create_ipv4_option(true);
-                assign_ip_option_to_entry<ipv4_option_impl, ipv4_address_t>(
-                        its_option, its_address, _port, its_protocol, _entry);
-            }
-        } else {
-            ipv6_address_t its_address = _address.to_v6().to_bytes();
-            entry_assigned = check_message_for_ip_option_and_assign_existing<
-                    ipv6_option_impl, ipv6_address_t>(_message, _entry,
-                    its_address, _port, its_protocol,
-                    option_type_e::IP6_MULTICAST);
-            if(!entry_assigned) {
-                std::shared_ptr < ipv6_option_impl > its_option =
-                        _message->create_ipv6_option(true);
-                assign_ip_option_to_entry<ipv6_option_impl, ipv6_address_t>(
-                        its_option, its_address, _port, its_protocol, _entry);
-            }
-        }
-    }
-}
-
-void service_discovery_impl::insert_find_entries(
-        std::shared_ptr<message_impl> &_message, const requests_t &_requests,
-        uint32_t _start, uint32_t &_size, bool &_done) {
+void
+service_discovery_impl::insert_find_entries(
+        std::vector<std::shared_ptr<message_impl> > &_messages,
+        const requests_t &_requests) {
     std::lock_guard<std::mutex> its_lock(requested_mutex_);
-    uint32_t its_size(0);
-    uint32_t i = 0;
 
-    _done = true;
-    for (auto its_service : _requests) {
-        for (auto its_instance : its_service.second) {
+    entry_data_t its_data;
+    its_data.entry_ = its_data.other_ = nullptr;
+
+    for (const auto& its_service : _requests) {
+        for (const auto& its_instance : its_service.second) {
             auto its_request = its_instance.second;
 
             // check if release_service was called
@@ -755,47 +622,36 @@ void service_discovery_impl::insert_find_entries(
                 if(the_instance != the_service->second.end() ) {
                     uint8_t its_sent_counter = its_request->get_sent_counter();
                     if (its_sent_counter != repetitions_max_ + 1) {
-                        if (i >= _start) {
-                            if (its_size + VSOMEIP_SOMEIP_SD_ENTRY_SIZE <= max_message_size_) {
-                                std::shared_ptr < serviceentry_impl > its_entry =
-                                        _message->create_service_entry();
-                                if (its_entry) {
-                                    its_entry->set_type(entry_type_e::FIND_SERVICE);
-                                    its_entry->set_service(its_service.first);
-                                    its_entry->set_instance(its_instance.first);
-                                    its_entry->set_major_version(its_request->get_major());
-                                    its_entry->set_minor_version(its_request->get_minor());
-                                    its_entry->set_ttl(its_request->get_ttl());
-                                    its_size += VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
-                                    its_sent_counter++;
+                        auto its_entry = std::make_shared<serviceentry_impl>();
+                        if (its_entry) {
+                            its_entry->set_type(entry_type_e::FIND_SERVICE);
+                            its_entry->set_service(its_service.first);
+                            its_entry->set_instance(its_instance.first);
+                            its_entry->set_major_version(its_request->get_major());
+                            its_entry->set_minor_version(its_request->get_minor());
+                            its_entry->set_ttl(its_request->get_ttl());
+                            its_sent_counter++;
 
-                                    its_request->set_sent_counter(its_sent_counter);
-                                } else {
-                                    VSOMEIP_ERROR << "Failed to create service entry!";
-                                }
-                            } else {
-                                _done = false;
-                                _size = its_size;
-                                return;
-                            }
+                            its_request->set_sent_counter(its_sent_counter);
+
+                            its_data.entry_ = its_entry;
+                            add_entry_data(_messages, its_data);
+                        } else {
+                            VSOMEIP_ERROR << "Failed to create service entry!";
                         }
                     }
-                    i++;
                 }
             }
-
         }
     }
-    _size = its_size;
 }
 
-void service_discovery_impl::insert_offer_entries(
-        std::shared_ptr<message_impl> &_message, const services_t &_services,
-        uint32_t &_start, uint32_t _size, bool &_done, bool _ignore_phase) {
-    uint32_t i = 0;
-    uint32_t its_size(_size);
-    for (const auto its_service : _services) {
-        for (const auto its_instance : its_service.second) {
+void
+service_discovery_impl::insert_offer_entries(
+        std::vector<std::shared_ptr<message_impl> > &_messages,
+        const services_t &_services, bool _ignore_phase) {
+    for (const auto& its_service : _services) {
+        for (const auto& its_instance : its_service.second) {
             if ((!is_suspended_)
                     && ((!is_diagnosis_)
                     || (is_diagnosis_
@@ -804,31 +660,24 @@ void service_discovery_impl::insert_offer_entries(
                 // Only insert services with configured endpoint(s)
                 if ((_ignore_phase || its_instance.second->is_in_mainphase())
                         && (its_instance.second->get_endpoint(false)
-                                || its_instance.second->get_endpoint(true))
-                        && its_instance.second->get_ttl() > 0) {
-                    if (i >= _start) {
-                        if (!insert_offer_service(_message, its_service.first,
-                                its_instance.first, its_instance.second, its_size)) {
-                            _start = i;
-                            _done = false;
-                            return;
-                        }
-                    }
+                                || its_instance.second->get_endpoint(true))) {
+                    insert_offer_service(_messages, its_instance.second);
                 }
-                i++;
             }
         }
     }
-    _start = i;
-    _done = true;
 }
 
-bool service_discovery_impl::insert_subscription(
-        std::shared_ptr<message_impl> &_message, service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup,
-        std::shared_ptr<subscription> &_subscription,
+entry_data_t
+service_discovery_impl::create_eventgroup_entry(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        const std::shared_ptr<subscription> &_subscription,
         remote_offer_type_e _offer_type) {
-    bool ret(false);
+
+    entry_data_t its_data;
+    its_data.entry_ = nullptr;
+    its_data.other_ = nullptr;
+
     std::shared_ptr<endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
     std::shared_ptr<endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
 
@@ -855,279 +704,253 @@ bool service_discovery_impl::insert_subscription(
             break;
     }
 
-    if (!insert_reliable && !insert_unreliable) {
+    if (!insert_reliable && !insert_unreliable
+            && _offer_type != remote_offer_type_e::UNKNOWN) {
         VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
                 "subscription doesn't match offer type: ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
                 << _offer_type;
-        return false;
+        return its_data;
     }
-    std::shared_ptr<eventgroupentry_impl> its_entry;
+    std::shared_ptr<eventgroupentry_impl> its_entry, its_other;
     if (insert_reliable && its_reliable_endpoint) {
         const std::uint16_t its_port = its_reliable_endpoint->get_local_port();
         if (its_port) {
-            its_entry = _message->create_eventgroup_entry();
+            its_entry = std::make_shared<eventgroupentry_impl>();
+            if (!its_entry) {
+                VSOMEIP_ERROR << __func__
+                        << ": Could not create eventgroup entry.";
+                return its_data;
+            }
+
             its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
             its_entry->set_service(_service);
             its_entry->set_instance(_instance);
             its_entry->set_eventgroup(_eventgroup);
-            its_entry->set_counter(_subscription->get_counter());
+            its_entry->set_counter(0);
             its_entry->set_major_version(_subscription->get_major());
             its_entry->set_ttl(_subscription->get_ttl());
-            insert_option(_message, its_entry, unicast_, its_port, true);
-            ret = true;
+            its_data.entry_ = its_entry;
+
+            for (const auto its_client : _subscription->get_clients()) {
+                if (_subscription->get_state(its_client)
+                        == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
+                    its_other = std::make_shared<eventgroupentry_impl>();
+                    its_other->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+                    its_other->set_service(_service);
+                    its_other->set_instance(_instance);
+                    its_other->set_eventgroup(_eventgroup);
+                    its_other->set_counter(0);
+                    its_other->set_major_version(_subscription->get_major());
+                    its_other->set_ttl(0);
+                    its_data.other_ = its_other;
+                    break;
+                }
+            }
+
+            auto its_option = create_ip_option(unicast_, its_port, true);
+            its_data.options_.push_back(its_option);
         } else {
             VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
                     "local reliable port is zero: ["
                     << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            ret = false;
+            return its_data;
         }
     }
+
     if (insert_unreliable && its_unreliable_endpoint) {
         const std::uint16_t its_port = its_unreliable_endpoint->get_local_port();
         if (its_port) {
             if (!its_entry) {
-                its_entry = _message->create_eventgroup_entry();
+                its_entry = std::make_shared<eventgroupentry_impl>();
+                if (!its_entry) {
+                    VSOMEIP_ERROR << __func__
+                            << ": Could not create eventgroup entry.";
+                    return its_data;
+                }
+
                 its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
                 its_entry->set_service(_service);
                 its_entry->set_instance(_instance);
                 its_entry->set_eventgroup(_eventgroup);
-                its_entry->set_counter(_subscription->get_counter());
+                its_entry->set_counter(0);
                 its_entry->set_major_version(_subscription->get_major());
                 its_entry->set_ttl(_subscription->get_ttl());
+
+                its_data.entry_ = its_entry;
             }
-            insert_option(_message, its_entry, unicast_, its_port, false);
-            ret = true;
+
+            for (const auto its_client : _subscription->get_clients()) {
+                if (_subscription->get_state(its_client)
+                        == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
+                    if (!its_other) {
+                        its_other = std::make_shared<eventgroupentry_impl>();
+                        its_other->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+                        its_other->set_service(_service);
+                        its_other->set_instance(_instance);
+                        its_other->set_eventgroup(_eventgroup);
+                        its_other->set_counter(0);
+                        its_other->set_major_version(_subscription->get_major());
+                        its_other->set_ttl(0);
+                        its_data.other_ = its_other;
+                        break;
+                    }
+                }
+            }
+
+            auto its_option = create_ip_option(unicast_, its_port, false);
+            its_data.options_.push_back(its_option);
         } else {
             VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
                     " local unreliable port is zero: ["
                     << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            ret = false;
+            return its_data;
         }
     }
-    return ret;
-}
 
-bool service_discovery_impl::insert_nack_subscription_on_resubscribe(std::shared_ptr<message_impl> &_message,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            std::shared_ptr<subscription> &_subscription, remote_offer_type_e _offer_type) {
-    bool ret(false);
-    // SIP_SD_844:
-    // This method is used for not acknowledged subscriptions on renew subscription
-    // Two entries: Stop subscribe & subscribe within one SD-Message
-    // One option: Both entries reference it
+    if (its_entry
+            &&_subscription->is_selective()) {
+        auto its_selective_option = std::make_shared<selective_option_impl>();
+        for (const auto &its_client : _subscription->get_clients())
+            (void)its_selective_option->add_client(its_client);
 
-    auto insert_entry = [&](ttl_t _ttl) {
-        std::shared_ptr<eventgroupentry_impl> its_entry =
-                _message->create_eventgroup_entry();
-        // SUBSCRIBE_EVENTGROUP and STOP_SUBSCRIBE_EVENTGROUP are identical
-        its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
-        its_entry->set_service(_service);
-        its_entry->set_instance(_instance);
-        its_entry->set_eventgroup(_eventgroup);
-        its_entry->set_counter(_subscription->get_counter());
-        its_entry->set_major_version(_subscription->get_major());
-        its_entry->set_ttl(_ttl);
-        return its_entry;
-    };
-
-    std::shared_ptr<endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
-    std::shared_ptr<endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
-
-    if (_offer_type == remote_offer_type_e::UNRELIABLE &&
-            !its_reliable_endpoint && its_unreliable_endpoint) {
-        if (its_unreliable_endpoint->is_established()) {
-            const std::uint16_t its_port = its_unreliable_endpoint->get_local_port();
-            if (its_port) {
-                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
-                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
-                insert_option(_message, its_stop_entry, unicast_, its_port, false);
-                insert_option(_message, its_entry, unicast_, its_port, false);
-                ret = true;
-            } else {
-                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                        "local unreliable port is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            }
-        } else {
-            _subscription->set_udp_connection_established(false);
-        }
-    } else if (_offer_type == remote_offer_type_e::RELIABLE &&
-            its_reliable_endpoint && !its_unreliable_endpoint) {
-        if (its_reliable_endpoint->is_established()) {
-            const std::uint16_t its_port = its_reliable_endpoint->get_local_port();
-            if (its_port) {
-                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
-                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
-                insert_option(_message, its_stop_entry, unicast_, its_port, true);
-                insert_option(_message, its_entry, unicast_, its_port, true);
-                ret = true;
-            } else {
-                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                        "local reliable port is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            }
-        } else {
-            _subscription->set_tcp_connection_established(false);
-        }
-    } else if (_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE &&
-            its_reliable_endpoint && its_unreliable_endpoint) {
-        if (its_reliable_endpoint->is_established() &&
-                its_unreliable_endpoint->is_established()) {
-            const std::uint16_t its_reliable_port = its_reliable_endpoint->get_local_port();
-            const std::uint16_t its_unreliable_port = its_unreliable_endpoint->get_local_port();
-            if (its_reliable_port && its_unreliable_port) {
-                std::shared_ptr<eventgroupentry_impl> its_stop_entry = insert_entry(0);
-                std::shared_ptr<eventgroupentry_impl> its_entry = insert_entry(_subscription->get_ttl());
-                insert_option(_message, its_stop_entry, unicast_, its_reliable_port, true);
-                insert_option(_message, its_entry, unicast_, its_reliable_port, true);
-                insert_option(_message, its_stop_entry, unicast_, its_unreliable_port, false);
-                insert_option(_message, its_entry, unicast_, its_unreliable_port, false);
-                ret = true;
-            } else if (!its_reliable_port) {
-                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                        "local reliable port is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            } else if (!its_unreliable_port) {
-                VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
-                        "local unreliable port is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
-            }
-        } else {
-            if (!its_reliable_endpoint->is_established()) {
-                _subscription->set_tcp_connection_established(false);
-            }
-            if (!its_unreliable_endpoint->is_established()) {
-                _subscription->set_udp_connection_established(false);
-            }
-        }
-    } else {
-        VSOMEIP_WARNING << __func__ << ": Couldn't insert StopSubscribe/Subscribe ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
-                << _offer_type;
+        its_data.options_.push_back(its_selective_option);
     }
-    return ret;
+
+    if (its_entry && its_other) {
+        its_data.entry_ = its_other;
+        its_data.other_ = its_entry;
+    }
+
+    return its_data;
 }
 
-void service_discovery_impl::insert_subscription_ack(
-        std::shared_ptr<message_impl> &_message, service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup,
+void
+service_discovery_impl::insert_subscription_ack(
+        const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
         const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
-        uint8_t _counter, major_version_t _major, uint16_t _reserved,
-        const std::shared_ptr<endpoint_definition> &_target) {
-    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
-    _message->increase_number_contained_acks();
-    for (auto its_entry : _message->get_entries()) {
+        const std::shared_ptr<endpoint_definition> &_target,
+        const client_t _client) {
+    std::unique_lock<std::recursive_mutex> its_lock(_acknowledgement->get_lock());
+    auto its_message = _acknowledgement->get_current_message();
+
+    auto its_service = _info->get_service();
+    auto its_instance = _info->get_instance();
+    auto its_eventgroup = _info->get_eventgroup();
+    auto its_major = _info->get_major();
+
+    for (const auto& its_entry : its_message->get_entries()) {
         if (its_entry->is_eventgroup_entry()) {
-            std::shared_ptr < eventgroupentry_impl > its_eventgroup_entry =
-                    std::dynamic_pointer_cast < eventgroupentry_impl
-                            > (its_entry);
-            if(its_eventgroup_entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
-                    && its_eventgroup_entry->get_service() == _service
-                    && its_eventgroup_entry->get_instance() == _instance
-                    && its_eventgroup_entry->get_eventgroup() == _eventgroup
-                    && its_eventgroup_entry->get_major_version() == _major
-                    && its_eventgroup_entry->get_reserved() == _reserved
-                    && its_eventgroup_entry->get_counter() == _counter
+            std::shared_ptr<eventgroupentry_impl> its_eventgroup_entry
+                = std::dynamic_pointer_cast<eventgroupentry_impl>(its_entry);
+            if (its_eventgroup_entry->get_type()
+                    == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
+                    && its_eventgroup_entry->get_service() == its_service
+                    && its_eventgroup_entry->get_instance() == its_instance
+                    && its_eventgroup_entry->get_eventgroup() == its_eventgroup
+                    && its_eventgroup_entry->get_major_version() == its_major
                     && its_eventgroup_entry->get_ttl() == _ttl) {
-                if (_target) {
-                    if (_target->is_reliable()) {
-                        if (!its_eventgroup_entry->get_target(true)) {
-                            its_eventgroup_entry->add_target(_target);
-                        }
-                    } else {
-                        if (!its_eventgroup_entry->get_target(false)) {
-                            its_eventgroup_entry->add_target(_target);
+
+                if (_ttl > 0) {
+                    if (_target) {
+                        if (_target->is_reliable()) {
+                            if (!its_eventgroup_entry->get_target(true)) {
+                                its_eventgroup_entry->add_target(_target);
+                            }
+                        } else {
+                            if (!its_eventgroup_entry->get_target(false)) {
+                                its_eventgroup_entry->add_target(_target);
+                            }
                         }
                     }
                 }
+
+                if (_client != VSOMEIP_ROUTING_CLIENT) {
+                    auto its_selective_option = its_eventgroup_entry->get_selective_option();
+                    if (its_selective_option) {
+                        its_selective_option->add_client(_client);
+                    }
+                }
+
                 return;
             }
         }
     }
 
-    std::shared_ptr < eventgroupentry_impl > its_entry =
-            _message->create_eventgroup_entry();
+    entry_data_t its_data;
+
+    std::shared_ptr<eventgroupentry_impl> its_entry
+        = std::make_shared<eventgroupentry_impl>();
     its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
-    its_entry->set_service(_service);
-    its_entry->set_instance(_instance);
-    its_entry->set_eventgroup(_eventgroup);
-    its_entry->set_major_version(_major);
-    its_entry->set_reserved(_reserved);
-    its_entry->set_counter(_counter);
+    its_entry->set_service(its_service);
+    its_entry->set_instance(its_instance);
+    its_entry->set_eventgroup(its_eventgroup);
+    its_entry->set_major_version(its_major);
+    its_entry->set_reserved(0);
+    its_entry->set_counter(0);
     // SWS_SD_00315
     its_entry->set_ttl(_ttl);
-    if (_target) {
-        its_entry->add_target(_target);
+    if (_ttl > 0) {
+        if (_target) {
+            its_entry->add_target(_target);
+        }
+
+        boost::asio::ip::address its_address;
+        uint16_t its_port;
+        if (_info->get_multicast(its_address, its_port)
+                && _info->get_threshold() > 0) {
+            // SIP_SD_855
+            // Only insert a multicast option for eventgroups with multicast threshold > 0
+            auto its_option = create_ip_option(its_address, its_port, false);
+            its_data.options_.push_back(its_option);
+        }
+    }
+    // Selective
+    if (_client != VSOMEIP_ROUTING_CLIENT) {
+        auto its_selective_option = std::make_shared<selective_option_impl>();
+        (void)its_selective_option->add_client(_client);
+
+        its_data.options_.push_back(its_selective_option);
     }
 
-    boost::asio::ip::address its_address;
-    uint16_t its_port;
-    if (_info->get_multicast(its_address, its_port)) {
-        insert_option(_message, its_entry, its_address, its_port, false);
-    }
+    its_data.entry_ = its_entry;
+    its_data.other_ = nullptr;
+
+    add_entry_data_to_remote_subscription_ack_msg(_acknowledgement, its_data);
 }
 
-void service_discovery_impl::insert_subscription_nack(
-        std::shared_ptr<message_impl> &_message, service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup,
-                uint8_t _counter, major_version_t _major, uint16_t _reserved) {
-    std::unique_lock<std::mutex> its_lock(_message->get_message_lock());
-    std::shared_ptr < eventgroupentry_impl > its_entry =
-            _message->create_eventgroup_entry();
-    // SWS_SD_00316 and SWS_SD_00385
-    its_entry->set_type(entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK);
-    its_entry->set_service(_service);
-    its_entry->set_instance(_instance);
-    its_entry->set_eventgroup(_eventgroup);
-    its_entry->set_major_version(_major);
-    its_entry->set_reserved(_reserved);
-    its_entry->set_counter(_counter);
-    // SWS_SD_00432
-    its_entry->set_ttl(0x0);
-    _message->increase_number_contained_acks();
-}
-
-bool service_discovery_impl::send(bool _is_announcing) {
+bool
+service_discovery_impl::send(bool _is_announcing) {
     std::shared_ptr < runtime > its_runtime = runtime_.lock();
     if (its_runtime) {
-        std::vector< std::shared_ptr< message_impl > > its_messages;
-        std::shared_ptr < message_impl > its_message;
+        std::vector<std::shared_ptr<message_impl> > its_messages;
+        std::shared_ptr<message_impl> its_message;
 
-        if(_is_announcing) {
-            its_message = its_runtime->create_message();
+        if (_is_announcing) {
+            its_message = std::make_shared<message_impl>();
             its_messages.push_back(its_message);
 
             std::lock_guard<std::mutex> its_lock(offer_mutex_);
             services_t its_offers = host_->get_offered_services();
-            fill_message_with_offer_entries(its_runtime, its_message,
-                    its_messages, its_offers, false);
+            insert_offer_entries(its_messages, its_offers, false);
 
             // Serialize and send
-            return serialize_and_send_messages(its_messages);
+            return send(its_messages);
         }
     }
     return false;
 }
 
 // Interface endpoint_host
-void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
+void
+service_discovery_impl::on_message(
+        const byte_t *_data, length_t _length,
         const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_destination) {
 #if 0
@@ -1147,21 +970,22 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
     if (!check_source_address(_sender)) {
         return;
     }
-    if (_destination == sd_multicast_address_) {
+    const bool received_via_mcast = (_destination == sd_multicast_address_);
+    if (received_via_mcast) {
         std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
         boost::system::error_code ec;
         last_msg_received_timer_.cancel(ec);
-        last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
+        last_msg_received_timer_.expires_from_now(
+                last_msg_received_timer_timeout_, ec);
         last_msg_received_timer_.async_wait(
-                std::bind(
-                        &service_discovery_impl::on_last_msg_received_timer_expired,
-                        shared_from_this(), std::placeholders::_1));
+                std::bind(&service_discovery_impl::on_last_msg_received_timer_expired,
+                          shared_from_this(), std::placeholders::_1));
     }
 
     current_remote_address_ = _sender;
     deserializer_->set_data(_data, _length);
-    std::shared_ptr < message_impl
-            > its_message(deserializer_->deserialize_sd_message());
+    std::shared_ptr<message_impl> its_message(
+            deserializer_->deserialize_sd_message());
     deserializer_->reset();
     if (its_message) {
         // ignore all messages which are sent with invalid header fields
@@ -1187,55 +1011,51 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                 reboot_notification_handler_(ip);
             }
         }
-        std::vector < std::shared_ptr<option_impl> > its_options =
-                its_message->get_options();
+
+        std::vector<std::shared_ptr<option_impl> > its_options
+            = its_message->get_options();
 
         std::shared_ptr<runtime> its_runtime = runtime_.lock();
         if (!its_runtime) {
             return;
         }
 
-        std::shared_ptr < message_impl > its_message_response
-            = its_runtime->create_message();
+        auto its_acknowledgement = std::make_shared<remote_subscription_ack>(_sender);
 
-        std::uint8_t its_required_acks =
-                its_message->get_number_required_acks();
-        its_message_response->set_number_required_acks(its_required_acks);
-        std::shared_ptr<sd_message_identifier_t> its_message_id =
-                std::make_shared<sd_message_identifier_t>(
-                        its_message->get_session(), _sender, _destination,
-                        its_message_response);
-
-        std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>> its_resubscribes;
-        // 28 Bytes for SD-Header + Length Entries and Options Array
-        its_resubscribes.push_back(std::make_pair(28, its_runtime->create_message()));
+        std::vector<std::shared_ptr<message_impl> > its_resubscribes;
+        its_resubscribes.push_back(std::make_shared<message_impl>());
 
         const message_impl::entries_t& its_entries = its_message->get_entries();
         const message_impl::entries_t::const_iterator its_end = its_entries.end();
         bool is_stop_subscribe_subscribe(false);
+        bool force_initial_events(false);
 
-        bool offer_acceptance_queried(false);
+        bool sd_acceptance_queried(false);
         bool accept_offers(false);
         bool expired_services(false);
 
         for (auto iter = its_entries.begin(); iter != its_end; iter++) {
-            if (!offer_acceptance_queried) {
-                if (offer_acceptance_handler_) {
-                    ip_address_t ip;
-                    if (configuration_->offer_acceptance_required(_sender)) {
+            if (!sd_acceptance_queried) {
+                if (sd_acceptance_handler_) {
+                    remote_info_t remote;
+                    remote.port_ = ANY_PORT;
+                    remote.first_ = ANY_PORT;
+                    remote.last_ = ANY_PORT;
+                    remote.is_range_ = false;
+                    if (configuration_->sd_acceptance_required(_sender, ANY_PORT)) {
                         if (_sender.is_v4()) {
-                            ip.address_.v4_ = _sender.to_v4().to_bytes();
-                            ip.is_v4_ = true;
+                            remote.ip_.address_.v4_ = _sender.to_v4().to_bytes();
+                            remote.ip_.is_v4_ = true;
                         } else {
-                            ip.address_.v6_ = _sender.to_v6().to_bytes();
-                            ip.is_v4_ = false;
+                            remote.ip_.address_.v6_ = _sender.to_v6().to_bytes();
+                            remote.ip_.is_v4_ = false;
                         }
-                        accept_offers = offer_acceptance_handler_(ip);
+                        accept_offers = sd_acceptance_handler_(remote);
                         if (!accept_offers && !expired_services) {
-
-                            VSOMEIP_INFO << "service_discovery_impl::on_message: Do not accept offer / subscribe from: "
-                                           << std::hex << std::setw(4) << std::setfill('0') << _sender.to_string();
-
+                            VSOMEIP_WARNING << "service_discovery_impl::" << __func__
+                                    << ": Do not accept offer / subscribe from "
+                                    << std::hex << std::setw(4) << std::setfill('0')
+                                    << _sender.to_string();
                             remove_remote_offer_type_by_ip(_sender);
                             host_->expire_subscriptions(_sender);
                             host_->expire_services(_sender);
@@ -1244,85 +1064,82 @@ void service_discovery_impl::on_message(const byte_t *_data, length_t _length,
                     } else {
                         accept_offers = true;
                     }
-                    offer_acceptance_queried = true;
                 } else {
-                    offer_acceptance_queried = true;
                     accept_offers = true;
                 }
+                sd_acceptance_queried = true;
             }
             if ((*iter)->is_service_entry()) {
-                std::shared_ptr < serviceentry_impl > its_service_entry =
-                        std::dynamic_pointer_cast < serviceentry_impl
-                                > (*iter);
+                std::shared_ptr<serviceentry_impl> its_service_entry
+                    = std::dynamic_pointer_cast<serviceentry_impl>(*iter);
                 bool its_unicast_flag = its_message->get_unicast_flag();
                 process_serviceentry(its_service_entry, its_options,
-                        its_unicast_flag, &its_resubscribes, accept_offers);
-            } else {
-                if (accept_offers) {
-                    std::shared_ptr < eventgroupentry_impl > its_eventgroup_entry =
-                            std::dynamic_pointer_cast < eventgroupentry_impl
-                                    > (*iter);
-                    bool force_initial_events(false);
+                        its_unicast_flag, its_resubscribes,
+                        received_via_mcast, accept_offers);
+            } else if (accept_offers) {
+                std::shared_ptr<eventgroupentry_impl> its_eventgroup_entry
+                    = std::dynamic_pointer_cast<eventgroupentry_impl>(*iter);
+
+                bool must_process(true);
+                // Do we need to process it?
+                if (its_eventgroup_entry->get_type()
+                        == entry_type_e::SUBSCRIBE_EVENTGROUP) {
+                    must_process = !has_same(iter, its_end, its_options);
+                }
+
+                if (must_process) {
                     if (is_stop_subscribe_subscribe) {
                         force_initial_events = true;
                     }
-                    is_stop_subscribe_subscribe = check_stop_subscribe_subscribe(
-                            iter, its_end, its_message->get_options());
+                    is_stop_subscribe_subscribe =
+                            check_stop_subscribe_subscribe(iter, its_end, its_options);
                     process_eventgroupentry(its_eventgroup_entry, its_options,
-                            its_message_response, _destination,
-                            its_message_id, is_stop_subscribe_subscribe, force_initial_events);
-                } else {
-                    its_required_acks = 0;
+                            its_acknowledgement, _destination,
+                            is_stop_subscribe_subscribe, force_initial_events);
+                }
+
+            }
+        }
+
+        {
+            std::unique_lock<std::recursive_mutex> its_lock(its_acknowledgement->get_lock());
+            its_acknowledgement->complete();
+            // TODO: Check the following logic...
+            if (its_acknowledgement->has_subscription()) {
+                update_acknowledgement(its_acknowledgement);
+            } else {
+                if (!its_acknowledgement->is_pending()
+                    && !its_acknowledgement->is_done()) {
+                    send_subscription_ack(its_acknowledgement);
                 }
             }
         }
 
-        // send answer directly if SubscribeEventgroup entries were (n)acked
-        if (its_required_acks || its_message_response->get_number_required_acks() > 0) {
-            bool sent(false);
-            {
-                std::lock_guard<std::mutex> its_lock(response_mutex_);
-                if (its_message_response->all_required_acks_contained()) {
-                    update_subscription_expiration_timer(its_message_response);
-                    serialize_and_send(its_message_response, _sender);
-                    // set required acks to 0xFF to mark message as sent
-                    its_message_response->set_number_required_acks((std::numeric_limits<uint8_t>::max)());
-                    sent = true;
-                }
-            }
-            if (sent) {
-                for (const auto &fie : its_message_response->forced_initial_events_get()) {
-                    host_->send_initial_events(fie.service_, fie.instance_,
-                            fie.eventgroup_, fie.target_);
-                }
-                if (its_message_response->initial_events_required()) {
-                    for (const auto& ack_tuple :
-                            get_eventgroups_requiring_initial_events(its_message_response)) {
-                        host_->send_initial_events(std::get<0>(ack_tuple),
-                                std::get<1>(ack_tuple), std::get<2>(ack_tuple),
-                                std::get<3>(ack_tuple));
-                    }
-                }
+        // check resubscriptions for validity
+        for (auto iter = its_resubscribes.begin(); iter != its_resubscribes.end();) {
+            if ((*iter)->get_entries().empty() || (*iter)->get_options().empty()) {
+                iter = its_resubscribes.erase(iter);
+            } else {
+                iter++;
             }
         }
-        for (const auto& response : its_resubscribes) {
-            if (response.second->get_entries().size() && response.second->get_options().size()) {
-                serialize_and_send(response.second, _sender);
-            }
+        if (!its_resubscribes.empty()) {
+            serialize_and_send(its_resubscribes, _sender);
         }
     } else {
-        VSOMEIP_ERROR << "service_discovery_impl::on_message: deserialization error.";
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Deserialization error.";
         return;
     }
 }
 
 // Entry processing
-void service_discovery_impl::process_serviceentry(
+void
+service_discovery_impl::process_serviceentry(
         std::shared_ptr<serviceentry_impl> &_entry,
         const std::vector<std::shared_ptr<option_impl> > &_options,
         bool _unicast_flag,
-        std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes,
-        bool _accept_offers) {
+        std::vector<std::shared_ptr<message_impl> > &_resubscribes,
+        bool _received_via_mcast, bool _accept_offers) {
 
     // Read service info from entry
     entry_type_e its_type = _entry->get_type();
@@ -1390,7 +1207,7 @@ void service_discovery_impl::process_serviceentry(
                     break;
                 case option_type_e::UNKNOWN:
                 default:
-                    VSOMEIP_ERROR << "Unsupported service option";
+                    VSOMEIP_ERROR << __func__ << ": Unsupported service option";
                     break;
                 }
             }
@@ -1405,15 +1222,16 @@ void service_discovery_impl::process_serviceentry(
                 break;
             case entry_type_e::OFFER_SERVICE:
                 if (_accept_offers) {
-                    process_offerservice_serviceentry(its_service, its_instance,
-                            its_major, its_minor, its_ttl,
-                            its_reliable_address, its_reliable_port,
-                            its_unreliable_address, its_unreliable_port, _resubscribes);
+                process_offerservice_serviceentry(its_service, its_instance,
+                        its_major, its_minor, its_ttl,
+                        its_reliable_address, its_reliable_port,
+                        its_unreliable_address, its_unreliable_port, _resubscribes,
+                        _received_via_mcast);
                 }
                 break;
             case entry_type_e::UNKNOWN:
             default:
-                VSOMEIP_ERROR << "Unsupported serviceentry type";
+                VSOMEIP_ERROR << __func__ << ": Unsupported service entry type";
         }
 
     } else if (_accept_offers) {
@@ -1435,14 +1253,16 @@ void service_discovery_impl::process_serviceentry(
     }
 }
 
-void service_discovery_impl::process_offerservice_serviceentry(
+void
+service_discovery_impl::process_offerservice_serviceentry(
         service_t _service, instance_t _instance, major_version_t _major,
         minor_version_t _minor, ttl_t _ttl,
         const boost::asio::ip::address &_reliable_address,
         uint16_t _reliable_port,
         const boost::asio::ip::address &_unreliable_address,
         uint16_t _unreliable_port,
-        std::vector<std::pair<std::uint16_t, std::shared_ptr<message_impl>>>* _resubscribes) {
+        std::vector<std::shared_ptr<message_impl> > &_resubscribes,
+        bool _received_via_mcast) {
     std::shared_ptr < runtime > its_runtime = runtime_.lock();
     if (!its_runtime)
         return;
@@ -1465,7 +1285,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
             && !_reliable_address.is_unspecified()) {
         offer_type = remote_offer_type_e::RELIABLE;
     } else {
-        VSOMEIP_WARNING << __func__ << ": unknown remote offer type ["
+        VSOMEIP_WARNING << __func__ << ": Unknown remote offer type ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
     }
@@ -1477,170 +1297,50 @@ void service_discovery_impl::process_offerservice_serviceentry(
                 << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
     }
 
-
     host_->add_routing_info(_service, _instance,
                             _major, _minor,
                             _ttl * get_ttl_factor(_service, _instance, ttl_factor_offers_),
                             _reliable_address, _reliable_port,
                             _unreliable_address, _unreliable_port);
 
-    const std::function<void(std::uint16_t)> check_space =
-            [&_resubscribes, &its_runtime](std::uint16_t _number) {
-        if (_resubscribes->back().first + _number > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-            // 28 Bytes for SD-Header + Length Entries and Options Array
-            _resubscribes->push_back(std::make_pair(28 + _number,
-                                                    its_runtime->create_message()));
-        } else {
-            _resubscribes->back().first =
-                    static_cast<std::uint16_t>(_resubscribes->back().first + _number);
-        }
-    };
+    // No need to resubscribe for unicast offers
+    if (_received_via_mcast) {
+        std::int32_t its_remaining = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+        its_remaining -= _resubscribes.back()->get_size();
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            if (0 < found_instance->second.size()) {
-                const remote_offer_type_e its_offer_type =
-                        get_remote_offer_type(_service, _instance);
-                for (auto its_eventgroup : found_instance->second) {
-                    for (auto its_client : its_eventgroup.second) {
-                        std::shared_ptr<subscription> its_subscription(its_client.second);
-                        std::shared_ptr<endpoint> its_unreliable;
-                        std::shared_ptr<endpoint> its_reliable;
-                        bool has_address(false);
-                        boost::asio::ip::address its_address;
-                        get_subscription_endpoints(
-                                its_unreliable, its_reliable, &its_address,
-                                &has_address, _service, _instance,
-                                its_client.first);
+        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        auto found_service = subscribed_.find(_service);
+        if (found_service != subscribed_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                if (0 < found_instance->second.size()) {
+                    const remote_offer_type_e its_offer_type =
+                            get_remote_offer_type(_service, _instance);
+                    for (const auto& its_eventgroup : found_instance->second) {
+                        auto its_subscription = its_eventgroup.second;
+                        std::shared_ptr<endpoint> its_reliable, its_unreliable;
+                        get_subscription_endpoints(_service, _instance,
+                                its_reliable, its_unreliable);
                         its_subscription->set_endpoint(its_reliable, true);
                         its_subscription->set_endpoint(its_unreliable, false);
-                        if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
-                            if (its_client.second->get_endpoint(true) &&
-                                    !host_->has_identified(its_client.first, _service,
-                                            _instance, true)) {
-                                continue;
-                            }
-                            if (its_client.second->get_endpoint(false) &&
-                                    !host_->has_identified(its_client.first, _service,
-                                            _instance, false)) {
-                                continue;
+                        for (const auto& its_client : its_subscription->get_clients()) {
+                            if (its_subscription->get_state(its_client)
+                                    == subscription_state_e::ST_ACKNOWLEDGED) {
+                                its_subscription->set_state(its_client,
+                                        subscription_state_e::ST_RESUBSCRIBING);
+                            } else {
+                                its_subscription->set_state(its_client,
+                                        subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
                             }
                         }
-
-                        if (its_subscription->is_acknowledged()) {
-                            if (its_offer_type == remote_offer_type_e::UNRELIABLE) {
-                                if (its_unreliable && its_unreliable->is_established()) {
-                                    // 28 = 16 (subscription) + 12 (option)
-                                    check_space(28);
-                                    const std::size_t options_size_before =
-                                            _resubscribes->back().second->get_options().size();
-                                    if (insert_subscription(_resubscribes->back().second,
-                                            _service, _instance,
-                                            its_eventgroup.first,
-                                            its_subscription, its_offer_type)) {
-                                        its_subscription->set_acknowledged(false);
-                                        const std::size_t options_size_after =
-                                                _resubscribes->back().second->get_options().size();
-                                        const std::size_t diff = options_size_after - options_size_before;
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first + (12u * diff - 12u));
-                                    } else {
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first - 28);
-                                    }
-                                }
-                            } else if (its_offer_type == remote_offer_type_e::RELIABLE) {
-                                if (its_reliable && its_reliable->is_established()) {
-                                    // 28 = 16 (subscription) + 12 (option)
-                                    check_space(28);
-                                    const std::size_t options_size_before =
-                                            _resubscribes->back().second->get_options().size();
-                                    if (insert_subscription(_resubscribes->back().second,
-                                            _service, _instance,
-                                            its_eventgroup.first,
-                                            its_subscription, its_offer_type)) {
-                                        its_subscription->set_acknowledged(false);
-                                        const std::size_t options_size_after =
-                                                _resubscribes->back().second->get_options().size();
-                                        const std::size_t diff = options_size_after - options_size_before;
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first + (12u * diff - 12u));
-                                    } else {
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first - 28);
-                                    }
-                                } else {
-                                    its_client.second->set_tcp_connection_established(false);
-                                    // restart TCP endpoint if not connected
-                                    if (its_reliable) {
-                                        its_reliable->restart();
-                                    }
-                                }
-                            } else if (its_offer_type == remote_offer_type_e::RELIABLE_UNRELIABLE) {
-                                if (its_reliable && its_unreliable &&
-                                        its_reliable->is_established() &&
-                                        its_unreliable->is_established()) {
-                                    // 40 = 16 (subscription) + 2x12 (option)
-                                    check_space(40);
-                                    const std::size_t options_size_before =
-                                            _resubscribes->back().second->get_options().size();
-                                    if (insert_subscription(_resubscribes->back().second,
-                                            _service, _instance,
-                                            its_eventgroup.first,
-                                            its_subscription, its_offer_type)) {
-                                        its_subscription->set_acknowledged(false);
-                                        const std::size_t options_size_after =
-                                                _resubscribes->back().second->get_options().size();
-                                        const std::size_t diff = options_size_after - options_size_before;
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first + (12u * diff - 24u));
-                                    } else {
-                                        _resubscribes->back().first =
-                                                static_cast<std::uint16_t>(
-                                                        _resubscribes->back().first - 40);
-                                    }
-                                } else if (its_reliable && !its_reliable->is_established()) {
-                                    its_client.second->set_tcp_connection_established(false);
-                                    // restart TCP endpoint if not connected
-                                    its_reliable->restart();
-                                }
-                            } else {
-                                VSOMEIP_WARNING << __func__ << ": unknown remote offer type ["
-                                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
-                            }
-                        } else {
-                            // 56 = 2x16 (subscription) + 2x12 (option)
-                            check_space(56);
-                            const std::size_t options_size_before =
-                                    _resubscribes->back().second->get_options().size();
-                            if (insert_nack_subscription_on_resubscribe(_resubscribes->back().second,
-                                    _service, _instance, its_eventgroup.first,
-                                    its_subscription, its_offer_type) ) {
-                                const std::size_t options_size_after =
-                                        _resubscribes->back().second->get_options().size();
-                                const std::size_t diff = options_size_after - options_size_before;
-                                _resubscribes->back().first =
-                                        static_cast<std::uint16_t>(
-                                                _resubscribes->back().first + (12u * diff - 24u));
-                            } else {
-                                _resubscribes->back().first =
-                                        static_cast<std::uint16_t>(
-                                                _resubscribes->back().first - 56u);
-                            }
-
-                            // restart TCP endpoint if not connected
-                            if (its_reliable && !its_reliable->is_established()) {
-                                its_reliable->restart();
-                            }
+                        auto its_data = create_eventgroup_entry(_service, _instance,
+                                its_eventgroup.first, its_subscription, its_offer_type);
+                        if (its_data.entry_) {
+                            add_entry_data(_resubscribes, its_data);
+                        }
+                        for (const auto its_client : its_subscription->get_clients()) {
+                            its_subscription->set_state(its_client,
+                                    subscription_state_e::ST_NOT_ACKNOWLEDGED);
                         }
                     }
                 }
@@ -1649,80 +1349,34 @@ void service_discovery_impl::process_offerservice_serviceentry(
     }
 }
 
-void service_discovery_impl::process_findservice_serviceentry(
-        service_t _service, instance_t _instance, major_version_t _major,
-        minor_version_t _minor, bool _unicast_flag) {
+void
+service_discovery_impl::process_findservice_serviceentry(
+        service_t _service, instance_t _instance,
+        major_version_t _major, minor_version_t _minor,
+        bool _unicast_flag) {
 
     if (_instance != ANY_INSTANCE) {
         std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(
                 _service, _instance);
         if (its_info) {
-            send_uni_or_multicast_offerservice(_service, _instance, _major,
-                    _minor, its_info, _unicast_flag);
+            if (_major == ANY_MAJOR || _major == its_info->get_major()) {
+                if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
+                    if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
+                        send_uni_or_multicast_offerservice(its_info, _unicast_flag);
+                    }
+                }
+            }
         }
     } else {
         std::map<instance_t, std::shared_ptr<serviceinfo>> offered_instances =
                 host_->get_offered_service_instances(_service);
         // send back all available instances
         for (const auto &found_instance : offered_instances) {
-            send_uni_or_multicast_offerservice(_service, found_instance.first, _major,
-                    _minor, found_instance.second, _unicast_flag);
-        }
-    }
-}
-
-void service_discovery_impl::send_unicast_offer_service(
-        const std::shared_ptr<const serviceinfo> &_info, service_t _service,
-        instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (_major == ANY_MAJOR || _major == _info->get_major()) {
-        if (_minor == 0xFFFFFFFF || _minor <= _info->get_minor()) {
-            if (_info->get_endpoint(false) || _info->get_endpoint(true)) {
-                std::shared_ptr<runtime> its_runtime = runtime_.lock();
-                if (!its_runtime) {
-                    return;
-                }
-                std::shared_ptr<message_impl> its_message =
-                        its_runtime->create_message();
-                uint32_t its_size(max_message_size_);
-                insert_offer_service(its_message, _service, _instance, _info,
-                        its_size);
-                if (current_remote_address_.is_unspecified()) {
-                    VSOMEIP_ERROR << "service_discovery_impl::"
-                            "send_unicast_offer_service current remote address "
-                            "is unspecified, won't send offer.";
-                } else {
-                    serialize_and_send(its_message, current_remote_address_);
-                }
-            }
-        }
-    }
-}
-
-void service_discovery_impl::send_multicast_offer_service(
-        const std::shared_ptr<const serviceinfo> &_info, service_t _service,
-        instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    if (_major == ANY_MAJOR || _major == _info->get_major()) {
-        if (_minor == 0xFFFFFFFF || _minor <= _info->get_minor()) {
-            if (_info->get_endpoint(false) || _info->get_endpoint(true)) {
-                std::shared_ptr<runtime> its_runtime = runtime_.lock();
-                if (!its_runtime) {
-                    return;
-                }
-                std::shared_ptr<message_impl> its_message =
-                        its_runtime->create_message();
-
-                uint32_t its_size(max_message_size_);
-                insert_offer_service(its_message, _service, _instance, _info,
-                        its_size);
-
-                if (its_message->get_entries().size() > 0) {
-                    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-                    std::pair<session_t, bool> its_session = get_session(
-                            unicast_);
-                    its_message->set_session(its_session.first);
-                    its_message->set_reboot_flag(its_session.second);
-                    if (host_->send(VSOMEIP_SD_CLIENT, its_message, true)) {
-                        increment_session(unicast_);
+            auto its_info = found_instance.second;
+            if (_major == ANY_MAJOR || _major == its_info->get_major()) {
+                if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
+                    if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
+                        send_uni_or_multicast_offerservice(its_info, _unicast_flag);
                     }
                 }
             }
@@ -1730,20 +1384,57 @@ void service_discovery_impl::send_multicast_offer_service(
     }
 }
 
-void service_discovery_impl::on_endpoint_connected(
-        service_t _service, instance_t _instance,
-        const std::shared_ptr<const vsomeip::endpoint> &_endpoint) {
+void
+service_discovery_impl::send_unicast_offer_service(
+        const std::shared_ptr<const serviceinfo> &_info) {
     std::shared_ptr<runtime> its_runtime = runtime_.lock();
     if (!its_runtime) {
         return;
     }
 
-    // send out subscriptions for services where the tcp connection
-    // wasn't established at time of subscription
+    auto its_offer_message(std::make_shared<message_impl>());
+    std::vector<std::shared_ptr<message_impl> > its_messages;
+    its_messages.push_back(its_offer_message);
 
-    std::shared_ptr<message_impl> its_message(its_runtime->create_message());
-    bool has_address(false);
+    insert_offer_service(its_messages, _info);
+
+    serialize_and_send(its_messages, current_remote_address_);
+}
+
+void
+service_discovery_impl::send_multicast_offer_service(
+        const std::shared_ptr<const serviceinfo> &_info) {
+    auto its_offer_message(std::make_shared<message_impl>());
+    std::vector<std::shared_ptr<message_impl> > its_messages;
+    its_messages.push_back(its_offer_message);
+
+    insert_offer_service(its_messages, _info);
+
+    serialize_and_send(its_messages, current_remote_address_);
+}
+
+void
+service_discovery_impl::on_endpoint_connected(
+        service_t _service, instance_t _instance,
+        const std::shared_ptr<endpoint> &_endpoint) {
+    std::shared_ptr<runtime> its_runtime = runtime_.lock();
+    if (!its_runtime) {
+        return;
+    }
+
+    // TODO: Simplify this method! It is not clear, why we need to check
+    // both endpoints here although the method is always called for a
+    // single one.
+
+    std::vector<std::shared_ptr<message_impl> > its_messages;
+    its_messages.push_back(std::make_shared<message_impl>());
     boost::asio::ip::address its_address;
+
+    std::shared_ptr<endpoint> its_dummy;
+    if (_endpoint->is_reliable())
+        get_subscription_address(_endpoint, its_dummy, its_address);
+    else
+        get_subscription_address(its_dummy, _endpoint, its_address);
 
     {
         std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
@@ -1751,62 +1442,56 @@ void service_discovery_impl::on_endpoint_connected(
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
-                if(0 < found_instance->second.size()) {
+                if (0 < found_instance->second.size()) {
                     const remote_offer_type_e its_offer_type =
                             get_remote_offer_type(_service, _instance);
-                    for(const auto &its_eventgroup : found_instance->second) {
-                        for(const auto &its_client : its_eventgroup.second) {
-                            if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
-                                if (its_client.second->get_endpoint(true) &&
-                                        !host_->has_identified(its_client.first, _service,
-                                            _instance, true)) {
-                                    continue;
-                                }
-                                if (its_client.second->get_endpoint(false) &&
-                                        !host_->has_identified(its_client.first, _service,
-                                            _instance, false)) {
-                                    continue;
-                                }
-                            }
-                            std::shared_ptr<subscription> its_subscription(its_client.second);
-                            if (its_subscription) {
-                                if (!its_subscription->is_tcp_connection_established() ||
-                                        !its_subscription->is_udp_connection_established()) {
-                                    const std::shared_ptr<const endpoint> its_reliable_endpoint(
-                                            its_subscription->get_endpoint(true));
-                                    const std::shared_ptr<const endpoint> its_unreliable_endpoint(
-                                            its_subscription->get_endpoint(false));
-                                    if(its_reliable_endpoint && its_reliable_endpoint->is_established()) {
-                                        if(its_reliable_endpoint.get() == _endpoint.get()) {
-                                            // mark tcp as established
-                                            its_subscription->set_tcp_connection_established(true);
-                                        }
+                    for (const auto &its_eventgroup : found_instance->second) {
+                        std::shared_ptr<subscription> its_subscription(its_eventgroup.second);
+                        if (its_subscription) {
+                            if (!its_subscription->is_tcp_connection_established() ||
+                                    !its_subscription->is_udp_connection_established()) {
+                                const std::shared_ptr<const endpoint> its_reliable_endpoint(
+                                        its_subscription->get_endpoint(true));
+                                const std::shared_ptr<const endpoint> its_unreliable_endpoint(
+                                        its_subscription->get_endpoint(false));
+                                if (its_reliable_endpoint && its_reliable_endpoint->is_established()) {
+                                    if (its_reliable_endpoint.get() == _endpoint.get()) {
+                                        // mark tcp as established
+                                        its_subscription->set_tcp_connection_established(true);
                                     }
-                                    if(its_unreliable_endpoint && its_unreliable_endpoint->is_established()) {
-                                        if(its_unreliable_endpoint.get() == _endpoint.get()) {
-                                            // mark udp as established
-                                            its_subscription->set_udp_connection_established(true);
-                                        }
+                                }
+                                if (its_unreliable_endpoint && its_unreliable_endpoint->is_established()) {
+                                    if (its_unreliable_endpoint.get() == _endpoint.get()) {
+                                        // mark udp as established
+                                        its_subscription->set_udp_connection_established(true);
                                     }
-                                    if ((its_reliable_endpoint && its_unreliable_endpoint &&
-                                            its_subscription->is_tcp_connection_established() &&
-                                            its_subscription->is_udp_connection_established()) ||
-                                            (its_reliable_endpoint && !its_unreliable_endpoint &&
-                                                    its_subscription->is_tcp_connection_established()) ||
-                                                    (its_unreliable_endpoint && !its_reliable_endpoint &&
-                                                            its_subscription->is_udp_connection_established())) {
-                                        std::shared_ptr<endpoint> its_unreliable;
-                                        std::shared_ptr<endpoint> its_reliable;
-                                        get_subscription_endpoints(
-                                                its_unreliable, its_reliable, &its_address,
-                                                &has_address, _service, _instance,
-                                                its_client.first);
-                                        its_subscription->set_endpoint(its_reliable, true);
-                                        its_subscription->set_endpoint(its_unreliable, false);
-                                        insert_subscription(its_message, _service,
-                                                _instance, its_eventgroup.first,
-                                                its_subscription, its_offer_type);
-                                        its_subscription->set_acknowledged(false);
+                                }
+
+                                if ((its_reliable_endpoint && its_unreliable_endpoint &&
+                                        its_subscription->is_tcp_connection_established() &&
+                                        its_subscription->is_udp_connection_established()) ||
+                                        (its_reliable_endpoint && !its_unreliable_endpoint &&
+                                                its_subscription->is_tcp_connection_established()) ||
+                                                (its_unreliable_endpoint && !its_reliable_endpoint &&
+                                                        its_subscription->is_udp_connection_established())) {
+
+                                    std::shared_ptr<endpoint> its_unreliable;
+                                    std::shared_ptr<endpoint> its_reliable;
+                                    get_subscription_endpoints(_service, _instance,
+                                            its_reliable, its_unreliable);
+                                    get_subscription_address(its_reliable, its_unreliable, its_address);
+
+                                    its_subscription->set_endpoint(its_reliable, true);
+                                    its_subscription->set_endpoint(its_unreliable, false);
+                                    for (const auto its_client : its_subscription->get_clients())
+                                        its_subscription->set_state(its_client,
+                                                subscription_state_e::ST_NOT_ACKNOWLEDGED);
+
+                                    auto its_data = create_eventgroup_entry(_service, _instance,
+                                            its_eventgroup.first, its_subscription, its_offer_type);
+
+                                    if (its_data.entry_) {
+                                        add_entry_data(its_messages, its_data);
                                     }
                                 }
                             }
@@ -1816,168 +1501,161 @@ void service_discovery_impl::on_endpoint_connected(
             }
         }
     }
-    if (has_address && its_message->get_entries().size()
-            && its_message->get_options().size()) {
-        serialize_and_send(its_message, its_address);
-    }
+
+    serialize_and_send(its_messages, its_address);
 }
 
-bool service_discovery_impl::insert_offer_service(
-        std::shared_ptr < message_impl > _message, service_t _service,
-        instance_t _instance, const std::shared_ptr<const serviceinfo> &_info,
-        uint32_t &_size) {
+std::shared_ptr<option_impl>
+service_discovery_impl::create_ip_option(
+        const boost::asio::ip::address &_address, uint16_t _port,
+        bool _is_reliable) const {
+    std::shared_ptr<option_impl> its_option;
+    if (_address.is_v4()) {
+        its_option = std::make_shared<ipv4_option_impl>(
+                _address, _port, _is_reliable);
+    } else {
+        its_option = std::make_shared<ipv6_option_impl>(
+                _address, _port, _is_reliable);
+    }
+    return its_option;
+}
 
-    std::shared_ptr < endpoint > its_reliable = _info->get_endpoint(true);
-    std::shared_ptr < endpoint > its_unreliable = _info->get_endpoint(false);
+void
+service_discovery_impl::insert_offer_service(
+        std::vector<std::shared_ptr<message_impl> > &_messages,
+        const std::shared_ptr<const serviceinfo> &_info) {
+    entry_data_t its_data;
+    its_data.entry_ = its_data.other_ = nullptr;
 
-    uint32_t its_size = VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
+    std::shared_ptr<endpoint> its_reliable = _info->get_endpoint(true);
     if (its_reliable) {
-        uint32_t its_endpoint_size(0);
-        if (unicast_.is_v4()) {
-            if (!find_existing_option<ipv4_option_impl, ipv4_address_t>(_message,
-                    unicast_.to_v4().to_bytes(), its_reliable->get_local_port(),
-                    layer_four_protocol_e::TCP, option_type_e::IP4_ENDPOINT)) {
-                its_endpoint_size = VSOMEIP_SOMEIP_SD_IPV4_OPTION_SIZE;
-            }
-        } else {
-            if (!find_existing_option<ipv6_option_impl, ipv6_address_t>(_message,
-                    unicast_.to_v6().to_bytes(), its_reliable->get_local_port(),
-                    layer_four_protocol_e::TCP, option_type_e::IP6_ENDPOINT)) {
-                its_endpoint_size = VSOMEIP_SOMEIP_SD_IPV6_OPTION_SIZE;
-            }
-        }
-        its_size += its_endpoint_size;
+        auto its_new_option = create_ip_option(unicast_,
+                its_reliable->get_local_port(), true);
+        its_data.options_.push_back(its_new_option);
     }
+
+    std::shared_ptr<endpoint> its_unreliable = _info->get_endpoint(false);
     if (its_unreliable) {
-        uint32_t its_endpoint_size(0);
-        if (unicast_.is_v4()) {
-            if (!find_existing_option<ipv4_option_impl, ipv4_address_t>(_message,
-                    unicast_.to_v4().to_bytes(), its_unreliable->get_local_port(),
-                    layer_four_protocol_e::UDP, option_type_e::IP4_ENDPOINT)) {
-                its_endpoint_size = VSOMEIP_SOMEIP_SD_IPV4_OPTION_SIZE;
-            }
-        } else {
-            if (!find_existing_option<ipv6_option_impl, ipv6_address_t>(_message,
-                    unicast_.to_v6().to_bytes(), its_unreliable->get_local_port(),
-                    layer_four_protocol_e::UDP, option_type_e::IP6_ENDPOINT)) {
-                its_endpoint_size = VSOMEIP_SOMEIP_SD_IPV6_OPTION_SIZE;
-            }
-        }
-        its_size += its_endpoint_size;
+        auto its_new_option = create_ip_option(unicast_,
+                its_unreliable->get_local_port(), false);
+        its_data.options_.push_back(its_new_option);
     }
 
-    if (its_size <= _size) {
-        _size -= its_size;
+    auto its_entry = std::make_shared<serviceentry_impl>();
+    if (its_entry) {
+        its_data.entry_ = its_entry;
 
-        std::shared_ptr < serviceentry_impl > its_entry =
-                _message->create_service_entry();
-        if (its_entry) {
-            its_entry->set_type(entry_type_e::OFFER_SERVICE);
-            its_entry->set_service(_service);
-            its_entry->set_instance(_instance);
-            its_entry->set_major_version(_info->get_major());
-            its_entry->set_minor_version(_info->get_minor());
+        its_entry->set_type(entry_type_e::OFFER_SERVICE);
+        its_entry->set_service(_info->get_service());
+        its_entry->set_instance(_info->get_instance());
+        its_entry->set_major_version(_info->get_major());
+        its_entry->set_minor_version(_info->get_minor());
 
-            ttl_t its_ttl = _info->get_ttl();
-            if (its_ttl > 0)
-                its_ttl = ttl_;
-            its_entry->set_ttl(its_ttl);
+        ttl_t its_ttl = _info->get_ttl();
+        if (its_ttl > 0)
+            its_ttl = ttl_;
+        its_entry->set_ttl(its_ttl);
 
-            if (its_reliable) {
-                insert_option(_message, its_entry, unicast_,
-                        its_reliable->get_local_port(), true);
-            }
+        // This would be a clean solution but does _not_ work with the ANDi tool
+        // unsubscribe_all(_service, _instance);
 
-            if (its_unreliable) {
-                insert_option(_message, its_entry, unicast_,
-                        its_unreliable->get_local_port(), false);
-            }
-            // This would be a clean solution but does _not_ work with the ANDi tool
-            //unsubscribe_all(_service, _instance);
-        } else {
-            VSOMEIP_ERROR << "Failed to create service entry.";
-        }
-        return true;
+        add_entry_data(_messages, its_data);
+    } else {
+        VSOMEIP_ERROR << __func__ << ": Failed to create service entry.";
     }
-
-    return false;
 }
 
-void service_discovery_impl::process_eventgroupentry(
+void
+service_discovery_impl::process_eventgroupentry(
         std::shared_ptr<eventgroupentry_impl> &_entry,
         const std::vector<std::shared_ptr<option_impl> > &_options,
-        std::shared_ptr < message_impl > &its_message_response,
+        std::shared_ptr<remote_subscription_ack> &_acknowledgement,
         const boost::asio::ip::address &_destination,
-        const std::shared_ptr<sd_message_identifier_t> &_message_id,
-        bool _is_stop_subscribe_subscribe,
-        bool _force_initial_events) {
+        bool _is_stop_subscribe_subscribe, bool _force_initial_events) {
+
+    auto its_sender = _acknowledgement->get_target_address();
+    auto its_session = _entry->get_owning_message()->get_session();
+
     service_t its_service = _entry->get_service();
     instance_t its_instance = _entry->get_instance();
     eventgroup_t its_eventgroup = _entry->get_eventgroup();
     entry_type_e its_type = _entry->get_type();
     major_version_t its_major = _entry->get_major_version();
     ttl_t its_ttl = _entry->get_ttl();
-    uint16_t its_reserved = _entry->get_reserved();
-    uint8_t its_counter = _entry->get_counter();
 
-    bool has_two_options_ = (_entry->get_num_options(1) + _entry->get_num_options(2) >= 2) ? true : false;
+    auto its_info = host_->find_eventgroup(
+            its_service, its_instance, its_eventgroup);
+    if (!its_info) {
+        if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type) {
+            // We received a subscription for a non-existing eventgroup.
+            // --> Create dummy eventgroupinfo to send Nack.
+            its_info = std::make_shared<eventgroupinfo>(its_service, its_instance,
+                    its_eventgroup, its_major, its_ttl);
+            boost::system::error_code ec;
+            VSOMEIP_ERROR << __func__
+                    << ": Received a SubscribeEventGroup entry for unknown eventgroup "
+                    << " from: " << its_sender.to_string(ec) << " for: ["
+                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup
+                    << "] session: " << std::hex << std::setw(4) << std::setfill('0')
+                    << its_session << ", ttl: " << its_ttl;
+            if (its_ttl > 0) {
+                insert_subscription_ack(_acknowledgement, its_info, 0);
+            }
+        } else {
+            // We received a subscription [n]ack for an eventgroup that does not exist.
+            // --> Remove subscription.
+            unsubscribe(its_service, its_instance, its_eventgroup, VSOMEIP_ROUTING_CLIENT);
+        }
+        return;
+    }
 
     if (_entry->get_owning_message()->get_return_code() != return_code) {
         boost::system::error_code ec;
-        VSOMEIP_ERROR << "Invalid return code in SD header "
-                << _message_id->sender_.to_string(ec) << " session: "
-                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-        if(its_ttl > 0) {
-            if (has_two_options_) {
-                its_message_response->decrease_number_required_acks();
-            }
-            insert_subscription_nack(its_message_response, its_service, its_instance,
-                                     its_eventgroup, its_counter, its_major, its_reserved);
+        VSOMEIP_ERROR << __func__ << ": Invalid return code in SOMEIP/SD header "
+                << its_sender.to_string(ec) << " session: "
+                << std::hex << std::setw(4) << std::setfill('0') << its_session;
+        if (its_ttl > 0) {
+            insert_subscription_ack(_acknowledgement, its_info, 0);
         }
         return;
     }
 
     if(its_type == entry_type_e::SUBSCRIBE_EVENTGROUP) {
-        if( _destination.is_multicast() ) {
+        if (_destination.is_multicast() ) {
             boost::system::error_code ec;
-            VSOMEIP_ERROR << "Received a SubscribeEventGroup entry on multicast address "
-                    << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            if(its_ttl > 0) {
-                if (has_two_options_) {
-                    its_message_response->decrease_number_required_acks();
-                }
-                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                         its_eventgroup, its_counter, its_major, its_reserved);
+            VSOMEIP_ERROR << __func__
+                    << ": Received a SubscribeEventGroup entry on multicast address "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+            if (its_ttl > 0) {
+                insert_subscription_ack(_acknowledgement, its_info, 0);
             }
             return;
         }
         if (_entry->get_num_options(1) == 0
                 && _entry->get_num_options(2) == 0) {
             boost::system::error_code ec;
-            VSOMEIP_ERROR << "Invalid number of options in SubscribeEventGroup entry "
-                    << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            if(its_ttl > 0) {
+            VSOMEIP_ERROR << __func__
+                    << ": Invalid number of options in SubscribeEventGroup entry "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+            if (its_ttl > 0) {
                 // increase number of required acks by one as number required acks
                 // is calculated based on the number of referenced options
-                its_message_response->increase_number_required_acks();
-                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                         its_eventgroup, its_counter, its_major, its_reserved);
+                insert_subscription_ack(_acknowledgement, its_info, 0);
             }
             return;
         }
-        if(_entry->get_owning_message()->get_options_length() < 12) {
+        if (_entry->get_owning_message()->get_options_length() < 12) {
             boost::system::error_code ec;
-            VSOMEIP_ERROR << "Invalid options length in SD message "
-                    << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            if(its_ttl > 0) {
-                if (has_two_options_) {
-                    its_message_response->decrease_number_required_acks();
-                }
-                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                         its_eventgroup, its_counter, its_major, its_reserved);
+            VSOMEIP_ERROR << __func__
+                    << ": Invalid options length in SOMEIP/SD message "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+            if (its_ttl > 0) {
+                insert_subscription_ack(_acknowledgement, its_info, 0);
             }
             return;
         }
@@ -1987,27 +1665,28 @@ void service_discovery_impl::process_eventgroupentry(
                  < static_cast<std::vector<std::shared_ptr<option_impl>>::size_type>(
                      (_entry->get_num_options(1)) + (_entry->get_num_options(2)))) {
             boost::system::error_code ec;
-            VSOMEIP_ERROR << "Fewer options in SD message than "
-                             "referenced in EventGroup entry or malformed option received "
-                    << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            if(its_ttl > 0) {
+            VSOMEIP_ERROR << __func__
+                    << "Fewer options in SOMEIP/SD message than "
+                       "referenced in EventGroup entry or malformed option received "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+            if (its_ttl > 0) {
                 // set to 0 to ensure an answer containing at least this subscribe_nack is sent out
-                its_message_response->set_number_required_acks(0);
-                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                         its_eventgroup, its_counter, its_major, its_reserved);
+                insert_subscription_ack(_acknowledgement, its_info, 0);
             }
             return;
         }
-        if(_entry->get_owning_message()->get_someip_length() < _entry->get_owning_message()->get_length()
+        if (_entry->get_owning_message()->get_someip_length()
+                < _entry->get_owning_message()->get_length()
                 && its_ttl > 0) {
             boost::system::error_code ec;
-            VSOMEIP_ERROR  << std::dec << "SomeIP length field in SubscribeEventGroup message header: ["
-                                << _entry->get_owning_message()->get_someip_length()
-                                << "] bytes, is shorter than length of deserialized message: ["
-                                << (uint32_t) _entry->get_owning_message()->get_length() << "] bytes. "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+            VSOMEIP_ERROR  << __func__
+                    << ": SOME/IP length field in SubscribeEventGroup message header: ["
+                    << std::dec << _entry->get_owning_message()->get_someip_length()
+                    << "] bytes, is shorter than length of deserialized message: ["
+                    << (uint32_t) _entry->get_owning_message()->get_length() << "] bytes. "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
             return;
         }
     }
@@ -2018,6 +1697,7 @@ void service_discovery_impl::process_eventgroupentry(
     boost::asio::ip::address its_second_address;
     uint16_t its_second_port(ILLEGAL_PORT);
     bool is_second_reliable(false);
+    std::set<client_t> its_clients({0}); // maybe overridden for selectives
 
     for (auto i : { 1, 2 }) {
         for (auto its_index : _entry->get_options(uint8_t(i))) {
@@ -2026,21 +1706,19 @@ void service_discovery_impl::process_eventgroupentry(
                 its_option = _options.at(its_index);
             } catch(const std::out_of_range& e) {
 #ifdef _WIN32
-                e; // silence MSVC warining C4101
+                e; // silence MSVC warning C4101
 #endif
                 boost::system::error_code ec;
-                VSOMEIP_ERROR << "Fewer options in SD message than "
-                                 "referenced in EventGroup entry for "
-                                 "option run number: " << i << " "
-                                 << _message_id->sender_.to_string(ec) << " session: "
-                                 << std::hex << std::setw(4) << std::setfill('0')
-                                 << _message_id->session_;
+                VSOMEIP_ERROR << __func__
+                        << ": Fewer options in SD message than "
+                           "referenced in EventGroup entry for "
+                           "option run number: "
+                        << i << " "
+                        << its_sender.to_string(ec) << " session: "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << its_session;
                 if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type && its_ttl > 0) {
-                    if (has_two_options_) {
-                        its_message_response->decrease_number_required_acks();
-                    }
-                    insert_subscription_nack(its_message_response, its_service, its_instance,
-                                             its_eventgroup, its_counter, its_major, its_reserved);
+                    insert_subscription_ack(_acknowledgement, its_info, 0);
                 }
                 return;
             }
@@ -2054,12 +1732,8 @@ void service_discovery_impl::process_eventgroupentry(
                     boost::asio::ip::address_v4 its_ipv4_address(
                             its_ipv4_option->get_address());
                     if (!check_layer_four_protocol(its_ipv4_option)) {
-                        if( its_ttl > 0) {
-                            if (has_two_options_) {
-                                its_message_response->decrease_number_required_acks();
-                            }
-                            insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                     its_eventgroup, its_counter, its_major, its_reserved);
+                        if (its_ttl > 0) {
+                            insert_subscription_ack(_acknowledgement, its_info, 0);
                         }
                         return;
                     }
@@ -2075,33 +1749,27 @@ void service_discovery_impl::process_eventgroupentry(
                         if (is_first_reliable == is_second_reliable
                                 && its_second_port != ILLEGAL_PORT) {
                             if (its_ttl > 0) {
-                                if (has_two_options_) {
-                                     its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Multiple IPv4 endpoint options of same kind referenced! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                            VSOMEIP_ERROR << __func__
+                                    << ": Multiple IPv4 endpoint options of same kind referenced! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
                                     << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
 
-                        if(!check_ipv4_address(its_first_address)
+                        if (!check_ipv4_address(its_first_address)
                                 || 0 == its_first_port) {
-                            if(its_ttl > 0) {
-                                if (has_two_options_) {
-                                    its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                         its_eventgroup, its_counter, its_major, its_reserved);
+                            if (its_ttl > 0) {
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Invalid port or IP address in first IPv4 endpoint option specified! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                            VSOMEIP_ERROR << __func__
+                                    << ": Invalid port or IP address in first IPv4 endpoint option specified! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
                             return;
                         }
                     } else
@@ -2116,33 +1784,27 @@ void service_discovery_impl::process_eventgroupentry(
                         if (is_second_reliable == is_first_reliable
                                 && its_first_port != ILLEGAL_PORT) {
                             if (its_ttl > 0) {
-                                if (has_two_options_) {
-                                     its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Multiple IPv4 endpoint options of same kind referenced! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                            VSOMEIP_ERROR << __func__
+                                    << ": Multiple IPv4 endpoint options of same kind referenced! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
                                     << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
 
-                        if(!check_ipv4_address(its_second_address)
+                        if (!check_ipv4_address(its_second_address)
                                 || 0 == its_second_port) {
-                            if(its_ttl > 0) {
-                                if (has_two_options_) {
-                                    its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                         its_eventgroup, its_counter, its_major, its_reserved);
+                            if (its_ttl > 0) {
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Invalid port or IP address in second IPv4 endpoint option specified! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                            VSOMEIP_ERROR << __func__
+                                    << ": Invalid port or IP address in second IPv4 endpoint option specified! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
                             return;
                         }
                     } else {
@@ -2150,10 +1812,10 @@ void service_discovery_impl::process_eventgroupentry(
                     }
                 } else {
                     boost::system::error_code ec;
-                    VSOMEIP_ERROR
-                            << "Invalid eventgroup option (IPv4 Endpoint)"
-                            << _message_id->sender_.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                    VSOMEIP_ERROR << __func__
+                            << ": Invalid eventgroup option (IPv4 Endpoint)"
+                            << its_sender.to_string(ec) << " session: "
+                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
                 }
                 break;
             }
@@ -2167,16 +1829,12 @@ void service_discovery_impl::process_eventgroupentry(
                             its_ipv6_option->get_address());
                     if (!check_layer_four_protocol(its_ipv6_option)) {
                         if(its_ttl > 0) {
-                            if (has_two_options_) {
-                                its_message_response->decrease_number_required_acks();
-                            }
-                            insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                     its_eventgroup, its_counter, its_major, its_reserved);
+                            insert_subscription_ack(_acknowledgement, its_info, 0);
                         }
                         boost::system::error_code ec;
                         VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option specified! "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                                << its_sender.to_string(ec) << " session: "
+                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
                         return;
                     }
 
@@ -2189,16 +1847,13 @@ void service_discovery_impl::process_eventgroupentry(
                         if (is_first_reliable == is_second_reliable
                                 && its_second_port != ILLEGAL_PORT) {
                             if (its_ttl > 0) {
-                                if (has_two_options_) {
-                                     its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Multiple IPv6 endpoint options of same kind referenced! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                            VSOMEIP_ERROR << __func__
+                                    << ": Multiple IPv6 endpoint options of same kind referenced! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
                                     << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
@@ -2212,16 +1867,13 @@ void service_discovery_impl::process_eventgroupentry(
                         if (is_second_reliable == is_first_reliable
                                 && its_first_port != ILLEGAL_PORT) {
                             if (its_ttl > 0) {
-                                if (has_two_options_) {
-                                     its_message_response->decrease_number_required_acks();
-                                }
-                                insert_subscription_nack(its_message_response, its_service, its_instance,
-                                                          its_eventgroup, its_counter, its_major, its_reserved);
+                                insert_subscription_ack(_acknowledgement, its_info, 0);
                             }
                             boost::system::error_code ec;
-                            VSOMEIP_ERROR << "Multiple IPv6 endpoint options of same kind referenced! "
-                                    << _message_id->sender_.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_
+                            VSOMEIP_ERROR << __func__
+                                    << ": Multiple IPv6 endpoint options of same kind referenced! "
+                                    << its_sender.to_string(ec) << " session: "
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
                                     << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
@@ -2230,10 +1882,10 @@ void service_discovery_impl::process_eventgroupentry(
                     }
                 } else {
                     boost::system::error_code ec;
-                    VSOMEIP_ERROR
-                            << "Invalid eventgroup option (IPv6 Endpoint) "
-                            << _message_id->sender_.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                    VSOMEIP_ERROR << __func__
+                            << ": Invalid eventgroup option (IPv6 Endpoint) "
+                            << its_sender.to_string(ec) << " session: "
+                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
                 }
                 break;
             }
@@ -2260,17 +1912,18 @@ void service_discovery_impl::process_eventgroupentry(
                     if (its_first_port != ILLEGAL_PORT
                             && its_second_port != ILLEGAL_PORT) {
                         boost::system::error_code ec;
-                        VSOMEIP_ERROR << "Multiple IPv4 multicast options referenced! "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                        VSOMEIP_ERROR << __func__
+                                << ": Multiple IPv4 multicast options referenced! "
+                                << its_sender.to_string(ec) << " session: "
+                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
                         return;
                     }
                 } else {
                     boost::system::error_code ec;
-                    VSOMEIP_ERROR
-                            << "Invalid eventgroup option (IPv4 Multicast) "
-                            << _message_id->sender_.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                    VSOMEIP_ERROR << __func__
+                            << ": Invalid eventgroup option (IPv4 Multicast) "
+                            << its_sender.to_string(ec) << " session: "
+                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
                 }
                 break;
             case option_type_e::IP6_MULTICAST:
@@ -2296,33 +1949,41 @@ void service_discovery_impl::process_eventgroupentry(
                     if (its_first_port != ILLEGAL_PORT
                             && its_second_port != ILLEGAL_PORT) {
                         boost::system::error_code ec;
-                        VSOMEIP_ERROR << "Multiple IPv6 multicast options referenced! "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                        VSOMEIP_ERROR << __func__
+                                << "Multiple IPv6 multicast options referenced! "
+                                << its_sender.to_string(ec) << " session: "
+                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
                         return;
                     }
                 } else {
                     boost::system::error_code ec;
-                    VSOMEIP_ERROR
-                            << "Invalid eventgroup option (IPv6 Multicast) "
-                            << _message_id->sender_.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
+                    VSOMEIP_ERROR << __func__
+                            << ": Invalid eventgroup option (IPv6 Multicast) "
+                            << its_sender.to_string(ec) << " session: "
+                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
                 }
                 break;
             case option_type_e::CONFIGURATION: {
-                its_message_response->decrease_number_required_acks();
+                break;
+            }
+            case option_type_e::SELECTIVE: {
+                auto its_selective_option
+                    = std::dynamic_pointer_cast<selective_option_impl>(its_option);
+                if (its_selective_option) {
+                    its_clients = its_selective_option->get_clients();
+                }
                 break;
             }
             case option_type_e::UNKNOWN:
             default:
                 boost::system::error_code ec;
-                VSOMEIP_WARNING << "Unsupported eventgroup option "
-                    << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-                if(its_ttl > 0) {
-                    its_message_response->decrease_number_required_acks();
-                    insert_subscription_nack(its_message_response, its_service, its_instance,
-                                             its_eventgroup, its_counter, its_major, its_reserved);
+                VSOMEIP_WARNING << __func__
+                    << ": Unsupported eventgroup option ["
+                    << std::hex << (int)its_option->get_type() << "] "
+                    << its_sender.to_string(ec) << " session: "
+                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                if (its_ttl > 0) {
+                    insert_subscription_ack(_acknowledgement, its_info, 0);
                     return;
                 }
                 break;
@@ -2332,256 +1993,225 @@ void service_discovery_impl::process_eventgroupentry(
 
     if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type) {
         handle_eventgroup_subscription(its_service, its_instance,
-                its_eventgroup, its_major, its_ttl, its_counter, its_reserved,
+                its_eventgroup, its_major, its_ttl, 0, 0,
                 its_first_address, its_first_port, is_first_reliable,
-                its_second_address, its_second_port, is_second_reliable, its_message_response,
-                _message_id, _is_stop_subscribe_subscribe, _force_initial_events);
+                its_second_address, its_second_port, is_second_reliable,
+                _acknowledgement, _is_stop_subscribe_subscribe,
+                _force_initial_events, its_clients, its_info);
     } else {
-        if( entry_type_e::SUBSCRIBE_EVENTGROUP_ACK == its_type) { //this type is used for ACK and NACK messages
-            if(its_ttl > 0) {
+        if (entry_type_e::SUBSCRIBE_EVENTGROUP_ACK == its_type) { //this type is used for ACK and NACK messages
+            if (its_ttl > 0) {
                 handle_eventgroup_subscription_ack(its_service, its_instance,
-                        its_eventgroup, its_major, its_ttl, its_counter,
+                        its_eventgroup, its_major, its_ttl, 0,
+                        its_clients,
                         its_first_address, its_first_port);
             } else {
-                handle_eventgroup_subscription_nack(its_service, its_instance, its_eventgroup, its_counter);
+                handle_eventgroup_subscription_nack(its_service, its_instance, its_eventgroup,
+                        0, its_clients);
             }
         }
     }
 }
 
-void service_discovery_impl::handle_eventgroup_subscription(service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+void
+service_discovery_impl::handle_eventgroup_subscription(
+        service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, major_version_t _major,
         ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
-        const boost::asio::ip::address &_first_address, uint16_t _first_port, bool _is_first_reliable,
-        const boost::asio::ip::address &_second_address, uint16_t _second_port, bool _is_second_reliable,
-        std::shared_ptr < message_impl > &its_message,
-        const std::shared_ptr<sd_message_identifier_t> &_message_id,
-        bool _is_stop_subscribe_subscribe, bool _force_initial_events) {
+        const boost::asio::ip::address &_first_address, uint16_t _first_port,
+        bool _is_first_reliable,
+        const boost::asio::ip::address &_second_address, uint16_t _second_port,
+        bool _is_second_reliable,
+        std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+        bool _is_stop_subscribe_subscribe, bool _force_initial_events,
+        const std::set<client_t> &_clients,
+        const std::shared_ptr<eventgroupinfo>& _info) {
+    (void)_counter;
+    (void)_reserved;
 
-    if (its_message) {
-        bool has_reliable_events(false);
-        bool has_unreliable_events(false);
-        bool has_two_options_ = (_first_port != ILLEGAL_PORT && _second_port != ILLEGAL_PORT) ? true : false;
-        auto its_eventgroup = host_->find_eventgroup(_service, _instance, _eventgroup);
-        if (its_eventgroup) {
-            its_eventgroup->get_reliability(has_reliable_events, has_unreliable_events);
-        }
+    auto its_messages = _acknowledgement->get_messages();
 
-        bool reliablility_nack(false);
-        if (has_reliable_events && !has_unreliable_events) {
-            if (!(_first_port != ILLEGAL_PORT && _is_first_reliable) &&
-                    !(_second_port != ILLEGAL_PORT && _is_second_reliable)) {
-                reliablility_nack = true;
-            }
-        } else if (!has_reliable_events && has_unreliable_events) {
-            if (!(_first_port != ILLEGAL_PORT && !_is_first_reliable) &&
-                    !(_second_port != ILLEGAL_PORT && !_is_second_reliable)) {
-                reliablility_nack = true;
-            }
-        } else if (has_reliable_events && has_unreliable_events) {
-            if (_first_port == ILLEGAL_PORT || _second_port == ILLEGAL_PORT) {
-                reliablility_nack = true;
-            }
-            if (_is_first_reliable == _is_second_reliable) {
-                reliablility_nack = true;
-            }
-        }
-        if (reliablility_nack && _ttl > 0) {
-            if (has_two_options_) {
-                its_message->decrease_number_required_acks();
-            }
-            insert_subscription_nack(its_message, _service, _instance,
-                _eventgroup, _counter, _major, _reserved);
-            boost::system::error_code ec;
-            VSOMEIP_WARNING << "Subscription for ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
-                    << " not valid: Event configuration does not match the provided "
-                    << "endpoint options: "
-                    << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
-                    << _second_address.to_string(ec) << ":" << std::dec << _second_port
-                    << " " << _message_id->sender_.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            return;
-        }
-
-        std::shared_ptr < eventgroupinfo > its_info = host_->find_eventgroup(
-                _service, _instance, _eventgroup);
-
-        struct subscriber_target_t {
-            std::shared_ptr<endpoint_definition> subscriber_;
-            std::shared_ptr<endpoint_definition> target_;
-        };
-        std::array<subscriber_target_t, 2> its_targets =
-            { subscriber_target_t(), subscriber_target_t() };
-
-        // Could not find eventgroup or wrong version
-        if (!its_info || _major != its_info->get_major()) {
-            // Create a temporary info object with TTL=0 --> send NACK
-            if( its_info && (_major != its_info->get_major())) {
-                boost::system::error_code ec;
-                VSOMEIP_ERROR << "Requested major version:[" << (uint32_t) _major
-                        << "] in subscription to service: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
-                        << " does not match with services major version:[" << (uint32_t) its_info->get_major()
-                        << "] " << _message_id->sender_.to_string(ec) << " session: "
-                        << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-            } else {
-                VSOMEIP_ERROR << "Requested eventgroup:[" << _eventgroup
-                        << "] not found for subscription to service:["
-                        << _service << "] instance:[" << _instance << "]";
-            }
-            its_info = std::make_shared < eventgroupinfo > (_major, 0);
-            if(_ttl > 0) {
-                if (has_two_options_) {
-                    its_message->decrease_number_required_acks();
+#ifndef VSOMEIP_ENABLE_COMPAT
+    bool reliablility_nack(false);
+    if (_info) {
+        const bool first_port_set(_first_port != ILLEGAL_PORT);
+        const bool second_port_set(_second_port != ILLEGAL_PORT);
+        switch (_info->get_reliability()) {
+            case reliability_type_e::RT_UNRELIABLE:
+                if (!(first_port_set && !_is_first_reliable)
+                        && !(second_port_set && !_is_second_reliable)) {
+                    reliablility_nack = true;
                 }
-                insert_subscription_nack(its_message, _service, _instance,
-                        _eventgroup, _counter, _major, _reserved);
-            }
-            return;
-        } else {
-            boost::asio::ip::address its_first_address, its_second_address;
-            uint16_t its_first_port, its_second_port;
-            if (ILLEGAL_PORT != _first_port) {
-                its_targets[0].subscriber_ = endpoint_definition::get(
-                        _first_address, _first_port, _is_first_reliable, _service, _instance);
-                if (!_is_first_reliable &&
-                    its_info->get_multicast(its_first_address, its_first_port)) { // udp multicast
-                    its_targets[0].target_ = endpoint_definition::get(
-                        its_first_address, its_first_port, false, _service, _instance);
-                } else if(_is_first_reliable) { // tcp unicast
-                    its_targets[0].target_ = its_targets[0].subscriber_;
-                    // check if TCP connection is established by client
-                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_targets[0].target_)) {
-                        insert_subscription_nack(its_message, _service, _instance,
-                            _eventgroup, _counter, _major, _reserved);
-                        boost::system::error_code ec;
-                        VSOMEIP_ERROR << "TCP connection to target1: ["
-                                << its_targets[0].target_->get_address().to_string()
-                                << ":" << its_targets[0].target_->get_port()
-                                << "] not established for subscription to: ["
-                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-                        if (has_two_options_) {
-                            its_message->decrease_number_required_acks();
-                        }
-                        return;
-                    }
-                } else { // udp unicast
-                    its_targets[0].target_ = its_targets[0].subscriber_;
+                break;
+            case reliability_type_e::RT_RELIABLE:
+                if (!(first_port_set && _is_first_reliable)
+                        && !(second_port_set && _is_second_reliable)) {
+                    reliablility_nack = true;
                 }
-            }
-            if (ILLEGAL_PORT != _second_port) {
-                its_targets[1].subscriber_ = endpoint_definition::get(
-                        _second_address, _second_port, _is_second_reliable, _service, _instance);
-                if (!_is_second_reliable &&
-                    its_info->get_multicast(its_second_address, its_second_port)) { // udp multicast
-                    its_targets[1].target_ = endpoint_definition::get(
-                        its_second_address, its_second_port, false, _service, _instance);
-                } else if (_is_second_reliable) { // tcp unicast
-                    its_targets[1].target_ = its_targets[1].subscriber_;
-                    // check if TCP connection is established by client
-                    if(_ttl > 0 && !is_tcp_connected(_service, _instance, its_targets[1].target_)) {
-                        insert_subscription_nack(its_message, _service, _instance,
-                            _eventgroup, _counter, _major, _reserved);
-                        boost::system::error_code ec;
-                        VSOMEIP_ERROR << "TCP connection to target2 : ["
-                                << its_targets[1].target_->get_address().to_string()
-                                << ":" << its_targets[1].target_->get_port()
-                                << "] not established for subscription to: ["
-                                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
-                                << _message_id->sender_.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << _message_id->session_;
-                        if (has_two_options_) {
-                            its_message->decrease_number_required_acks();
-                        }
-                        return;
-                    }
-                } else { // udp unicast
-                    its_targets[1].target_ = its_targets[1].subscriber_;
+                break;
+            case reliability_type_e::RT_BOTH:
+                if (_first_port == ILLEGAL_PORT || _second_port == ILLEGAL_PORT) {
+                    reliablility_nack = true;
                 }
-            }
-        }
-
-        if (_ttl == 0) { // --> unsubscribe
-            for (const auto &target : its_targets) {
-                if (target.subscriber_) {
-                    if (!_is_stop_subscribe_subscribe) {
-                        host_->on_unsubscribe(_service, _instance, _eventgroup, target.subscriber_);
-                    }
+                if (_is_first_reliable == _is_second_reliable) {
+                    reliablility_nack = true;
                 }
-            }
-            return;
-        }
-
-        for (const auto &target : its_targets) {
-            if (!target.target_) {
-                continue;
-            }
-            host_->on_remote_subscription(_service, _instance,
-                    _eventgroup, target.subscriber_, target.target_,
-                    _ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_),
-                    _message_id,
-                    [&](remote_subscription_state_e _rss, client_t _subscribing_remote_client) {
-                switch (_rss) {
-                    case remote_subscription_state_e::SUBSCRIPTION_ACKED:
-                        insert_subscription_ack(its_message, _service,
-                                _instance, _eventgroup, its_info, _ttl,
-                                _counter, _major, _reserved);
-                        if (_force_initial_events) {
-                            // processing subscription of StopSubscribe/Subscribe
-                            // sequence
-                            its_message->forced_initial_events_add(
-                                    message_impl::forced_initial_events_t(
-                                        { target.subscriber_, _service, _instance,
-                                                _eventgroup }));
-                        }
-                        break;
-                    case remote_subscription_state_e::SUBSCRIPTION_NACKED:
-                    case remote_subscription_state_e::SUBSCRIPTION_ERROR:
-                        insert_subscription_nack(its_message, _service,
-                                _instance, _eventgroup, _counter, _major,
-                                _reserved);
-                        break;
-                    case remote_subscription_state_e::SUBSCRIPTION_PENDING:
-                        if (target.target_ && target.subscriber_) {
-                            std::shared_ptr<subscriber_t> subscriber_ =
-                                    std::make_shared<subscriber_t>();
-                            subscriber_->subscriber = target.subscriber_;
-                            subscriber_->target = target.target_;
-                            subscriber_->response_message_id_ = _message_id;
-                            subscriber_->eventgroupinfo_ = its_info;
-                            subscriber_->ttl_ = _ttl;
-                            subscriber_->major_ = _major;
-                            subscriber_->reserved_ = _reserved;
-                            subscriber_->counter_ = _counter;
-
-                            std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
-                            pending_remote_subscriptions_[_service]
-                                                         [_instance]
-                                                         [_eventgroup]
-                                                         [_subscribing_remote_client].push_back(subscriber_);
-                        }
-                    default:
-                        break;
-                }
-            });
+                break;
+            default:
+                break;
         }
     }
+    if (reliablility_nack && _ttl > 0) {
+        insert_subscription_ack(_acknowledgement, _info, 0);
+        boost::system::error_code ec;
+        // TODO: Add sender and session id
+        VSOMEIP_WARNING << __func__
+                << ": Subscription for ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                << " not valid: Event configuration ("
+                << (std::uint32_t)_info->get_reliability()
+                << ") does not match the provided endpoint options: "
+                << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
+                << _second_address.to_string(ec) << ":" << std::dec << _second_port;
+
+        return;
+    }
+
+#endif
+
+
+    std::shared_ptr<endpoint_definition> its_subscriber;
+    std::shared_ptr<endpoint_definition> its_reliable;
+    std::shared_ptr<endpoint_definition> its_unreliable;
+
+    // wrong major version
+    if (_major != _info->get_major()) {
+        // Create a temporary info object with TTL=0 --> send NACK
+        auto its_info = std::make_shared<eventgroupinfo>(_service, _instance,
+                _eventgroup, _major, 0);
+        boost::system::error_code ec;
+        // TODO: Add session id
+        VSOMEIP_ERROR << __func__
+                << ": Requested major version:[" << (uint32_t) _major
+                << "] in subscription to service: ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                << " does not match with services major version:["
+                << (uint32_t) _info->get_major() << "] subscriber: "
+                << _first_address.to_string(ec) << ":" << std::dec << _first_port;
+        if (_ttl > 0) {
+            insert_subscription_ack(_acknowledgement, its_info, 0);
+        }
+        return;
+    } else {
+        boost::asio::ip::address its_first_address, its_second_address;
+        uint16_t its_first_port, its_second_port;
+        if (ILLEGAL_PORT != _first_port) {
+            its_subscriber = endpoint_definition::get(
+                    _first_address, _first_port, _is_first_reliable, _service, _instance);
+            if (!_is_first_reliable &&
+                _info->get_multicast(its_first_address, its_first_port) &&
+                _info->is_sending_multicast()) { // udp multicast
+                its_unreliable = endpoint_definition::get(
+                    its_first_address, its_first_port, false, _service, _instance);
+            } else if (_is_first_reliable) { // tcp unicast
+                its_reliable = its_subscriber;
+                // check if TCP connection is established by client
+                if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
+                    insert_subscription_ack(_acknowledgement, _info, 0);
+                    boost::system::error_code ec;
+                    // TODO: Add sender and session id
+                    VSOMEIP_ERROR << "TCP connection to target1: ["
+                            << its_reliable->get_address().to_string()
+                            << ":" << its_reliable->get_port()
+                            << "] not established for subscription to: ["
+                            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                    return;
+                }
+            } else { // udp unicast
+                its_unreliable = its_subscriber;
+            }
+        }
+
+        if (ILLEGAL_PORT != _second_port) {
+            its_subscriber = endpoint_definition::get(
+                    _second_address, _second_port, _is_second_reliable, _service, _instance);
+            if (!_is_second_reliable &&
+                _info->get_multicast(its_second_address, its_second_port) &&
+                _info->is_sending_multicast()) { // udp multicast
+                its_unreliable = endpoint_definition::get(
+                    its_second_address, its_second_port, false, _service, _instance);
+            } else if (_is_second_reliable) { // tcp unicast
+                its_reliable = its_subscriber;
+                // check if TCP connection is established by client
+                if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
+                    insert_subscription_ack(_acknowledgement, _info, 0);
+                    boost::system::error_code ec;
+                    // TODO: Add sender and session id
+                    VSOMEIP_ERROR << "TCP connection to target2 : ["
+                            << its_reliable->get_address().to_string()
+                            << ":" << its_reliable->get_port()
+                            << "] not established for subscription to: ["
+                            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                    return;
+                }
+            } else { // udp unicast
+                its_unreliable = its_subscriber;
+            }
+        }
+    }
+
+    // Create subscription object
+    auto its_subscription = std::make_shared<remote_subscription>();
+    its_subscription->set_eventgroupinfo(_info);
+    its_subscription->reset(_clients);
+
+    if (_ttl == 0) { // --> unsubscribe
+        its_subscription->set_ttl(0);
+        if (!_is_stop_subscribe_subscribe) {
+            {
+                std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+                pending_remote_subscriptions_[its_subscription] = _acknowledgement;
+                _acknowledgement->add_subscription(its_subscription);
+            }
+            host_->on_remote_unsubscribe(its_subscription);
+        }
+        return;
+    }
+
+    if (_force_initial_events) {
+        its_subscription->set_force_initial_events(true);
+    }
+    its_subscription->set_subscriber(its_subscriber);
+    its_subscription->set_reliable(its_reliable);
+    its_subscription->set_unreliable(its_unreliable);
+    its_subscription->set_ttl(_ttl
+            * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_));
+
+    {
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        pending_remote_subscriptions_[its_subscription] = _acknowledgement;
+        _acknowledgement->add_subscription(its_subscription);
+    }
+
+    host_->on_remote_subscribe(its_subscription,
+            std::bind(&service_discovery_impl::update_remote_subscription,
+                      shared_from_this(), std::placeholders::_1));
 }
 
-void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, uint8_t _counter) {
-    client_t nackedClient = 0;
+void
+service_discovery_impl::handle_eventgroup_subscription_nack(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        uint8_t _counter, const std::set<client_t> &_clients) {
+    (void)_counter;
+
     std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
@@ -2589,42 +2219,34 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
         if (found_instance != found_service->second.end()) {
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
-                for (auto client : found_eventgroup->second) {
-                    if (client.second->get_counter() == _counter) {
-                        // Deliver nack
-                        nackedClient = client.first;
-                        host_->on_subscribe_nack(client.first, _service,
-                                _instance, _eventgroup, ANY_EVENT, DEFAULT_SUBSCRIPTION);
-                        break;
-                    }
+                auto its_subscription = found_eventgroup->second;
+                for (const auto its_client : _clients) {
+                    host_->on_subscribe_nack(its_client,
+                            _service, _instance, _eventgroup, ANY_EVENT,
+                            PENDING_SUBSCRIPTION_ID); // TODO: This is a dummy call...
                 }
 
-                // Restart TCP connection only for non selective subscriptions
-                for (auto client : found_eventgroup->second) {
-                    if( !client.second->is_acknowledged()
-                            && client.first == VSOMEIP_ROUTING_CLIENT ) {
-                        auto endpoint = client.second->get_endpoint(true);
-                        if(endpoint) {
-                            endpoint->restart();
-                        }
-                    }
-                }
 
-                // Remove nacked subscription only for selective events
-                if(nackedClient != VSOMEIP_ROUTING_CLIENT) {
-                    found_eventgroup->second.erase(nackedClient);
+                if (!its_subscription->is_selective()) {
+                    auto its_reliable = its_subscription->get_endpoint(true);
+                    if (its_reliable)
+                        its_reliable->restart();
                 }
             }
         }
     }
 }
 
-void service_discovery_impl::handle_eventgroup_subscription_ack(
+void
+service_discovery_impl::handle_eventgroup_subscription_ack(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         major_version_t _major, ttl_t _ttl, uint8_t _counter,
+        const std::set<client_t> &_clients,
         const boost::asio::ip::address &_address, uint16_t _port) {
     (void)_major;
     (void)_ttl;
+    (void)_counter;
+
     std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
@@ -2632,16 +2254,19 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
         if (found_instance != found_service->second.end()) {
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
-                for (auto its_client : found_eventgroup->second) {
-                    if (its_client.second->get_counter() == _counter) {
-                        its_client.second->set_acknowledged(true);
-                        host_->on_subscribe_ack(its_client.first, _service,
-                                _instance, _eventgroup, ANY_EVENT, DEFAULT_SUBSCRIPTION);
+                for (const auto its_client : _clients) {
+                    if (found_eventgroup->second->get_state(its_client)
+                            == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
+                        found_eventgroup->second->set_state(its_client,
+                            subscription_state_e::ST_ACKNOWLEDGED);
+                        host_->on_subscribe_ack(its_client,
+                                _service, _instance, _eventgroup,
+                                ANY_EVENT, PENDING_SUBSCRIPTION_ID);
                     }
-                    if (_address.is_multicast()) {
-                        host_->on_subscribe_ack(_service, _instance, _address,
-                                _port);
-                    }
+                }
+                if (_address.is_multicast()) {
+                    host_->on_subscribe_ack_with_multicast(
+                            _service, _instance, _address, _port);
                 }
             }
         }
@@ -2650,7 +2275,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(
 
 bool service_discovery_impl::is_tcp_connected(service_t _service,
          instance_t _instance,
-         std::shared_ptr<vsomeip::endpoint_definition> its_endpoint) {
+         const std::shared_ptr<endpoint_definition>& its_endpoint) {
     bool is_connected = false;
     std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service,
             _instance);
@@ -2666,28 +2291,62 @@ bool service_discovery_impl::is_tcp_connected(service_t _service,
     return is_connected;
 }
 
-void service_discovery_impl::serialize_and_send(
-        std::shared_ptr<message_impl> _message,
-        const boost::asio::ip::address &_address) {
+bool
+service_discovery_impl::send(
+        const std::vector<std::shared_ptr<message_impl> > &_messages) {
+    bool its_result(true);
     std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-    std::pair<session_t, bool> its_session = get_session(_address);
-    _message->set_session(its_session.first);
-    _message->set_reboot_flag(its_session.second);
-    if(!serializer_->serialize(_message.get())) {
-        boost::system::error_code ec;
-        VSOMEIP_ERROR << "service_discovery_impl::serialize_and_send: serialization error."
-                << " Remote: " << _address.to_string(ec) << " session: 0x"
-                << std::hex << its_session.first;
-        return;
+    for (const auto &m : _messages) {
+        if (m->has_entry()) {
+            std::pair<session_t, bool> its_session = get_session(unicast_);
+            m->set_session(its_session.first);
+            m->set_reboot_flag(its_session.second);
+            if (host_->send(VSOMEIP_SD_CLIENT, m)) {
+                increment_session(unicast_);
+            }
+        } else {
+            its_result = false;
+        }
     }
-    if (host_->send_to(endpoint_definition::get(_address, port_, reliable_, _message->get_service(), _message->get_instance()),
-            serializer_->get_data(), serializer_->get_size(), port_)) {
-        increment_session(_address);
-    }
-    serializer_->reset();
+    return its_result;
 }
 
-void service_discovery_impl::start_ttl_timer() {
+bool
+service_discovery_impl::serialize_and_send(
+        const std::vector<std::shared_ptr<message_impl> > &_messages,
+        const boost::asio::ip::address &_address) {
+    bool its_result(true);
+    if (!_address.is_unspecified()) {
+        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+        for (const auto &m : _messages) {
+            if (m->has_entry()) {
+                std::pair<session_t, bool> its_session = get_session(_address);
+                m->set_session(its_session.first);
+                m->set_reboot_flag(its_session.second);
+
+                if (serializer_->serialize(m.get())) {
+                    if (host_->send_via_sd(endpoint_definition::get(_address, port_,
+                            reliable_, m->get_service(), m->get_instance()),
+                            serializer_->get_data(), serializer_->get_size(),
+                            port_)) {
+                        increment_session(_address);
+                    }
+                } else {
+                    VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                            << ": Serialization failed!";
+                    its_result = false;
+                }
+                serializer_->reset();
+            } else {
+                its_result = false;
+            }
+        }
+    }
+    return its_result;
+}
+
+void
+service_discovery_impl::start_ttl_timer() {
     std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
     boost::system::error_code ec;
     ttl_timer_.expires_from_now(std::chrono::milliseconds(ttl_timer_runtime_), ec);
@@ -2696,13 +2355,15 @@ void service_discovery_impl::start_ttl_timer() {
                       std::placeholders::_1));
 }
 
-void service_discovery_impl::stop_ttl_timer() {
+void
+service_discovery_impl::stop_ttl_timer() {
     std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
     boost::system::error_code ec;
     ttl_timer_.cancel(ec);
 }
 
-void service_discovery_impl::check_ttl(const boost::system::error_code &_error) {
+void
+service_discovery_impl::check_ttl(const boost::system::error_code &_error) {
     if (!_error) {
         {
             std::lock_guard<std::mutex> its_lock(check_ttl_mutex_);
@@ -2712,7 +2373,8 @@ void service_discovery_impl::check_ttl(const boost::system::error_code &_error) 
     }
 }
 
-bool service_discovery_impl::check_static_header_fields(
+bool
+service_discovery_impl::check_static_header_fields(
         const std::shared_ptr<const message> &_message) const {
     if(_message->get_protocol_version() != protocol_version) {
         VSOMEIP_ERROR << "Invalid protocol version in SD header";
@@ -2734,8 +2396,9 @@ bool service_discovery_impl::check_static_header_fields(
     return true;
 }
 
-bool service_discovery_impl::check_layer_four_protocol(
-        const std::shared_ptr<const ip_option_impl> _ip_option) const {
+bool
+service_discovery_impl::check_layer_four_protocol(
+        const std::shared_ptr<const ip_option_impl>& _ip_option) const {
     if (_ip_option->get_layer_four_protocol() == layer_four_protocol_e::UNKNOWN) {
         VSOMEIP_ERROR << "Invalid layer 4 protocol in IP endpoint option";
         return false;
@@ -2743,119 +2406,14 @@ bool service_discovery_impl::check_layer_four_protocol(
     return true;
 }
 
-void service_discovery_impl::send_subscriptions(service_t _service, instance_t _instance,
-        client_t _client, bool _reliable) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime) {
-        return;
-    }
-    std::forward_list<std::pair<std::shared_ptr<message_impl>,
-                                const boost::asio::ip::address>> subscription_messages;
-    {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const remote_offer_type_e its_offer_type =
-                        get_remote_offer_type(_service, _instance);
-                for (auto found_eventgroup : found_instance->second) {
-                    auto found_client = found_eventgroup.second.find(_client);
-                    if (found_client != found_eventgroup.second.end()) {
-                        std::shared_ptr<endpoint> its_unreliable;
-                        std::shared_ptr<endpoint> its_reliable;
-                        bool has_address(false);
-                        boost::asio::ip::address its_address;
-                        get_subscription_endpoints(
-                                its_unreliable, its_reliable, &its_address,
-                                &has_address, _service, _instance,
-                                found_client->first);
-                        std::shared_ptr<endpoint> endpoint;
-                        if (_reliable) {
-                            endpoint = its_reliable;
-                            found_client->second->set_endpoint(its_reliable, true);
-                            if (its_unreliable &&
-                                    !host_->has_identified(found_client->first, _service, _instance, false)) {
-                                return;
-                            }
-                        } else {
-                            endpoint = its_unreliable;
-                            found_client->second->set_endpoint(its_unreliable, false);
-                            if (its_reliable &&
-                                    !host_->has_identified(found_client->first, _service, _instance, true)) {
-                                return;
-                            }
-                        }
-                        if (endpoint) {
-                            if (!has_address) {
-                                VSOMEIP_WARNING << "service_discovery_impl::"
-                                        "send_subscriptions couldn't determine "
-                                        "address for service.instance: "
-                                        << std::hex << std::setw(4) << std::setfill('0')
-                                        << _service << "." << _instance;
-                                continue;
-                            }
-                            std::shared_ptr<message_impl> its_message
-                                = its_runtime->create_message();
-
-                            if (its_reliable && its_unreliable) {
-                                if (its_reliable->is_established() && its_unreliable->is_established()) {
-                                    insert_subscription(its_message, _service,
-                                            _instance, found_eventgroup.first,
-                                            found_client->second, its_offer_type);
-                                    found_client->second->set_tcp_connection_established(true);
-                                    found_client->second->set_udp_connection_established(true);
-                                } else {
-                                    found_client->second->set_tcp_connection_established(false);
-                                    found_client->second->set_udp_connection_established(false);
-                                }
-                            } else {
-                                if(_reliable) {
-                                    if(endpoint->is_established()) {
-                                        insert_subscription(its_message, _service,
-                                                _instance, found_eventgroup.first,
-                                                found_client->second, its_offer_type);
-                                        found_client->second->set_tcp_connection_established(true);
-                                    } else {
-                                        // don't insert reliable endpoint option if the
-                                        // TCP client endpoint is not yet connected
-                                        found_client->second->set_tcp_connection_established(false);
-                                    }
-                                } else {
-                                    if (endpoint->is_established()) {
-                                        insert_subscription(its_message, _service,
-                                                _instance, found_eventgroup.first,
-                                                found_client->second, its_offer_type);
-                                        found_client->second->set_udp_connection_established(true);
-                                    } else {
-                                        // don't insert unreliable endpoint option if the
-                                        // UDP client endpoint is not yet connected
-                                        found_client->second->set_udp_connection_established(false);
-                                    }
-                                }
-                            }
-                            if (its_message->get_entries().size()
-                                    && its_message->get_options().size()) {
-                                subscription_messages.push_front({its_message, its_address});
-                                found_client->second->set_acknowledged(false);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    for (const auto s : subscription_messages) {
-        serialize_and_send(s.first, s.second);
-    }
-}
-
-void service_discovery_impl::start_subscription_expiration_timer() {
+void
+service_discovery_impl::start_subscription_expiration_timer() {
     std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
     start_subscription_expiration_timer_unlocked();
 }
 
-void service_discovery_impl::start_subscription_expiration_timer_unlocked() {
+void
+service_discovery_impl::start_subscription_expiration_timer_unlocked() {
     subscription_expiration_timer_.expires_at(next_subscription_expiration_);
         subscription_expiration_timer_.async_wait(
                 std::bind(&service_discovery_impl::expire_subscriptions,
@@ -2863,23 +2421,28 @@ void service_discovery_impl::start_subscription_expiration_timer_unlocked() {
                           std::placeholders::_1));
 }
 
-void service_discovery_impl::stop_subscription_expiration_timer() {
+void
+service_discovery_impl::stop_subscription_expiration_timer() {
     std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
     stop_subscription_expiration_timer_unlocked();
 }
 
-void service_discovery_impl::stop_subscription_expiration_timer_unlocked() {
+void
+service_discovery_impl::stop_subscription_expiration_timer_unlocked() {
     subscription_expiration_timer_.cancel();
 }
 
-void service_discovery_impl::expire_subscriptions(const boost::system::error_code &_error) {
+void
+service_discovery_impl::expire_subscriptions(
+        const boost::system::error_code &_error) {
     if (!_error) {
         next_subscription_expiration_ = host_->expire_subscriptions(false);
         start_subscription_expiration_timer();
     }
 }
 
-bool service_discovery_impl::check_ipv4_address(
+bool
+service_discovery_impl::check_ipv4_address(
         const boost::asio::ip::address& its_address) const {
     //Check unallowed ipv4 address
     bool is_valid = true;
@@ -2912,25 +2475,28 @@ bool service_discovery_impl::check_ipv4_address(
     return is_valid;
 }
 
-void service_discovery_impl::offer_service(service_t _service,
-                                           instance_t _instance,
-                                           std::shared_ptr<serviceinfo> _info) {
+void
+service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo> &_info) {
+    service_t its_service = _info->get_service();
+    service_t its_instance = _info->get_instance();
+
     std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
     // check if offer is in map
     bool found(false);
-    const auto its_service = collected_offers_.find(_service);
-    if (its_service != collected_offers_.end()) {
-        const auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
+    const auto its_service_it = collected_offers_.find(its_service);
+    if (its_service_it != collected_offers_.end()) {
+        const auto its_instance_it = its_service_it->second.find(its_instance);
+        if (its_instance_it != its_service_it->second.end()) {
             found = true;
         }
     }
     if (!found) {
-        collected_offers_[_service][_instance] = _info;
+        collected_offers_[its_service][its_instance] = _info;
     }
 }
 
-void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+void
+service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
     std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
     boost::system::error_code ec;
     if (_first_start) {
@@ -2943,14 +2509,14 @@ void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
         "setting expiry time of timer failed: " << ec.message();
     }
     offer_debounce_timer_.async_wait(
-            std::bind(
-                    &service_discovery_impl::on_offer_debounce_timer_expired,
-                    this, std::placeholders::_1));
+            std::bind(&service_discovery_impl::on_offer_debounce_timer_expired,
+                      this, std::placeholders::_1));
 }
 
 
 
-void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
+void
+service_discovery_impl::start_find_debounce_timer(bool _first_start) {
     std::lock_guard<std::mutex> its_lock(find_debounce_timer_mutex_);
     boost::system::error_code ec;
     if (_first_start) {
@@ -2968,20 +2534,21 @@ void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
                     this, std::placeholders::_1));
 }
 
-//initial delay
-void service_discovery_impl::on_find_debounce_timer_expired(
+// initial delay
+void
+service_discovery_impl::on_find_debounce_timer_expired(
         const boost::system::error_code &_error) {
     if(_error) { // timer was canceled
         return;
     }
-    // only copy the accumulated requests of the initial wait phase
+    // Only copy the accumulated requests of the initial wait phase
     // if the sent counter for the request is zero.
     requests_t repetition_phase_finds;
     bool new_finds(false);
     {
         std::lock_guard<std::mutex> its_lock(requested_mutex_);
-        for (const auto its_service : requested_) {
-            for (const auto its_instance : its_service.second) {
+        for (const auto& its_service : requested_) {
+            for (const auto& its_instance : its_service.second) {
                 if( its_instance.second->get_sent_counter() == 0) {
                     repetition_phase_finds[its_service.first][its_instance.first] = its_instance.second;
                 }
@@ -2998,17 +2565,13 @@ void service_discovery_impl::on_find_debounce_timer_expired(
     }
 
     // Sent out finds for the first time as initial wait phase ended
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (its_runtime) {
-        std::vector<std::shared_ptr<message_impl>> its_messages;
-        std::shared_ptr<message_impl> its_message =
-                its_runtime->create_message();
-        its_messages.push_back(its_message);
-        // Serialize and send FindService (increments sent counter in requested_ map)
-        fill_message_with_find_entries(its_runtime, its_message, its_messages,
-                repetition_phase_finds);
-        serialize_and_send_messages(its_messages);
-    }
+    std::vector<std::shared_ptr<message_impl>> its_messages;
+    std::shared_ptr<message_impl> its_message(
+            std::make_shared<message_impl>());
+    its_messages.push_back(its_message);
+    // Serialize and send FindService (increments sent counter in requested_ map)
+    insert_find_entries(its_messages, repetition_phase_finds);
+    send(its_messages);
 
     std::chrono::milliseconds its_delay(repetitions_base_delay_);
     std::uint8_t its_repetitions(1);
@@ -3034,13 +2597,14 @@ void service_discovery_impl::on_find_debounce_timer_expired(
     start_find_debounce_timer(false);
 }
 
-void service_discovery_impl::on_offer_debounce_timer_expired(
+void
+service_discovery_impl::on_offer_debounce_timer_expired(
         const boost::system::error_code &_error) {
     if(_error) { // timer was canceled
         return;
     }
 
-    // copy the accumulated offers of the initial wait phase
+    // Copy the accumulated offers of the initial wait phase
     services_t repetition_phase_offers;
     bool new_offers(false);
     {
@@ -3050,7 +2614,7 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
             if (is_diagnosis_) {
                 for (services_t::iterator its_service = collected_offers_.begin();
                         its_service != collected_offers_.end(); its_service++) {
-                    for (auto its_instance : its_service->second) {
+                    for (const auto& its_instance : its_service->second) {
                         if (!configuration_->is_someip(
                                 its_service->first, its_instance.first)) {
                             non_someip_services.push_back(its_service);
@@ -3076,28 +2640,23 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
     }
 
     // Sent out offers for the first time as initial wait phase ended
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (its_runtime) {
-        std::vector<std::shared_ptr<message_impl>> its_messages;
-        std::shared_ptr<message_impl> its_message =
-                its_runtime->create_message();
-        its_messages.push_back(its_message);
-        fill_message_with_offer_entries(its_runtime, its_message, its_messages,
-                repetition_phase_offers, true);
+    std::vector<std::shared_ptr<message_impl>> its_messages;
+    std::shared_ptr<message_impl> its_message(std::make_shared<message_impl>());
+    its_messages.push_back(its_message);
+    insert_offer_entries(its_messages, repetition_phase_offers, true);
 
-        // Serialize and send
-        serialize_and_send_messages(its_messages);
-    }
+    // Serialize and send
+    send(its_messages);
 
     std::chrono::milliseconds its_delay(0);
     std::uint8_t its_repetitions(0);
     if (repetitions_max_) {
-        // start timer for repetition phase the first time
+        // Start timer for repetition phase the first time
         // with 2^0 * repetitions_base_delay
         its_delay = repetitions_base_delay_;
         its_repetitions = 1;
     } else {
-        // if repetitions_max is set to zero repetition phase is skipped,
+        // If repetitions_max is set to zero repetition phase is skipped,
         // therefore wait one cyclic offer delay before entering main phase
         its_delay = cyclic_offer_delay_;
         its_repetitions = 0;
@@ -3125,16 +2684,17 @@ void service_discovery_impl::on_offer_debounce_timer_expired(
     start_offer_debounce_timer(false);
 }
 
-void service_discovery_impl::on_repetition_phase_timer_expired(
+void
+service_discovery_impl::on_repetition_phase_timer_expired(
         const boost::system::error_code &_error,
-        std::shared_ptr<boost::asio::steady_timer> _timer,
+        const std::shared_ptr<boost::asio::steady_timer>& _timer,
         std::uint8_t _repetition, std::uint32_t _last_delay) {
     if (_error) {
         return;
     }
     if (_repetition == 0) {
         std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
-        // we waited one cyclic offer delay, the offers can now be sent in the
+        // We waited one cyclic offer delay, the offers can now be sent in the
         // main phase and the timer can be deleted
         move_offers_into_main_phase(_timer);
     } else {
@@ -3145,12 +2705,12 @@ void service_discovery_impl::on_repetition_phase_timer_expired(
             std::uint8_t repetition(0);
             bool move_to_main(false);
             if (_repetition <= repetitions_max_) {
-                // sent offers, double time to wait and start timer again.
+                // Sent offers, double time to wait and start timer again.
 
                 new_delay = std::chrono::milliseconds(_last_delay * 2);
                 repetition = ++_repetition;
             } else {
-                // repetition phase is now over we have to sleep one cyclic
+                // Repetition phase is now over we have to sleep one cyclic
                 // offer delay before it's allowed to sent the offer again.
                 // If the last offer was sent shorter than half the
                 // configured cyclic_offer_delay_ago the offers are directly
@@ -3164,18 +2724,14 @@ void service_discovery_impl::on_repetition_phase_timer_expired(
                     repetition = 0;
                 }
             }
-            std::shared_ptr<runtime> its_runtime = runtime_.lock();
-            if (its_runtime) {
-                std::vector<std::shared_ptr<message_impl>> its_messages;
-                std::shared_ptr<message_impl> its_message =
-                        its_runtime->create_message();
-                its_messages.push_back(its_message);
-                fill_message_with_offer_entries(its_runtime, its_message,
-                        its_messages, its_timer_pair->second, true);
+            std::vector<std::shared_ptr<message_impl>> its_messages;
+            std::shared_ptr<message_impl> its_message(
+                    std::make_shared<message_impl>());
+            its_messages.push_back(its_message);
+            insert_offer_entries(its_messages, its_timer_pair->second, true);
 
-                // Serialize and send
-                serialize_and_send_messages(its_messages);
-            }
+            // Serialize and send
+            send(its_messages);
             if (move_to_main) {
                 move_offers_into_main_phase(_timer);
                 return;
@@ -3197,9 +2753,10 @@ void service_discovery_impl::on_repetition_phase_timer_expired(
 }
 
 
-void service_discovery_impl::on_find_repetition_phase_timer_expired(
+void
+service_discovery_impl::on_find_repetition_phase_timer_expired(
         const boost::system::error_code &_error,
-        std::shared_ptr<boost::asio::steady_timer> _timer,
+        const std::shared_ptr<boost::asio::steady_timer>& _timer,
         std::uint8_t _repetition, std::uint32_t _last_delay) {
     if (_error) {
         return;
@@ -3211,30 +2768,25 @@ void service_discovery_impl::on_find_repetition_phase_timer_expired(
         std::chrono::milliseconds new_delay(0);
         std::uint8_t repetition(0);
         if (_repetition <= repetitions_max_) {
-            // sent findService entries in one message, double time to wait and start timer again.
-            std::shared_ptr<runtime> its_runtime = runtime_.lock();
-            if (its_runtime) {
-                std::vector<std::shared_ptr<message_impl>> its_messages;
-                std::shared_ptr<message_impl> its_message =
-                        its_runtime->create_message();
-                its_messages.push_back(its_message);
-                fill_message_with_find_entries(its_runtime, its_message,
-                        its_messages, its_timer_pair->second);
-                serialize_and_send_messages(its_messages);
-            }
+            // Sent findService entries in one message, double time to wait and start timer again.
+            std::vector<std::shared_ptr<message_impl>> its_messages;
+            std::shared_ptr<message_impl> its_message(
+                    std::make_shared<message_impl>());
+            its_messages.push_back(its_message);
+            insert_find_entries(its_messages, its_timer_pair->second);
+            send(its_messages);
             new_delay = std::chrono::milliseconds(_last_delay * 2);
             repetition = ++_repetition;
         } else {
-            // repetition phase is now over, erase the timer on next expiry time
+            // Repetition phase is now over, erase the timer on next expiry time
             find_repetition_phase_timers_.erase(its_timer_pair);
             return;
         }
         boost::system::error_code ec;
         its_timer_pair->first->expires_from_now(new_delay, ec);
         if (ec) {
-            VSOMEIP_ERROR <<
-            "service_discovery_impl::on_find_repetition_phase_timer_expired "
-            "setting expiry time of timer failed: " << ec.message();
+            VSOMEIP_ERROR << __func__
+                    << "setting expiry time of timer failed: " << ec.message();
         }
         its_timer_pair->first->async_wait(
                 std::bind(
@@ -3245,16 +2797,16 @@ void service_discovery_impl::on_find_repetition_phase_timer_expired(
 }
 
 
-void service_discovery_impl::move_offers_into_main_phase(
+void
+service_discovery_impl::move_offers_into_main_phase(
         const std::shared_ptr<boost::asio::steady_timer> &_timer) {
     // HINT: make sure to lock the repetition_phase_timers_mutex_ before calling
-    // this function
-    // set flag on all serviceinfos bound to this timer
-    // that they will be included in the cyclic offers from now on
+    // this function set flag on all serviceinfos bound to this timer that they
+    // will be included in the cyclic offers from now on
     const auto its_timer = repetition_phase_timers_.find(_timer);
     if (its_timer != repetition_phase_timers_.end()) {
-        for (const auto its_service : its_timer->second) {
-            for (const auto instance : its_service.second) {
+        for (const auto& its_service : its_timer->second) {
+            for (const auto& instance : its_service.second) {
                 instance.second->set_is_in_mainphase(true);
             }
         }
@@ -3262,108 +2814,50 @@ void service_discovery_impl::move_offers_into_main_phase(
     }
 }
 
-void service_discovery_impl::fill_message_with_offer_entries(
-        std::shared_ptr<runtime> _runtime,
-        std::shared_ptr<message_impl> _message,
-        std::vector<std::shared_ptr<message_impl>> &_messages,
-        const services_t &_offers, bool _ignore_phase) {
-    uint32_t its_remaining(max_message_size_);
-    uint32_t its_start(0);
-    bool is_done(false);
-    while (!is_done) {
-        insert_offer_entries(_message, _offers, its_start, its_remaining,
-                is_done, _ignore_phase);
-        if (!is_done) {
-            its_remaining = max_message_size_;
-            _message = _runtime->create_message();
-            _messages.push_back(_message);
-        }
-    }
-}
-
-void service_discovery_impl::fill_message_with_find_entries(
-        std::shared_ptr<runtime> _runtime,
-        std::shared_ptr<message_impl> _message,
-        std::vector<std::shared_ptr<message_impl>> &_messages,
-        const requests_t &_requests) {
-    uint32_t its_start(0);
-    uint32_t its_size(0);
-    bool is_done(false);
-    while (!is_done) {
-        insert_find_entries(_message, _requests, its_start, its_size,
-                is_done);
-        its_start += its_size / VSOMEIP_SOMEIP_SD_ENTRY_SIZE;
-        if (!is_done) {
-            its_start = 0;
-            _message = _runtime->create_message();
-            _messages.push_back(_message);
-        }
-    };
-}
-
-
-bool service_discovery_impl::serialize_and_send_messages(
-        const std::vector<std::shared_ptr<message_impl>> &_messages) {
-    bool has_sent(false);
-    // lock serialize mutex here as well even if we don't use the
-    // serializer as it's used to guard access to the sessions_sent_ map
-    std::lock_guard<std::mutex> its_lock(serialize_mutex_);
-    for (const auto m : _messages) {
-        if (m->get_entries().size() > 0) {
-            std::pair<session_t, bool> its_session = get_session(unicast_);
-            m->set_session(its_session.first);
-            m->set_reboot_flag(its_session.second);
-            if (host_->send(VSOMEIP_SD_CLIENT, m, true)) {
-                increment_session(unicast_);
-            }
-            has_sent = true;
-        }
-    }
-    return has_sent;
-}
-
-void service_discovery_impl::stop_offer_service(
-        service_t _service, instance_t _instance,
-        std::shared_ptr<serviceinfo> _info) {
+void
+service_discovery_impl::stop_offer_service(
+        const std::shared_ptr<serviceinfo> &_info) {
     std::lock_guard<std::mutex> its_lock(offer_mutex_);
     _info->set_ttl(0);
+    const service_t its_service = _info->get_service();
+    const instance_t its_instance = _info->get_instance();
     bool stop_offer_required(false);
-    // delete from initial phase offers
+    // Delete from initial phase offers
     {
         std::lock_guard<std::mutex> its_lock(collected_offers_mutex_);
         if (collected_offers_.size()) {
-            auto its_service = collected_offers_.find(_service);
-            if (its_service != collected_offers_.end()) {
-                auto its_instance = its_service->second.find(_instance);
-                if (its_instance != its_service->second.end()) {
-                    if (its_instance->second == _info) {
-                        its_service->second.erase(its_instance);
+            auto its_service_it = collected_offers_.find(its_service);
+            if (its_service_it != collected_offers_.end()) {
+                auto its_instance_it = its_service_it->second.find(its_instance);
+                if (its_instance_it != its_service_it->second.end()) {
+                    if (its_instance_it->second == _info) {
+                        its_service_it->second.erase(its_instance_it);
 
-                        if (!collected_offers_[its_service->first].size()) {
-                            collected_offers_.erase(its_service);
+                        if (!collected_offers_[its_service].size()) {
+                            collected_offers_.erase(its_service_it);
                         }
                     }
                 }
             }
         }
-        // no need to sent out a stop offer message here as all services
+        // No need to sent out a stop offer message here as all services
         // instances contained in the collected offers weren't broadcasted yet
     }
 
-    // delete from repetition phase offers
+    // Delete from repetition phase offers
     {
         std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
         for (auto rpt = repetition_phase_timers_.begin();
                 rpt != repetition_phase_timers_.end();) {
-            auto its_service = rpt->second.find(_service);
-            if (its_service != rpt->second.end()) {
-                auto its_instance = its_service->second.find(_instance);
-                if (its_instance != its_service->second.end()) {
-                    if (its_instance->second == _info) {
-                        its_service->second.erase(its_instance);
+            auto its_service_it = rpt->second.find(its_service);
+            if (its_service_it != rpt->second.end()) {
+                auto its_instance_it = its_service_it->second.find(its_instance);
+                if (its_instance_it != its_service_it->second.end()) {
+                    if (its_instance_it->second == _info) {
+                        its_service_it->second.erase(its_instance_it);
                         stop_offer_required = true;
-                        if (!rpt->second[its_service->first].size()) {
-                            rpt->second.erase(_service);
+                        if (!rpt->second[its_service].size()) {
+                            rpt->second.erase(its_service);
                         }
                     }
                 }
@@ -3375,36 +2869,33 @@ void service_discovery_impl::stop_offer_service(
             }
         }
     }
-    // sent stop offer
+    // Sent stop offer
     if(_info->is_in_mainphase() || stop_offer_required) {
-        send_stop_offer(_service, _instance, _info);
+        send_stop_offer(_info);
     }
     // sent out NACKs for all pending subscriptions
-    remote_subscription_not_acknowledge_all(_service, _instance);
+    // TODO: remote_subscription_not_acknowledge_all(its_service, its_instance);
 }
 
-bool service_discovery_impl::send_stop_offer(
-        service_t _service, instance_t _instance,
-        std::shared_ptr<serviceinfo> _info) {
-    std::shared_ptr < runtime > its_runtime = runtime_.lock();
-    if (its_runtime) {
-        if (_info->get_endpoint(false) || _info->get_endpoint(true)) {
-            std::vector<std::shared_ptr<message_impl>> its_messages;
-            std::shared_ptr<message_impl> its_message;
-            its_message = its_runtime->create_message();
-            its_messages.push_back(its_message);
+bool
+service_discovery_impl::send_stop_offer(const std::shared_ptr<serviceinfo> &_info) {
 
-            uint32_t its_size(max_message_size_);
-            insert_offer_service(its_message, _service, _instance, _info, its_size);
+    if (_info->get_endpoint(false) || _info->get_endpoint(true)) {
+        std::vector<std::shared_ptr<message_impl> > its_messages;
+        std::shared_ptr<message_impl> its_current_message(
+                std::make_shared<message_impl>());
+        its_messages.push_back(its_current_message);
 
-            // Serialize and send
-            return serialize_and_send_messages(its_messages);
-        }
+        insert_offer_service(its_messages, _info);
+
+        // Serialize and send
+        return send(its_messages);
     }
     return false;
 }
 
-void service_discovery_impl::start_main_phase_timer() {
+void
+service_discovery_impl::start_main_phase_timer() {
     std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
     boost::system::error_code ec;
     main_phase_timer_.expires_from_now(cyclic_offer_delay_);
@@ -3417,7 +2908,8 @@ void service_discovery_impl::start_main_phase_timer() {
                     this, std::placeholders::_1));
 }
 
-void service_discovery_impl::on_main_phase_timer_expired(
+void
+service_discovery_impl::on_main_phase_timer_expired(
         const boost::system::error_code &_error) {
     if (_error) {
         return;
@@ -3426,23 +2918,23 @@ void service_discovery_impl::on_main_phase_timer_expired(
     start_main_phase_timer();
 }
 
-void service_discovery_impl::send_uni_or_multicast_offerservice(
-        service_t _service, instance_t _instance, major_version_t _major,
-        minor_version_t _minor, const std::shared_ptr<const serviceinfo> &_info,
-        bool _unicast_flag) {
+void
+service_discovery_impl::send_uni_or_multicast_offerservice(
+        const std::shared_ptr<const serviceinfo> &_info, bool _unicast_flag) {
     if (_unicast_flag) { // SID_SD_826
         if (last_offer_shorter_half_offer_delay_ago()) { // SIP_SD_89
-            send_unicast_offer_service(_info, _service, _instance, _major, _minor);
+            send_unicast_offer_service(_info);
         } else { // SIP_SD_90
-            send_multicast_offer_service(_info, _service, _instance, _major, _minor);
+            send_multicast_offer_service(_info);
         }
     } else { // SID_SD_826
-        send_unicast_offer_service(_info, _service, _instance, _major, _minor);
+        send_unicast_offer_service(_info);
     }
 }
 
-bool service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
-    //get remaining time to next offer since last offer
+bool
+service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
+    // Get remaining time to next offer since last offer
     std::chrono::milliseconds remaining(0);
     {
         std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
@@ -3458,10 +2950,11 @@ bool service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
     return remaining > half_cyclic_offer_delay;
 }
 
-bool service_discovery_impl::check_source_address(
+bool
+service_discovery_impl::check_source_address(
         const boost::asio::ip::address &its_source_address) const {
    bool is_valid = true;
-   // check if source address is same as nodes unicast address
+   // Check if source address is same as nodes unicast address
    if(unicast_ == its_source_address) {
        VSOMEIP_ERROR << "Source address of message is same as DUT's unicast address! : "
                << its_source_address.to_string();
@@ -3470,201 +2963,77 @@ bool service_discovery_impl::check_source_address(
    return is_valid;
 }
 
-void service_discovery_impl::set_diagnosis_mode(const bool _activate) {
+void
+service_discovery_impl::set_diagnosis_mode(const bool _activate) {
     is_diagnosis_ = _activate;
 }
 
-bool service_discovery_impl::get_diagnosis_mode() {
+bool
+service_discovery_impl::get_diagnosis_mode() {
     return is_diagnosis_;
 }
 
-void service_discovery_impl::remote_subscription_acknowledge(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        client_t _client, bool _acknowledged,
-        const std::shared_ptr<sd_message_identifier_t> &_sd_message_id) {
-    std::shared_ptr<subscriber_t> its_subscriber;
-    {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
-        const auto its_service = pending_remote_subscriptions_.find(_service);
-        if (its_service != pending_remote_subscriptions_.end()) {
-            const auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                const auto its_eventgroup = its_instance->second.find(_eventgroup);
-                if (its_eventgroup != its_instance->second.end()) {
-                    const auto its_client = its_eventgroup->second.find(_client);
-                    if (its_client != its_eventgroup->second.end()) {
-                        for (auto iter = its_client->second.begin();
-                                iter != its_client->second.end();) {
-                            if ((*iter)->response_message_id_ == _sd_message_id) {
-                                its_subscriber = *iter;
-                                iter = its_client->second.erase(iter);
-                                break;
-                            } else {
-                                iter++;
-                            }
-                        }
-
-                        // delete if necessary
-                        if (!its_client->second.size()) {
-                            its_eventgroup->second.erase(its_client);
-                            if (!its_eventgroup->second.size()) {
-                                its_instance->second.erase(its_eventgroup);
-                                if (!its_instance->second.size()) {
-                                    its_service->second.erase(its_instance);
-                                    if (!its_service->second.size()) {
-                                        pending_remote_subscriptions_.erase(
-                                                its_service);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+void
+service_discovery_impl::update_remote_subscription(
+        const std::shared_ptr<remote_subscription> &_subscription) {
+    if (!_subscription->is_pending()) {
+        std::shared_ptr<remote_subscription_ack> its_ack;
+        {
+            std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+            auto found_ack = pending_remote_subscriptions_.find(_subscription);
+            if (found_ack != pending_remote_subscriptions_.end()) {
+                its_ack = found_ack->second;
             }
         }
-    }
-    if (its_subscriber) {
-        remote_subscription_acknowledge_subscriber(_service, _instance,
-                _eventgroup, its_subscriber, _acknowledged);
+        if (its_ack) {
+            std::unique_lock<std::recursive_mutex> its_lock(its_ack->get_lock());
+            update_acknowledgement(its_ack);
+        }
     }
 }
 
-void service_discovery_impl::update_subscription_expiration_timer(
-        const std::shared_ptr<message_impl> &_message) {
+void
+service_discovery_impl::update_acknowledgement(
+        const std::shared_ptr<remote_subscription_ack> &_acknowledgement) {
+    if (_acknowledgement->is_complete()
+        && !_acknowledgement->is_pending()
+        && !_acknowledgement->is_done()) {
+        send_subscription_ack(_acknowledgement);
+
+        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
+        for (const auto& its_subscription : _acknowledgement->get_subscriptions())
+            pending_remote_subscriptions_.erase(its_subscription);
+    }
+}
+
+
+void
+service_discovery_impl::update_subscription_expiration_timer(
+        const std::vector<std::shared_ptr<message_impl> > &_messages) {
     std::lock_guard<std::mutex> its_lock(subscription_expiration_timer_mutex_);
     const std::chrono::steady_clock::time_point now =
             std::chrono::steady_clock::now();
     stop_subscription_expiration_timer_unlocked();
-
-    std::unique_lock<std::mutex> its_message_lock(_message->get_message_lock());
-    for (const auto &entry : _message->get_entries()) {
-        if (entry && entry->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
-                && entry->get_ttl()) {
-            const std::chrono::steady_clock::time_point its_expiration = now
-                    + std::chrono::seconds(
-                            entry->get_ttl()
-                                    * get_ttl_factor(
-                                            entry->get_service(),
-                                            entry->get_instance(),
-                                            ttl_factor_subscriptions_));
-            if (its_expiration < next_subscription_expiration_) {
-                next_subscription_expiration_ = its_expiration;
+    for (const auto &m : _messages) {
+        for (const auto &e : m->get_entries()) {
+            if (e && e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
+                    && e->get_ttl()) {
+                const std::chrono::steady_clock::time_point its_expiration = now
+                        + std::chrono::seconds(e->get_ttl()
+                                * get_ttl_factor(
+                                        e->get_service(), e->get_instance(),
+                                        ttl_factor_subscriptions_));
+                if (its_expiration < next_subscription_expiration_) {
+                    next_subscription_expiration_ = its_expiration;
+                }
             }
         }
     }
     start_subscription_expiration_timer_unlocked();
 }
 
-void service_discovery_impl::remote_subscription_acknowledge_subscriber(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        const std::shared_ptr<subscriber_t> &_subscriber, bool _acknowledged) {
-    std::shared_ptr<message_impl> its_response = _subscriber->response_message_id_->response_;
-    bool sent(false);
-    {
-        std::lock_guard<std::mutex> its_lock(response_mutex_);
-        if (_acknowledged) {
-            insert_subscription_ack(its_response, _service, _instance,
-                    _eventgroup, _subscriber->eventgroupinfo_,
-                    _subscriber->ttl_, _subscriber->counter_,
-                    _subscriber->major_, _subscriber->reserved_, _subscriber->subscriber);
-        } else {
-            insert_subscription_nack(its_response, _service, _instance,
-                    _eventgroup, _subscriber->counter_,
-                    _subscriber->major_, _subscriber->reserved_);
-        }
-
-        if (its_response->all_required_acks_contained()) {
-            update_subscription_expiration_timer(its_response);
-            serialize_and_send(its_response, _subscriber->response_message_id_->sender_);
-            // set required acks to 0xFF to mark message as sent
-            its_response->set_number_required_acks((std::numeric_limits<uint8_t>::max)());
-            sent = true;
-        } else {
-            its_response->set_initial_events_required(true);
-        }
-    }
-    if (sent) {
-        for (const auto& ack_tuple : get_eventgroups_requiring_initial_events(
-                its_response)) {
-            host_->send_initial_events(std::get<0>(ack_tuple),
-                    std::get<1>(ack_tuple), std::get<2>(ack_tuple),
-                    std::get<3>(ack_tuple));
-        }
-        for (const auto &fie : its_response->forced_initial_events_get()) {
-            host_->send_initial_events(fie.service_, fie.instance_,
-                    fie.eventgroup_, fie.target_);
-        }
-    }
-}
-
-void service_discovery_impl::remote_subscription_not_acknowledge_all(
-        service_t _service, instance_t _instance) {
-    std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>its_pending_subscriptions;
-    {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
-        const auto its_service = pending_remote_subscriptions_.find(_service);
-        if (its_service != pending_remote_subscriptions_.end()) {
-            const auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                for (const auto &its_eventgroup : its_instance->second) {
-                    for (const auto &its_client : its_eventgroup.second) {
-                        its_pending_subscriptions[its_eventgroup.first].insert(
-                                its_pending_subscriptions[its_eventgroup.first].end(),
-                                its_client.second.begin(),
-                                its_client.second.end());
-                    }
-                }
-                // delete everything from this service instance
-                its_service->second.erase(its_instance);
-                if (!its_service->second.size()) {
-                    pending_remote_subscriptions_.erase(its_service);
-                }
-            }
-        }
-    }
-    for (const auto &eg : its_pending_subscriptions) {
-        for (const auto &its_subscriber : eg.second) {
-            remote_subscription_acknowledge_subscriber(_service, _instance,
-                    eg.first, its_subscriber, false);
-        }
-    }
-}
-
-void service_discovery_impl::remote_subscription_not_acknowledge_all() {
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<eventgroup_t, std::vector<std::shared_ptr<subscriber_t>>>>> to_be_nacked;
-    {
-        std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
-        for (const auto &its_service : pending_remote_subscriptions_) {
-            for (const auto &its_instance : its_service.second) {
-                for (const auto &its_eventgroup : its_instance.second) {
-                    for (const auto &its_client : its_eventgroup.second) {
-                        to_be_nacked[its_service.first]
-                                    [its_instance.first]
-                                    [its_eventgroup.first].insert(
-                                                    to_be_nacked[its_service.first][its_instance.first][its_eventgroup.first].end(),
-                                                    its_client.second.begin(),
-                                                    its_client.second.end());
-                    }
-                }
-            }
-        }
-        pending_remote_subscriptions_.clear();
-    }
-    for (const auto &s : to_be_nacked) {
-        for (const auto &i : s.second) {
-            for (const auto &eg : i.second) {
-                for (const auto &sub : eg.second) {
-                    remote_subscription_acknowledge_subscriber(s.first, i.first,
-                            eg.first, sub, false);
-                }
-            }
-        }
-    }
-}
-
-bool service_discovery_impl::check_stop_subscribe_subscribe(
+bool
+service_discovery_impl::check_stop_subscribe_subscribe(
         message_impl::entries_t::const_iterator _iter,
         message_impl::entries_t::const_iterator _end,
         const message_impl::options_t& _options) const {
@@ -3676,11 +3045,120 @@ bool service_discovery_impl::check_stop_subscribe_subscribe(
         return false;
     }
 
-    return (*static_cast<eventgroupentry_impl*>(_iter->get())).is_matching_subscribe(
+    return (*static_cast<eventgroupentry_impl*>(_iter->get())).matches(
             *(static_cast<eventgroupentry_impl*>(its_next->get())), _options);
 }
 
-configuration::ttl_factor_t service_discovery_impl::get_ttl_factor(
+bool
+service_discovery_impl::has_opposite(
+        message_impl::entries_t::const_iterator _iter,
+        message_impl::entries_t::const_iterator _end,
+        const message_impl::options_t &_options) const {
+    const auto its_entry = std::dynamic_pointer_cast<eventgroupentry_impl>(*_iter);
+    auto its_other = std::next(_iter);
+    for (; its_other != _end; its_other++) {
+        if ((*its_other)->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP) {
+            const auto its_other_entry
+                = std::dynamic_pointer_cast<eventgroupentry_impl>(*its_other);
+            if ((its_entry->get_ttl() == 0 && its_other_entry->get_ttl() > 0)
+                    || (its_entry->get_ttl() > 0 && its_other_entry->get_ttl() == 0)) {
+                if (its_entry->matches(*(its_other_entry.get()), _options))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool
+service_discovery_impl::has_same(
+        message_impl::entries_t::const_iterator _iter,
+        message_impl::entries_t::const_iterator _end,
+        const message_impl::options_t &_options) const {
+    const auto its_entry = std::dynamic_pointer_cast<eventgroupentry_impl>(*_iter);
+    auto its_other = std::next(_iter);
+    for (; its_other != _end; its_other++) {
+        if (its_entry->get_type() == (*its_other)->get_type()) {
+            const auto its_other_entry
+                = std::dynamic_pointer_cast<eventgroupentry_impl>(*its_other);
+            if (its_entry->get_ttl() == its_other_entry->get_ttl()
+                    && its_entry->matches(*(its_other_entry.get()), _options)) {
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool
+service_discovery_impl::is_subscribed(
+        const std::shared_ptr<eventgroupentry_impl> &_entry,
+        const message_impl::options_t &_options) const {
+    const auto its_service = _entry->get_service();
+    const auto its_instance = _entry->get_instance();
+    auto its_info = host_->find_eventgroup(
+            its_service, its_instance, _entry->get_eventgroup());
+    if (its_info) {
+        std::shared_ptr<endpoint_definition> its_reliable, its_unreliable;
+        for (const auto& o : _options) {
+            if (o->get_type() == option_type_e::IP4_ENDPOINT) {
+                const auto its_endpoint_option
+                    = std::dynamic_pointer_cast<ipv4_option_impl>(o);
+                if (its_endpoint_option) {
+                    if (its_endpoint_option->get_layer_four_protocol()
+                            == layer_four_protocol_e::TCP) {
+                        its_reliable = endpoint_definition::get(
+                                boost::asio::ip::address_v4(
+                                        its_endpoint_option->get_address()),
+                                its_endpoint_option->get_port(),
+                                true,
+                                its_service, its_instance);
+                    } else if (its_endpoint_option->get_layer_four_protocol()
+                            == layer_four_protocol_e::UDP) {
+                        its_unreliable = endpoint_definition::get(
+                                boost::asio::ip::address_v4(
+                                        its_endpoint_option->get_address()),
+                                its_endpoint_option->get_port(),
+                                false,
+                                its_service, its_instance);
+                    }
+                }
+            } else if (o->get_type() == option_type_e::IP6_ENDPOINT) {
+                const auto its_endpoint_option
+                    = std::dynamic_pointer_cast<ipv6_option_impl>(o);
+                if (its_endpoint_option->get_layer_four_protocol()
+                        == layer_four_protocol_e::TCP) {
+                    its_reliable = endpoint_definition::get(
+                            boost::asio::ip::address_v6(
+                                    its_endpoint_option->get_address()),
+                            its_endpoint_option->get_port(),
+                            true,
+                            its_service, its_instance);
+                } else if (its_endpoint_option->get_layer_four_protocol()
+                        == layer_four_protocol_e::UDP) {
+                    its_unreliable = endpoint_definition::get(
+                            boost::asio::ip::address_v6(
+                                    its_endpoint_option->get_address()),
+                            its_endpoint_option->get_port(),
+                            false,
+                            its_service, its_instance);
+                }
+            }
+        }
+        if (its_reliable || its_unreliable) {
+            for (const auto& its_subscription : its_info->get_remote_subscriptions()) {
+                if ((!its_reliable || its_subscription->get_reliable() == its_reliable)
+                        && (!its_unreliable || its_subscription->get_unreliable() == its_unreliable)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+configuration::ttl_factor_t
+service_discovery_impl::get_ttl_factor(
         service_t _service, instance_t _instance,
         const configuration::ttl_map_t& _ttl_map) const {
     configuration::ttl_factor_t its_ttl_factor(1);
@@ -3694,15 +3172,23 @@ configuration::ttl_factor_t service_discovery_impl::get_ttl_factor(
     return its_ttl_factor;
 }
 
-void service_discovery_impl::on_last_msg_received_timer_expired(
+void
+service_discovery_impl::on_last_msg_received_timer_expired(
         const boost::system::error_code &_error) {
     if (!_error) {
-        // we didn't receive a multicast message within 110% of the cyclic_offer_delay_
+        // We didn't receive a multicast message within 110% of the cyclic_offer_delay_
         VSOMEIP_WARNING << "Didn't receive a multicast SD message for " <<
                 std::dec << last_msg_received_timer_timeout_.count() << "ms.";
-        // rejoin multicast group
-        if (endpoint_) {
-            endpoint_->join(sd_multicast_);
+
+        // Rejoin multicast group
+        if (endpoint_ && !reliable_) {
+#ifndef ANDROID
+            reinterpret_cast<udp_server_endpoint_impl*>(
+                    endpoint_.get())->join(sd_multicast_);
+#else
+            dynamic_cast<udp_server_endpoint_impl*>(
+                    endpoint_.get())->join(sd_multicast_);
+#endif
         }
         {
             boost::system::error_code ec;
@@ -3716,14 +3202,16 @@ void service_discovery_impl::on_last_msg_received_timer_expired(
     }
 }
 
-void service_discovery_impl::stop_last_msg_received_timer() {
+void
+service_discovery_impl::stop_last_msg_received_timer() {
     std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
     boost::system::error_code ec;
     last_msg_received_timer_.cancel(ec);
 }
 
-service_discovery_impl::remote_offer_type_e service_discovery_impl::get_remote_offer_type(
-        service_t _service, instance_t _instance) {
+service_discovery_impl::remote_offer_type_e
+service_discovery_impl::get_remote_offer_type(
+        service_t _service, instance_t _instance) const {
     std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
     auto found_si = remote_offer_types_.find(std::make_pair(_service, _instance));
     if (found_si != remote_offer_types_.end()) {
@@ -3732,7 +3220,24 @@ service_discovery_impl::remote_offer_type_e service_discovery_impl::get_remote_o
     return remote_offer_type_e::UNKNOWN;
 }
 
-bool service_discovery_impl::update_remote_offer_type(
+service_discovery_impl::remote_offer_type_e
+service_discovery_impl::get_remote_offer_type(
+        const std::shared_ptr<subscription> &_subscription) const {
+    bool has_reliable = (_subscription->get_endpoint(true) != nullptr);
+    bool has_unreliable = (_subscription->get_endpoint(false) != nullptr);
+
+    return (has_reliable ?
+                (has_unreliable ?
+                        remote_offer_type_e::RELIABLE_UNRELIABLE :
+                        remote_offer_type_e::RELIABLE) :
+                (has_unreliable ?
+                        remote_offer_type_e::UNRELIABLE :
+                        remote_offer_type_e::UNKNOWN));
+}
+
+
+bool
+service_discovery_impl::update_remote_offer_type(
         service_t _service, instance_t _instance,
         remote_offer_type_e _offer_type,
         const boost::asio::ip::address &_reliable_address,
@@ -3761,7 +3266,7 @@ bool service_discovery_impl::update_remote_offer_type(
             break;
         case remote_offer_type_e::UNKNOWN:
         default:
-            VSOMEIP_WARNING << __func__ << ": unkown offer type ["
+            VSOMEIP_WARNING << __func__ << ": unknown offer type ["
                     << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _instance << "]"
                     << _offer_type;
@@ -3770,7 +3275,8 @@ bool service_discovery_impl::update_remote_offer_type(
     return ret;
 }
 
-void service_discovery_impl::remove_remote_offer_type(
+void
+service_discovery_impl::remove_remote_offer_type(
         service_t _service, instance_t _instance,
         const boost::asio::ip::address &_address) {
     std::lock_guard<std::mutex> its_lock(remote_offer_types_mutex_);
@@ -3795,47 +3301,134 @@ void service_discovery_impl::remove_remote_offer_type_by_ip(
     remote_offers_by_ip_.erase(_address);
 }
 
-std::vector<std::tuple<service_t, instance_t, eventgroup_t,
-        std::shared_ptr<endpoint_definition>>>
-service_discovery_impl::get_eventgroups_requiring_initial_events(
-        const std::shared_ptr<message_impl>& _response) const {
-    std::vector<std::tuple<service_t, instance_t, eventgroup_t,
-            std::shared_ptr<endpoint_definition>>> its_acks;
-    for (const auto &e : _response->get_entries()) {
-        if (e->get_type() == entry_type_e::SUBSCRIBE_EVENTGROUP_ACK
-                && e->get_ttl() > 0) {
-            const std::shared_ptr<eventgroupentry_impl> casted_e =
-                    std::static_pointer_cast<eventgroupentry_impl>(e);
-            // only entries which require initial events have a target set
-            const std::shared_ptr<endpoint_definition> its_reliable =
-                    casted_e->get_target(true);
-            if (its_reliable) {
-                its_acks.push_back(
-                        std::make_tuple(e->get_service(), e->get_instance(),
-                                casted_e->get_eventgroup(), its_reliable));
+std::shared_ptr<subscription>
+service_discovery_impl::create_subscription(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        major_version_t _major, ttl_t _ttl,
+        const std::shared_ptr<endpoint> &_reliable,
+        const std::shared_ptr<endpoint> &_unreliable) {
+    auto its_subscription = std::make_shared<subscription>();
+    its_subscription->set_major(_major);
+    its_subscription->set_ttl(_ttl);
+
+    if (_reliable) {
+        its_subscription->set_endpoint(_reliable, true);
+        its_subscription->set_tcp_connection_established(_reliable->is_established());
+    }
+
+    if (_unreliable) {
+        its_subscription->set_endpoint(_unreliable, false);
+        its_subscription->set_udp_connection_established(_unreliable->is_established());
+    }
+
+    // check whether the eventgroup is selective
+    auto its_eventgroup = host_->find_eventgroup(_service, _instance, _eventgroup);
+    if (its_eventgroup) {
+        its_subscription->set_selective(its_eventgroup->is_selective());
+    }
+
+    return its_subscription;
+}
+
+void
+service_discovery_impl::send_subscription_ack(
+        const std::shared_ptr<remote_subscription_ack> &_acknowledgement) {
+    if (_acknowledgement->is_done())
+        return;
+
+    _acknowledgement->done();
+
+    std::uint32_t its_answers(1);
+
+    // Find highest number of necessary answers
+    for (const auto& its_subscription : _acknowledgement->get_subscriptions()) {
+        if (its_subscription->get_answers() > its_answers)
+            its_answers = its_subscription->get_answers();
+    }
+
+    // send messages
+    for (std::uint32_t i = 0; i < its_answers; i++) {
+        for (const auto& its_subscription : _acknowledgement->get_subscriptions()) {
+            if (i < its_subscription->get_answers()) {
+                if (its_subscription->get_ttl() > 0) {
+                    auto its_info = its_subscription->get_eventgroupinfo();
+                    if (its_info) {
+                        for (const auto& its_client : its_subscription->get_clients()) {
+                            auto its_ttl = (its_subscription->get_client_state(its_client)
+                                    == remote_subscription_state_e::SUBSCRIPTION_ACKED ?
+                                            its_subscription->get_ttl() : 0);
+
+                            insert_subscription_ack(_acknowledgement, its_info, its_ttl,
+                                    its_subscription->get_subscriber(), its_client);
+                        }
+                    }
+                }
             }
-            const std::shared_ptr<endpoint_definition> its_unreliable =
-                    casted_e->get_target(false);
-            if (its_unreliable) {
-                its_acks.push_back(
-                        std::make_tuple(e->get_service(), e->get_instance(),
-                                casted_e->get_eventgroup(),
-                                its_unreliable));
+        }
+
+        auto its_messages = _acknowledgement->get_messages();
+        serialize_and_send(its_messages, _acknowledgement->get_target_address());
+        update_subscription_expiration_timer(its_messages);
+    }
+
+    // We might need to send initial events
+    for (const auto &its_subscription : _acknowledgement->get_subscriptions()) {
+        // Assumption: We do _NOT_ need to check whether this is a child
+        // subscription, as this only applies to selective events, which
+        // are owned by exclusive event groups.
+        if (its_subscription->get_ttl() > 0
+                && its_subscription->is_initial()) {
+            its_subscription->set_initial(false);
+            auto its_info = its_subscription->get_eventgroupinfo();
+            if (its_info) {
+                its_info->send_initial_events(
+                        its_subscription->get_reliable(),
+                        its_subscription->get_unreliable());
             }
         }
     }
-    return its_acks;
 }
 
-void service_discovery_impl::register_offer_acceptance_handler(
-        vsomeip::offer_acceptance_handler_t _handler) {
-    offer_acceptance_handler_ = _handler;
+void
+service_discovery_impl::add_entry_data(
+        std::vector<std::shared_ptr<message_impl> > &_messages,
+        const entry_data_t &_data) {
+    auto its_current_message = _messages.back();
+    const auto is_fitting = its_current_message->add_entry_data(
+            _data.entry_, _data.options_, _data.other_);
+    if (!is_fitting) {
+        its_current_message = std::make_shared<message_impl>();
+        (void)its_current_message->add_entry_data(
+                _data.entry_, _data.options_, _data.other_);
+        _messages.push_back(its_current_message);
+    }
 }
 
-void service_discovery_impl::register_reboot_notification_handler(
+void
+service_discovery_impl::add_entry_data_to_remote_subscription_ack_msg(
+        const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
+        const entry_data_t &_data) {
+    auto its_current_message = _acknowledgement->get_current_message();
+    const auto is_fitting = its_current_message->add_entry_data(
+            _data.entry_, _data.options_, _data.other_);
+    if (!is_fitting) {
+        its_current_message = _acknowledgement->add_message();
+        (void)its_current_message->add_entry_data(
+                _data.entry_, _data.options_, _data.other_);
+    }
+}
+
+void
+service_discovery_impl::register_sd_acceptance_handler(
+        sd_acceptance_handler_t _handler) {
+    sd_acceptance_handler_ = _handler;
+}
+
+void
+service_discovery_impl::register_reboot_notification_handler(
             reboot_notification_handler_t _handler) {
     reboot_notification_handler_ = _handler;
 }
 
 }  // namespace sd
-}  // namespace vsomeip
+}  // namespace vsomeip_v3

@@ -29,11 +29,11 @@
     ],
     "clients" :
     [
-    	{
-    		"service" : "0x1234",
-    		"instance" : "0x5678",
-    		"reliable" : [ "41234" ]
-    	}
+        {
+            "service" : "0x1234",
+            "instance" : "0x5678",
+            "reliable" : [ "41234" ]
+        }
     ],
     "security" :
     {

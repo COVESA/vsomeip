@@ -5,7 +5,7 @@
 
 #include "../include/request.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 request::request(major_version_t _major, minor_version_t _minor, ttl_t _ttl)
@@ -45,4 +45,4 @@ void request::set_sent_counter(uint8_t _sent_counter) {
 }
 
 }  // namespace sd
-}  // namespace vsomeip
+}  // namespace vsomeip_v3

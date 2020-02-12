@@ -18,4 +18,6 @@
 #include <vsomeip/runtime.hpp>
 #include <vsomeip/trace.hpp>
 
+namespace vsomeip = vsomeip_v3;
+
 #endif // VSOMEIP_VSOMEIP_HPP

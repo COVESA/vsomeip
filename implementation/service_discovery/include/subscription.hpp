@@ -1,39 +1,52 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_SUBSCRIPTION_HPP
-#define VSOMEIP_SD_SUBSCRIPTION_HPP
+#ifndef VSOMEIP_V3_SD_SUBSCRIPTION_HPP_
+#define VSOMEIP_V3_SD_SUBSCRIPTION_HPP_
 
+#include <map>
 #include <memory>
+#include <mutex>
+#include <set>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint;
 
 namespace sd {
 
+enum class subscription_state_e : uint8_t {
+    ST_ACKNOWLEDGED = 0x00,
+    ST_NOT_ACKNOWLEDGED = 0x01,
+    ST_RESUBSCRIBING = 0x2,
+    ST_RESUBSCRIBING_NOT_ACKNOWLEDGED = 0x3,
+    ST_UNKNOWN = 0xFF
+};
+
 class subscription {
 public:
-    subscription(major_version_t _major, ttl_t _ttl,
-            std::shared_ptr<endpoint> _reliable,
-            std::shared_ptr<endpoint> _unreliable,
-            subscription_type_e _subscription_type,
-            uint8_t _counter);
-    ~subscription();
+    subscription() = default;
+    ~subscription() = default;
 
     major_version_t get_major() const;
+    void set_major(major_version_t _major);
+
     ttl_t get_ttl() const;
     void set_ttl(ttl_t _ttl);
-    std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-    void set_endpoint(std::shared_ptr<endpoint> _endpoint, bool _reliable);
 
-    bool is_acknowledged() const;
-    void set_acknowledged(bool _is_acknowledged);
+    std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
+    void set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable);
+
+    bool is_selective() const;
+    void set_selective(const bool _is_selective);
+
+    subscription_state_e get_state(const client_t _client) const;
+    void set_state(const client_t _client, subscription_state_e _state);
 
     bool is_tcp_connection_established() const;
     void set_tcp_connection_established(bool _is_established);
@@ -41,9 +54,11 @@ public:
     bool is_udp_connection_established() const;
     void set_udp_connection_established(bool _is_established);
 
-    subscription_type_e get_subscription_type() const;
-
-    uint8_t get_counter() const;
+    bool add_client(const client_t _client);
+    bool remove_client(const client_t _client);
+    std::set<client_t> get_clients() const;
+    bool has_client() const;
+    bool has_client(const client_t _client) const;
 
 private:
     major_version_t major_;
@@ -52,16 +67,17 @@ private:
     std::shared_ptr<endpoint> reliable_;
     std::shared_ptr<endpoint> unreliable_;
 
-    bool is_acknowledged_;
+    bool is_selective_;
+
     bool tcp_connection_established_;
     bool udp_connection_established_;
 
-    subscription_type_e subscription_type_;
-
-    uint8_t counter_;
+    mutable std::mutex clients_mutex_;
+    std::map<client_t, subscription_state_e> clients_; // client-> is acknowledged?
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_SUBSCRIPTION_HPP
+#endif // VSOMEIP_V3_SD_SUBSCRIPTION_HPP_
+

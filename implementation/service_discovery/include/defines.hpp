@@ -6,8 +6,6 @@
 #ifndef VSOMEIP_SD_DEFINES_HPP
 #define VSOMEIP_SD_DEFINES_HPP
 
-#include "../../configuration/include/internal.hpp"
-
 #define VSOMEIP_MAX_TCP_SD_PAYLOAD               4075 // Available for entries & options
 #define VSOMEIP_MAX_UDP_SD_PAYLOAD               1380
 
@@ -16,8 +14,13 @@
 #define VSOMEIP_SOMEIP_SD_ENTRY_SIZE             16
 #define VSOMEIP_SOMEIP_SD_IPV4_OPTION_SIZE       12
 #define VSOMEIP_SOMEIP_SD_IPV6_OPTION_SIZE       24
+#define VSOMEIP_SOMEIP_SD_LOAD_BALANCING_OPTION_SIZE 8
+#define VSOMEIP_SOMEIP_SD_PROTECTION_OPTION_SIZE 12
+
 #define VSOMEIP_SOMEIP_SD_OPTION_LENGTH_SIZE     4
 #define VSOMEIP_SOMEIP_SD_OPTION_HEADER_SIZE     3
+#define VSOMEIP_SOMEIP_SD_EMPTY_MESSAGE_SIZE     28
+#define VSOMEIP_SOMEIP_SD_SPACE_FOR_PAYLOAD      VSOMEIP_MAX_UDP_MESSAGE_SIZE - VSOMEIP_SOMEIP_SD_EMPTY_MESSAGE_SIZE;
 
 
 
@@ -27,7 +30,7 @@
 #define VSOMEIP_SD_SERVICE                       0xFFFF
 #define VSOMEIP_SD_INSTANCE                      0x0000
 #define VSOMEIP_SD_METHOD                        0x8100
-#define VSOMEIP_SD_CLIENT                        (VSOMEIP_DIAGNOSIS_ADDRESS << 8) // SIP_SD_1139
+#define VSOMEIP_SD_CLIENT                        0x0
 
 
 #define VSOMEIP_SD_DEFAULT_ENABLED                  true

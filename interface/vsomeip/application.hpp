@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_APPLICATION_HPP
-#define VSOMEIP_APPLICATION_HPP
+#ifndef VSOMEIP_V3_APPLICATION_HPP_
+#define VSOMEIP_V3_APPLICATION_HPP_
 
 #include <chrono>
 #include <memory>
@@ -18,9 +18,9 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/handler.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
-class configuration;
+class configuration_public;
 class event;
 class payload;
 struct policy;
@@ -81,14 +81,11 @@ public:
     virtual client_t get_client() const = 0;
 
     /**
+     * \brief Get the diagnosis address
      *
-     * \brief Does nothing.
-     *
-     * This method exists for compatibility reasons only. It is a null
-     * operation and will be removed with the next major vsomeip version.
-     *
+     * \return diagnosis address
      */
-    virtual void set_configuration(const std::shared_ptr<configuration> _configuration) = 0;
+    virtual diagnosis_t get_diagnosis() const = 0;
 
     /**
      *
@@ -120,7 +117,6 @@ public:
     virtual void start() = 0;
 
     /**
-     *
      * \brief Stops message processing.
      *
      * This method stops message processing. Thus, @ref start will return
@@ -128,6 +124,26 @@ public:
      *
      */
     virtual void stop() = 0;
+
+    /**
+     * \brief Process messages / events.
+     *
+     * This methods controls the message / event processing from an application
+     * context. You must not call start / stop if you use this method.
+     *
+     * \param _number Number of events/messages that will be processed at
+     * maximum before returning.
+     *
+     */
+    virtual void process(int _number = VSOMEIP_ALL) = 0;
+
+    /**
+     *
+     * \brief Get the security mode of the application
+     *
+     * \return security mode
+     */
+    virtual security_mode_e get_security_mode() const = 0;
 
     /**
      *
@@ -181,16 +197,33 @@ public:
      * event.
      * \param _instance Instance identifier of the interface containing the
      * event.
-     * \param _event Event identifier of the offered event.
+     * \param _notifier Identifier of the notifier for the offered event.
      * \param _eventgroups List of eventgroup identifiers of the eventgroups
      * that contain the event.
-     * \param _is_field Selector for event or field.
-     *
+     * \param _type Pure event, selective event or field.
+     * \param _cycle Cycle time for periodic events
+     * \param _change_resets_cycle Set to true if a change of the event
+     * payload shall reset the cycle time for periodically sent events
+     * \param _update_on_change Set to false if a change of the event should not
+     * trigger a notification
+     * \param _epsilon_change_func Function to determine whether two event
+     * payloads are considered different
+     * \param _reliability Either RT_UNRELIABLE or RT_RELIABLE. All events
+     * of the same eventgroup are required to be offered with the same
+     * reliability. If set to RT_BOTH remote subscriptions are required to
+     * contain a reliable and unreliable endpoint option to be accepted.
+     * If set to RT_UNKNOWN the event reliability is determined by the service
+     * instance's reliability configuration. This parameter has no effect for
+     * events of local services.
      */
-    virtual void offer_event(service_t _service,
-            instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field) = 0;
+    virtual void offer_event(service_t _service, instance_t _instance,
+            event_t _notifier, const std::set<eventgroup_t> &_eventgroups,
+            event_type_e _type = event_type_e::ET_EVENT,
+            std::chrono::milliseconds _cycle =std::chrono::milliseconds::zero(),
+            bool _change_resets_cycle = false,
+            bool _update_on_change = true,
+            const epsilon_change_func_t &_epsilon_change_func = nullptr,
+            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
 
     /**
      *
@@ -228,8 +261,7 @@ public:
      */
     virtual void request_service(service_t _service, instance_t _instance,
             major_version_t _major = ANY_MAJOR,
-            minor_version_t _minor = ANY_MINOR,
-            bool _use_exclusive_proxy = false) = 0;
+            minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -264,12 +296,25 @@ public:
      * \param _event Event identifier of the event.
      * \param _eventgroups List of Eventgroup identifiers of the eventgroups
      * that contain the event.
-     * \param _is_field Pure event (false) or field (true).
+     * \param _type Pure event, selective event or field.
+     * \param _reliability Either RT_UNRELIABLE or RT_RELIABLE. All events
+     * of the same eventgroup are required to be requested with the same
+     * reliability. If set to RT_BOTH remote subscriptions are only done if
+     * the remote service is offered with an unreliable and reliable endpoint
+     * option. If set to RT_UNKNOWN the event reliability is determined by the
+     * service instance's reliability configuration. This parameter has no
+     * effect for events of local services
      *
+     * Note: If a vsomeip application registers to an event or field and other
+     * vsomeip application shall be enabled to use events/fields from the same
+     * eventgroup, the application must register all events and fields that
+     * belong to the eventgroup. Otherwise, neither event type nor reliability
+     * type are known which might result in missing events.
      */
     virtual void request_event(service_t _service, instance_t _instance,
             event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field) = 0;
+            event_type_e _type = event_type_e::ET_EVENT,
+            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
     /**
      *
      * \brief Unregister the application as user of an event or field.
@@ -308,13 +353,11 @@ public:
      * eventgroup.
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      * \param _major Major version number of the service.
-     * \param _subscription_type Specifies how the events shall be received.
      * \param _event All (Default) or a specific event.
      *
      */
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
             event_t _event = ANY_EVENT) = 0;
 
     /**
@@ -347,7 +390,15 @@ public:
      *
      */
     virtual bool is_available(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) const = 0;
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
+
+    typedef std::map<service_t,
+                std::map<instance_t,
+                    std::map<major_version_t, minor_version_t >>> available_t;
+
+    virtual bool are_available(available_t &_available,
+            service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 
     /**
      *
@@ -359,11 +410,9 @@ public:
      * identifier.
      *
      * \param _message Message object.
-     * \param _flush If set to true, the message is immediately sent. Otherwise
-     * the message might be deferred and sent together with other messages.
      *
      */
-    virtual void send(std::shared_ptr<message> _message, bool _flush = true) = 0;
+    virtual void send(std::shared_ptr<message> _message) = 0;
 
     /**
      *
@@ -386,7 +435,8 @@ public:
      *
      */
     virtual void notify(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload) const = 0;
+            event_t _event, std::shared_ptr<payload> _payload,
+            bool _force = false) const = 0;
 
     /**
      *
@@ -410,8 +460,8 @@ public:
      *
      */
     virtual void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload,
-                client_t _client) const = 0;
+                event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                bool _force = false) const = 0;
 
     /**
      *
@@ -510,7 +560,7 @@ public:
      */
     virtual void register_availability_handler(service_t _service,
             instance_t _instance, availability_handler_t _handler,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -528,7 +578,7 @@ public:
      */
     virtual void unregister_availability_handler(service_t _service,
             instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -545,12 +595,39 @@ public:
      * subscription state is to be monitored.
      * \param _eventgroup Eventgroup identifier of eventgroup whose
      * subscription state is to be monitored.
-     * \param _handler Callback that shall be called.
+     * \param _handler Callback that shall be called. The value returned by this
+     * handler decides if the subscription is accepted or not.
      *
      */
     virtual void register_subscription_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             subscription_handler_t _handler) = 0;
+
+    /**
+      *
+      * \brief Registers an async subscription handler.
+      *
+      * A subscription handler is called whenever the subscription state of an
+      * eventgroup changes. The callback is called with the client identifier
+      * and a boolean that indicates whether the client subscribed or
+      * unsubscribed.
+      * This method offers the possibility to asynchronously accept/rejects
+      * subscriptions through a callback.
+      *
+      * \param _service Service identifier of service instance whose
+      * subscription state is to be monitored.
+      * \param _instance Instance identifier of service instance whose
+      * subscription state is to be monitored.
+      * \param _eventgroup Eventgroup identifier of eventgroup whose
+      * subscription state is to be monitored.
+      * \param _handler Callback that shall be called. The value passed to the
+      * callback passed as a parameter to this handler decides if the
+      * subscription is accepted or not.
+      *
+      */
+     virtual void register_async_subscription_handler(
+             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+             async_subscription_handler_t _handler) = 0;
 
     /**
      *
@@ -565,43 +642,6 @@ public:
      *
      */
     virtual void unregister_subscription_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
-
-    // [Un]Register handler for subscription errors
-    /**
-     *
-     * \brief Allows for the registration of a subscription error handler.
-     *
-     * This handler is called whenever a subscription request for an eventgroup
-     * was either accepted or rejected. The respective callback is called with
-     * ether OK (0x00) or REJECTED (0x07).
-     *
-     * \param _service Service identifier of service instance whose
-     * subscription error state is to be monitored.
-     * \param _instance Instance identifier of service instance whose
-     * subscription error state is to be monitored.
-     * \param _eventgroup Eventgroup identifier of eventgroup whose
-     * subscription error state is to be monitored.
-     * \param _handler Callback that shall be called.
-     *
-     */
-    virtual void register_subscription_error_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            error_handler_t _handler) = 0;
-
-    /**
-     *
-     * \brief Removes a registered subscription error callback.
-     *
-     * \param _service Service identifier of service instance whose
-     * error callback shall be removed.
-     * \param _instance Instance identifier of service instance whose
-     * error callback shall be removed.
-     * \param _eventgroup Eventgroup identifier of eventgroup whose
-     * error callback shall be removed.
-     *
-     */
-    virtual void unregister_subscription_error_handler(service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     /**
@@ -624,197 +664,6 @@ public:
      *
      */
     virtual bool is_routing() const = 0;
-
-    /**
-     *
-     * \brief Offers a SOME/IP event or field.
-     *
-     * A user application must call this method for each event/field it wants
-     * to offer. The event is registered at the vsomeip routing component that
-     * enables other applications to subscribe to the event/field as well as
-     * to get and set the field value.
-     *
-     * This version of offer_event adds some additional functionalities:
-     * - It is possible to configure a cycle time. The notification message of
-     *   this event is then resent cyclically.
-     * - The parameter _change_resets_cycle is available to control how event
-     *   notification works in case the data is updated by the application. If
-     *   set to true, an update of the data immediately leads to a
-     *   notification. Otherwise, the updated data is sent only after the
-     *   expiration of the cycle time.
-     * - It is possible to specify callback function that can be used to
-     *   implement a predicate that determines whether or not two event values
-     *   are considered different. Field notifications are only sent if the
-     *   predicate evaluates to true (or if a notify method is called with the
-     *   force flag being set).
-     *
-     * \param _service Service identifier of the interface containing the
-     * event.
-     * \param _instance Instance identifier of the interface containing the
-     * event.
-     * \param _event Event identifier of the offered event.
-     * \param _eventgroups List of eventgroup identifiers of the eventgroups
-     * that contain the event.
-     * \param _is_field Selector for event or field.
-     * \param _cycle Sets the cycle time of the event. If nonzero, data is
-     * resent cyclically after the cycle time expired.
-     * \param _change_resets_cycle Tells if a change immediately leads to
-     * a notification.
-     * \param _epsilon_change_func Predicate that determines if two given
-     * payloads are considered different.
-     *
-     * Note: The different versions of offer_event exist for compatibility
-     * reasons. They will be merged with the next major vsomeip version.
-     */
-    virtual void offer_event(service_t _service,
-            instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field,
-            std::chrono::milliseconds _cycle,
-            bool _change_resets_cycle,
-            const epsilon_change_func_t &_epsilon_change_func) = 0;
-
-    /**
-     *
-     * \brief Fire an event or field notification.
-     *
-     * The specified event is updated with the specified payload data.
-     * Dependent on the type of the event, the payload is distributed to all
-     * notified clients (always for events, only if the payload has changed
-     * for fields).
-     *
-     * Note: Prior to using this method, @ref offer_event has to be called by
-     * the service provider.
-     *
-     * \param _service Service identifier of the service that contains the
-     * event.
-     * \param _instance Instance identifier of the service instance that
-     * holds the event.
-     * \param _event Event identifier of the event.
-     * \param _payload Serialized payload of the event.
-     * \param _force Forces the notification to be sent (even if the event
-     * is a field and the value did not change).
-     *
-     * Note: The different versions of notify do exist for compatibility
-     * reasons. They will be merged with the next major vsomeip release.
-     */
-    virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            bool _force) const = 0;
-
-    /**
-     *
-     * \brief Fire an event or field notification.
-     *
-     * The specified event is updated with the specified payload data.
-     * Dependent on the type of the event, the payload is distributed to all
-     * notified clients (always for events, only if the payload has changed
-     * for fields).
-     *
-     * Note: Prior to using this method, @ref offer_event has to be called by
-     * the service provider.
-     *
-     * \param _service Service identifier of the service that contains the
-     * event.
-     * \param _instance Instance identifier of the service instance that
-     * holds the event.
-     * \param _event Event identifier of the event.
-     * \param _payload Serialized payload of the event.
-     * \param _client Target client.
-     * \param _force Forces the notification to be sent (even if the event
-     * is a field and the value did not change).
-     *
-     * Note: The different versions of notify_one do exist for compatibility
-     * reasons. They will be merged with the next major vsomeip release.
-     */
-    virtual void notify_one(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force) const = 0;
-
-    typedef std::map<service_t, std::map<instance_t, std::map<major_version_t, minor_version_t >>> available_t;
-    /**
-     * \brief Returns all available instances that match the given combination
-     * of service, instance and version.
-     *
-     * This method checks the availability of the service instances that
-     * match the specified combination of service, instance and version
-     * parameters. If at least one matching service instance is available,
-     * the method returns true, otherwise it returns false. All available
-     * service instances are returned to the caller by filling the
-     * _available parameter.
-     *
-     * \param _available Map that is filled with the available instances.
-     * \param _service Service identifier that specifies which service(s)
-     * are checked.
-     * \param _instance Instance identifier that specifies which instance(s)
-     * are checked.
-     * \param _major_version Major version(s) of the service instances that
-     * are checked
-     * \param _minor_version Minor version(s) of the service instance that
-     * are checked
-     */
-    virtual bool are_available(available_t &_available,
-            service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
-
-    /**
-     *
-     * \brief Fire an event or field notification.
-     *
-     * The specified event is updated with the specified payload data.
-     * Dependent on the type of the event, the payload is distributed to all
-     * notified clients (always for events, only if the payload has changed
-     * for fields).
-     *
-     * Note: Prior to using this method, @ref offer_event has to be called by
-     * the service provider.
-     *
-     * \param _service Service identifier of the service that contains the
-     * event.
-     * \param _instance Instance identifier of the service instance that
-     * holds the event.
-     * \param _event Event identifier of the event.
-     * \param _payload Serialized payload of the event.
-     * \param _force Forces the notification to be sent (even if the event
-     * is a field and the value did not change).
-     * \param _flush Must be set to ensure the event is immediately fired.
-     *
-     * Note: The different versions of notify do exist for compatibility
-     * reasons. They will be merged with the next major vsomeip release.
-     */
-    virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            bool _force, bool _flush) const = 0;
-
-    /**
-     *
-     * \brief Fire an event or field notification.
-     *
-     * The specified event is updated with the specified payload data.
-     * Dependent on the type of the event, the payload is distributed to all
-     * notified clients (always for events, only if the payload has changed
-     * for fields).
-     *
-     * Note: Prior to using this method, @ref offer_event has to be called by
-     * the service provider.
-     *
-     * \param _service Service identifier of the service that contains the
-     * event.
-     * \param _instance Instance identifier of the service instance that
-     * holds the event.
-     * \param _event Event identifier of the event.
-     * \param _payload Serialized payload of the event.
-     * \param _client Target client.
-     * \param _force Forces the notification to be sent (even if the event
-     * is a field and the value did not change).
-     * \param _flush Must be set to ensure the event is immediately fired.
-     *
-     * Note: The different versions of notify_one do exist for compatibility
-     * reasons. They will be merged with the next major vsomeip release.
-     */
-    virtual void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload,
-                client_t _client, bool _force, bool _flush) const = 0;
 
     /**
      * \brief Set the current routing state.
@@ -842,7 +691,6 @@ public:
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event) = 0;
 
-
     /**
      *
      * \brief Registers a subscription status listener.
@@ -850,29 +698,9 @@ public:
      * When registered such a handler it will be called for
      * every application::subscribe call.
      *
-     * This method is intended to replace the application::
-     * register_subscription_error_handler call in future releases.
-     *
-     * \param _service Service identifier of the service that is subscribed to.
-     * \param _instance Instance identifier of the service that is subscribed to.
-     * \param _eventgroup Eventgroup identifier of the eventgroup is subscribed to.
-     * \param _event Event indentifier of the event is subscribed to.
-     * \param _handler A subscription status handler which will be called by vSomeIP
-     * as a follow of application::subscribe.
-     */
-    virtual void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler) = 0;
-
-    /**
-     *
-     * \brief Registers a subscription status listener.
-     *
-     * When registered such a handler it will be called for
-     * every application::subscribe call.
-     *
-     * This method is intended to replace the application::
-     * register_subscription_error_handler call in future releases.
+     * The handler is called whenever a subscription request for an eventgroup
+     * and/or event was either accepted or rejected. The respective callback is
+     * called with either OK (0x00) or REJECTED (0x07).
      *
      * \param _service Service identifier of the service that is subscribed to.
      * \param _instance Instance identifier of the service that is subscribed to.
@@ -885,7 +713,23 @@ public:
      */
     virtual void register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective) = 0;
+            subscription_status_handler_t _handler, bool _is_selective = false) = 0;
+
+    /**
+     *
+     * \brief Unregisters a subscription status listener.
+     *
+     * \param _service Service identifier of the service for which the handler
+     * should be removed.
+     * \param _instance Instance identifier of the service for which the handler
+     * should be removed
+     * \param _eventgroup Eventgroup identifier of the eventgroup for which the
+     * should be removed
+     * \param _event Event identifier of the event for which the handler should
+     * be removed.
+     */
+    virtual void unregister_subscription_status_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     /**
      *
@@ -915,7 +759,7 @@ public:
      *         or scheduling effects, thus it may underrun or overrun by small
      *         amount.
      *
-     * \note Only one handler can be active at the time, thus last handler set
+     * \note Only one handler can be active at a time, thus last handler set
      *       by calling this function will be invoked.
      *
      * \note To disable calling an active handler, invoke this method again,
@@ -927,67 +771,60 @@ public:
      */
     virtual void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval) = 0;
 
-   /**
-     *
-     * \brief Registers a subscription handler.
-     *
-     * A subscription handler is called whenever the subscription state of an
-     * eventgroup changes. The callback is called with the client identifier
-     * and a boolean that indicates whether the client subscribed or
-     * unsubscribed.
-     *
-     * \param _service Service identifier of service instance whose
-     * subscription state is to be monitored.
-     * \param _instance Instance identifier of service instance whose
-     * subscription state is to be monitored.
-     * \param _eventgroup Eventgroup identifier of eventgroup whose
-     * subscription state is to be monitored.
-     * \param _handler Callback that shall be called.
-     *
-     */
-    virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            async_subscription_handler_t _handler) = 0;
-
     /**
-     *  \brief Enables or disables calling of registered offer acceptance
-     *  handler for given IP address
+     *  \brief Enables or disables calling of registered acceptance
+     *  handlers for given remote info
      *
      * This method has only an effect when called on the application acting as
      * routing manager
      *
-     *  \param _address IP address for which offer acceptance handler should be
+     *  \param _remote IP and port for which SD acceptance handler should be
      *  called
      *  \param _path Path which indicates need for offer acceptance
      *  \param _enable enable or disable calling of offer acceptance handler
      */
-    virtual void set_offer_acceptance_required(ip_address_t _address,
-                                               const std::string _path,
-                                               bool _enable) = 0;
+    virtual void set_sd_acceptance_required(const remote_info_t& _remote,
+                                         const std::string& _path,
+                                         bool _enable) = 0;
 
     /**
-     * \brief Returns all configured IP addresses which require calling of
-     * registered offer acceptance handler
+     *  \brief Enables or disables calling of registered acceptance
+     *  handlers for given remote info
      *
      * This method has only an effect when called on the application acting as
      * routing manager
      *
-     * \return map with known IP addresses requiring offer acceptance handling
+     *  \param _remotes remote infos for which SD acceptance handler should be
+     *  called
+     *  \param _path Path which indicates need for offer acceptance
+     *  \param _enable enable or disable calling of offer acceptance handler
      */
-    typedef std::map<ip_address_t, std::string> offer_acceptance_map_type_t;
-    virtual offer_acceptance_map_type_t get_offer_acceptance_required() = 0;
+    typedef std::map<remote_info_t, std::string> sd_acceptance_map_type_t;
+    virtual void set_sd_acceptance_required(
+            const sd_acceptance_map_type_t& _remotes, bool _enable) = 0;
+
+    /**
+     * \brief Returns all configured remote info which require calling of
+     * registered service discovery (SD) acceptance handler
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \return map with known remotes requiring SD acceptance handling
+     */
+    virtual sd_acceptance_map_type_t get_sd_acceptance_required() = 0;
 
     /**
      * \brief Registers a handler which will be called upon reception of
-     * a remote offer with the offering ECU's IP address as parameter
+     * a remote SD message with the sending ECU's IP address and port as
+     * parameter
      *
      * This method has only an effect when called on the application acting as
      * routing manager
      *
      * \param _handler The handler to be called
      */
-    virtual void register_offer_acceptance_handler(
-            offer_acceptance_handler_t _handler) = 0;
+    virtual void register_sd_acceptance_handler(sd_acceptance_handler_t _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called upon detection of a
@@ -1088,6 +925,6 @@ public:
 
 /** @} */
 
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_APPLICATION_HPP
+#endif // VSOMEIP_V3_APPLICATION_HPP_

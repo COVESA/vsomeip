@@ -113,7 +113,8 @@ std::uint64_t cpu_load_measurer::read_proc_pid_stat() {
         exit(1);
     }
     std::fclose(f);
-    return utime + stime + cutime + cstime;
+    return utime + stime + static_cast<std::uint64_t>(cutime) +
+            static_cast<std::uint64_t>(cstime);
 }
 
 std::uint64_t cpu_load_measurer::read_proc_stat(std::uint64_t* _idle) {

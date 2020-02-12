@@ -16,7 +16,7 @@
    "applications" : 
    [
       {
-         "name" : "vsomeipd",
+         "name" : "routingmanagerd",
          "id" : "0x0815"
       },
       {
@@ -33,7 +33,7 @@
       }
    ],
 
-   "routing" : "vsomeipd",
+   "routing" : "routingmanagerd",
    "service-discovery" : 
    {
       "enable" : "false",

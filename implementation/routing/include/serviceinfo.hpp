@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICEINFO_HPP
-#define VSOMEIP_SERVICEINFO_HPP
+#ifndef VSOMEIP_V3_SERVICEINFO_HPP_
+#define VSOMEIP_V3_SERVICEINFO_HPP_
 
 #include <memory>
 #include <set>
@@ -15,20 +15,24 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class endpoint;
 class servicegroup;
 
 class serviceinfo {
 public:
-    VSOMEIP_EXPORT serviceinfo(major_version_t _major, minor_version_t _minor,
+    VSOMEIP_EXPORT serviceinfo(service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor,
             ttl_t _ttl, bool _is_local);
     VSOMEIP_EXPORT serviceinfo(const serviceinfo& _other);
     VSOMEIP_EXPORT ~serviceinfo();
 
     VSOMEIP_EXPORT servicegroup * get_group() const;
     VSOMEIP_EXPORT void set_group(servicegroup *_group);
+
+    VSOMEIP_EXPORT service_t get_service() const;
+    VSOMEIP_EXPORT instance_t get_instance() const;
 
     VSOMEIP_EXPORT major_version_t get_major() const;
     VSOMEIP_EXPORT minor_version_t get_minor() const;
@@ -40,7 +44,7 @@ public:
     VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-    VSOMEIP_EXPORT void set_endpoint(std::shared_ptr<endpoint> _endpoint,
+    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
             bool _reliable);
 
     VSOMEIP_EXPORT void add_client(client_t _client);
@@ -54,6 +58,9 @@ public:
 
 private:
     servicegroup *group_;
+
+    service_t service_;
+    instance_t instance_;
 
     major_version_t major_;
     minor_version_t minor_;
@@ -72,6 +79,6 @@ private:
     bool is_in_mainphase_;
 };
 
-}  // namespace vsomeip
+}  // namespace vsomeip_v3
 
-#endif // VSOMEIP_SERVICEINFO_HPP
+#endif // VSOMEIP_V3_SERVICEINFO_HPP_

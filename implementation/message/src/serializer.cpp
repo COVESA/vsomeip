@@ -14,9 +14,9 @@
 
 #include "../include/serializer.hpp"
 #include "../../utility/include/byteorder.hpp"
-#include "../../logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 serializer::serializer(std::uint32_t _buffer_shrink_threshold) :
         data_(0),
@@ -119,4 +119,4 @@ void serializer::show() {
 }
 #endif
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

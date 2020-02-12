@@ -23,9 +23,9 @@ ALLOW_DENY=$2
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=$1
-export VSOMEIP_APPLICATION_NAME=vsomeipd
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
-../daemon/./vsomeipd &
+../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_CONFIGURATION=$1

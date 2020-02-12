@@ -32,116 +32,29 @@
         {
             "service":"0x4444",
             "instance":"0x0001",
-            "unreliable":"30004",
             "reliable":
             {
                 "port":"40004",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x4444",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x4445",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x4446",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x4447",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x4448",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         },
         {
             "service":"0x5555",
             "instance":"0x0001",
-            "unreliable":"30005",
             "reliable":
             {
                 "port":"40005",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x5555",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x5556",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x5557",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x5558",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x5559",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         },
         {
             "service":"0x6666",
             "instance":"0x0001",
-            "unreliable":"30006",
             "reliable":
             {
                 "port":"40006",
                 "enable-magic-cookies":"false"
-            },
-            "events" : 
-            [
-                {
-                    "event" : "0x6666",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x6667",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x6668",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x6669",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                },
-                {
-                    "event" : "0x666a",
-                    "is_field" : "true",
-                    "is_reliable" : "true"
-                }
-            ]
+            }
         },
         {
             "service":"0x9999",

@@ -3,12 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_ENUMERATION_TYPES_HPP
-#define VSOMEIP_ENUMERATION_TYPES_HPP
+#ifndef VSOMEIP_V3_ENUMERATION_TYPES_HPP_
+#define VSOMEIP_V3_ENUMERATION_TYPES_HPP_
 
 #include <cstdint>
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 enum class state_type_e : uint8_t {
     ST_REGISTERED = 0x0,
@@ -46,14 +46,6 @@ enum class return_code_e : uint8_t {
     E_UNKNOWN = 0xFF
 };
 
-enum class subscription_type_e : uint8_t {
-    SU_RELIABLE_AND_UNRELIABLE = 0x00,
-    SU_PREFER_UNRELIABLE = 0x01,
-    SU_PREFER_RELIABLE = 0x02,
-    SU_UNRELIABLE = 0x03,
-    SU_RELIABLE = 0x04,
-};
-
 enum class routing_state_e : uint8_t {
     RS_RUNNING = 0x00,
     RS_SUSPENDED = 0x01,
@@ -69,6 +61,19 @@ enum class offer_type_e : uint8_t {
     OT_ALL = 0x02,
 };
 
+enum class event_type_e : uint8_t {
+    ET_EVENT = 0x00,
+    ET_SELECTIVE_EVENT = 0x01,
+    ET_FIELD = 0x02,
+    ET_UNKNOWN = 0xFF
+};
+
+enum class security_mode_e : uint8_t {
+    SM_OFF = 0x00,
+    SM_ON = 0x01,
+    SM_AUDIT = 0x02
+};
+
 enum class security_update_state_e : uint8_t {
     SU_SUCCESS = 0x00,
     SU_NOT_ALLOWED = 0x01,
@@ -76,6 +81,13 @@ enum class security_update_state_e : uint8_t {
     SU_INVALID_FORMAT = 0x03
 };
 
-} // namespace vsomeip
+enum class reliability_type_e : uint8_t {
+    RT_RELIABLE = 0x01,
+    RT_UNRELIABLE = 0x02,
+    RT_BOTH = 0x3, // RT_RELIABLE | RT_UNRELIABLE
+    RT_UNKNOWN = 0xFF
+};
 
-#endif // VSOMEIP_ENUMERATION_TYPES_HPP
+} // namespace vsomeip_v3
+
+#endif // VSOMEIP_V3_ENUMERATION_TYPES_HPP_

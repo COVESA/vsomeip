@@ -7,7 +7,7 @@
 #include "../include/payload_impl.hpp"
 #include "../include/serializer.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 payload_impl::payload_impl()
     : data_() {
@@ -76,4 +76,4 @@ bool payload_impl::deserialize(deserializer *_from) {
     return (0 != _from && _from->deserialize(data_));
 }
 
-} // namespace vsomeip
+} // namespace vsomeip_v3

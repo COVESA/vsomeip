@@ -1,10 +1,10 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_CONFIGURATION_OPTION_IMPL_HPP
-#define VSOMEIP_SD_CONFIGURATION_OPTION_IMPL_HPP
+#ifndef VSOMEIP_V3_SD_CONFIGURATION_OPTION_IMPL_HPP_
+#define VSOMEIP_V3_SD_CONFIGURATION_OPTION_IMPL_HPP_
 
 #include <map>
 #include <string>
@@ -12,7 +12,7 @@
 
 #include "option_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 
 class serializer;
 class deserializer;
@@ -24,7 +24,8 @@ class configuration_option_impl: public option_impl {
 public:
     configuration_option_impl();
     virtual ~configuration_option_impl();
-    bool operator==(const configuration_option_impl &_other) const;
+
+    bool operator==(const option_impl &_other) const;
 
     void add_item(const std::string &_key, const std::string &_value);
     void remove_item(const std::string &_key);
@@ -33,14 +34,14 @@ public:
     std::vector<std::string> get_values() const;
     std::string get_value(const std::string &_key) const;
 
-    bool serialize(vsomeip::serializer *_to) const;
-    bool deserialize(vsomeip::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer *_to) const;
+    bool deserialize(vsomeip_v3::deserializer *_from);
 
 private:
     std::map<std::string, std::string> configuration_;
 };
 
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3
 
-#endif // VSOMEIP_SD_CONFIGURATION_OPTION_IMPL_HPP
+#endif // VSOMEIP_V3_SD_CONFIGURATION_OPTION_IMPL_HPP_

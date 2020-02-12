@@ -1,7 +1,9 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/eventgroupentry_impl.hpp"
@@ -9,8 +11,9 @@
 #include "../../message/include/serializer.hpp"
 #include "../include/ipv4_option_impl.hpp"
 #include "../include/ipv6_option_impl.hpp"
+#include "../include/selective_option_impl.hpp"
 
-namespace vsomeip {
+namespace vsomeip_v3 {
 namespace sd {
 
 eventgroupentry_impl::eventgroupentry_impl() :
@@ -53,39 +56,20 @@ void eventgroupentry_impl::set_counter(uint8_t _counter) {
     counter_ = _counter;
 }
 
-bool eventgroupentry_impl::serialize(vsomeip::serializer *_to) const {
+bool eventgroupentry_impl::serialize(vsomeip_v3::serializer *_to) const {
     bool is_successful = entry_impl::serialize(_to);
-
     is_successful = is_successful && _to->serialize(major_version_);
-
     is_successful = is_successful
             && _to->serialize(static_cast<uint32_t>(ttl_), true);
-
-    // 4Bit only for counter field
-    if (counter_ >= 16) {
-        is_successful = false;
-    }
-    uint16_t counter_and_reserved = protocol::reserved_word;
-    if (!reserved_ ) {
-        //reserved was not set -> just store counter as uint16
-        counter_and_reserved = static_cast<uint16_t>(counter_);
-    }
-    else {
-        //reserved contains values -> put reserved and counter into 16 bit variable
-        counter_and_reserved = (uint16_t) (((uint16_t) reserved_ << 4) | counter_);
-    }
-
     is_successful = is_successful
-            && _to->serialize((uint8_t)(counter_and_reserved >> 8)); // serialize reserved part 1
-    is_successful = is_successful
-            && _to->serialize((uint8_t)counter_and_reserved); // serialize reserved part 2 and counter
+            && _to->serialize(protocol::reserved_word);
     is_successful = is_successful
             && _to->serialize(static_cast<uint16_t>(eventgroup_));
 
     return is_successful;
 }
 
-bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
+bool eventgroupentry_impl::deserialize(vsomeip_v3::deserializer *_from) {
     bool is_successful = entry_impl::deserialize(_from);
 
     uint8_t tmp_major_version(0);
@@ -96,20 +80,8 @@ bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
     is_successful = is_successful && _from->deserialize(its_ttl, true);
     ttl_ = static_cast<ttl_t>(its_ttl);
 
-    uint8_t reserved1(0), reserved2(0);
-    is_successful = is_successful && _from->deserialize(reserved1); // deserialize reserved part 1
-    is_successful = is_successful && _from->deserialize(reserved2); // deserialize reserved part 2 and counter
+    is_successful = is_successful && _from->deserialize(reserved_);
 
-    reserved_ = (uint16_t) (((uint16_t)reserved1 << 8) | reserved2); // combine reserved parts and counter
-    reserved_ = (uint16_t) (reserved_ >> 4);  //remove counter from reserved field
-
-    //set 4 bits of reserved part 2 field to zero
-    counter_ = (uint8_t) (reserved2 & (~(0xF0)));
-
-    // 4Bit only for counter field
-    if (counter_ >= 16) {
-        is_successful = false;
-    }
     uint16_t its_eventgroup = 0;
     is_successful = is_successful && _from->deserialize(its_eventgroup);
     eventgroup_ = static_cast<eventgroup_t>(its_eventgroup);
@@ -117,28 +89,22 @@ bool eventgroupentry_impl::deserialize(vsomeip::deserializer *_from) {
     return is_successful;
 }
 
-bool eventgroupentry_impl::is_matching_subscribe(
-        const eventgroupentry_impl& _other,
+bool eventgroupentry_impl::matches(const eventgroupentry_impl& _other,
         const message_impl::options_t& _options) const {
-    if (ttl_ == 0
-            && _other.ttl_ > 0
-            && service_ == _other.service_
+    if (service_ == _other.service_
             && instance_ == _other.instance_
             && eventgroup_ == _other.eventgroup_
-            && index1_ == _other.index1_
+            && major_version_ == _other.major_version_
+            && counter_ == _other.counter_) {
+
+        // Check, whether options are identical
+        if (index1_ == _other.index1_
             && index2_ == _other.index2_
             && num_options_[0] == _other.num_options_[0]
-            && num_options_[1] == _other.num_options_[1]
-            && major_version_ == _other.major_version_
-            && counter_ == _other.counter_) {
-        return true;
-    } else if (ttl_ == 0
-            && _other.ttl_ > 0
-            && service_ == _other.service_
-            && instance_ == _other.instance_
-            && eventgroup_ == _other.eventgroup_
-            && major_version_ == _other.major_version_
-            && counter_ == _other.counter_) {
+            && num_options_[1] == _other.num_options_[1]) {
+            return true;
+        }
+
         // check if entries reference options at different indexes but the
         // options itself are identical
         // check if number of options referenced is the same
@@ -147,6 +113,7 @@ bool eventgroupentry_impl::is_matching_subscribe(
                 num_options_[0] + num_options_[1] == 0) {
             return false;
         }
+
         // read out ip options of current and _other
         std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
         std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
@@ -243,5 +210,18 @@ std::shared_ptr<endpoint_definition> eventgroupentry_impl::get_target(
     return _reliable ? target_reliable_ : target_unreliable_;
 }
 
+std::shared_ptr<selective_option_impl>
+eventgroupentry_impl::get_selective_option() const {
+    for (const auto i : {0, 1}) {
+        for (const auto j : options_[i]) {
+            auto its_option = std::dynamic_pointer_cast<
+                    selective_option_impl>(owner_->get_option(j));
+            if (its_option)
+                return its_option;
+        }
+    }
+    return nullptr;
+}
+
 } // namespace sd
-} // namespace vsomeip
+} // namespace vsomeip_v3

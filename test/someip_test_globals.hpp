@@ -7,8 +7,7 @@
 #define SOMEIP_TEST_GLOBALS_HPP_
 
 #include <vsomeip/vsomeip.hpp>
-
-#include "../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 namespace vsomeip_test
 {

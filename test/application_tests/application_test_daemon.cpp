@@ -7,7 +7,7 @@
 #include <future>
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/logging/include/logger.hpp"
+#include <vsomeip/internal/logger.hpp>
 
 class application_test_daemon {
 public:

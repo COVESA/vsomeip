@@ -3,16 +3,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <vsomeip/constants.hpp>
-
 #include "../include/virtual_server_endpoint_impl.hpp"
-#include "../../logging/include/logger.hpp"
 
-namespace vsomeip {
+#include <vsomeip/constants.hpp>
+#include <vsomeip/internal/logger.hpp>
+
+namespace vsomeip_v3 {
 
 virtual_server_endpoint_impl::virtual_server_endpoint_impl(
-        const std::string &_address, uint16_t _port, bool _reliable)
-    : address_(_address), port_(_port), reliable_(_reliable), use_count_(0) {
+        const std::string &_address, uint16_t _port, bool _reliable,
+        boost::asio::io_service& _service)
+    : address_(_address), port_(_port), reliable_(_reliable), use_count_(0),
+      service_(_service) {
 }
 
 virtual_server_endpoint_impl::~virtual_server_endpoint_impl() {
@@ -21,10 +23,22 @@ virtual_server_endpoint_impl::~virtual_server_endpoint_impl() {
 void virtual_server_endpoint_impl::start() {
 }
 
+void virtual_server_endpoint_impl::prepare_stop(endpoint::prepare_stop_handler_t _handler,
+                                                service_t _service) {
+    auto ptr = shared_from_this();
+    service_.post([ptr, _handler, _service]() {
+        _handler(ptr, _service);
+    });
+}
+
 void virtual_server_endpoint_impl::stop() {
 }
 
 bool virtual_server_endpoint_impl::is_established() const {
+    return false;
+}
+
+bool virtual_server_endpoint_impl::is_established_or_connected() const {
     return false;
 }
 
@@ -36,46 +50,43 @@ void virtual_server_endpoint_impl::set_connected(bool _connected) {
     (void) _connected;
 }
 
-bool virtual_server_endpoint_impl::send(const byte_t *_data, uint32_t _size,
-        bool _flush) {
+bool virtual_server_endpoint_impl::send(const byte_t *_data, uint32_t _size) {
     (void)_data;
     (void)_size;
-    (void)_flush;
     return false;
 }
 
 bool virtual_server_endpoint_impl::send(const std::vector<byte_t>& _cmd_header,
-                                      const byte_t *_data, uint32_t _size,
-                                      bool _flush) {
+                                      const byte_t *_data, uint32_t _size) {
     (void)_cmd_header;
     (void)_data;
     (void)_size;
-    (void)_flush;
     return false;
 }
 
 bool virtual_server_endpoint_impl::send_to(
         const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size, bool _flush) {
+        const byte_t *_data, uint32_t _size) {
     (void)_target;
     (void)_data;
     (void)_size;
-    (void)_flush;
     return false;
 }
+
+bool virtual_server_endpoint_impl::send_error(
+        const std::shared_ptr<endpoint_definition> _target,
+        const byte_t *_data, uint32_t _size) {
+    (void)_target;
+    (void)_data;
+    (void)_size;
+    return false;
+}
+
 
 void virtual_server_endpoint_impl::enable_magic_cookies() {
 }
 
 void virtual_server_endpoint_impl::receive() {
-}
-
-void virtual_server_endpoint_impl::join(const std::string &_address) {
-    (void)_address;
-}
-
-void virtual_server_endpoint_impl::leave(const std::string &_address) {
-    (void)_address;
 }
 
 void virtual_server_endpoint_impl::add_default_target(
@@ -140,4 +151,7 @@ void virtual_server_endpoint_impl::print_status() {
 
 }
 
-} // namespace vsomeip
+size_t virtual_server_endpoint_impl::get_queue_size() const {
+    return 0;;
+}
+} // namespace vsomeip_v3
