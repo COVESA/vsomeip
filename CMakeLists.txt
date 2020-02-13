@@ -576,6 +576,8 @@ add_subdirectory( tools )
 # build examples
 add_custom_target( examples )
 add_subdirectory( examples EXCLUDE_FROM_ALL )
+add_custom_target( hello_world )
+add_subdirectory( examples/hello_world  EXCLUDE_FROM_ALL )
 
 ##############################################################################
 # Test section
