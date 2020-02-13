@@ -88,6 +88,12 @@ public:
     VSOMEIP_EXPORT bool has_enabled_magic_cookies(std::string _address, uint16_t _port) const;
     VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service,
             instance_t _instance) const;
+    VSOMEIP_EXPORT major_version_t get_major_version(service_t _service,
+            instance_t _instance) const;
+    VSOMEIP_EXPORT minor_version_t get_minor_version(service_t _service,
+            instance_t _instance) const;    
+    VSOMEIP_EXPORT ttl_t get_ttl(service_t _service,
+            instance_t _instance) const;
 
     VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 

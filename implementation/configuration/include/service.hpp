@@ -24,6 +24,9 @@ struct service {
 
     uint16_t reliable_;
     uint16_t unreliable_;
+    major_version_t major_;
+    minor_version_t minor_;
+    ttl_t ttl_;
 
     std::string multicast_address_;
     uint16_t multicast_port_;

@@ -2853,12 +2853,19 @@ void routing_manager_impl::init_routing_info() {
             = configuration_->get_reliable_port(i.first, i.second);
         uint16_t its_unreliable_port
             = configuration_->get_unreliable_port(i.first, i.second);
+        major_version_t its_major 
+            = configuration_->get_major_version(i.first, i.second);
+        minor_version_t its_minor
+            = configuration_->get_minor_version(i.first, i.second);
+        ttl_t its_ttl
+            = configuration_->get_ttl(i.first, i.second);
 
         if (its_reliable_port != ILLEGAL_PORT
                 || its_unreliable_port != ILLEGAL_PORT) {
 
+            VSOMEIP_INFO << "Add static remote service [" << std::hex << i.first << "." << i.second << std::dec << ":" <<  +its_major  << "." << its_minor << "]";
             add_routing_info(i.first, i.second,
-                    DEFAULT_MAJOR, DEFAULT_MINOR, DEFAULT_TTL,
+                    its_major, its_minor, its_ttl,
                     its_address, its_reliable_port,
                     its_address, its_unreliable_port);
 

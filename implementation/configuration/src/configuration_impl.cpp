@@ -1345,6 +1345,9 @@ void configuration_impl::load_service(
         its_service->multicast_address_ = "";
         its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
+        its_service->major_ = DEFAULT_MAJOR;
+        its_service->minor_ = DEFAULT_MINOR;
+        its_service->ttl_ = DEFAULT_TTL;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -1405,6 +1408,14 @@ void configuration_impl::load_service(
                     its_converter >> its_service->service_;
                 } else if (its_key == "instance") {
                     its_converter >> its_service->instance_;
+                } else if (its_key == "major") {
+                    unsigned temp;
+                    its_converter >> temp;
+                    its_service->major_ = static_cast<major_version_t>(temp);
+                } else if (its_key == "minor") {
+                    its_converter >> its_service->minor_;
+                } else if (its_key == "ttl") {
+                    its_converter >> its_service->ttl_;
                 }
             }
         }
@@ -2663,6 +2674,40 @@ uint16_t configuration_impl::get_unreliable_port(service_t _service,
 
     return its_unreliable;
 }
+
+major_version_t configuration_impl::get_major_version(service_t _service, 
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    major_version_t its_major = DEFAULT_MAJOR;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_major = its_service->major_;
+
+    return its_major;
+}  
+
+minor_version_t configuration_impl::get_minor_version(service_t _service, 
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    minor_version_t its_minor = DEFAULT_MINOR;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_minor = its_service->minor_;
+
+    return its_minor;
+}  
+
+ttl_t configuration_impl::get_ttl(service_t _service, 
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    ttl_t its_ttl = DEFAULT_TTL;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_ttl = its_service->ttl_;
+
+    return its_ttl;
+}  
+
 
 bool configuration_impl::is_someip(service_t _service,
         instance_t _instance) const {
