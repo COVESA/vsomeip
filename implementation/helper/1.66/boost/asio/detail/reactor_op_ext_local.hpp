@@ -42,6 +42,4 @@ public:
 } // namespace asio
 } // namespace boost
 
-#include <boost/asio/detail/pop_options.hpp>
-
 #endif // BOOST_ASIO_DETAIL_REACTOR_OP_EXT_LOCAL_HPP
