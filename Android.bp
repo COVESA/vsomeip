@@ -36,7 +36,8 @@ cc_defaults {
         "-Wno-sign-compare",
         "-Wno-format",
         "-Wno-header-guard",
-        "-Wno-overloaded-virtual"
+        "-Wno-overloaded-virtual",
+        "-Wno-implicit-fallthrough"
     ]
 }
 
@@ -95,7 +96,8 @@ cc_library_shared {
     shared_libs: [
         "libvsomeip",
         "libboost_log",
-        "libboost_filesystem"
+        "libboost_filesystem",
+        "libboost_system"
     ]
 }
 
@@ -141,6 +143,7 @@ cc_library_shared {
 
     shared_libs: [
         "libvsomeip",
-        "libboost_log"
+        "libboost_log",
+        "libboost_system"
     ]
 }
