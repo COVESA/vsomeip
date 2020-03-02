@@ -26,7 +26,7 @@
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
 #define VSOMEIP_LOCAL_CONFIGURATION_FOLDER      "./vsomeip"
 
-#define VSOMEIP_BASE_PATH                       "/storage/"
+#define VSOMEIP_BASE_PATH                       "/data/vendor/vsomeip/"
 
 #define VSOMEIP_CFG_LIBRARY                     "libvsomeip_cfg.so"
 
