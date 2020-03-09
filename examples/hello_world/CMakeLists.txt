@@ -5,7 +5,7 @@
 
 cmake_minimum_required (VERSION 2.8.7)
 project (vSomeIPHelloWorld)
-
+set (VSOMEIP_NAME vsomeip3)
 # This will get us acces to
 #   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
 #   VSOMEIP_LIBRARIES    - libraries to link against
