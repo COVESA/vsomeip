@@ -43,7 +43,7 @@ cc_defaults {
 
 cc_library_shared {
     name: "libvsomeip",
-    vendor: true,
+    vendor_available: true,
 
     srcs: libvsomeip_srcs,
 
@@ -78,7 +78,7 @@ cc_library_shared {
 
 cc_library_shared {
     name: "libvsomeip_cfg",
-    vendor: true,
+    vendor_available: true,
 
     srcs: libvsomeip_cfg_srcs,
 
@@ -103,7 +103,7 @@ cc_library_shared {
 
 cc_library_shared {
     name: "libvsomeip_e2e",
-    vendor: true,
+    vendor_available: true,
 
     srcs: libvsomeip_e2e_srcs,
 
@@ -126,7 +126,7 @@ cc_library_shared {
 
 cc_library_shared {
     name: "libvsomeip_sd",
-    vendor: true,
+    vendor_available: true,
 
     srcs: libvsomeip_sd_srcs,
 
