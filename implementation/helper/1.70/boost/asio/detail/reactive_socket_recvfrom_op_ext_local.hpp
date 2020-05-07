@@ -37,7 +37,7 @@ public:
   reactive_socket_recvfrom_op_base_ext_local(socket_type socket, int protocol_type,
       const MutableBufferSequence& buffers, Endpoint& endpoint,
       socket_base::message_flags flags, func_type complete_func)
-    : reactor_op(&reactive_socket_recvfrom_op_base_ext_local::do_perform, complete_func),
+    : reactor_op_ext_local(&reactive_socket_recvfrom_op_base_ext_local::do_perform, complete_func),
       socket_(socket),
       protocol_type_(protocol_type),
       buffers_(buffers),
