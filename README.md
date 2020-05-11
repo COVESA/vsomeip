@@ -37,7 +37,7 @@ Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
     libboost-log1.55-dev`
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed.
--- URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip
+-- URL: https://github.com/google/googletest/archive/release-1.7.0.zip
 
 To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
 --`sudo apt-get install asciidoc source-highlight doxygen graphviz`
