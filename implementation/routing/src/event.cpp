@@ -67,7 +67,7 @@ event_t event::get_event() const {
 }
 
 void event::set_event(event_t _event) {
-    message_->set_method(_event); // TODO: maybe we should check for the leading 0-bit
+    message_->set_method(_event);
 }
 
 event_type_e event::get_type() const {

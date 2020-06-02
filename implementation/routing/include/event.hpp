@@ -104,7 +104,7 @@ public:
     void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
     bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
     std::set<client_t> get_subscribers();
-    std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
+    VSOMEIP_EXPORT std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
     void clear_subscribers();
 
     void add_ref(client_t _client, bool _is_provided);

@@ -13,7 +13,7 @@
 #include <chrono>
 
 #include <boost/asio/ip/address.hpp>
-#include <boost/log/trivial.hpp>
+#include <boost/icl/interval_set.hpp>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/defines.hpp>
@@ -77,7 +77,7 @@ public:
     virtual bool has_file_log() const = 0;
     virtual bool has_dlt_log() const = 0;
     virtual const std::string & get_logfile() const = 0;
-    virtual boost::log::trivial::severity_level get_loglevel() const = 0;
+    virtual logger::level_e get_loglevel() const = 0;
 
     virtual const std::string & get_routing_host() const = 0;
 
@@ -88,6 +88,13 @@ public:
     virtual bool has_enabled_magic_cookies(std::string _address,
             uint16_t _port) const = 0;
     virtual uint16_t get_unreliable_port(service_t _service,
+            instance_t _instance) const = 0;
+
+    virtual major_version_t get_major_version(service_t _service,
+            instance_t _instance) const = 0;
+    virtual minor_version_t get_minor_version(service_t _service,
+            instance_t _instance) const = 0;
+    virtual ttl_t get_ttl(service_t _service,
             instance_t _instance) const = 0;
 
     virtual void get_configured_timing_requests(
@@ -207,14 +214,37 @@ public:
     virtual std::uint32_t get_max_tcp_restart_aborts() const = 0;
     virtual std::uint32_t get_max_tcp_connect_time() const = 0;
 
-    // SD acceptance
-    virtual bool sd_acceptance_required(const boost::asio::ip::address& _address,
-                                     std::uint16_t _port) const = 0;
-    virtual void set_sd_acceptance_required(
+    // Acceptance handling
+    virtual bool is_protected_device(
+            const boost::asio::ip::address& _address) const = 0;
+    virtual bool is_protected_port(
             const boost::asio::ip::address& _address, std::uint16_t _port,
-            const std::string& _path, bool _enable) = 0;
-    typedef std::map<std::pair<boost::asio::ip::address, std::uint16_t>, std::string> sd_acceptance_required_map_t;
-    virtual sd_acceptance_required_map_t get_sd_acceptance_required() = 0;
+            bool _reliable) const = 0;
+
+    typedef std::pair<std::uint16_t, std::uint16_t> port_range_t;
+    virtual void set_sd_acceptance_rule(
+            const boost::asio::ip::address &_address,
+            port_range_t _port_range, port_type_e _type,
+            const std::string &_path, bool _reliable, bool _enable, bool _default) = 0;
+
+    typedef std::map<
+        boost::asio::ip::address,
+        std::pair<
+            std::string,
+            std::map<
+                bool,
+                std::pair<
+                    boost::icl::interval_set<std::uint16_t>,
+                    boost::icl::interval_set<std::uint16_t>
+                >
+            >
+        >
+    > sd_acceptance_rules_t;
+    virtual void set_sd_acceptance_rules(const sd_acceptance_rules_t& _rules,
+                                         bool _enable) = 0;
+    virtual sd_acceptance_rules_t get_sd_acceptance_rules() = 0;
+    virtual void set_sd_acceptance_rules_active(
+            const boost::asio::ip::address& _address, bool _enable) = 0;
 
     virtual std::uint32_t get_udp_receive_buffer_size() const = 0;
 

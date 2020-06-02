@@ -50,7 +50,7 @@ public:
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
                 service_info_.event_id, its_eventgroups,
                 vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, vsomeip::reliability_type_e::RT_BOTH);
 
         inc_counter_and_notify();
 

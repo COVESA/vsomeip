@@ -152,10 +152,13 @@ int main(int argc, char** argv)
 
     client_number = std::stoi(std::string(argv[1]), nullptr);
 
-    if (argc >= 3 && std::string("SAME_SERVICE_ID") == std::string(argv[2])) {
-        use_same_service_id = true;
-    } else {
-        use_same_service_id = false;
+    if (argc >= 2) {
+        for (int i = 2; i < argc; i++) {
+            if (std::string("SAME_SERVICE_ID") == std::string(argv[i])) {
+                use_same_service_id = true;
+                std::cout << "Availability checker: Using same service ID" << std::endl;
+            }
+        }
     }
     return RUN_ALL_TESTS();
 }

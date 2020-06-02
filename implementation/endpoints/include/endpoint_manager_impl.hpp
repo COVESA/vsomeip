@@ -21,11 +21,9 @@ public:
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service,
                                                            instance_t _instance,
-                                                           bool _reliable,
-                                                           client_t _client);
+                                                           bool _reliable);
 
-    void find_or_create_remote_client(service_t _service, instance_t _instance,
-                                      client_t _client);
+    void find_or_create_remote_client(service_t _service, instance_t _instance);
     void is_remote_service_known(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor,
@@ -90,15 +88,13 @@ public:
 private:
     std::shared_ptr<endpoint> find_remote_client(service_t _service,
                                                  instance_t _instance,
-                                                 bool _reliable,
-                                                 client_t _client);
+                                                 bool _reliable);
     std::shared_ptr<endpoint> create_remote_client(service_t _service,
                                                    instance_t _instance,
-                                                   bool _reliable,
-                                                   client_t _client);
+                                                   bool _reliable);
     std::shared_ptr<endpoint> create_client_endpoint(
             const boost::asio::ip::address &_address, uint16_t _local_port,
-            uint16_t _remote_port, bool _reliable, client_t _client);
+            uint16_t _remote_port, bool _reliable);
 
 private:
     mutable std::recursive_mutex endpoint_mutex_;
@@ -106,8 +102,8 @@ private:
     std::map<service_t, std::map<instance_t,
             std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
 
-    typedef std::map<service_t, std::map<instance_t, std::map<client_t,
-                std::map<bool, std::shared_ptr<endpoint>>>>> remote_services_t;
+    typedef std::map<service_t, std::map<instance_t,
+                std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
     typedef std::map<boost::asio::ip::address, std::map<uint16_t,

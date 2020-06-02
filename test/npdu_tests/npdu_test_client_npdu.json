@@ -1,5 +1,5 @@
 {
-    "unicast":"10.0.3.2",
+    "unicast":"XXX.XXX.XXX.XXX",
     "logging":
     {
         "level":"info",
@@ -33,7 +33,7 @@
         {
             "service":"0x1000",
             "instance":"0x0001",
-            "unicast":"10.0.3.1",
+            "unicast":"XXX.XXX.XXX.XXX",
             "unreliable":"30509",
             "reliable":
             {
@@ -65,7 +65,7 @@
         {
             "service":"0x2000",
             "instance":"0x0002",
-            "unicast":"10.0.3.1",
+            "unicast":"XXX.XXX.XXX.XXX",
             "unreliable":"30509",
             "reliable":
             {
@@ -96,7 +96,7 @@
         {
             "service":"0x3000",
             "instance":"0x0003",
-            "unicast":"10.0.3.1",
+            "unicast":"XXX.XXX.XXX.XXX",
             "unreliable":"30509",
             "reliable":
             {
@@ -127,7 +127,7 @@
         {
             "service":"0x4000",
             "instance":"0x0004",
-            "unicast":"10.0.3.1",
+            "unicast":"XXX.XXX.XXX.XXX",
             "unreliable":"30509",
             "reliable":
             {

@@ -43,7 +43,7 @@ public:
     remote_subscription_id_t get_id() const;
     void set_id(const remote_subscription_id_t _id);
 
-    std::shared_ptr<remote_subscription> get_parent() const;
+    VSOMEIP_EXPORT std::shared_ptr<remote_subscription> get_parent() const;
     void set_parent(const std::shared_ptr<remote_subscription> &_parent);
 
     VSOMEIP_EXPORT std::shared_ptr<eventgroupinfo> get_eventgroupinfo() const;
@@ -87,7 +87,7 @@ public:
             const bool _is_subscribe);
 
     VSOMEIP_EXPORT std::uint32_t get_answers() const;
-    void set_answers(const std::uint32_t _answers);
+    VSOMEIP_EXPORT void set_answers(const std::uint32_t _answers);
 
 private:
     std::atomic<remote_subscription_id_t> id_;

@@ -92,10 +92,12 @@ void security_test_client::on_state(vsomeip::state_type_e _state) {
         its_eventgroups.insert(0x01);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8001),
-                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8002),
-                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                vsomeip::reliability_type_e::RT_UNRELIABLE);
 
         app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01,
                 vsomeip::DEFAULT_MAJOR, static_cast<vsomeip::event_t>(0x8001));

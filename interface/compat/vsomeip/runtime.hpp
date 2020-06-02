@@ -47,7 +47,7 @@ class payload;
  * contains the main public API of vsomeip.
  *
  */
-class VSOMEIP_IMPORT_EXPORT runtime {
+class VSOMEIP_EXPORT runtime {
 public:
 
     static std::string get_property(const std::string &_name);

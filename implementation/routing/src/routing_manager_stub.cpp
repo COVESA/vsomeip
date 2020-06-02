@@ -784,8 +784,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 void routing_manager_stub::on_register_application(client_t _client) {
     auto endpoint = host_->find_local(_client);
     if (endpoint) {
-        VSOMEIP_ERROR << "Registering application: " << std::hex << _client
-                << " failed. It is already registered!";
+        VSOMEIP_WARNING << "Reregistering application: " << std::hex << _client
+                << ". Last registration might have been taken too long.";
     } else {
         (void)host_->find_or_create_local(_client);
         std::lock_guard<std::mutex> its_lock(routing_info_mutex_);

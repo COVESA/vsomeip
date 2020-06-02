@@ -36,7 +36,8 @@ cc_defaults {
         "-Wno-sign-compare",
         "-Wno-format",
         "-Wno-header-guard",
-        "-Wno-overloaded-virtual"
+        "-Wno-overloaded-virtual",
+        "-Wno-implicit-fallthrough"
     ]
 }
 
@@ -58,7 +59,7 @@ cc_library_shared {
 
     local_include_dirs: [
         "interface",
-        "implementation/helper/1.66"
+        "implementation/helper/1.70"
     ],
 
     export_include_dirs: [
@@ -66,7 +67,6 @@ cc_library_shared {
     ],
 
     shared_libs: [
-        "libboost_log",
         "libboost_system",
         "libboost_thread",
         "libboost_filesystem",
@@ -89,12 +89,12 @@ cc_library_shared {
 
     local_include_dirs: [
         "interface",
-        "implementation/helper/1.66"
+        "implementation/helper/1.70"
     ],
 
     shared_libs: [
         "libvsomeip",
-        "libboost_log",
+        "libboost_system",
         "libboost_filesystem"
     ]
 }
@@ -113,12 +113,11 @@ cc_library_shared {
 
     local_include_dirs: [
         "interface",
-        "implementation/helper/1.66"
+        "implementation/helper/1.70"
     ],
 
     shared_libs: [
-       "libvsomeip",
-       "libboost_log"
+       "libvsomeip"
     ]
 }
 
@@ -136,11 +135,10 @@ cc_library_shared {
 
     local_include_dirs: [
         "interface",
-        "implementation/helper/1.66"
+        "implementation/helper/1.70"
     ],
 
     shared_libs: [
-        "libvsomeip",
-        "libboost_log"
+        "libvsomeip"
     ]
 }

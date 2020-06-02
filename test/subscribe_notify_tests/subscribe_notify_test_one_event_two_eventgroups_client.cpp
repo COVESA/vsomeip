@@ -67,18 +67,22 @@ public:
         its_groups.insert(info_.eventgroup_id);
         app_->request_event(info_.service_id, info_.instance_id,
                 info_.event_id, its_groups,
-                vsomeip::event_type_e::ET_FIELD);
+                vsomeip::event_type_e::ET_FIELD,
+                (use_tcp_ ? vsomeip::reliability_type_e::RT_RELIABLE : vsomeip::reliability_type_e::RT_UNRELIABLE));
         app_->request_event(info_.service_id, info_.instance_id,
                 static_cast<vsomeip::event_t>(info_.event_id + 2),
-                its_groups, vsomeip::event_type_e::ET_FIELD);
+                its_groups, vsomeip::event_type_e::ET_FIELD,
+                (use_tcp_ ? vsomeip::reliability_type_e::RT_RELIABLE : vsomeip::reliability_type_e::RT_UNRELIABLE));
         its_groups.erase(info_.eventgroup_id);
         its_groups.insert(static_cast<vsomeip::eventgroup_t>(info_.eventgroup_id +1));
         app_->request_event(info_.service_id, info_.instance_id,
                 static_cast<vsomeip::event_t>(info_.event_id+1),
-                its_groups, vsomeip::event_type_e::ET_FIELD);
+                its_groups, vsomeip::event_type_e::ET_FIELD,
+                (use_tcp_ ? vsomeip::reliability_type_e::RT_RELIABLE : vsomeip::reliability_type_e::RT_UNRELIABLE));
         app_->request_event(info_.service_id, info_.instance_id,
                 static_cast<vsomeip::event_t>(info_.event_id+2),
-                its_groups, vsomeip::event_type_e::ET_FIELD);
+                its_groups, vsomeip::event_type_e::ET_FIELD,
+                (use_tcp_ ? vsomeip::reliability_type_e::RT_RELIABLE : vsomeip::reliability_type_e::RT_UNRELIABLE));
 
         return true;
     }

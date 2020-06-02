@@ -1,0 +1,11 @@
+To start service and client:
+
+Shell1:
+VSOMEIP_CONFIGURATION=/etc/vsomeip/helloworld-local.json \
+VSOMEIP_APPLICATION_NAME=hello_world_service \
+vsomeip_hello_world_service
+
+Shell2:
+VSOMEIP_CONFIGURATION=/etc/vsomeip/helloworld-local.json \
+VSOMEIP_APPLICATION_NAME=hello_world_client \
+vsomeip_hello_world_client

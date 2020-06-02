@@ -71,6 +71,8 @@ public:
     VSOMEIP_EXPORT void add_event(const std::shared_ptr<event>& _event);
     VSOMEIP_EXPORT void remove_event(const std::shared_ptr<event>& _event);
     VSOMEIP_EXPORT reliability_type_e get_reliability() const;
+    VSOMEIP_EXPORT void set_reliability(reliability_type_e _reliability);
+    VSOMEIP_EXPORT bool is_reliability_auto_mode() const;
 
     VSOMEIP_EXPORT std::set<std::shared_ptr<remote_subscription>>
             get_remote_subscriptions() const;
@@ -89,6 +91,8 @@ public:
 
     VSOMEIP_EXPORT void remove_remote_subscription(
             const remote_subscription_id_t _id);
+
+    void clear_remote_subscriptions();
 
     VSOMEIP_EXPORT std::set<std::shared_ptr<endpoint_definition> >
     get_unicast_targets() const;
@@ -129,6 +133,7 @@ private:
     remote_subscription_id_t id_;
 
     std::atomic<reliability_type_e> reliability_;
+    std::atomic<bool> reliability_auto_mode_;
 };
 
 } // namespace vsomeip_v3

@@ -35,7 +35,8 @@ public:
                               std::array<initial_event_test::service_info, 7> _service_infos,
                               bool _subscribe_on_available, std::uint32_t _events_to_subscribe,
                               bool _initial_event_strict_checking,
-                              bool _dont_exit, bool _subscribe_only_one) :
+                              bool _dont_exit, bool _subscribe_only_one,
+                              vsomeip::reliability_type_e _reliability_type) :
             client_number_(_client_number),
             service_infos_(_service_infos),
             service_offered_tcp_and_udp_(_service_offered_tcp_and_udp),
@@ -48,7 +49,8 @@ public:
             dont_exit_(_dont_exit),
             subscribe_only_one_(_subscribe_only_one),
             stop_thread_(&initial_event_test_client::wait_for_stop, this),
-            wait_for_signal_handler_registration_(true)
+            wait_for_signal_handler_registration_(true),
+            reliability_type_(_reliability_type)
         {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -80,7 +82,8 @@ public:
             for (std::uint32_t j = 0; j < events_to_subscribe_; j++ ) {
                 app_->request_event(i.service_id, i.instance_id,
                         static_cast<vsomeip::event_t>(i.event_id + j),
-                        its_eventgroups, vsomeip::event_type_e::ET_FIELD);
+                        its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                        reliability_type_);
             }
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
@@ -364,9 +367,7 @@ public:
     }
 
     void handle_signal(int _signum) {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << client_number_ << "] Catched signal, going down ("
-                << std::dec <<_signum << ")";
+        (void)_signum;
         std::lock_guard<std::mutex> its_lock(stop_mutex_);
         wait_for_stop_ = false;
         stop_condition_.notify_one();
@@ -422,6 +423,7 @@ private:
     std::mutex signal_mutex_;
     std::condition_variable signal_condition_;
     std::thread signal_thread_;
+    vsomeip::reliability_type_e reliability_type_;
 };
 
 static int client_number;
@@ -432,6 +434,8 @@ static std::uint32_t subscribe_multiple_events;
 static bool initial_event_strict_checking;
 static bool dont_exit;
 static bool subscribe_only_one;
+vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
+
 
 extern "C" void signal_handler(int signum) {
     the_client->handle_signal(signum);
@@ -445,12 +449,14 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services)
                 initial_event_test::service_infos_same_service_id,
                 subscribe_on_available, subscribe_multiple_events,
                 initial_event_strict_checking, dont_exit,
-                subscribe_only_one);
+                subscribe_only_one,
+                reliability_type);
     } else {
         initial_event_test_client its_sample(client_number, service_offered_tcp_and_udp,
                 initial_event_test::service_infos, subscribe_on_available,
                 subscribe_multiple_events, initial_event_strict_checking, dont_exit,
-                subscribe_only_one);
+                subscribe_only_one,
+                reliability_type);
     }
 }
 
@@ -494,6 +500,7 @@ int main(int argc, char** argv)
                 subscribe_on_available = false;
             } else if (std::string("SAME_SERVICE_ID") == std::string(argv[i])) {
                 use_same_service_id = true;
+                std::cout << "Using same service ID" << std::endl;
             } else if (std::string("MULTIPLE_EVENTS") == std::string(argv[i])) {
                 subscribe_multiple_events = 5;
             } else if (std::string("STRICT_CHECKING") == std::string(argv[i])) {
@@ -502,6 +509,15 @@ int main(int argc, char** argv)
                 dont_exit = true;
             } else if (std::string("SUBSCRIBE_ONLY_ONE") == std::string(argv[i])) {
                 subscribe_only_one = true;
+            } else if (std::string("TCP")== std::string(argv[i])) {
+                reliability_type = vsomeip::reliability_type_e::RT_RELIABLE;
+                std::cout << "Using reliability type RT_RELIABLE" << std::endl;
+            } else if (std::string("UDP")== std::string(argv[i])) {
+                reliability_type = vsomeip::reliability_type_e::RT_UNRELIABLE;
+                std::cout << "Using reliability type RT_UNRELIABLE" << std::endl;
+            } else if (std::string("TCP_AND_UDP")== std::string(argv[i])) {
+                reliability_type = vsomeip::reliability_type_e::RT_BOTH;
+                std::cout << "Using reliability type RT_BOTH" << std::endl;
             }
         }
     }

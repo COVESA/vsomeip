@@ -19,7 +19,7 @@
 class service_sample {
 public:
     service_sample(bool _use_static_routing) :
-            app_(vsomeip::runtime::get()->create_application("response-sample")),
+            app_(vsomeip::runtime::get()->create_application()),
             is_registered_(false),
             use_static_routing_(_use_static_routing),
             blocked_(false),

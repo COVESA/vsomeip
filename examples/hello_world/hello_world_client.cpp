@@ -146,6 +146,9 @@ hello_world_client *hw_cl_ptr(nullptr);
 
 int main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
+
     hello_world_client hw_cl;
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     hw_cl_ptr = &hw_cl;

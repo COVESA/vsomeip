@@ -796,7 +796,6 @@ public:
      *
      *  \param _remotes remote infos for which SD acceptance handler should be
      *  called
-     *  \param _path Path which indicates need for offer acceptance
      *  \param _enable enable or disable calling of offer acceptance handler
      */
     typedef std::map<remote_info_t, std::string> sd_acceptance_map_type_t;

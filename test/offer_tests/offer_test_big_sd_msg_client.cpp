@@ -55,7 +55,8 @@ public:
         for (std::uint16_t s = 1; s <= offer_test::big_msg_number_services; s++) {
             app_->request_service(s,0x1,0x1,0x1);
             app_->request_event(s,0x1, offer_test::big_msg_event_id,
-                    its_eventgroups, vsomeip::event_type_e::ET_EVENT);
+                    its_eventgroups, vsomeip::event_type_e::ET_EVENT,
+                    vsomeip::reliability_type_e::RT_UNKNOWN);
             app_->subscribe(s, 0x1,offer_test::big_msg_eventgroup_id, 0x1,
                     offer_test::big_msg_event_id);
             services_available_subribed_[s] = std::make_pair(false,0);

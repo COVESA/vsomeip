@@ -1,7 +1,7 @@
 ### vsomeip
 
 ##### Copyright
-Copyright (C) 2015-2017, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2020, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 ##### License
 
@@ -22,9 +22,9 @@ MiddlewarE over IP (SOME/IP)) protocol. The stack consists out of:
 
 ###### Dependencies
 
-- A C++11 enabled compiler like gcc >= 4.8 is needed.
+- A C++11 enabled compiler like gcc >= 5.4 is needed.
 - vsomeip uses CMake as buildsystem.
-- vsomeip uses Boost >= 1.55:
+- vsomeip uses Boost v1.55.0 - v1.73.0 
 
 Ubuntu 14.04:
 

@@ -69,10 +69,15 @@ public:
             const boost::asio::ip::address &_address, uint16_t _port) = 0;
 
     virtual std::shared_ptr<endpoint> find_or_create_remote_client(
-            service_t _service, instance_t _instance, bool _reliable, client_t _client) = 0;
+            service_t _service, instance_t _instance, bool _reliable) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address &_address) = 0;
+    virtual void expire_subscriptions(const boost::asio::ip::address &_address,
+                                      std::uint16_t _port, bool _reliable) = 0;
     virtual void expire_services(const boost::asio::ip::address &_address) = 0;
+    virtual void expire_services(const boost::asio::ip::address &_address,
+                                 std::uint16_t _port, bool _reliable) = 0;
+
 
     virtual void on_remote_subscribe(
             std::shared_ptr<remote_subscription> &_subscription,
@@ -88,6 +93,9 @@ public:
             service_t _service, instance_t _instance) const = 0;
     virtual std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(
             service_t _service) const = 0;
+
+    virtual std::set<eventgroup_t> get_subscribed_eventgroups(service_t _service,
+            instance_t _instance) = 0;
 };
 
 }  // namespace sd

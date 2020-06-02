@@ -1,6 +1,54 @@
 Changes
 =======
 
+v3.1.14.1
+- Merged extended support for static routing (versioning) 
+  (by Jean-Patrice Laude <jean-patrice.laude@renault.com>)
+- Merged simplification of build process for hello_world example
+  (by Nikolay Khilyuk <nkh@ua.fm>)
+- Updated Android.bp to use boost 1.70.0 or higher
+- Merged Android support for hello_world example
+  (by Nikolay Khilyuk <nkh@ua.fm>)
+- Align response sample to documentation (do not specify application name)
+  (by JayHou <houjie@lixiang.com>)
+- Call dlerror before calling dlsym to clear previous error. 
+  (by Oleg Kharitonov <Oleg.Kharitonov@elektrobit.com>) 
+- Get base path from environment variable for Android NDK.
+  (by Nikolay Khilyuk <nkh@ua.fm>) 
+- Fixed wrong library naming
+  (by Nikolay Khilyuk <nkh@ua.fm>) 
+
+v3.1.14
+- Fixed race conditions (application registration, subscription)
+
+v3.1.13
+- Abort operation when doing a full rejoin
+- Protect access when consuming a policy
+- Decrease wait time for composite send operations 
+- Reimplemented logger without using boost::log
+
+v3.1.12
+- Ensure composite send operations have finished before resetting an endpoint.
+  Otherwise this may cause a crash within boost.asio.
+- Always use the assigned client identifier when sending messages from a proxy.
+- Add TTL to initial timestamp to avoid immediate expiration.
+
+v3.1.11
+- Preparation for new IPsec plugin (3.1.1)
+
+v3.1.10
+- Reset subscriptions on stop offer service
+- Protect access to security policy contents
+- Tolerate wrong/incomplete event registrations in compatibility mode
+- Avoid buffering of pending subscriptions
+
+v3.1.9
+- Fix race condition when processing multicast messages
+
+v3.1.8
+- Fix deadlock when sending messages
+- Fix race condition when processing SD messages
+
 v3.1.7
 - Fix stop subscribes when a service is released
 - Improve handling of time stamps when processing subscriptions

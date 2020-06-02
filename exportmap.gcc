@@ -17,10 +17,6 @@ global:
         vsomeip_v3::tcp*;
         *vsomeip_v3::udp*;
         vsomeip_v3::udp*;
-        *vsomeip_v3::logger;
-        vsomeip_v3::logger::get*;
-        *vsomeip_v3::logger_impl;
-        vsomeip_v3::logger_impl::init*;
         *vsomeip_v3::message_base_impl;
         *vsomeip_v3::message_base_impl::*;
         *vsomeip_v3::message_header_impl;
@@ -34,6 +30,8 @@ global:
         vsomeip_v3::runtime::set_property*;
         *vsomeip_v3::application_impl;
         vsomeip_v3::application_impl*;
+        *vsomeip_v3::event;
+        vsomeip_v3::event::*;
         *vsomeip_v3::eventgroupinfo;
         vsomeip_v3::eventgroupinfo::*;
         *vsomeip_v3::remote_subscription;
@@ -54,7 +52,10 @@ global:
         *vsomeip_v3::plugin_manager;
         vsomeip_v3::plugin_manager::*;
         vsomeip_v3::tp::tp_reassembler::*;
-        
+        *vsomeip_v3::logger::message;
+        vsomeip_v3::logger::message::*;
+        *vsomeip_v3::logger::logger_impl;
+        vsomeip_v3::logger::logger_impl::*;
         vsomeip::runtime::*;
         *vsomeip::runtime;
         vsomeip::logger::*;

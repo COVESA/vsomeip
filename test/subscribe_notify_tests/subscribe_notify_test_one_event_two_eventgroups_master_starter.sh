@@ -20,6 +20,7 @@ fi
 
 # replace master with slave to be able display the correct json file to be used
 # with the slave script
+RELIABILITY_TYPE=$1
 MASTER_JSON_FILE=$2
 if [ $1 == "UDP" ]; then
     SLAVE_JSON_FILE=${MASTER_JSON_FILE/master/udp_slave}
@@ -41,16 +42,16 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $SLAVE_JSON_FILE"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $SLAVE_JSON_FILE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $SLAVE_JSON_FILE" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE" &
 else
     cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $SLAVE_JSON_FILE
+** subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in

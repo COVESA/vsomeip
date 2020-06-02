@@ -65,15 +65,15 @@ struct ip_address_t {
 
 struct remote_info_t {
     ip_address_t ip_;
-    std::uint16_t port_;
     std::uint16_t first_;
     std::uint16_t last_;
     bool is_range_;
+    bool is_reliable_;
 
     bool operator<(const remote_info_t& _other) const {
-        return std::tie(ip_, port_, first_, last_, is_range_) <
-                std::tie(_other.ip_, _other.port_, _other.first_, _other.last_,
-                         _other.is_range_);
+        return std::tie(ip_, first_, last_, is_range_, is_reliable_) <
+                std::tie(_other.ip_, _other.first_, _other.last_,
+                         _other.is_range_, _other.is_reliable_);
     }
 };
 

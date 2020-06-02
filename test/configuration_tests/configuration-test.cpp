@@ -95,6 +95,25 @@ template<class T>
     }
 }
 
+std::string loglevel_to_string(vsomeip::logger::level_e &_level) {
+    switch (_level) {
+    case vsomeip::logger::level_e::LL_FATAL:
+        return "fatal";
+    case vsomeip::logger::level_e::LL_ERROR:
+        return "error";
+    case vsomeip::logger::level_e::LL_WARNING:
+        return "warning";
+    case vsomeip::logger::level_e::LL_INFO:
+        return "info";
+    case vsomeip::logger::level_e::LL_DEBUG:
+        return "debug";
+    case vsomeip::logger::level_e::LL_VERBOSE:
+        return "verbose";
+    default:
+        return "unknown";
+    }
+}
+
 void check_file(const std::string &_config_file,
                 const std::string &_expected_unicast_address,
                 bool _expected_has_console,
@@ -187,7 +206,7 @@ void check_file(const std::string &_config_file,
     bool has_file = its_configuration->has_file_log();
     bool has_dlt = its_configuration->has_dlt_log();
     std::string logfile = its_configuration->get_logfile();
-    boost::log::trivial::severity_level loglevel
+    vsomeip::logger::level_e loglevel
         = its_configuration->get_loglevel();
     bool has_version_logging = its_configuration->log_version();
     std::uint32_t version_logging_interval = its_configuration->get_log_version_interval();
@@ -196,7 +215,7 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(check<bool>(has_file, _expected_has_file, "HAS FILE"));
     EXPECT_TRUE(check<bool>(has_dlt, _expected_has_dlt, "HAS DLT"));
     EXPECT_TRUE(check<std::string>(logfile, _expected_logfile, "LOGFILE"));
-    EXPECT_TRUE(check<std::string>(boost::log::trivial::to_string(loglevel),
+    EXPECT_TRUE(check<std::string>(loglevel_to_string(loglevel),
                        _expected_loglevel, "LOGLEVEL"));
     EXPECT_TRUE(check<bool>(has_version_logging, _expected_version_logging_enabled,
                     "VERSION LOGGING"));

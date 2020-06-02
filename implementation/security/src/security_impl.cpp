@@ -81,6 +81,7 @@ security_impl::check_credentials(client_t _client, uid_t _uid,
     }
 
     for (const auto &p : its_policies) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
         for (auto its_credential : p->ids_) {
             bool has_uid(false), has_gid(false);
             for (auto its_range : std::get<0>(its_credential)) {
@@ -163,6 +164,7 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
     }
 
     for (const auto &p : its_policies) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
         bool has_uid(false), has_gid(false), has_service(false), has_instance_id(false), has_method_id(false);
         for (auto its_credential : p->ids_) {
             has_uid = has_gid = false;
@@ -183,35 +185,32 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
                 break;
         }
 
-        for (auto its_offer : p->services_) {
-            if (std::get<0>(its_offer) == _service) {
-                for (auto its_ids : std::get<1>(its_offer)) {
-                    has_service = has_instance_id = has_method_id = false;
-                    for (auto its_instance_range : std::get<0>(its_ids)) {
-                        if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
-                            has_instance_id = true;
-                            break;
-                        }
-                    }
-                    if (!_is_request_service) {
-                        for (auto its_method_range : std::get<1>(its_ids)) {
-                            if (std::get<0>(its_method_range) <= _method && _method <= std::get<1>(its_method_range)) {
-                                has_method_id = true;
-                                break;
-                            }
-                        }
-                    } else {
-                        // handle VSOMEIP_REQUEST_SERVICE
-                        has_method_id = true;
-                    }
-
-                    if (has_instance_id && has_method_id) {
-                        has_service = true;
+        auto its_service = p->services_.find(_service);
+        if (its_service != p->services_.end()) {
+            for (auto its_ids : its_service->second) {
+                has_service = has_instance_id = has_method_id = false;
+                for (auto its_instance_range : std::get<0>(its_ids)) {
+                    if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
+                        has_instance_id = true;
                         break;
                     }
                 }
-                if (has_service)
+                if (!_is_request_service) {
+                    for (auto its_method_range : std::get<1>(its_ids)) {
+                        if (std::get<0>(its_method_range) <= _method && _method <= std::get<1>(its_method_range)) {
+                            has_method_id = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // handle VSOMEIP_REQUEST_SERVICE
+                    has_method_id = true;
+                }
+
+                if (has_instance_id && has_method_id) {
+                    has_service = true;
                     break;
+                }
             }
         }
 
@@ -281,6 +280,7 @@ security_impl::is_offer_allowed(uint32_t _uid, uint32_t _gid, client_t _client, 
     }
 
     for (const auto &p : its_policies) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
         bool has_uid(false), has_gid(false), has_offer(false);
         for (auto its_credential : p->ids_) {
             has_uid = has_gid = false;
@@ -301,21 +301,19 @@ security_impl::is_offer_allowed(uint32_t _uid, uint32_t _gid, client_t _client, 
                 break;
         }
 
-        for (auto its_offer : p->offers_) {
-            has_offer = false;
-            if (std::get<0>(its_offer) == _service) {
-                for (auto its_instance_range : std::get<1>(its_offer)) {
-                    if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
-                        has_offer = true;
-                        break;
-                    }
-                }
-                if (has_offer)
+        auto find_service = p->offers_.find(_service);
+        if (find_service != p->offers_.end()) {
+            for (auto its_instance_range : find_service->second) {
+                if (std::get<0>(its_instance_range) <= _instance
+                        && _instance <= std::get<1>(its_instance_range)) {
+                    has_offer = true;
                     break;
+                }
             }
         }
 
-        if ((has_uid && has_gid && p->allow_who_) || ((!has_uid || !has_gid) && !p->allow_who_)) {
+        if ((has_uid && has_gid && p->allow_who_)
+                || ((!has_uid || !has_gid) && !p->allow_who_)) {
             if (p->allow_what_ == has_offer) {
                 return true;
             }
@@ -458,6 +456,7 @@ security_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
     if (!any_client_policies_.empty()) {
         std::vector<std::shared_ptr<policy>>::iterator p_it = any_client_policies_.begin();
         while (p_it != any_client_policies_.end()) {
+            std::lock_guard<std::mutex> its_policy_lock((*p_it)->mutex_);
             bool has_uid(false), has_gid(false);
             for (auto its_credential : p_it->get()->ids_) {
                 has_uid = has_gid = false;
@@ -492,7 +491,7 @@ security_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
 }
 
 void
-security_impl::update_security_policy(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy>& _policy) {
+security_impl::update_security_policy(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy> &_policy) {
     remove_security_policy(_uid, _gid);
     std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
     any_client_policies_.push_back(_policy);
@@ -500,13 +499,14 @@ security_impl::update_security_policy(uint32_t _uid, uint32_t _gid, const std::s
 
 void
 security_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
-        const std::shared_ptr<policy>& _credentials_policy, client_t _client) {
+        const std::shared_ptr<policy> &_policy, client_t _client) {
 
     bool was_found(false);
     std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-    for (const auto& its_policy : any_client_policies_) {
+    for (const auto &p : any_client_policies_) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
         bool has_uid(false), has_gid(false);
-        for (auto its_credential : its_policy->ids_) {
+        for (auto its_credential : p->ids_) {
             has_uid = has_gid = false;
             for (auto its_range : std::get<0>(its_credential)) {
                 if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
@@ -520,7 +520,7 @@ security_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
                     break;
                 }
             }
-            if (has_uid && has_gid && its_policy->allow_who_) {
+            if (has_uid && has_gid && p->allow_who_) {
                 was_found = true;
                 break;
             }
@@ -531,7 +531,7 @@ security_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
     }
     // Do not add the new (credentials-only-policy) if a allow credentials policy with same credentials was found
     if (!was_found) {
-        any_client_policies_.push_back(_credentials_policy);
+        any_client_policies_.push_back(_policy);
         VSOMEIP_INFO << __func__ << " Added security credentials at client: 0x"
                 << std::hex << _client << std::dec << " with UID: " << _uid << " GID: " << _gid;
     }
@@ -581,6 +581,7 @@ security_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &
 
     if (uid_allowed) {
         std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
+        std::lock_guard<std::mutex> its_policy_lock(_policy->mutex_);
         for (auto its_request : _policy->services_) {
             auto its_requested_service = std::get<0>(its_request);
             bool has_service(false);
@@ -668,6 +669,8 @@ security_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
 
     // get user ID String
     if (parse_uid_gid(_buffer, _buffer_size, its_uid, its_gid)) {
+        std::lock_guard<std::mutex> its_policy_lock(_policy->mutex_);
+
         _uid = its_uid;
         _gid = its_gid;
 
@@ -762,8 +765,14 @@ security_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
                             parsed_req_bytes += (skip_array_length_ + instances_array_length);
                         }
                         if (!its_instance_method_ranges.empty()) {
-                            _policy->services_.insert(
+                            auto find_service = _policy->services_.find(its_service_id);
+                            if (find_service != _policy->services_.end()) {
+                                find_service->second.insert(its_instance_method_ranges.begin(),
+                                        its_instance_method_ranges.end());
+                            } else {
+                                _policy->services_.insert(
                                     std::make_pair(its_service_id, its_instance_method_ranges));
+                            }
                         }
                     }
                 }
@@ -803,8 +812,14 @@ security_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
                         parsed_offers_bytes += (skip_array_length_ + ids_array_length);
                     }
                     if (!its_instance_ranges.empty()) {
-                       _policy->offers_.insert(
-                               std::make_pair(its_service_id, its_instance_ranges));
+                        auto find_service = _policy->offers_.find(its_service_id);
+                        if (find_service != _policy->offers_.end()) {
+                            find_service->second.insert(its_instance_ranges.begin(),
+                                    its_instance_ranges.end());
+                        } else {
+                            _policy->offers_.insert(
+                                    std::make_pair(its_service_id, its_instance_ranges));
+                        }
                    }
                 }
             }
@@ -1166,8 +1181,14 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            policy->services_.insert(
+                            auto find_policy = policy->services_.find(service);
+                            if (find_policy != policy->services_.end()) {
+                                find_policy->second.insert(its_instance_method_ranges.begin(),
+                                        its_instance_method_ranges.end());
+                            } else {
+                                policy->services_.insert(
                                     std::make_pair(service, its_instance_method_ranges));
+                            }
                         }
                     }
                 } else if (l->first == "offers") {
@@ -1197,8 +1218,14 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && !its_instance_ranges.empty()) {
-                            policy->offers_.insert(
-                                    std::make_pair(service, its_instance_ranges));
+                            auto find_service = policy->offers_.find(service);
+                            if (find_service != policy->offers_.end()) {
+                                find_service->second.insert(its_instance_ranges.begin(),
+                                        its_instance_ranges.end());
+                            } else {
+                                policy->offers_.insert(
+                                        std::make_pair(service, its_instance_ranges));
+                            }
                         }
                     }
                 }
@@ -1268,8 +1295,14 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            policy->services_.insert(
+                            auto find_policy = policy->services_.find(service);
+                            if (find_policy != policy->services_.end()) {
+                                find_policy->second.insert(its_instance_method_ranges.begin(),
+                                        its_instance_method_ranges.end());
+                            } else {
+                                policy->services_.insert(
                                     std::make_pair(service, its_instance_method_ranges));
+                            }
                         }
                     }
                 }
@@ -1300,8 +1333,14 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                             }
                         }
                         if (service != 0x0 && !its_instance_ranges.empty()) {
-                            policy->offers_.insert(
-                                    std::make_pair(service, its_instance_ranges));
+                            auto find_service = policy->offers_.find(service);
+                            if (find_service != policy->offers_.end()) {
+                                find_service->second.insert(its_instance_ranges.begin(),
+                                        its_instance_ranges.end());
+                            } else {
+                                policy->offers_.insert(
+                                        std::make_pair(service, its_instance_ranges));
+                            }
                         }
                     }
                 }
@@ -1620,7 +1659,7 @@ static void security_teardown(void) __attribute__((destructor));
 static void security_teardown(void)
 {
     if (the_security_ptr__ != nullptr) {
-        std::lock_guard<std::mutex> itsLock(the_security_mutex__);
+        std::lock_guard<std::mutex> its_lock(the_security_mutex__);
         the_security_ptr__->reset();
         delete the_security_ptr__;
         the_security_ptr__ = nullptr;

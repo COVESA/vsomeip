@@ -1,5 +1,5 @@
 {
-    "unicast":"10.0.3.1",
+    "unicast":"XXX.XXX.XXX.XXX",
     "logging":
     {
         "level":"info",
@@ -25,7 +25,7 @@
         {
             "service":"0x6767",
             "instance":"0x1",
-            "unicast" : "10.0.3.2",
+            "unicast" : "XXX.XXX.XXX.XXX",
             "unreliable":"40001",
             "someip-tp" : {
                 "client-to-service": [ "0x6767", "0x8001" ]

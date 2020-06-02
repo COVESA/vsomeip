@@ -17,7 +17,7 @@
 
 #ifdef USE_DLT
 #include <dlt/dlt.h>
-#include "../../implementation/logging/include/defines.hpp"
+
 #endif
 
 static std::shared_ptr<vsomeip::application> its_application;

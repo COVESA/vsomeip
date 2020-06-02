@@ -47,7 +47,7 @@ public:
                     service_info_.event_id,
                     its_eventgroups, vsomeip::event_type_e::ET_FIELD,
                     std::chrono::milliseconds::zero(),
-                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
         its_eventgroups.clear();
         its_eventgroups.insert(static_cast<vsomeip::eventgroup_t>(_service_info.eventgroup_id+1u));
@@ -56,7 +56,7 @@ public:
                 static_cast<vsomeip::event_t>(service_info_.event_id+1u),
                 its_eventgroups, vsomeip::event_type_e::ET_FIELD,
                 std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
         app_->register_message_handler(vsomeip::ANY_SERVICE,
                 vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,

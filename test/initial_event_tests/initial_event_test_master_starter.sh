@@ -95,7 +95,9 @@ REMAINING_OPTIONS=${REMAINING_OPTIONS#SUBSCRIBE_ONLY_ONE}
 
 
 # wait until the services on the remote node were started as well
+echo "WAITING FOR SERVICE AVAILABILITY"
 wait $PID_AVAILABILITY_CHECKER
+echo "ALL SERVICES ARE AVAILABLE NOW"
 
 sleep 2
 
@@ -104,6 +106,7 @@ do
    ./initial_event_test_client $client_number STRICT_CHECKING $REMAINING_OPTIONS &
    CLIENT_PIDS+=($!)
 done
+
 
 # Wait until all clients are finished
 for job in ${CLIENT_PIDS[*]}

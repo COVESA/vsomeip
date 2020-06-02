@@ -162,9 +162,17 @@ void routing_manager_impl::init() {
 
 void routing_manager_impl::start() {
 #ifndef _WIN32
-    netlink_connector_ = std::make_shared<netlink_connector>(host_->get_io(),
-            configuration_->get_unicast_address(),
-            boost::asio::ip::address::from_string(configuration_->get_sd_multicast()));
+    boost::asio::ip::address its_multicast;
+    try {
+        its_multicast = boost::asio::ip::address::from_string(configuration_->get_sd_multicast());
+    } catch (...) {
+        VSOMEIP_ERROR << "Illegal multicast address \""
+                << configuration_->get_sd_multicast()
+                << "\". Please check your configuration.";
+    }
+
+    netlink_connector_ = std::make_shared<netlink_connector>(
+            host_->get_io(), configuration_->get_unicast_address(), its_multicast);
     netlink_connector_->register_net_if_changes_handler(
             std::bind(&routing_manager_impl::on_net_interface_or_route_state_changed,
             this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
@@ -326,7 +334,7 @@ bool routing_manager_impl::offer_service(client_t _client,
         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
         << std::hex << std::setw(4) << std::setfill('0') << _instance
         << ":" << std::dec << int(_major) << "." << std::dec << _minor << "]"
-        << " (" << _must_queue << ")";
+        << " (" << std::boolalpha << _must_queue << ")";
 
     // only queue commands if method was NOT called via erase_offer_command()
     if (_must_queue) {
@@ -420,7 +428,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
         << std::hex << std::setw(4) << std::setfill('0') << _instance
         << ":" << std::dec << int(_major) << "." << _minor << "]"
-        << " (" << _must_queue << ")";
+        << " (" << std::boolalpha << _must_queue << ")";
 
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, VSOMEIP_STOP_OFFER_SERVICE,
@@ -505,7 +513,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
                 }
                 its_info->add_client(_client);
                 ep_mgr_impl_->find_or_create_remote_client(
-                        _service, _instance, true, VSOMEIP_ROUTING_CLIENT);
+                        _service, _instance, true);
             }
         }
     }
@@ -617,7 +625,8 @@ void routing_manager_impl::subscribe(client_t _client, uid_t _uid, gid_t _gid,
                     if (its_info) {
                         discovery_->subscribe(_service, _instance, _eventgroup,
                                 _major, configured_ttl,
-                                its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT);
+                                its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT,
+                                its_info);
                     }
                 } else {
                     its_critical.unlock();
@@ -653,7 +662,6 @@ void routing_manager_impl::unsubscribe(client_t _client, uid_t _uid, gid_t _gid,
 
     bool last_subscriber_removed(true);
 
-    auto its_event = find_event(_service, _instance, _event);
     std::shared_ptr<eventgroupinfo> its_info
         = find_eventgroup(_service, _instance, _eventgroup);
     if (its_info) {
@@ -682,12 +690,11 @@ void routing_manager_impl::unsubscribe(client_t _client, uid_t _uid, gid_t _gid,
                 }
             }
 
-            if (last_subscriber_removed
-                || (its_event && its_event->get_type() == event_type_e::ET_SELECTIVE_EVENT)) {
-                if (its_info) {
-                    discovery_->unsubscribe(_service, _instance, _eventgroup,
-                            its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT);
-                }
+            if (its_info &&
+                    (last_subscriber_removed || its_info->is_selective())) {
+
+                discovery_->unsubscribe(_service, _instance, _eventgroup,
+                        its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT);
             }
         } else {
             if (get_client() == _client) {
@@ -797,9 +804,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     }
                 }
                 if (is_request) {
-                    client_t client = VSOMEIP_ROUTING_CLIENT;
                     its_target = ep_mgr_impl_->find_or_create_remote_client(
-                            its_service, _instance, _reliable, client);
+                            its_service, _instance, _reliable);
                     if (its_target) {
 #ifdef USE_DLT
                         const uint16_t its_data_size
@@ -1089,7 +1095,7 @@ void routing_manager_impl::register_event(client_t _client,
         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
         << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
         << std::hex << std::setw(4) << std::setfill('0') << _notifier
-        << ":is_provider=" << _is_provided << "]";
+        << ":is_provider=" << std::boolalpha << _is_provided << "]";
 }
 
 void routing_manager_impl::register_shadow_event(client_t _client,
@@ -1681,6 +1687,17 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
             }
             erase_offer_command(_service, _instance);
         }
+
+        std::lock_guard<std::mutex> its_eventgroups_lock(eventgroups_mutex_);
+        auto find_service = eventgroups_.find(_service);
+        if (find_service != eventgroups_.end()) {
+            auto find_instance = find_service->second.find(_instance);
+            if (find_instance != find_service->second.end()) {
+                for (auto e : find_instance->second) {
+                    e.second->clear_remote_subscriptions();
+                }
+            }
+        }
     } else {
         erase_offer_command(_service, _instance);
     }
@@ -2186,10 +2203,10 @@ void routing_manager_impl::add_routing_info(
                                     if (udp_inserted) {
                                         // atomically create reliable and unreliable endpoint
                                         ep_mgr_impl_->find_or_create_remote_client(
-                                                _service, _instance, VSOMEIP_ROUTING_CLIENT);
+                                                _service, _instance);
                                     } else {
                                         ep_mgr_impl_->find_or_create_remote_client(
-                                                _service, _instance, true, VSOMEIP_ROUTING_CLIENT);
+                                                _service, _instance, true);
                                     }
                                     connected = true;
                                 }
@@ -2265,7 +2282,7 @@ void routing_manager_impl::add_routing_info(
                                                         == ANY_MINOR)) {
                                     if(!connected) {
                                         ep_mgr_impl_->find_or_create_remote_client(_service, _instance,
-                                                false, VSOMEIP_ROUTING_CLIENT);
+                                                false);
                                         connected = true;
                                     }
                                     its_info->add_client(client_id.first);
@@ -2463,45 +2480,59 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
     }
 }
 
-void routing_manager_impl::expire_services(const boost::asio::ip::address &_address) {
+void routing_manager_impl::expire_services(
+        const boost::asio::ip::address &_address) {
+    expire_services(_address, configuration::port_range_t(ANY_PORT, ANY_PORT),
+            false);
+}
+
+void routing_manager_impl::expire_services(
+        const boost::asio::ip::address &_address, std::uint16_t _port,
+        bool _reliable) {
+    expire_services(_address, configuration::port_range_t(_port, _port),
+            _reliable);
+}
+
+void routing_manager_impl::expire_services(
+        const boost::asio::ip::address &_address,
+        const configuration::port_range_t& _range, bool _reliable) {
     std::map<service_t, std::vector<instance_t> > its_expired_offers;
+
+    const bool expire_all = (_range.first == ANY_PORT
+            && _range.second == ANY_PORT);
 
     for (auto &s : get_services_remote()) {
         for (auto &i : s.second) {
-            bool is_gone(false);
             boost::asio::ip::address its_address;
             std::shared_ptr<client_endpoint> its_client_endpoint =
                     std::dynamic_pointer_cast<client_endpoint>(
-                            i.second->get_endpoint(true));
-            if (its_client_endpoint) {
-                if (its_client_endpoint->get_remote_address(its_address)) {
-                    is_gone = (its_address == _address);
-                }
-            } else {
-                its_client_endpoint =
-                        std::dynamic_pointer_cast<client_endpoint>(
-                                i.second->get_endpoint(false));
-                if (its_client_endpoint) {
-                    if (its_client_endpoint->get_remote_address(its_address)) {
-                        is_gone = (its_address == _address);
-                    }
-                }
+                            i.second->get_endpoint(_reliable));
+            if (!its_client_endpoint && expire_all) {
+                its_client_endpoint = std::dynamic_pointer_cast<client_endpoint>(
+                                i.second->get_endpoint(!_reliable));
             }
-
-            if (is_gone) {
-                if (discovery_)
-                    discovery_->unsubscribe_all(s.first, i.first);
-                its_expired_offers[s.first].push_back(i.first);
+            if (its_client_endpoint) {
+                if ((expire_all || (its_client_endpoint->get_remote_port() >= _range.first
+                                    && its_client_endpoint->get_remote_port() <= _range.second))
+                        && its_client_endpoint->get_remote_address(its_address)
+                        && its_address == _address) {
+                    if (discovery_) {
+                        discovery_->unsubscribe_all(s.first, i.first);
+                    }
+                    its_expired_offers[s.first].push_back(i.first);
+                }
             }
         }
     }
 
     for (auto &s : its_expired_offers) {
         for (auto &i : s.second) {
-            VSOMEIP_INFO << "expire_services for address: " << _address.to_string()
+            VSOMEIP_INFO << "expire_services for address: " << _address
                     << " : delete service/instance "
                     << std::hex << std::setw(4) << std::setfill('0') << s.first
-                    << "." << std::hex << std::setw(4) << std::setfill('0') << i;
+                    << "." << std::hex << std::setw(4) << std::setfill('0') << i
+                    << " port [" << std::dec << _range.first << "," << _range.second
+                    << "] reliability=" << std::boolalpha << _reliable;
             del_routing_info(s.first, i, true, true);
         }
     }
@@ -2510,49 +2541,74 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address &_addr
 void
 routing_manager_impl::expire_subscriptions(
         const boost::asio::ip::address &_address) {
-    {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        for (const auto &its_service : eventgroups_) {
-            for (const auto &its_instance : its_service.second) {
-                for (const auto &its_eventgroup : its_instance.second) {
-                    const auto its_info = its_eventgroup.second;
-                    for (auto its_subscription
-                            : its_info->get_remote_subscriptions()) {
-                        // Note: get_remote_subscription delivers a copied
-                        // set of subscriptions. Thus, its is possible to
-                        // to remove them within the loop.
-                        const auto its_reliable = its_subscription->get_reliable();
-                        const auto its_unreliable = its_subscription->get_unreliable();
-                        if ((its_reliable && its_reliable->get_address() == _address)
-                                || (its_unreliable && its_unreliable->get_address() == _address)) {
+    expire_subscriptions(_address,
+            configuration::port_range_t(ANY_PORT, ANY_PORT), false);
+}
 
-                            // TODO: Check whether subscriptions to different hosts are valid.
-                            // IF yes, we probably need to simply reset the corresponding
-                            // endpoint instead of removing the subscription...
+void
+routing_manager_impl::expire_subscriptions(
+        const boost::asio::ip::address &_address, std::uint16_t _port,
+        bool _reliable) {
+    expire_subscriptions(_address, configuration::port_range_t(_port, _port),
+            _reliable);
+}
 
-                            if (its_reliable) {
+void
+routing_manager_impl::expire_subscriptions(
+        const boost::asio::ip::address &_address,
+        const configuration::port_range_t& _range, bool _reliable) {
+    const bool expire_all = (_range.first == ANY_PORT
+            && _range.second == ANY_PORT);
+
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    for (const auto &its_service : eventgroups_) {
+        for (const auto &its_instance : its_service.second) {
+            for (const auto &its_eventgroup : its_instance.second) {
+                const auto its_info = its_eventgroup.second;
+                for (auto its_subscription
+                        : its_info->get_remote_subscriptions()) {
+                    // Note: get_remote_subscription delivers a copied
+                    // set of subscriptions. Thus, its is possible to
+                    // to remove them within the loop.
+                    const auto its_ep_definition =
+                            (_reliable) ? its_subscription->get_reliable() :
+                                    its_subscription->get_unreliable();
+
+                    if (its_ep_definition
+                            && its_ep_definition->get_address() == _address
+                            && (expire_all ||
+                                    (its_ep_definition->get_remote_port() >= _range.first
+                                    && its_ep_definition->get_remote_port() <= _range.second))) {
+
+                        // TODO: Check whether subscriptions to different hosts are valid.
+                        // IF yes, we probably need to simply reset the corresponding
+                        // endpoint instead of removing the subscription...
+                        VSOMEIP_ERROR << __func__
+                                << ": removing subscription to "
+                                << std::hex << its_info->get_service() << "."
+                                << std::hex << its_info->get_instance() << "."
+                                << std::hex << its_info->get_eventgroup()
+                                << " from target "
+                                << its_ep_definition->get_address() << ":"
+                                << std::dec << its_ep_definition->get_port()
+                                << " reliable=" << _reliable;
+                        if (expire_all) {
+                            const auto its_ep_definition2 =
+                                    (!_reliable) ? its_subscription->get_reliable() :
+                                            its_subscription->get_unreliable();
+                            if (its_ep_definition2) {
                                 VSOMEIP_ERROR << __func__
                                         << ": removing subscription to "
                                         << std::hex << its_info->get_service() << "."
                                         << std::hex << its_info->get_instance() << "."
                                         << std::hex << its_info->get_eventgroup()
                                         << " from target "
-                                        << its_reliable->get_address().to_string() << ":"
-                                        << std::dec << its_reliable->get_port();
+                                        << its_ep_definition2->get_address() << ":"
+                                        << std::dec << its_ep_definition2->get_port()
+                                        << " reliable=" << !_reliable;
                             }
-                            if (its_unreliable) {
-                                VSOMEIP_ERROR << __func__
-                                        << ": removing subscription to "
-                                        << std::hex << its_info->get_service() << "."
-                                        << std::hex << its_info->get_instance() << "."
-                                        << std::hex << its_info->get_eventgroup()
-                                        << " from target "
-                                        << its_unreliable->get_address().to_string() << ":"
-                                        << std::dec << its_unreliable->get_port();
-                            }
-
-                            on_remote_unsubscribe(its_subscription);
                         }
+                        on_remote_unsubscribe(its_subscription);
                     }
                 }
             }
@@ -2570,22 +2626,34 @@ void routing_manager_impl::init_routing_info() {
             = configuration_->get_reliable_port(i.first, i.second);
         uint16_t its_unreliable_port
             = configuration_->get_unreliable_port(i.first, i.second);
+        major_version_t its_major
+            = configuration_->get_major_version(i.first, i.second);
+        minor_version_t its_minor
+            = configuration_->get_minor_version(i.first, i.second);
+        ttl_t its_ttl
+            = configuration_->get_ttl(i.first, i.second);
 
         if (its_reliable_port != ILLEGAL_PORT
                 || its_unreliable_port != ILLEGAL_PORT) {
 
+            VSOMEIP_INFO << "Adding static remote service ["
+                << std::hex << std::setw(4) << std::setfill('0')
+                << i.first << "." << i.second
+                << std::dec << ":" <<  +its_major  << "." << its_minor
+                << "]";
+
             add_routing_info(i.first, i.second,
-                    DEFAULT_MAJOR, DEFAULT_MINOR, DEFAULT_TTL,
+                    its_major, its_minor, its_ttl,
                     its_address, its_reliable_port,
                     its_address, its_unreliable_port);
 
             if(its_reliable_port != ILLEGAL_PORT) {
                 ep_mgr_impl_->find_or_create_remote_client(
-                        i.first, i.second, true, VSOMEIP_ROUTING_CLIENT);
+                        i.first, i.second, true);
             }
             if(its_unreliable_port != ILLEGAL_PORT) {
                 ep_mgr_impl_->find_or_create_remote_client(
-                        i.first, i.second, false, VSOMEIP_ROUTING_CLIENT);
+                        i.first, i.second, false);
             }
         }
     }
@@ -2660,6 +2728,7 @@ void routing_manager_impl::on_remote_subscribe(
             if (its_reliable && its_unreliable)
                 its_warning << "]";
             VSOMEIP_WARNING << its_warning.str();
+            _callback(_subscription);
         }
     } else { // new subscription
         auto its_id
@@ -2810,10 +2879,9 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
 }
 
 std::shared_ptr<endpoint> routing_manager_impl::find_or_create_remote_client(
-        service_t _service, instance_t _instance, bool _reliable,
-        client_t _client) {
+        service_t _service, instance_t _instance, bool _reliable) {
     return ep_mgr_impl_->find_or_create_remote_client(_service,
-            _instance, _reliable, _client);
+            _instance, _reliable);
 }
 
 void routing_manager_impl::on_subscribe_nack(client_t _client,
@@ -3082,7 +3150,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
 #ifndef VSOMEIP_VERSION
 #define VSOMEIP_VERSION "unknown version"
 #endif
-        static int counter(0);
+        static int its_counter(0);
         static uint32_t its_interval = configuration_->get_log_version_interval();
 
         bool is_diag_mode(false);
@@ -3104,11 +3172,11 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
                 << ((is_diag_mode == true) ? "diagnosis)" : "default)")
                 << its_last_resume.str();
 
-        counter++;
-        if (counter == 6) {
+        its_counter++;
+        if (its_counter == 6) {
             ep_mgr_->log_client_states();
             ep_mgr_impl_->log_client_states();
-            counter = 0;
+            its_counter = 0;
         }
 
         {
@@ -3852,12 +3920,10 @@ void routing_manager_impl::register_routing_state_handler(
 }
 
 void routing_manager_impl::sd_acceptance_enabled(
-        const boost::asio::ip::address& _address) {
-    boost::system::error_code ec;
-    VSOMEIP_INFO << "ipsec-plugin-mgu: expire subscriptions and services: "
-            << _address.to_string(ec);
-    expire_subscriptions(_address);
-    expire_services(_address);
+        const boost::asio::ip::address& _address,
+        const configuration::port_range_t& _range, bool _reliable) {
+    expire_subscriptions(_address, _range, _reliable);
+    expire_services(_address, _range, _reliable);
 }
 
 void routing_manager_impl::memory_log_timer_cbk(

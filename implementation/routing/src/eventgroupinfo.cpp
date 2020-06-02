@@ -25,7 +25,8 @@ eventgroupinfo::eventgroupinfo()
       port_(ILLEGAL_PORT),
       threshold_(0),
       id_(PENDING_SUBSCRIPTION_ID),
-      reliability_(reliability_type_e::RT_UNKNOWN) {
+      reliability_(reliability_type_e::RT_UNKNOWN),
+      reliability_auto_mode_(false) {
 }
 
 eventgroupinfo::eventgroupinfo(
@@ -40,7 +41,8 @@ eventgroupinfo::eventgroupinfo(
       port_(ILLEGAL_PORT),
       threshold_(0),
       id_(PENDING_SUBSCRIPTION_ID),
-      reliability_(reliability_type_e::RT_UNKNOWN) {
+      reliability_(reliability_type_e::RT_UNKNOWN),
+      reliability_auto_mode_(false) {
 }
 
 eventgroupinfo::~eventgroupinfo() {
@@ -124,6 +126,12 @@ void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.insert(_event);
 
+    if (!reliability_auto_mode_ &&
+            _event->get_reliability() == reliability_type_e::RT_UNKNOWN) {
+        reliability_auto_mode_ = true;
+        return;
+    }
+
     switch (_event->get_reliability()) {
     case reliability_type_e::RT_RELIABLE:
         if (reliability_ == reliability_type_e::RT_UNRELIABLE) {
@@ -154,6 +162,14 @@ void eventgroupinfo::remove_event(const std::shared_ptr<event>& _event) {
 
 reliability_type_e eventgroupinfo::get_reliability() const {
     return reliability_;
+}
+
+void eventgroupinfo::set_reliability(reliability_type_e _reliability) {
+    reliability_ = _reliability;
+}
+
+bool eventgroupinfo::is_reliability_auto_mode() const {
+    return reliability_auto_mode_;
 }
 
 uint32_t
@@ -228,6 +244,8 @@ eventgroupinfo::update_remote_subscription(
                     } else {
                         its_item.second->set_answers(
                                 its_item.second->get_answers() + 1);
+                        _subscription->set_parent(its_item.second);
+                        _subscription->set_answers(0);
                     }
                 }
             } else {
@@ -276,6 +294,12 @@ eventgroupinfo::remove_remote_subscription(
     subscriptions_.erase(_id);
 }
 
+void
+eventgroupinfo::clear_remote_subscriptions() {
+    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    subscriptions_.clear();
+}
+
 std::set<std::shared_ptr<endpoint_definition> >
 eventgroupinfo::get_unicast_targets() const {
     std::set<std::shared_ptr<endpoint_definition>> its_targets;
@@ -300,7 +324,7 @@ eventgroupinfo::get_multicast_targets() const {
 }
 
 bool eventgroupinfo::is_selective() const {
-    /* Selective eventgroups always contain a single event */
+    // Selective eventgroups always contain a single event
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     if (events_.size() != 1)
         return false;
@@ -320,39 +344,57 @@ void
 eventgroupinfo::send_initial_events(
         const std::shared_ptr<endpoint_definition> &_reliable,
         const std::shared_ptr<endpoint_definition> &_unreliable) const {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
-    for (const auto &its_event : events_) {
-        if (its_event && its_event->get_type() == event_type_e::ET_FIELD) {
-#ifndef VSOMEIP_ENABLE_COMPAT
-            const auto its_reliability = its_event->get_reliability();
-            switch (its_reliability) {
-            case reliability_type_e::RT_RELIABLE:
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
-                break;
-            case reliability_type_e::RT_UNRELIABLE:
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
-                break;
-            case reliability_type_e::RT_BOTH:
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
-                break;
-            default:
-                VSOMEIP_WARNING << __func__ << "Event reliability unknown: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << service_ << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << instance_ << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << eventgroup_ << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event->get_event() << "]";
-            }
-#else
-            if (_reliable) {
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
-            }
-            if (_unreliable) {
-                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
-            }
+
+    std::set<std::shared_ptr<event> > its_reliable_events, its_unreliable_events;
+
+    // Build sets of reliable/unreliable events first to avoid having to
+    // hold the "events_mutex_" in parallel to the internal event mutexes.
+    {
+        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        for (const auto &its_event : events_) {
+            if (its_event && its_event->get_type() == event_type_e::ET_FIELD) {
+                auto its_reliability = its_event->get_reliability();
+#ifdef VSOMEIP_ENABLE_COMPAT
+                if (its_reliability == reliability_type_e::RT_UNKNOWN) {
+                    if (_reliable) {
+                        if (_unreliable) {
+                            its_reliability = reliability_type_e::RT_BOTH;
+                        } else {
+                            its_reliability = reliability_type_e::RT_RELIABLE;
+                        }
+                    } else if (_unreliable) {
+                        its_reliability = reliability_type_e::RT_UNRELIABLE;
+                    }
+                }
 #endif
+                switch (its_reliability) {
+                case reliability_type_e::RT_RELIABLE:
+                    its_reliable_events.insert(its_event);
+                    break;
+                case reliability_type_e::RT_UNRELIABLE:
+                    its_unreliable_events.insert(its_event);
+                    break;
+                case reliability_type_e::RT_BOTH:
+                    its_reliable_events.insert(its_event);
+                    its_unreliable_events.insert(its_event);
+                    break;
+                default:
+                    VSOMEIP_WARNING << __func__ << "Event reliability unknown: ["
+                        << std::hex << std::setw(4) << std::setfill('0') << service_ << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << instance_ << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << eventgroup_ << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_event->get_event() << "]";
+                }
+            }
         }
     }
+
+    // Send events
+    for (const auto its_event : its_reliable_events)
+        its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+
+    for (const auto its_event : its_unreliable_events)
+        its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
 }
 
 }  // namespace vsomeip_v3

@@ -72,7 +72,8 @@ public:
             its_eventgroups.insert(service_info_.eventgroup_id);
             app_->request_event(service_info_.service_id,
                     service_info_.instance_id, service_info_.event_id,
-                    its_eventgroups, vsomeip::event_type_e::ET_EVENT);
+                    its_eventgroups, vsomeip::event_type_e::ET_EVENT,
+                    vsomeip::reliability_type_e::RT_BOTH);
 
             app_->subscribe(service_info_.service_id, service_info_.instance_id,
                     service_info_.eventgroup_id, vsomeip::DEFAULT_MAJOR);

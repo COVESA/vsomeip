@@ -75,8 +75,7 @@ bool utility::is_routing_manager(const std::shared_ptr<configuration> &_config) 
         its_lockfile.append(its_network.begin(), its_network.end());
         lock_handle__ = CreateFileW(its_lockfile.c_str(), GENERIC_READ, 0, NULL, CREATE_NEW, 0, NULL);
         if (lock_handle__ == INVALID_HANDLE_VALUE) {
-            VSOMEIP_ERROR << __func__ << ": CreateFileW failed: "
-                    << its_lockfile << " " << std::hex << GetLastError();
+            VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << GetLastError();
         }
     } else {
         VSOMEIP_ERROR << __func__ << ": Could not get temp folder: "
@@ -87,6 +86,12 @@ bool utility::is_routing_manager(const std::shared_ptr<configuration> &_config) 
     return (lock_handle__ != INVALID_HANDLE_VALUE);
 #else
     std::string its_base_path(VSOMEIP_BASE_PATH + _config->get_network());
+#ifdef __ANDROID__ // NDK
+    const char *env_base_path = getenv(VSOMEIP_ENV_BASE_PATH);
+    if (nullptr != env_base_path) {
+        its_base_path = {env_base_path + _config->get_network()};
+    }
+#endif
     std::string its_lockfile(its_base_path + ".lck");
     int its_lock_ctrl(-1);
 
@@ -123,7 +128,7 @@ void utility::remove_lockfile(const std::shared_ptr<configuration> &_config) {
             its_lockfile.append(its_network.begin(), its_network.end());
             if (DeleteFileW(its_lockfile.c_str()) == 0) {
                 VSOMEIP_ERROR << __func__ << ": DeleteFileW failed: "
-                        << its_lockfile << ": " << std::hex << GetLastError();
+                        << std::hex << GetLastError();
 
             }
         } else {
@@ -133,6 +138,12 @@ void utility::remove_lockfile(const std::shared_ptr<configuration> &_config) {
     }
 #else
     std::string its_base_path(VSOMEIP_BASE_PATH + _config->get_network());
+#ifdef __ANDROID__ // NDK
+    const char *env_base_path = getenv(VSOMEIP_ENV_BASE_PATH);
+    if (nullptr != env_base_path) {
+        its_base_path = {env_base_path + _config->get_network()};
+    }
+#endif
     std::string its_lockfile(its_base_path + ".lck");
 
     if (lock_fd__ != -1) {
@@ -174,7 +185,17 @@ bool utility::is_folder(const std::string &_path) {
 
 const std::string utility::get_base_path(
         const std::shared_ptr<configuration> &_config) {
+#ifdef __ANDROID__ // NDK
+    const char *env_base_path = getenv(VSOMEIP_ENV_BASE_PATH);
+    if (nullptr != env_base_path) {
+        std::string its_base_path(env_base_path + _config->get_network());
+        return std::string(env_base_path + _config->get_network() + "-");
+    } else {
+        return std::string(VSOMEIP_BASE_PATH + _config->get_network() + "-");
+    }
+#else
     return std::string(VSOMEIP_BASE_PATH + _config->get_network() + "-");
+#endif
 }
 
 client_t

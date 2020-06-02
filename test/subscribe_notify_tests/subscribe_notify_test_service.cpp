@@ -24,7 +24,8 @@
 class subscribe_notify_test_service {
 public:
     subscribe_notify_test_service(struct subscribe_notify_test::service_info _service_info,
-                                  std::array<subscribe_notify_test::service_info, 7> _service_infos) :
+                                  std::array<subscribe_notify_test::service_info, 7> _service_infos,
+                                  vsomeip::reliability_type_e _reliability_type) :
             service_info_(_service_info),
             service_infos_(_service_infos),
             app_(vsomeip::runtime::get()->create_application()),
@@ -37,7 +38,8 @@ public:
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_test_service::notify, this)),
             subscription_state_handler_called_(0),
-            subscription_error_occured_(false) {
+            subscription_error_occured_(false),
+            reliability_type_(_reliability_type) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -61,7 +63,7 @@ public:
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
                 service_info_.event_id, its_eventgroups,
                 vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, reliability_type_);
 
 
         // register availability for all other services and request their event.
@@ -85,7 +87,7 @@ public:
 
             std::set<vsomeip::eventgroup_t> its_eventgroups;
             its_eventgroups.insert(i.eventgroup_id);
-            app_->request_event(i.service_id, i.instance_id, i.event_id, its_eventgroups, vsomeip::event_type_e::ET_FIELD);
+            app_->request_event(i.service_id, i.instance_id, i.event_id, its_eventgroups, vsomeip::event_type_e::ET_FIELD, reliability_type_);
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_notification_[std::make_pair(i.service_id, i.method_id)] = 0;
@@ -450,21 +452,26 @@ private:
     std::atomic<bool> subscription_error_occured_;
 
     std::mutex subscribers_mutex_;
+    vsomeip::reliability_type_e reliability_type_;
 };
 
 static unsigned long service_number;
 static bool use_same_service_id;
+vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
+
 
 TEST(someip_subscribe_notify_test, send_ten_notifications_to_service)
 {
     if(use_same_service_id) {
         subscribe_notify_test_service its_sample(
                 subscribe_notify_test::service_infos_same_service_id[service_number],
-                subscribe_notify_test::service_infos_same_service_id);
+                subscribe_notify_test::service_infos_same_service_id,
+                reliability_type);
     } else {
         subscribe_notify_test_service its_sample(
                 subscribe_notify_test::service_infos[service_number],
-                subscribe_notify_test::service_infos);
+                subscribe_notify_test::service_infos,
+                reliability_type);
     }
 }
 
@@ -473,19 +480,33 @@ int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     if(argc < 2) {
-        std::cerr << "Please specify a service number, like: " << argv[0] << " 2 SAME_SERVICE_ID" << std::endl;
+        std::cerr << "Please specify a service number and event reliability type, like: " << argv[0] << " 2 UDP SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
+        std::cerr << "Valid event reliability types are [UDP, TCP, TCP_AND_UDP]" << std::endl;
         std::cerr << "If SAME_SERVICE_ID is specified as third parameter the test is run w/ multiple instances of the same service" << std::endl;
         return 1;
     }
 
     service_number = std::stoul(std::string(argv[1]), nullptr);
 
-    if (argc >= 3 && std::string("SAME_SERVICE_ID") == std::string(argv[2])) {
+    if (argc >= 3) {
+        if (std::string("TCP")== std::string(argv[2])) {
+            reliability_type = vsomeip::reliability_type_e::RT_RELIABLE;
+        } else if (std::string("UDP")== std::string(argv[2])) {
+            reliability_type = vsomeip::reliability_type_e::RT_UNRELIABLE;
+        } else if (std::string("TCP_AND_UDP")== std::string(argv[2])) {
+            reliability_type = vsomeip::reliability_type_e::RT_BOTH;
+        }
+    }
+
+    if (argc >= 4 && std::string("SAME_SERVICE_ID") == std::string(argv[3])) {
         use_same_service_id = true;
     } else {
         use_same_service_id = false;
     }
+
+
+
     return RUN_ALL_TESTS();
 }
 #endif

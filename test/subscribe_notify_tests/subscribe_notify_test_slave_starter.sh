@@ -18,20 +18,23 @@ then
     exit 1
 fi
 
+RELIABILITY_TYPE=$1
+SLAVE_JSON_FILE=$2
+SAME_SERVICE_ID=$3
 
 FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_four
-export VSOMEIP_CONFIGURATION=$1
-./subscribe_notify_test_service 4 $2 &
+export VSOMEIP_CONFIGURATION=$SLAVE_JSON_FILE
+./subscribe_notify_test_service 4 $RELIABILITY_TYPE $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_five
-export VSOMEIP_CONFIGURATION=$1
-./subscribe_notify_test_service 5 $2 &
+export VSOMEIP_CONFIGURATION=$SLAVE_JSON_FILE
+./subscribe_notify_test_service 5 $RELIABILITY_TYPE $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_six
-export VSOMEIP_CONFIGURATION=$1
-./subscribe_notify_test_service 6 $2 &
+export VSOMEIP_CONFIGURATION=$SLAVE_JSON_FILE
+./subscribe_notify_test_service 6 $RELIABILITY_TYPE $3 &
 
 # Wait until all applications are finished
 for job in $(jobs -p)

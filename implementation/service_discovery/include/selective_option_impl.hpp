@@ -28,6 +28,7 @@ public:
     bool operator==(const option_impl &_other) const;
 
     std::set<client_t> get_clients() const;
+    void set_clients(const std::set<client_t> &_clients);
     bool add_client(client_t _client);
     bool remove_client(client_t _client);
     bool has_clients() const;

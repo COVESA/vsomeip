@@ -54,7 +54,7 @@ public:
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
                 service_info_.event_id, its_eventgroups,
                 vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
         app_->register_message_handler(vsomeip::ANY_SERVICE,
                 vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
@@ -84,7 +84,8 @@ public:
         app_->request_event(someip_tp_test::service_slave.service_id,
                 someip_tp_test::service_slave.instance_id,
                 someip_tp_test::service_slave.event_id, its_eventgroups,
-                vsomeip::event_type_e::ET_EVENT);
+                vsomeip::event_type_e::ET_EVENT,
+                vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->register_message_handler(someip_tp_test::service_slave.service_id,
                 someip_tp_test::service_slave.instance_id,
                 someip_tp_test::service_slave.event_id,

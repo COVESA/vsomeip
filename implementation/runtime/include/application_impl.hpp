@@ -33,7 +33,6 @@ namespace vsomeip_v3 {
 
 class runtime;
 class configuration;
-class logger;
 class routing_manager;
 class routing_manager_stub;
 
@@ -175,6 +174,7 @@ public:
                                                    const std::string& _path, bool _enable);
     VSOMEIP_EXPORT void set_sd_acceptance_required(
             const sd_acceptance_map_type_t& _remotes, bool _enable);
+
     VSOMEIP_EXPORT sd_acceptance_map_type_t get_sd_acceptance_required();
 
     VSOMEIP_EXPORT void register_sd_acceptance_handler(sd_acceptance_handler_t _handler);
@@ -388,9 +388,6 @@ private:
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
-
-    // Workaround for destruction problem
-    std::shared_ptr<logger> logger_;
 
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;

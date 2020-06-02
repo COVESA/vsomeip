@@ -43,7 +43,8 @@ public:
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
         app_->request_event(service_info_.service_id, service_info_.instance_id,
-                    service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT);
+                    service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT,
+                    vsomeip::reliability_type_e::RT_UNKNOWN);
         app_->register_message_handler(vsomeip::ANY_SERVICE,
                 vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
                 std::bind(&malicious_data_test_service::on_shutdown_method_called, this,

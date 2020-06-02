@@ -59,14 +59,13 @@ remote_subscription_ack::get_target_address() const {
 bool
 remote_subscription_ack::is_pending() const {
     for (const auto& its_subscription : subscriptions_) {
-        if (its_subscription->is_pending()) {
+        if (its_subscription->is_pending()
+                && its_subscription->get_answers() != 0) {
             return true;
         }
     }
     return false;
 }
-
-
 
 std::set<std::shared_ptr<remote_subscription> >
 remote_subscription_ack::get_subscriptions() const {

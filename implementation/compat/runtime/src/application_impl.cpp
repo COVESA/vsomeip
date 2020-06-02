@@ -10,6 +10,11 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/application_impl.hpp"
+#ifdef ANDROID
+#    include "../../../configuration/include/internal_android.hpp"
+#else
+#    include "../../../configuration/include/internal.hpp"
+#endif
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/payload_impl.hpp"
 

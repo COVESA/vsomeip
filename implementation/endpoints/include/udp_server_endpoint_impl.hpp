@@ -62,9 +62,10 @@ public:
     bool is_reliable() const;
 
 private:
+    void leave_unlocked(const std::string &_address);
     void set_broadcast();
     void receive_unicast();
-    void receive_multicast();
+    void receive_multicast(uint8_t _id);
     bool is_joined(const std::string &_address) const;
     bool is_joined(const std::string &_address, bool* _received) const;
     std::string get_remote_information(
@@ -80,7 +81,8 @@ private:
 
     void on_multicast_received(boost::system::error_code const &_error,
             std::size_t _bytes,
-            boost::asio::ip::address const &_destination);
+            boost::asio::ip::address const &_destination,
+            uint8_t _multicast_id);
 
     void on_message_received(boost::system::error_code const &_error,
                      std::size_t _bytes,
@@ -92,19 +94,20 @@ private:
     socket_type unicast_socket_;
     endpoint_type unicast_remote_;
     message_buffer_t unicast_recv_buffer_;
-    mutable std::mutex unicast_socket_mutex_;
+    mutable std::mutex unicast_mutex_;
 
     std::unique_ptr<socket_type> multicast_socket_;
-    std::unique_ptr<endpoint_type> multicast_ep_;
+    std::unique_ptr<endpoint_type> multicast_local_;
     endpoint_type multicast_remote_;
-    std::unique_ptr<message_buffer_t> multicast_recv_buffer_;
-    mutable std::mutex multicast_socket_mutex_;
+    message_buffer_t multicast_recv_buffer_;
+    mutable std::mutex multicast_mutex_;
+    uint8_t multicast_id_;
+    std::map<std::string, bool> joined_;
+    std::atomic<bool> joined_group_;
 
     mutable std::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
-    mutable std::mutex joined_mutex_;
-    std::map<std::string, bool> joined_;
-    std::atomic<bool> joined_group_;
+
     const std::uint16_t local_port_;
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;

@@ -19,6 +19,7 @@
 namespace vsomeip_v3 {
 
 class configuration;
+class eventgroupinfo;
 
 namespace sd {
 
@@ -39,7 +40,8 @@ public:
 
     virtual void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            ttl_t _ttl, client_t _client) = 0;
+            ttl_t _ttl, client_t _client,
+            const std::shared_ptr<eventgroupinfo>& _info) = 0;
     virtual void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client) = 0;
     virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;

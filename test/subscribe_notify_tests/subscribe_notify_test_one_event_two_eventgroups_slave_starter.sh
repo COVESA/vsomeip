@@ -10,21 +10,23 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-if [ $# -lt 1 ]; then
-    echo "Please pass a json file to this script."
-    echo "For example: $0 subscribe_notify_test_one_event_two_eventgroups_slave.json"
+if [ $# -lt 2 ]; then
+    echo "Please pass a json file and a subscription type to this script."
+    echo "Valid subscription types include:"
+    echo "            [UDP, TCP]"
+    echo "For example: $0 UDP subscribe_notify_test_one_event_two_eventgroups_udp_slave.json"
     exit 1
 fi
 
 FAIL=0
 
-export VSOMEIP_CONFIGURATION=$1
+export VSOMEIP_CONFIGURATION=$2
 # start daemon
 ../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
-./subscribe_notify_test_one_event_two_eventgroups_service &
+./subscribe_notify_test_one_event_two_eventgroups_service $1 &
 PID_SERVICE=$!
 
 # wait until service exits successfully

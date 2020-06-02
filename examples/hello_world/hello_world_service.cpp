@@ -140,6 +140,9 @@ hello_world_service *hw_srv_ptr(nullptr);
 
 int main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
+
     hello_world_service hw_srv;
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     hw_srv_ptr = &hw_srv;

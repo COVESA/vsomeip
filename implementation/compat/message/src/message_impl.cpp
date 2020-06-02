@@ -7,6 +7,11 @@
 
 #include "../include/message_impl.hpp"
 #include "../include/payload_impl.hpp"
+#ifdef ANDROID
+#    include "../../../configuration/include/internal_android.hpp"
+#else
+#    include "../../../configuration/include/internal.hpp"
+#endif
 #include "../../../message/include/message_impl.hpp"
 
 namespace vsomeip {

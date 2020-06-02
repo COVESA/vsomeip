@@ -17,6 +17,7 @@
 namespace vsomeip_v3 {
 
 class endpoint;
+class eventgroupinfo;
 
 namespace sd {
 
@@ -60,6 +61,9 @@ public:
     bool has_client() const;
     bool has_client(const client_t _client) const;
 
+    void set_eventgroupinfo(const std::shared_ptr<eventgroupinfo> _info);
+    std::weak_ptr<eventgroupinfo> get_eventgroupinfo() const;
+
 private:
     major_version_t major_;
     ttl_t ttl_;
@@ -74,6 +78,8 @@ private:
 
     mutable std::mutex clients_mutex_;
     std::map<client_t, subscription_state_e> clients_; // client-> is acknowledged?
+
+    std::weak_ptr<eventgroupinfo> eg_info_;
 };
 
 } // namespace sd

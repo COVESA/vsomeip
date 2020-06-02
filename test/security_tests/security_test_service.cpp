@@ -45,13 +45,13 @@ bool security_test_service::init() {
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8001), its_eventgroups,
                 vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // also offer field 0x8002 which is not allowed to be received by client
     app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8002), its_eventgroups,
                 vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // set value to fields
     std::shared_ptr<vsomeip::payload> its_payload =

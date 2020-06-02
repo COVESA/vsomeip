@@ -153,8 +153,7 @@ public:
     }
 
     std::shared_ptr<endpoint> find_or_create_remote_client(
-            service_t _service, instance_t _instance, bool _reliable,
-            client_t _client);
+            service_t _service, instance_t _instance, bool _reliable);
 
     void remove_local(client_t _client, bool _remove_uid);
     void on_stop_offer_service(client_t _client,
@@ -230,7 +229,16 @@ public:
             std::shared_ptr<remote_subscription> &_subscription);
 
     void expire_subscriptions(const boost::asio::ip::address &_address);
+    void expire_subscriptions(const boost::asio::ip::address &_address,
+                              std::uint16_t _port, bool _reliable);
+    void expire_subscriptions(const boost::asio::ip::address &_address,
+                              const configuration::port_range_t& _range,
+                              bool _reliable);
     void expire_services(const boost::asio::ip::address &_address);
+    void expire_services(const boost::asio::ip::address &_address,
+                         std::uint16_t _port , bool _reliable);
+    void expire_services(const boost::asio::ip::address &_address,
+                         const configuration::port_range_t& _range , bool _reliable);
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
 
@@ -269,7 +277,9 @@ public:
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) const;
     void register_routing_ready_handler(const routing_ready_handler_t& _handler);
     void register_routing_state_handler(const routing_state_handler_t& _handler);
-    void sd_acceptance_enabled(const boost::asio::ip::address& _address);
+    void sd_acceptance_enabled(const boost::asio::ip::address& _address,
+                               const configuration::port_range_t& _range,
+                               bool _reliable);
 
     void on_resend_provided_events_response(pending_remote_offer_id_t _id);
     bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy>& _policy,

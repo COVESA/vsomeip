@@ -68,6 +68,7 @@
 
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
+#define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
 
 #define VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD 5
 
@@ -83,6 +84,8 @@
 #define VSOMEIP_MAX_DISPATCH_TIME               100
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
+
+#define VSOMEIP_MAX_WAIT_SENT                   5
 
 #define VSOMEIP_COMMAND_HEADER_SIZE             7
 
@@ -218,6 +221,13 @@ const std::uint32_t ANY_UID = 0xFFFFFFFF;
 const std::uint32_t ANY_GID = 0xFFFFFFFF;
 
 typedef std::pair<std::uint32_t, std::uint32_t> credentials_t;
+
+enum class port_type_e {
+    PT_OPTIONAL,
+    PT_SECURE,
+    PT_UNSECURE,
+    PT_UNKNOWN
+};
 
 } // namespace vsomeip_v3
 

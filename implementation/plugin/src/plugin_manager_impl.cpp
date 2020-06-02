@@ -200,6 +200,7 @@ void * plugin_manager_impl::load_symbol(void * _handle,
     }
 #else
     if (0 != _handle) {
+        dlerror(); // Clear previous error
         its_symbol = dlsym(_handle, _symbol.c_str());
         const char *dlsym_error = dlerror();
         if (dlsym_error) {

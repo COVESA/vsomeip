@@ -6,9 +6,20 @@
 Build instructions for Hello World example
 ------------------------------------------
 
+1. Build whole project at first:
+________________________________
+cd <root directory of vSomeIP-Lib>$:
+
 mkdir build
 cd build
 cmake ..
+make
+sudo make install
+
+2. Build hello_world target
+___________________________
+cmake --build . --target hello_world
+cd ./examples/hello_world/
 make
 
 Running Hello World Example

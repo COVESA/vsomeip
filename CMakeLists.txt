@@ -11,11 +11,11 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 1)
-set (VSOMEIP_PATCH_VERSION 7)
+set (VSOMEIP_PATCH_VERSION 14)
 set (VSOMEIP_HOTFIX_VERSION 1)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
-set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentatin/doxygen.in
+set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
 
 if (NOT GTEST_ROOT)
@@ -96,9 +96,13 @@ if (ENABLE_SIGNAL_HANDLING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
-# Thread sanitizer
+# Sanitizer
 if (ENABLE_THREAD_SANITIZER)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif ()
+
+if (ENABLE_LEAK_SANITIZER)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
 endif ()
 
 # Configuration overlays
@@ -128,7 +132,7 @@ endif ()
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.55 COMPONENTS system thread log REQUIRED )
+find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
 if(Boost_FOUND)
@@ -152,7 +156,7 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-if (${VSOMEIP_BOOST_VERSION} GREATER 107200)
+if (${VSOMEIP_BOOST_VERSION} GREATER 107300)
 message( ERROR "boost version ${VSOMEIP_BOOST_VERSION} is not (yet) supported. Latest supported version is 1.72.0" )
 elseif(${VSOMEIP_BOOST_VERSION} GREATER 106999)
 set(VSOMEIP_BOOST_HELPER implementation/helper/1.70)
@@ -209,14 +213,14 @@ if (MSVC)
     message("using MSVC Compiler")
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_LOG_DYN_LINK -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
     set(USE_RT "")
     set(Boost_LIBRARIES "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -DBOOST_LOG_DYN_LINK -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
 
@@ -242,7 +246,7 @@ endif ()
 ################################################################################
 file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/endpoints/src/*.cpp"
-    "implementation/logging/src/*.cpp"
+    "implementation/logger/src/*.cpp"
     "implementation/tracing/src/*.cpp"
     "implementation/message/src/*.cpp"
     "implementation/plugin/src/*.cpp"
@@ -252,7 +256,7 @@ file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/utility/src/*.cpp"
 )
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
-list(APPEND ${VSOMEIP_NAME}_SRC ${${VSOMEIP_NAME}-cfg_SRC})
+list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")
 endif()
 list(SORT ${VSOMEIP_NAME}_SRC)
 
@@ -553,7 +557,7 @@ else()
                                -a version=${VSOMEIP_VERSION}
                                -b html
                                -o documentation/vsomeipUserGuide.html
-                               ${PROJECT_BINARY_DIR}/../documentation/vsomeipUserGuide)
+                               ${PROJECT_SOURCE_DIR}/documentation/vsomeipUserGuide)
 endif()
 
 ##############################################################################
@@ -576,7 +580,9 @@ add_subdirectory( tools )
 # build examples
 add_custom_target( examples )
 add_subdirectory( examples EXCLUDE_FROM_ALL )
-
+add_custom_target( hello_world )
+add_subdirectory( examples/hello_world  EXCLUDE_FROM_ALL )
+ 
 ##############################################################################
 # Test section
 ##############################################################################

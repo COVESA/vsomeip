@@ -178,7 +178,8 @@ remote_subscription::set_client_state(const client_t _client,
         if (found_item->second.second == std::chrono::steady_clock::time_point()
             && (_state == remote_subscription_state_e::SUBSCRIPTION_ACKED
                 || _state == remote_subscription_state_e::SUBSCRIPTION_NACKED)) {
-            found_item->second.second = std::chrono::steady_clock::now();
+            found_item->second.second = std::chrono::steady_clock::now()
+                + std::chrono::seconds(ttl_);
         }
     }
 }

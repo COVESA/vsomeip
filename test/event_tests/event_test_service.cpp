@@ -20,7 +20,7 @@
 
 class event_test_service {
 public:
-    event_test_service(struct event_test::service_info _service_info) :
+    event_test_service(struct event_test::service_info _service_info, bool _use_tcp) :
             service_info_(_service_info),
             test_mode_(event_test::test_mode_e::UNKNOWN),
             app_(vsomeip::runtime::get()->create_application("event_test_service")),
@@ -29,7 +29,8 @@ public:
             wait_until_shutdown_method_called_(true),
             client_subscribed_(false),
             notifications_to_send_(0),
-            offer_thread_(std::bind(&event_test_service::run, this)) {
+            offer_thread_(std::bind(&event_test_service::run, this)),
+            use_tcp_(_use_tcp) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -43,7 +44,8 @@ public:
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
                     service_info_.event_id, its_eventgroups,
                     vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
-                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+                    false, true, nullptr,
+                    (use_tcp_ ? vsomeip::reliability_type_e::RT_RELIABLE : vsomeip::reliability_type_e::RT_UNRELIABLE));
         app_->register_message_handler(service_info_.service_id,
                 service_info_.instance_id, service_info_.shutdown_method_id,
                 std::bind(&event_test_service::on_shutdown_method_called, this,
@@ -172,11 +174,14 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;
+    bool use_tcp_;
 };
+
+static bool use_tcp = false;
 
 TEST(someip_event_test, send_events)
 {
-    event_test_service its_sample(event_test::service);
+    event_test_service its_sample(event_test::service, use_tcp);
 }
 
 
@@ -184,6 +189,13 @@ TEST(someip_event_test, send_events)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+
+    if (std::string("TCP")== std::string(argv[1])) {
+        use_tcp = true;
+    } else if (std::string("UDP")== std::string(argv[1])) {
+        use_tcp = false;
+    }
+
     return RUN_ALL_TESTS();
 }
 #endif

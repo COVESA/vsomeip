@@ -6,8 +6,10 @@
 #ifndef VSOMEIP_V3_TCP_CLIENT_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_TCP_CLIENT_ENDPOINT_IMPL_HPP_
 
-#include <boost/asio/ip/tcp.hpp>
 #include <chrono>
+
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"
@@ -79,6 +81,8 @@ private:
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 
+    void wait_until_sent(const boost::system::error_code &_error);
+
     const std::uint32_t recv_buffer_size_initial_;
     message_buffer_ptr_t recv_buffer_;
     std::uint32_t shrink_count_;
@@ -94,6 +98,11 @@ private:
     std::uint32_t tcp_connect_time_max_;
     std::atomic<uint32_t> aborted_restart_count_;
     std::chrono::steady_clock::time_point connect_timepoint_;
+
+    std::mutex sent_mutex_;
+    bool is_sending_;
+    boost::asio::steady_timer sent_timer_;
+
 };
 
 } // namespace vsomeip_v3

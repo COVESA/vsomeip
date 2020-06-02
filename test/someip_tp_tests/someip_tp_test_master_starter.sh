@@ -28,18 +28,18 @@ sleep 1
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "Waiting for 5s"
     sleep 5
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./someip_tp_test_msg_sender 10.0.3.1 10.0.3.2 $TESTMODE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./someip_tp_test_msg_sender XXX.XXX.XXX.XXX XXX.XXX.XXX.XXX $TESTMODE\"" &
     echo "remote ssh pid: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     echo "Waiting for 5s"
     sleep 5
-    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./someip_tp_test_msg_sender 10.0.3.1 10.0.3.2 $TESTMODE" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./someip_tp_test_msg_sender XXX.XXX.XXX.XXX XXX.XXX.XXX.XXX $TESTMODE" &
 else
 cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** someip_tp_test_msg_sender 10.0.3.1 10.0.3.2 $TESTMODE
+** someip_tp_test_msg_sender XXX.XXX.XXX.XXX XXX.XXX.XXX.XXX $TESTMODE
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in

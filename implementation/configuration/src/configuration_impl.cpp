@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream>
 #include <limits>
+#include <utility>
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -20,13 +21,14 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
 #include "../include/event.hpp"
 #include "../include/eventgroup.hpp"
 #include "../include/service.hpp"
-#include "../../logging/include/logger_impl.hpp"
+#include "../../logger/include/logger_impl.hpp"
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
@@ -47,7 +49,7 @@ configuration_impl::configuration_impl()
       has_file_log_(false),
       has_dlt_log_(false),
       logfile_("/tmp/vsomeip.log"),
-      loglevel_(boost::log::trivial::severity_level::info),
+      loglevel_(vsomeip_v3::logger::level_e::LL_INFO),
       is_sd_enabled_(VSOMEIP_SD_DEFAULT_ENABLED),
       sd_protocol_(VSOMEIP_SD_DEFAULT_PROTOCOL),
       sd_multicast_(VSOMEIP_SD_DEFAULT_MULTICAST),
@@ -184,7 +186,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     debounces_ = _other.debounces_;
     endpoint_queue_limits_ = _other.endpoint_queue_limits_;
 
-    sd_acceptance_required_ips_ = _other.sd_acceptance_required_ips_;
+    sd_acceptance_rules_ = _other.sd_acceptance_rules_;
 
     has_issued_methods_warning_ = _other.has_issued_methods_warning_;
     has_issued_clients_warning_ = _other.has_issued_clients_warning_;
@@ -258,7 +260,7 @@ bool configuration_impl::load(const std::string &_name) {
     std::vector<configuration_element> its_optional_elements;
 
     // Dummy initialization; maybe we'll find no logging configuration
-    logger_impl::init(shared_from_this());
+    logger::logger_impl::init(shared_from_this());
 
     // Look for the standard configuration file
     read_data(its_input, its_mandatory_elements, its_failed, true);
@@ -450,13 +452,14 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
         bool _load_mandatory, bool _load_optional) {
     // Load logging configuration data
     std::set<std::string> its_warnings;
+
     if (!is_logging_loaded_) {
         for (const auto& e : _elements)
             is_logging_loaded_
                 = load_logging(e, its_warnings) || is_logging_loaded_;
 
         if (is_logging_loaded_) {
-            logger_impl::init(shared_from_this());
+            logger::logger_impl::init(shared_from_this());
             for (auto w : its_warnings)
                 VSOMEIP_WARNING << w;
         }
@@ -496,7 +499,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_selective_broadcasts_support(e);
             load_e2e(e);
             load_debounce(e);
-            load_sd_acceptance_required(e);
+            load_acceptances(e);
         }
     }
 
@@ -551,18 +554,18 @@ bool configuration_impl::load_logging(
                     std::string its_value(i->second.data());
                     loglevel_
                         = (its_value == "trace" ?
-                                boost::log::trivial::severity_level::trace :
+                                vsomeip_v3::logger::level_e::LL_VERBOSE :
                           (its_value == "debug" ?
-                                boost::log::trivial::severity_level::debug :
+                                  vsomeip_v3::logger::level_e::LL_DEBUG :
                           (its_value == "info" ?
-                                boost::log::trivial::severity_level::info :
+                                  vsomeip_v3::logger::level_e::LL_INFO :
                           (its_value == "warning" ?
-                                boost::log::trivial::severity_level::warning :
+                                  vsomeip_v3::logger::level_e::LL_WARNING :
                           (its_value == "error" ?
-                                boost::log::trivial::severity_level::error :
+                                  vsomeip_v3::logger::level_e::LL_ERROR :
                           (its_value == "fatal" ?
-                                boost::log::trivial::severity_level::fatal :
-                          boost::log::trivial::severity_level::info))))));
+                                  vsomeip_v3::logger::level_e::LL_FATAL :
+                                  vsomeip_v3::logger::level_e::LL_INFO))))));
                     is_configured_[ET_LOGGING_LEVEL] = true;
                 }
             } else if (its_key == "version") {
@@ -1416,6 +1419,9 @@ void configuration_impl::load_service(
         its_service->multicast_address_ = "";
         its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
+        its_service->major_ = DEFAULT_MAJOR;
+        its_service->minor_ = DEFAULT_MINOR;
+        its_service->ttl_ = DEFAULT_TTL;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -1480,6 +1486,14 @@ void configuration_impl::load_service(
                     its_converter >> its_service->service_;
                 } else if (its_key == "instance") {
                     its_converter >> its_service->instance_;
+                } else if (its_key == "major") {
+                    unsigned int temp;
+                    its_converter >> temp;
+                    its_service->major_ = static_cast<major_version_t>(temp);
+                } else if (its_key == "minor") {
+                    its_converter >> its_service->minor_;
+                } else if (its_key == "ttl") {
+                    its_converter >> its_service->ttl_;
                 }
             }
         }
@@ -1581,10 +1595,10 @@ void configuration_impl::load_event(
             } else {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
-                    if (_service->reliable_ != ILLEGAL_PORT) {
-                        its_reliability = reliability_type_e::RT_RELIABLE;
-                    } else if (_service->unreliable_ != ILLEGAL_PORT) {
+                    if (_service->unreliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_UNRELIABLE;
+                    } else if (_service->reliable_ != ILLEGAL_PORT) {
+                        its_reliability = reliability_type_e::RT_RELIABLE;
                     }
                     VSOMEIP_WARNING << "Reliability type for event ["
                         << std::hex << _service->service_ << "."
@@ -2154,7 +2168,7 @@ const std::string & configuration_impl::get_logfile() const {
     return logfile_;
 }
 
-boost::log::trivial::severity_level configuration_impl::get_loglevel() const {
+vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
     return loglevel_;
 }
 
@@ -2236,6 +2250,39 @@ void configuration_impl::get_configured_timing_responses(
     }
     *_debounce_time = npdu_default_debounce_resp_;
     *_max_retention_time  = npdu_default_max_retention_resp_;
+}
+
+major_version_t configuration_impl::get_major_version(service_t _service,
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    major_version_t its_major = DEFAULT_MAJOR;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_major = its_service->major_;
+
+    return its_major;
+}
+
+minor_version_t configuration_impl::get_minor_version(service_t _service,
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    minor_version_t its_minor = DEFAULT_MINOR;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_minor = its_service->minor_;
+
+    return its_minor;
+}
+
+ttl_t configuration_impl::get_ttl(service_t _service,
+        instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    ttl_t its_ttl = DEFAULT_TTL;
+    auto its_service = find_service_unlocked(_service, _instance);
+    if (its_service)
+        its_ttl = its_service->ttl_;
+
+    return its_ttl;
 }
 
 bool configuration_impl::is_someip(service_t _service,
@@ -3206,26 +3253,135 @@ void configuration_impl::load_event_debounce_ignore(
 }
 
 void
-configuration_impl::load_sd_acceptance_required(
+configuration_impl::load_acceptances(
         const configuration_element &_element) {
-    const std::string sar("sd_acceptance_required");
+
+    std::string its_acceptances_key("acceptances");
+
+    if (is_configured_[ET_SD_ACCEPTANCE_REQUIRED]) {
+        VSOMEIP_WARNING << "Multiple definitions of " << its_acceptances_key
+                << " Ignoring definition from " << _element.name_;
+        return;
+    }
+
+    try {
+        auto its_acceptances = _element.tree_.get_child(its_acceptances_key);
+        for (auto i = its_acceptances.begin(); i != its_acceptances.end(); ++i) {
+            load_acceptance_data(i->second);
+        }
+
+        is_configured_[ET_SD_ACCEPTANCE_REQUIRED] = true;
+    } catch (...) {
+        // Intentionally left empty
+    }
+}
+
+void
+configuration_impl::load_acceptance_data(
+        const boost::property_tree::ptree &_tree) {
+
+    std::stringstream its_converter;
     try {
         std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
-        if (_element.tree_.get_child_optional(sar)) {
-            if (is_configured_[ET_SD_ACCEPTANCE_REQUIRED]) {
-                VSOMEIP_WARNING << "Multiple definitions of " << sar
-                        << " Ignoring definition from " << _element.name_;
-            } else {
-                for (const auto& ipe : _element.tree_.get_child(sar)) {
-                    boost::system::error_code ec;
-                    boost::asio::ip::address its_address =
-                            boost::asio::ip::address::from_string(ipe.first.data(), ec);
-                    if (!its_address.is_unspecified()) {
-                        sd_acceptance_required_ips_[{its_address, ANY_PORT}] = ipe.second.data();
+
+        boost::asio::ip::address its_address;
+        std::string its_path;
+        std::map<bool,
+            std::pair<boost::icl::interval_set<std::uint16_t>,
+                boost::icl::interval_set<std::uint16_t>
+            >
+        > its_ports;
+        bool has_optional, has_secure, is_reliable;
+
+        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+
+            if (its_key == "address") {
+                boost::system::error_code ec;
+                its_address = boost::asio::ip::address::from_string(its_value);
+            } else if (its_key == "path") {
+                its_path = its_value;
+            } else if (its_key == "reliable" || its_key == "unreliable") {
+
+                is_reliable = (its_key == "reliable");
+                has_optional = has_secure = false;
+
+                for (const auto &p : i->second) {
+                    if (p.second.size()) { // range
+                        std::uint16_t its_first(0);
+                        std::uint16_t its_last(0);
+                        port_type_e its_type(port_type_e::PT_OPTIONAL);
+
+                        for (const auto& range : p.second) {
+                            const std::string its_key(range.first);
+                            const std::string its_value(range.second.data());
+                            if (its_key == "first" || its_key == "last" || its_key == "port") {
+                                its_converter << std::dec << its_value;
+                                std::uint16_t its_port_value(0);
+                                its_converter >> its_port_value;
+                                its_converter.str("");
+                                its_converter.clear();
+                                if (its_key == "first") {
+                                    its_first = its_port_value;
+                                } else if (its_key == "last") {
+                                    its_last = its_port_value;
+                                } else if (its_key == "port") {
+                                    its_first = its_last = its_port_value;
+                                }
+                            } else if (its_key == "type") {
+                                if (its_value == "secure") {
+                                    its_type = port_type_e::PT_SECURE;
+                                } else if (its_value == "optional") {
+                                    its_type = port_type_e::PT_OPTIONAL;
+                                } else {
+                                    its_type = port_type_e::PT_UNKNOWN;
+                                }
+                            }
+                        }
+                        if (its_type != port_type_e::PT_UNKNOWN) {
+                            if (its_type == port_type_e::PT_OPTIONAL) {
+                                has_optional = true;
+                                if (its_first != 0 && its_last != 0) {
+                                    its_ports.operator [](is_reliable).first.insert(
+                                            boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                }
+                            } else {
+                                has_secure = true;
+                                if (its_first != 0 && its_last != 0) {
+                                    its_ports.operator [](is_reliable).second.insert(
+                                        boost::icl::interval<std::uint16_t>::closed(its_first, its_last));
+                                }
+                            }
+                        }
                     }
                 }
-                is_configured_[ET_SD_ACCEPTANCE_REQUIRED] = true;
+
+                // If optional was not set, use default!
+                if (!has_optional) {
+                    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
+                    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+
+                    its_ports.operator [](is_reliable).first.insert(its_optional_client);
+                    its_ports.operator [](is_reliable).first.insert(its_optional_server);
+                }
+
+                // If secure was not set, use default!
+                if (!has_secure) {
+                    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
+                    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+
+                    its_ports.operator [](is_reliable).second.insert(its_secure_client);
+                    its_ports.operator [](is_reliable).second.insert(its_secure_server);
+                }
             }
+        }
+
+        if (!its_address.is_unspecified()) {
+            sd_acceptance_rules_.insert(
+                std::make_pair(its_address,
+                    std::make_pair(its_path, its_ports)));
         }
     } catch (...) {
         // intentionally left empty
@@ -3448,37 +3604,189 @@ std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
     return tcp_connect_time_max_;
 }
 
-bool configuration_impl::sd_acceptance_required(
-        const boost::asio::ip::address& _address, std::uint16_t _port) const {
+bool configuration_impl::is_protected_device(
+        const boost::asio::ip::address& _address) const {
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
-    return sd_acceptance_required_ips_.find({_address, _port})
-            != sd_acceptance_required_ips_.end();
+    return (sd_acceptance_rules_active_.find(_address)
+            != sd_acceptance_rules_active_.end());
 }
 
-void configuration_impl::set_sd_acceptance_required(
+bool configuration_impl::is_protected_port(
         const boost::asio::ip::address& _address, std::uint16_t _port,
-        const std::string& _path, bool _enable) {
+        bool _reliable) const {
+
+    bool is_required(is_protected_device(_address));
+
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
-    if (_enable) {
-        const auto found_address = sd_acceptance_required_ips_.find({_address, _port});
-        if (found_address != sd_acceptance_required_ips_.end()) {
-            boost::system::error_code ec;
-            VSOMEIP_WARNING << __func__ << " configuration for: "
-                    << found_address->first.first.to_string(ec) << ":"
-                    << std::dec << _port << " -> "
-                    << found_address->first.second << " already configured."
-                    << " Won't update with: "<< _path;
-        } else {
-            sd_acceptance_required_ips_[{_address, _port}] = _path;
+    const auto found_address = sd_acceptance_rules_.find(_address);
+    if (found_address != sd_acceptance_rules_.end()) {
+        const auto found_reliability = found_address->second.second.find(_reliable);
+        if (found_reliability != found_address->second.second.end()) {
+            const auto its_range = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+
+            bool is_optional
+                = (found_reliability->second.first.find(its_range)
+                   != found_reliability->second.first.end());
+
+            bool is_secure
+                = (found_reliability->second.second.find(its_range)
+                   != found_reliability->second.second.end());
+
+            is_required = ((is_required && is_optional) || is_secure);
         }
-    } else {
-        sd_acceptance_required_ips_.erase({_address, _port});
+    }
+
+    return (is_required);
+}
+
+void configuration_impl::set_sd_acceptance_rule(
+        const boost::asio::ip::address &_address,
+        port_range_t _port_range, port_type_e _type,
+        const std::string &_path, bool _reliable, bool _enable, bool _default) {
+
+    (void)_port_range;
+    (void)_type;
+
+    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+
+    const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
+    const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+    const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
+    const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+
+    const bool rules_active = (sd_acceptance_rules_active_.find(_address)
+            != sd_acceptance_rules_active_.end());
+
+    const auto found_address = sd_acceptance_rules_.find(_address);
+    if (found_address != sd_acceptance_rules_.end()) {
+        if (found_address->second.first.length() > 0
+                && found_address->second.first != _path) {
+            VSOMEIP_WARNING << __func__ << ": activation path for IP: "
+                    << _address << " differ: "
+                    << found_address->second.first << " vs. " << _path
+                    << " will use: " << found_address->second.first;
+        } else {
+            found_address->second.first = _path;
+        }
+        const auto found_reliability = found_address->second.second.find(_reliable);
+        if (found_reliability != found_address->second.second.end()) {
+            if (_enable) {
+                // only insert full range interval if there are no other intervals
+                // configured
+                if (!_default ||
+                        (found_reliability->second.first.empty()
+                                && found_reliability->second.second.empty())) {
+                    found_reliability->second.first.add(its_optional_client);
+                    found_reliability->second.first.add(its_optional_server);
+                    found_reliability->second.second.add(its_secure_client);
+                    found_reliability->second.second.add(its_secure_server);
+                    if (!rules_active) {
+                        sd_acceptance_rules_active_.insert(_address);
+                    }
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                            << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
+                            << found_reliability->second.first << " "
+                            << found_reliability->second.second;
+                } else {
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                            << ":" << (_reliable ? "tcp" : "udp") << ": using configured ranges "
+                            << found_reliability->second.first << " "
+                            << found_reliability->second.second;
+                }
+            } else {
+                found_reliability->second.first.erase(its_optional_client);
+                found_reliability->second.first.erase(its_optional_server);
+                found_reliability->second.second.erase(its_secure_client);
+                found_reliability->second.second.erase(its_secure_server);
+                if (found_reliability->second.first.empty()
+                        && found_reliability->second.second.empty()) {
+                    found_address->second.second.erase(found_reliability);
+                    if (found_address->second.second.empty()) {
+                        sd_acceptance_rules_.erase(found_address);
+                        if (rules_active) {// no more rules for IP present
+                            sd_acceptance_rules_active_.erase(_address);
+                        }
+                    }
+                }
+            }
+        } else if (_enable) {
+            boost::icl::interval_set<std::uint16_t> its_optional_default;
+            its_optional_default.add(its_optional_client);
+            its_optional_default.add(its_optional_server);
+            boost::icl::interval_set<std::uint16_t> its_secure_default;
+            its_secure_default.add(its_secure_client);
+            its_secure_default.add(its_secure_server);
+
+            found_address->second.second.emplace(
+                    std::make_pair(_reliable,
+                            std::make_pair(its_optional_default, its_secure_default)));
+            if (!rules_active) {
+                sd_acceptance_rules_active_.insert(_address);
+            }
+
+            const auto found_reliability = found_address->second.second.find(_reliable);
+            VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                    << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
+                    << found_reliability->second.first << " "
+                    << found_reliability->second.second;
+        }
+    } else if (_enable) {
+        boost::icl::interval_set<std::uint16_t> its_optional_default;
+        its_optional_default.add(its_optional_client);
+        its_optional_default.add(its_optional_server);
+        boost::icl::interval_set<std::uint16_t> its_secure_default;
+        its_secure_default.add(its_secure_client);
+        its_secure_default.add(its_secure_server);
+
+        sd_acceptance_rules_.emplace(std::make_pair(_address,
+                std::make_pair(
+                        _path,
+                        std::map<
+                            bool,
+                            std::pair<
+                                boost::icl::interval_set<std::uint16_t>,
+                                boost::icl::interval_set<std::uint16_t>
+                            >
+                        >({{
+                           _reliable,
+                           std::make_pair(its_optional_default, its_secure_default)
+                          }}))));
+        if (!rules_active) {
+            sd_acceptance_rules_active_.insert(_address);
+        }
+
+        const auto found_address = sd_acceptance_rules_.find(_address);
+        if (found_address != sd_acceptance_rules_.end()) {
+            const auto found_reliability = found_address->second.second.find(_reliable);
+            if (found_reliability != found_address->second.second.end()) {
+                VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                        << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
+                        << found_reliability->second.first << " "
+                        << found_reliability->second.second;
+            }
+        }
     }
 }
 
-configuration::sd_acceptance_required_map_t configuration_impl::get_sd_acceptance_required() {
+void configuration_impl::set_sd_acceptance_rules(
+            const sd_acceptance_rules_t& _rules, bool _enable) {
+    // Unused, only still available to preserve compatibility
+    (void)_rules;
+    (void)_enable;
+}
+
+configuration::sd_acceptance_rules_t configuration_impl::get_sd_acceptance_rules() {
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
-    return sd_acceptance_required_ips_;
+    return sd_acceptance_rules_;
+}
+
+void configuration_impl::set_sd_acceptance_rules_active(
+            const boost::asio::ip::address& _address, bool _enable) {
+    if (_enable) {
+        sd_acceptance_rules_active_.insert(_address);
+    } else {
+        sd_acceptance_rules_active_.erase(_address);
+    }
 }
 
 std::uint32_t configuration_impl::get_udp_receive_buffer_size() const {

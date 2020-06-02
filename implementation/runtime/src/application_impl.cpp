@@ -9,7 +9,6 @@
 #include <iostream>
 
 #include <boost/exception/diagnostic_information.hpp>
-#include <boost/log/exceptions.hpp>
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -63,7 +62,6 @@ application_impl::application_impl(const std::string &_name)
           is_dispatching_(false),
           max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
           max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME),
-          logger_(logger::get()),
           stopped_(false),
           block_stopping_(false),
           is_routing_manager_host_(false),
@@ -420,10 +418,6 @@ void application_impl::start() {
                     #endif
                     try {
                       io_.run();
-#if !defined(_WIN32) && !defined(ANDROID)
-                    } catch (const boost::log::v2_mt_posix::system_error &e) {
-                        std::cerr << "catched boost::log system_error in I/O thread" << std::endl;
-#endif
                     } catch (const std::exception &e) {
                         VSOMEIP_ERROR << "application_impl::start() "
                                 "catched exception: " << e.what();
@@ -469,10 +463,6 @@ void application_impl::start() {
             stop_thread_.join();
         }
 
-#if !defined(_WIN32) && !defined(ANDROID)
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "catched boost::log system_error in I/O thread" << std::endl;
-#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::start() catched exception: " << e.what();
     }
@@ -502,14 +492,10 @@ void application_impl::start() {
 }
 
 void application_impl::stop() {
-#if !defined(_WIN32) && !defined(ANDROID)
-    try {
-        VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\" ("
+
+    VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\" ("
                 << std::hex << std::setw(4) << std::setfill('0') << client_ << ").";
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "catched boost::log system_error application_impl::stop" << std::endl;
-    }
-#endif
+
     bool block = true;
     {
         std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
@@ -1954,11 +1940,6 @@ void application_impl::shutdown() {
         running_dispatchers_.clear();
         elapsed_dispatchers_.clear();
         dispatchers_.clear();
-#if !defined(_WIN32) && !defined(ANDROID)
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "application_impl::" << __func__ << ": stopping dispatchers, "
-                << "catched boost::log system_error" << std::endl;
-#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping dispatchers, "
                 << " catched exception: " << e.what();
@@ -1967,11 +1948,6 @@ void application_impl::shutdown() {
     try {
         if (routing_)
             routing_->stop();
-#if !defined(_WIN32) && !defined(ANDROID)
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "application_impl::" << __func__ << ": stopping routing, "
-                << "catched boost::log system_error" << std::endl;
-#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping routing, "
                 << " catched exception: " << e.what();
@@ -1980,11 +1956,6 @@ void application_impl::shutdown() {
     try {
         work_.reset();
         io_.stop();
-#if !defined(_WIN32) && !defined(ANDROID)
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "application_impl::" << __func__ << ": stopping io, "
-                << "catched boost::log system_error" << std::endl;
-#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping io, "
                 << " catched exception: " << e.what();
@@ -1998,11 +1969,6 @@ void application_impl::shutdown() {
             }
         }
         io_threads_.clear();
-#if !defined(_WIN32) && !defined(ANDROID)
-    } catch (const boost::log::v2_mt_posix::system_error &e) {
-        std::cerr << "application_impl::" << __func__ << ": joining threads, "
-                << "catched boost::log system_error" << std::endl;
-#endif
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
                 << " catched exception: " << e.what();
@@ -2390,46 +2356,136 @@ void application_impl::register_reboot_notification_handler(
 }
 
 void application_impl::set_sd_acceptance_required(
-        const remote_info_t& _remote, const std::string& _path, bool _enable) {
-    if (is_routing()) {
-        const boost::asio::ip::address its_address = _remote.ip_.is_v4_ ?
-                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_)) :
-                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_));
-        configuration_->set_sd_acceptance_required(its_address, _remote.port_, _path, _enable);
-        if (_enable && routing_) {
-            const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-            rm_impl->sd_acceptance_enabled(its_address);
-        }
+        const remote_info_t &_remote, const std::string &_path, bool _enable) {
+
+    if (!is_routing()) {
+        return;
+    }
+
+    const boost::asio::ip::address its_address(_remote.ip_.is_v4_ ?
+            static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(
+                    _remote.ip_.address_.v4_)) :
+            static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(
+                    _remote.ip_.address_.v6_)));
+
+    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max()
+            && _remote.last_ == 0) {
+        // special case to (de)activate rules per IP
+        configuration_->set_sd_acceptance_rules_active(its_address, _enable);
+        return;
+    }
+
+    configuration::port_range_t its_range { _remote.first_, _remote.last_ };
+    configuration_->set_sd_acceptance_rule(its_address,
+            its_range, port_type_e::PT_UNKNOWN,
+            _path, _remote.is_reliable_, _enable, true);
+
+    if (_enable && routing_) {
+        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
+        rm_impl->sd_acceptance_enabled(its_address, its_range,
+                _remote.is_reliable_);
     }
 }
 
-void application_impl::set_sd_acceptance_required(const sd_acceptance_map_type_t& _remotes,
-                                                   bool _enable) {
-    (void) _remotes;
-    (void) _enable;
+void application_impl::set_sd_acceptance_required(
+        const sd_acceptance_map_type_t& _remotes, bool _enable) {
+
+    (void)_remotes;
+    (void)_enable;
+
+#if 0
+    if (!is_routing()) {
+        return;
+    }
+
+    configuration::sd_acceptance_rules_t its_rules;
+    for (const auto& remote_info : _remotes) {
+        const boost::asio::ip::address its_address(remote_info.first.ip_.is_v4_ ?
+                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(
+                        remote_info.first.ip_.address_.v4_)) :
+                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(
+                        remote_info.first.ip_.address_.v6_)));
+        const boost::icl::interval<std::uint16_t>::interval_type its_interval =
+                remote_info.first.is_range_ ?
+                    boost::icl::interval<std::uint16_t>::closed(
+                            remote_info.first.first_,
+                            ((remote_info.first.last_ == ANY_PORT) ?
+                                    std::numeric_limits<std::uint16_t>::max() :
+                                    remote_info.first.last_)) :
+                    boost::icl::interval<std::uint16_t>::closed(
+                            remote_info.first.first_, remote_info.first.first_);
+
+        const bool its_reliability = remote_info.first.is_reliable_;
+
+        const auto found_address = its_rules.find(its_address);
+        if (found_address != its_rules.end()) {
+            const auto found_reliability = found_address->second.second.find(
+                    its_reliability);
+            if (found_reliability != found_address->second.second.end()) {
+                found_reliability->second.insert(its_interval);
+            } else {
+                found_address->second.second.emplace(std::make_pair(
+                        its_reliability,
+                        boost::icl::interval_set<std::uint16_t>(its_interval)));
+            }
+        } else {
+            its_rules.insert(std::make_pair(its_address,
+                   std::make_pair(remote_info.second,
+                           std::map<bool, boost::icl::interval_set<std::uint16_t>>(
+                                  {{ its_reliability,
+                                      boost::icl::interval_set<std::uint16_t>(
+                                              its_interval) } }))));
+        }
+    }
+
+    configuration_->set_sd_acceptance_rules(its_rules, _enable);
+#endif
 }
 
 application::sd_acceptance_map_type_t
 application_impl::get_sd_acceptance_required() {
+
     sd_acceptance_map_type_t its_ret;
+
     if (is_routing()) {
-        for (const auto& e : configuration_->get_sd_acceptance_required()) {
+        for (const auto& e : configuration_->get_sd_acceptance_rules()) {
             remote_info_t its_remote_info;
-            its_remote_info.ip_.is_v4_ = e.first.first.is_v4();
-            if (e.first.first.is_v4()) {
-                its_remote_info.ip_.address_.v4_ = e.first.first.to_v4().to_bytes();
-                its_remote_info.ip_.is_v4_ = true;
+            its_remote_info.ip_.is_v4_ = e.first.is_v4();
+            if (its_remote_info.ip_.is_v4_) {
+                its_remote_info.ip_.address_.v4_ = e.first.to_v4().to_bytes();
             } else {
-                its_remote_info.ip_.address_.v6_ = e.first.first.to_v6().to_bytes();
-                its_remote_info.ip_.is_v4_ = false;
+                its_remote_info.ip_.address_.v6_ = e.first.to_v6().to_bytes();
             }
-            its_remote_info.port_ = e.first.second;
-            its_remote_info.first_ = ANY_PORT;
-            its_remote_info.last_ = ANY_PORT;
-            its_remote_info.is_range_ = false;
-            its_ret[its_remote_info] = e.second;
+            for (const auto& reliability : e.second.second) {
+                its_remote_info.is_reliable_ = reliability.first;
+                for (const auto& port_range : reliability.second.first) {
+                    if (port_range.lower() == port_range.upper()) {
+                        its_remote_info.first_ = port_range.lower();
+                        its_remote_info.last_ = port_range.lower();
+                        its_remote_info.is_range_ = false;
+                    } else {
+                        its_remote_info.first_ = port_range.lower();
+                        its_remote_info.last_ = port_range.upper();
+                        its_remote_info.is_range_ = true;
+                    }
+                    its_ret[its_remote_info] = e.second.first;
+                }
+                for (const auto& port_range : reliability.second.second) {
+                    if (port_range.lower() == port_range.upper()) {
+                        its_remote_info.first_ = port_range.lower();
+                        its_remote_info.last_ = port_range.lower();
+                        its_remote_info.is_range_ = false;
+                    } else {
+                        its_remote_info.first_ = port_range.lower();
+                        its_remote_info.last_ = port_range.upper();
+                        its_remote_info.is_range_ = true;
+                    }
+                    its_ret[its_remote_info] = e.second.first;
+                }
+            }
         }
     }
+
     return its_ret;
 }
 

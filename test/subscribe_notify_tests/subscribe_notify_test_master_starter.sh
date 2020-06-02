@@ -12,15 +12,17 @@
 
 if [ $# -lt 1 ]
 then
-    echo "Please pass a json file to this script."
-    echo "For example: $0 subscribe_notify_test_diff_client_ids_diff_ports_master.json"
+    echo "Please pass a json file and event reliability type to this script."
+    echo "For example: $0 UDP subscribe_notify_test_diff_client_ids_diff_ports_master.json"
     echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
     exit 1
 fi
 
 # replace master with slave to be able display the correct json file to be used
 # with the slave script
-MASTER_JSON_FILE=$1
+RELIABILITY_TYPE=$1
+MASTER_JSON_FILE=$2
+SAME_SERVICE_ID=$3
 CLIENT_JSON_FILE=${MASTER_JSON_FILE/master/slave}
 
 FAIL=0
@@ -28,30 +30,30 @@ FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_one
 export VSOMEIP_CONFIGURATION=$MASTER_JSON_FILE
-./subscribe_notify_test_service 1 $2 &
+./subscribe_notify_test_service 1 $RELIABILITY_TYPE $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_two
 export VSOMEIP_CONFIGURATION=$MASTER_JSON_FILE
-./subscribe_notify_test_service 2 $2 &
+./subscribe_notify_test_service 2 $RELIABILITY_TYPE $3 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_three
 export VSOMEIP_CONFIGURATION=$MASTER_JSON_FILE
-./subscribe_notify_test_service 3 $2 &
+./subscribe_notify_test_service 3 $RELIABILITY_TYPE $3 &
 
 sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $CLIENT_JSON_FILE $2"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./subscribe_notify_test_slave_starter.sh $CLIENT_JSON_FILE $2\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_slave_starter.sh $CLIENT_JSON_FILE $2" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3" &
 else
     cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
-** subscribe_notify_test_slave_starter.sh $CLIENT_JSON_FILE $2
+** subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in

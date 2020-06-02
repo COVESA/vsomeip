@@ -75,7 +75,7 @@ public:
 
     void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl,
-            client_t _client);
+            client_t _client, const std::shared_ptr<eventgroupinfo>& _info);
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
@@ -128,18 +128,30 @@ private:
     entry_data_t create_eventgroup_entry(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<subscription> &_subscription,
-            remote_offer_type_e _offer_type);
+            reliability_type_e _offer_type);
 
     void insert_subscription_ack(
             const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
             const std::shared_ptr<eventgroupinfo> &_info, ttl_t _ttl,
-            const std::shared_ptr<endpoint_definition> &_target = nullptr,
-            const client_t _client = VSOMEIP_ROUTING_CLIENT);
+            const std::shared_ptr<endpoint_definition> &_target,
+            const std::set<client_t> &_clients);
 
+    typedef std::set<std::pair<bool, std::uint16_t>> expired_ports_t;
+    struct sd_acceptance_state_t {
+        explicit sd_acceptance_state_t(expired_ports_t& _expired_ports)
+            : expired_ports_(_expired_ports),
+              sd_acceptance_required_(false),
+              accept_entries_(false) {
+        }
+
+        expired_ports_t& expired_ports_;
+        bool sd_acceptance_required_;
+        bool accept_entries_;
+    };
     void process_serviceentry(std::shared_ptr<serviceentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
             bool _unicast_flag, std::vector<std::shared_ptr<message_impl> > &_resubscribes,
-            bool _received_via_mcast, bool _accept_offers);
+            bool _received_via_mcast, const sd_acceptance_state_t& _sd_ac_state);
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl,
@@ -148,7 +160,7 @@ private:
             const boost::asio::ip::address &_unreliable_address,
             uint16_t _unreliable_port,
             std::vector<std::shared_ptr<message_impl> > &_resubscribes,
-            bool _received_via_mcast);
+            bool _received_via_mcast, const sd_acceptance_state_t& _sd_ac_state);
     void send_offer_service(
             const std::shared_ptr<const serviceinfo> &_info, service_t _service,
             instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -164,7 +176,8 @@ private:
             const std::vector<std::shared_ptr<option_impl> > &_options,
             std::shared_ptr<remote_subscription_ack> &_acknowledgement,
             const boost::asio::ip::address &_destination,
-            bool _is_stop_subscribe_subscribe, bool _force_initial_events);
+            bool _is_stop_subscribe_subscribe, bool _force_initial_events,
+            const sd_acceptance_state_t& _sd_ac_state);
     void handle_eventgroup_subscription(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
@@ -175,6 +188,7 @@ private:
             std::shared_ptr<remote_subscription_ack> &_acknowledgement,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
             const std::set<client_t> &_clients,
+            const sd_acceptance_state_t& _sd_ac_state,
             const std::shared_ptr<eventgroupinfo>& _info);
     void handle_eventgroup_subscription_ack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
@@ -300,16 +314,23 @@ private:
     bool update_remote_offer_type(service_t _service, instance_t _instance,
                                   remote_offer_type_e _offer_type,
                                   const boost::asio::ip::address &_reliable_address,
-                                  const boost::asio::ip::address &_unreliable_address);
+                                  std::uint16_t _reliable_port,
+                                  const boost::asio::ip::address &_unreliable_address,
+                                  std::uint16_t _unreliable_port);
     void remove_remote_offer_type(service_t _service, instance_t _instance,
-                                  const boost::asio::ip::address &_address);
+                                  const boost::asio::ip::address &_reliable_address,
+                                  std::uint16_t _reliable_port,
+                                  const boost::asio::ip::address &_unreliable_address,
+                                  std::uint16_t _unreliable_port);
     void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address);
+    void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address,
+                                        std::uint16_t _port, bool _reliable);
 
     std::shared_ptr<subscription> create_subscription(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl,
             const std::shared_ptr<endpoint> &_reliable,
-            const std::shared_ptr<endpoint> &_unreliable);
+            const std::shared_ptr<endpoint> &_unreliable,
+            const std::shared_ptr<eventgroupinfo> &_info);
 
     std::shared_ptr<remote_subscription> get_remote_subscription(
             const service_t _service, const instance_t _instance,
@@ -332,6 +353,9 @@ private:
     void add_entry_data_to_remote_subscription_ack_msg(
             const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
             const entry_data_t &_data);
+    reliability_type_e get_eventgroup_reliability(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const std::shared_ptr<subscription>& _subscription);
 
 private:
     boost::asio::io_service &io_;
@@ -436,7 +460,9 @@ private:
 
     mutable std::mutex remote_offer_types_mutex_;
     std::map<std::pair<service_t, instance_t>, remote_offer_type_e> remote_offer_types_;
-    std::map<boost::asio::ip::address, std::set<std::pair<service_t, instance_t>>> remote_offers_by_ip_;
+    std::map<boost::asio::ip::address,
+            std::map<std::pair<bool, std::uint16_t>,
+                std::set<std::pair<service_t, instance_t>>>> remote_offers_by_ip_;
 
     reboot_notification_handler_t reboot_notification_handler_;
     sd_acceptance_handler_t sd_acceptance_handler_;

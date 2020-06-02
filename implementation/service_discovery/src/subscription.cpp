@@ -116,5 +116,13 @@ bool subscription::has_client(const client_t _client) const {
     return (clients_.find(_client) != clients_.end());
 }
 
+void subscription::set_eventgroupinfo(
+        const std::shared_ptr<eventgroupinfo> _info) {
+    eg_info_ = _info;
+}
+std::weak_ptr<eventgroupinfo> subscription::get_eventgroupinfo() const {
+    return eg_info_;
+}
+
 } // namespace sd
 } // namespace vsomeip_v3

@@ -6,9 +6,11 @@
 #ifndef VSOMEIP_V3_POLICY_HPP_
 #define VSOMEIP_V3_POLICY_HPP_
 
-#include <utility>
-#include <set>
 #include <cstring>
+#include <map>
+#include <mutex>
+#include <set>
+#include <utility>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -25,9 +27,11 @@ struct policy {
     ids_t ids_;
     bool allow_who_;
 
-    std::set<std::pair<service_t, ids_t>> services_;
-    std::set<std::pair<service_t, ranges_t>> offers_;
+    std::map<service_t, ids_t> services_;
+    std::map<service_t, ranges_t> offers_;
     bool allow_what_;
+
+    std::mutex mutex_;
 };
 
 } // namespace vsomeip_v3

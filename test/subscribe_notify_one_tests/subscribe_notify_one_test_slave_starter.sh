@@ -10,25 +10,25 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
-if [ $# -lt 1 ]
+if [ $# -lt 2 ]
 then
-    echo "Please pass a json file to this script."
-    echo "For example: $0 subscribe_notify_one_test_diff_client_ids_diff_ports_slave.json"
+    echo "Please pass a json file and event reliability type to this script."
+    echo "For example: $0 UDP subscribe_notify_one_test_diff_client_ids_diff_ports_slave_udp.json"
     exit 1
 fi
 
 FAIL=0
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_four
-export VSOMEIP_CONFIGURATION=$1
+export VSOMEIP_CONFIGURATION=$2
 ./subscribe_notify_one_test_service 4 $1 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_five
-export VSOMEIP_CONFIGURATION=$1
+export VSOMEIP_CONFIGURATION=$2
 ./subscribe_notify_one_test_service 5 $1 &
 
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_six
-export VSOMEIP_CONFIGURATION=$1
+export VSOMEIP_CONFIGURATION=$2
 ./subscribe_notify_one_test_service 6 $1 &
 
 # Wait until all applications are finished

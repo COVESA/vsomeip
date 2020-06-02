@@ -8,6 +8,11 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/payload_impl.hpp"
+#ifdef ANDROID
+#    include "../../../configuration/include/internal_android.hpp"
+#else
+#    include "../../../configuration/include/internal.hpp"
+#endif
 
 namespace vsomeip {
 

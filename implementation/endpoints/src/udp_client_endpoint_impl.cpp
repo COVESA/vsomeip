@@ -84,12 +84,17 @@ void udp_client_endpoint_impl::connect() {
             }
         }
 
+        if (local_.port() == ILLEGAL_PORT) {
+            // Let the OS assign the port
+            local_.port(0);
+        }
+
 #ifndef _WIN32
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
-            if (setsockopt(socket_->native_handle(),
-                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size()) == -1) {
+            if (!setsockopt(socket_->native_handle(),
+                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size())) {
                 VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\"";
             }
         }

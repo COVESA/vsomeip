@@ -1265,11 +1265,15 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
     std::unique_lock<std::mutex> its_lock(serializer_mutex_);
     while (serializers_.empty()) {
-        VSOMEIP_INFO << std::hex << "client " << get_client() <<
-                "routing_manager_base::get_serializer ~> all in use!";
+        VSOMEIP_INFO << __func__ << ": Client "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_client()
+                << " has no available serializer. Waiting...";
         serializer_condition_.wait(its_lock);
-        VSOMEIP_INFO << std::hex << "client " << get_client() <<
-                        "routing_manager_base::get_serializer ~> wait finished!";
+        VSOMEIP_INFO << __func__ << ": Client "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << get_client()
+                        << " now checking for available serializer.";
     }
 
     auto its_serializer = serializers_.front();

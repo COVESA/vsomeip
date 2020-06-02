@@ -25,8 +25,6 @@ class configuration;
 class event;
 class routing_manager_host;
 
-class logger;
-
 class routing_manager_proxy: public routing_manager_base {
 public:
     routing_manager_proxy(routing_manager_host *_host, bool _client_side_logging,
@@ -251,8 +249,6 @@ private:
     mutable std::mutex sender_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
-
-    std::shared_ptr<logger> logger_;
 
     std::mutex request_timer_mutex_;
     boost::asio::steady_timer request_debounce_timer_;

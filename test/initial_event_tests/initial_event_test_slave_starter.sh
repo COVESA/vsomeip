@@ -13,7 +13,7 @@
 if [ $# -lt 1 ]
 then
     echo "Please pass a json file to this script."
-    echo "For example: $0 UDP initial_event_test_diff_client_ids_diff_ports_slave.json"
+    echo "For example: $0 initial_event_test_diff_client_ids_diff_ports_slave.json UDP"
     echo "To use the same service id but different instances on the node pass SAME_SERVICE_ID as third parameter"
     echo "To ensure the first client only subscribes to one event pass SUBSCRIBE_ONLY_ONE as third/fourth parameter"
     exit 1

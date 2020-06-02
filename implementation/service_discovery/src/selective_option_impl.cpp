@@ -36,6 +36,11 @@ std::set<client_t> selective_option_impl::get_clients() const {
     return (its_clients);
 }
 
+void selective_option_impl::set_clients(const std::set<client_t> &_clients) {
+    clients_ = _clients;
+    length_ = uint16_t(1 + clients_.size() * sizeof(client_t));
+}
+
 bool selective_option_impl::add_client(client_t _client) {
     auto its_result = clients_.insert(_client);
     length_ = uint16_t(1 + clients_.size() * sizeof(client_t));

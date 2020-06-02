@@ -45,7 +45,6 @@ routing_manager_proxy::routing_manager_proxy(routing_manager_host *_host,
         sender_(nullptr),
         receiver_(nullptr),
         register_application_timer_(io_),
-        logger_(logger::get()),
         request_debounce_timer_ (io_),
         request_debounce_timer_running_(false),
         client_side_logging_(_client_side_logging),
@@ -342,9 +341,35 @@ void routing_manager_proxy::register_event(client_t _client,
         std::lock_guard<std::mutex> its_lock(state_mutex_);
         is_first = pending_event_registrations_.find(registration)
                                         == pending_event_registrations_.end();
+#ifndef VSOMEIP_ENABLE_COMPAT
         if (is_first) {
             pending_event_registrations_.insert(registration);
         }
+#else
+        bool insert = true;
+        if (is_first) {
+            for (auto iter = pending_event_registrations_.begin();
+                    iter != pending_event_registrations_.end();) {
+                if (iter->service_ == _service
+                        && iter->instance_ == _instance
+                        && iter->notifier_ == _notifier
+                        && iter->is_provided_ == _is_provided
+                        && iter->type_ == event_type_e::ET_EVENT
+                        && _type == event_type_e::ET_SELECTIVE_EVENT) {
+                    iter = pending_event_registrations_.erase(iter);
+                    iter = pending_event_registrations_.insert(registration).first;
+                    is_first = true;
+                    insert = false;
+                    break;
+                } else {
+                    iter++;
+                }
+            }
+            if (insert) {
+                pending_event_registrations_.insert(registration);
+            }
+        }
+#endif
     }
     if (is_first || _is_provided) {
         routing_manager_base::register_event(_client,
@@ -399,17 +424,19 @@ void routing_manager_proxy::unregister_event(client_t _client,
                 }
             }
         }
-        auto it = pending_event_registrations_.begin();
-        while (it != pending_event_registrations_.end()) {
-            if (it->service_ == _service
-                    && it->instance_ == _instance
-                    && it->notifier_ == _notifier) {
+
+        for (auto iter = pending_event_registrations_.begin();
+                iter != pending_event_registrations_.end(); ) {
+            if (iter->service_ == _service
+                    && iter->instance_ == _instance
+                    && iter->notifier_ == _notifier
+                    && iter->is_provided_ == _is_provided) {
+                pending_event_registrations_.erase(iter);
                 break;
+            } else {
+                iter++;
             }
-            it++;
         }
-        if (it != pending_event_registrations_.end())
-            pending_event_registrations_.erase(it);
     }
 }
 
@@ -455,7 +482,7 @@ void routing_manager_proxy::subscribe(client_t _client, uid_t _uid, gid_t _gid, 
 
         std::lock_guard<std::mutex> its_lock(state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED && is_available(_service, _instance, _major)) {
-            send_subscribe(_client, _service, _instance, _eventgroup, _major, _event );
+            send_subscribe(client_, _service, _instance, _eventgroup, _major, _event );
         }
         subscription_data_t subscription = { _service, _instance, _eventgroup, _major, _event, _uid, _gid};
         pending_subscriptions_.insert(subscription);
@@ -1548,20 +1575,23 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                         return;
                     }
 #endif
-
-                    // inform host about its own registration state changes
-                    host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_REGISTERED));
-
                     {
                         std::lock_guard<std::mutex> its_lock(state_mutex_);
-                        boost::system::error_code ec;
-                        register_application_timer_.cancel(ec);
-                        send_registered_ack();
-                        send_pending_commands();
-                        state_ = inner_state_type_e::ST_REGISTERED;
-                        // Notify stop() call about clean deregistration
-                        state_condition_.notify_one();
+                        if (state_ == inner_state_type_e::ST_REGISTERING) {
+                            boost::system::error_code ec;
+                            register_application_timer_.cancel(ec);
+                            send_registered_ack();
+                            send_pending_commands();
+                            state_ = inner_state_type_e::ST_REGISTERED;
+                            // Notify stop() call about clean deregistration
+                            state_condition_.notify_one();
+                        }
                     }
+
+                    // inform host about its own registration state changes
+                    if (state_ == inner_state_type_e::ST_REGISTERED)
+                        host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_REGISTERED));
+
                 }
             } else if (routing_info_entry == routing_info_entry_e::RIE_DEL_CLIENT) {
                 {
@@ -2278,24 +2308,22 @@ routing_manager_proxy::assign_client_timeout_cbk(
 
 void routing_manager_proxy::register_application_timeout_cbk(
         boost::system::error_code const &_error) {
-    if (!_error) {
-        bool register_again(false);
-        {
-            std::lock_guard<std::mutex> its_lock(state_mutex_);
-            if (state_ != inner_state_type_e::ST_REGISTERED) {
-                state_ = inner_state_type_e::ST_DEREGISTERED;
-                register_again = true;
-            }
-        }
-        if (register_again) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
-            VSOMEIP_WARNING << std::hex << "Client 0x" << get_client()
-                    << " register timeout! Trying again...";
 
-            if (sender_) {
-                sender_->restart();
-            }
+    bool register_again(false);
+    {
+        std::lock_guard<std::mutex> its_lock(state_mutex_);
+        if (!_error && state_ != inner_state_type_e::ST_REGISTERED) {
+            state_ = inner_state_type_e::ST_DEREGISTERED;
+            register_again = true;
         }
+    }
+    if (register_again) {
+        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        VSOMEIP_WARNING << std::hex << "Client 0x" << get_client()
+            << " register timeout! Trying again...";
+
+        if (sender_)
+            sender_->restart();
     }
 }
 

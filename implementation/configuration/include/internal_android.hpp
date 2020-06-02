@@ -17,6 +17,7 @@
 #define VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES "VSOMEIP_MANDATORY_CONFIGURATION_FILES"
 #define VSOMEIP_ENV_LOAD_PLUGINS                "VSOMEIP_LOAD_PLUGINS"
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
+#define VSOMEIP_ENV_BASE_PATH                   "VSOMEIP_BASE_PATH"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
@@ -28,11 +29,11 @@
 
 #define VSOMEIP_BASE_PATH                       "/storage/"
 
-#define VSOMEIP_CFG_LIBRARY                     "libvsomeip_cfg.so"
+#define VSOMEIP_CFG_LIBRARY                     "libvsomeip3-cfg.so"
 
-#define VSOMEIP_SD_LIBRARY                      "libvsomeip_sd.so"
+#define VSOMEIP_SD_LIBRARY                      "libvsomeip3-sd.so"
 
-#define VSOMEIP_E2E_LIBRARY                     "libvsomeip-e2e.so.3"
+#define VSOMEIP_E2E_LIBRARY                     "libvsomeip3-e2e.so"
 
 #define VSOMEIP_ROUTING_CLIENT                  0
 
@@ -51,6 +52,7 @@
 
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
+#define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
 
 #define VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD 5
 
@@ -68,6 +70,8 @@
 #define VSOMEIP_MAX_DESERIALIZER                5
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
+
+#define VSOMEIP_MAX_WAIT_SENT                   5
 
 #define VSOMEIP_COMMAND_HEADER_SIZE             7
 

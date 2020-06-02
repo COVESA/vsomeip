@@ -78,10 +78,12 @@ void e2e_test_client::on_state(vsomeip::state_type_e _state) {
 
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8001),
-                its_eventgroups, vsomeip::event_type_e::ET_FIELD);
+                its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                 static_cast<vsomeip::event_t>(0x8002),
-                its_eventgroups_2, vsomeip::event_type_e::ET_FIELD);
+                its_eventgroups_2, vsomeip::event_type_e::ET_FIELD,
+                vsomeip::reliability_type_e::RT_UNRELIABLE);
     }
 }
 
