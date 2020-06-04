@@ -2,15 +2,22 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-#include <csignal>
-#endif
 #include <vsomeip/vsomeip.hpp>
 #include <chrono>
 #include <thread>
 #include <condition_variable>
 #include <mutex>
-#include <iostream>
+
+#ifdef __ANDROID__ // NDK
+#include "android/log.h"
+#define LOG_TAG "hello_world_service"
+#define LOG_INF(...) (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
+#define LOG_ERR(...) (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
+#else
+#include <cstdio>
+#define LOG_INF(...) fprintf(stdout, __VA_ARGS__)
+#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__)
+#endif
 
 static vsomeip::service_t service_id = 0x1111;
 static vsomeip::instance_t service_instance_id = 0x2222;
@@ -39,7 +46,7 @@ public:
     {
         // init the application
         if (!app_->init()) {
-            std::cerr << "Couldn't initialize application" << std::endl;
+            LOG_ERR("Couldn't initialize application");
             return false;
         }
 
@@ -128,31 +135,3 @@ private:
     std::condition_variable condition_;
     std::thread stop_thread_;
 };
-
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-hello_world_service *hw_srv_ptr(nullptr);
-    void handle_signal(int _signal) {
-        if (hw_srv_ptr != nullptr &&
-                (_signal == SIGINT || _signal == SIGTERM))
-            hw_srv_ptr->terminate();
-    }
-#endif
-
-int main(int argc, char **argv)
-{
-    (void)argc;
-    (void)argv;
-
-    hello_world_service hw_srv;
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    hw_srv_ptr = &hw_srv;
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
-#endif
-    if (hw_srv.init()) {
-        hw_srv.start();
-        return 0;
-    } else {
-        return 1;
-    }
-}

@@ -205,6 +205,13 @@ const std::uint32_t ANY_GID = 0xFFFFFFFF;
 
 typedef std::pair<std::uint32_t, std::uint32_t> credentials_t;
 
+enum class port_type_e {
+    PT_OPTIONAL,
+    PT_SECURE,
+    PT_UNSECURE,
+    PT_UNKNOWN
+};
+
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_INTERNAL_HPP_

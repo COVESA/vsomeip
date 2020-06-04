@@ -10,7 +10,11 @@
 #include <iostream>
 
 #ifdef ANDROID
-#include <utils/Log.h>
+#include <android/log.h>
+
+#ifndef LOG_TAG
+#define LOG_TAG NULL
+#endif
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -90,25 +94,25 @@ message::~message() {
 #else
             switch (level_) {
             case level_e::LL_FATAL:
-                ALOGE(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_ERROR:
-                ALOGE(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_WARNING:
-                ALOGW(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_INFO:
-                ALOGI(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_DEBUG:
-                ALOGD(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_VERBOSE:
-                ALOGV(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, "%s", buffer_.data_.str().c_str());
                 break;
             default:
-                ALOGI(buffer_.data_.str());
+                (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buffer_.data_.str().c_str());
             };
 #endif // !ANDROID
         }
