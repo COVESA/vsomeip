@@ -500,6 +500,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_e2e(e);
             load_debounce(e);
             load_acceptances(e);
+            load_secure_services(e);
         }
     }
 
@@ -3532,6 +3533,55 @@ configuration_impl::load_udp_receive_buffer_size(const configuration_element &_e
     }
 }
 
+void configuration_impl::load_secure_services(const configuration_element &_element) {
+    std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
+    try {
+        auto its_services = _element.tree_.get_child("secure-services");
+        for (auto i = its_services.begin(); i != its_services.end(); ++i)
+            load_secure_service(i->second);
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
+void configuration_impl::load_secure_service(const boost::property_tree::ptree &_tree) {
+    try {
+        service_t its_service(0);
+        instance_t its_instance(0);
+
+        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+            std::stringstream its_converter;
+
+            // Trim "its_value"
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+
+            if (its_key == "service") {
+                its_converter >> its_service;
+            } else if (its_key == "instance") {
+                its_converter >> its_instance;
+            }
+        }
+
+        if (its_service != 0 && its_instance != 0) {
+            auto find_service = secure_services_.find(its_service);
+            if (find_service != secure_services_.end()) {
+                find_service->second.insert(its_instance);
+            } else {
+                secure_services_[its_service].insert(its_instance);
+            }
+        }
+
+    } catch (...) {
+        // Intentionally left empty
+    }
+}
+
 std::shared_ptr<debounce> configuration_impl::get_debounce(
         service_t _service, instance_t _instance, event_t _event) const {
     auto found_service = debounces_.find(_service);
@@ -3637,6 +3687,28 @@ bool configuration_impl::is_protected_port(
     }
 
     return (is_required);
+}
+
+bool configuration_impl::is_secure_port(
+        const boost::asio::ip::address& _address, std::uint16_t _port,
+        bool _reliable) const {
+
+    bool is_secure(false);
+
+    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    const auto found_address = sd_acceptance_rules_.find(_address);
+    if (found_address != sd_acceptance_rules_.end()) {
+        const auto found_reliability
+            = found_address->second.second.find(_reliable);
+        if (found_reliability != found_address->second.second.end()) {
+            const auto its_range
+                = boost::icl::interval<std::uint16_t>::closed(_port, _port);
+            return (found_reliability->second.second.find(its_range)
+                    != found_reliability->second.second.end());
+        }
+    }
+
+    return (is_secure);
 }
 
 void configuration_impl::set_sd_acceptance_rule(
@@ -3787,6 +3859,14 @@ void configuration_impl::set_sd_acceptance_rules_active(
     } else {
         sd_acceptance_rules_active_.erase(_address);
     }
+}
+
+bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
+    std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
+    const auto its_service = secure_services_.find(_service);
+    if (its_service != secure_services_.end())
+        return (its_service->second.find(_instance) != its_service->second.end());
+    return (false);
 }
 
 std::uint32_t configuration_impl::get_udp_receive_buffer_size() const {

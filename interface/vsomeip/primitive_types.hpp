@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 #ifndef _WIN32
 #include <sys/types.h>

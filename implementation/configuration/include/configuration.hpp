@@ -220,6 +220,9 @@ public:
     virtual bool is_protected_port(
             const boost::asio::ip::address& _address, std::uint16_t _port,
             bool _reliable) const = 0;
+    virtual bool is_secure_port(
+                const boost::asio::ip::address& _address, std::uint16_t _port,
+                bool _reliable) const = 0;
 
     typedef std::pair<std::uint16_t, std::uint16_t> port_range_t;
     virtual void set_sd_acceptance_rule(
@@ -228,14 +231,14 @@ public:
             const std::string &_path, bool _reliable, bool _enable, bool _default) = 0;
 
     typedef std::map<
-        boost::asio::ip::address,
+        boost::asio::ip::address, // other device
         std::pair<
-            std::string,
+            std::string, // path to file that determines whether or not IPsec is active
             std::map<
-                bool,
+                bool, // false = unreliable (aka UDP), true = reliable (aka TCP)
                 std::pair<
-                    boost::icl::interval_set<std::uint16_t>,
-                    boost::icl::interval_set<std::uint16_t>
+                    boost::icl::interval_set<std::uint16_t>, // optional (aka semi-secure) port range
+                    boost::icl::interval_set<std::uint16_t>  // secure port range
                 >
             >
         >
@@ -245,6 +248,8 @@ public:
     virtual sd_acceptance_rules_t get_sd_acceptance_rules() = 0;
     virtual void set_sd_acceptance_rules_active(
             const boost::asio::ip::address& _address, bool _enable) = 0;
+
+    virtual bool is_secure_service(service_t _service, instance_t _instance) const = 0;
 
     virtual std::uint32_t get_udp_receive_buffer_size() const = 0;
 

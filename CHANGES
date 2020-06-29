@@ -1,22 +1,11 @@
 Changes
 =======
 
-v3.1.14.1
-- Merged extended support for static routing (versioning) 
-  (by Jean-Patrice Laude <jean-patrice.laude@renault.com>)
-- Merged simplification of build process for hello_world example
-  (by Nikolay Khilyuk <nkh@ua.fm>)
-- Updated Android.bp to use boost 1.70.0 or higher
-- Merged Android support for hello_world example
-  (by Nikolay Khilyuk <nkh@ua.fm>)
-- Align response sample to documentation (do not specify application name)
-  (by JayHou <houjie@lixiang.com>)
-- Call dlerror before calling dlsym to clear previous error. 
-  (by Oleg Kharitonov <Oleg.Kharitonov@elektrobit.com>) 
-- Get base path from environment variable for Android NDK.
-  (by Nikolay Khilyuk <nkh@ua.fm>) 
-- Fixed wrong library naming
-  (by Nikolay Khilyuk <nkh@ua.fm>) 
+v3.1.15
+- Ensure to remove the correct subscription object on unsubscribe
+- Implemented support to define "secure services"
+- Speedup security policy handling
+- Enable building with boost v1.73.0
 
 v3.1.14
 - Fixed race conditions (application registration, subscription)

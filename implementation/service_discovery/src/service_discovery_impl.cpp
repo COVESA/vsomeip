@@ -1272,6 +1272,21 @@ service_discovery_impl::process_offerservice_serviceentry(
     if (!its_runtime)
         return;
 
+    bool is_secure = configuration_->is_secure_service(_service, _instance);
+    if (is_secure &&
+            ((_reliable_port != ILLEGAL_PORT &&
+                    !configuration_->is_secure_port(_reliable_address, _reliable_port, true))
+             ||  (_unreliable_port != ILLEGAL_PORT
+                     && !configuration_->is_secure_port(_unreliable_address, _unreliable_port, false)))) {
+
+        VSOMEIP_WARNING << __func__ << ": Ignoring offer of ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service
+                << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance
+                << "]";
+        return;
+    }
+
     std::shared_ptr<request> its_request = find_request(_service, _instance);
     if (its_request) {
         std::lock_guard<std::mutex> its_lock(requested_mutex_);
@@ -2297,6 +2312,9 @@ service_discovery_impl::handle_eventgroup_subscription(
     // Create subscription object
     auto its_subscription = std::make_shared<remote_subscription>();
     its_subscription->set_eventgroupinfo(_info);
+    its_subscription->set_subscriber(its_subscriber);
+    its_subscription->set_reliable(its_reliable);
+    its_subscription->set_unreliable(its_unreliable);
     its_subscription->reset(_clients);
 
     if (_ttl == 0) { // --> unsubscribe
@@ -2315,9 +2333,6 @@ service_discovery_impl::handle_eventgroup_subscription(
     if (_force_initial_events) {
         its_subscription->set_force_initial_events(true);
     }
-    its_subscription->set_subscriber(its_subscriber);
-    its_subscription->set_reliable(its_reliable);
-    its_subscription->set_unreliable(its_unreliable);
     its_subscription->set_ttl(_ttl
             * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_));
 

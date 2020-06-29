@@ -203,6 +203,9 @@ public:
     VSOMEIP_EXPORT bool is_protected_port(
             const boost::asio::ip::address& _address,
             std::uint16_t _port, bool _reliable) const;
+    VSOMEIP_EXPORT bool is_secure_port(
+            const boost::asio::ip::address& _address,
+            std::uint16_t _port, bool _reliable) const;
 
     VSOMEIP_EXPORT void set_sd_acceptance_rule(
             const boost::asio::ip::address& _address,
@@ -213,6 +216,8 @@ public:
     VSOMEIP_EXPORT sd_acceptance_rules_t get_sd_acceptance_rules();
     VSOMEIP_EXPORT void set_sd_acceptance_rules_active(
             const boost::asio::ip::address& _address, bool _enable);
+
+    VSOMEIP_EXPORT bool is_secure_service(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT std::uint32_t get_udp_receive_buffer_size() const;
 
@@ -363,6 +368,9 @@ private:
     void load_endpoint_queue_sizes(const configuration_element &_element);
 
     void load_tcp_restart_settings(const configuration_element &_element);
+
+    void load_secure_services(const configuration_element &_element);
+    void load_secure_service(const boost::property_tree::ptree &_tree);
 
 private:
     std::mutex mutex_;
@@ -542,6 +550,9 @@ protected:
     std::chrono::nanoseconds npdu_default_max_retention_resp_;
 
     std::uint32_t shutdown_timeout_;
+
+    mutable std::mutex secure_services_mutex_;
+    std::map<service_t, std::set<instance_t> > secure_services_;
 };
 
 } // namespace cfg

@@ -51,7 +51,7 @@ public:
     static tp_split_messages_t tp_split_message(
             const std::uint8_t * const _data, std::uint32_t _size);
 
-    static const std::uint16_t tp_max_segment_length_ = 1392;
+    static const std::uint16_t tp_max_segment_length_;
 };
 
 } // namespace tp

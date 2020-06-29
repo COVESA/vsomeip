@@ -26,6 +26,8 @@
 namespace vsomeip_v3 {
 namespace tp {
 
+const std::uint16_t tp::tp_max_segment_length_ = 1392;
+
 tp_split_messages_t tp::tp_split_message(const std::uint8_t * const _data,
                                          std::uint32_t _size) {
     tp_split_messages_t split_messages;

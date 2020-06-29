@@ -11,8 +11,9 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 1)
-set (VSOMEIP_PATCH_VERSION 14)
+set (VSOMEIP_PATCH_VERSION 15)
 set (VSOMEIP_HOTFIX_VERSION 1)
+
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
@@ -70,6 +71,17 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(OPTIMIZE "")
     set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security -fPIE -pie -Wl,-z,relro,-z,now")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Android")
+    set(OS "ANDROID")
+    set(DL_LIBRARY "")
+    set(EXPORTSYMBOLS "")
+    set(NO_DEPRECATED "")
+    set(OPTIMIZE "")
+
+    find_library(ANDROID_LOG_LIB log)
+    set(OS_LIBS ${ANDROID_LOG_LIB})
+endif(${CMAKE_SYSTEM_NAME} MATCHES "Android")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS "FREEBSD")
@@ -132,7 +144,13 @@ endif ()
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
+if (${CMAKE_SYSTEM_NAME} MATCHES "Android")
+  # Please implement your macro workaround to set Boost_ variables, because NDK does not have Boost libs package
+  # Example of macro implementation you can find in test project that mentioned in examples/hello_world/readme_android
+  ndk_find_package_boost(system thread filesystem)
+else()
+  find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
+endif()
 include_directories( ${Boost_INCLUDE_DIR} )
 
 if(Boost_FOUND)
@@ -179,10 +197,12 @@ endif()
 # SystemD
 pkg_check_modules(SystemD "libsystemd")
 
-if(NOT SystemD_FOUND)
+if(NOT SystemD_FOUND OR ${CMAKE_SYSTEM_NAME} MATCHES "Android")
 MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
-endif(NOT SystemD_FOUND)
+else()
+list(APPEND OS_LIBS ${SystemD_LIBRARIES})
+endif(NOT SystemD_FOUND OR ${CMAKE_SYSTEM_NAME} MATCHES "Android")
 
 # Multiple routing managers
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
@@ -221,7 +241,9 @@ if (MSVC)
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
-    set(USE_RT "rt")
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+        set(USE_RT "rt")
+    endif()
 endif()
 
 ################################################################################
@@ -238,7 +260,7 @@ if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     endif()
 
-    target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+    target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
 endif ()
 
 ################################################################################
@@ -274,7 +296,7 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OS_LIBS})
 
 ################################################################################
 # Service Discovery library
@@ -290,7 +312,7 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
-target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${OS_LIBS})
 
 
 ################################################################################
@@ -307,7 +329,7 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
-target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
 
 ################################################################################
 # Compatibility library
@@ -338,7 +360,7 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
     $<INSTALL_INTERFACE:include/compat> # for clients in install mode
 )
-target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
 
 endif ()
 
@@ -568,21 +590,23 @@ if(NOT WIN32)
 endif()
 
 ##############################################################################
-# build routing manager daemon (Non-Windows only)
-if (NOT MSVC)
-add_subdirectory( examples/routingmanagerd )
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+    # build routing manager daemon (Non-Windows only)
+    if (NOT MSVC)
+    add_subdirectory( examples/routingmanagerd )
+    endif()
+
+    # build tools
+    add_custom_target( tools )
+    add_subdirectory( tools )
+
+    # build examples
+    add_custom_target( examples )
+    add_subdirectory( examples EXCLUDE_FROM_ALL )
+    add_custom_target( hello_world )
+    add_subdirectory( examples/hello_world  EXCLUDE_FROM_ALL )
 endif()
 
-# build tools
-add_custom_target( tools )
-add_subdirectory( tools )
-
-# build examples
-add_custom_target( examples )
-add_subdirectory( examples EXCLUDE_FROM_ALL )
-add_custom_target( hello_world )
-add_subdirectory( examples/hello_world  EXCLUDE_FROM_ALL )
- 
 ##############################################################################
 # Test section
 ##############################################################################

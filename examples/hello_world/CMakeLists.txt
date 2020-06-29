@@ -6,22 +6,40 @@
 cmake_minimum_required (VERSION 2.8.7)
 project (vSomeIPHelloWorld)
 
-# This will get us acces to
-#   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
-#   VSOMEIP_LIBRARIES    - libraries to link against
-find_package(${VSOMEIP_NAME})
-if (NOT ${VSOMEIP_NAME}_FOUND)
-    message("${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR")
-endif()
-
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 include_directories(${VSOMEIP_INCLUDE_DIRS})
 
-add_executable (hello_world_service hello_world_service.cpp)
-target_link_libraries(hello_world_service ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+add_library(vsomeip_hello_world_service INTERFACE)
+target_sources(vsomeip_hello_world_service INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_service.hpp"
+)
+target_include_directories(vsomeip_hello_world_service INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
-add_executable (hello_world_client hello_world_client.cpp)
-target_link_libraries(hello_world_client ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+add_library(vsomeip_hello_world_client INTERFACE)
+target_sources(vsomeip_hello_world_client INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_client.hpp"
+)
+target_include_directories(vsomeip_hello_world_client INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+    # This will get us acces to
+    #   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
+    #   VSOMEIP_LIBRARIES    - libraries to link against
+    find_package(${VSOMEIP_NAME})
+    if (NOT ${VSOMEIP_NAME}_FOUND)
+        message("${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR")
+    endif()
+
+    add_executable (hello_world_service hello_world_service_main.cpp)
+    target_link_libraries(hello_world_service vsomeip_hello_world_service ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+    add_executable (hello_world_client hello_world_client_main.cpp)
+    target_link_libraries(hello_world_client vsomeip_hello_world_client ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+endif()

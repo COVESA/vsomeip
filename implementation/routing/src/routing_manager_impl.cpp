@@ -2757,8 +2757,6 @@ void routing_manager_impl::on_remote_unsubscribe(
     const auto its_eventgroup = its_info->get_eventgroup();
     const auto its_major = its_info->get_major();
 
-    auto its_subscriber = _subscription->get_subscriber();
-
     // Get remote port(s)
     auto its_reliable = _subscription->get_reliable();
     if (its_reliable) {
