@@ -8,6 +8,7 @@ libvsomeip_srcs = [
    "implementation/utility/**/*.cpp",
    "implementation/plugin/**/*.cpp",
    "implementation/security/**/*.cpp",
+   "implementation/logger/**/*.cpp",
 ]
 
 libvsomeip_cfg_srcs = [
@@ -33,6 +34,7 @@ cc_defaults {
         "-Wno-unused-private-field",
         "-Wno-unused-lambda-capture",
         "-Wno-unused-variable",
+        "-Wno-unused-local-typedef",
         "-Wno-sign-compare",
         "-Wno-format",
         "-Wno-header-guard",
@@ -42,7 +44,7 @@ cc_defaults {
 }
 
 cc_library_shared {
-    name: "libvsomeip",
+    name: "libvsomeip3",
     vendor: true,
 
     srcs: libvsomeip_srcs,
@@ -76,7 +78,7 @@ cc_library_shared {
 }
 
 cc_library_shared {
-    name: "libvsomeip_cfg",
+    name: "libvsomeip3-cfg",
     vendor: true,
 
     srcs: libvsomeip_cfg_srcs,
@@ -93,14 +95,14 @@ cc_library_shared {
     ],
 
     shared_libs: [
-        "libvsomeip",
+        "libvsomeip3",
         "libboost_system",
         "libboost_filesystem"
     ]
 }
 
 cc_library_shared {
-    name: "libvsomeip_e2e",
+    name: "libvsomeip3-e2e",
     vendor: true,
 
     srcs: libvsomeip_e2e_srcs,
@@ -117,12 +119,12 @@ cc_library_shared {
     ],
 
     shared_libs: [
-       "libvsomeip"
+       "libvsomeip3"
     ]
 }
 
 cc_library_shared {
-    name: "libvsomeip_sd",
+    name: "libvsomeip3-sd",
     vendor: true,
 
     srcs: libvsomeip_sd_srcs,
@@ -139,6 +141,7 @@ cc_library_shared {
     ],
 
     shared_libs: [
-        "libvsomeip"
+        "libvsomeip3",
+        "libboost_thread"
     ]
 }
