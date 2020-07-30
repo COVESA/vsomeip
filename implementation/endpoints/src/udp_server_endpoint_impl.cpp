@@ -303,12 +303,26 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
 
             boost::system::error_code ec;
 
+            bool is_v4(false);
+            bool is_v6(false);
+            {
+                std::lock_guard<std::mutex> its_lock(local_mutex_);
+                is_v4 = local_.address().is_v4();
+                is_v6 = local_.address().is_v6();
+            }
+
             if (multicast_recv_buffer_.empty())
                 multicast_recv_buffer_.resize(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0);
 
             if (!multicast_local_) {
-                multicast_local_ = std::unique_ptr<endpoint_type>(
-                    new endpoint_type(boost::asio::ip::address_v4::any(), local_port_));
+                if (is_v4) {
+                    multicast_local_ = std::unique_ptr<endpoint_type>(
+                        new endpoint_type(boost::asio::ip::address_v4::any(), local_port_));
+                }
+                if (is_v6) {
+                    multicast_local_ = std::unique_ptr<endpoint_type>(
+                        new endpoint_type(boost::asio::ip::address_v6::any(), local_port_));
+                }
             }
 
             if (!multicast_socket_) {
@@ -358,14 +372,6 @@ void udp_server_endpoint_impl::join(const std::string &_address) {
 #endif
                 multicast_id_++;
                 receive_multicast(multicast_id_);
-            }
-
-            bool is_v4(false);
-            bool is_v6(false);
-            {
-                std::lock_guard<std::mutex> its_lock(local_mutex_);
-                is_v4 = local_.address().is_v4();
-                is_v6 = local_.address().is_v6();
             }
 
             if (is_v4) {
