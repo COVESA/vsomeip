@@ -1,6 +1,14 @@
 Changes
 =======
 
+v3.1.16.1
+- Restore IPv6 within UDP server endpoint
+- AOSP build adaptation to vsomeip3 libraries
+
+v3.1.16
+- Fixed race condition when leaving multicast group
+- Do not busy loop when receiving garbage data on local endpoint
+
 v3.1.15
 - Ensure to remove the correct subscription object on unsubscribe
 - Implemented support to define "secure services"

@@ -1,15 +1,15 @@
 AOSP:
 1. Apply vsomeip project to AOSP tree and build hello_world example (e.g. via mma build command)
 2. Push changes to target
-3. Start service and client via different adb shell sessions:
+3. Start service and client via different adb shell sessions under root user:
 
 Shell1:
-VSOMEIP_CONFIGURATION=/etc/vsomeip/helloworld-local.json \
+VSOMEIP_CONFIGURATION=/vendor/etc/vsomeip/helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_service \
 vsomeip_hello_world_service
 
 Shell2:
-VSOMEIP_CONFIGURATION=/etc/vsomeip/helloworld-local.json \
+VSOMEIP_CONFIGURATION=/vendor/etc/vsomeip/helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_client \
 vsomeip_hello_world_client
 

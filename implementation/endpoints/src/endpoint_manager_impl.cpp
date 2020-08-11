@@ -412,34 +412,41 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
 }
 
 void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instance_t _instance) {
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    // Clear multicast info and endpoint and multicast instance (remote service)
-    if (multicast_info.find(_service) != multicast_info.end()) {
-        if (multicast_info[_service].find(_instance) != multicast_info[_service].end()) {
-            std::string address = multicast_info[_service][_instance]->get_address().to_string();
-            uint16_t port = multicast_info[_service][_instance]->get_port();
-            std::shared_ptr<endpoint> multicast_endpoint;
-            auto found_port = server_endpoints_.find(port);
-            if (found_port != server_endpoints_.end()) {
-                auto found_unreliable = found_port->second.find(false);
-                if (found_unreliable != found_port->second.end()) {
-                    multicast_endpoint = found_unreliable->second;
-                    dynamic_cast<udp_server_endpoint_impl*>(
-                            multicast_endpoint.get())->leave(address);
-                    multicast_endpoint->stop();
-                    server_endpoints_[port].erase(false);
+
+    std::shared_ptr<endpoint> multicast_endpoint;
+    std::string address;
+
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        // Clear multicast info and endpoint and multicast instance (remote service)
+        if (multicast_info.find(_service) != multicast_info.end()) {
+            if (multicast_info[_service].find(_instance) != multicast_info[_service].end()) {
+                address = multicast_info[_service][_instance]->get_address().to_string();
+                uint16_t port = multicast_info[_service][_instance]->get_port();
+                auto found_port = server_endpoints_.find(port);
+                if (found_port != server_endpoints_.end()) {
+                    auto found_unreliable = found_port->second.find(false);
+                    if (found_unreliable != found_port->second.end()) {
+                        multicast_endpoint = found_unreliable->second;
+                        server_endpoints_[port].erase(false);
+                    }
+                    if (found_port->second.find(true) == found_port->second.end()) {
+                        server_endpoints_.erase(port);
+                    }
                 }
-                if (found_port->second.find(true) == found_port->second.end()) {
-                    server_endpoints_.erase(port);
+                multicast_info[_service].erase(_instance);
+                if (0 >= multicast_info[_service].size()) {
+                    multicast_info.erase(_service);
                 }
+                // Clear service_instances_ for multicast endpoint
+                (void)remove_instance(_service, multicast_endpoint.get());
             }
-            multicast_info[_service].erase(_instance);
-            if (0 >= multicast_info[_service].size()) {
-                multicast_info.erase(_service);
-            }
-            // Clear service_instances_ for multicast endpoint
-            remove_instance(_service, multicast_endpoint.get());
         }
+    }
+    if (multicast_endpoint) {
+        dynamic_cast<udp_server_endpoint_impl*>(
+                multicast_endpoint.get())->leave(address);
+        multicast_endpoint->stop();
     }
 }
 

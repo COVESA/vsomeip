@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_PLUGIN_HPP_
 
 #include <memory>
+#include <string>
 
 #if _WIN32
     #if VSOMEIP_DLL_COMPILATION_PLUGIN

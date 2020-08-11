@@ -8,10 +8,11 @@ cc_defaults {
     ],
 
     shared_libs: [
-        "libvsomeip",
-        "libvsomeip_cfg",
-        "libvsomeip_e2e",
-        "libvsomeip_sd",
+        "libvsomeip3",
+        "libvsomeip3-cfg",
+        "libvsomeip3-e2e",
+        "libvsomeip3-sd",
+        "liblog",
     ],
 }
 
@@ -20,7 +21,7 @@ cc_binary {
     defaults: ["vsomeip_hello_world_defaults"],
 
     srcs: [
-        "hello_world_service.cpp",
+        "hello_world_service_main.cpp",
     ],
 }
 
@@ -29,12 +30,13 @@ cc_binary {
     defaults: ["vsomeip_hello_world_defaults"],
 
     srcs: [
-        "hello_world_client.cpp",
+        "hello_world_client_main.cpp",
     ],
 }
 
 prebuilt_etc {
     name: "helloworld-local.json",
+    vendor: true,
     sub_dir: "vsomeip",
     src: "helloworld-local.json",
 }

@@ -4,15 +4,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #include <vsomeip/vsomeip.hpp>
 
-#ifdef __ANDROID__ // NDK
+#if defined ANDROID || defined __ANDROID__
 #include "android/log.h"
 #define LOG_TAG "hello_world_client"
-#define LOG_INF(...) (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
-#define LOG_ERR(...) (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
+#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n"), (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
+#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n"), (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
 #else
 #include <cstdio>
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__)
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__)
+#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n")
+#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n")
 #endif
 
 static vsomeip::service_t service_id = 0x1111;

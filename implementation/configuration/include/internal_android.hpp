@@ -67,8 +67,6 @@
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
 
-#define VSOMEIP_MAX_DESERIALIZER                5
-
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 
 #define VSOMEIP_MAX_WAIT_SENT                   5

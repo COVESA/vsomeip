@@ -554,6 +554,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
         return;
     }
 
+    bool is_error(false);
     std::size_t its_start = 0;
     std::size_t its_end = 0;
     std::size_t its_iteration_gap = 0;
@@ -757,13 +758,17 @@ void local_server_endpoint_impl::connection::receive_cbk(
                             missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
                         missing_capacity_ = 0;
                     }
+                } else if (message_is_empty) {
+                    VSOMEIP_ERROR << "Received garbage data.";
+                    is_error = true;
                 }
             }
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
     if (_error == boost::asio::error::eof
-            || _error == boost::asio::error::connection_reset) {
+            || _error == boost::asio::error::connection_reset
+            || is_error) {
         stop();
         its_server->remove_connection(bound_client_);
         security::get()->remove_client_to_uid_gid_mapping(bound_client_);
