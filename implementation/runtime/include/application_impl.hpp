@@ -347,7 +347,7 @@ private:
     typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_handler_t,
             bool>>> availability_major_minor_t;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
-    mutable std::mutex availability_mutex_;
+    mutable std::recursive_mutex availability_mutex_;
 
     // Availability
     mutable available_t available_;

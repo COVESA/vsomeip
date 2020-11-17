@@ -615,7 +615,7 @@ void application_impl::unsubscribe(service_t _service, instance_t _instance,
 bool application_impl::is_available(
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     return is_available_unlocked(_service, _instance, _major, _minor);
 }
 
@@ -689,7 +689,7 @@ bool application_impl::are_available(
         available_t &_available,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     return are_available_unlocked(_available, _service, _instance, _major, _minor);
 }
 
@@ -868,7 +868,7 @@ void application_impl::unregister_state_handler() {
 void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, availability_handler_t _handler,
         major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
     if (state_ == state_type_e::ST_REGISTERED) {
         do_register_availability_handler(_service, _instance,
                 _handler, _major, _minor);
@@ -904,7 +904,7 @@ void application_impl::do_register_availability_handler(service_t _service,
 
 void application_impl::unregister_availability_handler(service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     auto found_service = availability_.find(_service);
     if (found_service != availability_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1275,7 +1275,7 @@ boost::asio::io_service & application_impl::get_io() {
 
 void application_impl::on_state(state_type_e _state) {
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         if (state_ != _state) {
             state_ = _state;
             if (state_ == state_type_e::ST_REGISTERED) {
@@ -1290,6 +1290,17 @@ void application_impl::on_state(state_type_e _state) {
                                             its_minor.second.first,
                                             its_major.first, its_minor.first);
                                 }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Call on_availability callback on each service
+                for (const auto &its_service : availability_) {
+                    for (const auto &its_instance : its_service.second) {
+                        for (const auto &its_major : its_instance.second) {
+                            for (const auto &its_minor : its_major.second) {
+                                on_availability(its_service.first, its_instance.first, false, its_major.first, its_minor.first);
                             }
                         }
                     }
@@ -1322,7 +1333,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         bool _is_available, major_version_t _major, minor_version_t _minor) {
     std::vector<availability_handler_t> its_handlers;
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         if (_is_available == is_available_unlocked(_service, _instance, _major, _minor)) {
             return;
         }
@@ -1860,7 +1871,7 @@ void application_impl::clear_all_handler() {
     }
 
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         availability_.clear();
     }
 
