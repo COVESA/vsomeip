@@ -439,7 +439,11 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
                     multicast_info.erase(_service);
                 }
                 // Clear service_instances_ for multicast endpoint
-                (void)remove_instance(_service, multicast_endpoint.get());
+                if (multicast_endpoint) {
+                    (void)remove_instance(_service, multicast_endpoint.get());
+                } else {
+                    VSOMEIP_ERROR << "Invalid multicast endpoint, not able to remove services";
+                }
             }
         }
     }
