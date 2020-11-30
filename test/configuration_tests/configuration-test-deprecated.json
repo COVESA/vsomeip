@@ -321,7 +321,7 @@
                         },
                         {
                             "service" : "0x1236",
-                            "instances" : [{ "first" : "0x5675", "last" : "0x5677"}, "5678"]
+                            "instances" : [{ "first" : "0x5675", "last" : "0x5677"}, "0x5678"]
                         }
                     ]
                 }
@@ -390,7 +390,7 @@
                         },
                         {
                             "service" : "0x1236",
-                            "instances" : [{ "first" : "0x5675", "last" : "0x5677"}, "5678"]
+                            "instances" : [{ "first" : "0x5675", "last" : "0x5677"}, "0x5678"]
                         }
                     ]
                 }

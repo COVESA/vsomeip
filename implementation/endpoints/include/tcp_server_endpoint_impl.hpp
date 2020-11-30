@@ -106,6 +106,7 @@ private:
                 service_t _service, method_t _method, client_t _client, session_t _session,
                 const std::chrono::steady_clock::time_point _start);
         void stop_and_remove_connection();
+        void wait_until_sent(const boost::system::error_code &_error);
 
         std::mutex socket_mutex_;
         tcp_server_endpoint_impl::socket_type socket_;

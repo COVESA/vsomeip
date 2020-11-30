@@ -915,7 +915,7 @@ void tcp_client_endpoint_impl::wait_until_sent(const boost::system::error_code &
         its_sent_lock.unlock();
         if (!_error)
             VSOMEIP_WARNING << __func__
-                << ": Maximum wait time for send operation exceeded.";
+                << ": Maximum wait time for send operation exceeded for tce.";
 
         std::shared_ptr<endpoint_host> its_ep_host = endpoint_host_.lock();
         its_ep_host->on_disconnect(shared_from_this());

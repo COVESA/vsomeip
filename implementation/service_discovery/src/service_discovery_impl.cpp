@@ -521,6 +521,28 @@ service_discovery_impl::unsubscribe_all(
     serialize_and_send(its_messages, its_address);
 }
 
+void
+service_discovery_impl::reset_subscriptions(
+        service_t _service, instance_t _instance) {
+
+    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    auto found_service = subscribed_.find(_service);
+    if (found_service != subscribed_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            for (auto &its_eventgroup : found_instance->second) {
+                auto its_subscription = its_eventgroup.second;
+                for (auto its_client : its_subscription->get_clients()) {
+                    its_subscription->set_state(its_client,
+                            subscription_state_e::ST_UNKNOWN);
+                }
+                its_subscription->set_endpoint(nullptr, true);
+                its_subscription->set_endpoint(nullptr, false);
+            }
+        }
+    }
+}
+
 std::pair<session_t, bool>
 service_discovery_impl::get_session(
         const boost::asio::ip::address &_address) {
@@ -1100,7 +1122,7 @@ service_discovery_impl::on_message(
                     is_stop_subscribe_subscribe =
                             check_stop_subscribe_subscribe(iter, its_end, its_options);
                     process_eventgroupentry(its_eventgroup_entry, its_options,
-                            its_acknowledgement, _destination,
+                            its_acknowledgement, _sender, _destination,
                             is_stop_subscribe_subscribe, force_initial_events,
                             accept_state);
                 }
@@ -1249,7 +1271,7 @@ service_discovery_impl::process_serviceentry(
         remove_remote_offer_type(its_service, its_instance,
                                  its_reliable_address, its_reliable_port,
                                  its_unreliable_address, its_unreliable_port);
-        unsubscribe_all(its_service, its_instance);
+        reset_subscriptions(its_service, its_instance);
         if (!is_diagnosis_ && !is_suspended_) {
             host_->del_routing_info(its_service, its_instance,
                                     (its_reliable_port != ILLEGAL_PORT),
@@ -1308,6 +1330,7 @@ service_discovery_impl::process_offerservice_serviceentry(
         VSOMEIP_WARNING << __func__ << ": Unknown remote offer type ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+        return; // Unknown remote offer type --> no way to access it!
     }
 
     if (_sd_ac_state.sd_acceptance_required_) {
@@ -1673,9 +1696,6 @@ service_discovery_impl::insert_offer_service(
             its_ttl = ttl_;
         its_entry->set_ttl(its_ttl);
 
-        // This would be a clean solution but does _not_ work with the ANDi tool
-        // unsubscribe_all(_service, _instance);
-
         add_entry_data(_messages, its_data);
     } else {
         VSOMEIP_ERROR << __func__ << ": Failed to create service entry.";
@@ -1687,6 +1707,7 @@ service_discovery_impl::process_eventgroupentry(
         std::shared_ptr<eventgroupentry_impl> &_entry,
         const std::vector<std::shared_ptr<option_impl> > &_options,
         std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+        const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_destination,
         bool _is_stop_subscribe_subscribe, bool _force_initial_events,
         const sd_acceptance_state_t& _sd_ac_state) {
@@ -2122,7 +2143,7 @@ service_discovery_impl::process_eventgroupentry(
             if (its_ttl > 0) {
                 handle_eventgroup_subscription_ack(its_service, its_instance,
                         its_eventgroup, its_major, its_ttl, 0,
-                        its_clients,
+                        its_clients, _sender,
                         its_first_address, its_first_port);
             } else {
                 handle_eventgroup_subscription_nack(its_service, its_instance, its_eventgroup,
@@ -2383,6 +2404,7 @@ service_discovery_impl::handle_eventgroup_subscription_ack(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         major_version_t _major, ttl_t _ttl, uint8_t _counter,
         const std::set<client_t> &_clients,
+        const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_address, uint16_t _port) {
     (void)_major;
     (void)_ttl;
@@ -2407,7 +2429,7 @@ service_discovery_impl::handle_eventgroup_subscription_ack(
                 }
                 if (_address.is_multicast()) {
                     host_->on_subscribe_ack_with_multicast(
-                            _service, _instance, _address, _port);
+                            _service, _instance, _sender, _address, _port);
                 }
             }
         }

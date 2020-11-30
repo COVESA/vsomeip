@@ -115,6 +115,7 @@ public:
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
+    VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
 
@@ -232,6 +233,12 @@ public:
             std::uint16_t _port_service, method_t _method) const;
 
     VSOMEIP_EXPORT std::uint32_t get_shutdown_timeout() const;
+
+    VSOMEIP_EXPORT bool log_statistics() const;
+    VSOMEIP_EXPORT uint32_t get_statistics_interval() const;
+    VSOMEIP_EXPORT uint32_t get_statistics_min_freq() const;
+    VSOMEIP_EXPORT uint32_t get_statistics_max_messages() const;
+
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -399,16 +406,19 @@ protected:
     std::map<std::string,
         std::tuple<
             client_t,
-            std::size_t,
-            std::size_t,
-            std::size_t,
-            std::size_t,
+            std::size_t, // max dispatchers
+            std::size_t, // max dispatch time
+            std::size_t, // thread count
+            std::size_t, // request debouncing
             std::map<
                 plugin_type_e,
                 std::set<std::string>
-            >,
-            int,
-            std::string
+            >, // plugins
+            int, // nice level
+            std::string // overlay
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+            , bool // has session handling?
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
         >
     > applications_;
     std::set<client_t> client_identifiers_;
@@ -553,6 +563,11 @@ protected:
 
     mutable std::mutex secure_services_mutex_;
     std::map<service_t, std::set<instance_t> > secure_services_;
+
+    bool log_statistics_;
+    uint32_t statistics_interval_;
+    uint32_t statistics_min_freq_;
+    uint32_t statistics_max_messages_;
 };
 
 } // namespace cfg

@@ -79,6 +79,7 @@ public:
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
+    void reset_subscriptions(service_t _service, instance_t _instance);
 
     bool send(bool _is_announcing);
 
@@ -175,6 +176,7 @@ private:
             std::shared_ptr<eventgroupentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
             std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+            const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_destination,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
             const sd_acceptance_state_t& _sd_ac_state);
@@ -194,6 +196,7 @@ private:
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter,
             const std::set<client_t> &_clients,
+            const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_address, uint16_t _port);
     void handle_eventgroup_subscription_nack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, uint8_t _counter,

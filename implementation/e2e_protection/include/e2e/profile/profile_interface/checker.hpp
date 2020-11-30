@@ -6,18 +6,21 @@
 #ifndef VSOMEIP_V3_E2E_PROFILE_INTERFACE_CHECKER_HPP
 #define VSOMEIP_V3_E2E_PROFILE_INTERFACE_CHECKER_HPP
 
+#include <mutex>
+
+#include <vsomeip/primitive_types.hpp>
+
 #include "../profile_interface/profile_interface.hpp"
 #include "../../../buffer/buffer.hpp"
-#include <mutex>
 
 namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_interface {
 
 class checker : public profile_interface {
-  public:
-    virtual void check(const e2e_buffer &_buffer,
-                       check_status_t &_generic_check_status) = 0;
+public:
+    virtual void check(const e2e_buffer &_buffer, instance_t _instance,
+            check_status_t &_generic_check_status) = 0;
 };
 
 } // namespace profile_interface

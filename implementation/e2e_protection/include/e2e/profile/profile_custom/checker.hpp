@@ -23,10 +23,10 @@ public:
     explicit profile_custom_checker(const e2e::profile_custom::profile_config &_config) :
             config_(_config) {}
 
-    virtual void check(const e2e_buffer &_buffer,
-                       e2e::profile_interface::check_status_t &_generic_check_status);
+    void check(const e2e_buffer &_buffer, instance_t _instance,
+            e2e::profile_interface::check_status_t &_generic_check_status) override final;
 
-  private:
+private:
     uint32_t read_crc(const e2e_buffer &_buffer) const;
 
 private:

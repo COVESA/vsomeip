@@ -34,7 +34,9 @@ server_endpoint_impl<Protocol>::server_endpoint_impl(
         configuration::endpoint_queue_limit_t _queue_limit,
         const std::shared_ptr<configuration>& _configuration)
     : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io, _max_message_size,
-                              _queue_limit, _configuration) {
+                              _queue_limit, _configuration),
+                              sent_timer_(_io) {
+    is_sending_ = false;
 }
 
 template<typename Protocol>
@@ -593,6 +595,14 @@ void server_endpoint_impl<Protocol>::send_cbk(
         const queue_iterator_type _queue_iterator,
         boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
+
+    {
+        std::lock_guard<std::mutex> its_sent_lock(sent_mutex_);
+        is_sending_ = false;
+
+        boost::system::error_code ec;
+        sent_timer_.cancel(ec);
+    }
 
     std::lock_guard<std::mutex> its_lock(mutex_);
 

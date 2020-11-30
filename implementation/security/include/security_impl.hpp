@@ -50,8 +50,6 @@ public:
 
     bool is_policy_removal_allowed(uint32_t _uid) const;
 
-    bool parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint32_t &_uid, uint32_t &_gid) const;
     bool parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
             uint32_t &_uid, uint32_t &_gid, const std::shared_ptr<policy> &_policy) const;
 
@@ -62,30 +60,24 @@ public:
     bool store_client_to_uid_gid_mapping(client_t _client, uint32_t _uid, uint32_t _gid);
     void store_uid_gid_to_client_mapping(uint32_t _uid, uint32_t _gid, client_t _client);
 
-private:
-    // Helper
+    void get_requester_policies(const std::shared_ptr<policy> _policy,
+            std::set<std::shared_ptr<policy> > &_requesters) const;
+    void get_clients(uid_t _uid, gid_t _gid, std::unordered_set<client_t> &_clients) const;
 
-    bool get_struct_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const;
-    bool get_union_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const;
-    bool get_array_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const;
-    bool is_range(const byte_t* &_buffer, uint32_t &_buffer_size) const;
-    bool parse_id_item(const byte_t* &_buffer, uint32_t& parsed_ids_bytes,
-            ranges_t& its_ranges, uint32_t &_buffer_size) const;
-    bool parse_range(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint16_t &_first, uint16_t &_last) const;
-    bool parse_id(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_id) const;
+private:
 
     // Configuration
     void load_policies(const configuration_element &_element);
     void load_policy(const boost::property_tree::ptree &_tree);
-    void load_credential(const boost::property_tree::ptree &_tree, ids_t &_ids);
+    void load_policy_body(std::shared_ptr<policy> &_policy,
+            const boost::property_tree::ptree::const_iterator &_tree);
+    void load_credential(const boost::property_tree::ptree &_tree,
+            boost::icl::interval_map<uid_t, boost::icl::interval_set<gid_t> > &_ids);
     bool load_routing_credentials(const configuration_element &_element);
-    void load_ranges(const boost::property_tree::ptree &_tree, ranges_t &_range);
-    void load_instance_ranges(const boost::property_tree::ptree &_tree, ranges_t &_range);
-
+    template<typename T_>
+    void load_interval_set(const boost::property_tree::ptree &_tree,
+            boost::icl::interval_set<T_> &_range, bool _exclude_margins = false);
     void load_security_update_whitelist(const configuration_element &_element);
-    void load_service_ranges(const boost::property_tree::ptree &_tree,
-            std::set<std::pair<service_t, service_t>> &_ranges);
 
 private:
     client_t routing_client_;
@@ -106,10 +98,10 @@ private:
     bool check_whitelist_;
 
     mutable std::mutex service_interface_whitelist_mutex_;
-    std::set<std::pair<service_t, service_t>> service_interface_whitelist_;
+    boost::icl::interval_set<service_t> service_interface_whitelist_;
 
     mutable std::mutex uid_whitelist_mutex_;
-    ranges_t uid_whitelist_;
+    boost::icl::interval_set<uint32_t> uid_whitelist_;
 
     mutable std::mutex routing_credentials_mutex_;
     std::pair<uint32_t, uint32_t> routing_credentials_;

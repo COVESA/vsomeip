@@ -107,6 +107,10 @@ protected:
 
     mutable std::mutex mutex_;
 
+    std::mutex sent_mutex_;
+    bool is_sending_;
+    boost::asio::steady_timer sent_timer_;
+
 private:
     virtual std::string get_remote_information(
             const queue_iterator_type _queue_iterator) const = 0;

@@ -44,12 +44,13 @@ public:
     std::shared_ptr<endpoint> create_server_endpoint(uint16_t _port,
                                                      bool _reliable,
                                                      bool _start);
+
     std::shared_ptr<endpoint> find_server_endpoint(uint16_t _port,
                                                    bool _reliable) const;
 
     std::shared_ptr<endpoint> find_or_create_server_endpoint(
             uint16_t _port, bool _reliable, bool _start, service_t _service,
-            instance_t _instance);
+            instance_t _instance, bool &_is_found, bool _is_multicast = false);
     bool remove_server_endpoint(uint16_t _port, bool _reliable);
 
 
@@ -57,6 +58,7 @@ public:
                                 bool _reliable);
     void find_or_create_multicast_endpoint(
             service_t _service, instance_t _instance,
+            const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_address, uint16_t _port);
     void clear_multicast_endpoints(service_t _service, instance_t _instance);
 
@@ -70,7 +72,12 @@ public:
 
     instance_t find_instance(service_t _service,
                              endpoint* const _endpoint) const;
+    instance_t find_instance_multicast(service_t _service,
+            const boost::asio::ip::address &_sender) const;
+
     bool remove_instance(service_t _service, endpoint* const _endpoint);
+    bool remove_instance_multicast(service_t _service, instance_t _instance);
+
 
     // endpoint_host interface
     void on_connect(std::shared_ptr<endpoint> _endpoint);
@@ -111,6 +118,7 @@ private:
     client_endpoints_by_ip_t client_endpoints_by_ip_;
 
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;
+    std::map<service_t, std::map<boost::asio::ip::address, instance_t> > service_instances_multicast_;
 
     std::map<bool, std::set<uint16_t>> used_client_ports_;
     std::mutex used_client_ports_mutex_;

@@ -19,6 +19,8 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
+#include <vsomeip/handler.hpp>
+
 #include "../../endpoints/include/endpoint_host.hpp"
 #include "../include/routing_host.hpp"
 
@@ -27,6 +29,7 @@
 namespace vsomeip_v3 {
 
 class configuration;
+struct policy;
 class routing_manager_stub_host;
 
 class routing_manager_stub: public routing_host,
@@ -87,18 +90,30 @@ public:
     bool send_provided_event_resend_request(client_t _client,
                                             pending_remote_offer_id_t _id);
 
-    bool is_policy_cached(uint32_t _uid);
+    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+            const std::shared_ptr<policy> &_policy,
+            const std::shared_ptr<payload> &_payload,
+            const security_update_handler_t &_handler);
+    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+            const security_update_handler_t &_handler);
+    void on_security_update_response(pending_security_update_id_t _id,
+            client_t _client);
 
     void policy_cache_add(uint32_t _uid, const std::shared_ptr<payload>& _payload);
-
     void policy_cache_remove(uint32_t _uid);
+    bool is_policy_cached(uint32_t _uid);
 
-    bool send_update_security_policy_request(client_t _client, pending_security_update_id_t _update_id,
-                                             uint32_t _uid, const std::shared_ptr<payload>& _payload);
-    bool send_remove_security_policy_request(client_t _client, pending_security_update_id_t _update_id,
-                                             uint32_t _uid, uint32_t _gid);
+    bool send_update_security_policy_request(client_t _client,
+            pending_security_update_id_t _update_id, uint32_t _uid,
+            const std::shared_ptr<payload>& _payload);
+    bool send_remove_security_policy_request(client_t _client,
+            pending_security_update_id_t _update_id, uint32_t _uid, uint32_t _gid);
 
     bool send_cached_security_policies(client_t _client);
+
+    bool add_requester_policies(uid_t _uid, gid_t _gid,
+            const std::set<std::shared_ptr<policy> > &_policies);
+    void remove_requester_policies(uid_t _uid, gid_t _gid);
 
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
@@ -150,6 +165,34 @@ private:
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
+    void get_requester_policies(uid_t _uid, gid_t _gid,
+            std::set<std::shared_ptr<policy> > &_policies) const;
+    bool send_requester_policies(const std::unordered_set<client_t> &_clients,
+            const std::set<std::shared_ptr<policy> > &_policies);
+
+    void on_security_update_timeout(
+            const boost::system::error_code &_error,
+            pending_security_update_id_t _id,
+            std::shared_ptr<boost::asio::steady_timer> _timer);
+
+    pending_security_update_id_t pending_security_update_add(
+            const std::unordered_set<client_t> &_clients);
+
+    std::unordered_set<client_t> pending_security_update_get(
+            pending_security_update_id_t _id);
+
+    bool pending_security_update_remove(
+            pending_security_update_id_t _id, client_t _client);
+
+    bool is_pending_security_update_finished(
+            pending_security_update_id_t _id);
+
+    void add_pending_security_update_handler(
+            pending_security_update_id_t _id,
+            security_update_handler_t _handler);
+    void add_pending_security_update_timer(
+            pending_security_update_id_t _id);
+
 private:
     routing_manager_stub_host *host_;
     boost::asio::io_service &io_;
@@ -190,10 +233,25 @@ private:
     std::map<client_t, std::vector<byte_t>> offered_services_info_;
     std::map<client_t, std::vector<byte_t>> client_credentials_info_;
 
+    std::mutex pending_security_updates_mutex_;
+    pending_security_update_id_t pending_security_update_id_;
+    std::map<pending_security_update_id_t, std::unordered_set<client_t>> pending_security_updates_;
+
+    std::recursive_mutex security_update_handlers_mutex_;
+    std::map<pending_security_update_id_t, security_update_handler_t> security_update_handlers_;
+
+    std::mutex security_update_timers_mutex_;
+    std::map<pending_security_update_id_t, std::shared_ptr<boost::asio::steady_timer>> security_update_timers_;
 
     std::mutex updated_security_policies_mutex_;
     std::map<uint32_t, std::shared_ptr<payload>> updated_security_policies_;
 
+    mutable std::mutex requester_policies_mutex_;
+    std::map<uint32_t,
+        std::map<uint32_t,
+            std::set<std::shared_ptr<policy> >
+        >
+    > requester_policies_;
 };
 
 } // namespace vsomeip_v3

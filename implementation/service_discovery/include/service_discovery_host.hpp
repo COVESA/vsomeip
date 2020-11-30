@@ -66,6 +66,7 @@ public:
 
     virtual void on_subscribe_ack_with_multicast(
             service_t _service, instance_t _instance,
+            const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_address, uint16_t _port) = 0;
 
     virtual std::shared_ptr<endpoint> find_or_create_remote_client(

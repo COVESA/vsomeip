@@ -3,16 +3,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <sstream>
+
 #ifdef _WIN32
     #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
     #include <windows.h>
     #include <stdlib.h>
-    #define bswap_16(x) _byteswap_ushort(x)
-    #define bswap_32(x) _byteswap_ulong(x)
-#else
-    #include <byteswap.h>
 #endif
 
+#include <algorithm>
+
+#include <vsomeip/internal/policy_manager.hpp>
 #include "../include/security_impl.hpp"
 #include "../../configuration/include/configuration_element.hpp"
 #ifdef ANDROID
@@ -23,16 +25,19 @@
 
 namespace vsomeip_v3 {
 
-static const std::uint8_t uid_width_ = sizeof(std::uint32_t);
-static const std::uint8_t gid_width_ = sizeof(std::uint32_t);
-static const std::uint8_t id_width_ = sizeof(std::uint16_t);
-static const std::uint8_t range_width_ = sizeof(std::uint32_t);
+template<typename T_>
+void read_data(const std::string &_in, T_ &_out) {
+    std::stringstream its_converter;
 
-static const std::uint8_t skip_union_length_ = sizeof(std::uint32_t);
-static const std::uint8_t skip_union_type_ = sizeof(std::uint32_t);
-static const std::uint8_t skip_union_length_type_ = sizeof(std::uint32_t) + sizeof(std::uint32_t);
-static const std::uint8_t skip_struct_length_ = sizeof(std::uint32_t);
-static const std::uint8_t skip_array_length_ = sizeof(std::uint32_t);
+    if (_in.size() > 2
+            && _in[0] == '0'
+            && (_in[1] == 'x' || _in[1] == 'X'))
+        its_converter << std::hex << _in;
+    else
+        its_converter << std::dec << _in;
+
+    its_converter >> _out;
+}
 
 security_impl::security_impl()
     : policy_enabled_(false),
@@ -67,8 +72,9 @@ security_impl::is_audit() const {
 }
 
 bool
-security_impl::check_credentials(client_t _client, uid_t _uid,
-        gid_t _gid) {
+security_impl::check_credentials(client_t _client,
+        uid_t _uid, gid_t _gid) {
+
     if (!policy_enabled_) {
         return true;
     }
@@ -82,26 +88,17 @@ security_impl::check_credentials(client_t _client, uid_t _uid,
 
     for (const auto &p : its_policies) {
         std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
-        for (auto its_credential : p->ids_) {
-            bool has_uid(false), has_gid(false);
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
 
-            if (has_uid && has_gid) {
-                has_id = true;
-                break;
-            }
+        bool has_uid, has_gid(false);
+
+        const auto found_uid = p->credentials_.find(_uid);
+        has_uid = (found_uid != p->credentials_.end());
+        if (has_uid) {
+            const auto found_gid = found_uid->second.find(_gid);
+            has_gid = (found_gid != found_uid->second.end());
         }
+
+        has_id = (has_uid && has_gid);
 
         if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
             if (!store_client_to_uid_gid_mapping(_client,_uid, _gid)) {
@@ -132,8 +129,10 @@ security_impl::check_credentials(client_t _client, uid_t _uid,
 }
 
 bool
-security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client, service_t _service,
-        instance_t _instance, method_t _method, bool _is_request_service) const {
+security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
+        service_t _service, instance_t _instance, method_t _method,
+        bool _is_request_service) const {
+
     if (!policy_enabled_) {
         return true;
     }
@@ -145,8 +144,7 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
         its_policies = any_client_policies_;
     }
 
-    if (_uid != ANY_UID
-            && _gid != ANY_GID) {
+    if (_uid != ANY_UID && _gid != ANY_GID) {
         its_uid = _uid;
         its_gid = _gid;
     } else {
@@ -165,51 +163,27 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
 
     for (const auto &p : its_policies) {
         std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
-        bool has_uid(false), has_gid(false), has_service(false), has_instance_id(false), has_method_id(false);
-        for (auto its_credential : p->ids_) {
-            has_uid = has_gid = false;
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
 
-            if (has_uid && has_gid)
-                break;
+        bool has_uid, has_gid(false);
+        bool is_matching(false);
+
+        const auto found_uid = p->credentials_.find(_uid);
+        has_uid = (found_uid != p->credentials_.end());
+        if (has_uid) {
+            const auto found_gid = found_uid->second.find(_gid);
+            has_gid = (found_gid != found_uid->second.end());
         }
 
-        auto its_service = p->services_.find(_service);
-        if (its_service != p->services_.end()) {
-            for (auto its_ids : its_service->second) {
-                has_service = has_instance_id = has_method_id = false;
-                for (auto its_instance_range : std::get<0>(its_ids)) {
-                    if (std::get<0>(its_instance_range) <= _instance && _instance <= std::get<1>(its_instance_range)) {
-                        has_instance_id = true;
-                        break;
-                    }
-                }
+        const auto found_service = p->requests_.find(_service);
+        if (found_service != p->requests_.end()) {
+            const auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
                 if (!_is_request_service) {
-                    for (auto its_method_range : std::get<1>(its_ids)) {
-                        if (std::get<0>(its_method_range) <= _method && _method <= std::get<1>(its_method_range)) {
-                            has_method_id = true;
-                            break;
-                        }
-                    }
+                    const auto found_method = found_instance->second.find(_method);
+                    is_matching = (found_method != found_instance->second.end());
                 } else {
                     // handle VSOMEIP_REQUEST_SERVICE
-                    has_method_id = true;
-                }
-
-                if (has_instance_id && has_method_id) {
-                    has_service = true;
-                    break;
+                    is_matching = true;
                 }
             }
         }
@@ -217,17 +191,17 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
         if ((has_uid && has_gid && p->allow_who_) || ((!has_uid || !has_gid) && !p->allow_who_)) {
             if (p->allow_what_) {
                 // allow policy
-                if (has_service) {
-                    return true;
+                if (is_matching) {
+                    return (true);
                 }
             } else {
                 // deny policy
                 // allow client if the service / instance / !ANY_METHOD was not found
-                if ((!has_service && (_method != ANY_METHOD))
+                if ((!is_matching && (_method != ANY_METHOD))
                         // allow client if the service / instance / ANY_METHOD was not found
                         // and it is a "deny nothing" policy
-                        || (!has_service && (_method == ANY_METHOD) && p->services_.empty())) {
-                    return true;
+                        || (!is_matching && (_method == ANY_METHOD) && p->requests_.empty())) {
+                    return (true);
                 }
             }
         }
@@ -244,7 +218,7 @@ security_impl::is_client_allowed(uint32_t _uid, uint32_t _gid, client_t _client,
             << _service << "/" << _instance << "/" << _method
             << security_mode_text;
 
-    return !check_credentials_;
+    return (!check_credentials_);
 }
 
 bool
@@ -281,41 +255,25 @@ security_impl::is_offer_allowed(uint32_t _uid, uint32_t _gid, client_t _client, 
 
     for (const auto &p : its_policies) {
         std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
-        bool has_uid(false), has_gid(false), has_offer(false);
-        for (auto its_credential : p->ids_) {
-            has_uid = has_gid = false;
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= its_uid && its_uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= its_gid && its_gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
+        bool has_uid, has_gid(false), has_offer(false);
 
-            if (has_uid && has_gid)
-                break;
+        const auto found_uid = p->credentials_.find(_uid);
+        has_uid = (found_uid != p->credentials_.end());
+        if (has_uid) {
+            const auto found_gid = found_uid->second.find(_gid);
+            has_gid = (found_gid != found_uid->second.end());
         }
 
-        auto find_service = p->offers_.find(_service);
-        if (find_service != p->offers_.end()) {
-            for (auto its_instance_range : find_service->second) {
-                if (std::get<0>(its_instance_range) <= _instance
-                        && _instance <= std::get<1>(its_instance_range)) {
-                    has_offer = true;
-                    break;
-                }
-            }
+        const auto found_service = p->offers_.find(_service);
+        if (found_service != p->offers_.end()) {
+            const auto found_instance = found_service->second.find(_instance);
+            has_offer = (found_instance != found_service->second.end());
         }
 
         if ((has_uid && has_gid && p->allow_who_)
                 || ((!has_uid || !has_gid) && !p->allow_who_)) {
             if (p->allow_what_ == has_offer) {
-                return true;
+                return (true);
             }
         }
     }
@@ -325,13 +283,15 @@ security_impl::is_offer_allowed(uint32_t _uid, uint32_t _gid, client_t _client, 
         security_mode_text = " but will be allowed due to audit mode is active!";
     }
 
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << std::hex << _client
-            << " with UID/GID=" << std::dec << its_uid << "/" << its_gid
-            << " isn't allowed to offer service/instance " << std::hex
-            << _service << "/" << _instance
+    VSOMEIP_INFO << "vSomeIP Security: Client 0x"
+            << std::hex << _client
+            << " with UID/GID="
+            << std::dec << its_uid << "/" << its_gid
+            << " isn't allowed to offer service/instance "
+            << std::hex << _service << "/" << _instance
             << security_mode_text;
 
-    return !check_credentials_;
+    return (!check_credentials_);
 }
 
 bool
@@ -456,45 +416,81 @@ security_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
     if (!any_client_policies_.empty()) {
         std::vector<std::shared_ptr<policy>>::iterator p_it = any_client_policies_.begin();
         while (p_it != any_client_policies_.end()) {
-            std::lock_guard<std::mutex> its_policy_lock((*p_it)->mutex_);
-            bool has_uid(false), has_gid(false);
-            for (auto its_credential : p_it->get()->ids_) {
-                has_uid = has_gid = false;
-                for (auto its_range : std::get<0>(its_credential)) {
-                    if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                        has_uid = true;
-                        break;
-                    }
+            bool is_matching(false);
+            {
+                std::lock_guard<std::mutex> its_policy_lock((*p_it)->mutex_);
+                bool has_uid(false), has_gid(false);
+                const auto found_uid = (*p_it)->credentials_.find(_uid);
+                has_uid = (found_uid != (*p_it)->credentials_.end());
+                if (has_uid) {
+                    const auto found_gid = found_uid->second.find(_gid);
+                    has_gid = (found_gid != found_uid->second.end());
                 }
-                for (auto its_range : std::get<1>(its_credential)) {
-                    if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                        has_gid = true;
-                        break;
-                    }
-                }
+
                 // only remove "credentials allow" policies to prevent removal of
                 // blacklist configured in file
-                if (has_uid && has_gid && p_it->get()->allow_who_) {
-                    was_removed = true;
-                    break;
+                if (has_uid && has_gid && (*p_it)->allow_who_) {
+                    is_matching = true;
                 }
             }
-            if (was_removed) {
+            if (is_matching) {
+                was_removed = true;
                 p_it = any_client_policies_.erase(p_it);
-                break;
             } else {
                 ++p_it;
             }
         }
     }
-    return was_removed;
+    return (was_removed);
 }
 
 void
-security_impl::update_security_policy(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy> &_policy) {
-    remove_security_policy(_uid, _gid);
+security_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
+        const std::shared_ptr<policy> &_policy) {
+
     std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
-    any_client_policies_.push_back(_policy);
+    std::shared_ptr<policy> its_matching_policy;
+    for (auto p : any_client_policies_) {
+        if (p->credentials_.size() == 1) {
+            const auto its_uids = *(p->credentials_.begin());
+            if (its_uids.first.lower() == _uid
+                    && its_uids.first.upper() == _uid) {
+                if (its_uids.second.size() == 1) {
+                    const auto its_gids = *(its_uids.second.begin());
+                    if (its_gids.lower() == _gid
+                            && its_gids.upper() == _gid) {
+                        if (p->allow_who_ == _policy->allow_who_) {
+                            its_matching_policy = p;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (its_matching_policy) {
+        for (const auto r : _policy->requests_) {
+            service_t its_lower, its_upper;
+            get_bounds(r.first, its_lower, its_upper);
+            for (auto s = its_lower; s <= its_upper; s++) {
+                boost::icl::discrete_interval<service_t> its_service(s, s,
+                        boost::icl::interval_bounds::closed());
+                its_matching_policy->requests_ += std::make_pair(its_service, r.second);
+            }
+        }
+        for (const auto o : _policy->offers_) {
+            service_t its_lower, its_upper;
+            get_bounds(o.first, its_lower, its_upper);
+            for (auto s = its_lower; s <= its_upper; s++) {
+                boost::icl::discrete_interval<service_t> its_service(s, s,
+                        boost::icl::interval_bounds::closed());
+                its_matching_policy->offers_ += std::make_pair(its_service, o.second);
+            }
+        }
+    } else {
+        any_client_policies_.push_back(_policy);
+    }
 }
 
 void
@@ -504,32 +500,24 @@ security_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
     bool was_found(false);
     std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
     for (const auto &p : any_client_policies_) {
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
         bool has_uid(false), has_gid(false);
-        for (auto its_credential : p->ids_) {
-            has_uid = has_gid = false;
-            for (auto its_range : std::get<0>(its_credential)) {
-                if (std::get<0>(its_range) <= _uid && _uid <= std::get<1>(its_range)) {
-                    has_uid = true;
-                    break;
-                }
-            }
-            for (auto its_range : std::get<1>(its_credential)) {
-                if (std::get<0>(its_range) <= _gid && _gid <= std::get<1>(its_range)) {
-                    has_gid = true;
-                    break;
-                }
-            }
-            if (has_uid && has_gid && p->allow_who_) {
-                was_found = true;
-                break;
-            }
+
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        const auto found_uid = p->credentials_.find(_uid);
+        has_uid = (found_uid != p->credentials_.end());
+        if (has_uid) {
+            const auto found_gid = found_uid->second.find(_gid);
+            has_gid = (found_gid != found_uid->second.end());
         }
-        if (was_found) {
+
+        if (has_uid && has_gid && p->allow_who_) {
+            was_found = true;
             break;
         }
     }
-    // Do not add the new (credentials-only-policy) if a allow credentials policy with same credentials was found
+
+    // Do not add the new (credentials-only-policy) if a allow
+    // credentials policy with same credentials was found
     if (!was_found) {
         any_client_policies_.push_back(_policy);
         VSOMEIP_INFO << __func__ << " Added security credentials at client: 0x"
@@ -546,66 +534,46 @@ security_impl::is_remote_client_allowed() const {
 }
 
 bool
-security_impl::parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size,
-        uint32_t &_uid, uint32_t &_gid) const {
-
-    uint32_t its_uid = ANY_UID;
-    uint32_t its_gid = ANY_GID;
-
-    if (_buffer_size >= sizeof(uint32_t) * 2) {
-        std::memcpy(&its_uid, _buffer, sizeof(uint32_t));
-        _uid = bswap_32(its_uid);
-
-        std::memcpy(&its_gid, _buffer + sizeof(uint32_t), sizeof(uint32_t));
-        _gid = bswap_32(its_gid);
-
-        _buffer_size -= (uid_width_ + gid_width_);
-        _buffer += (uid_width_ + gid_width_);
-        return true;
-    }
-    return false;
-}
-
-bool
 security_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
-    bool uid_allowed(false);
+
+    bool is_uid_allowed(false);
     {
         std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
-        for (auto its_uid_range : uid_whitelist_) {
-            if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
-                uid_allowed = true;
-                break;
-            }
-        }
+        const auto found_uid = uid_whitelist_.find(_uid);
+        is_uid_allowed = (found_uid != uid_whitelist_.end());
     }
 
-    if (uid_allowed) {
+    if (is_uid_allowed) {
         std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
         std::lock_guard<std::mutex> its_policy_lock(_policy->mutex_);
-        for (auto its_request : _policy->services_) {
-            auto its_requested_service = std::get<0>(its_request);
+        for (auto its_request : _policy->requests_) {
             bool has_service(false);
-            for (auto its_service_range : service_interface_whitelist_) {
-                if (std::get<0>(its_service_range) <= its_requested_service
-                        && its_requested_service <= std::get<1>(its_service_range)) {
-                    has_service = true;
+
+            service_t its_service(0);
+            for (its_service = its_request.first.lower();
+                    its_service <= its_request.first.upper();
+                    its_service++) {
+
+                const auto found_service = service_interface_whitelist_.find(its_service);
+                has_service = (found_service != service_interface_whitelist_.end());
+                if (!has_service)
                     break;
-                }
             }
+
             if (!has_service) {
                 if (!check_whitelist_) {
                     VSOMEIP_INFO << "vSomeIP Security: Policy update requesting service ID: "
-                            << std::hex << its_requested_service
+                            << std::hex << its_service
                             << " is not allowed, but will be allowed due to whitelist audit mode is active!";
                 } else {
                     VSOMEIP_WARNING << "vSomeIP Security: Policy update requesting service ID: "
-                            << std::hex << its_requested_service
+                            << std::hex << its_service
                             << " is not allowed! -> ignore update";
                 }
-                return !check_whitelist_;
+                return (!check_whitelist_);
             }
         }
-        return true;
+        return (true);
     } else {
         if (!check_whitelist_) {
             VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
@@ -614,7 +582,7 @@ security_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &
             VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
                     << " is not allowed! -> ignore update";
         }
-        return !check_whitelist_;
+        return (!check_whitelist_);
     }
 }
 
@@ -622,388 +590,59 @@ bool
 security_impl::is_policy_removal_allowed(uint32_t _uid) const {
     std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
-        if (std::get<0>(its_uid_range) <= _uid && _uid <= std::get<1>(its_uid_range)) {
-            return true;
+        if (its_uid_range.lower() <= _uid && _uid <= its_uid_range.upper()) {
+            return (true);
         }
     }
 
     if (!check_whitelist_) {
-        VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid
+        VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: "
+                << std::dec << _uid
                 << " is not allowed, but will be allowed due to whitelist audit mode is active!";
     } else {
-        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid
+        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: "
+                << std::dec << _uid
                 << " is not allowed! -> ignore removal";
     }
-    return !check_whitelist_;
+    return (!check_whitelist_);
 }
 
 bool
-security_impl::check_routing_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const {
+security_impl::check_routing_credentials(client_t _client,
+        uint32_t _uid, uint32_t _gid) const {
+
     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-    if ( std::get<0>(routing_credentials_) == _uid
-            && std::get<1>(routing_credentials_) == _gid) {
-        return true;
+    if (routing_credentials_.first == _uid
+            && routing_credentials_.second == _gid) {
+
+        return (true);
     }
 
     std::string security_mode_text = "!";
     if (!check_routing_credentials_) {
+
         security_mode_text = " but will be allowed due to audit mode is active!";
     }
+
     VSOMEIP_INFO << "vSomeIP Security: Client 0x"
-            << std::hex << _client << " and UID/GID=" << std::dec << _uid
-            << "/" << _gid << " : Check routing credentials failed as "
+            << std::hex << _client << " and UID/GID="
+            << std::dec << _uid << "/" << _gid
+            << " : Check routing credentials failed as "
             << "configured routing manager credentials "
             << "do not match with routing manager credentials"
             << security_mode_text;
 
-    return !check_routing_credentials_;
+    return (!check_routing_credentials_);
 }
 
 bool
 security_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
         uint32_t &_uid, uint32_t &_gid, const std::shared_ptr<policy> &_policy) const {
 
-    uint32_t its_uid = ANY_UID;
-    uint32_t its_gid = ANY_GID;
-    bool has_error(false);
-
-    // get user ID String
-    if (parse_uid_gid(_buffer, _buffer_size, its_uid, its_gid)) {
-        std::lock_guard<std::mutex> its_policy_lock(_policy->mutex_);
-
-        _uid = its_uid;
-        _gid = its_gid;
-
-        // policy elements
-        std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
-        std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
-
-        // fill uid and gid range
-        std::get<0>(its_uid_range) = its_uid;
-        std::get<1>(its_uid_range) = its_uid;
-        std::get<0>(its_gid_range) = its_gid;
-        std::get<1>(its_gid_range) = its_gid;
-        its_uids.insert(its_uid_range);
-        its_gids.insert(its_gid_range);
-
-        _policy->ids_.insert(std::make_pair(its_uids, its_gids));
-        _policy->allow_who_ = true;
-        _policy->allow_what_ = true;
-
-        // get struct AclUpdate
-        uint32_t acl_length = 0;
-        if (get_struct_length(_buffer, _buffer_size, acl_length)) {
-            // get requests array length
-            uint32_t requests_array_length = 0;
-            if (get_array_length(_buffer, _buffer_size, requests_array_length)) {
-                // loop through requests array consisting of n x "struct Request"
-                uint32_t parsed_req_bytes = 0;
-                while (parsed_req_bytes + skip_struct_length_ <= requests_array_length) {
-                    // get request struct length
-                    uint32_t req_length = 0;
-                    if (get_struct_length(_buffer, _buffer_size, req_length)) {
-                        if (req_length != 0)
-                            parsed_req_bytes += skip_struct_length_;
-
-                        uint16_t its_service_id = 0;
-                        ids_t its_instance_method_ranges;
-                        // get serviceID
-                        if (!parse_id(_buffer, _buffer_size, its_service_id)) {
-                            has_error = true;
-                        } else {
-                            if (its_service_id == 0x00
-                                    || its_service_id == 0xFFFF) {
-                                VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with service ID: 0x"
-                                        << its_service_id << " is not allowed!";
-                                return false;
-                            }
-                            // add length of serviceID
-                            parsed_req_bytes += id_width_;
-                        }
-
-                        // get instances array length
-                        uint32_t instances_array_length = 0;
-                        if (get_array_length(_buffer, _buffer_size, instances_array_length)) {
-                            // loop trough instances array consisting of n x "struct Instance"
-                            uint32_t parsed_inst_bytes = 0;
-                            while (parsed_inst_bytes + skip_struct_length_ <= instances_array_length) {
-                                // get instance struct length
-                                uint32_t inst_length = 0;
-                                if (get_struct_length(_buffer, _buffer_size, inst_length)) {
-                                    if (inst_length != 0)
-                                        parsed_inst_bytes += skip_struct_length_;
-
-                                    ranges_t its_instance_ranges;
-                                    ranges_t its_method_ranges;
-                                    // get "IdItem[] ids" array length
-                                    uint32_t ids_array_length = 0;
-                                    if (get_array_length(_buffer, _buffer_size, ids_array_length)) {
-                                        uint32_t parsed_ids_bytes = 0;
-                                        while (parsed_ids_bytes + skip_struct_length_ <= ids_array_length) {
-                                            if (!parse_id_item(_buffer, parsed_ids_bytes, its_instance_ranges, _buffer_size)) {
-                                                return false;
-                                            }
-                                        }
-                                        parsed_inst_bytes += (skip_array_length_ + ids_array_length);
-                                    }
-                                    // get "IdItem[] methods" array length
-                                    uint32_t methods_array_length = 0;
-                                    if (get_array_length(_buffer, _buffer_size, methods_array_length)) {
-                                        uint32_t parsed_method_bytes = 0;
-                                        while (parsed_method_bytes + skip_struct_length_ <= methods_array_length) {
-                                            if (!parse_id_item(_buffer, parsed_method_bytes, its_method_ranges, _buffer_size)) {
-                                                return false;
-                                            }
-                                        }
-                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
-                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                                        }
-                                        parsed_inst_bytes += (skip_array_length_ + methods_array_length);
-                                    }
-                                }
-                            }
-                            parsed_req_bytes += (skip_array_length_ + instances_array_length);
-                        }
-                        if (!its_instance_method_ranges.empty()) {
-                            auto find_service = _policy->services_.find(its_service_id);
-                            if (find_service != _policy->services_.end()) {
-                                find_service->second.insert(its_instance_method_ranges.begin(),
-                                        its_instance_method_ranges.end());
-                            } else {
-                                _policy->services_.insert(
-                                    std::make_pair(its_service_id, its_instance_method_ranges));
-                            }
-                        }
-                    }
-                }
-            }
-            // get offers array length
-            uint32_t offers_array_length = 0;
-            if (get_array_length(_buffer, _buffer_size, offers_array_length)){
-                // loop through offers array
-                uint32_t parsed_offers_bytes = 0;
-                while (parsed_offers_bytes + skip_struct_length_ <= offers_array_length) {
-                    // get service ID
-                    uint16_t its_service_id = 0;
-                    ranges_t its_instance_ranges;
-                    // get serviceID
-                    if (!parse_id(_buffer, _buffer_size, its_service_id)) {
-                        has_error = true;
-                    } else {
-                        if (its_service_id == 0x00
-                                || its_service_id == 0xFFFF) {
-                            VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with service ID: 0x"
-                                    << its_service_id << " is not allowed!";
-                            return false;
-                        }
-                        // add length of serviceID
-                        parsed_offers_bytes += id_width_;
-                    }
-
-                    // get "IdItem[] ids" array length
-                    uint32_t ids_array_length = 0;
-                    if (get_array_length(_buffer, _buffer_size, ids_array_length)) {
-                        uint32_t parsed_ids_bytes = 0;
-                        while (parsed_ids_bytes + skip_struct_length_ <= ids_array_length) {
-                            if (!parse_id_item(_buffer, parsed_ids_bytes, its_instance_ranges, _buffer_size)) {
-                                return false;
-                            }
-                        }
-                        parsed_offers_bytes += (skip_array_length_ + ids_array_length);
-                    }
-                    if (!its_instance_ranges.empty()) {
-                        auto find_service = _policy->offers_.find(its_service_id);
-                        if (find_service != _policy->offers_.end()) {
-                            find_service->second.insert(its_instance_ranges.begin(),
-                                    its_instance_ranges.end());
-                        } else {
-                            _policy->offers_.insert(
-                                    std::make_pair(its_service_id, its_instance_ranges));
-                        }
-                   }
-                }
-            }
-        } else {
-            VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy with empty request / offer section is not allowed!";
-            has_error = true;
-        }
-    } else {
-        VSOMEIP_WARNING << std::hex << "vSomeIP Security: Policy without UID / GID is not allowed!";
-        has_error = true;
-    }
-
-    if (!has_error)
-        return true;
-    else
-        return false;
-}
-
-bool
-security_impl::get_struct_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const {
-    uint32_t its_length = 0;
-    bool length_field_deployed(false);
-    // [TR_SOMEIP_00080] d If the length of the length field is not specified, a length of 0
-    // has to be assumed and no length field is in the message.
-    if (length_field_deployed) {
-        if (_buffer_size >= sizeof(uint32_t)) {
-            std::memcpy(&its_length, _buffer, sizeof(uint32_t));
-            _length = bswap_32(its_length);
-            _buffer_size -= skip_struct_length_;
-            _buffer += skip_struct_length_;
-            return true;
-        }
-    } else {
-        _length = 0;
-        return true;
-    }
-
-    return false;
-}
-
-bool
-security_impl::get_union_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const {
-    uint32_t its_length = 0;
-
-    // [TR_SOMEIP_00125] d If the Interface Specification does not specify the length of the
-    // length field for a union, 32 bit length of the length field shall be used.
-    if (_buffer_size >= sizeof(uint32_t)) {
-        std::memcpy(&its_length, _buffer, sizeof(uint32_t));
-        _length = bswap_32(its_length);
-        _buffer_size -= skip_union_length_;
-        _buffer += skip_union_length_;
-        return true;
-    }
-    return false;
-}
-
-bool
-security_impl::get_array_length(const byte_t* &_buffer, uint32_t &_buffer_size, uint32_t &_length) const {
-
-    uint32_t its_length = 0;
-
-    // [TR_SOMEIP_00106] d The layout of arrays with dynamic length basically is based on
-    // the layout of fixed length arrays. To determine the size of the array the serialization
-    // adds a length field (default length 32 bit) in front of the data, which counts the bytes
-    // of the array. The length does not include the size of the length field. Thus, when
-    // transporting an array with zero elements the length is set to zero.
-    if (_buffer_size >= sizeof(uint32_t)) {
-        std::memcpy(&its_length, _buffer, sizeof(uint32_t));
-        _length = bswap_32(its_length);
-        _buffer_size -= skip_array_length_;
-        _buffer += skip_array_length_;
-        return true;
-    }
-    return false;
-}
-
-bool
-security_impl::is_range(const byte_t* &_buffer, uint32_t &_buffer_size) const {
-
-    uint32_t its_type = 0;
-
-    // [TR_SOMEIP_00128] If the Interface Specification does not specify the length of the
-    // type field of a union, 32 bit length of the type field shall be used.
-    if (_buffer_size >= sizeof(uint32_t)) {
-        std::memcpy(&its_type, _buffer, sizeof(uint32_t));
-        its_type = bswap_32(its_type);
-        _buffer_size -= skip_union_type_;
-        _buffer += skip_union_type_;
-        if (its_type == 0x02) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-    return false;
-}
-
-bool
-security_impl::parse_id_item(const byte_t* &_buffer, uint32_t& parsed_ids_bytes,
-        ranges_t& its_ranges, uint32_t &_buffer_size) const {
-
-    // get "union IdItem" length
-    uint32_t iditem_length = 0;
-    if (get_union_length(_buffer, _buffer_size, iditem_length)) {
-        // determine type of union
-        uint16_t its_first = 0;
-        uint16_t its_last = 0;
-        if (is_range(_buffer, _buffer_size)) {
-            // get range of instance IDs "struct IdRange" length
-            uint32_t range_length = 0;
-            if (get_struct_length(_buffer, _buffer_size, range_length)) {
-                // read first and last instance range
-                if (parse_range(_buffer, _buffer_size, its_first, its_last)) {
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                } else {
-                    return false;
-                }
-            }
-        } else {
-            // a single instance ID
-            if (parse_id(_buffer, _buffer_size, its_first)) {
-                if (its_first != ANY_METHOD) {
-                    if (its_first != 0x00) {
-                        its_last = its_first;
-                        its_ranges.insert(std::make_pair(its_first, its_last));
-                    } else {
-                        return false;
-                    }
-                } else {
-                    its_first = 0x01;
-                    its_last = 0xFFFE;
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                }
-            }
-        }
-        parsed_ids_bytes += (skip_union_length_type_ + iditem_length);
-    }
-    return true;
-}
-
-bool
-security_impl::parse_range(const byte_t* &_buffer, uint32_t &_buffer_size,
-        uint16_t &_first, uint16_t &_last) const {
-
-    uint16_t its_first = 0;
-    uint16_t its_last = 0;
-
-    if (_buffer_size >= sizeof(uint16_t) * 2) {
-        if (parse_id(_buffer, _buffer_size, its_first)) {
-            _first = its_first;
-        }
-        if (parse_id(_buffer, _buffer_size, its_last)) {
-            _last = its_last;
-        }
-        if (_first != _last
-                && (_first == ANY_METHOD || _last == ANY_METHOD)) {
-            return false;
-        }
-        if (_first != 0x0 && _last != 0x00
-                && _first <= _last) {
-            if (_first == ANY_METHOD &&
-                    _last == ANY_METHOD) {
-                _first = 0x01;
-                _last = 0xFFFE;
-            }
-            return true;
-        } else {
-            return false;
-        }
-    }
-    return false;
-}
-
-bool
-security_impl::parse_id(const byte_t* &_buffer, uint32_t &_buffer_size, uint16_t &_id) const {
-    uint16_t its_id = 0;
-    if (_buffer_size >= sizeof(uint16_t)) {
-        std::memcpy(&its_id, _buffer, sizeof(uint16_t));
-        _id = bswap_16(its_id);
-        _buffer_size -= id_width_;
-        _buffer += id_width_;
-        return true;
-    }
-    return false;
+    bool is_valid = _policy->deserialize(_buffer, _buffer_size);
+    if (is_valid)
+        is_valid = _policy->get_uid_gid(_uid, _gid);
+    return is_valid;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1048,12 +687,15 @@ security_impl::load_policies(const configuration_element &_element) {
 
 void
 security_impl::load_policy(const boost::property_tree::ptree &_tree) {
+
     std::shared_ptr<policy> policy(std::make_shared<policy>());
     bool allow_deny_set(false);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         if (i->first == "credentials") {
-            std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
-            ranges_t its_uid_ranges, its_gid_ranges;
+            boost::icl::interval_set<uid_t> its_uid_interval_set;
+            boost::icl::interval_set<gid_t> its_gid_interval_set;
+            boost::icl::discrete_interval<uid_t> its_uid_interval;
+            boost::icl::discrete_interval<gid_t> its_gid_interval;
 
             bool has_uid(false), has_gid(false);
             bool has_uid_range(false), has_gid_range(false);
@@ -1063,58 +705,62 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                 std::string its_value(n->second.data());
                 if (its_key == "uid") {
                     if(n->second.data().empty()) {
-                        load_ranges(n->second, its_uid_ranges);
+                        load_interval_set(n->second, its_uid_interval_set);
                         has_uid_range = true;
                     } else {
                         if (its_value != "any") {
                             uint32_t its_uid;
-                            std::stringstream its_converter;
-                            its_converter << std::dec << its_value;
-                            its_converter >> its_uid;
-                            std::get<0>(its_uid_range) = its_uid;
-                            std::get<1>(its_uid_range) = its_uid;
+                            read_data(its_value, its_uid);
+                            its_uid_interval = boost::icl::construct<
+                                boost::icl::discrete_interval<uid_t> >(
+                                        its_uid, its_uid,
+                                        boost::icl::interval_bounds::closed());
                         } else {
-                            std::get<0>(its_uid_range) = 0;
-                            std::get<1>(its_uid_range) = 0xFFFFFFFF;
+                            its_uid_interval = boost::icl::construct<
+                                boost::icl::discrete_interval<uid_t> >(
+                                        std::numeric_limits<uid_t>::min(),
+                                        std::numeric_limits<uid_t>::max(),
+                                        boost::icl::interval_bounds::closed());
                         }
                         has_uid = true;
                     }
                 } else if (its_key == "gid") {
                     if(n->second.data().empty()) {
-                        load_ranges(n->second, its_gid_ranges);
+                        load_interval_set(n->second, its_gid_interval_set);
                         has_gid_range = true;
                     } else {
                         if (its_value != "any") {
                             uint32_t its_gid;
-                            std::stringstream its_converter;
-                            its_converter << std::dec << its_value;
-                            its_converter >> its_gid;
-                            std::get<0>(its_gid_range) = its_gid;
-                            std::get<1>(its_gid_range) = its_gid;
+                            read_data(its_value, its_gid);
+                            its_gid_interval = boost::icl::construct<
+                                boost::icl::discrete_interval<gid_t> >(
+                                        its_gid, its_gid,
+                                        boost::icl::interval_bounds::closed());
                         } else {
-                            std::get<0>(its_gid_range) = 0;
-                            std::get<1>(its_gid_range) = 0xFFFFFFFF;
+                            its_gid_interval = boost::icl::construct<
+                                boost::icl::discrete_interval<gid_t> >(
+                                        std::numeric_limits<gid_t>::min(),
+                                        std::numeric_limits<gid_t>::max(),
+                                        boost::icl::interval_bounds::closed());
                         }
                         has_gid = true;
                     }
                 } else if (its_key == "allow" || its_key == "deny") {
                     policy->allow_who_ = (its_key == "allow");
-                    load_credential(n->second, policy->ids_);
+                    load_credential(n->second, policy->credentials_);
                 }
             }
 
             if (has_uid && has_gid) {
-                std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
+                its_gid_interval_set.insert(its_gid_interval);
 
-                its_uids.insert(its_uid_range);
-                its_gids.insert(its_gid_range);
-
+                policy->credentials_ += std::make_pair(its_uid_interval, its_gid_interval_set);
                 policy->allow_who_ = true;
-                policy->ids_.insert(std::make_pair(its_uids, its_gids));
             }
             if (has_uid_range && has_gid_range) {
+                for (const auto u : its_uid_interval_set)
+                    policy->credentials_ += std::make_pair(u, its_gid_interval_set);
                 policy->allow_who_ = true;
-                policy->ids_.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
             }
         } else if (i->first == "allow") {
             if (allow_deny_set) {
@@ -1124,112 +770,7 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
             }
             allow_deny_set = true;
             policy->allow_what_ = true;
-            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
-                if (l->first == "requests") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ids_t its_instance_method_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                ranges_t its_instance_ranges;
-                                ranges_t its_method_ranges;
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                        its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                                its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                            } else if (k->first == "instances") { // new instances definition
-                                for (auto p = k->second.begin(); p != k->second.end(); ++p) {
-                                    ranges_t its_instance_ranges;
-                                    ranges_t its_method_ranges;
-                                    for (auto m = p->second.begin(); m != p->second.end(); ++m) {
-                                        if (m->first == "ids") {
-                                            load_instance_ranges(m->second, its_instance_ranges);
-                                        } else if (m->first == "methods") {
-                                            load_instance_ranges(m->second, its_method_ranges);
-                                        }
-                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
-                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                                        }
-                                    }
-                                }
-                                if (its_instance_method_ranges.empty()) {
-                                    ranges_t its_legacy_instance_ranges;
-                                    ranges_t its_legacy_method_ranges;
-                                    its_legacy_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    // try to only load instance ranges with any method to be allowed
-                                    load_instance_ranges(k->second, its_legacy_instance_ranges);
-                                    if (!its_legacy_instance_ranges.empty() && !its_legacy_method_ranges.empty()) {
-                                        its_instance_method_ranges.insert(std::make_pair(its_legacy_instance_ranges,
-                                            its_legacy_method_ranges));
-                                    }
-                                }
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            auto find_policy = policy->services_.find(service);
-                            if (find_policy != policy->services_.end()) {
-                                find_policy->second.insert(its_instance_method_ranges.begin(),
-                                        its_instance_method_ranges.end());
-                            } else {
-                                policy->services_.insert(
-                                    std::make_pair(service, its_instance_method_ranges));
-                            }
-                        }
-                    }
-                } else if (l->first == "offers") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ranges_t its_instance_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                            } else if (k->first == "instances") { // new instances definition
-                                load_instance_ranges(k->second, its_instance_ranges);
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_ranges.empty()) {
-                            auto find_service = policy->offers_.find(service);
-                            if (find_service != policy->offers_.end()) {
-                                find_service->second.insert(its_instance_ranges.begin(),
-                                        its_instance_ranges.end());
-                            } else {
-                                policy->offers_.insert(
-                                        std::make_pair(service, its_instance_ranges));
-                            }
-                        }
-                    }
-                }
-            }
+            load_policy_body(policy, i);
         } else if (i->first == "deny") {
             if (allow_deny_set) {
                 VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
@@ -1238,113 +779,7 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
             }
             allow_deny_set = true;
             policy->allow_what_ = false;
-            for (auto l = i->second.begin(); l != i->second.end(); ++l) {
-                if (l->first == "requests") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ids_t its_instance_method_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                ranges_t its_instance_ranges;
-                                ranges_t its_method_ranges;
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                        its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    its_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                                its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                            } else if (k->first == "instances") { // new instances definition
-                                for (auto p = k->second.begin(); p != k->second.end(); ++p) {
-                                    ranges_t its_instance_ranges;
-                                    ranges_t its_method_ranges;
-                                    for (auto m = p->second.begin(); m != p->second.end(); ++m) {
-                                        if (m->first == "ids") {
-                                            load_instance_ranges(m->second, its_instance_ranges);
-                                        } else if (m->first == "methods") {
-                                            load_instance_ranges(m->second, its_method_ranges);
-                                        }
-                                        if (!its_instance_ranges.empty() && !its_method_ranges.empty()) {
-                                            its_instance_method_ranges.insert(std::make_pair(its_instance_ranges, its_method_ranges));
-                                        }
-                                    }
-                                }
-                                if (its_instance_method_ranges.empty()) {
-                                    ranges_t its_legacy_instance_ranges;
-                                    ranges_t its_legacy_method_ranges;
-                                    its_legacy_method_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                    // try to only load instance ranges with any method to be allowed
-                                    load_instance_ranges(k->second, its_legacy_instance_ranges);
-                                    if (!its_legacy_instance_ranges.empty() && !its_legacy_method_ranges.empty()) {
-                                        its_instance_method_ranges.insert(std::make_pair(its_legacy_instance_ranges,
-                                            its_legacy_method_ranges));
-                                    }
-                                }
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_method_ranges.empty()) {
-                            auto find_policy = policy->services_.find(service);
-                            if (find_policy != policy->services_.end()) {
-                                find_policy->second.insert(its_instance_method_ranges.begin(),
-                                        its_instance_method_ranges.end());
-                            } else {
-                                policy->services_.insert(
-                                    std::make_pair(service, its_instance_method_ranges));
-                            }
-                        }
-                    }
-                }
-                if (l->first == "offers") {
-                    for (auto n = l->second.begin(); n != l->second.end(); ++n) {
-                        service_t service = 0x0;
-                        instance_t instance = 0x0;
-                        ranges_t its_instance_ranges;
-                        for (auto k = n->second.begin(); k != n->second.end(); ++k) {
-                            std::stringstream its_converter;
-                            if (k->first == "service") {
-                                std::string value = k->second.data();
-                                its_converter << std::hex << value;
-                                its_converter >> service;
-                            } else if (k->first == "instance") { // legacy definition for instances
-                                std::string value = k->second.data();
-                                if (value != "any") {
-                                    its_converter << std::hex << value;
-                                    its_converter >> instance;
-                                    if (instance != 0x0) {
-                                        its_instance_ranges.insert(std::make_pair(instance, instance));
-                                    }
-                                } else {
-                                    its_instance_ranges.insert(std::make_pair(0x01, 0xFFFF));
-                                }
-                            } else if (k->first == "instances") { // new instances definition
-                                load_instance_ranges(k->second, its_instance_ranges);
-                            }
-                        }
-                        if (service != 0x0 && !its_instance_ranges.empty()) {
-                            auto find_service = policy->offers_.find(service);
-                            if (find_service != policy->offers_.end()) {
-                                find_service->second.insert(its_instance_ranges.begin(),
-                                        its_instance_ranges.end());
-                            } else {
-                                policy->offers_.insert(
-                                        std::make_pair(service, its_instance_ranges));
-                            }
-                        }
-                    }
-                }
-            }
+            load_policy_body(policy, i);
         }
     }
     std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
@@ -1352,24 +787,152 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
 }
 
 void
+security_impl::load_policy_body(std::shared_ptr<policy> &_policy,
+        const boost::property_tree::ptree::const_iterator &_tree) {
+
+    for (auto l = _tree->second.begin(); l != _tree->second.end(); ++l) {
+        if (l->first == "requests") {
+            for (auto n = l->second.begin(); n != l->second.end(); ++n) {
+                service_t its_service = 0x0;
+                instance_t its_instance = 0x0;
+                boost::icl::interval_map<instance_t,
+                    boost::icl::interval_set<method_t> > its_instance_method_intervals;
+                for (auto k = n->second.begin(); k != n->second.end(); ++k) {
+                    if (k->first == "service") {
+                        read_data(k->second.data(), its_service);
+                    } else if (k->first == "instance") { // legacy definition for instances
+                        boost::icl::interval_set<instance_t> its_instance_interval_set;
+                        boost::icl::interval_set<method_t> its_method_interval_set;
+                        boost::icl::discrete_interval<instance_t> all_instances(0x01, 0xFFFF,
+                                boost::icl::interval_bounds::closed());
+                        boost::icl::discrete_interval<method_t> all_methods(0x01, 0xFFFF,
+                                boost::icl::interval_bounds::closed());
+
+                        std::string its_value(k->second.data());
+                        if (its_value != "any") {
+                            read_data(its_value, its_instance);
+                            if (its_instance != 0x0) {
+                                its_instance_interval_set.insert(its_instance);
+                                its_method_interval_set.insert(all_methods);
+                            }
+                        } else {
+                            its_instance_interval_set.insert(all_instances);
+                            its_method_interval_set.insert(all_methods);
+                        }
+                        for (const auto i : its_instance_interval_set) {
+                            its_instance_method_intervals
+                                += std::make_pair(i, its_method_interval_set);
+                        }
+                    } else if (k->first == "instances") { // new instances definition
+                        for (auto p = k->second.begin(); p != k->second.end(); ++p) {
+                            boost::icl::interval_set<instance_t> its_instance_interval_set;
+                            boost::icl::interval_set<method_t> its_method_interval_set;
+                            boost::icl::discrete_interval<method_t> all_methods(0x01, 0xFFFF,
+                                    boost::icl::interval_bounds::closed());
+                            for (auto m = p->second.begin(); m != p->second.end(); ++m) {
+                                if (m->first == "ids") {
+                                    load_interval_set(m->second, its_instance_interval_set);
+                                } else if (m->first == "methods") {
+                                    load_interval_set(m->second, its_method_interval_set);
+                                }
+                            }
+                            if (its_method_interval_set.empty())
+                                its_method_interval_set.insert(all_methods);
+                            for (const auto i : its_instance_interval_set) {
+                                its_instance_method_intervals
+                                    += std::make_pair(i, its_method_interval_set);
+                            }
+                        }
+
+                        if (its_instance_method_intervals.empty()) {
+                            boost::icl::interval_set<instance_t> its_legacy_instance_interval_set;
+                            boost::icl::interval_set<method_t> its_legacy_method_interval_set;
+                            boost::icl::discrete_interval<method_t> all_methods(0x01, 0xFFFF,
+                                    boost::icl::interval_bounds::closed());
+                            its_legacy_method_interval_set.insert(all_methods);
+
+                            // try to only load instance ranges with any method to be allowed
+                            load_interval_set(k->second, its_legacy_instance_interval_set);
+                            for (const auto i : its_legacy_instance_interval_set) {
+                                its_instance_method_intervals
+                                    += std::make_pair(i, its_legacy_method_interval_set);
+                            }
+                        }
+                    }
+                }
+                if (its_service != 0x0 && !its_instance_method_intervals.empty()) {
+                    _policy->requests_ += std::make_pair(
+                            boost::icl::discrete_interval<service_t>(
+                                    its_service, its_service,
+                                    boost::icl::interval_bounds::closed()),
+                            its_instance_method_intervals);
+                }
+            }
+        } else if (l->first == "offers") {
+            for (auto n = l->second.begin(); n != l->second.end(); ++n) {
+                service_t its_service(0x0);
+                instance_t its_instance(0x0);
+                boost::icl::interval_set<instance_t> its_instance_interval_set;
+                for (auto k = n->second.begin(); k != n->second.end(); ++k) {
+                    if (k->first == "service") {
+                        read_data(k->second.data(), its_service);
+                    } else if (k->first == "instance") { // legacy definition for instances
+                        std::string its_value(k->second.data());
+                        if (its_value != "any") {
+                            read_data(its_value, its_instance);
+                            if (its_instance != 0x0) {
+                                its_instance_interval_set.insert(its_instance);
+                            }
+                        } else {
+                            its_instance_interval_set.insert(
+                                    boost::icl::discrete_interval<instance_t>(
+                                        0x0001, 0xFFFF));
+                        }
+                    } else if (k->first == "instances") { // new instances definition
+                        load_interval_set(k->second, its_instance_interval_set);
+                    }
+                }
+                if (its_service != 0x0 && !its_instance_interval_set.empty()) {
+                    _policy->offers_
+                        += std::make_pair(
+                                boost::icl::discrete_interval<service_t>(
+                                        its_service, its_service,
+                                        boost::icl::interval_bounds::closed()),
+                                its_instance_interval_set);
+                }
+            }
+        }
+    }
+}
+
+
+void
 security_impl::load_credential(
-        const boost::property_tree::ptree &_tree, ids_t &_ids) {
+        const boost::property_tree::ptree &_tree,
+        boost::icl::interval_map<uid_t,
+            boost::icl::interval_set<gid_t> > &_credentials) {
+
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        ranges_t its_uid_ranges, its_gid_ranges;
+        boost::icl::interval_set<uid_t> its_uid_interval_set;
+        boost::icl::interval_set<gid_t> its_gid_interval_set;
+
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
             std::string its_key(j->first);
             if (its_key == "uid") {
-                load_ranges(j->second, its_uid_ranges);
+                load_interval_set(j->second, its_uid_interval_set);
             } else if (its_key == "gid") {
-                load_ranges(j->second, its_gid_ranges);
+                load_interval_set(j->second, its_gid_interval_set);
             } else {
                 VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
                         << "Malformed credential (contains illegal key \""
-                        << its_key << "\"";
+                        << its_key << "\")";
             }
         }
 
-        _ids.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
+        for (const auto its_uid_interval : its_uid_interval_set) {
+            _credentials
+                += std::make_pair(its_uid_interval, its_gid_interval_set);
+        }
     }
 }
 
@@ -1386,25 +949,14 @@ security_impl::load_routing_credentials(const configuration_element &_element) {
                     ++i) {
                 std::string its_key(i->first);
                 std::string its_value(i->second.data());
-                std::stringstream its_converter;
                 if (its_key == "uid") {
                     uint32_t its_uid(0);
-                    if (its_value.find("0x") == 0) {
-                        its_converter << std::hex << its_value;
-                    } else {
-                        its_converter << std::dec << its_value;
-                    }
-                    its_converter >> its_uid;
+                    read_data(its_value, its_uid);
                     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
                     std::get<0>(routing_credentials_) = its_uid;
                 } else if (its_key == "gid") {
                     uint32_t its_gid(0);
-                    if (its_value.find("0x") == 0) {
-                        its_converter << std::hex << its_value;
-                    } else {
-                        its_converter << std::dec << its_value;
-                    }
-                    its_converter >> its_gid;
+                    read_data(its_value, its_gid);
                     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
                     std::get<1>(routing_credentials_) = its_gid;
                 }
@@ -1436,12 +988,12 @@ security_impl::load_security_update_whitelist(const configuration_element &_elem
             if (its_whitelist->first == "uids") {
                 {
                     std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
-                    load_ranges(its_whitelist->second, uid_whitelist_);
+                    load_interval_set(its_whitelist->second, uid_whitelist_);
                 }
             } else if (its_whitelist->first == "services") {
                 {
                     std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
-                    load_service_ranges(its_whitelist->second, service_interface_whitelist_);
+                    load_interval_set(its_whitelist->second, service_interface_whitelist_);
                 }
             } else if (its_whitelist->first == "check-whitelist") {
                 if (its_whitelist->second.data() == "true") {
@@ -1455,180 +1007,154 @@ security_impl::load_security_update_whitelist(const configuration_element &_elem
     }
 }
 
-void
-security_impl::load_ranges(
-        const boost::property_tree::ptree &_tree, ranges_t &_range) {
-    ranges_t its_ranges;
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            uint32_t its_id;
-            std::stringstream its_converter;
-            its_converter << std::dec << its_data.data();
-            its_converter >> its_id;
-            its_ranges.insert(std::make_pair(its_id, its_id));
-        } else {
-            uint32_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFFFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::dec << j->second.data();
-                        its_converter >> its_first;
-                    }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFFFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::dec << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
-                }
-            }
+template<typename T_>
+void security_impl::load_interval_set(
+        const boost::property_tree::ptree &_tree,
+        boost::icl::interval_set<T_> &_intervals, bool _exclude_margins) {
 
-            if (has_first && has_last) {
-                its_ranges.insert(std::make_pair(its_first, its_last));
+    boost::icl::interval_set<T_> its_intervals;
+    T_ its_min = std::numeric_limits<T_>::min();
+    T_ its_max = std::numeric_limits<T_>::max();
+
+    if (_exclude_margins) {
+        its_min++;
+        its_max--;
+    }
+
+    const std::string its_key(_tree.data());
+    if (its_key == "any") {
+        its_intervals.insert(boost::icl::discrete_interval<T_>::closed(
+                its_min, its_max));
+    } else {
+        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+            auto its_data = i->second;
+            if (!its_data.data().empty()) {
+                T_ its_id;
+                read_data(its_data.data(), its_id);
+                if (its_id >= its_min && its_id <= its_max)
+                    its_intervals.insert(its_id);
+            } else {
+                T_ its_first, its_last;
+                bool has_first(false), has_last(false);
+                for (auto j = its_data.begin(); j != its_data.end(); ++j) {
+                    std::string its_key(j->first);
+                    std::string its_value(j->second.data());
+                    if (its_key == "first") {
+                        if (its_value == "min") {
+                            its_first = its_min;
+                        } else {
+                            read_data(its_value, its_first);
+                        }
+                        has_first = true;
+                    } else if (its_key == "last") {
+                        if (its_value == "max") {
+                            its_last = its_max;
+                        } else {
+                            read_data(its_value, its_last);
+                        }
+                        has_last = true;
+                    } else {
+                        VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
+                                << " Malformed range. Contains illegal key ("
+                                << its_key << ")";
+                    }
+                }
+                if (has_first && has_last && its_first <= its_last) {
+                    its_intervals.insert(
+                        boost::icl::discrete_interval<T_>::closed(its_first, its_last));
+                }
             }
         }
     }
 
-    _range = its_ranges;
+    _intervals = its_intervals;
 }
 
 void
-security_impl::load_instance_ranges(
-        const boost::property_tree::ptree &_tree, ranges_t &_range) {
-    ranges_t its_ranges;
-    const std::string& key(_tree.data());
-    if (key == "any") {
-        its_ranges.insert(std::make_pair(0x01, 0xFFFF));
-        _range = its_ranges;
-        return;
+security_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
+        std::set<std::shared_ptr<policy> > &_requesters) const {
+
+    std::vector<std::shared_ptr<policy> > its_policies;
+    {
+        std::lock_guard<std::mutex> its_lock(any_client_policies_mutex_);
+        its_policies = any_client_policies_;
     }
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            uint32_t its_id = 0x0;
-            std::stringstream its_converter;
-            its_converter << std::hex << its_data.data();
-            its_converter >> its_id;
-            if (its_id != 0x0) {
-                its_ranges.insert(std::make_pair(its_id, its_id));
-            }
-        } else {
-            uint32_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_first;
+
+    std::lock_guard<std::mutex> its_lock(_policy->mutex_);
+    for (const auto o : _policy->offers_) {
+        for (const auto p : its_policies) {
+            if (p == _policy)
+                continue;
+
+            std::lock_guard<std::mutex> its_lock(p->mutex_);
+
+            auto its_policy = std::make_shared<policy>();
+            its_policy->credentials_ = p->credentials_;
+
+            for (const auto r : p->requests_) {
+                // o represents an offer by a service interval and its instances
+                // (a set of intervals)
+                // r represents a request by a service interval and its instances
+                // and methods (instance intervals mapped to interval sets of methods)
+                //
+                // Thus, r matches o if their service identifiers as well as their
+                // instances overlap. If r and o match, a new policy must be
+                // created that contains the overlapping services/instances mapping
+                // of r and o together with the methods from r
+                service_t its_o_lower, its_o_upper, its_r_lower, its_r_upper;
+                get_bounds(o.first, its_o_lower, its_o_upper);
+                get_bounds(r.first, its_r_lower, its_r_upper);
+
+                if (its_o_lower <= its_r_upper && its_r_lower <= its_o_upper) {
+                    auto its_service_min = std::max(its_o_lower, its_r_lower);
+                    auto its_service_max = std::min(its_r_upper, its_o_upper);
+
+                    for (const auto i : o.second) {
+                        for (const auto j : r.second) {
+                            for (const auto k : j.second) {
+                                instance_t its_i_lower, its_i_upper, its_k_lower, its_k_upper;
+                                get_bounds(i, its_i_lower, its_i_upper);
+                                get_bounds(k, its_k_lower, its_k_upper);
+
+                                if (its_i_lower <= its_k_upper && its_k_lower <= its_i_upper) {
+                                    auto its_instance_min = std::max(its_i_lower, its_k_lower);
+                                    auto its_instance_max = std::min(its_i_upper, its_k_upper);
+
+                                    boost::icl::interval_map<instance_t,
+                                        boost::icl::interval_set<method_t> > its_instances_methods;
+                                    its_instances_methods += std::make_pair(
+                                            boost::icl::interval<instance_t>::closed(
+                                                    its_instance_min, its_instance_max),
+                                            j.second);
+
+                                    its_policy->requests_ += std::make_pair(
+                                            boost::icl::interval<instance_t>::closed(
+                                                    its_service_min, its_service_max),
+                                            its_instances_methods);
+                                }
+                            }
+                        }
                     }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
                 }
             }
 
-            if (has_first && has_last) {
-                if( its_last > its_first) {
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                }
+            if (!its_policy->requests_.empty()) {
+                _requesters.insert(its_policy);
+                its_policy->print();
             }
         }
     }
-
-    _range = its_ranges;
 }
 
 void
-security_impl::load_service_ranges(
-        const boost::property_tree::ptree &_tree, std::set<std::pair<service_t, service_t>> &_ranges) {
-    std::set<std::pair<service_t, service_t>> its_ranges;
-    const std::string& key(_tree.data());
-    if (key == "any") {
-        its_ranges.insert(std::make_pair(0x01, 0xFFFF));
-        _ranges = its_ranges;
-        return;
-    }
-    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        auto its_data = i->second;
-        if (!its_data.data().empty()) {
-            service_t its_id = 0x0;
-            std::stringstream its_converter;
-            its_converter << std::hex << its_data.data();
-            its_converter >> its_id;
-            if (its_id != 0x0) {
-                its_ranges.insert(std::make_pair(its_id, its_id));
-            }
-        } else {
-            service_t its_first, its_last;
-            bool has_first(false), has_last(false);
-            for (auto j = its_data.begin(); j != its_data.end(); ++j) {
-                std::string its_key(j->first);
-                std::string its_value(j->second.data());
-                if (its_key == "first") {
-                    if (its_value == "max") {
-                        its_first = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_first;
-                    }
-                    has_first = true;
-                } else if (its_key == "last") {
-                    if (its_value == "max") {
-                        its_last = 0xFFFF;
-                    } else {
-                        std::stringstream its_converter;
-                        its_converter << std::hex << j->second.data();
-                        its_converter >> its_last;
-                    }
-                    has_last = true;
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Security interface whitelist configuration: "
-                            << " Malformed range. Contains illegal key ("
-                            << its_key << ")";
-                }
-            }
+security_impl::get_clients(uid_t _uid, gid_t _gid,
+        std::unordered_set<client_t> &_clients) const {
 
-            if (has_first && has_last) {
-                if( its_last >= its_first) {
-                    its_ranges.insert(std::make_pair(its_first, its_last));
-                }
-            }
-        }
+    std::lock_guard<std::mutex> its_lock(ids_mutex_);
+    for (const auto i : ids_) {
+        if (i.second.first == _uid && i.second.second == _gid)
+            _clients.insert(i.first);
     }
-
-    _ranges = its_ranges;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

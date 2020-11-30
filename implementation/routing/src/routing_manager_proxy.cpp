@@ -125,7 +125,7 @@ void routing_manager_proxy::stop() {
         sender_ = nullptr;
     }
 
-    for (auto client: ep_mgr_->get_connected_clients()) {
+    for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
             remove_local(client, true);
         }
@@ -202,12 +202,17 @@ void routing_manager_proxy::stop_offer_service(client_t _client,
 
     (void)_client;
 
-    routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);
-    clear_remote_subscriber_count(_service, _instance);
+    {
+        // Hold the mutex to ensure no placeholder event is created inbetween.
+        std::lock_guard<std::mutex> its_lock(stop_mutex_);
 
-    // Reliable/Unreliable unimportant as routing_proxy does not
-    // create server endpoints which needs to be freed
-    clear_service_info(_service, _instance, false);
+        routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);
+        clear_remote_subscriber_count(_service, _instance);
+
+        // Note: The last argument does not matter here as a proxy
+        //       does not manage endpoints to the external network.
+        clear_service_info(_service, _instance, false);
+    }
 
     {
         std::lock_guard<std::mutex> its_lock(state_mutex_);
@@ -876,6 +881,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
     client_t its_subscriber;
     remote_subscription_id_t its_subscription_id(PENDING_SUBSCRIPTION_ID);
     std::uint32_t its_remote_subscriber_count(0);
+    bool is_internal_policy_update(false);
 
     std::uint32_t its_sender_uid = std::get<0>(_credentials);
     std::uint32_t its_sender_gid = std::get<1>(_credentials);
@@ -1389,6 +1395,9 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                     << its_client << ")";
             break;
         }
+        case VSOMEIP_UPDATE_SECURITY_POLICY_INT:
+            is_internal_policy_update = true;
+            /* Fallthrough */
         case VSOMEIP_UPDATE_SECURITY_POLICY: {
             if (_size < VSOMEIP_COMMAND_HEADER_SIZE + sizeof(pending_security_update_id_t) ||
                     _size - VSOMEIP_COMMAND_HEADER_SIZE != its_length) {
@@ -1397,23 +1406,33 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             }
             if (!its_security->is_enabled() || message_from_routing) {
                 pending_security_update_id_t its_update_id(0);
-                uint32_t its_uid(0);
-                uint32_t its_gid(0);
 
                 std::memcpy(&its_update_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                         sizeof(pending_security_update_id_t));
 
                 std::shared_ptr<policy> its_policy(std::make_shared<policy>());
-                const byte_t* buffer_ptr = _data + (VSOMEIP_COMMAND_PAYLOAD_POS +
+                const byte_t *its_policy_data = _data + (VSOMEIP_COMMAND_PAYLOAD_POS +
                                                     sizeof(pending_security_update_id_t));
 
-                uint32_t its_size = uint32_t(_size - (VSOMEIP_COMMAND_PAYLOAD_POS
+                uint32_t its_policy_size = uint32_t(_size - (VSOMEIP_COMMAND_PAYLOAD_POS
                         + sizeof(pending_security_update_id_t)));
-                its_security->parse_policy(buffer_ptr, its_size, its_uid, its_gid, its_policy);
 
-                if (its_security->is_policy_update_allowed(its_uid, its_policy)) {
-                    its_security->update_security_policy(its_uid, its_gid, its_policy);
-                    send_update_security_policy_response(its_update_id);
+                bool is_valid = its_policy->deserialize(its_policy_data, its_policy_size);
+                if (is_valid) {
+                    uint32_t its_uid;
+                    uint32_t its_gid;
+                    is_valid = its_policy->get_uid_gid(its_uid, its_gid);
+                    if (is_valid) {
+                        if (is_internal_policy_update
+                                || its_security->is_policy_update_allowed(its_uid, its_policy)) {
+                            its_security->update_security_policy(its_uid, its_gid, its_policy);
+                            send_update_security_policy_response(its_update_id);
+                        }
+                    } else {
+                        VSOMEIP_ERROR << "vSomeIP Security: Policy has no valid uid/gid!";
+                    }
+                } else {
+                    VSOMEIP_ERROR << "vSomeIP Security: Policy deserialization failed!";
                 }
             } else {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
@@ -2350,21 +2369,29 @@ bool routing_manager_proxy::create_placeholder_event_and_subscribe(
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, event_t _notifier, client_t _client) {
 
+    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+
     bool is_inserted(false);
-    // we received a event which was not yet requested/offered
-    // create a placeholder field until someone requests/offers this event with
-    // full information like eventgroup, field or not etc.
-    std::set<eventgroup_t> its_eventgroups({ _eventgroup });
-    // routing_manager_proxy: Always register with own client id and shadow = false
-    routing_manager_base::register_event(host_->get_client(),
-            _service, _instance, _notifier,
-            its_eventgroups, event_type_e::ET_UNKNOWN, reliability_type_e::RT_UNKNOWN,
-            std::chrono::milliseconds::zero(), false, true, nullptr, false, false,
-            true);
-    std::shared_ptr<event> its_event = find_event(_service, _instance, _notifier);
-    if (its_event) {
-        is_inserted = its_event->add_subscriber(_eventgroup, _client, false);
+
+    if (find_service(_service, _instance)) {
+        // We received an event for an existing service which was not yet
+        // requested/offered. Create a placeholder field until someone
+        // requests/offers this event with full information like eventgroup,
+        // field/event, etc.
+        std::set<eventgroup_t> its_eventgroups({ _eventgroup });
+        // routing_manager_proxy: Always register with own client id and shadow = false
+        routing_manager_base::register_event(host_->get_client(),
+                _service, _instance, _notifier,
+                its_eventgroups, event_type_e::ET_UNKNOWN, reliability_type_e::RT_UNKNOWN,
+                std::chrono::milliseconds::zero(), false, true, nullptr, false, false,
+                true);
+
+        std::shared_ptr<event> its_event = find_event(_service, _instance, _notifier);
+        if (its_event) {
+            is_inserted = its_event->add_subscriber(_eventgroup, _client, false);
+        }
     }
+
     return is_inserted;
 }
 
@@ -2561,7 +2588,8 @@ void routing_manager_proxy::on_update_security_credentials(const byte_t *_data, 
     uint32_t i = 0;
     while ( (i + sizeof(uint32_t) + sizeof(uint32_t)) <= _size) {
         std::shared_ptr<policy> its_policy(std::make_shared<policy>());
-        ranges_t its_uid_ranges, its_gid_ranges;
+
+        boost::icl::interval_set<uint32_t> its_gid_set;
         uint32_t its_uid, its_gid;
 
         std::memcpy(&its_uid, &_data[i], sizeof(uint32_t));
@@ -2569,11 +2597,13 @@ void routing_manager_proxy::on_update_security_credentials(const byte_t *_data, 
         std::memcpy(&its_gid, &_data[i], sizeof(uint32_t));
         i += uint32_t(sizeof(uint32_t));
 
-        its_uid_ranges.insert(std::make_pair(its_uid, its_uid));
-        its_gid_ranges.insert(std::make_pair(its_gid, its_gid));
+        its_gid_set.insert(its_gid);
 
+        its_policy->credentials_ += std::make_pair(
+                boost::icl::interval<uid_t>::closed(its_uid, its_uid), its_gid_set);
         its_policy->allow_who_ = true;
-        its_policy->ids_.insert(std::make_pair(its_uid_ranges, its_gid_ranges));
+        its_policy->allow_what_ = true;
+
         its_security->add_security_credentials(its_uid, its_gid, its_policy, get_client());
     }
 }

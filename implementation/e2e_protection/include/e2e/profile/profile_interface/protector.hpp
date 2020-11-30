@@ -6,6 +6,8 @@
 #ifndef VSOMEIP_V3_E2E_PROFILE_INTERFACE_PROTECTOR_HPP
 #define VSOMEIP_V3_E2E_PROFILE_INTERFACE_PROTECTOR_HPP
 
+#include <vsomeip/primitive_types.hpp>
+
 #include "../../../buffer/buffer.hpp"
 #include "../profile_interface/profile_interface.hpp"
 
@@ -14,8 +16,9 @@ namespace e2e {
 namespace profile_interface {
 
 class protector : public profile_interface {
-  public:
-    virtual void protect(e2e_buffer &_buffer) = 0;
+public:
+    virtual void protect(e2e_buffer &_buffer,
+            instance_t _instance) = 0;
 };
 
 } // namespace profile_interface

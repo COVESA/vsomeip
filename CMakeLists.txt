@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 1)
-set (VSOMEIP_PATCH_VERSION 16)
+set (VSOMEIP_PATCH_VERSION 20)
 set (VSOMEIP_HOTFIX_VERSION 1)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -31,9 +31,9 @@ endif()
 ###################################################################################################
 
 # Offer the user the choice of overriding the installation directories
-set (INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
-set (INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
-set (INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header files")
+set (INSTALL_LIB_DIR lib CACHE STRING "Installation directory for libraries")
+set (INSTALL_BIN_DIR bin CACHE STRING "Installation directory for executables")
+set (INSTALL_INCLUDE_DIR include CACHE STRING "Installation directory for header files")
 
 if (WIN32 AND NOT CYGWIN)
     set (DEF_INSTALL_CMAKE_DIR CMake)
@@ -41,15 +41,7 @@ else ()
     set (DEF_INSTALL_CMAKE_DIR lib/cmake/${VSOMEIP_NAME})
 endif ()
 
-set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
-
-# Make relative paths absolute (needed later on)
-foreach (p LIB BIN INCLUDE CMAKE)
-    set (var INSTALL_${p}_DIR)
-    if (NOT IS_ABSOLUTE "${${var}}")
-        set (ABSOLUTE_${var} "${CMAKE_INSTALL_PREFIX}/${${var}}") # Add all targets to the build-tree export set
-    endif ()
-endforeach ()
+set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE STRING "Installation directory for CMake files")
 
 ###################################################################################################
 # Set a default build type if none was specified
@@ -135,6 +127,11 @@ else ()
 set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 0)
 endif ()
 
+# Session handling configuration
+if (ENABLE_SESSION_HANDLING_CONFIG)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_HAS_SESSION_HANDLING_CONFIG")
+endif ()
+
 ################################################################################
 # Dependencies
 ################################################################################
@@ -173,8 +170,10 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-if (${VSOMEIP_BOOST_VERSION} GREATER 107300)
-message( ERROR "boost version ${VSOMEIP_BOOST_VERSION} is not (yet) supported. Latest supported version is 1.72.0" )
+if (${VSOMEIP_BOOST_VERSION} GREATER 107400)
+message( ERROR "boost version ${VSOMEIP_BOOST_VERSION} is not (yet) supported. Latest supported version is 1.74.0" )
+elseif(${VSOMEIP_BOOST_VERSION} GREATER 107300)
+set(VSOMEIP_BOOST_HELPER implementation/helper/1.74)
 elseif(${VSOMEIP_BOOST_VERSION} GREATER 106999)
 set(VSOMEIP_BOOST_HELPER implementation/helper/1.70)
 elseif(${VSOMEIP_BOOST_VERSION} GREATER 106599)
@@ -214,6 +213,9 @@ endif ()
 
 include_directories(
     interface
+)
+
+include_directories(SYSTEM
     ${VSOMEIP_BOOST_HELPER}
     ${DLT_INCLUDE_DIRS}
 )
@@ -235,7 +237,6 @@ if (MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
     set(USE_RT "")
-    set(Boost_LIBRARIES "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
@@ -675,6 +676,16 @@ if(${TEST_IP_SLAVE_SECOND} STREQUAL ${TEST_IP_DEFAULT_VALUE})
 else()
     set(TEST_SECOND_ADDRESS "ON")
 endif()
+
+set(TEST_E2E_PROFILE_04 "OFF" CACHE BOOL
+    "Controls whether E2E Profile 04 tests should run or not")
+if (ENABLE_SESSION_HANDLING_CONFIG)
+    set(TEST_E2E_PROFILE_04 "ON")
+else ()
+    message(WARNING "ENABLE_SESSION_HANDLING_CONFIG isn't set. "
+                    "Test of E2E Profile 04 is not enabled.")
+endif ()
+
 
 SET(TEST_UID_DEFAULT_VALUE "123456789")
 SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING

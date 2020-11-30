@@ -32,13 +32,18 @@ public:
     VSOMEIP_EXPORT bool is_protected(e2exf::data_identifier_t id) const override;
     VSOMEIP_EXPORT bool is_checked(e2exf::data_identifier_t id) const override;
 
-    VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id, e2e_buffer &_buffer) override;
-    VSOMEIP_EXPORT void check(e2exf::data_identifier_t id, const e2e_buffer &_buffer,
-                              profile_interface::check_status_t &_generic_check_status) override;
+    VSOMEIP_EXPORT std::size_t get_protection_base(e2exf::data_identifier_t _id) const override;
+
+    VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id,
+            e2e_buffer &_buffer, instance_t _instance) override;
+    VSOMEIP_EXPORT void check(e2exf::data_identifier_t id,
+            const e2e_buffer &_buffer, instance_t _instance,
+            profile_interface::check_status_t &_generic_check_status) override;
 
 private:
-    std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors;
-    std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::checker>> custom_checkers;
+    std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors_;
+    std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::checker>> custom_checkers_;
+    std::map<e2exf::data_identifier_t, std::size_t> custom_bases_;
 
     template<typename config_t>
     config_t make_e2e_profile_config(const std::shared_ptr<cfg::e2e>& config);
@@ -50,13 +55,15 @@ private:
 
         std::shared_ptr<e2e::profile_interface::checker> checker;
         if ((config->variant == "checker") || (config->variant == "both")) {
-            custom_checkers[data_identifier] = std::make_shared<checker_t>(profile_config);
+            custom_checkers_[data_identifier] = std::make_shared<checker_t>(profile_config);
         }
 
         std::shared_ptr<e2e::profile_interface::protector> protector;
         if ((config->variant == "protector") || (config->variant == "both")) {
-            custom_protectors[data_identifier] = std::make_shared<protector_t>(profile_config);
+            custom_protectors_[data_identifier] = std::make_shared<protector_t>(profile_config);
         }
+
+        custom_bases_[data_identifier] = profile_config.base_;
     }
 };
 

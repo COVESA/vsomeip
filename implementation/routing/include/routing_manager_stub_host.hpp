@@ -7,8 +7,8 @@
 #define VSOMEIP_V3_ROUTING_MANAGER_STUB_HOST_
 
 #include <boost/asio/io_service.hpp>
-#include <vsomeip/handler.hpp>
 
+#include <vsomeip/handler.hpp>
 #include "types.hpp"
 
 namespace vsomeip_v3 {
@@ -96,8 +96,6 @@ public:
     virtual std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const = 0;
 
     virtual void on_resend_provided_events_response(pending_remote_offer_id_t _id) = 0;
-
-    virtual void on_security_update_response(pending_security_update_id_t _id, client_t _client) = 0;
 
     virtual client_t find_local_client(service_t _service, instance_t _instance) = 0;
 

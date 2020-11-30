@@ -145,7 +145,11 @@ private:
 #else
     static int lock_fd__;
 #endif
+#ifndef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
     static bool is_checked__;
+#else
+    static std::set<std::string> is_checked__;
+#endif
 };
 
 }  // namespace vsomeip_v3

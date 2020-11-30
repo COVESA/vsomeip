@@ -130,6 +130,9 @@ public:
     virtual std::size_t get_io_thread_count(const std::string &_name) const = 0;
     virtual int get_io_thread_nice_level(const std::string &_name) const = 0;
     virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+    virtual bool has_session_handling(const std::string &_name) const = 0;
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
     virtual std::uint32_t get_max_message_size_reliable(const std::string& _address,
@@ -265,6 +268,11 @@ public:
 
     // routing shutdown timeout
     virtual std::uint32_t get_shutdown_timeout() const = 0;
+
+    virtual bool log_statistics() const = 0;
+    virtual uint32_t get_statistics_interval() const = 0;
+    virtual uint32_t get_statistics_min_freq() const = 0;
+    virtual uint32_t get_statistics_max_messages() const = 0;
 };
 
 } // namespace vsomeip_v3

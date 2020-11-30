@@ -2565,6 +2565,74 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# e2e profile 04 test
+##############################################################################
+
+if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
+    set(TEST_E2E_PROFILE_04_NAME e2e_profile_04_test)
+    set(TEST_E2E_PROFILE_04_SERVICE e2e_profile_04_test_service)
+    set(TEST_E2E_PROFILE_04_CLIENT e2e_profile_04_test_client)
+
+    add_executable(${TEST_E2E_PROFILE_04_SERVICE} e2e_tests/${TEST_E2E_PROFILE_04_SERVICE}.cpp)
+    target_link_libraries(${TEST_E2E_PROFILE_04_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    add_executable(${TEST_E2E_PROFILE_04_CLIENT}
+        e2e_tests/${TEST_E2E_PROFILE_04_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_E2E_PROFILE_04_CLIENT}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # Copy service config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_04_NAME}_service_external.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/conf/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}.in
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_PROFILE_04_SERVICE}
+    )
+
+    # Copy client config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_04_NAME}_client_external.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/conf/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}.in
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_PROFILE_04_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (master) into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_PROFILE_04_NAME}_external_master_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT}
+        ${TEST_E2E_PROFILE_04_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (slave) into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_04_EXTERNAL_SLAVE_START_SCRIPT ${TEST_E2E_PROFILE_04_NAME}_external_slave_start.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/e2e_tests/${TEST_E2E_PROFILE_04_EXTERNAL_SLAVE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_E2E_PROFILE_04_EXTERNAL_SLAVE_START_SCRIPT}
+        ${TEST_E2E_PROFILE_04_SERVICE}
+    )
+endif()
+
+##############################################################################
 # event tests
 ##############################################################################
 
@@ -3053,6 +3121,10 @@ if(NOT ${TESTS_BAT})
     endif()
     add_dependencies(${TEST_E2E_SERVICE} gtest)
     add_dependencies(${TEST_E2E_CLIENT} gtest)
+    if (${TEST_E2E_PROFILE_04})
+    add_dependencies(${TEST_E2E_PROFILE_04_SERVICE} gtest)
+    add_dependencies(${TEST_E2E_PROFILE_04_CLIENT} gtest)
+    endif()
     add_dependencies(${TEST_EVENT_SERVICE} gtest)
     add_dependencies(${TEST_EVENT_CLIENT} gtest)
     add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)
@@ -3129,6 +3201,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_MALICIOUS_DATA_CLIENT})
     add_dependencies(build_tests ${TEST_E2E_SERVICE})
     add_dependencies(build_tests ${TEST_E2E_CLIENT})
+    if (${TEST_E2E_PROFILE_04})
+    add_dependencies(build_tests ${TEST_E2E_PROFILE_04_SERVICE})
+    add_dependencies(build_tests ${TEST_E2E_PROFILE_04_CLIENT})
+    endif()
     add_dependencies(build_tests ${TEST_EVENT_SERVICE})
     add_dependencies(build_tests ${TEST_EVENT_CLIENT})
     add_dependencies(build_tests ${TEST_NPDU_SERVICE_ONE})
@@ -3594,10 +3670,16 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_NPDU_STARTER} TCP sync)
     set_tests_properties(${TEST_NPDU_NAME}_tcp PROPERTIES TIMEOUT 840)
 
-    # e2e test
+    # e2e tests
     add_test(NAME ${TEST_E2E_NAME}_external
     COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT} e2e_test_client_external.json)
     set_tests_properties(${TEST_E2E_NAME}_external PROPERTIES TIMEOUT 180)
+
+    if (${TEST_E2E_PROFILE_04})
+    add_test(NAME ${TEST_E2E_PROFILE_04_NAME}_external
+    COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_04_test_client_external.json)
+    set_tests_properties(${TEST_E2E_PROFILE_04_NAME}_external PROPERTIES TIMEOUT 180)
+    endif ()
 
     # event tests
     add_test(NAME ${TEST_EVENT_NAME}_payload_fixed_udp

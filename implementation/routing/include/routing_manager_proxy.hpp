@@ -256,6 +256,8 @@ private:
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
+
+    std::mutex stop_mutex_;
 };
 
 } // namespace vsomeip_v3

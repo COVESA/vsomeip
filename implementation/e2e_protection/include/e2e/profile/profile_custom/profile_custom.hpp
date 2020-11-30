@@ -7,6 +7,9 @@
 #define VSOMEIP_V3_E2E_PROFILE_CUSTOM_PROFILE_CUSTOM_HPP
 
 #include <cstdint>
+
+#include <vsomeip/defines.hpp>
+
 #include "../../../buffer/buffer.hpp"
 
 namespace vsomeip_v3 {
@@ -23,15 +26,17 @@ class profile_custom {
 };
 
 struct profile_config {
-    uint16_t crc_offset_;
-
     profile_config() = delete;
 
     profile_config(uint16_t _crc_offset)
-        : crc_offset_(_crc_offset) {
+        : crc_offset_(_crc_offset),
+          base_(VSOMEIP_FULL_HEADER_SIZE) {
     }
     profile_config(const profile_config &_config) = default;
     profile_config &operator=(const profile_config &_config) = default;
+
+    uint16_t crc_offset_;
+    size_t base_;
 };
 
 } // namespace profile_custom

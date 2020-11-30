@@ -16,7 +16,10 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_custom {
 
-void protector::protect(e2e_buffer &_buffer) {
+void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+
+    (void)_instance;
+
     std::lock_guard<std::mutex> lock(protect_mutex_);
 
     if (profile_custom::is_buffer_length_valid(config_, _buffer)) {

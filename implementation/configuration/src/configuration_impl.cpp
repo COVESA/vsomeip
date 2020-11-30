@@ -90,7 +90,11 @@ configuration_impl::configuration_impl()
       npdu_default_debounce_resp_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
       npdu_default_max_retention_requ_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
       npdu_default_max_retention_resp_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
-      shutdown_timeout_(VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT) {
+      shutdown_timeout_(VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT),
+      log_statistics_(true),
+      statistics_interval_(VSOMEIP_DEFAULT_STATISTICS_INTERVAL),
+      statistics_min_freq_(VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ),
+      statistics_max_messages_(VSOMEIP_DEFAULT_STATISTICS_MAX_MSG) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
@@ -190,6 +194,11 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
 
     has_issued_methods_warning_ = _other.has_issued_methods_warning_;
     has_issued_clients_warning_ = _other.has_issued_clients_warning_;
+
+    log_statistics_ = _other.log_statistics_;
+    statistics_interval_ = _other.statistics_interval_;
+    statistics_min_freq_ = _other.statistics_min_freq_;
+    statistics_max_messages_ = _other.statistics_max_messages_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -595,6 +604,25 @@ bool configuration_impl::load_logging(
                 if (log_status_interval_ > 0) {
                     log_status_ = true;
                 }
+            } else if (its_key ==  "statistics") {
+                for (auto j : i->second) {
+                    std::stringstream its_converter;
+                    std::string its_sub_key(j.first);
+                    std::string its_sub_value(j.second.data());
+                    if (its_sub_key == "interval") {
+                        its_converter << std::dec << its_sub_value;
+                        its_converter >> statistics_interval_;
+                        if (statistics_interval_ > 0) {
+                            log_statistics_ = true;
+                        }
+                    } else if (its_sub_key == "min-frequency") {
+                        its_converter << std::dec << its_sub_value;
+                        its_converter >> statistics_min_freq_;
+                    } else if (its_sub_key == "max-messages") {
+                        its_converter << std::dec << its_sub_value;
+                        its_converter >> statistics_max_messages_;
+                    }
+                }
             }
         }
     } catch (...) {
@@ -646,6 +674,9 @@ void configuration_impl::load_application_data(
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_IO_THREAD_NICE_LEVEL);
     std::string its_overlay;
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+    bool has_session_handling(true);
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -690,6 +721,11 @@ void configuration_impl::load_application_data(
         } else if (its_key == "overlay") {
             its_overlay = its_value;
         }
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+        else if (its_key == "has_session_handling") {
+            has_session_handling = (its_value != "false");
+        }
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
     }
     if (its_name != "") {
         if (applications_.find(its_name) == applications_.end()) {
@@ -708,7 +744,11 @@ void configuration_impl::load_application_data(
                 = std::make_tuple(its_id, its_max_dispatchers,
                         its_max_dispatch_time, its_io_thread_count,
                         its_request_debounce_time, plugins, its_io_thread_nice_level,
-                        its_overlay);
+                        its_overlay
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+                        , has_session_handling
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+                  );
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -2431,6 +2471,18 @@ std::size_t configuration_impl::get_max_dispatch_time(
 
     return its_max_dispatch_time;
 }
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+bool configuration_impl::has_session_handling(const std::string &_name) const {
+
+    bool its_value(true);
+
+    auto found_application = applications_.find(_name);
+    if (found_application != applications_.end())
+        its_value = std::get<8>(found_application->second);
+
+    return (its_value);
+}
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
 
 std::set<std::pair<service_t, instance_t> >
 configuration_impl::get_remote_services() const {
@@ -2854,7 +2906,6 @@ void configuration_impl::load_e2e(const configuration_element &_element) {
 
 void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_tree) {
 
-    uint16_t data_id(0);
     std::string variant("");
     std::string profile("");
     service_t service_id(0);
@@ -2864,15 +2915,7 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
 
     for (auto l = _tree.begin(); l != _tree.end(); ++l) {
         std::stringstream its_converter;
-        if (l->first == "data_id" && data_id == 0) {
-            std::string value = l->second.data();
-            if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
-                its_converter << std::hex << value;
-            } else {
-                its_converter << std::dec << value;
-            }
-            its_converter >> data_id;
-        } else if (l->first == "service_id") {
+        if (l->first == "service_id") {
             std::string value = l->second.data();
             if (value.size() > 1 && value[0] == '0' && value[1] == 'x') {
                 its_converter << std::hex << value;
@@ -2901,7 +2944,6 @@ void configuration_impl::load_e2e_protected(const boost::property_tree::ptree &_
         }
     }
     e2e_configuration_[std::make_pair(service_id, event_id)] = std::make_shared<cfg::e2e>(
-        data_id,
         variant,
         profile,
         service_id,
@@ -3910,7 +3952,7 @@ configuration_impl::has_overlay(const std::string &_name) const {
 void
 configuration_impl::load_overlay(const std::string &_name) {
     std::set<std::string> its_input;
-    std::vector<element> its_elements;
+    std::vector<configuration_element> its_elements;
     std::set<std::string> its_failed;
 
     auto its_application = applications_.find(_name);
@@ -3931,6 +3973,22 @@ configuration_impl::load_overlay(const std::string &_name) {
 
 std::uint32_t configuration_impl::get_shutdown_timeout() const {
     return shutdown_timeout_;
+}
+
+bool configuration_impl::log_statistics() const {
+    return log_statistics_;
+}
+
+uint32_t configuration_impl::get_statistics_interval() const {
+    return statistics_interval_;
+}
+
+uint32_t configuration_impl::get_statistics_min_freq() const {
+    return statistics_min_freq_;
+}
+
+uint32_t configuration_impl::get_statistics_max_messages() const {
+    return statistics_max_messages_;
 }
 
 }  // namespace config

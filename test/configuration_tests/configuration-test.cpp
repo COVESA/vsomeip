@@ -638,46 +638,49 @@ void check_file(const std::string &_config_file,
     uint32_t its_gid = 1000;
 
     // policy elements
-    std::pair<uint32_t, uint32_t> its_uid_range, its_gid_range;
-    std::set<std::pair<uint32_t, uint32_t>> its_uids, its_gids;
+    boost::icl::discrete_interval<uid_t> its_uids(its_uid, its_uid);
+    boost::icl::interval_set<gid_t> its_gids;
+    its_gids.insert(boost::icl::interval<gid_t>::closed(its_gid, its_gid));
 
-    // fill uid and gid range
-    std::get<0>(its_uid_range) = its_uid;
-    std::get<1>(its_uid_range) = its_uid;
-    std::get<0>(its_gid_range) = its_gid;
-    std::get<1>(its_gid_range) = its_gid;
-    its_uids.insert(its_uid_range);
-    its_gids.insert(its_gid_range);
-
-    _policy->ids_.insert(std::make_pair(its_uids, its_gids));
+    _policy->credentials_ += std::make_pair(its_uids, its_gids);
     _policy->allow_who_ = true;
     _policy->allow_what_ = true;
 
-    uint16_t its_service_id = 0x1234;
-    vsomeip::ids_t its_instance_method_ranges;
-    vsomeip::ranges_t its_instance_ranges;
-    its_instance_ranges.insert(std::make_pair(0x01, 0x2));
+    vsomeip::service_t its_service(0x1234);
 
-    vsomeip::ranges_t its_method_ranges;
-    its_method_ranges.insert(std::make_pair(0x01, 0x2));
+    boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
+    boost::icl::interval_set<vsomeip::method_t> its_methods;
+    its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
+    boost::icl::interval_map<vsomeip::instance_t,
+        boost::icl::interval_set<vsomeip::method_t> > its_instances_methods;
+    its_instances_methods += std::make_pair(its_instances, its_methods);
 
-    _policy->services_.insert(
-            std::make_pair(its_service_id, its_instance_method_ranges));
+    _policy->requests_ += std::make_pair(
+            boost::icl::discrete_interval<vsomeip::service_t>(
+                    its_service, its_service,
+                    boost::icl::interval_bounds::closed()),
+            its_instances_methods);
     EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
 
     // test valid policy that holds a single service id which is whitelisted
-    its_service_id = 0x7800;
-    _policy->services_.insert(
-            std::make_pair(its_service_id, its_instance_method_ranges));
+    vsomeip::service_t its_second_service(0x7800);
+    _policy->requests_ += std::make_pair(
+            boost::icl::discrete_interval<vsomeip::service_t>(
+                    its_second_service, its_second_service,
+                    boost::icl::interval_bounds::closed()),
+            its_instances_methods);
     EXPECT_TRUE(its_security->is_policy_update_allowed(1000, _policy));
 
     // test invalid UID which is not whitelisted
     EXPECT_FALSE(its_security->is_policy_update_allowed(2002, _policy));
 
     // test invalid policy that additionally holds a service id which is not whitelisted
-    its_service_id = 0x8888;
-    _policy->services_.insert(
-            std::make_pair(its_service_id, its_instance_method_ranges));
+    vsomeip::service_t its_third_service(0x8888);
+    _policy->requests_ += std::make_pair(
+            boost::icl::discrete_interval<vsomeip::service_t>(
+                    its_third_service, its_third_service,
+                    boost::icl::interval_bounds::closed()),
+            its_instances_methods);
     EXPECT_FALSE(its_security->is_policy_update_allowed(1000, _policy));
 
     // TCP connection setting:

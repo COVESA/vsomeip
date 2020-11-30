@@ -67,7 +67,11 @@ application_impl::application_impl(const std::string &_name)
           is_routing_manager_host_(false),
           stopped_called_(false),
           watchdog_timer_(io_),
-          client_side_logging_(false) {
+          client_side_logging_(false)
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+          , has_session_handling_(true)
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+{
     own_uid_ = ANY_UID;
     own_gid_ = ANY_GID;
 #ifndef _WIN32
@@ -229,6 +233,13 @@ bool application_impl::init() {
         // the main dispatcher
         max_dispatchers_ = its_configuration->get_max_dispatchers(name_) + 1;
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
+
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+        has_session_handling_ = its_configuration->has_session_handling(name_);
+        if (!has_session_handling_)
+            VSOMEIP_INFO << "application: " << name_
+                << " has session handling switched off!";
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
 
         std::string its_routing_host = its_configuration->get_routing_host();
         if (its_routing_host != "") {
@@ -615,7 +626,7 @@ void application_impl::unsubscribe(service_t _service, instance_t _instance,
 bool application_impl::is_available(
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     return is_available_unlocked(_service, _instance, _major, _minor);
 }
 
@@ -689,7 +700,7 @@ bool application_impl::are_available(
         available_t &_available,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     return are_available_unlocked(_available, _service, _instance, _major, _minor);
 }
 
@@ -868,7 +879,7 @@ void application_impl::unregister_state_handler() {
 void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, availability_handler_t _handler,
         major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
     if (state_ == state_type_e::ST_REGISTERED) {
         do_register_availability_handler(_service, _instance,
                 _handler, _major, _minor);
@@ -904,7 +915,7 @@ void application_impl::do_register_availability_handler(service_t _service,
 
 void application_impl::unregister_availability_handler(service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(availability_mutex_);
     auto found_service = availability_.find(_service);
     if (found_service != availability_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1253,11 +1264,18 @@ void application_impl::set_client(const client_t &_client) {
 }
 
 session_t application_impl::get_session() {
+
+#ifdef VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+    if (!has_session_handling_)
+        return (0);
+#endif // VSOMEIP_HAS_SESSION_HANDLING_CONFIG
+
     std::lock_guard<std::mutex> its_lock(session_mutex_);
     if (0 == ++session_) {
         // Smallest allowed session identifier
         session_ = 1;
     }
+
     return session_;
 }
 
@@ -1275,7 +1293,7 @@ boost::asio::io_service & application_impl::get_io() {
 
 void application_impl::on_state(state_type_e _state) {
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         if (state_ != _state) {
             state_ = _state;
             if (state_ == state_type_e::ST_REGISTERED) {
@@ -1290,6 +1308,17 @@ void application_impl::on_state(state_type_e _state) {
                                             its_minor.second.first,
                                             its_major.first, its_minor.first);
                                 }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Call on_availability callback on each service
+                for (const auto &its_service : availability_) {
+                    for (const auto &its_instance : its_service.second) {
+                        for (const auto &its_major : its_instance.second) {
+                            for (const auto &its_minor : its_major.second) {
+                                on_availability(its_service.first, its_instance.first, false, its_major.first, its_minor.first);
                             }
                         }
                     }
@@ -1322,7 +1351,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         bool _is_available, major_version_t _major, minor_version_t _minor) {
     std::vector<availability_handler_t> its_handlers;
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         if (_is_available == is_available_unlocked(_service, _instance, _major, _minor)) {
             return;
         }
@@ -1860,7 +1889,7 @@ void application_impl::clear_all_handler() {
     }
 
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::lock_guard<std::recursive_mutex> availability_lock(availability_mutex_);
         availability_.clear();
     }
 

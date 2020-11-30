@@ -1,6 +1,35 @@
 Changes
 =======
 
+v3.1.20.1
+- CMakeLists.txt fixes
+  (by Martin Haase)
+- Mark all services unavailable when the routing manager goes down
+  (by Philip Werner & dannyrhubarb)
+
+v3.1.20
+- SomeIP/TP optimization
+- Fix for expired subscriptions
+
+v3.1.19
+- Log statistics for high frequent received remote events
+- Avoid unintended deletion of all service instances in release_service()
+- Prevent deletion of server endpoint on SubscribeEventGroupACK with multicast endpoint
+- Do not lock the multicast mutex twice
+
+v3.1.18
+- Support boost 1.74
+- Ignore remote offers without referenced endpoint options
+- Fixed race condition when removing security policies
+- Ensure composite send operations have finished before resetting TCP server endpoint
+
+v3.1.17
+- Support AutoSAR E2E Profile 4
+- Support dynamic policies for offered services
+- Fixed race condition between service shutdown and subscription
+- Fixed race condition between service instances offered on the
+  same endpoint(s).
+
 v3.1.16.1
 - Restore IPv6 within UDP server endpoint
 - AOSP build adaptation to vsomeip3 libraries
@@ -15,6 +44,23 @@ v3.1.15
 - Speedup security policy handling
 - Enable building with boost v1.73.0
 
+v3.1.14.1
+- Merged extended support for static routing (versioning)
+  (by Jean-Patrice Laude jean-patrice.laude@renault.com)
+- Merged simplification of build process for hello_world example
+  (by Nikolay Khilyuk nkh@ua.fm)
+- Updated Android.bp to use boost 1.70 or higher
+- Merged Android support for hello_world example 
+  (by Nikolay Khilyuk nkh@ua.fm)
+- Align response sample to documentation (do not specify application name)
+  (by JayHou houjie@lixiang.com)
+- Call dlerror before calling dlsym to clear previous error
+  (by Oleg Kharitonov Oleg.Kharitonov@elektrobit.com)
+- Get base path from environment variable for Android NDK
+  (by Nikolay Khilyuk nkh@ua.fm)
+- Fixed wrong library naming
+  (by Nikolay Khilyuk nkh@ua.fm)
+  
 v3.1.14
 - Fixed race conditions (application registration, subscription)
 

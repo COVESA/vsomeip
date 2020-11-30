@@ -47,7 +47,8 @@ routing_manager_stub::routing_manager_stub(
         client_registration_running_(false),
         max_local_message_size_(configuration_->get_max_message_size_local()),
         configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
-        pinged_clients_timer_(io_) {
+        pinged_clients_timer_(io_),
+        pending_security_update_id_(0) {
 }
 
 routing_manager_stub::~routing_manager_stub() {
@@ -760,7 +761,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     std::memcpy(&its_pending_security_update_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(pending_security_update_id_t));
 
-                    host_->on_security_update_response(its_pending_security_update_id ,its_client);
+                    on_security_update_response(its_pending_security_update_id ,its_client);
                     break;
                 }
                 case VSOMEIP_REMOVE_SECURITY_POLICY_RESPONSE: {
@@ -773,7 +774,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     std::memcpy(&its_pending_security_update_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
                             sizeof(pending_security_update_id_t));
 
-                    host_->on_security_update_response(its_pending_security_update_id ,its_client);
+                    on_security_update_response(its_pending_security_update_id ,its_client);
                     break;
                 }
             }
@@ -787,9 +788,20 @@ void routing_manager_stub::on_register_application(client_t _client) {
         VSOMEIP_WARNING << "Reregistering application: " << std::hex << _client
                 << ". Last registration might have been taken too long.";
     } else {
-        (void)host_->find_or_create_local(_client);
-        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
-        routing_info_[_client].first = 0;
+        endpoint = host_->find_or_create_local(_client);
+        {
+            std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+            routing_info_[_client].first = 0;
+        }
+
+        std::pair<uid_t, gid_t> its_uid_gid;
+        std::set<std::shared_ptr<policy> > its_policies;
+
+        security::get()->get_client_to_uid_gid_mapping(_client, its_uid_gid);
+        get_requester_policies(its_uid_gid.first, its_uid_gid.second, its_policies);
+
+        if (!its_policies.empty())
+            send_requester_policies({ _client }, its_policies);
     }
 }
 
@@ -2150,6 +2162,410 @@ bool routing_manager_stub::send_remove_security_policy_request( client_t _client
         return its_endpoint->send(its_command, sizeof(its_command));
     } else {
         return false;
+    }
+}
+
+bool
+routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid,
+        const std::set<std::shared_ptr<policy> > &_policies) {
+
+    std::lock_guard<std::mutex> its_lock(requester_policies_mutex_);
+    auto found_uid = requester_policies_.find(_uid);
+    if (found_uid != requester_policies_.end()) {
+        auto found_gid = found_uid->second.find(_gid);
+        if (found_gid != found_uid->second.end()) {
+            found_gid->second.insert(_policies.begin(), _policies.end());
+        } else {
+            found_uid->second.insert(std::make_pair(_gid, _policies));
+        }
+    } else {
+        requester_policies_[_uid][_gid] = _policies;
+    }
+
+    // Check whether clients with uid/gid are already registered.
+    // If yes, update their policy
+    std::unordered_set<client_t> its_clients;
+    security::get()->get_clients(_uid, _gid, its_clients);
+
+    if (!its_clients.empty())
+        return send_requester_policies(its_clients, _policies);
+
+    return (true);
+}
+
+void
+routing_manager_stub::remove_requester_policies(uid_t _uid, gid_t _gid) {
+
+    std::lock_guard<std::mutex> its_lock(requester_policies_mutex_);
+    auto found_uid = requester_policies_.find(_uid);
+    if (found_uid != requester_policies_.end()) {
+        found_uid->second.erase(_gid);
+        if (found_uid->second.empty())
+            requester_policies_.erase(_uid);
+    }
+}
+
+void
+routing_manager_stub::get_requester_policies(uid_t _uid, gid_t _gid,
+        std::set<std::shared_ptr<policy> > &_policies) const {
+
+    std::lock_guard<std::mutex> its_lock(requester_policies_mutex_);
+    auto found_uid = requester_policies_.find(_uid);
+    if (found_uid != requester_policies_.end()) {
+        auto found_gid = found_uid->second.find(_gid);
+        if (found_gid != found_uid->second.end())
+            _policies = found_gid->second;
+    }
+}
+
+void
+routing_manager_stub::add_pending_security_update_handler(
+        pending_security_update_id_t _id, security_update_handler_t _handler) {
+
+    std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+    security_update_handlers_[_id] = _handler;
+}
+
+void
+routing_manager_stub::add_pending_security_update_timer(
+        pending_security_update_id_t _id) {
+
+    std::shared_ptr<boost::asio::steady_timer> its_timer
+        = std::make_shared<boost::asio::steady_timer>(io_);
+
+    boost::system::error_code ec;
+    its_timer->expires_from_now(std::chrono::milliseconds(3000), ec);
+    if (!ec) {
+        its_timer->async_wait(
+                std::bind(
+                        &routing_manager_stub::on_security_update_timeout,
+                        shared_from_this(),
+                        std::placeholders::_1, _id, its_timer));
+    } else {
+        VSOMEIP_ERROR << __func__
+                << "[" << std::dec << _id << "]: timer creation: "
+                << ec.message();
+    }
+    std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+    security_update_timers_[_id] = its_timer;
+}
+
+bool
+routing_manager_stub::send_requester_policies(const std::unordered_set<client_t> &_clients,
+        const std::set<std::shared_ptr<policy> > &_policies) {
+
+    pending_security_update_id_t its_policy_id;
+
+    // serialize the policies and send them...
+    for (const auto p : _policies) {
+        std::vector<byte_t> its_policy_data;
+        if (p->serialize(its_policy_data)) {
+            std::vector<byte_t> its_message;
+            its_message.push_back(VSOMEIP_UPDATE_SECURITY_POLICY_INT);
+            its_message.push_back(0);
+            its_message.push_back(0);
+
+            uint32_t its_policy_size = static_cast<uint32_t>(its_policy_data.size() + sizeof(uint32_t));
+            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_size));
+            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_size));
+            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_size));
+            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_size));
+
+            its_policy_id = pending_security_update_add(_clients);
+            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_id));
+            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_id));
+            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_id));
+            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_id));
+
+            its_message.insert(its_message.end(), its_policy_data.begin(), its_policy_data.end());
+
+            for (const auto c : _clients) {
+                std::shared_ptr<endpoint> its_endpoint = host_->find_local(c);
+                if (its_endpoint)
+                    its_endpoint->send(&its_message[0], static_cast<uint32_t>(its_message.size()));
+            }
+        }
+    }
+
+    return (true);
+}
+
+void routing_manager_stub::on_security_update_timeout(
+        const boost::system::error_code& _error,
+        pending_security_update_id_t _id,
+        std::shared_ptr<boost::asio::steady_timer> _timer) {
+    (void)_timer;
+    if (_error) {
+        // timer was cancelled
+        return;
+    }
+    security_update_state_e its_state = security_update_state_e::SU_UNKNOWN_USER_ID;
+    std::unordered_set<client_t> its_missing_clients = pending_security_update_get(_id);
+    {
+        // erase timer
+        std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+        security_update_timers_.erase(_id);
+    }
+    {
+        //  print missing responses and check if some clients did not respond because they already disconnected
+        if (!its_missing_clients.empty()) {
+            for (auto its_client : its_missing_clients) {
+                VSOMEIP_INFO << __func__ << ": Client 0x" << std::hex << its_client
+                        << " did not respond to the policy update / removal with ID: 0x" << std::hex << _id;
+                if (!host_->find_local(its_client)) {
+                    VSOMEIP_INFO << __func__ << ": Client 0x" << std::hex << its_client
+                            << " is not connected anymore, do not expect answer for policy update / removal with ID: 0x"
+                            << std::hex << _id;
+                    pending_security_update_remove(_id, its_client);
+                }
+            }
+        }
+
+        its_missing_clients = pending_security_update_get(_id);
+        if (its_missing_clients.empty()) {
+            VSOMEIP_INFO << __func__ << ": Received all responses for "
+                    "security update/removal ID: 0x" << std::hex << _id;
+            its_state = security_update_state_e::SU_SUCCESS;
+        }
+        {
+            // erase pending security update
+            std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+            pending_security_updates_.erase(_id);
+        }
+
+        // call handler with error on timeout or with SUCCESS if missing clients are not connected
+        std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+        const auto found_handler = security_update_handlers_.find(_id);
+        if (found_handler != security_update_handlers_.end()) {
+            found_handler->second(its_state);
+            security_update_handlers_.erase(found_handler);
+        } else {
+            VSOMEIP_WARNING << __func__ << ": Callback not found for security update / removal with ID: 0x"
+                    << std::hex << _id;
+        }
+    }
+}
+
+bool routing_manager_stub::update_security_policy_configuration(
+        uint32_t _uid, uint32_t _gid,
+        const std::shared_ptr<policy> &_policy,
+        const std::shared_ptr<payload> &_payload,
+        const security_update_handler_t &_handler) {
+
+    bool ret(true);
+
+    // cache security policy payload for later distribution to new registering clients
+    policy_cache_add(_uid, _payload);
+
+    // update security policy from configuration
+    security::get()->update_security_policy(_uid, _gid, _policy);
+
+    // Build requester policies for the services offered by the new policy
+    std::set<std::shared_ptr<policy> > its_requesters;
+    security::get()->get_requester_policies(_policy, its_requesters);
+
+    // and add them to the requester policy cache
+    add_requester_policies(_uid, _gid, its_requesters);
+
+    // determine currently connected clients
+    std::unordered_set<client_t> its_clients_to_inform;
+    auto its_epm = host_->get_endpoint_manager();
+    if (its_epm)
+        its_clients_to_inform = its_epm->get_connected_clients();
+
+    // add handler
+    pending_security_update_id_t its_id;
+    if (!its_clients_to_inform.empty()) {
+        its_id = pending_security_update_add(its_clients_to_inform);
+
+        add_pending_security_update_handler(its_id, _handler);
+        add_pending_security_update_timer(its_id);
+
+        // trigger all currently connected clients to update the security policy
+        uint32_t sent_counter(0);
+        uint32_t its_tranche =
+                uint32_t(its_clients_to_inform.size() >= 10 ? (its_clients_to_inform.size() / 10) : 1);
+        VSOMEIP_INFO << __func__ << ": Informing [" << std::dec << its_clients_to_inform.size()
+                << "] currently connected clients about policy update for UID: "
+                << std::dec << _uid << " with update ID: 0x" << std::hex << its_id;
+        for (auto its_client : its_clients_to_inform) {
+            if (!send_update_security_policy_request(its_client, its_id, _uid, _payload)) {
+                VSOMEIP_INFO << __func__ << ": Couldn't send update security policy "
+                                        << "request to client 0x" << std::hex << std::setw(4)
+                                        << std::setfill('0') << its_client << " policy UID: "
+                                        << std::hex << std::setw(4) << std::setfill('0') << _uid << " GID: "
+                                        << std::hex << std::setw(4) << std::setfill('0') << _gid
+                                        << " with update ID: 0x" << std::hex << its_id
+                                        << " as client already disconnected";
+                // remove client from expected answer list
+                pending_security_update_remove(its_id, its_client);
+            }
+            sent_counter++;
+            // Prevent burst
+            if (sent_counter % its_tranche == 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+    } else {
+        // if routing manager has no client call the handler directly
+        _handler(security_update_state_e::SU_SUCCESS);
+    }
+
+    return ret;
+}
+
+bool routing_manager_stub::remove_security_policy_configuration(
+        uint32_t _uid, uint32_t _gid, const security_update_handler_t &_handler) {
+
+    bool ret(true);
+
+    // remove security policy from configuration (only if there was a updateACL call before)
+    if (is_policy_cached(_uid)) {
+        if (!security::get()->remove_security_policy(_uid, _gid)) {
+            _handler(security_update_state_e::SU_UNKNOWN_USER_ID);
+            ret = false;
+        } else {
+            // remove policy from cache to prevent sending it to registering clients
+            policy_cache_remove(_uid);
+
+            // add handler
+            pending_security_update_id_t its_id;
+
+            // determine currently connected clients
+            std::unordered_set<client_t> its_clients_to_inform;
+            auto its_epm = host_->get_endpoint_manager();
+            if (its_epm)
+                its_clients_to_inform = its_epm->get_connected_clients();
+
+            if (!its_clients_to_inform.empty()) {
+                its_id = pending_security_update_add(its_clients_to_inform);
+
+                add_pending_security_update_handler(its_id, _handler);
+                add_pending_security_update_timer(its_id);
+
+                // trigger all clients to remove the security policy
+                uint32_t sent_counter(0);
+                uint32_t its_tranche =
+                        uint32_t(its_clients_to_inform.size() >= 10 ? (its_clients_to_inform.size() / 10) : 1);
+                VSOMEIP_INFO << __func__ << ": Informing [" << std::dec << its_clients_to_inform.size()
+                        << "] currently connected clients about policy removal for UID: "
+                        << std::dec << _uid << " with update ID: " << its_id;
+                for (auto its_client : its_clients_to_inform) {
+                    if (!send_remove_security_policy_request(its_client, its_id, _uid, _gid)) {
+                        VSOMEIP_INFO << __func__ << ": Couldn't send remove security policy "
+                                                << "request to client 0x" << std::hex << std::setw(4)
+                                                << std::setfill('0') << its_client << " policy UID: "
+                                                << std::hex << std::setw(4) << std::setfill('0') << _uid << " GID: "
+                                                << std::hex << std::setw(4) << std::setfill('0') << _gid
+                                                << " with update ID: 0x" << std::hex << its_id
+                                                << " as client already disconnected";
+                        // remove client from expected answer list
+                        pending_security_update_remove(its_id, its_client);
+                    }
+                    sent_counter++;
+                    // Prevent burst
+                    if (sent_counter % its_tranche == 0) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    }
+                }
+            } else {
+                // if routing manager has no client call the handler directly
+                _handler(security_update_state_e::SU_SUCCESS);
+            }
+        }
+    }
+    else {
+        _handler(security_update_state_e::SU_UNKNOWN_USER_ID);
+        ret = false;
+    }
+    return ret;
+}
+
+pending_security_update_id_t routing_manager_stub::pending_security_update_add(
+        const std::unordered_set<client_t>& _clients) {
+    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    if (++pending_security_update_id_ == 0) {
+        pending_security_update_id_++;
+    }
+    pending_security_updates_[pending_security_update_id_] = _clients;
+
+    return pending_security_update_id_;
+}
+
+std::unordered_set<client_t> routing_manager_stub::pending_security_update_get(
+        pending_security_update_id_t _id) {
+    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    std::unordered_set<client_t> its_missing_clients;
+    auto found_si = pending_security_updates_.find(_id);
+    if (found_si != pending_security_updates_.end()) {
+        its_missing_clients = pending_security_updates_[_id];
+    }
+    return its_missing_clients;
+}
+
+bool routing_manager_stub::pending_security_update_remove(
+        pending_security_update_id_t _id, client_t _client) {
+    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    auto found_si = pending_security_updates_.find(_id);
+    if (found_si != pending_security_updates_.end()) {
+        if (found_si->second.erase(_client)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool routing_manager_stub::is_pending_security_update_finished(
+        pending_security_update_id_t _id) {
+    std::lock_guard<std::mutex> its_lock(pending_security_updates_mutex_);
+    bool ret(false);
+    auto found_si = pending_security_updates_.find(_id);
+    if (found_si != pending_security_updates_.end()) {
+        if (!found_si->second.size()) {
+            ret = true;
+        }
+    }
+    if (ret) {
+        pending_security_updates_.erase(_id);
+    }
+    return ret;
+}
+
+void routing_manager_stub::on_security_update_response(
+        pending_security_update_id_t _id, client_t _client) {
+    if (pending_security_update_remove(_id, _client)) {
+        if (is_pending_security_update_finished(_id)) {
+            // cancel timeout timer
+            {
+                std::lock_guard<std::mutex> its_lock(security_update_timers_mutex_);
+                auto found_timer = security_update_timers_.find(_id);
+                if (found_timer != security_update_timers_.end()) {
+                    boost::system::error_code ec;
+                    found_timer->second->cancel(ec);
+                    security_update_timers_.erase(found_timer);
+                } else {
+                    VSOMEIP_WARNING << __func__ << ": Received all responses "
+                            "for security update/removal ID: 0x"
+                            << std::hex << _id << " but timeout already happened";
+                }
+            }
+
+            // call handler
+            {
+                std::lock_guard<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+                auto found_handler = security_update_handlers_.find(_id);
+                if (found_handler != security_update_handlers_.end()) {
+                    found_handler->second(security_update_state_e::SU_SUCCESS);
+                    security_update_handlers_.erase(found_handler);
+                    VSOMEIP_INFO << __func__ << ": Received all responses for "
+                            "security update/removal ID: 0x" << std::hex << _id;
+                } else {
+                    VSOMEIP_WARNING << __func__ << ": Received all responses "
+                            "for security update/removal ID: 0x"
+                            << std::hex << _id << " but didn't find handler";
+                }
+            }
+        }
     }
 }
 

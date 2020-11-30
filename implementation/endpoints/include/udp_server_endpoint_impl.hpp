@@ -48,6 +48,7 @@ public:
             std::chrono::nanoseconds *_maximum_retention) const;
 
     VSOMEIP_EXPORT void join(const std::string &_address);
+    VSOMEIP_EXPORT void join_unlocked(const std::string &_address);
     void leave(const std::string &_address);
 
     void add_default_target(service_t _service,

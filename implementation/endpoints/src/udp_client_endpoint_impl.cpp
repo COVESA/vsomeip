@@ -93,8 +93,8 @@ void udp_client_endpoint_impl::connect() {
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
-            if (!setsockopt(socket_->native_handle(),
-                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size())) {
+            if (setsockopt(socket_->native_handle(),
+                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size()) == -1) {
                 VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\"";
             }
         }
@@ -268,7 +268,7 @@ void udp_client_endpoint_impl::receive_cbk(
 #if 0
         std::stringstream msg;
         msg << "ucei::rcb(" << _error.message() << "): ";
-        for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
+        for (std::size_t i = 0; i < _bytes; ++i)
             msg << std::hex << std::setw(2) << std::setfill('0')
                 << (int) (*_recv_buffer)[i] << " ";
         VSOMEIP_INFO << msg.str();

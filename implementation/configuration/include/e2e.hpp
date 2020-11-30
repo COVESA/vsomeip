@@ -19,16 +19,14 @@ struct e2e {
     typedef std::map<std::string, std::string> custom_parameters_t;
 
     e2e() :
-        data_id(0),
         variant(""),
         profile(""),
         service_id(0),
         event_id(0) {
     }
 
-    e2e(uint16_t _data_id, std::string _variant, std::string _profile, service_t _service_id,
+    e2e(std::string _variant, std::string _profile, service_t _service_id,
         event_t _event_id, custom_parameters_t&& _custom_parameters) :
-        data_id(_data_id),
         variant(_variant),
         profile(_profile),
         service_id(_service_id),
@@ -37,7 +35,6 @@ struct e2e {
     }
 
     // common config
-    uint16_t data_id;
     std::string variant;
     std::string profile;
     service_t service_id;

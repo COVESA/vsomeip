@@ -16,11 +16,15 @@ namespace e2e {
 namespace profile_custom {
 
 void profile_custom_checker::check(const e2e_buffer &_buffer,
-                                   e2e::profile_interface::check_status_t &_generic_check_status) {
+        instance_t _instance,
+        e2e::profile_interface::check_status_t &_generic_check_status) {
+
+    (void)_instance;
+
     std::lock_guard<std::mutex> lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
-   if (profile_custom::is_buffer_length_valid(config_, _buffer)) {
+    if (profile_custom::is_buffer_length_valid(config_, _buffer)) {
         uint32_t received_crc(0);
         uint32_t calculated_crc(0);
 
@@ -34,7 +38,6 @@ void profile_custom_checker::check(const e2e_buffer &_buffer,
                     << (uint32_t) calculated_crc << " received CRC: " << (uint32_t) received_crc;
         }
     }
-    return;
 }
 
 uint32_t profile_custom_checker::read_crc(const e2e_buffer &_buffer) const {

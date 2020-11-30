@@ -168,6 +168,7 @@ public:
 
     void on_subscribe_ack_with_multicast(
             service_t _service, instance_t _instance,
+            const boost::asio::ip::address &_sender,
             const boost::asio::ip::address &_address, uint16_t _port);
     void on_unsubscribe_ack(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
@@ -282,14 +283,17 @@ public:
                                bool _reliable);
 
     void on_resend_provided_events_response(pending_remote_offer_id_t _id);
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy>& _policy,
-                                              const std::shared_ptr<payload>& _payload, const security_update_handler_t& _handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid, const security_update_handler_t& _handler);
     client_t find_local_client(service_t _service, instance_t _instance);
-    void on_security_update_response(pending_security_update_id_t _id, client_t _client);
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
     bool is_subscribe_to_any_event_allowed(credentials_t _credentials, client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+
+    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+            const std::shared_ptr<policy> &_policy,
+            const std::shared_ptr<payload> &_payload,
+            const security_update_handler_t &_handler);
+    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+            const security_update_handler_t &_handler);
 
 private:
     bool offer_service(client_t _client,
@@ -400,28 +404,15 @@ private:
     std::pair<service_t, instance_t> pending_remote_offer_remove(
             pending_remote_offer_id_t _id);
 
-    void on_security_update_timeout(
-            const boost::system::error_code& _error,
-            pending_security_update_id_t _id,
-            std::shared_ptr<boost::asio::steady_timer> _timer);
-
-    pending_security_update_id_t pending_security_update_add(
-            const std::unordered_set<client_t>& _clients);
-
-    std::unordered_set<client_t> pending_security_update_get(
-            pending_security_update_id_t _id);
-
-    bool pending_security_update_remove(
-            pending_security_update_id_t _id, client_t _client);
-
-    bool is_pending_security_update_finished(
-            pending_security_update_id_t _id);
-
     bool insert_offer_command(service_t _service, instance_t _instance, uint8_t _command,
                         client_t _client, major_version_t _major, minor_version_t _minor);
     bool erase_offer_command(service_t _service, instance_t _instance);
 
     bool is_last_stop_callback(const uint32_t _callback_id);
+
+    bool insert_event_statistics(service_t _service, instance_t _instance,
+            method_t _method, length_t _length);
+    void statistics_log_timer_cbk(boost::system::error_code const & _error);
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
@@ -488,21 +479,20 @@ private:
     std::mutex last_resume_mutex_;
     std::chrono::steady_clock::time_point last_resume_;
 
-    std::mutex pending_security_updates_mutex_;
-    pending_security_update_id_t pending_security_update_id_;
-    std::map<pending_security_update_id_t, std::unordered_set<client_t>> pending_security_updates_;
-
-    std::recursive_mutex security_update_handlers_mutex_;
-    std::map<pending_security_update_id_t, security_update_handler_t> security_update_handlers_;
-
-    std::mutex security_update_timers_mutex_;
-    std::map<pending_security_update_id_t, std::shared_ptr<boost::asio::steady_timer>> security_update_timers_;
-
     std::mutex offer_serialization_mutex_;
     std::map<std::pair<service_t, instance_t>, std::deque<std::tuple<uint8_t, client_t, major_version_t, minor_version_t>>> offer_commands_;
 
     std::mutex callback_counts_mutex_;
     std::map<uint32_t, uint16_t> callback_counts_;
+
+    std::mutex statistics_log_timer_mutex_;
+    boost::asio::steady_timer statistics_log_timer_;
+
+    std::mutex message_statistics_mutex_;
+    std::map<std::tuple<service_t, instance_t, method_t>,
+        msg_statistic_t> message_statistics_;
+    std::tuple<service_t, instance_t, method_t> message_to_discard_;
+    uint32_t ignored_statistics_counter_;
 };
 
 }  // namespace vsomeip_v3

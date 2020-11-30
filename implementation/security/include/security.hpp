@@ -7,6 +7,10 @@
 #define VSOMEIP_V3_SECURITY_SECURITY_HPP_
 
 #include <memory>
+#include <unordered_set>
+
+#include <vsomeip/payload.hpp>
+#include <vsomeip/primitive_types.hpp>
 
 namespace vsomeip_v3 {
 
@@ -49,6 +53,11 @@ public:
         uint32_t _uid, uint32_t _gid) = 0;
     virtual void store_uid_gid_to_client_mapping(uint32_t _uid, uint32_t _gid,
         client_t _client) = 0;
+
+    virtual void get_requester_policies(const std::shared_ptr<policy> _policy,
+            std::set<std::shared_ptr<policy> > &_requesters) const = 0;
+    virtual void get_clients(uid_t _uid, gid_t _gid,
+            std::unordered_set<client_t> &_clients) const = 0;
 };
 
 } // namespace vsomeip_v3

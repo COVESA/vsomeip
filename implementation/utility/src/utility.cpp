@@ -39,7 +39,11 @@ HANDLE utility::lock_handle__(INVALID_HANDLE_VALUE);
 #else
 int utility::lock_fd__(-1);
 #endif
+#ifndef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
 bool utility::is_checked__(false);
+#else
+std::set<std::string> utility::is_checked__;
+#endif
 
 uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
     uint64_t its_size(0);
@@ -63,10 +67,17 @@ bool utility::is_routing_manager(const std::shared_ptr<configuration> &_config) 
     // Only the first caller can become routing manager.
     // Therefore, subsequent calls can be immediately answered...
     std::lock_guard<std::mutex> its_lock(mutex__);
+#ifndef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
     if (is_checked__)
         return false;
 
     is_checked__ = true;
+#else
+    if (is_checked__.find(_config->get_network()) != is_checked__.end())
+        return false;
+
+    is_checked__.insert(_config->get_network());
+#endif
 #ifdef _WIN32
     wchar_t its_tmp_folder[MAX_PATH];
     if (GetTempPathW(MAX_PATH, its_tmp_folder)) {
@@ -112,8 +123,13 @@ bool utility::is_routing_manager(const std::shared_ptr<configuration> &_config) 
 
 void utility::remove_lockfile(const std::shared_ptr<configuration> &_config) {
     std::lock_guard<std::mutex> its_lock(mutex__);
+#ifndef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
     if (!is_checked__) // No need to do anything as automatic
         return;
+#else
+    if (is_checked__.find(_config->get_network()) == is_checked__.end()) // No need to do anything as automatic
+        return;
+#endif
 
 #ifdef _WIN32
     if (lock_handle__ != INVALID_HANDLE_VALUE) {
@@ -157,7 +173,11 @@ void utility::remove_lockfile(const std::shared_ptr<configuration> &_config) {
                 << ": " << std::strerror(errno);
     }
 #endif
+#ifndef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
     is_checked__ = false;
+#else
+    is_checked__.erase(_config->get_network());
+#endif
 }
 
 bool utility::exists(const std::string &_path) {

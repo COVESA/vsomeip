@@ -50,6 +50,11 @@ enum class remote_subscription_state_e : std::uint8_t {
 typedef std::uint16_t remote_subscription_id_t;
 typedef std::uint32_t pending_remote_offer_id_t;
 
+struct msg_statistic_t {
+    uint32_t counter_;
+    length_t avg_length_;
+};
+
 }
 // namespace vsomeip_v3
 

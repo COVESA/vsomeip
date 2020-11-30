@@ -301,6 +301,11 @@ bool tp_message::check_lengths(const byte_t* const _data,
                                         _data[VSOMEIP_LENGTH_POS_MIN + 1],
                                         _data[VSOMEIP_LENGTH_POS_MIN + 2],
                                         _data[VSOMEIP_LENGTH_POS_MAX]);
+    const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
+                                        _data[VSOMEIP_TP_HEADER_POS_MIN],
+                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 1],
+                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 2],
+                                        _data[VSOMEIP_TP_HEADER_POS_MAX]);
     bool ret(true);
     if (!tp::tp_flag_is_set(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         VSOMEIP_ERROR << __func__ << ": TP flag not set "
@@ -341,6 +346,14 @@ bool tp_message::check_lengths(const byte_t* const _data,
         VSOMEIP_ERROR << __func__ << ": Message exceeds maximum configured size: "
                 << get_message_id(_data, _data_length)
                 << "segment size: " << std::dec << _segment_size
+                << " current message size: " << std::dec << current_message_size_
+                << " maximum message size: " << std::dec << max_message_size_;
+        ret = false;
+    } else if (tp::get_offset(its_tp_header) + _segment_size > max_message_size_ ) {
+        VSOMEIP_ERROR << __func__ << ": SomeIP/TP offset field exceeds maximum configured message size: "
+                << get_message_id(_data, _data_length)
+                << " TP offset [bytes]: " << std::dec << tp::get_offset(its_tp_header)
+                << " segment size: " << std::dec << _segment_size
                 << " current message size: " << std::dec << current_message_size_
                 << " maximum message size: " << std::dec << max_message_size_;
         ret = false;
