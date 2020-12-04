@@ -175,26 +175,24 @@ void tcp_client_endpoint_impl::connect() {
         }
 #endif
 
-        // In case a client endpoint port was configured,
-        // bind to it before connecting
-        if (local_.port() != ILLEGAL_PORT) {
-            boost::system::error_code its_bind_error;
-            socket_->bind(local_, its_bind_error);
-            if(its_bind_error) {
-                VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
-                        "Error binding socket: " << its_bind_error.message()
-                        << " remote:" << get_address_port_remote();
-                try {
-                    // don't connect on bind error to avoid using a random port
-                    strand_.post(std::bind(&client_endpoint_impl::connect_cbk,
-                                    shared_from_this(), its_bind_error));
-                } catch (const std::exception &e) {
-                    VSOMEIP_ERROR << "tcp_client_endpoint_impl::connect: "
-                            << e.what() << " remote:" << get_address_port_remote();
-                }
-                return;
+        // Bind address and, optionally, port.
+        boost::system::error_code its_bind_error;
+        socket_->bind(local_, its_bind_error);
+        if(its_bind_error) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
+                    "Error binding socket: " << its_bind_error.message()
+                    << " remote:" << get_address_port_remote();
+            try {
+                // don't connect on bind error to avoid using a random port
+                strand_.post(std::bind(&client_endpoint_impl::connect_cbk,
+                                shared_from_this(), its_bind_error));
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << "tcp_client_endpoint_impl::connect: "
+                        << e.what() << " remote:" << get_address_port_remote();
             }
+            return;
         }
+
         state_ = cei_state_e::CONNECTING;
         connect_timepoint_ = std::chrono::steady_clock::now();
         aborted_restart_count_ = 0;

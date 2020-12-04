@@ -266,7 +266,9 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(
                 << " Server endpoint creation failed."
                 << " Reason: "<< e.what()
                 << " Port: " << _port
-                << " (" << _reliable << ")";
+                << " (reliable="
+                << (_reliable ? "reliable" : "unreliable")
+                << ")";
     }
 
     return (its_endpoint);

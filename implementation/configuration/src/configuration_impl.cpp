@@ -1627,13 +1627,24 @@ void configuration_impl::load_event(
         }
 
         if (its_event_id > 0) {
+            std::shared_ptr<event> its_event;
+
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
-                VSOMEIP_ERROR << "Multiple configurations for event ["
-                        << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
-                        << its_event_id << "]";
+                if (found_event->second->is_placeholder_) {
+                    its_event = found_event->second;
+                } else {
+                    VSOMEIP_ERROR << "Multiple configurations for event ["
+                            << std::hex << _service->service_ << "."
+                            << _service->instance_ << "."
+                            << its_event_id << "]";
+                }
             } else {
+                its_event = std::make_shared<event>(its_event_id);
+                   _service->events_[its_event_id] = its_event;
+            }
+
+            if (its_event) {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
                     if (_service->unreliable_ != ILLEGAL_PORT) {
@@ -1649,9 +1660,9 @@ void configuration_impl::load_event(
                                 ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
 
-                std::shared_ptr<event> its_event = std::make_shared<event>(
-                        its_event_id, its_is_field, its_reliability);
-                _service->events_[its_event_id] = its_event;
+                its_event->is_placeholder_ = false;
+                its_event->reliability_ = its_reliability;
+                its_event->is_field_ = its_is_field;
             }
         }
     }
@@ -1715,8 +1726,7 @@ void configuration_impl::load_eventgroup(
                         if (find_event != _service->events_.end()) {
                             its_event = find_event->second;
                         } else {
-                            its_event = std::make_shared<event>(its_event_id,
-                                            false, reliability_type_e::RT_UNRELIABLE);
+                            its_event = std::make_shared<event>(its_event_id);
                         }
                         if (its_event) {
                             its_event->groups_.push_back(its_eventgroup);

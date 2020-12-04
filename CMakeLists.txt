@@ -12,7 +12,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 1)
 set (VSOMEIP_PATCH_VERSION 20)
-set (VSOMEIP_HOTFIX_VERSION 1)
+set (VSOMEIP_HOTFIX_VERSION 2)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
@@ -140,13 +140,7 @@ endif ()
 find_package(Threads REQUIRED)
 
 # Boost
-if (${CMAKE_SYSTEM_NAME} MATCHES "Android")
-  # Please implement your macro workaround to set Boost_ variables, because NDK does not have Boost libs package
-  # Example of macro implementation you can find in test project that mentioned in examples/hello_world/readme_android
-  ndk_find_package_boost(system thread filesystem)
-else()
-  find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
-endif()
+find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
 include_directories( ${Boost_INCLUDE_DIR} )
 
 if(Boost_FOUND)

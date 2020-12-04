@@ -442,7 +442,8 @@ void routing_manager_base::register_event(client_t _client,
             }
         }
     }
-    if(!_is_cache_placeholder) {
+
+    if (!its_event->is_cache_placeholder()) {
         its_event->add_ref(_client, _is_provided);
     }
 
@@ -1045,7 +1046,9 @@ void routing_manager_base::remove_local(client_t _client,
         for (auto& sic : its_clients) {
             local_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
             if (local_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
-                local_services_history_.erase(std::get<0>(sic));
+                local_services_history_[std::get<0>(sic)].erase(std::get<1>(sic));
+                if (local_services_history_[std::get<0>(sic)].size() == 0)
+                    local_services_history_.erase(std::get<0>(sic));
             }
         }
     }

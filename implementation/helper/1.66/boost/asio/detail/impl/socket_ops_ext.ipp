@@ -59,20 +59,30 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
   if (result >= 0) {
     ec = boost::system::error_code();
 
-	// Find destination address
-	for (LPWSACMSGHDR cmsg = WSA_CMSG_FIRSTHDR(&msg);
-		 cmsg != NULL;
-	  	 cmsg = WSA_CMSG_NXTHDR(&msg, cmsg))
-	{
-	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
-	  	continue;
-
-      struct in_pktinfo *pi = (struct in_pktinfo *) WSA_CMSG_DATA(cmsg);
-	  if (pi)
-	  {
-	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
-	  } 
-	}      
+    // Find destination address
+    for (LPWSACMSGHDR cmsg = WSA_CMSG_FIRSTHDR(&msg);
+         cmsg != NULL;
+         cmsg = WSA_CMSG_NXTHDR(&msg, cmsg))
+    {
+      if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO)
+      {
+        struct in_pktinfo *pi = (struct in_pktinfo *) WSA_CMSG_DATA(cmsg);
+        if (pi)
+        {
+          da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
+        }
+      } else
+      if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)
+      {
+        struct in6_pktinfo *pi = (struct in6_pktinfo *) WSA_CMSG_DATA(cmsg);
+        if (pi)
+        {
+          boost::asio::ip::address_v6::bytes_type b;
+          memcpy(b.data(), pi->ipi6_addr.s6_addr, sizeof(pi->ipi6_addr.s6_addr));
+          da = boost::asio::ip::address_v6(b);
+        }
+      }
+    }      
   } else {
     dwNumberOfBytesRecvd = -1;
   }
@@ -91,20 +101,30 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
   if (result >= 0) {
     ec = boost::system::error_code();
 
-	// Find destination address
-	for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-		 cmsg != NULL;
-	  	 cmsg = CMSG_NXTHDR(&msg, cmsg))
-	{
-	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
-	  	continue;
-
-      struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
-	  if (pi)
-	  {
-	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
-	  } 
-	}      
+    // Find destination address
+    for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+         cmsg != NULL;
+         cmsg = CMSG_NXTHDR(&msg, cmsg))
+    {
+      if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO)
+      {
+        struct in_pktinfo *pi = (struct in_pktinfo *) CMSG_DATA(cmsg);
+        if (pi)
+        {
+          da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
+        }
+      } else
+      if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)
+      {
+        struct in6_pktinfo *pi = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+        if (pi)
+        {
+          boost::asio::ip::address_v6::bytes_type b;
+          memcpy(b.data(), pi->ipi6_addr.s6_addr, sizeof(pi->ipi6_addr.s6_addr));
+          da = boost::asio::ip::address_v6(b);
+        }
+      }
+    }
   }
   return result;
 #endif // defined(BOOST_ASIO_WINDOWS) || defined(__CYGWIN__)

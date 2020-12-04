@@ -369,12 +369,22 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
 
 #ifdef _WIN32
                 const char* optval("0001");
-                ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IP, IP_PKTINFO,
-                    optval, sizeof(optval));
+                if (is_v4) {
+                    ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IP, IP_PKTINFO,
+                        optval, sizeof(optval));
+                } else if (is_v6) {
+                    ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IPV6, IPV6_PKTINFO,
+                        optval, sizeof(optval));
+                }
 #else
                 int optval(1);
-                ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IP, IP_PKTINFO,
-                    &optval, sizeof(optval));
+                if (is_v4) {
+                    ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IP, IP_PKTINFO,
+                        &optval, sizeof(optval));
+                } else {
+                    ::setsockopt(multicast_socket_->native_handle(), IPPROTO_IPV6, IPV6_RECVPKTINFO,
+                        &optval, sizeof(optval));
+                }
 #endif
                 multicast_id_++;
                 receive_multicast(multicast_id_);

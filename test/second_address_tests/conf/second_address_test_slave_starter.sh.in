@@ -19,7 +19,7 @@ OPERATIONMODE=$1
 COMMUNICATIONMODE=$2
 
 # Add second IP address to interface
-ip addr add @TEST_IP_SLAVE_SECOND@ dev eth0
+ip addr add @TEST_IP_SLAVE_SECOND@/32 dev eth0
 
 if [ "$OPERATIONMODE" = "CLIENT" ]; then
     SLAVE_APPLICATION=second_address_test_client
@@ -54,7 +54,7 @@ kill $PID_VSOMEIPD
 sleep 1
 
 # Delete second IP address
-ip addr del @TEST_IP_SLAVE_SECOND@ dev eth0
+ip addr del @TEST_IP_SLAVE_SECOND@/32 dev eth0
 
 # Check if everything went well
 exit $FAIL

@@ -292,18 +292,17 @@ void routing_manager_proxy::release_service(client_t _client,
         std::lock_guard<std::mutex> its_lock(state_mutex_);
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
 
-        bool pending(false);
         auto it = requests_to_debounce_.begin();
         while (it != requests_to_debounce_.end()) {
             if (it->service_ == _service
              && it->instance_ == _instance) {
-                pending = true;
+                break;
             }
             it++;
         }
-        if (it != requests_to_debounce_.end()) requests_to_debounce_.erase(it);
-
-        if (!pending && state_ == inner_state_type_e::ST_REGISTERED) {
+        if (it != requests_to_debounce_.end()) {
+            requests_to_debounce_.erase(it);
+        } else if (state_ == inner_state_type_e::ST_REGISTERED) {
             send_release_service(_client, _service, _instance);
         }
 
@@ -840,11 +839,14 @@ void routing_manager_proxy::on_connect(const std::shared_ptr<endpoint>& _endpoin
 }
 
 void routing_manager_proxy::on_disconnect(const std::shared_ptr<endpoint>& _endpoint) {
-    {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
-        is_connected_ = !(_endpoint == sender_);
-    }
-    if (!is_connected_) {
+
+    bool is_disconnected((_endpoint == sender_));
+    if (is_disconnected) {
+        {
+            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            is_connected_ = false;
+        }
+
         VSOMEIP_INFO << "routing_manager_proxy::on_disconnect: Client 0x" << std::hex
                 << get_client() << " calling host_->on_state "
                 << "with DEREGISTERED";
@@ -1755,11 +1757,11 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                         send_subscribe_nack(si.client_id_, si.service_id_,
                                 si.instance_id_, si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
                     } else {
+                        send_subscribe_ack(si.client_id_, si.service_id_,
+                                si.instance_id_, si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
                         routing_manager_base::subscribe(si.client_id_, si.uid_, si.gid_,
                                 si.service_id_, si.instance_id_, si.eventgroup_id_,
                                 si.major_, si.event_);
-                        send_subscribe_ack(si.client_id_, si.service_id_,
-                                si.instance_id_, si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
 #ifdef VSOMEIP_ENABLE_COMPAT
                         send_pending_notify_ones(si.service_id_,
                                 si.instance_id_, si.eventgroup_id_, si.client_id_);

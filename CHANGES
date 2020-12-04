@@ -1,6 +1,17 @@
 Changes
 =======
 
+v3.1.20.2
+- Removed special way of detecting boost within NDK (PR #187)
+- Allow events/eventgroups to be specified in arbitrary order (Issue #68)
+- Allow port 65536 to be used (Issue #80)
+- Support IPv6 (Issue #162, PR #179)
+- Fix handling of local service history (Issue #163)
+- Fix referencing of placeholder events (Issue #175)
+- Corrected handling of debounced requests when releasing (Issue #181)
+- Fixed possible race when disconnecting (Issue #182)
+- Align order of acknowledgement and value sending (Issue #183)
+
 v3.1.20.1
 - CMakeLists.txt fixes
   (by Martin Haase)

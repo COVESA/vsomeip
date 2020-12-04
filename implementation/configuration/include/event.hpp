@@ -17,13 +17,15 @@ namespace cfg {
 struct eventgroup;
 
 struct event {
-    event(event_t _id, bool _is_field, reliability_type_e _reliability)
+    event(event_t _id)
         : id_(_id),
-          is_field_(_is_field),
-          reliability_(_reliability) {
+          is_placeholder_(true),
+          is_field_(false),
+          reliability_(reliability_type_e::RT_UNRELIABLE) {
     }
 
     event_t id_;
+    bool is_placeholder_;
     bool is_field_;
     reliability_type_e reliability_;
     std::vector<std::weak_ptr<eventgroup> > groups_;
