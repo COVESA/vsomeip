@@ -1,6 +1,9 @@
 Changes
 =======
 
+v3.1.20.3
+- Correct detection payload changes (Issue #164)
+
 v3.1.20.2
 - Removed special way of detecting boost within NDK (PR #187)
 - Allow events/eventgroups to be specified in arbitrary order (Issue #68)

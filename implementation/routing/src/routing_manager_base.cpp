@@ -360,7 +360,10 @@ void routing_manager_base::register_event(client_t _client,
                         // Check whether all additional bytes (if any) are excluded
                         for (length_t i = its_min_length; i < its_max_length; i++) {
                             auto j = its_debounce->ignore_.find(i);
-                            if (j == its_debounce->ignore_.end() && j->second == 0xFF) {
+                            // A change is detected when an additional byte is not
+                            // excluded at all or if its exclusion does not cover
+                            // all its bits.
+                            if (j == its_debounce->ignore_.end() || j->second != 0xFF) {
                                 is_changed = true;
                                 break;
                             }
