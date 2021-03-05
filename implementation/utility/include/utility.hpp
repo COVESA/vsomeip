@@ -36,9 +36,7 @@ public:
     }
 
     static inline bool is_request(message_type_e _type) {
-        return ((_type < message_type_e::MT_NOTIFICATION)
-                || (_type >= message_type_e::MT_REQUEST_ACK
-                        && _type <= message_type_e::MT_REQUEST_NO_RETURN_ACK));
+        return (_type < message_type_e::MT_NOTIFICATION);
     }
 
     static inline bool is_request_no_return(std::shared_ptr<message> _message) {
