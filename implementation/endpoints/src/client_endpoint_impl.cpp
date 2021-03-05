@@ -612,7 +612,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
                 return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
             }
         }
-        VSOMEIP_ERROR << "cei::check_message_size: Dropping to big message ("
+        VSOMEIP_ERROR << "cei::check_message_size: Dropping too big message ("
                 << std::dec << _size << " Bytes). Maximum allowed message size is: "
                 << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
         ret = endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
