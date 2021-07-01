@@ -413,7 +413,8 @@ void application_impl::start() {
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             is_dispatching_ = true;
             auto its_main_dispatcher = std::make_shared<std::thread>(
-                    std::bind(&application_impl::main_dispatch, shared_from_this()));
+                    &application_impl::main_dispatch, shared_from_this()
+            );
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
         }
 
@@ -1774,7 +1775,7 @@ void application_impl::main_dispatch() {
             }
         } else {
             std::shared_ptr<sync_handler> its_handler;
-            while (is_dispatching_  && is_active_dispatcher(its_id)
+            while (is_dispatching_ && is_active_dispatcher(its_id)
                    && (its_handler = get_next_handler())) {
                 its_lock.unlock();
                 invoke_handler(its_handler);
@@ -2030,7 +2031,7 @@ bool application_impl::has_active_dispatcher() {
     return false;
 }
 
-bool application_impl::is_active_dispatcher(const std::thread::id &_id) {
+bool application_impl::is_active_dispatcher(const std::thread::id &_id) const {
     while (is_dispatching_) {
         if (dispatcher_mutex_.try_lock()) {
             for (const auto &d : dispatchers_) {

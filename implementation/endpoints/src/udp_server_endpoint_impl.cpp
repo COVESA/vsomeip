@@ -72,7 +72,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
         if (setsockopt(unicast_socket_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
+                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), socklen_t(its_device.size())) == -1) {
             VSOMEIP_WARNING << "UDP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
@@ -108,7 +108,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     const int its_udp_recv_buffer_size =
             configuration_->get_udp_receive_buffer_size();
     unicast_socket_.set_option(boost::asio::socket_base::receive_buffer_size(
-            its_udp_recv_buffer_size), ec);
+            static_cast<int>(its_udp_recv_buffer_size)), ec);
 
     if (ec) {
         VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't set "

@@ -28,7 +28,7 @@ struct udp_server_endpoint_impl_receive_op {
     socket_type_t &socket_;
     endpoint_type_t &sender_;
     receive_handler_t handler_;
-    byte_t *buffer_;
+    byte_t *buffer_ = nullptr;
     size_t length_;
     uint8_t multicast_id_;
     bool is_v4_;

@@ -38,7 +38,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local(client_t _client) 
     return create_local_unlocked(_client);
 }
 
-void endpoint_manager_base::remove_local(client_t _client) {
+void endpoint_manager_base::remove_local(client_t const _client) {
     std::shared_ptr<endpoint> its_endpoint(find_local(_client));
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);

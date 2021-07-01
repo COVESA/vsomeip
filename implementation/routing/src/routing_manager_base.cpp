@@ -1075,8 +1075,8 @@ void routing_manager_base::remove_local(client_t _client,
         std::lock_guard<std::mutex> its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.
         std::set<std::pair<service_t, instance_t>> its_services;
-        for (auto& s : local_services_) {
-            for (auto& i : s.second) {
+        for (auto const& s : local_services_) {
+            for (auto const& i : s.second) {
                 if (std::get<2>(i.second) == _client) {
                     its_services.insert({ s.first, i.first });
                     host_->on_availability(s.first, i.first, availability_state_e::AS_UNAVAILABLE,
@@ -1093,9 +1093,9 @@ void routing_manager_base::remove_local(client_t _client,
 
         // remove disconnected client from offer service history
         std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
-        for (auto& s : local_services_history_) {
-            for (auto& i : s.second) {
-                for (auto& c : i.second) {
+        for (auto const& s : local_services_history_) {
+            for (auto const& i : s.second) {
+                for (auto const& c : i.second) {
                     if (c == _client) {
                         its_clients.insert(std::make_tuple(s.first, i.first, c));
                     }

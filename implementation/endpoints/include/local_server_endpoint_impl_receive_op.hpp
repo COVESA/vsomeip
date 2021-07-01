@@ -22,7 +22,7 @@ struct local_server_endpoint_impl_receive_op {
 
     socket_type_t &socket_;
     receive_handler_t handler_;
-    byte_t *buffer_;
+    byte_t *buffer_ = nullptr;
     size_t length_;
     uid_t uid_;
     gid_t gid_;
