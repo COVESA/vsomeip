@@ -19,11 +19,11 @@
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
 #define VSOMEIP_ENV_BASE_PATH                   "VSOMEIP_BASE_PATH"
 
-#define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/etc/vsomeip.json"
+#define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/vendor/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
 #define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json"
 
-#define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/etc/vsomeip"
+#define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
 #define VSOMEIP_LOCAL_CONFIGURATION_FOLDER      "./vsomeip"
 
