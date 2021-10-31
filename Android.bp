@@ -25,6 +25,18 @@ libvsomeip_sd_srcs = [
 
 cc_defaults {
     name: "vsomeip_defaults",
+
+    header_libs: [
+        "libboost_headers",
+    ],
+
+    local_include_dirs: [
+        "interface",
+        "implementation/helper/1.70",
+    ],
+
+    rtti: true,
+
     cppflags: [
         "-std=c++11",
         "-fexceptions",
@@ -68,10 +80,13 @@ cc_library_shared {
 	"interface"
     ],
 
-    shared_libs: [
+    static_libs: [
         "libboost_system",
         "libboost_thread",
         "libboost_filesystem",
+    ],
+
+    shared_libs: [
         "liblog",
         "libutils"
     ]
@@ -119,7 +134,8 @@ cc_library_shared {
     ],
 
     shared_libs: [
-       "libvsomeip3"
+        "libvsomeip3",
+        "liblog"
     ]
 }
 
@@ -142,6 +158,71 @@ cc_library_shared {
 
     shared_libs: [
         "libvsomeip3",
+	"liblog",
         "libboost_thread"
     ]
+}
+
+cc_defaults {
+    name: "vsomeip_example_defaults",
+    vendor: true,
+    owner: "ts",
+
+    shared_libs: [
+        "libvsomeip3"
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-helloworld-client",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/hello_world/hello_world_client.cpp",
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-helloworld-service",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/hello_world/hello_world_service.cpp",
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-notify-sample",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/notify-sample.cpp",
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-request-sample",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/request-sample.cpp",
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-response-sample",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/response-sample.cpp",
+    ],
+}
+
+cc_binary {
+    name: "vsomeip-subscribe-sample",
+    defaults: ["vsomeip_example_defaults"],
+
+    srcs: [
+        "examples/subscribe-sample.cpp",
+    ],
 }
