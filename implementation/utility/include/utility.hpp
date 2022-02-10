@@ -131,7 +131,9 @@ public:
                 || _code == return_code_e::E_WRONG_PROTOCOL_VERSION
                 || _code == return_code_e::E_WRONG_INTERFACE_VERSION
                 || _code == return_code_e::E_MALFORMED_MESSAGE
-                || _code == return_code_e::E_WRONG_MESSAGE_TYPE);
+                || _code == return_code_e::E_WRONG_MESSAGE_TYPE
+                || (static_cast<std::uint8_t>(_code) >= 0x20
+                    && static_cast<std::uint8_t>(_code) <= 0x5E));
     }
 
 private:
