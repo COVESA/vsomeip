@@ -338,6 +338,9 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
                 boost::asio::socket_base::reuse_address optionReuseAddress(true);
                 multicast_socket_->set_option(optionReuseAddress, ec);
                 boost::asio::detail::throw_error(ec, "reuse address in multicast");
+                boost::asio::socket_base::broadcast optionBroadcast(true);
+                multicast_socket_->set_option(optionBroadcast, ec);
+                boost::asio::detail::throw_error(ec, "set broadcast option");
 
                 multicast_socket_->bind(*multicast_local_, ec);
                 boost::asio::detail::throw_error(ec, "bind multicast");
