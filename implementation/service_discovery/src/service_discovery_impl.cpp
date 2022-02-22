@@ -979,7 +979,7 @@ service_discovery_impl::send(bool _is_announcing) {
 
             std::lock_guard<std::mutex> its_lock(offer_mutex_);
             services_t its_offers = host_->get_offered_services();
-            insert_offer_entries(its_messages, its_offers, false);
+            insert_offer_entries(its_messages, its_offers, true);
 
             // Serialize and send
             return send(its_messages);
