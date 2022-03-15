@@ -632,6 +632,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             }
             if (found_service_msg) {
                 ++stp_hndlr_iter;
+                found_service_msg = false;
             } else { // all messages of the to be stopped service have been sent
                 auto handler = stp_hndlr_iter->second;
                 auto ptr = this->shared_from_this();

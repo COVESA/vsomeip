@@ -154,6 +154,7 @@ bool routing_manager_proxy::offer_service(client_t _client,
     if(!routing_manager_base::offer_service(_client, _service, _instance, _major, _minor)) {
         VSOMEIP_WARNING << "routing_manager_proxy::offer_service,"
                 << "routing_manager_base::offer_service returned false";
+        return false;
     }
     {
         std::lock_guard<std::mutex> its_lock(state_mutex_);
