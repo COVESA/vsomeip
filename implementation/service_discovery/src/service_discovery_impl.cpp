@@ -166,13 +166,8 @@ service_discovery_impl::start() {
         }
         if (endpoint_ && !reliable_) {
             // rejoin multicast group
-#ifndef ANDROID
-            reinterpret_cast<udp_server_endpoint_impl*>(
-                    endpoint_.get())->join(sd_multicast_);
-#else
             dynamic_cast<udp_server_endpoint_impl*>(
                     endpoint_.get())->join(sd_multicast_);
-#endif
         }
     }
     is_suspended_ = false;
@@ -3351,13 +3346,8 @@ service_discovery_impl::on_last_msg_received_timer_expired(
 
         // Rejoin multicast group
         if (endpoint_ && !reliable_) {
-#ifndef ANDROID
-            reinterpret_cast<udp_server_endpoint_impl*>(
-                    endpoint_.get())->join(sd_multicast_);
-#else
             dynamic_cast<udp_server_endpoint_impl*>(
                     endpoint_.get())->join(sd_multicast_);
-#endif
         }
         {
             boost::system::error_code ec;
