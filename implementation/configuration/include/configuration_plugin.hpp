@@ -17,7 +17,12 @@ class configuration;
 
 class configuration_plugin {
 public:
-    virtual ~configuration_plugin() = default;
+    virtual ~configuration_plugin()
+#ifndef ANDROID
+    {}
+#else
+    ;
+#endif
     virtual std::shared_ptr<configuration> get_configuration(const std::string &_name) = 0;
 };
 

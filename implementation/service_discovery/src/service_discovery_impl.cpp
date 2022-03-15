@@ -3732,8 +3732,10 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(
                     << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                     << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
     }
+	
     return its_reliability;
 }
+
 
 }  // namespace sd
 }  // namespace vsomeip_v3
