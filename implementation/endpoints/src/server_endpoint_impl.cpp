@@ -466,7 +466,7 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
                 return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
             }
         }
-        VSOMEIP_ERROR << "sei::send_intern: Dropping to big message (" << _size
+        VSOMEIP_ERROR << "sei::send_intern: Dropping too big message (" << _size
                 << " Bytes). Maximum allowed message size is: "
                 << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
         ret = endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
