@@ -273,6 +273,9 @@ public:
     virtual uint32_t get_statistics_interval() const = 0;
     virtual uint32_t get_statistics_min_freq() const = 0;
     virtual uint32_t get_statistics_max_messages() const = 0;
+
+    virtual bool add_service_instance(service_t service, instance_t instance) = 0;
+    virtual bool is_registered_service(service_t service, instance_t instance) = 0;
 };
 
 } // namespace vsomeip_v3

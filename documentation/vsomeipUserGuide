@@ -567,6 +567,15 @@ Contains the services of the service provider.
 +
 The id of the service.
 
+** `dynamic_instance` (optional)
++
+Configure if the instance_id is not known yet and will be configured during runtime. 
+This setup  also alows to configure the amount of instances during runtime (valid values:
+_true_ and _false_).
++
+If set to _true_ port configuration is done by dynamic_instance_unreliable and 
+dynamic_instance_reliable and setting the instance parameter is not required.
+
 ** `instance`
 +
 The id of the service instance.
@@ -605,6 +614,36 @@ Specifies whether magic cookies are enabled (valid values: _true_, _false_).
 Specifies that the communication with the service is unreliable respectively the
 UDP protocol is used for communication (valid values: the _port_ of the UDP
 endpoint).
+
+** `dynamic_instance_unreliable`
++
+Specifies that the communication with the service is unreliable respectively the 
+UDP protocol is used for communication. The given port range is used to create 
+dynamic instances. The amount of port numbers in the range define the maximum amount
+of instances that can be created during runtime.
+
+*** `first`
++
+The first entry of the port range.
+
+*** `last`
++
+The lowest last entry of the port service range.
+
+** `dynamic_instance_reliable`
++
+Specifies that the communication with the service is reliable respectively the 
+TCP protocol is used for communication. The given port range is used to create 
+dynamic instances. The amount of port numbers in the range define the maximum amount
+of instances that can be created during runtime.
+
+*** `first`
++
+The first entry of the port range.
+
+*** `last`
++
+The lowest last entry of the port service range.
 
 ** `events` (array)
 +

@@ -1453,6 +1453,7 @@ void configuration_impl::load_service(
     try {
         bool is_loaded(true);
         bool use_magic_cookies(false);
+        bool is_dynamic_service(false);
 
         std::shared_ptr<service> its_service(std::make_shared<service>());
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
@@ -1463,6 +1464,10 @@ void configuration_impl::load_service(
         its_service->major_ = DEFAULT_MAJOR;
         its_service->minor_ = DEFAULT_MINOR;
         its_service->ttl_ = DEFAULT_TTL;
+
+        // store until full service parsed
+        std::pair<uint16_t,uint16_t> its_reliable_port_range;
+        std::pair<uint16_t,uint16_t> its_unreliable_port_range;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -1480,7 +1485,7 @@ void configuration_impl::load_service(
                     its_converter << its_value;
                     its_converter >> its_service->reliable_;
                 }
-                if(!its_service->reliable_) {
+                if (!its_service->reliable_) {
                     its_service->reliable_ = ILLEGAL_PORT;
                 }
                 try {
@@ -1490,6 +1495,12 @@ void configuration_impl::load_service(
                 } catch (...) {
 
                 }
+            } else if (its_key == "dynamic_instance"){
+                is_dynamic_service = ("true" == its_value);
+            } else if (its_key == "dynamic_instance_unreliable"){
+                its_unreliable_port_range = load_client_port_range(i->second);
+            } else if (its_key == "dynamic_instance_reliable"){
+                its_reliable_port_range = load_client_port_range(i->second);
             } else if (its_key == "unreliable") {
                 its_converter << its_value;
                 its_converter >> its_service->unreliable_;
@@ -1538,62 +1549,86 @@ void configuration_impl::load_service(
                 }
             }
         }
-
-        auto found_service = services_.find(its_service->service_);
-        if (found_service != services_.end()) {
-            auto found_instance = found_service->second.find(
-                    its_service->instance_);
-            if (found_instance != found_service->second.end()) {
-                VSOMEIP_WARNING << "Multiple configurations for service ["
-                        << std::hex << its_service->service_ << "."
-                        << its_service->instance_ << "]";
+        if (is_dynamic_service){
+            std::lock_guard<std::mutex> its_lock(dynamic_services_mutex_);
+            auto found_service = dynamic_service_templates_.find(its_service->service_);
+            if (found_service != dynamic_service_templates_.end()) {
+                VSOMEIP_WARNING << "Multiple configurations for dynamic service ["
+                                << std::hex << its_service->service_ << "]";
                 is_loaded = false;
             }
-        }
 
-        if (is_loaded) {
-            services_[its_service->service_][its_service->instance_] =
-                    its_service;
-            if (use_magic_cookies) {
-                magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
+            if(is_loaded) {
+                dynamic_service_templates_.insert({its_service->service_, its_service});
             }
 
-            if (its_service->unicast_address_ == default_unicast_) {
-                // local services
-                if(its_service->reliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[unicast_.to_string()]
-                                        [its_service->reliable_]
-                                        [its_service->service_] = its_service;
+            reliable_ports_range_for_dynamic_services_[its_service->service_] = its_reliable_port_range;
+            used_reliable_ports_for_dynamic_services_.insert({its_service->service_, std::set<uint16_t>()});
+            unreliable_ports_range_for_dynamic_services_[its_service->service_] = its_unreliable_port_range;
+            used_unreliable_ports_for_dynamic_services_.insert({its_service->service_, std::set<uint16_t>()});
+        }
+        else {
+            auto found_service = services_.find(its_service->service_);
+            if (found_service != services_.end()) {
+                auto found_instance = found_service->second.find(
+                        its_service->instance_);
+                if (found_instance != found_service->second.end()) {
+                    VSOMEIP_WARNING << "Multiple configurations for service ["
+                            << std::hex << its_service->service_ << "."
+                            << its_service->instance_ << "]";
+                    is_loaded = false;
                 }
-                if (its_service->unreliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[unicast_.to_string()]
-                                        [its_service->unreliable_]
-                                        [its_service->service_] = its_service;
-                    // This is necessary as all udp server endpoints listen on
-                    // INADDR_ANY instead of a specific address
-                    services_by_ip_port_[boost::asio::ip::address_v4::any().to_string()]
-                                        [its_service->unreliable_]
-                                        [its_service->service_] = its_service;
-                    services_by_ip_port_[boost::asio::ip::address_v6::any().to_string()]
-                                        [its_service->unreliable_]
-                                        [its_service->service_] = its_service;
-                }
-            } else {
-                // remote services
-                if (its_service->reliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[its_service->unicast_address_]
-                                        [its_service->reliable_]
-                                        [its_service->service_] = its_service;
-                }
-                if (its_service->unreliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[its_service->unicast_address_]
-                                        [its_service->unreliable_]
-                                        [its_service->service_] = its_service;
-                }
+            }
+
+            if (is_loaded) {
+                add_service_to_maps(its_service, use_magic_cookies);
             }
         }
     } catch (...) {
         // Intentionally left empty
+    }
+}
+
+void configuration_impl::add_service_to_maps(std::shared_ptr<service> its_service, bool use_magic_cookies){
+    VSOMEIP_INFO << "insert service: " << its_service->service_ << ":" << its_service->instance_;
+    services_[its_service->service_][its_service->instance_] =
+        its_service;
+    if (use_magic_cookies) {
+      magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
+    }
+
+    if (its_service->unicast_address_ == default_unicast_) {
+      // local services
+      if(its_service->reliable_ != ILLEGAL_PORT) {
+        services_by_ip_port_[unicast_.to_string()]
+        [its_service->reliable_]
+        [its_service->service_] = its_service;
+      }
+      if (its_service->unreliable_ != ILLEGAL_PORT) {
+        services_by_ip_port_[unicast_.to_string()]
+        [its_service->unreliable_]
+        [its_service->service_] = its_service;
+        // This is necessary as all udp server endpoints listen on
+        // INADDR_ANY instead of a specific address
+        services_by_ip_port_[boost::asio::ip::address_v4::any().to_string()]
+        [its_service->unreliable_]
+        [its_service->service_] = its_service;
+        services_by_ip_port_[boost::asio::ip::address_v6::any().to_string()]
+        [its_service->unreliable_]
+        [its_service->service_] = its_service;
+      }
+    } else {
+      // remote services
+      if (its_service->reliable_ != ILLEGAL_PORT) {
+        services_by_ip_port_[its_service->unicast_address_]
+        [its_service->reliable_]
+        [its_service->service_] = its_service;
+      }
+      if (its_service->unreliable_ != ILLEGAL_PORT) {
+        services_by_ip_port_[its_service->unicast_address_]
+        [its_service->unreliable_]
+        [its_service->service_] = its_service;
+      }
     }
 }
 
@@ -3999,6 +4034,99 @@ uint32_t configuration_impl::get_statistics_min_freq() const {
 
 uint32_t configuration_impl::get_statistics_max_messages() const {
     return statistics_max_messages_;
+}
+
+bool configuration_impl::add_service_instance(service_t _service, instance_t _instance) {
+    // find template service
+    auto found_service = dynamic_service_templates_.find(_service);
+    if (found_service != dynamic_service_templates_.end()) {
+        auto template_service = found_service->second;
+
+        auto its_port = claim_port_unreliable(_service);
+        if (its_port == 0){
+            VSOMEIP_ERROR << "["<<__PRETTY_FUNCTION__ <<"] " << "could not claim port";
+            return false;
+        }
+
+        // create copy
+        // TODO check if deepcopy is created properly
+        std::shared_ptr<service> new_service = std::make_shared<service>(*template_service);
+        new_service->instance_ = _instance;
+
+        new_service->unreliable_ = its_port;
+        new_service->multicast_port_ = its_port;
+
+        // TODO how to handle magic cookies?
+        add_service_to_maps(new_service, false);
+    }
+    else {
+        VSOMEIP_ERROR << "["<<__PRETTY_FUNCTION__ <<"] " << "no template service found for ["
+        << std::hex << _service << "]";
+        return false;
+    }
+    return true;
+}
+
+bool configuration_impl::is_registered_service(service_t _service, instance_t _instance) {
+    auto its_service = find_service(_service, _instance);
+    if(its_service){
+        return true;
+    }
+    return false;
+}
+
+uint16_t configuration_impl::claim_port_unreliable(service_t _service) {
+    return claim_port(_service, false);
+}
+
+uint16_t configuration_impl::claim_port_reliable(service_t _service) {
+    return claim_port(_service, true);
+}
+
+uint16_t configuration_impl::claim_port(service_t _service, bool _reliable){
+    uint16_t its_available_port = 0;
+    std::lock_guard<std::mutex> its_lock(dynamic_services_mutex_);
+
+    std::map<service_t, std::set<std::uint16_t>> *service_port_map;
+    std::pair<uint16_t, uint16_t> port_range;
+    if(_reliable){
+        service_port_map = &used_reliable_ports_for_dynamic_services_;
+        port_range = reliable_ports_range_for_dynamic_services_[_service];
+    } else {
+        service_port_map = &used_unreliable_ports_for_dynamic_services_;
+        port_range = unreliable_ports_range_for_dynamic_services_[_service];
+    }
+
+    auto iter_used_ports = service_port_map->find(_service);
+    if (iter_used_ports != service_port_map->end()){
+        auto used_ports = iter_used_ports->second;
+        // find availabale port
+        for (int i = port_range.first; i <= port_range.second; i++){
+            if (used_ports.find(i) == used_ports.end()){
+                its_available_port = i;
+                break;
+            }
+        }
+
+        // claim port
+        if(its_available_port != 0){
+            used_ports.insert(its_available_port);
+            VSOMEIP_INFO << __func__ << " - claimed dynamic instance port (reliable:"<<_reliable<<") "
+                << its_available_port << " for service "
+                << std::hex << std::setw(4) << std::setfill('0') << _service;
+        } else {
+            VSOMEIP_ERROR << __func__ << " - claim dynamic instance port (reliable:"<<_reliable<<") failed "
+                << "for service " << std::hex << std::setw(4) << std::setfill('0') << _service
+                << " - no free ports found in range " << port_range.first << " - " << port_range.second;
+        }
+    }else{
+       VSOMEIP_WARNING << __func__ << " - no dynamic instance ports for service "
+           << std::hex << std::setw(4) << std::setfill('0') << _service
+           << "(reliable: " << _reliable << ") found";
+    }
+
+    return its_available_port;
+
 }
 
 }  // namespace config

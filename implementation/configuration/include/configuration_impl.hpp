@@ -299,6 +299,7 @@ private:
     void load_servicegroup(const boost::property_tree::ptree &_tree);
     void load_service(const boost::property_tree::ptree &_tree,
             const std::string &_unicast_address);
+    void add_service_to_maps(std::shared_ptr<service> its_service, bool use_magic_cookies);
     void load_event(std::shared_ptr<service> &_service,
             const boost::property_tree::ptree &_tree);
     void load_eventgroup(std::shared_ptr<service> &_service,
@@ -378,6 +379,11 @@ private:
 
     void load_secure_services(const configuration_element &_element);
     void load_secure_service(const boost::property_tree::ptree &_tree);
+    bool add_service_instance(service_t service, instance_t instance);
+    bool is_registered_service(service_t service, instance_t instance);
+    uint16_t claim_port(service_t _service, bool reliable);
+    uint16_t claim_port_unreliable(service_t _service);
+    uint16_t claim_port_reliable(service_t _service);
 
 private:
     std::mutex mutex_;
@@ -568,6 +574,15 @@ protected:
     uint32_t statistics_interval_;
     uint32_t statistics_min_freq_;
     uint32_t statistics_max_messages_;
+
+    // available ports to use with dynamic instance ids structure: {service: {port: in_use}}
+    std::mutex dynamic_services_mutex_;
+    std::map<service_t, std::shared_ptr<service>> dynamic_service_templates_;
+
+    std::map<service_t, std::pair<std::uint16_t, std::uint16_t>> reliable_ports_range_for_dynamic_services_;
+    std::map<service_t, std::pair<std::uint16_t, std::uint16_t>> unreliable_ports_range_for_dynamic_services_;
+    std::map<service_t, std::set<std::uint16_t>> used_reliable_ports_for_dynamic_services_;
+    std::map<service_t, std::set<std::uint16_t>> used_unreliable_ports_for_dynamic_services_;
 };
 
 } // namespace cfg

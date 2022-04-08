@@ -361,6 +361,18 @@ bool routing_manager_impl::offer_service(client_t _client,
         }
     }
 
+    // check if this is an unknown instance id
+    {
+        if (!configuration_->is_registered_service(_service, _instance)){
+            bool success = configuration_->add_service_instance(_service, _instance);
+            if(!success){
+                VSOMEIP_WARNING << "Add service instance for unknown instance id failed: ["
+                  << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                  << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+            }
+        }
+    }
+
     // Check if the application hosted by routing manager is allowed to offer
     // offer_service requests of local proxies are checked in rms::on:message
     if (_client == get_client()) {
