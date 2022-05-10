@@ -235,8 +235,6 @@ bool configuration_impl::load(const std::string &_name) {
             its_file = "";
         }
     }
-
-    std::set<std::string> its_input;
     if (its_file != "") {
         its_input.insert(its_file);
     }
