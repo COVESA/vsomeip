@@ -364,7 +364,7 @@ bool routing_manager_impl::offer_service(client_t _client,
     // Check if the application hosted by routing manager is allowed to offer
     // offer_service requests of local proxies are checked in rms::on:message
     if (_client == get_client()) {
-#ifdef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         std::uint32_t its_routing_uid = ANY_UID;
         std::uint32_t its_routing_gid = ANY_GID;
 #else

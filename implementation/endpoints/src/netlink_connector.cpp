@@ -364,7 +364,12 @@ bool netlink_connector::has_address(struct ifaddrmsg * ifa_struct,
     struct rtattr *retrta;
     retrta = static_cast<struct rtattr *>(IFA_RTA(ifa_struct));
     while RTA_OK(retrta, length) {
-        if (retrta->rta_type == IFA_ADDRESS) {
+// VxWorks NETLINK implementation reports interface address with IFA_LOCAL type
+        if (retrta->rta_type == IFA_ADDRESS
+#ifdef VXWORKS
+            || retrta->rta_type == IFA_LOCAL
+#endif
+           ) {
             char pradd[128];
             unsigned int * tmp_address = (unsigned int *)RTA_DATA(retrta);
             if (address_.is_v4()) {
@@ -424,7 +429,11 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
 
                 for (int i = 0; i < 4; i++) {
 #ifndef ANDROID
+ #ifdef VXWORKS
+                    const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6.addr32[i]);
+ #else
                     const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).__in6_u.__u6_addr32[i]);
+ #endif
 #else
                     const std::uint32_t dst = ntohl((*(struct in6_addr*)RTA_DATA(retrta)).in6_u.u6_addr32[i]);
 #endif

@@ -21,7 +21,7 @@
 #include "../../utility/include/utility.hpp"
 
 // Credentials
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
 #include "../include/credentials.hpp"
 #endif
 
@@ -53,7 +53,7 @@ local_server_endpoint_impl::local_server_endpoint_impl(
     acceptor_.listen(boost::asio::socket_base::max_connections, ec);
     boost::asio::detail::throw_error(ec, "acceptor listen");
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     if (chmod(_local.path().c_str(),
             static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
@@ -82,7 +82,7 @@ local_server_endpoint_impl::local_server_endpoint_impl(
    acceptor_.assign(_local.protocol(), native_socket, ec);
    boost::asio::detail::throw_error(ec, "acceptor assign native socket");
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     if (chmod(_local.path().c_str(),
             static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
@@ -254,7 +254,7 @@ void local_server_endpoint_impl::accept_cbk(
     }
 
     if (!_error) {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         auto its_host = endpoint_host_.lock();
         client_t client = 0;
 
@@ -337,7 +337,7 @@ local_server_endpoint_impl::connection::connection(
       shrink_count_(0),
       buffer_shrink_threshold_(_buffer_shrink_threshold),
       bound_client_(VSOMEIP_CLIENT_UNSET),
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
       bound_uid_(ANY_UID),
       bound_gid_(ANY_GID),
 #endif
@@ -402,7 +402,7 @@ void local_server_endpoint_impl::connection::start() {
             // don't start receiving again
             return;
         }
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], buffer_size),
             std::bind(
@@ -527,7 +527,7 @@ void local_server_endpoint_impl::connection::send_cbk(const message_buffer_ptr_t
 
 void local_server_endpoint_impl::connection::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         , std::uint32_t const &_uid, std::uint32_t const &_gid
 #endif
         )
@@ -689,7 +689,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                         && recv_buffer_[its_start] == VSOMEIP_ASSIGN_CLIENT) {
                     client_t its_client = its_server->assign_client(
                             &recv_buffer_[its_start], uint32_t(its_end - its_start));
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
                     if (security::get()->is_enabled()) {
                         if (!its_server->add_connection(its_client, shared_from_this())) {
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
@@ -720,7 +720,7 @@ void local_server_endpoint_impl::connection::receive_cbk(
                     its_server->send_client_identifier(its_client);
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
                     credentials_t its_credentials = std::make_pair(_uid, _gid);
 #else
                     credentials_t its_credentials = std::make_pair(ANY_UID, ANY_GID);
@@ -785,7 +785,7 @@ client_t local_server_endpoint_impl::connection::get_bound_client() const {
     return bound_client_;
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
 void local_server_endpoint_impl::connection::set_bound_uid_gid(uid_t _uid, gid_t _gid) {
     bound_uid_ = _uid;
     bound_gid_ = _gid;
@@ -810,7 +810,7 @@ const std::string local_server_endpoint_impl::connection::get_path_local() const
     if (socket_.is_open()) {
         endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
         if (!ec) {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
             its_local_path += its_local_endpoint.address().to_string(ec);
             its_local_path += ":";
             its_local_path += std::to_string(its_local_endpoint.port());
@@ -829,7 +829,7 @@ const std::string local_server_endpoint_impl::connection::get_path_remote() cons
     if (socket_.is_open()) {
         endpoint_type its_remote_endpoint = socket_.remote_endpoint(ec);
         if (!ec) {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
             its_remote_path += its_remote_endpoint.address().to_string(ec);
             its_remote_path += ":";
             its_remote_path += std::to_string(its_remote_endpoint.port());
@@ -889,7 +889,7 @@ void local_server_endpoint_impl::print_status() {
         std::lock_guard<std::mutex> its_lock(connections_mutex_);
         its_connections = connections_;
     }
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     std::string its_local_path(local_.path());
 #else
     std::string its_local_path("");
@@ -898,7 +898,7 @@ void local_server_endpoint_impl::print_status() {
             << std::dec << its_connections.size() << " queues: "
             << std::dec << queues_.size();
     for (const auto &c : its_connections) {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         std::string its_remote_path; // TODO: construct the path
 #else
         std::string its_remote_path("");
@@ -916,7 +916,7 @@ void local_server_endpoint_impl::print_status() {
 }
 std::string local_server_endpoint_impl::get_remote_information(
         const queue_iterator_type _queue_iterator) const {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
     boost::system::error_code ec;
     return _queue_iterator->first.address().to_string(ec) + ":"
             + std::to_string(_queue_iterator->first.port());
@@ -928,7 +928,7 @@ std::string local_server_endpoint_impl::get_remote_information(
 
 std::string local_server_endpoint_impl::get_remote_information(
         const endpoint_type& _remote) const {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
     boost::system::error_code ec;
     return _remote.address().to_string(ec) + ":"
             + std::to_string(_remote.port());

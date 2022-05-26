@@ -9,8 +9,12 @@
 #ifndef _WIN32
 
 #include <sys/socket.h>
+#ifdef VXWORKS
+#include <net/netlink.h>
+#else
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#endif
 
 #include <map>
 #include <mutex>

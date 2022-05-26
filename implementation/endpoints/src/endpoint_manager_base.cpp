@@ -78,7 +78,7 @@ std::shared_ptr<local_server_endpoint_impl> endpoint_manager_base::create_local_
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_) << std::hex << rm_->get_client();
     const client_t its_client = rm_->get_client();
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
     ::_unlink(its_path.str().c_str());
     int port = VSOMEIP_INTERNAL_BASE_PORT + its_client;
 #else
@@ -90,14 +90,14 @@ std::shared_ptr<local_server_endpoint_impl> endpoint_manager_base::create_local_
     try {
         its_server_endpoint = std::make_shared<local_server_endpoint_impl>(
                 shared_from_this(), _routing_host,
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
                 boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
 #else
                 boost::asio::local::stream_protocol_ext::endpoint(its_path.str()),
 #endif
                 io_,
                 configuration_, false);
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
         VSOMEIP_INFO << "Listening at " << port;
 #else
         VSOMEIP_INFO << "Listening at " << its_path.str();
@@ -105,7 +105,7 @@ std::shared_ptr<local_server_endpoint_impl> endpoint_manager_base::create_local_
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "Local server endpoint creation failed. Client ID: "
                 << std::hex << std::setw(4) << std::setfill('0') << its_client
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
                 << " Port: " << std::dec << port
 #else
                 << " Path: " << its_path.str()
@@ -191,7 +191,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_unlocked(client_t 
     its_path << utility::get_base_path(configuration_) << std::hex << _client;
     std::shared_ptr<local_client_endpoint_impl> its_endpoint;
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
     boost::asio::ip::address address = boost::asio::ip::address::from_string("127.0.0.1");
     int port = VSOMEIP_INTERNAL_BASE_PORT + _client;
     VSOMEIP_INFO << "Connecting to ["
@@ -202,7 +202,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_unlocked(client_t 
 #endif
     its_endpoint = std::make_shared<local_client_endpoint_impl>(
             shared_from_this(), rm_->shared_from_this(),
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
             boost::asio::ip::tcp::endpoint(address, port)
 #else
             boost::asio::local::stream_protocol::endpoint(its_path.str())

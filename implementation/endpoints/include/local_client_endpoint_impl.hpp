@@ -9,7 +9,7 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
 #include <boost/asio/ip/tcp.hpp>
 #endif
 
@@ -19,7 +19,7 @@
 
 namespace vsomeip_v3 {
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
 typedef client_endpoint_impl<
             boost::asio::ip::tcp
         > local_client_endpoint_base_impl;

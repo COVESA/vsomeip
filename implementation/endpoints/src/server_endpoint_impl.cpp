@@ -766,7 +766,7 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
 }
 
 // Instantiate template
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
 template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 template class server_endpoint_impl<boost::asio::ip::tcp>;

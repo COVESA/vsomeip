@@ -42,7 +42,7 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
 
     own_uid_ = ANY_UID;
     own_gid_ = ANY_GID;
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     own_uid_ = getuid();
     own_gid_ = getgid();
 #endif

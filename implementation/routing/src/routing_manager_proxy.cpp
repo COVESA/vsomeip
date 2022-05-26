@@ -133,7 +133,7 @@ void routing_manager_proxy::stop() {
 
     std::stringstream its_client;
     its_client << utility::get_base_path(configuration_) << std::hex << client_;
-#ifdef _WIN32
+#if defined(_WIN32) || defined(VXWORKS)
     ::_unlink(its_client.str().c_str());
 #else
     if (-1 == ::unlink(its_client.str().c_str())) {
@@ -1587,7 +1587,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
                                 << " (" << host_->get_name() << ") is registered.";
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
                     if (!its_security->check_credentials(get_client(), own_uid_, own_gid_)) {
                         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                 << " : routing_manager_proxy::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
@@ -1859,7 +1859,7 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
             <<": Reconnecting to routing manager.";
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     if (!its_security->check_credentials(get_client(), own_uid_, own_gid_)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                 << " :  routing_manager_proxy::reconnect: isn't allowed"
@@ -2209,7 +2209,7 @@ void routing_manager_proxy::send_pending_commands() {
 }
 
 void routing_manager_proxy::init_receiver() {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
     auto its_security = security_impl::get();
     if (!its_security)
         return;

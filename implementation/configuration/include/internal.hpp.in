@@ -50,6 +50,10 @@
 
 #define VSOMEIP_CLIENT_UNSET                    0xFFFF
 
+#ifdef VXWORKS
+#define VSOMEIP_INTERNAL_BASE_PORT              51234
+#endif
+
 #ifdef _WIN32
 #define VSOMEIP_INTERNAL_BASE_PORT              51234
 #define __func__ __FUNCTION__

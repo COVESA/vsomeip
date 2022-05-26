@@ -102,7 +102,11 @@ static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void)
 {
     if (the_logger_ptr__ != nullptr) {
+// When the application terminates this mutex is already destroyed
+// so VxWorks triggers an exception
+#ifndef VXWORKS
         std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
+#endif
         the_logger_ptr__->reset();
         delete the_logger_ptr__;
         the_logger_ptr__ = nullptr;

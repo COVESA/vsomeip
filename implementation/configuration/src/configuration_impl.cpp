@@ -242,7 +242,7 @@ bool configuration_impl::load(const std::string &_name) {
     }
     if (its_folder != "") {
         its_input.insert(its_folder);
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
         // load security configuration files from UID_GID sub folder if existing
         std::stringstream its_security_config_folder;
         its_security_config_folder << its_folder << "/" << getuid() << "_" << getgid();

@@ -593,7 +593,7 @@ endpoint_manager_impl::create_local_server(
     } else if (num_fd == 1) {
         native_socket_fd = SD_LISTEN_FDS_START + 0;
         VSOMEIP_INFO <<  "Using native socket created by systemd socket activation! fd: " << native_socket_fd;
-        #ifndef _WIN32
+        #if !defined(_WIN32) && !defined(VXWORKS)
             try {
                 its_endpoint =
                         std::make_shared <local_server_endpoint_impl>(
@@ -610,7 +610,7 @@ endpoint_manager_impl::create_local_server(
         #endif
         *_is_socket_activated = true;
     } else {
-        #if _WIN32
+        #if defined(_WIN32) || defined (VXWORKS)
             ::_unlink(its_endpoint_path.c_str());
             int port = VSOMEIP_INTERNAL_BASE_PORT;
             VSOMEIP_INFO << "Routing endpoint at " << port;
@@ -626,7 +626,7 @@ endpoint_manager_impl::create_local_server(
             its_endpoint =
                     std::make_shared <local_server_endpoint_impl>(
                             shared_from_this(), _routing_host,
-                            #ifdef _WIN32
+                            #if defined(_WIN32) || defined (VXWORKS)
                                 boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
                             #else
                                 boost::asio::local::stream_protocol_ext::endpoint(its_endpoint_path),

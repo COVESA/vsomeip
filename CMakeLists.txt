@@ -83,6 +83,18 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS_CXX_FLAGS "-pthread")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
+# add VxWorks support
+
+MESSAGE( STATUS "CMAKE_SYSTEM_NAME value is:  ${CMAKE_SYSTEM_NAME}" )
+if (${CMAKE_SYSTEM_NAME} MATCHES "VxWorks")
+    set(OS "VXWORKS")
+    set(DL_LIBRARY "")
+    set(EXPORTSYMBOLS "")
+    set(NO_DEPRECATED "-Wno-deprecated")
+    set(OPTIMIZE "")
+    set(OS_CXX_FLAGS "")
+endif (${CMAKE_SYSTEM_NAME} MATCHES "VxWorks")
+
 ################################################################################
 # Options
 ################################################################################
@@ -237,7 +249,7 @@ if (MSVC)
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
-    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android" AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "VxWorks")
         set(USE_RT "rt")
     endif()
 endif()
@@ -588,7 +600,7 @@ endif()
 ##############################################################################
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
     # build routing manager daemon (Non-Windows only)
-    if (NOT MSVC)
+    if (NOT MSVC AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "VxWorks")
     add_subdirectory( examples/routingmanagerd )
     endif()
 

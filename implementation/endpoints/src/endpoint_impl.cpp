@@ -131,7 +131,7 @@ void endpoint_impl<Protocol>::register_error_handler(error_handler_t _error_hand
 }
 
 // Instantiate template
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(VXWORKS)
 template class endpoint_impl<boost::asio::local::stream_protocol>;
 template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
