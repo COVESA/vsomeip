@@ -278,7 +278,7 @@ void routing_manager_impl::stop() {
         discovery_->stop();
     stub_->stop();
 
-    for (const auto client : ep_mgr_->get_connected_clients()) {
+    for (const auto& client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
             remove_local(client, true);
         }
@@ -1163,7 +1163,7 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
         if (its_event) {
             std::set<std::shared_ptr<endpoint_definition> > its_targets;
             const auto its_reliability = its_event->get_reliability();
-            for (const auto g : its_event->get_eventgroups()) {
+            for (const auto& g : its_event->get_eventgroups()) {
                 const auto its_eventgroup = find_eventgroup(_service, _instance, g);
                 if (its_eventgroup) {
                     const auto its_subscriptions = its_eventgroup->get_remote_subscriptions();
@@ -1887,7 +1887,7 @@ bool routing_manager_impl::deliver_notification(
                 // no subscribers for this specific event / check subscriptions
                 // to other events of the event's eventgroups
                 bool cache_event = false;
-                for (const auto eg : its_event->get_eventgroups()) {
+                for (const auto& eg : its_event->get_eventgroups()) {
                     std::shared_ptr<eventgroupinfo> egi = find_eventgroup(_service, _instance, eg);
                     if (egi) {
                         for (const auto &e : egi->get_events()) {
@@ -1927,7 +1927,7 @@ bool routing_manager_impl::deliver_notification(
                 utility::get_payload_size(_data, _length));
 
         if (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) {
-            for (const auto its_local_client : its_event->get_subscribers()) {
+            for (const auto& its_local_client : its_event->get_subscribers()) {
                 if (its_local_client == host_->get_client()) {
                     deliver_message(_data, _length, _instance, _reliable,
                             _bound_client, _credentials, _status_check, _is_from_remote);
@@ -2412,7 +2412,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
                     // longer valid.
                     for (auto &its_event : its_eventgroup.second->get_events()) {
                         const auto its_subscribers = its_event->get_subscribers();
-                        for (const auto its_subscriber : its_subscribers) {
+                        for (const auto& its_subscriber : its_subscribers) {
                             if (its_subscriber != get_client()) {
                                 its_event->remove_subscriber(
                                         its_eventgroup.first, its_subscriber);
@@ -2436,14 +2436,14 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
         std::set<std::tuple<
             service_t, instance_t, eventgroup_t, client_t> > its_invalid;
 
-        for (const auto its_state : remote_subscription_state_) {
+        for (const auto& its_state : remote_subscription_state_) {
             if (std::get<0>(its_state.first) == _service
                     && std::get<1>(its_state.first) == _instance) {
                 its_invalid.insert(its_state.first);
             }
         }
 
-        for (const auto its_key : its_invalid)
+        for (const auto& its_key : its_invalid)
             remote_subscription_state_.erase(its_key);
     }
 
@@ -3770,7 +3770,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
                     // longer valid.
                     for (auto &its_event : its_eventgroup.second->get_events()) {
                         const auto its_subscribers = its_event->get_subscribers();
-                        for (const auto its_subscriber : its_subscribers) {
+                        for (const auto& its_subscriber : its_subscribers) {
                             if (its_subscriber != get_client()) {
                                 its_event->remove_subscriber(
                                         its_eventgroup.first, its_subscriber);
@@ -4112,7 +4112,7 @@ void routing_manager_impl::send_subscription(
         const remote_subscription_id_t _id) {
     if (host_->get_client() == _offering_client) {
         auto self = shared_from_this();
-        for (const auto its_client : _clients) {
+        for (const auto& its_client : _clients) {
             host_->on_subscription(_service, _instance, _eventgroup, its_client, own_uid_, own_gid_, true,
                 [this, self, _service, _instance, _eventgroup, its_client, _id]
                         (const bool _is_accepted) {
@@ -4138,7 +4138,7 @@ void routing_manager_impl::send_subscription(
             });
         }
     } else { // service hosted by local client
-        for (const auto its_client : _clients) {
+        for (const auto& its_client : _clients) {
             if (!stub_->send_subscribe(find_local(_offering_client), its_client,
                     _service, _instance, _eventgroup, _major, ANY_EVENT, _id)) {
                 try {
@@ -4266,7 +4266,7 @@ routing_manager_impl::send_unsubscription(client_t _offering_client,
 
     if (host_->get_client() == _offering_client) {
         auto self = shared_from_this();
-        for (const auto its_client : _removed) {
+        for (const auto& its_client : _removed) {
             host_->on_subscription(_service, _instance,
                     _eventgroup, its_client, own_uid_, own_gid_, false,
                 [this, self, _service, _instance, _eventgroup,
@@ -4286,7 +4286,7 @@ routing_manager_impl::send_unsubscription(client_t _offering_client,
             );
         }
     } else {
-        for (const auto its_client : _removed) {
+        for (const auto& its_client : _removed) {
             if (!stub_->send_unsubscribe(find_local(_offering_client), its_client,
                     _service, _instance, _eventgroup, ANY_EVENT, _id)) {
                 try {
@@ -4347,7 +4347,7 @@ bool routing_manager_impl::insert_event_statistics(service_t _service, instance_
             // check list for entry with least counter value
             uint32_t its_min_count(0xFFFFFFFF);
             auto its_tuple_to_discard = std::make_tuple(0xFFFF, 0xFFFF, 0xFFFF);
-            for (const auto it : message_statistics_) {
+            for (const auto& it : message_statistics_) {
                 if (it.second.counter_ < its_min_count) {
                     its_min_count = it.second.counter_;
                     its_tuple_to_discard = it.first;
@@ -4389,7 +4389,7 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
         std::stringstream its_log;
         {
             std::lock_guard<std::mutex> its_lock(message_statistics_mutex_);
-            for (const auto s : message_statistics_) {
+            for (const auto& s : message_statistics_) {
                 if (s.second.counter_ / (its_interval / 1000) >= its_min_freq) {
                     uint16_t its_subscribed(0);
                     std::shared_ptr<event> its_event = find_event(std::get<0>(s.first), std::get<1>(s.first), std::get<2>(s.first));

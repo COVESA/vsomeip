@@ -175,7 +175,7 @@ policy::deserialize_ids(const byte_t * &_data, uint32_t &_size,
         if (its_result == false)
             return (false);
 
-        for (const auto i : its_instances)
+        for (const auto& i : its_instances)
             its_ids += std::make_pair(i, its_methods);
 
         its_array_length -= (its_current_size - _size);
@@ -305,7 +305,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
     uint32_t its_requests_size(0);
     serialize_u32(its_requests_size, _data);
 
-    for (const auto its_request : requests_) {
+    for (const auto& its_request : requests_) {
         for (auto its_service = its_request.first.lower();
                 its_service <= its_request.first.upper();
                 its_service++) {
@@ -316,7 +316,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
             uint32_t its_instances_size(0);
             serialize_u32(its_instances_size, _data);
 
-            for (const auto i : its_request.second) {
+            for (const auto& i : its_request.second) {
                 boost::icl::interval_set<instance_t> its_instances;
                 its_instances.insert(i.first);
                 serialize_interval_set(its_instances, _data);
@@ -378,7 +378,7 @@ policy::serialize_interval_set(
     uint32_t its_interval_set_size(0);
     serialize_u32(its_interval_set_size, _data);
 
-    for (const auto i : _intervals)
+    for (const auto& i : _intervals)
         serialize_interval(i, _data);
 
     its_interval_set_size = static_cast<uint32_t>(_data.size()

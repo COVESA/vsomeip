@@ -223,7 +223,7 @@ eventgroupinfo::update_remote_subscription(
             _id = its_item.second->get_id();
 
             // Copy acknowledgment states from existing subscription
-            for (const auto its_client : _subscription->get_clients()) {
+            for (const auto& its_client : _subscription->get_clients()) {
                 _subscription->set_client_state(its_client,
                         its_item.second->get_client_state(its_client));
             }
@@ -390,10 +390,10 @@ eventgroupinfo::send_initial_events(
     }
 
     // Send events
-    for (const auto its_event : its_reliable_events)
+    for (const auto& its_event : its_reliable_events)
         its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
 
-    for (const auto its_event : its_unreliable_events)
+    for (const auto& its_event : its_unreliable_events)
         its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
 }
 
