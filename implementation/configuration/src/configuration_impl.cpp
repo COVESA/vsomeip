@@ -4044,7 +4044,7 @@ bool configuration_impl::add_service_instance(service_t _service, instance_t _in
 
         auto its_port = claim_port_unreliable(_service);
         if (its_port == 0){
-            VSOMEIP_ERROR << "["<<__PRETTY_FUNCTION__ <<"] " << "could not claim port";
+            VSOMEIP_ERROR << __func__ << " - could not claim port";
             return false;
         }
 
@@ -4060,7 +4060,7 @@ bool configuration_impl::add_service_instance(service_t _service, instance_t _in
         add_service_to_maps(new_service, false);
     }
     else {
-        VSOMEIP_ERROR << "["<<__PRETTY_FUNCTION__ <<"] " << "no template service found for ["
+        VSOMEIP_ERROR << __func__ << " - no template service found for ["
         << std::hex << _service << "]";
         return false;
     }
