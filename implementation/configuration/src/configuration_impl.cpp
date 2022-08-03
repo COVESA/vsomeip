@@ -2551,7 +2551,7 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.begin(),
             _s.end(),
-            std::not1(std::ptr_fun(isspace))
+            std::not1(std::function<bool(int)>(isspace))
         )
     );
 
@@ -2559,7 +2559,7 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.rbegin(),
             _s.rend(),
-            std::not1(std::ptr_fun(isspace))).base(),
+            std::not1(std::function<bool(int)>(isspace))).base(),
             _s.end()
     );
 }

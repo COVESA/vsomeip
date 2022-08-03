@@ -203,6 +203,7 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
         uint32_t its_current_size(_size);
 
         uint16_t its_low, its_high;
+	its_low = its_high = 0;
         its_result = deserialize_id_item(_data, _size, its_low, its_high);
         if (its_result == false)
             return (false);
