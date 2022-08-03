@@ -203,6 +203,7 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
         uint32_t its_current_size(_size);
 
         uint16_t its_low, its_high;
+	its_low = its_high = 0;
         its_result = deserialize_id_item(_data, _size, its_low, its_high);
         if (its_result == false)
             return (false);
@@ -305,7 +306,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
     uint32_t its_requests_size(0);
     serialize_u32(its_requests_size, _data);
 
-    for (const auto its_request : requests_) {
+    for (const auto& its_request : requests_) {
         for (auto its_service = its_request.first.lower();
                 its_service <= its_request.first.upper();
                 its_service++) {
@@ -316,7 +317,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
             uint32_t its_instances_size(0);
             serialize_u32(its_instances_size, _data);
 
-            for (const auto i : its_request.second) {
+            for (const auto& i : its_request.second) {
                 boost::icl::interval_set<instance_t> its_instances;
                 its_instances.insert(i.first);
                 serialize_interval_set(its_instances, _data);

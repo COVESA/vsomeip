@@ -2257,7 +2257,7 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
     pending_security_update_id_t its_policy_id;
 
     // serialize the policies and send them...
-    for (const auto p : _policies) {
+    for (const auto& p : _policies) {
         std::vector<byte_t> its_policy_data;
         if (p->serialize(its_policy_data)) {
             std::vector<byte_t> its_message;

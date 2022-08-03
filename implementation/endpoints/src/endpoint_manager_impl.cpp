@@ -983,9 +983,9 @@ endpoint_manager_impl::log_client_states() const {
         its_client_endpoints = client_endpoints_by_ip_;
     }
 
-    for (const auto its_address : its_client_endpoints) {
-        for (const auto its_port : its_address.second) {
-            for (const auto its_reliability : its_port.second) {
+    for (const auto& its_address : its_client_endpoints) {
+        for (const auto& its_port : its_address.second) {
+            for (const auto& its_reliability : its_port.second) {
                 size_t its_queue_size = its_reliability.second->get_queue_size();
                 if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
                     its_client_queue_sizes.push_back(
@@ -1040,8 +1040,8 @@ endpoint_manager_impl::log_server_states() const {
         its_server_endpoints = server_endpoints_;
     }
 
-    for (const auto its_port : its_server_endpoints) {
-        for (const auto its_reliability : its_port.second) {
+    for (const auto& its_port : its_server_endpoints) {
+        for (const auto& its_reliability : its_port.second) {
             size_t its_queue_size = its_reliability.second->get_queue_size();
             if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
                 its_client_queue_sizes.push_back(

@@ -135,7 +135,7 @@ std::set<client_t>
 remote_subscription::get_clients() const {
     std::lock_guard<std::mutex> its_lock(mutex_);
     std::set<client_t> its_clients;
-    for (const auto its_item : clients_)
+    for (const auto& its_item : clients_)
         its_clients.insert(its_item.first);
     return its_clients;
 }

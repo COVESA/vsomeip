@@ -2436,14 +2436,14 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
         std::set<std::tuple<
             service_t, instance_t, eventgroup_t, client_t> > its_invalid;
 
-        for (const auto its_state : remote_subscription_state_) {
+        for (const auto& its_state : remote_subscription_state_) {
             if (std::get<0>(its_state.first) == _service
                     && std::get<1>(its_state.first) == _instance) {
                 its_invalid.insert(its_state.first);
             }
         }
 
-        for (const auto its_key : its_invalid)
+        for (const auto& its_key : its_invalid)
             remote_subscription_state_.erase(its_key);
     }
 
@@ -4347,7 +4347,7 @@ bool routing_manager_impl::insert_event_statistics(service_t _service, instance_
             // check list for entry with least counter value
             uint32_t its_min_count(0xFFFFFFFF);
             auto its_tuple_to_discard = std::make_tuple(0xFFFF, 0xFFFF, 0xFFFF);
-            for (const auto it : message_statistics_) {
+            for (const auto& it : message_statistics_) {
                 if (it.second.counter_ < its_min_count) {
                     its_min_count = it.second.counter_;
                     its_tuple_to_discard = it.first;
@@ -4389,7 +4389,7 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
         std::stringstream its_log;
         {
             std::lock_guard<std::mutex> its_lock(message_statistics_mutex_);
-            for (const auto s : message_statistics_) {
+            for (const auto& s : message_statistics_) {
                 if (s.second.counter_ / (its_interval / 1000) >= its_min_freq) {
                     uint16_t its_subscribed(0);
                     std::shared_ptr<event> its_event = find_event(std::get<0>(s.first), std::get<1>(s.first), std::get<2>(s.first));

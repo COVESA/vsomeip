@@ -390,10 +390,10 @@ eventgroupinfo::send_initial_events(
     }
 
     // Send events
-    for (const auto its_event : its_reliable_events)
+    for (const auto& its_event : its_reliable_events)
         its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
 
-    for (const auto its_event : its_unreliable_events)
+    for (const auto& its_event : its_unreliable_events)
         its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
 }
 

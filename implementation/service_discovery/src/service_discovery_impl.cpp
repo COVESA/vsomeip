@@ -248,7 +248,7 @@ service_discovery_impl::subscribe(
                 if (!its_subscription->is_selective() && is_selective) {
                     its_subscription->set_selective(true);
                     its_subscription->remove_client(VSOMEIP_ROUTING_CLIENT);
-                    for (const auto e : _info->get_events()) {
+                    for (const auto& e : _info->get_events()) {
                         for (const auto c : e->get_subscribers(_eventgroup)) {
                             its_subscription->add_client(c);
                         }
