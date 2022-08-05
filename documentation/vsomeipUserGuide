@@ -52,7 +52,6 @@ Dependencies
 *** URL: https://launchpad.net/~boost-latest/+archive/ubuntu/ppa
 *** `sudo add-apt-repository ppa:boost-latest/ppa`
 *** `sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
-    libboost-log1.55-dev`
 * For the tests Google's test framework
   https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed
 ** URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip[direct link,
