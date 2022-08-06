@@ -1,0 +1,7 @@
+<map id="vsomeip_v3::payload" name="vsomeip_v3::payload">
+<area shape="rect" id="node1" title="This class implements an array of bytes to be used as payload for SOME/IP messages." alt="" coords="125,80,286,107"/>
+<area shape="rect" id="node4" href="$classvsomeip_1_1payload__impl.html" title=" " alt="" coords="13,155,187,181"/>
+<area shape="rect" id="node5" href="$classvsomeip__v3_1_1payload__impl.html" title=" " alt="" coords="212,155,409,181"/>
+<area shape="rect" id="node2" href="$classvsomeip__v3_1_1serializable.html" title=" " alt="" coords="5,5,189,32"/>
+<area shape="rect" id="node3" href="$classvsomeip__v3_1_1deserializable.html" title=" " alt="" coords="213,5,413,32"/>
+</map>

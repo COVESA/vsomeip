@@ -1,0 +1,12 @@
+<map id="vsomeip_v3::message_base" name="vsomeip_v3::message_base">
+<area shape="rect" id="node1" title="Base class to implement SOME/IP messages." alt="" coords="253,81,460,108"/>
+<area shape="rect" id="node4" href="$classvsomeip_1_1message.html" title="Implements regular SOME/IP messages." alt="" coords="545,5,690,32"/>
+<area shape="rect" id="node5" href="$classvsomeip_1_1message__base__impl.html" title=" " alt="" coords="508,56,727,83"/>
+<area shape="rect" id="node6" href="$classvsomeip__v3_1_1message.html" title="Implements regular SOME/IP messages." alt="" coords="533,107,701,133"/>
+<area shape="rect" id="node10" href="$classvsomeip__v3_1_1message__base__impl.html" title=" " alt="" coords="533,158,701,199"/>
+<area shape="rect" id="node2" href="$classvsomeip__v3_1_1serializable.html" title=" " alt="" coords="13,56,197,83"/>
+<area shape="rect" id="node3" href="$classvsomeip__v3_1_1deserializable.html" title=" " alt="" coords="5,107,205,133"/>
+<area shape="rect" id="node7" href="$classvsomeip_1_1message__impl.html" title=" " alt="" coords="797,85,979,112"/>
+<area shape="rect" id="node8" href="$classvsomeip__v3_1_1message__impl.html" title=" " alt="" coords="786,136,990,163"/>
+<area shape="rect" id="node9" href="$classvsomeip__v3_1_1sd_1_1message__impl.html" title=" " alt="" coords="775,187,1001,213"/>
+</map>

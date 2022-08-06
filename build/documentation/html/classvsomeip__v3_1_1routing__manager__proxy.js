@@ -1,0 +1,28 @@
+var classvsomeip__v3_1_1routing__manager__proxy =
+[
+    [ "routing_manager_proxy", "classvsomeip__v3_1_1routing__manager__proxy.html#adad95a4a68cfbf324ac7f7afeb3f9a5e", null ],
+    [ "~routing_manager_proxy", "classvsomeip__v3_1_1routing__manager__proxy.html#ab035c89e68f88ed5720f5f9bd82a32cb", null ],
+    [ "get_configuration", "classvsomeip__v3_1_1routing__manager__proxy.html#a77dad551f6b70ace752f92400c71f24a", null ],
+    [ "handle_client_error", "classvsomeip__v3_1_1routing__manager__proxy.html#ac56fd71f0b45460a5bf754ad98d4b7d4", null ],
+    [ "init", "classvsomeip__v3_1_1routing__manager__proxy.html#a3fa0ff5f4782d42e3a71e617a4a659af", null ],
+    [ "offer_service", "classvsomeip__v3_1_1routing__manager__proxy.html#ada90b7783d0a35bf115ee73e92681b73", null ],
+    [ "on_connect", "classvsomeip__v3_1_1routing__manager__proxy.html#a59e508d6209f7eda0c1a176c1d154efe", null ],
+    [ "on_disconnect", "classvsomeip__v3_1_1routing__manager__proxy.html#af0a052cc845e8882811e5c1aa874fcc9", null ],
+    [ "on_message", "classvsomeip__v3_1_1routing__manager__proxy.html#abec8cca5b2ea1426049a8161cd34e487", null ],
+    [ "on_offered_services_info", "classvsomeip__v3_1_1routing__manager__proxy.html#ab534c8b02eeba65bb762b35db7d6ea27", null ],
+    [ "on_routing_info", "classvsomeip__v3_1_1routing__manager__proxy.html#a01b3f159f661f2bc1620bcf7c74fb8c2", null ],
+    [ "register_client_error_handler", "classvsomeip__v3_1_1routing__manager__proxy.html#a99bfe888fe700dfbe2711753beb1d4db", null ],
+    [ "register_event", "classvsomeip__v3_1_1routing__manager__proxy.html#ae629d5c57859514b855b58281f6677a0", null ],
+    [ "release_service", "classvsomeip__v3_1_1routing__manager__proxy.html#ab004daabb629faa7f53ebcd752a5d6b5", null ],
+    [ "request_service", "classvsomeip__v3_1_1routing__manager__proxy.html#a51889c4c4828c9ea9937b01a549a3014", null ],
+    [ "send", "classvsomeip__v3_1_1routing__manager__proxy.html#a19fa55c542303f2d4a426094fc6f1b7c", null ],
+    [ "send_get_offered_services_info", "classvsomeip__v3_1_1routing__manager__proxy.html#ae9e353b8e903145f4acc9d3d6f84000d", null ],
+    [ "send_to", "classvsomeip__v3_1_1routing__manager__proxy.html#a05fbe605c43f502040c2eee2ff02e0ae", null ],
+    [ "send_to", "classvsomeip__v3_1_1routing__manager__proxy.html#a8155f339bcb6ea153f0304a95cd20062", null ],
+    [ "start", "classvsomeip__v3_1_1routing__manager__proxy.html#ae2353b25437db706caa08e7ac531699a", null ],
+    [ "stop", "classvsomeip__v3_1_1routing__manager__proxy.html#a0abdb860a9fe388ea2784024749b093a", null ],
+    [ "stop_offer_service", "classvsomeip__v3_1_1routing__manager__proxy.html#a9f60abc5ad3df735fb4c8afd9202e0c7", null ],
+    [ "subscribe", "classvsomeip__v3_1_1routing__manager__proxy.html#ae3568e7708aa47044c2f7676a3c848e8", null ],
+    [ "unregister_event", "classvsomeip__v3_1_1routing__manager__proxy.html#a57c07e3d53376694fcbd5f3d91c4c75c", null ],
+    [ "unsubscribe", "classvsomeip__v3_1_1routing__manager__proxy.html#ab91a93ffad994e4fb0ebad84dda24eed", null ]
+];

@@ -1,0 +1,4055 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 10.2.0" />
+<title>vsomeip</title>
+<style type="text/css">
+/* Shared CSS for AsciiDoc xhtml11 and html5 backends */
+
+/* Default font. */
+body {
+  font-family: Georgia,serif;
+}
+
+/* Title font. */
+h1, h2, h3, h4, h5, h6,
+div.title, caption.title,
+thead, p.table.header,
+#toctitle,
+#author, #revnumber, #revdate, #revremark,
+#footer {
+  font-family: Arial,Helvetica,sans-serif;
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+  color: navy;
+}
+
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+h5 {
+  font-size: 1.0em;
+}
+
+div.sectionbody {
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+ul > li     { color: #aaa; }
+ul > li > * { color: black; }
+
+.monospaced, code, pre {
+  font-family: "Courier New", Courier, monospace;
+  font-size: inherit;
+  color: navy;
+  padding: 0;
+  margin: 0;
+}
+pre {
+  white-space: pre-wrap;
+}
+
+#author {
+  color: #527bbd;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+#email {
+}
+#revnumber, #revdate, #revremark {
+}
+
+#footer {
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+#preamble {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.0em;
+  margin-bottom: 2.0em;
+  margin-right: 10%;
+  color: #606060;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid #dddddd;
+  border-left: 4px solid #f0f0f0;
+  padding: 0.5em;
+}
+
+div.listingblock > div.content {
+  border: 1px solid #dddddd;
+  border-left: 5px solid #f0f0f0;
+  background: #f8f8f8;
+  padding: 0.5em;
+}
+
+div.quoteblock, div.verseblock {
+  padding-left: 1.0em;
+  margin-left: 1.0em;
+  margin-right: 10%;
+  border-left: 5px solid #f0f0f0;
+  color: #888;
+}
+
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock > pre.content {
+  font-family: inherit;
+  font-size: inherit;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 3px solid #dddddd;
+}
+
+div.exampleblock > div.content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+span.image img { border-style: none; vertical-align: text-bottom; }
+a.image:visited { color: white; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+  color: navy;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.arabic {
+  list-style-type: decimal;
+}
+ol.loweralpha {
+  list-style-type: lower-alpha;
+}
+ol.upperalpha {
+  list-style-type: upper-alpha;
+}
+ol.lowerroman {
+  list-style-type: lower-roman;
+}
+ol.upperroman {
+  list-style-type: upper-roman;
+}
+
+div.compact ul, div.compact ol,
+div.compact p, div.compact p,
+div.compact div, div.compact div {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+tfoot {
+  font-weight: bold;
+}
+td > div.verse {
+  white-space: pre;
+}
+
+div.hdlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hdlist tr {
+  padding-bottom: 15px;
+}
+dt.hdlist1.strong, td.hdlist1.strong {
+  font-weight: bold;
+}
+td.hdlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+  color: navy;
+}
+td.hdlist2 {
+  vertical-align: top;
+}
+div.hdlist.compact tr {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.comment {
+  background: yellow;
+}
+
+.footnote, .footnoteref {
+  font-size: 0.8em;
+}
+
+span.footnote, span.footnoteref {
+  vertical-align: super;
+}
+
+#footnotes {
+  margin: 20px 0 20px 0;
+  padding: 7px 0 0 0;
+}
+
+#footnotes div.footnote {
+  margin: 0 0 5px 0;
+}
+
+#footnotes hr {
+  border: none;
+  border-top: 1px solid silver;
+  height: 1px;
+  text-align: left;
+  margin-left: 0;
+  width: 20%;
+  min-width: 100px;
+}
+
+div.colist td {
+  padding-right: 0.5em;
+  padding-bottom: 0.3em;
+  vertical-align: top;
+}
+div.colist td img {
+  margin-top: 0.3em;
+}
+
+@media print {
+  #footer-badges { display: none; }
+}
+
+#toc {
+  margin-bottom: 2.5em;
+}
+
+#toctitle {
+  color: #527bbd;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel0, div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+
+span.aqua { color: aqua; }
+span.black { color: black; }
+span.blue { color: blue; }
+span.fuchsia { color: fuchsia; }
+span.gray { color: gray; }
+span.green { color: green; }
+span.lime { color: lime; }
+span.maroon { color: maroon; }
+span.navy { color: navy; }
+span.olive { color: olive; }
+span.purple { color: purple; }
+span.red { color: red; }
+span.silver { color: silver; }
+span.teal { color: teal; }
+span.white { color: white; }
+span.yellow { color: yellow; }
+
+span.aqua-background { background: aqua; }
+span.black-background { background: black; }
+span.blue-background { background: blue; }
+span.fuchsia-background { background: fuchsia; }
+span.gray-background { background: gray; }
+span.green-background { background: green; }
+span.lime-background { background: lime; }
+span.maroon-background { background: maroon; }
+span.navy-background { background: navy; }
+span.olive-background { background: olive; }
+span.purple-background { background: purple; }
+span.red-background { background: red; }
+span.silver-background { background: silver; }
+span.teal-background { background: teal; }
+span.white-background { background: white; }
+span.yellow-background { background: yellow; }
+
+span.big { font-size: 2em; }
+span.small { font-size: 0.6em; }
+
+span.underline { text-decoration: underline; }
+span.overline { text-decoration: overline; }
+span.line-through { text-decoration: line-through; }
+
+div.unbreakable { page-break-inside: avoid; }
+
+
+/*
+ * xhtml11 specific
+ *
+ * */
+
+div.tableblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead, p.table.header {
+  font-weight: bold;
+  color: #527bbd;
+}
+p.table {
+  margin-top: 0;
+}
+/* Because the table frame attribute is overridden by CSS in most browsers. */
+div.tableblock > table[frame="void"] {
+  border-style: none;
+}
+div.tableblock > table[frame="hsides"] {
+  border-left-style: none;
+  border-right-style: none;
+}
+div.tableblock > table[frame="vsides"] {
+  border-top-style: none;
+  border-bottom-style: none;
+}
+
+
+/*
+ * html5 specific
+ *
+ * */
+
+table.tableblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+thead, p.tableblock.header {
+  font-weight: bold;
+  color: #527bbd;
+}
+p.tableblock {
+  margin-top: 0;
+}
+table.tableblock {
+  border-width: 3px;
+  border-spacing: 0px;
+  border-style: solid;
+  border-color: #527bbd;
+  border-collapse: collapse;
+}
+th.tableblock, td.tableblock {
+  border-width: 1px;
+  padding: 4px;
+  border-style: solid;
+  border-color: #527bbd;
+}
+
+table.tableblock.frame-topbot {
+  border-left-style: hidden;
+  border-right-style: hidden;
+}
+table.tableblock.frame-sides {
+  border-top-style: hidden;
+  border-bottom-style: hidden;
+}
+table.tableblock.frame-none {
+  border-style: hidden;
+}
+
+th.tableblock.halign-left, td.tableblock.halign-left {
+  text-align: left;
+}
+th.tableblock.halign-center, td.tableblock.halign-center {
+  text-align: center;
+}
+th.tableblock.halign-right, td.tableblock.halign-right {
+  text-align: right;
+}
+
+th.tableblock.valign-top, td.tableblock.valign-top {
+  vertical-align: top;
+}
+th.tableblock.valign-middle, td.tableblock.valign-middle {
+  vertical-align: middle;
+}
+th.tableblock.valign-bottom, td.tableblock.valign-bottom {
+  vertical-align: bottom;
+}
+
+
+/*
+ * manpage specific
+ *
+ * */
+
+body.manpage h1 {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  border-top: 2px solid silver;
+  border-bottom: 2px solid silver;
+}
+body.manpage h2 {
+  border-style: none;
+}
+body.manpage div.sectionbody {
+  margin-left: 3em;
+}
+
+@media print {
+  body.manpage div#toc { display: none; }
+}
+
+
+@media screen {
+  body {
+    max-width: 50em; /* approximately 80 characters wide */
+    margin-left: 16em;
+  }
+
+  #toc {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 13em;
+    padding: 0.5em;
+    padding-bottom: 1.5em;
+    margin: 0;
+    overflow: auto;
+    border-right: 3px solid #f8f8f8;
+    background-color: white;
+  }
+
+  #toc .toclevel1 {
+    margin-top: 0.5em;
+  }
+
+  #toc .toclevel2 {
+    margin-top: 0.25em;
+    display: list-item;
+    color: #aaaaaa;
+  }
+
+  #toctitle {
+    margin-top: 0.5em;
+  }
+}
+</style>
+<script type="text/javascript">
+/*<![CDATA[*/
+var asciidoc = {  // Namespace.
+
+/////////////////////////////////////////////////////////////////////
+// Table Of Contents generator
+/////////////////////////////////////////////////////////////////////
+
+/* Author: Mihai Bazon, September 2002
+ * http://students.infoiasi.ro/~mishoo
+ *
+ * Table Of Content generator
+ * Version: 0.4
+ *
+ * Feel free to use this script under the terms of the GNU General Public
+ * License, as long as you do not remove or alter this notice.
+ */
+
+ /* modified by Troy D. Hanson, September 2006. License: GPL */
+ /* modified by Stuart Rackham, 2006, 2009. License: GPL */
+
+// toclevels = 1..4.
+toc: function (toclevels) {
+
+  function getText(el) {
+    var text = "";
+    for (var i = el.firstChild; i != null; i = i.nextSibling) {
+      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
+        text += i.data;
+      else if (i.firstChild != null)
+        text += getText(i);
+    }
+    return text;
+  }
+
+  function TocEntry(el, text, toclevel) {
+    this.element = el;
+    this.text = text;
+    this.toclevel = toclevel;
+  }
+
+  function tocEntries(el, toclevels) {
+    var result = new Array;
+    var re = new RegExp('[hH]([1-'+(toclevels+1)+'])');
+    // Function that scans the DOM tree for header elements (the DOM2
+    // nodeIterator API would be a better technique but not supported by all
+    // browsers).
+    var iterate = function (el) {
+      for (var i = el.firstChild; i != null; i = i.nextSibling) {
+        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
+          var mo = re.exec(i.tagName);
+          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
+            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
+          }
+          iterate(i);
+        }
+      }
+    }
+    iterate(el);
+    return result;
+  }
+
+  var toc = document.getElementById("toc");
+  if (!toc) {
+    return;
+  }
+
+  // Delete existing TOC entries in case we're reloading the TOC.
+  var tocEntriesToRemove = [];
+  var i;
+  for (i = 0; i < toc.childNodes.length; i++) {
+    var entry = toc.childNodes[i];
+    if (entry.nodeName.toLowerCase() == 'div'
+     && entry.getAttribute("class")
+     && entry.getAttribute("class").match(/^toclevel/))
+      tocEntriesToRemove.push(entry);
+  }
+  for (i = 0; i < tocEntriesToRemove.length; i++) {
+    toc.removeChild(tocEntriesToRemove[i]);
+  }
+
+  // Rebuild TOC entries.
+  var entries = tocEntries(document.getElementById("content"), toclevels);
+  for (var i = 0; i < entries.length; ++i) {
+    var entry = entries[i];
+    if (entry.element.id == "")
+      entry.element.id = "_toc_" + i;
+    var a = document.createElement("a");
+    a.href = "#" + entry.element.id;
+    a.appendChild(document.createTextNode(entry.text));
+    var div = document.createElement("div");
+    div.appendChild(a);
+    div.className = "toclevel" + entry.toclevel;
+    toc.appendChild(div);
+  }
+  if (entries.length == 0)
+    toc.parentNode.removeChild(toc);
+},
+
+
+/////////////////////////////////////////////////////////////////////
+// Footnotes generator
+/////////////////////////////////////////////////////////////////////
+
+/* Based on footnote generation code from:
+ * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
+ */
+
+footnotes: function () {
+  // Delete existing footnote entries in case we're reloading the footnodes.
+  var i;
+  var noteholder = document.getElementById("footnotes");
+  if (!noteholder) {
+    return;
+  }
+  var entriesToRemove = [];
+  for (i = 0; i < noteholder.childNodes.length; i++) {
+    var entry = noteholder.childNodes[i];
+    if (entry.nodeName.toLowerCase() == 'div' && entry.getAttribute("class") == "footnote")
+      entriesToRemove.push(entry);
+  }
+  for (i = 0; i < entriesToRemove.length; i++) {
+    noteholder.removeChild(entriesToRemove[i]);
+  }
+
+  // Rebuild footnote entries.
+  var cont = document.getElementById("content");
+  var spans = cont.getElementsByTagName("span");
+  var refs = {};
+  var n = 0;
+  for (i=0; i<spans.length; i++) {
+    if (spans[i].className == "footnote") {
+      n++;
+      var note = spans[i].getAttribute("data-note");
+      if (!note) {
+        // Use [\s\S] in place of . so multi-line matches work.
+        // Because JavaScript has no s (dotall) regex flag.
+        note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
+        spans[i].innerHTML =
+          "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+        spans[i].setAttribute("data-note", note);
+      }
+      noteholder.innerHTML +=
+        "<div class='footnote' id='_footnote_" + n + "'>" +
+        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
+        n + "</a>. " + note + "</div>";
+      var id =spans[i].getAttribute("id");
+      if (id != null) refs["#"+id] = n;
+    }
+  }
+  if (n == 0)
+    noteholder.parentNode.removeChild(noteholder);
+  else {
+    // Process footnoterefs.
+    for (i=0; i<spans.length; i++) {
+      if (spans[i].className == "footnoteref") {
+        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
+        href = href.match(/#.*/)[0];  // Because IE return full URL.
+        n = refs[href];
+        spans[i].innerHTML =
+          "[<a href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+      }
+    }
+  }
+},
+
+install: function(toclevels) {
+  var timerId;
+
+  function reinstall() {
+    asciidoc.footnotes();
+    if (toclevels) {
+      asciidoc.toc(toclevels);
+    }
+  }
+
+  function reinstallAndRemoveTimer() {
+    clearInterval(timerId);
+    reinstall();
+  }
+
+  timerId = setInterval(reinstall, 500);
+  if (document.addEventListener)
+    document.addEventListener("DOMContentLoaded", reinstallAndRemoveTimer, false);
+  else
+    window.onload = reinstallAndRemoveTimer;
+}
+
+}
+asciidoc.install(4);
+/*]]>*/
+</script>
+</head>
+<body class="article">
+<div id="header">
+<h1>vsomeip</h1>
+<div id="toc">
+  <div id="toctitle">Table of Contents</div>
+  <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
+</div>
+</div>
+<div id="content">
+<div class="sect4">
+<h5 id="_copyright">Copyright</h5>
+<div class="paragraph"><p>Copyright &#169; 2015-2019, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)</p></div>
+</div>
+<div class="sect4">
+<h5 id="_license">License</h5>
+<div class="paragraph"><p>This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at <a href="http://mozilla.org/MPL/2.0/">http://mozilla.org/MPL/2.0/</a>.</p></div>
+</div>
+<div class="sect4">
+<h5 id="_version">Version</h5>
+<div class="paragraph"><p>This documentation was generated for version 3.1.20 of vsomeip.</p></div>
+</div>
+<div class="sect1">
+<h2 id="_vsomeip_overview">1. vsomeip Overview</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The vsomeip stack implements the <a href="http://some-ip.com/">Scalable service-Oriented
+MiddlewarE over IP (SOME/IP)</a> protocol. The stack consists out of:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+a shared library for SOME/IP (<code>libvsomeip.so</code>)
+</p>
+</li>
+<li>
+<p>
+a second shared library for SOME/IP&#8217;s service discovery (<code>libvsomeip-sd.so</code>)
+  which is loaded during runtime if the service discovery is enabled.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_build_instructions">2. Build Instructions</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_dependencies">2.1. Dependencies</h3>
+<div class="ulist"><ul>
+<li>
+<p>
+A C++11 enabled compiler like gcc &gt;= 5.2 is needed.
+</p>
+</li>
+<li>
+<p>
+vsomeip uses cmake as buildsystem.
+</p>
+</li>
+<li>
+<p>
+vsomeip uses Boost &gt;= 1.55:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+Ubuntu 14.04:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
+    libboost-log1.55-dev</code>
+</p>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+URL: <a href="https://launchpad.net/~boost-latest/+archive/ubuntu/ppa">https://launchpad.net/~boost-latest/+archive/ubuntu/ppa</a>
+</p>
+</li>
+<li>
+<p>
+<code>sudo add-apt-repository ppa:boost-latest/ppa</code>
+</p>
+</li>
+<li>
+<p>
+<code>sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
+    libboost-log1.55-dev</code>
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+For the tests Google&#8217;s test framework
+  <a href="https://code.google.com/p/googletest/">gtest</a> in version 1.7.0 is needed
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+URL: <a href="https://googletest.googlecode.com/files/gtest-1.7.0.zip">direct link,
+   version 1.7.0</a>
+</p>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>sudo apt-get install asciidoc source-highlight doxygen graphviz</code>
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</div>
+<div class="sect2">
+<h3 id="_compilation">2.2. Compilation</h3>
+<div class="paragraph"><p><a id="Compilation"></a>
+For compilation call:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>mkdir build
+cd build
+cmake <span style="color: #990000">..</span>
+make</tt></pre></div></div>
+<div class="paragraph"><p>To specify a installation directory (like <code>--prefix=</code> if you&#8217;re used to
+autotools) call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DCMAKE_INSTALL_PREFIX<span style="color: #990000">:</span><span style="color: #009900">PATH</span><span style="color: #990000">=</span><span style="color: #009900">$YOUR_PATH</span> <span style="color: #990000">..</span>
+make
+make install</tt></pre></div></div>
+<div class="sect3">
+<h4 id="_compilation_with_predefined_base_path">2.2.1. Compilation with predefined base path</h4>
+<div class="paragraph"><p>To predefine the base path, the path that is used to create the local sockets,
+call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DBASE<span style="color: #009900">_PATH</span><span style="color: #990000">=&lt;</span>YOUR BASE PATH<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>The default base path is /tmp.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_predefined_unicast_and_or_diagnosis_address">2.2.2. Compilation with predefined unicast and/or diagnosis address</h4>
+<div class="paragraph"><p>To predefine the unicast address, call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DUNICAST<span style="color: #009900">_ADDRESS</span><span style="color: #990000">=&lt;</span>YOUR IP ADDRESS<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>To predefine the diagnosis address, call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DDIAGNOSIS<span style="color: #009900">_ADDRESS</span><span style="color: #990000">=&lt;</span>YOUR DIAGNOSIS ADDRESS<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>The diagnosis address is a single byte value.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_custom_default_configuration_folder">2.2.3. Compilation with custom default configuration folder</h4>
+<div class="paragraph"><p>To change the default configuration folder, call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DDEFAULT<span style="color: #009900">_CONFIGURATION_FOLDER</span><span style="color: #990000">=&lt;</span>DEFAULT CONFIGURATION FOLDER<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>The default configuration folder is /etc/vsomeip.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_custom_default_configuration_file">2.2.4. Compilation with custom default configuration file</h4>
+<div class="paragraph"><p>To change the default configuration file, call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DDEFAULT<span style="color: #009900">_CONFIGURATION_FILE</span><span style="color: #990000">=&lt;</span>DEFAULT CONFIGURATION FILE<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>The default configuration file is /etc/vsomeip.json.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_signal_handling">2.2.5. Compilation with signal handling</h4>
+<div class="paragraph"><p>To compile vsomeip with signal handling (SIGINT/SIGTERM) enabled,
+call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DENABLE<span style="color: #009900">_SIGNAL_HANDLING</span><span style="color: #990000">=</span><span style="color: #993399">1</span> <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>In the default setting, the application has to take care of shutting
+down vsomeip in case these signals are received.</p></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_user_defined_ready_message">2.2.6. Compilation with user defined "READY" message</h4>
+<div class="paragraph"><p>To compile vsomeip with a user defined message signal the IP routing
+to be ready to send/receive messages, call cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DROUTING<span style="color: #009900">_READY_MESSAGE</span><span style="color: #990000">=&lt;</span>YOUR MESSAGE<span style="color: #990000">&gt;</span> <span style="color: #990000">..</span></tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_configuration_overlays">2.2.7. Compilation with configuration overlays</h4>
+<div class="paragraph"><p>To compile vsomeip with configuration overlays enabled, call cmake
+like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DENABLE<span style="color: #009900">_CONFIGURATION_OVERLAYS</span><span style="color: #990000">=</span><span style="color: #993399">1</span> <span style="color: #990000">..</span></tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_with_vsomeip_2_compatibility_layer">2.2.8. Compilation with vSomeIP 2 compatibility layer</h4>
+<div class="paragraph"><p>To compile vsomeip with enabled vSomeIP 2 compatibility layer, call
+cmake like:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake -DENABLE<span style="color: #009900">_COMPAT</span><span style="color: #990000">=</span><span style="color: #993399">1</span> <span style="color: #990000">..</span></tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_of_examples">2.2.9. Compilation of examples</h4>
+<div class="paragraph"><p>For compilation of the examples call:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>mkdir build
+cd build
+cmake <span style="color: #990000">..</span>
+make examples</tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_of_tests">2.2.10. Compilation of tests</h4>
+<div class="paragraph"><p>To compile the tests, first unzip gtest to location of your desire.
+Some of the tests require a second node on the same network. There are two cmake
+variables which are used to automatically adapt the json files to the used
+network setup:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>TEST_IP_MASTER</code>: The IP address of the interface which will act as test
+  master.
+</p>
+</li>
+<li>
+<p>
+<code>TEST_IP_SLAVE</code>: The IP address of the interface of the second node which will
+  act as test slave.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>If one of this variables isn&#8217;t specified, only the tests using local
+communication exclusively will be runnable.</p></div>
+<div class="paragraph"><p>Additionally the unit tests require enabled signal handling which can be enabled
+via the <code>ENABLE_SIGNAL_HANDLING</code> cmake variable.</p></div>
+<div class="paragraph"><p>Example, compilation of tests:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>mkdir build
+cd build
+<span style="font-weight: bold"><span style="color: #0000FF">export</span></span> <span style="color: #009900">GTEST_ROOT</span><span style="color: #990000">=</span><span style="color: #009900">$PATH_TO_GTEST</span>/gtest-<span style="color: #993399">1.7</span><span style="color: #990000">.</span><span style="color: #993399">0</span><span style="color: #990000">/</span>
+cmake -DENABLE<span style="color: #009900">_SIGNAL_HANDLING</span><span style="color: #990000">=</span><span style="color: #993399">1</span> -DTEST<span style="color: #009900">_IP_MASTER</span><span style="color: #990000">=</span><span style="color: #993399">10.0</span><span style="color: #990000">.</span><span style="color: #993399">3.1</span> -DTEST<span style="color: #009900">_IP_SLAVE</span><span style="color: #990000">=</span><span style="color: #993399">10.0</span><span style="color: #990000">.</span><span style="color: #993399">3.125</span> <span style="color: #990000">..</span>
+make check</tt></pre></div></div>
+<div class="paragraph"><p>Additional make targets for the tests:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Call <code>make build_tests</code> to only compile the tests
+</p>
+</li>
+<li>
+<p>
+Call <code>ctest</code> in the build directory to execute the tests without a verbose
+  output
+</p>
+</li>
+<li>
+<p>
+To run single tests call <code>ctest --verbose --tests-regex $TESTNAME</code> short
+  form: <code>ctest -V -R $TESTNAME</code>
+</p>
+</li>
+<li>
+<p>
+To list all available tests run <code>ctest -N</code>.
+</p>
+</li>
+<li>
+<p>
+For further information about the tests please have a look at the
+  <code>readme.txt</code> in the <code>test</code> subdirectory.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>For development purposes two cmake variables exist which control if the
+json files and test scripts are copied (default) or symlinked into the build
+directory. These settings are ignored on Windows.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>TEST_SYMLINK_CONFIG_FILES</code>: Controls if the json and scripts needed
+  to run the tests are copied or symlinked into the build directory. (Default:
+  OFF, ignored on Windows)
+</p>
+</li>
+<li>
+<p>
+<code>TEST_SYMLINK_CONFIG_FILES_RELATIVE</code>: Controls if the json and scripts needed
+  to run the tests are symlinked relatively into the build directory.
+  (Default: OFF, ignored on Windows)
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Example cmake call:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake  -DTEST<span style="color: #009900">_SYMLINK_CONFIG_FILES</span><span style="color: #990000">=</span>ON -DTEST<span style="color: #009900">_SYMLINK_CONFIG_FILES_RELATIVE</span><span style="color: #990000">=</span>ON <span style="color: #990000">..</span></tt></pre></div></div>
+<div class="paragraph"><p>For compilation of only a subset of tests (for a quick
+functionality check) the cmake variable <code>TESTS_BAT</code> has
+to be set:</p></div>
+<div class="paragraph"><p>Example cmake call:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cmake  -DTESTS<span style="color: #009900">_BAT</span><span style="color: #990000">=</span>ON <span style="color: #990000">..</span></tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_compilation_of_vsomeip_ctrl">2.2.11. Compilation of vsomeip_ctrl</h4>
+<div class="paragraph"><p>For compilation of the <a href="#vsomeip_ctrl">[vsomeip_ctrl]</a> utility call:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>mkdir build
+cd build
+cmake <span style="color: #990000">..</span>
+make vsomeip_ctrl</tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_generating_the_documentation">2.2.12. Generating the documentation</h4>
+<div class="paragraph"><p>To generate the documentation call cmake as described in <a href="#Compilation">[Compilation]</a> and
+then call <code>make doc</code>.
+This will generate:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+The README file in html: <code>$BUILDDIR/documentation/README.html</code>
+</p>
+</li>
+<li>
+<p>
+A doxygen documentation in <code>$BUILDDIR/documentation/html/index.html</code>
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_starting_vsomeip_applications_used_environment_variables">3. Starting vsomeip Applications / Used environment variables</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>On startup the following environment variables are read out:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>VSOMEIP_APPLICATION_NAME</code>: This environment variable is used to specify the
+  name of the application. This name is later used to map a client id to the
+  application in the configuration file. It is independent from the
+  application&#8217;s binary name.
+</p>
+</li>
+<li>
+<p>
+<code>VSOMEIP_CONFIGURATION</code>: vsomeip uses the default configuration file <code>/etc/vsomeip.json</code>
+   and/or the default configuration folder <code>/etc/vsomeip</code>. This can be overridden by a
+   local configuration file <code>./vsomeip.json</code> and/or a local configuration folder <code>./vsomeip</code>.
+   If <code>VSOMEIP_CONFIGURATION</code> is set to a valid file or directory path, this is used instead
+   of the standard configuration (thus neither default nor local file/folder will be parsed).
+</p>
+</li>
+<li>
+<p>
+<code>VSOMEIP_MANDATORY_CONFIGURATION_FILES</code>: vsomeip allows to specify mandatory configuration
+   files to speed-up application startup. While mandatory configuration files are read by all
+   applications, all other configuration files are only read by the application that is
+   responsible for connections to external devices. If this configuration variable is not set,
+   the default mandatory files vsomeip_std.json, vsomeip_app.json and vsomeip_plc.json are used.
+</p>
+</li>
+<li>
+<p>
+<code>VSOMEIP_CLIENTSIDELOGGING</code>: Set this variable to an empty string to enable logging of
+   any received messages to DLT in all applications acting as routing manager proxies. For
+   example add the following line to the  application&#8217;s systemd service file:
+   <code>Environment=VSOMEIP_CLIENTSIDELOGGING=""</code>
+   To enable service-specific logs, provide a space- or colon-separated list of ServiceIDs (using
+   4-digit hexadecimal notation, optionally followed by dot-separted InstanceID). For example:
+   <code>Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001 f013.000a 1001 1002"</code>
+   <code>Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001:f013.000a:1001:1002"</code>
+</p>
+</li>
+</ul></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">If the file/folder that is configured by <code>VSOMEIP_CONFIGURATION</code> does <em>not</em> exist,
+the default configuration locations will be used.</td>
+</tr></table>
+</div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">vsomeip will parse and use the configuration from all files in a configuration folder
+but will <em>not</em> consider directories within the configuration folder.</td>
+</tr></table>
+</div>
+<div class="paragraph"><p>In the following example the application <code>my_vsomeip_application</code> is started.
+The settings are read from the file <code>my_settings.json</code> in the current working
+directory. The client id for the application can be found under the name
+<code>my_vsomeip_client</code> in the configuration file.</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-style: italic"><span style="color: #9A1900">#!/bin/bash</span></span>
+<span style="font-weight: bold"><span style="color: #0000FF">export</span></span> <span style="color: #009900">VSOMEIP_APPLICATION_NAME</span><span style="color: #990000">=</span>my_vsomeip_client
+<span style="font-weight: bold"><span style="color: #0000FF">export</span></span> <span style="color: #009900">VSOMEIP_CONFIGURATION</span><span style="color: #990000">=</span>my_settings<span style="color: #990000">.</span>json
+<span style="color: #990000">.</span>/my_vsomeip_application</tt></pre></div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configuration_file_structure">4. Configuration File Structure</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The configuration files for vsomeip are <a href="http://www.json.org/">JSON</a>-Files and are
+composed out of multiple key value pairs and arrays.</p></div>
+<div class="quoteblock">
+<div class="content">
+<div class="ulist"><ul>
+<li>
+<p>
+An object is an unordered set of name/value pairs. An object begins with <code>{
+(left brace)</code> and ends with <code>} (right brace)</code>. Each name is followed by <code>:
+(colon)</code> and the name/value pairs are separated by <code>, (comma)</code>.
+</p>
+</li>
+<li>
+<p>
+An array is an ordered collection of values. An array begins with <code>[ (left
+bracket)</code> and ends with <code>] (right bracket)</code>. Values are separated by <code>,
+(comma)</code>.
+</p>
+</li>
+<li>
+<p>
+A value can be a <em>string</em> in double quotes, or a <em>number</em>, or <code>true</code> or <code>false</code>
+or <code>null</code>, or an <em>object</em> or an <em>array</em>. These structures can be nested.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="attribution">
+<em>json.org</em>
+</div></div>
+<div class="paragraph"><p>Configuration file element explanation:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>unicast</em>
+</p>
+<div class="paragraph"><p>The IP address of the host system.</p></div>
+</li>
+<li>
+<p>
+<em>netmask</em>
+</p>
+<div class="paragraph"><p>The netmask to specify the subnet of the host system.</p></div>
+</li>
+<li>
+<p>
+<em>device</em> (optional)
+</p>
+<div class="paragraph"><p>If specified, IP endpoints will be bound to this device.</p></div>
+</li>
+<li>
+<p>
+<em>diagnosis</em>
+</p>
+<div class="paragraph"><p>The diagnosis address (byte) that will be used to build client identifiers. The
+diagnosis address is assigned to the most significant byte in all client
+identifiers if not specified otherwise (for example through a predefined client
+ID).</p></div>
+</li>
+<li>
+<p>
+<em>diagnosis_mask</em>
+</p>
+<div class="paragraph"><p>The diagnosis mask (2 byte) is used to control the maximum amount of allowed
+concurrent vsomeip clients on an ECU and the start value of the client IDs.</p></div>
+<div class="paragraph"><p>The default value is <code>0xFF00</code> meaning
+the most significant byte of the client ID is reserved for the diagnosis
+address and the client IDs will start with the diagnosis address as specified.
+The maximum number of clients is 255 as the Hamming weight of the inverted mask
+is 8 (2^8 = 256 - 1 (for the routing manager) = 255). The resulting client ID
+range with a diagnosis address of for example 0x45 would be 0x4501 to 0x45ff.</p></div>
+<div class="paragraph"><p>Setting the mask to <code>0xFE00</code> doubles client ID range to 511 clients as the
+Hamming weight of the inverted mask is greater by one.  With a diagnosis address
+of 0x45 the start value of client IDs is 0x4401 as bit 8 in 0x4500 is masked
+out. This then yields a client ID range of 0x4400 to 0x45ff.</p></div>
+</li>
+<li>
+<p>
+<em>network</em>
+</p>
+<div class="paragraph"><p>Network identifier used to support multiple routing managers on one host. This
+setting changes the name of the shared memory segment in <code>/dev/shm</code> and the name
+of the unix domain sockets in <code>/tmp/</code>. Defaults to <code>vsomeip</code> meaning the shared
+memory will be named <code>/dev/shm/vsomeip</code> and the unix domain sockets will be
+named <code>/tmp/vsomeip-$CLIENTID</code></p></div>
+</li>
+<li>
+<p>
+<em>logging</em>
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>level</em>
+</p>
+<div class="paragraph"><p>Specifies the log level (valid values: <em>trace</em>, <em>debug</em>, <em>info</em>, <em>warning</em>,
+<em>error</em>, <em>fatal</em>).</p></div>
+</li>
+<li>
+<p>
+<em>console</em>
+</p>
+<div class="paragraph"><p>Specifies whether logging via console is enabled (valid values: <em>true, false</em>).</p></div>
+</li>
+<li>
+<p>
+<em>file</em>
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>enable</em>
+</p>
+<div class="paragraph"><p>Specifies whether a log file should be created (valid values: <em>true, false</em>).</p></div>
+</li>
+<li>
+<p>
+<em>path</em>
+</p>
+<div class="paragraph"><p>The absolute path of the log file.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>dlt</em>
+</p>
+<div class="paragraph"><p>Specifies whether Diagnostic Log and Trace (DLT) is enabled (valid values:
+<em>true, false</em>).</p></div>
+</li>
+<li>
+<p>
+<em>version</em>
+</p>
+<div class="paragraph"><p>Configures logging of the vsomeip version</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>enable</em>
+</p>
+<div class="paragraph"><p>Enable or disable cyclic logging of vsomeip version, defaults to true (valid
+values: <em>true, false</em>)</p></div>
+</li>
+<li>
+<p>
+<em>interval</em>
+</p>
+<div class="paragraph"><p>Configures interval in seconds to log the vsomeip version. Default value is 10.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>memory_log_interval</em>
+</p>
+<div class="paragraph"><p>Configures interval in seconds in which the routing manager logs its used
+memory. Setting a value greater than zero enables the logging.</p></div>
+</li>
+<li>
+<p>
+<em>status_log_interval</em>
+</p>
+<div class="paragraph"><p>Configures interval in seconds in which the routing manager logs its internal
+status. Setting a value greater than zero enables the logging.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<a id="config-tracing"></a><em>tracing</em> (optional)
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>enable</em>
+</p>
+<div class="paragraph"><p>Specifies whether the tracing of the SOME/IP messages is enabled
+(valid values: <em>true, false</em>). Default value is <em>false</em>.
+If tracing is enabled, the messages will be forwarded to DLT by
+the <a href="#traceconnector">Trace Connector</a></p></div>
+</li>
+<li>
+<p>
+<em>sd_enable</em>
+</p>
+<div class="paragraph"><p>Specifies whether the tracing of the SOME/IP service discovery messages is
+enabled (valid values: <em>true, false</em>). Default value is <em>false</em>.</p></div>
+</li>
+<li>
+<p>
+<em>channels (array)</em> (optional)
+</p>
+<div class="paragraph"><p>Contains the channels to DLT.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">You can set up multiple channels to DLT over that you can forward the
+messages.</td>
+</tr></table>
+</div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>name</em>
+</p>
+<div class="paragraph"><p>The name of the channel.</p></div>
+</li>
+<li>
+<p>
+<em>id</em>
+</p>
+<div class="paragraph"><p>The id of the channel.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>filters (array)</em> (optional)
+</p>
+<div class="paragraph"><p>Contains the filters that are applied on the messages.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">You can apply filters respectively filter rules on the messages with
+specific criterias and expressions. So only the filtered messages are forwarded
+to DLT.</td>
+</tr></table>
+</div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>channel</em> (optional)
+</p>
+<div class="paragraph"><p>The id of the channel over that the filtered messages are forwarded to DLT. If
+no channel is specified the default channel (TC) is used. If you want to use a
+filter in several different channels, you can provide an array of channel ids.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">If you use a positive filter with multiple channels, the same message
+will be forwared multiple times to DLT.</td>
+</tr></table>
+</div>
+</li>
+<li>
+<p>
+<em>matches</em> (optional)
+</p>
+<div class="paragraph"><p>Specification of the criteria to include/exclude a message into/from the trace.
+You can either specify lists (array) or ranges of matching elements.</p></div>
+<div class="paragraph"><p>A list may contain single identifiers which match all messages from/to all
+instances of the corresponding service or tuples consisting of service-,
+instance- and method-identifier. <em>any</em> may be used as a wildcard for matching
+all services, instances or methods.</p></div>
+<div class="paragraph"><p>A range is specified by two tuples "from" and "to", each consisting of
+service-, instance-and method-identifier. All messages with service-,
+instance-and method-identifiers that are greater than or equal to "from"
+and less than or equal to "to" are matched.</p></div>
+</li>
+<li>
+<p>
+<em>type</em> (optional)
+</p>
+<div class="paragraph"><p>Specifies the filter type (valid values: "positive", "negative"). When a positive
+filter is used and a message matches one of the filter rules, the message will be
+traced/forwarded to DLT. With a negative filter messages can be excluded. So when a
+message matches one of the filter rules, the message will not be traced/forwarded to
+DLT. Default value is "positive".</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>applications (array)</em>
+</p>
+<div class="paragraph"><p>Contains the applications of the host system that use this config file.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>name</em>
+</p>
+<div class="paragraph"><p>The name of the application.</p></div>
+</li>
+<li>
+<p>
+<em>id</em>
+</p>
+<div class="paragraph"><p>The id of the application. Usually its high byte is equal to the diagnosis address. In this
+case the low byte must be different from zero. Thus, if the diagnosis address is 0x63, valid
+values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte
+different from the diagnosis address.</p></div>
+</li>
+<li>
+<p>
+<em>max_dispatchers</em> (optional)
+</p>
+<div class="paragraph"><p>The maximum number of threads that shall be used to execute the application callbacks. Default is 10.</p></div>
+</li>
+<li>
+<p>
+<em>max_dispatch_time</em> (optional)
+</p>
+<div class="paragraph"><p>The maximum time in ms that an application callback may consume before the callback is
+considered to be blocked (and an additional thread is used to execute pending
+callbacks if max_dispatchers is configured greater than 0). The default value if not specified is 100ms.</p></div>
+</li>
+<li>
+<p>
+<em>threads</em> (optional)
+</p>
+<div class="paragraph"><p>The number of internal threads to process messages and events within an application.
+Valid values are 1-255. Default is 2.</p></div>
+</li>
+<li>
+<p>
+<em>io_thread_nice</em> (optional)
+</p>
+<div class="paragraph"><p>The nice level for internal threads processing messages and events. POSIX/Linux only.
+For actual values refer to nice() documentation.</p></div>
+</li>
+<li>
+<p>
+<em>request_debounce_time</em> (optional)
+</p>
+<div class="paragraph"><p>Specifies a debounce-time interval in ms in which request-service messages are sent to
+the routing manager. If an application requests many services in short same time
+the load of sent messages to the routing manager and furthermore the replies from the
+routing manager (which contains the routing info for the requested service if available)
+can be heavily reduced. The default value if not specified is 10ms.</p></div>
+</li>
+<li>
+<p>
+<em>plugins</em> (optional array)
+</p>
+<div class="paragraph"><p>Contains the plug-ins that should be loaded to extend the functionality of vsomeip.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>name</em>
+</p>
+<div class="paragraph"><p>The name of the plug-in.</p></div>
+</li>
+<li>
+<p>
+<em>type</em>
+</p>
+<div class="paragraph"><p>The plug-in type (valid values: <em>application_plugin</em>).</p></div>
+<div class="paragraph"><p>An application plug-in extends the functionality on application level. It gets informed
+by vsomeip over the basic application states (INIT/START/STOP) and can, based on these
+notifications, access the standard "application"-API via the runtime.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<em>overlay</em> (optional)
+</p>
+<div class="paragraph"><p>Contains the path to a configuration that overwrites specific configuration elements
+(unicast, netmask, device, network, diagnosis address &amp; mask, service discovery) for the
+application. This allows to manage different network addresses from a single process.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">This feature is only available if vsomeip was compiled with ENABLE_CONFIGURATION_OVERLAYS.</td>
+</tr></table>
+</div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>services</code> (array)
+</p>
+<div class="paragraph"><p>Contains the services of the service provider.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>The id of the service.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code>
+</p>
+<div class="paragraph"><p>The id of the service instance.</p></div>
+</li>
+<li>
+<p>
+<code>protocol</code> (optional)
+</p>
+<div class="paragraph"><p>The protocol that is used to implement the service instance. The default setting
+is <em>someip</em>. If a different setting is provided, vsomeip does not open the specified
+port (server side) or does not connect to the specified port (client side). Thus,
+this option can be used to let the service discovery announce a service that is
+externally implemented.</p></div>
+</li>
+<li>
+<p>
+<code>unicast</code> (optional)
+</p>
+<div class="paragraph"><p>The unicast that hosts the service instance.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">The unicast address is needed if external service instances shall be used,
+but service discovery is disabled. In this case, the provided unicast address
+is used to access the service instance.</td>
+</tr></table>
+</div>
+</li>
+<li>
+<p>
+<code>reliable</code>
+</p>
+<div class="paragraph"><p>Specifies that the communication with the service is reliable respectively the
+TCP protocol is used for communication.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>port</code>
+</p>
+<div class="paragraph"><p>The port of the TCP endpoint.</p></div>
+</li>
+<li>
+<p>
+<code>enable-magic-cookies</code>
+</p>
+<div class="paragraph"><p>Specifies whether magic cookies are enabled (valid values: <em>true</em>, <em>false</em>).</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>unreliable</code>
+</p>
+<div class="paragraph"><p>Specifies that the communication with the service is unreliable respectively the
+UDP protocol is used for communication (valid values: the <em>port</em> of the UDP
+endpoint).</p></div>
+</li>
+<li>
+<p>
+<code>events</code> (array)
+</p>
+<div class="paragraph"><p>Contains the events of the service.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>event</code>
+</p>
+<div class="paragraph"><p>The id of the event.</p></div>
+</li>
+<li>
+<p>
+<code>is_field</code>
+</p>
+<div class="paragraph"><p>Specifies whether the event is of type field.</p></div>
+<div class="admonitionblock">
+<table><tr>
+<td class="icon">
+<img alt="Note" src="data:image/png;base64,
+" />
+</td>
+<td class="content">A field is a combination of getter, setter and notification event. It
+contains at least a getter, a setter, or a notifier. The notifier sends an event
+message that transports the current value of a field on change.</td>
+</tr></table>
+</div>
+</li>
+<li>
+<p>
+<code>is_reliable</code>
+</p>
+<div class="paragraph"><p>Specifies whether the communication is reliable respectively whether the event
+is sent with the TCP protocol (valid values: <em>true</em>,<em>false</em>).</p></div>
+<div class="paragraph"><p>If the value is <em>false</em> the UDP protocol will be used.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>eventgroups</code> (array)
+</p>
+<div class="paragraph"><p>Events can be grouped together into on event group. For a client it is thus
+possible to subscribe for an event group and to receive the appropriate events
+within the group.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>eventgroup</code>
+</p>
+<div class="paragraph"><p>The id of the event group.</p></div>
+</li>
+<li>
+<p>
+<code>events</code> (array)
+</p>
+<div class="paragraph"><p>Contains the ids of the appropriate events.</p></div>
+</li>
+<li>
+<p>
+<code>multicast</code>
+</p>
+<div class="paragraph"><p>Specifies the multicast that is used to publish the eventgroup.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>address</code>
+</p>
+<div class="paragraph"><p>The multicast address.</p></div>
+</li>
+<li>
+<p>
+<code>port</code>
+</p>
+<div class="paragraph"><p>The multicast port.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>threshold</code>
+</p>
+<div class="paragraph"><p>Specifies when to use multicast and when to use unicast to send a notification event.
+Must be set to a non-negative number. If it is set to zero, all events of the eventgroup
+will be sent by unicast. Otherwise, the events will be sent by unicast as long as the
+number of subscribers is lower than the threshold and by multicast if the number
+of subscribers is greater or equal. This means, a threshold of 1 will lead to all events
+being sent by multicast. The default value is <em>0</em>.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>debounce-times</code> (object)
+</p>
+<div class="paragraph"><p>Used to configure the nPDU feature. This is described in detail in
+<a href="#npdu">vSomeIP nPDU feature</a>.</p></div>
+</li>
+<li>
+<p>
+<code>someip-tp</code> (object)
+</p>
+<div class="paragraph"><p>Used to configure the SOME/IP-TP feature. There&#8217;s an example available at
+<a href="#someiptp">SOME/IP-TP</a>.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service-to-client</code> (array)
+</p>
+<div class="paragraph"><p>Contains the IDs for responses, fields and events which are sent from the node
+to a remote client which can be segmented via SOME/IP-TP if they exceed the
+maximum message size for UDP communication. If an ID isn&#8217;t listed here the
+message will otherwise be dropped if the maximum message size is exceeded.</p></div>
+</li>
+<li>
+<p>
+<code>client-to-service</code> (array)
+</p>
+<div class="paragraph"><p>Contains the IDs for requests, which are sent from the node
+to a remote service which can be segmented via SOME/IP-TP if they exceed the
+maximum message size for UDP communication. If an ID isn&#8217;t listed here the
+message will otherwise be dropped if the maximum message size is exceeded.
+Please note that the unicast key has to be set to the remote IP address of the
+offering node for this setting to take effect.</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>clients</code> (array)
+</p>
+<div class="paragraph"><p>The client-side ports that shall be used to connect to a specific service.
+For each service, an array of ports to be used for reliable / unreliable
+communication can be specified. vsomeip will take the first free port of
+the list. If no free port can be found, the connection will fail. If
+vsomeip is asked to connect to a service instance without specified port(s),
+the port will be selected by the system. This implies that the user has
+to ensure that the ports configured here do not overlap with the ports
+automatically selected by the IP stack.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+</li>
+<li>
+<p>
+<code>instance</code>
+</p>
+<div class="paragraph"><p>Together they specify the service instance the port configuration shall be applied to.</p></div>
+</li>
+<li>
+<p>
+<code>reliable</code> (array)
+</p>
+<div class="paragraph"><p>The list of client ports to be used for reliable (TCP) communication to the given
+service instance.</p></div>
+</li>
+<li>
+<p>
+<code>unreliable</code> (array)
+</p>
+<div class="paragraph"><p>The list of client ports to be used for unreliable (UDP) communication to the given
+service instance.</p></div>
+</li>
+</ul></div>
+<div class="paragraph"><p>Additionally there is the possibility to configure mappings between ranges of client
+ports and ranges of remote service ports.
+(If a client port is configured for a specific service / instance, the port range mapping is ignored)</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>reliable_remote_ports</code>
+</p>
+<div class="paragraph"><p>Specifies a range of reliable remote service ports</p></div>
+</li>
+<li>
+<p>
+<code>unreliable_remote_ports</code>
+</p>
+<div class="paragraph"><p>Specifies a range of unreliable remote service ports</p></div>
+</li>
+<li>
+<p>
+<code>reliable_client_ports</code>
+</p>
+<div class="paragraph"><p>Specifies the range of reliable client ports to be mapped to the reliable_remote_ports range</p></div>
+</li>
+<li>
+<p>
+<code>unreliable_client_ports</code>
+</p>
+<div class="paragraph"><p>Specifies the range of unreliable client ports to be mapped to the unreliable_remote_ports range</p></div>
+</li>
+<li>
+<p>
+<code>first</code>
+</p>
+<div class="paragraph"><p>Specifies the lower bound of a port range</p></div>
+</li>
+<li>
+<p>
+<code>last</code>
+</p>
+<div class="paragraph"><p>Specifies the upper bound of a port range</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>payload-sizes</code> (array)
+</p>
+<div class="paragraph"><p>Array to limit the maximum allowed payload sizes per IP and port. If not
+specified otherwise the allowed payload sizes are unlimited. The settings in
+this array only affect communication over TCP. To limit the local payload size
+<code>max-payload-size-local</code> can be used.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>unicast</code>
+</p>
+<div class="paragraph"><p>On client side: the IP of the remote service for which the payload size should
+be limited.</p></div>
+<div class="paragraph"><p>On service side: the IP of the offered service for which the payload size for
+receiving and sending should be limited.</p></div>
+</li>
+<li>
+<p>
+<code>ports</code> (array)
+</p>
+<div class="paragraph"><p>Array which holds pairs of port and payload size statements.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>port</code>
+</p>
+<div class="paragraph"><p>On client side: the port of the remote service for which the payload size should
+be limited.</p></div>
+<div class="paragraph"><p>On service side: the port of the offered service for which the payload size for
+receiving and sending should be limited.</p></div>
+</li>
+<li>
+<p>
+<code>max-payload-size</code>
+</p>
+<div class="paragraph"><p>On client side: the payload size limit in bytes of a message sent to the
+remote service hosted on beforehand specified IP and port.</p></div>
+<div class="paragraph"><p>On service side: the payload size limit in bytes of messages received and sent
+by the service offered on previously specified IP and port.</p></div>
+<div class="paragraph"><p>If multiple services are hosted on the same port they all share the limit
+specified.</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>max-payload-size-local</code>
+</p>
+<div class="paragraph"><p>The maximum allowed payload size for node internal communication in bytes. By
+default the payload size for node internal communication is unlimited. It can be
+limited via this setting.</p></div>
+</li>
+<li>
+<p>
+<code>max-payload-size-reliable</code>
+</p>
+<div class="paragraph"><p>The maximum allowed payload size for TCP communication in
+bytes. By default the payload size for TCP communication is
+unlimited. It can be limited via this setting.</p></div>
+</li>
+<li>
+<p>
+<code>max-payload-size-unreliable</code>
+</p>
+<div class="paragraph"><p>The maximum allowed payload size for UDP communication via SOME/IP-TP in
+bytes. By default the payload size for UDP via SOME/IP-TP communication is
+unlimited. It can be limited via this setting. This setting only applies for
+SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400
+bytes applies). See <a href="#someiptp">SOME/IP-TP</a> for an example configuration.</p></div>
+</li>
+<li>
+<p>
+<code>endpoint-queue-limits</code> (array)
+</p>
+<div class="paragraph"><p>Array to limit the maximum allowed size in bytes of cached outgoing messages per
+IP and port (message queue size per endpoint). If not specified otherwise the
+allowed queue size is unlimited. The settings in this array only affect external
+communication. To limit the local queue size <code>endpoint-queue-limit-local</code> can
+be used.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>unicast</code>
+</p>
+<div class="paragraph"><p>On client side: the IP of the remote service for which the queue size of sent
+requests should be limited.</p></div>
+<div class="paragraph"><p>On service side: the IP of the offered service for which the queue size for
+sent responses should be limited. This IP address is therefore
+identical to the IP address specified via <code>unicast</code> setting on top level of the
+json file.</p></div>
+</li>
+<li>
+<p>
+<code>ports</code> (array)
+</p>
+<div class="paragraph"><p>Array which holds pairs of port and queue size statements.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>port</code>
+</p>
+<div class="paragraph"><p>On client side: the port of the remote service for which the queue size of sent
+requests should be limited.</p></div>
+<div class="paragraph"><p>On service side: the port of the offered service for which the queue size for
+send responses should be limited.</p></div>
+</li>
+<li>
+<p>
+<code>queue-size-limit</code>
+</p>
+<div class="paragraph"><p>On client side: the queue size limit in bytes of messages sent to the
+remote service hosted on beforehand specified IP and port.</p></div>
+<div class="paragraph"><p>On service side: the queue size limit in bytes for responses sent by the service
+offered on previously specified IP and port.</p></div>
+<div class="paragraph"><p>If multiple services are hosted on the same port they all share the limit
+specified.</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>endpoint-queue-limit-external</code>
+</p>
+<div class="paragraph"><p>Setting to limit the maximum allowed size in bytes of cached outgoing messages
+for external communication (message queue size per endpoint). By default the
+queue size for external communication is unlimited. It can be limited via this
+setting. Settings done in the <code>endpoint-queue-limits</code> array override this
+setting.</p></div>
+</li>
+<li>
+<p>
+<code>endpoint-queue-limit-local</code>
+</p>
+<div class="paragraph"><p>Setting to limit the maximum allowed size in bytes of cached outgoing messages
+for local communication (message queue size per endpoint). By default the queue
+size for node internal communication is unlimited. It can be limited via this
+setting.</p></div>
+</li>
+<li>
+<p>
+<code>buffer-shrink-threshold</code>
+</p>
+<div class="paragraph"><p>The number of processed messages which are half the size or smaller than the
+allocated buffer used to process them before the memory for the buffer is
+released and starts to grow dynamically again. This setting can be useful in
+scenarios where only a small number of the overall messages are a lot bigger
+then the rest and the memory allocated to process them should be released in a
+timely manner. If the value is set to zero the buffer sizes aren&#8217;t reseted and
+are as big as the biggest processed message. (default is 5)</p></div>
+<div class="paragraph"><p>Example: <code>buffer-shrink-threshold</code> is set to 50. A message with 500 bytes has to
+be processed and the buffers grow accordingly. After this message 50 consecutive
+messages smaller than 250 bytes have to be processed before the buffer size is
+reduced and starts to grow dynamically again.</p></div>
+</li>
+<li>
+<p>
+<code>tcp-restart-aborts-max</code>
+</p>
+<div class="paragraph"><p>Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake.
+After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending.</p></div>
+</li>
+<li>
+<p>
+<code>tcp-connect-time-max</code>
+</p>
+<div class="paragraph"><p>Setting to define the maximum time until the TCP client endpoint connection attempt should be finished.
+If <code>tcp-connect-time-max</code> is elapsed, the TCP client endpoint is forcely restarted if the connection attempt is still pending.</p></div>
+</li>
+<li>
+<p>
+<code>udp-receive-buffer-size</code>
+</p>
+<div class="paragraph"><p>Specifies the size of the socket receive buffer (<code>SO_RCVBUF</code>) used for
+UDP client and server endpoints in bytes. (default: 1703936)</p></div>
+</li>
+<li>
+<p>
+<code>internal_services</code> (optional array)
+</p>
+<div class="paragraph"><p>Specifies service/instance ranges for pure internal service-instances.
+This information is used by vsomeip to avoid sending Find-Service messages
+via the Service-Discovery when a client is requesting a not available service-
+instance. Its can either be done on service/instance level or on service level
+only which then includes all instance from 0x0000-0xffff.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>first</code>
+</p>
+<div class="paragraph"><p>The lowest entry of the internal service range.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>The lowest Service-ID in hex of the internal service range.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code> (optional)
+</p>
+<div class="paragraph"><p>The lowest Instance-ID in hex of a internal service-instance range.
+If not specified the lowest Instance-ID is 0x0000.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>last</code>
+</p>
+<div class="paragraph"><p>The highest entry of the internal service range.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>The highest Service-ID in hex of a internal service range.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code> (optional)
+</p>
+<div class="paragraph"><p>The highest Instance-ID in hex of a internal service-instance range.
+If not specified the highest Instance-ID is 0xFFFF.</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>debounce</code> (optional array)
+</p>
+<div class="paragraph"><p>Events/fields sent by external devices will be forwarded to the
+applications only if a configurable function evaluates to true. The
+function checks whether the event/field payload has changed and whether
+a specified interval has been elapsed since the last forwarding.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>Service ID which hosts the events to be debounced.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code>
+</p>
+<div class="paragraph"><p>Instance ID which hosts the events to be debounced.</p></div>
+</li>
+<li>
+<p>
+<code>events</code>
+</p>
+<div class="paragraph"><p>Array of events which shall be debounced based on the following
+configuration options.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>event</code>
+</p>
+<div class="paragraph"><p>Event ID.</p></div>
+</li>
+<li>
+<p>
+<code>on_change</code>
+</p>
+<div class="paragraph"><p>Specifies whether the event is only forwared on
+paylaod change or not. (valid values: <em>true</em>, <em>false</em>).</p></div>
+</li>
+<li>
+<p>
+<code>ignore</code>
+</p>
+<div class="paragraph"><p>Array of payload indexes with given bit mask (optional)
+to be ignored in payload change evaluation.
+Instead of specifying an index / bitmask pair, one can only define the paylaod index
+which shall be ignored in the evaluation.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>index</code>
+</p>
+<div class="paragraph"><p>Payload index to be checked with given bitmask.</p></div>
+</li>
+<li>
+<p>
+<code>mask</code>
+</p>
+<div class="paragraph"><p>1Byte bitmask applied to byte at given payload index.
+Example mask: 0x0f ignores payload changes in low nibble of the byte at given index.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>interval</code>
+</p>
+<div class="paragraph"><p>Specifies if the event shall be debounced based on elapsed time interval.
+(valid values: <em>time in ms</em>, <em>never</em>).</p></div>
+</li>
+<li>
+<p>
+<code>on_change_resets_interval_</code> (optional)
+Specifies if interval timer is reset when payload change was detected.
+(valid values: <em>false</em>, <em>true</em>).
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>routing</code>
+</p>
+<div class="paragraph"><p>The name of the application that is responsible for the routing.</p></div>
+</li>
+<li>
+<p>
+<code>routing-credentials</code>
+</p>
+<div class="paragraph"><p>The UID / GID of the application acting as routing manager.
+(Must be specified if credentials checks are enabled using <em>check_credentials</em> set to <em>true</em> in order to successfully check the routing managers credentials passed on connect)</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>uid</code>
+</p>
+<div class="paragraph"><p>The routing managers UID.</p></div>
+</li>
+<li>
+<p>
+<code>gid</code>
+</p>
+<div class="paragraph"><p>The routing managers GID.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>shutdown_timeout</code>
+</p>
+<div class="paragraph"><p>Configures the time in milliseconds local clients wait for acknowledgement of
+their deregistration from the routing manager during shutdown. Defaults to
+5000ms.</p></div>
+</li>
+<li>
+<p>
+<code>warn_fill_level</code>
+</p>
+<div class="paragraph"><p>The routing manager regulary checks the fill level of the send buffers to its
+clients. This variable defines the minimum fill level in percent that leads to
+a warning being logged. Defaults to 67.</p></div>
+</li>
+<li>
+<p>
+<code>service-discovery</code>
+</p>
+<div class="paragraph"><p>Contains settings related to the Service Discovery of the host application.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>enable</code>
+</p>
+<div class="paragraph"><p>Specifies whether the Service Discovery is enabled (valid values: <em>true</em>,
+<em>false</em>). The default value is <em>true</em>.</p></div>
+</li>
+<li>
+<p>
+<code>multicast</code>
+</p>
+<div class="paragraph"><p>The multicast address which the messages of the Service Discovery will be sent
+to. The default value is <em>224.0.0.1</em>.</p></div>
+</li>
+<li>
+<p>
+<code>port</code>
+</p>
+<div class="paragraph"><p>The port of the Service Discovery. The default setting is <em>30490</em>.</p></div>
+</li>
+<li>
+<p>
+<code>protocol</code>
+</p>
+<div class="paragraph"><p>The protocol that is used for sending the Service Discovery messages (valid
+values: <em>tcp</em>, <em>udp</em>). The default setting is <em>udp</em>.</p></div>
+</li>
+<li>
+<p>
+<code>initial_delay_min</code>
+</p>
+<div class="paragraph"><p>Minimum delay before first offer message.</p></div>
+</li>
+<li>
+<p>
+<code>initial_delay_max</code>
+</p>
+<div class="paragraph"><p>Maximum delay before first offer message.</p></div>
+</li>
+<li>
+<p>
+<code>repetitions_base_delay</code>
+</p>
+<div class="paragraph"><p>Base delay sending offer messages within the repetition phase.</p></div>
+</li>
+<li>
+<p>
+<code>repetitions_max</code>
+</p>
+<div class="paragraph"><p>Maximum number of repetitions for provided services within the
+repetition phase.</p></div>
+</li>
+<li>
+<p>
+<code>ttl</code>
+</p>
+<div class="paragraph"><p>Lifetime of entries for provided services as well as consumed services and eventgroups.</p></div>
+</li>
+<li>
+<p>
+<code>ttl_factor_offers</code> (optional array)
+</p>
+<div class="paragraph"><p>Array which holds correction factors for incoming remote offers. If a value
+greater than one is specified for a service instance, the TTL field of the
+corresponding service entry will be multiplied with the specified factor.<br />
+Example: An offer of a service is received with a TTL of 3 sec and the TTL
+factor is set to 5. The remote node stops offering the service w/o sending a
+StopOffer message. The service will then expire (marked as unavailable) 15 seconds
+after the last offer has been received.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>The id of the service.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code>
+</p>
+<div class="paragraph"><p>The id of the service instance.</p></div>
+</li>
+<li>
+<p>
+<code>ttl_factor</code>
+</p>
+<div class="paragraph"><p>TTL correction factor</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>ttl_factor_subscriptions</code> (optional array)
+</p>
+<div class="paragraph"><p>Array which holds correction factors for incoming remote subscriptions. If a
+value greater than one is specified for a service instance, the TTL field of the
+corresponding eventgroup entry will be multiplied with the specified factor.<br />
+Example: A remote subscription to an offered service is received with a TTL of 3
+sec and the TTL factor is set to 5. The remote node stops resubscribing to the
+service w/o sending a StopSubscribeEventgroup message. The subscription will
+then expire 15 seconds after the last resubscription has been received.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>The id of the service.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code>
+</p>
+<div class="paragraph"><p>The id of the service instance.</p></div>
+</li>
+<li>
+<p>
+<code>ttl_factor</code>
+</p>
+<div class="paragraph"><p>TTL correction factor</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>cyclic_offer_delay</code>
+</p>
+<div class="paragraph"><p>Cycle of the OfferService messages in the main phase.</p></div>
+</li>
+<li>
+<p>
+<code>request_response_delay</code>
+</p>
+<div class="paragraph"><p>Minimum delay of a unicast message to a multicast message for
+provided services and eventgroups.</p></div>
+</li>
+<li>
+<p>
+<code>offer_debounce_time</code>
+</p>
+<div class="paragraph"><p>Time which the stack collects new service offers before they enter the
+repetition phase. This can be used to reduce the number of
+sent messages during startup. The default setting is <em>500ms</em>.</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<a id="config-watchdog"></a><code>watchdog</code> (optional)
+</p>
+<div class="paragraph"><p>The Watchdog sends periodically pings to all known local clients.
+If a client isn&#8217;t responding within a configurred time/amount of pongs
+the watchdog deregisters this application/client.
+If not configured the watchdog isn&#8217;t activated.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>enable</code>
+</p>
+<div class="paragraph"><p>Specifies whether the watchdog is enabled or disabled.
+(valid values: <em>true, false</em>), (default is <em>false</em>).</p></div>
+</li>
+<li>
+<p>
+<code>timeout</code>
+</p>
+<div class="paragraph"><p>Specifies the timeout in ms the watchdog gets activated if a ping
+isn&#8217;t answered with a pong by a local client within that time.
+(valid values: <em>2 - 2^32</em>), (default is <em>5000</em> ms).</p></div>
+</li>
+<li>
+<p>
+<code>allowed_missing_pongs</code>
+</p>
+<div class="paragraph"><p>Specifies the amount of allowed missing pongs.
+(valid values: <em>1 - 2^32</em>), (default is <em>3</em> pongs).</p></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<a id="config-supports_selective_broadcasts"></a><code>supports_selective_broadcasts</code> (optional array)
+</p>
+<div class="paragraph"><p>This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported.
+If not specified the feature can&#8217;t be used and the subscription behavior of the stack is same as with
+normal events.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>address</code>
+</p>
+<div class="paragraph"><p>Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported.
+Multiple addresses can be configured.</p></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_security">5. Security</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>vsomeip has a security implementation based on UNIX credentials.
+If activated every local connection is authenticated during connect using the standard UNIX credential passing mechanism.
+During authentication a client transfers its client identifier together with its credentials (UID / GID) to the server which is then matched against the configuration.
+If received credentials don&#8217;t match the policy the socket will be immediately closed by the server and an message is logged.
+If accepted the client identifier is bound to the receiving socket and can therefore be used to do further security checks on incoming messages (vsomeip messages as well as internal commands).</p></div>
+<div class="paragraph"><p>In general clients can be configured to be allowed/denied to request (means communicate with) and offer different service instances.
+Every incoming vsomeip message (request/response/notification) as well as offer service requests or local subscriptions are then checked against the policy.
+If an incoming vsomeip message or another operation (e.g. offer/subscribe) violates the configured policies it is skipped and a message is logged.</p></div>
+<div class="paragraph"><p>Furthermore if an application receives informations about other clients/services in the system, it must be received from the authenticated routing manager.
+This is to avoid malicious applications faking the routing manager and therefore being able to wrongly inform other clients about services running on the system.
+Therefore, whenever the "security" tag is specified, the routing manager (e.g. routingmanagerd/vsomeipd) must be a configured application with a fixed client identifier.
+See chapter "Configuration File Structure" on how to configure an application to use a specific client identifier.</p></div>
+<div class="paragraph"><p>Credential passing is only possible via Unix-Domain-Sockets and therefore only available for local communication.
+However if security is activated method calls from remote clients to local services are checked as well which means remote clients needs to be explicitly allowed.
+Such a policy looks same in case for local clients except the <em>credentials</em> tag can be skipped.</p></div>
+<div class="sect2">
+<h3 id="_security_configuration">5.1. Security configuration</h3>
+<div class="paragraph"><p>The available configuration switches for the security feature are:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<a id="config-policy"></a><code>security</code> (optional)
+</p>
+<div class="paragraph"><p>If specified the credential passing mechanism is activated. However no credential or security checks are done as long as <em>check_credentials</em> isn&#8217;t set to <em>true</em>, but the routing manager client ID must be configured if security tag is specified and shall not be set to 0x6300.
+If <em>check_credentials</em> is set to <em>true</em>, the routing managers UID and GID needs to be specified using <em>routing-credentials</em> tag.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>check_credentials</code> (optional)
+</p>
+<div class="paragraph"><p>Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow.
+(valid values: <em>true, false</em>), (default is <em>false</em>).</p></div>
+</li>
+<li>
+<p>
+<code>allow_remote_clients</code> (optional)
+</p>
+<div class="paragraph"><p>Specifies whether incoming remote requests / subscriptions are allowed to be sent to a local proxy / client.
+If not specified, all remote requests / subscriptions are allowed to be received by default.
+(valid values are <em>true</em> and <em>false</em>)</p></div>
+</li>
+<li>
+<p>
+<code>policies</code> (array)
+</p>
+<div class="paragraph"><p>Specifies the security policies. Each policy at least needs to specify <em>allow</em> or <em>deny</em>.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>credentials</code>
+</p>
+<div class="paragraph"><p>Specifies the credentials for which a security policy will be applied.
+If <em>check_credentials</em> is set to <em>true</em> the credentials of a local application needs to be specified correctly to ensure local socket authentication can succeed.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>uid</code>
+</p>
+<div class="paragraph"><p>Specifies the LINUX user id of the client application as decimal number.
+As a wildcard "any" can be used.</p></div>
+</li>
+<li>
+<p>
+<code>gid</code>
+</p>
+<div class="paragraph"><p>Specifies the LINUX group id of the client application as decimal number.
+As a wildcard "any" can be used.</p></div>
+</li>
+<li>
+<p>
+<code>allow</code> / <code>deny</code> (optional)
+</p>
+<div class="paragraph"><p>Specifies whether the LINUX user and group ids are allowed or denied for the policy.</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<code>uid</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a list of LINUX user ids. These may either be specified as decimal numbers or as ranges. Ranges
+are specified by the first and the last valid id (see example below).</p></div>
+</li>
+<li>
+<p>
+<code>gid</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a list of LINUX group ids. These may either be specified as decimal numbers or as ranges. Ranges
+are specified by the first and the last valid id (see example below).</p></div>
+</li>
+</ol></div>
+</li>
+</ul></div>
+</li>
+<li>
+<p>
+<code>allow</code> / <code>deny</code>
+</p>
+<div class="paragraph"><p>This tag specifies either <em>allow</em> or <em>deny</em> depending on white- or blacklisting is needed. Specifing <em>allow</em> and <em>deny</em> entries in one policy is therefore not allowed.
+With <em>allow</em> a whitelisting of what is allowed can be done which means an empty <em>allow</em> tag implies everything is denied.
+With <em>deny</em> a blacklisting of what is allowed can be done which means an empty <em>deny</em> tag implies everything is allowed.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<code>requests</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a set of service instance pairs which the above client application using the credentials above is allowed/denied to communicate with.</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>Specifies a service for the <em>requests</em>.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code> (deprecated)
+</p>
+<div class="paragraph"><p>Specifies a instance for the <em>requests</em>
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF
+which also implies a method ID range from 0x01 to 0xFFFF.</p></div>
+</li>
+<li>
+<p>
+<code>instances</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a set of instance ID and method ID range pairs which are allowed/denied to communicate with.
+If the <code>ids</code> tag below is not used to specify allowed/denied requests on method ID level one can also
+only specify a a set of instance ID ranges which are allowed/denied to be requested analogous to the
+allowed/denied <code>offers</code> section.
+If no method IDs are specified, the allowed/denied methods are by default a range from 0x01 to 0xFFFF.</p></div>
+<div class="olist loweralpha"><ol class="loweralpha">
+<li>
+<p>
+<code>ids</code>
+</p>
+<div class="paragraph"><p>Specifies a set of instance ID ranges which are allowed/denied to communicate with.
+It is also possible to specify a single instance ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.</p></div>
+<div class="paragraph"><p><code>first</code> - The lower bound of the instance range.</p></div>
+<div class="paragraph"><p><code>last</code>  - The upper bound of the instance range.</p></div>
+</li>
+<li>
+<p>
+<code>methods</code>
+</p>
+<div class="paragraph"><p>Specifies a set of method ID ranges which are allowed/denied to communicate with.
+It is also possible to specify a single method ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from method ID 0x01 to 0xFFFF.</p></div>
+<div class="paragraph"><p><code>first</code> - The lower bound of the method range.</p></div>
+<div class="paragraph"><p><code>last</code>  - The upper bound of the method range.</p></div>
+</li>
+</ol></div>
+</li>
+</ol></div>
+</li>
+<li>
+<p>
+<code>offers</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a set of service instance pairs which are allowed/denied to be offered by the client application using the credentials above.</p></div>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<code>service</code>
+</p>
+<div class="paragraph"><p>Specifies a service for the <em>offers</em>.</p></div>
+</li>
+<li>
+<p>
+<code>instance</code> (deprecated)
+</p>
+<div class="paragraph"><p>Specifies a instance for the <em>offers</em>
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.</p></div>
+</li>
+<li>
+<p>
+<code>instances</code> (array)
+</p>
+<div class="paragraph"><p>Specifies a set of instance ID ranges which are allowed/denied to be offered by the client application using the credentials above.
+It is also possible to specify a single instance ID as array element without giving an upper / lower range bound.
+As a wildcard "any" can be used which means a range from instance ID 0x01 to 0xFFFF.</p></div>
+<div class="olist loweralpha"><ol class="loweralpha">
+<li>
+<p>
+<code>first</code>
+</p>
+<div class="paragraph"><p>The lower bound of the instance range.</p></div>
+</li>
+<li>
+<p>
+<code>last</code>
+</p>
+<div class="paragraph"><p>The upper bound of the instance range.</p></div>
+</li>
+</ol></div>
+</li>
+</ol></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div style="page-break-after:always"></div>
+</div>
+<div class="sect2">
+<h3 id="_security_configuration_example">5.2. Security configuration example</h3>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #990000">...</span>
+<span style="color: #FF0000">"security"</span> <span style="color: #990000">:</span>
+{
+    <span style="color: #990000">...</span>
+    <span style="color: #FF0000">"policies"</span> <span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #990000">...</span>
+            <span style="color: #FF0000">"credentials"</span> <span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"uid"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"44"</span><span style="color: #990000">,</span>
+                <span style="color: #FF0000">"gid"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"any"</span>
+             }<span style="color: #990000">,</span>
+             <span style="color: #FF0000">"allow"</span> <span style="color: #990000">:</span>
+             <span style="color: #990000">[</span>
+                 <span style="color: #FF0000">"requests"</span> <span style="color: #990000">:</span>
+                 <span style="color: #990000">[</span>
+                     {
+                         <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6731"</span><span style="color: #990000">,</span>
+                         <span style="color: #FF0000">"instance"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0001"</span>
+                     }
+                 <span style="color: #990000">]</span>
+             <span style="color: #990000">]</span>
+         }<span style="color: #990000">,</span>
+         {
+            <span style="color: #FF0000">"credentials"</span> <span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"deny"</span> <span style="color: #990000">:</span>
+                <span style="color: #990000">[</span>
+                    {
+                        <span style="color: #FF0000">"uid"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"1000"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"1002"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"max"</span> }<span style="color: #990000">],</span>
+                        <span style="color: #FF0000">"gid"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"100"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"243"</span> }<span style="color: #990000">,</span> <span style="color: #FF0000">"300"</span><span style="color: #990000">]</span>
+                    }<span style="color: #990000">,</span>
+                    {
+                        <span style="color: #FF0000">"uid"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span><span style="color: #FF0000">"55"</span><span style="color: #990000">],</span>
+                        <span style="color: #FF0000">"gid"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span><span style="color: #FF0000">"55"</span><span style="color: #990000">]</span>
+                    }
+                 <span style="color: #990000">]</span>
+             }<span style="color: #990000">,</span>
+             <span style="color: #FF0000">"allow"</span> <span style="color: #990000">:</span>
+             <span style="color: #990000">[</span>
+                 <span style="color: #FF0000">"offers"</span> <span style="color: #990000">:</span>
+                 <span style="color: #990000">[</span>
+                     {
+                        <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6728"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"instances"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0003"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0007"</span> }<span style="color: #990000">,</span> <span style="color: #FF0000">"0x0009"</span><span style="color: #990000">]</span>
+                     }<span style="color: #990000">,</span>
+                     {
+                        <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6729"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"instances"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span><span style="color: #FF0000">"0x88"</span><span style="color: #990000">]</span>
+                     }<span style="color: #990000">,</span>
+                     {
+                        <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6730"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"instance"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"any"</span>
+                     }
+                 <span style="color: #990000">],</span>
+                 <span style="color: #FF0000">"requests"</span> <span style="color: #990000">:</span>
+                 <span style="color: #990000">[</span>
+                     {
+                         <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6732"</span><span style="color: #990000">,</span>
+                         <span style="color: #FF0000">"instances"</span> <span style="color: #990000">:</span>
+                         <span style="color: #990000">[</span>
+                             {
+                                 <span style="color: #FF0000">"ids"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0003"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0007"</span> }<span style="color: #990000">],</span>
+                                 <span style="color: #FF0000">"methods"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"0x0003"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x8001"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x8006"</span> } <span style="color: #990000">]</span>
+                             }<span style="color: #990000">,</span>
+                             {
+                                 <span style="color: #FF0000">"ids"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0x0009"</span> <span style="color: #990000">],</span>
+                                 <span style="color: #FF0000">"methods"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"any"</span>
+                             }
+                         <span style="color: #990000">]</span>
+                     }<span style="color: #990000">,</span>
+                     {
+                        <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6733"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"instance"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x1"</span>
+                     }<span style="color: #990000">,</span>
+                     {
+                        <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x6733"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"instances"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #FF0000">"0x0002"</span><span style="color: #990000">,</span> { <span style="color: #FF0000">"first"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0003"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"last"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x0007"</span> }<span style="color: #990000">,</span> <span style="color: #FF0000">"0x0009"</span><span style="color: #990000">]</span>
+                     }
+                 <span style="color: #990000">]</span>
+             <span style="color: #990000">]</span>
+         }
+     <span style="color: #990000">]</span>
+}</tt></pre></div></div>
+<div class="paragraph"><p>The config/ folder contains some addition vsomeip configuration files to run the vsomeip
+examples with activated security checks.
+Additionally there&#8217;s a security test in the <code>test/</code> subfolder which can be used
+for further reference.<br />
+They give a basic overview how to use the security related configuration tags described
+in this chapter to run a simple request/response or subscribe/notify example locally or
+remotely.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_audit_mode">5.3. Audit Mode</h3>
+<div class="paragraph"><p>vsomeip&#8217;s security implementation can be put in a so called <em>Audit Mode</em> where
+all security violations will be logged but allowed. This mode can be used to
+build a security configuration.</p></div>
+<div class="paragraph"><p>To activate the <em>Audit Mode</em> the <em>security</em> object has to be included in the
+json file but the <em>check_credentials</em> switch has to be set to false. For
+example:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>    <span style="color: #990000">[...]</span>
+    <span style="color: #FF0000">"services"</span> <span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        <span style="color: #990000">[...]</span>
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"security"</span> <span style="color: #990000">:</span>
+    {
+        <span style="color: #FF0000">"check_credentials"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"false"</span>
+    }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"routing"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"service-sample"</span><span style="color: #990000">,</span>
+    <span style="color: #990000">[...]</span></tt></pre></div></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_autoconfiguration">6. Autoconfiguration</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>vsomeip supports the automatic configuration of client identifiers and the routing.
+The first application that starts using vsomeip will automatically become the
+routing manager if it is <em>not</em> explicitly configured. The client identifiers
+are generated from the diagnosis address that can be specified by defining
+DIAGNOSIS_ADDRESS when compiling vsomeip. vsomeip will use the diagnosis address
+as the high byte and enumerate the connecting applications within the low byte
+of the client identifier.</p></div>
+<div class="paragraph"><p>Autoconfiguration of client identifiers isn&#8217;t meant to be used together with vsomeip Security.
+Every client running locally needs to have at least its own credentials configured when security is activated to ensure the credential checks can pass.
+Practically that means if a client requests its identifier over the autoconfiguration for which no credentials are configured (at least it isn&#8217;t known which client identifier is used beforehand) it is impossible for that client to establish a connection to a server endpoint.
+However if the credentials for all clients are same it&#8217;s possible to configure them for the overall (or DIAGNOSIS_ADDRESS) client identifier range to mix autoconfiguration together with activated security.</p></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_routingmanagerd">7. routingmanagerd</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>The routingmanagerd is a minimal vsomeip application intended to offer routing
+manager functionality on a node where one system wide configuration file is
+present. It can be found in the examples folder.</p></div>
+<div class="paragraph"><p>Example: Starting the daemon on a system where the system wide configuration is
+stored under <code>/etc/vsomeip.json</code>:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #009900">VSOMEIP_CONFIGURATION</span><span style="color: #990000">=</span>/etc/vsomeip<span style="color: #990000">.</span>json <span style="color: #990000">.</span>/routingmanagerd</tt></pre></div></div>
+<div class="paragraph"><p>When using the daemon it should be ensured that:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+In the system wide configuration file the routingmanagerd is defined as
+  routing manager, meaning it contains the line <code>"routing" : "routingmanagerd"</code>.
+  If the default name is overridden the entry has to be adapted accordingly.
+  The system wide configuration file should contain the information about all
+  other offered services on the system as well.
+</p>
+</li>
+<li>
+<p>
+There&#8217;s no other vsomeip configuration file used on the system which contains
+  a <code>"routing"</code> entry. As there can only be one routing manager per system.
+</p>
+</li>
+</ul></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_vsomeip_hello_world">8. vsomeip Hello World</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>In this paragraph a Hello World program consisting out of a client and a service
+is developed. The client sends a message containing a string to the service.
+The service appends the received string to the string <code>Hello</code> and sends it back
+to the client.
+Upon receiving a response from the service the client prints the payload of the
+response ("Hello World").
+This example is intended to be run on the same host.</p></div>
+<div class="paragraph"><p>All files listed here are contained in the <code>examples\hello_world</code> subdirectory.</p></div>
+<div class="sect2">
+<h3 id="_build_instructions_2">8.1. Build instructions</h3>
+<div class="paragraph"><p>The example can build with its own CMakeFile, please compile the vsomeip stack
+before hand as described in <a href="#Compilation">[Compilation]</a>. Then compile the example starting
+from the repository root directory as followed:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>cd examples/hello_world
+mkdir build
+cd build
+cmake <span style="color: #990000">..</span>
+make</tt></pre></div></div>
+</div>
+<div class="sect2">
+<h3 id="_starting_and_expected_output">8.2. Starting and expected output</h3>
+<div class="sect3">
+<h4 id="_starting_and_expected_output_of_service">8.2.1. Starting and expected output of service</h4>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>$ <span style="color: #009900">VSOMEIP_CONFIGURATION</span><span style="color: #990000">=..</span>/helloworld-local<span style="color: #990000">.</span>json <span style="color: #990000">\</span>
+  <span style="color: #009900">VSOMEIP_APPLICATION_NAME</span><span style="color: #990000">=</span>hello_world_service <span style="color: #990000">\</span>
+  <span style="color: #990000">.</span>/hello_world_service
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">13.248437</span> <span style="color: #990000">[</span>info<span style="color: #990000">]</span> Using configuration file<span style="color: #990000">:</span> <span style="color: #990000">..</span>/helloworld-local<span style="color: #990000">.</span>json
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">13.248766</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Routing endpoint at /tmp/vsomeip-<span style="color: #993399">0</span>
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">13.248913</span> <span style="color: #990000">[</span>info<span style="color: #990000">]</span> Service Discovery disabled<span style="color: #990000">.</span> Using static routing information<span style="color: #990000">.</span>
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">13.248979</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Application<span style="color: #990000">(</span>hello_world_service<span style="color: #990000">,</span> <span style="color: #993399">4444</span><span style="color: #990000">)</span> is initialized<span style="color: #990000">.</span>
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">22.705010</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Application/Client <span style="color: #993399">5555</span> got registered<span style="color: #990000">!</span></tt></pre></div></div>
+</div>
+<div class="sect3">
+<h4 id="_starting_and_expected_output_of_client">8.2.2. Starting and expected output of client</h4>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>$ <span style="color: #009900">VSOMEIP_CONFIGURATION</span><span style="color: #990000">=..</span>/helloworld-local<span style="color: #990000">.</span>json <span style="color: #990000">\</span>
+  <span style="color: #009900">VSOMEIP_APPLICATION_NAME</span><span style="color: #990000">=</span>hello_world_client <span style="color: #990000">\</span>
+  <span style="color: #990000">.</span>/hello_world_client
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">22.704166</span> <span style="color: #990000">[</span>info<span style="color: #990000">]</span> Using configuration file<span style="color: #990000">:</span> <span style="color: #990000">..</span>/helloworld-local<span style="color: #990000">.</span>json
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">22.704417</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Connecting to <span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> at /tmp/vsomeip-<span style="color: #993399">0</span>
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">22.704630</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Listening at /tmp/vsomeip-<span style="color: #993399">5555</span>
+<span style="color: #993399">2015</span>-<span style="color: #993399">04</span>-<span style="color: #993399">01</span> <span style="color: #993399">11</span><span style="color: #990000">:</span><span style="color: #993399">31</span><span style="color: #990000">:</span><span style="color: #993399">22.704680</span> <span style="color: #990000">[</span>debug<span style="color: #990000">]</span> Application<span style="color: #990000">(</span>hello_world_client<span style="color: #990000">,</span> <span style="color: #993399">5555</span><span style="color: #990000">)</span> is initialized<span style="color: #990000">.</span>
+Sending<span style="color: #990000">:</span> World
+Received<span style="color: #990000">:</span> Hello World</tt></pre></div></div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_cmakefile">8.3. CMakeFile</h3>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-style: italic"><span style="color: #9A1900"># Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)</span></span>
+<span style="font-style: italic"><span style="color: #9A1900"># This Source Code Form is subject to the terms of the Mozilla Public</span></span>
+<span style="font-style: italic"><span style="color: #9A1900"># License, v. 2.0. If a copy of the MPL was not distributed with this</span></span>
+<span style="font-style: italic"><span style="color: #9A1900"># file, You can obtain one at http://mozilla.org/MPL/2.0/.</span></span>
+
+cmake_minimum_required <span style="color: #990000">(</span>VERSION <span style="color: #993399">2.8</span><span style="color: #990000">.</span><span style="color: #993399">7</span><span style="color: #990000">)</span>
+project <span style="color: #990000">(</span>vSomeIPHelloWorld<span style="color: #990000">)</span>
+
+find_package<span style="color: #990000">(</span>Threads REQUIRED<span style="color: #990000">)</span>
+
+<span style="font-weight: bold"><span style="color: #0000FF">set</span></span><span style="color: #990000">(</span>CMAKE_CXX_FLAGS <span style="color: #FF0000">"${CMAKE_CXX_FLAGS} -std=c++11"</span><span style="color: #990000">)</span>
+
+include_directories<span style="color: #990000">(</span><span style="color: #009900">${VSOMEIP_INCLUDE_DIRS}</span><span style="color: #990000">)</span>
+
+add_library<span style="color: #990000">(</span>vsomeip_hello_world_service INTERFACE<span style="color: #990000">)</span>
+target_sources<span style="color: #990000">(</span>vsomeip_hello_world_service INTERFACE
+    <span style="color: #FF0000">"${CMAKE_CURRENT_SOURCE_DIR}/hello_world_service.hpp"</span>
+<span style="color: #990000">)</span>
+target_include_directories<span style="color: #990000">(</span>vsomeip_hello_world_service INTERFACE
+        <span style="color: #FF0000">"${CMAKE_CURRENT_SOURCE_DIR}"</span>
+<span style="color: #990000">)</span>
+
+add_library<span style="color: #990000">(</span>vsomeip_hello_world_client INTERFACE<span style="color: #990000">)</span>
+target_sources<span style="color: #990000">(</span>vsomeip_hello_world_client INTERFACE
+    <span style="color: #FF0000">"${CMAKE_CURRENT_SOURCE_DIR}/hello_world_client.hpp"</span>
+<span style="color: #990000">)</span>
+target_include_directories<span style="color: #990000">(</span>vsomeip_hello_world_client INTERFACE
+        <span style="color: #FF0000">"${CMAKE_CURRENT_SOURCE_DIR}"</span>
+        <span style="color: #990000">)</span>
+
+<span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>NOT <span style="color: #009900">${CMAKE_SYSTEM_NAME}</span> MATCHES <span style="color: #FF0000">"Android"</span><span style="color: #990000">)</span>
+    <span style="font-style: italic"><span style="color: #9A1900"># This will get us acces to</span></span>
+    <span style="font-style: italic"><span style="color: #9A1900">#   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP</span></span>
+    <span style="font-style: italic"><span style="color: #9A1900">#   VSOMEIP_LIBRARIES    - libraries to link against</span></span>
+    find_package<span style="color: #990000">(</span><span style="color: #009900">${VSOMEIP_NAME}</span><span style="color: #990000">)</span>
+    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>NOT <span style="color: #009900">${VSOMEIP_NAME}</span>_FOUND<span style="color: #990000">)</span>
+        message<span style="color: #990000">(</span><span style="color: #FF0000">"${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR"</span><span style="color: #990000">)</span>
+    <span style="font-weight: bold"><span style="color: #000000">endif()</span></span>
+
+    add_executable <span style="color: #990000">(</span>hello_world_service hello_world_service_main<span style="color: #990000">.</span>cpp<span style="color: #990000">)</span>
+    target_link_libraries<span style="color: #990000">(</span>hello_world_service vsomeip_hello_world_service <span style="color: #009900">${VSOMEIP_LIBRARIES}</span> <span style="color: #009900">${CMAKE_THREAD_LIBS_INIT}</span><span style="color: #990000">)</span>
+
+    add_executable <span style="color: #990000">(</span>hello_world_client hello_world_client_main<span style="color: #990000">.</span>cpp<span style="color: #990000">)</span>
+    target_link_libraries<span style="color: #990000">(</span>hello_world_client vsomeip_hello_world_client <span style="color: #009900">${VSOMEIP_LIBRARIES}</span> <span style="color: #009900">${CMAKE_THREAD_LIBS_INIT}</span><span style="color: #990000">)</span>
+<span style="font-weight: bold"><span style="color: #000000">endif()</span></span></tt></pre></div></div>
+</div>
+<div class="sect2">
+<h3 id="_configuration_file_for_client_and_service">8.4. Configuration File For Client and Service</h3>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"134.86.56.94"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span>
+    {
+        <span style="color: #FF0000">"level"</span><span style="color: #990000">:</span><span style="color: #FF0000">"debug"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"console"</span><span style="color: #990000">:</span><span style="color: #FF0000">"true"</span>
+    }<span style="color: #990000">,</span>
+
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"name"</span><span style="color: #990000">:</span><span style="color: #FF0000">"hello_world_service"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"id"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x4444"</span>
+        }<span style="color: #990000">,</span>
+
+        {
+            <span style="color: #FF0000">"name"</span><span style="color: #990000">:</span><span style="color: #FF0000">"hello_world_client"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"id"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x5555"</span>
+        }
+    <span style="color: #990000">],</span>
+
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1111"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x2222"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span>
+        }
+    <span style="color: #990000">],</span>
+
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"hello_world_service"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span>
+    {
+        <span style="color: #FF0000">"enable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"false"</span>
+    }
+}</tt></pre></div></div>
+</div>
+<div class="sect2">
+<h3 id="_service">8.5. Service</h3>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt></tt></pre></div></div>
+<div class="paragraph"><p>The service example results in the following program execution:</p></div>
+<h4 id="_main" class="float">Main</h4>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<em>main()</em>
+</p>
+<div class="paragraph"><p>First the application is initialized. After the initialization is
+finished the application is started.</p></div>
+</li>
+</ol></div>
+<h4 id="_initialization" class="float">Initialization</h4>
+<div class="olist arabic"><ol class="arabic" start="2">
+<li>
+<p>
+<em>init()</em>
+</p>
+<div class="paragraph"><p>The initialization contains the registration of a message
+handler and an event handler.</p></div>
+<div class="paragraph"><p>The message handler declares a callback (<em>on_message_cbk</em>) for messages that
+are sent to the specific service (specifying the service id, the service
+instance id and the service method id).</p></div>
+<div class="paragraph"><p>The event handler declares a callback (<em>on_event_cbk</em>) for events that occur.
+One event can be the successful registration of the application at the runtime.</p></div>
+</li>
+</ol></div>
+<h4 id="_start" class="float">Start</h4>
+<div class="olist arabic"><ol class="arabic" start="3">
+<li>
+<p>
+<em>start()</em>
+</p>
+<div class="paragraph"><p>The application will be started. This function only returns when the application
+will be stopped.</p></div>
+</li>
+</ol></div>
+<h4 id="_callbacks" class="float">Callbacks</h4>
+<div class="olist arabic"><ol class="arabic" start="4">
+<li>
+<p>
+<em>on_state_cbk()</em>
+</p>
+<div class="paragraph"><p>This function is called by the application when an state change occurred. If
+the application was successfully registered at the runtime then the specific
+service is offered.</p></div>
+</li>
+<li>
+<p>
+<em>on_message_cbk()</em>
+</p>
+<div class="paragraph"><p>This function is called when a message/request from a client for the specified
+service was received.</p></div>
+<div class="paragraph"><p>First a response based upon the request is created.
+Afterwards the string <em>Hello</em> will be concatenated with the payload of the
+client&#8217;s request.
+After that the payload of the response is created. The payload data is set with
+the previously concatenated string.
+Finally the response is sent back to the client and the application is stopped.</p></div>
+</li>
+</ol></div>
+<h4 id="_stop" class="float">Stop</h4>
+<div class="olist arabic"><ol class="arabic" start="6">
+<li>
+<p>
+<em>stop()</em>
+</p>
+<div class="paragraph"><p>This function stops offering the service, unregister the message and the event
+handler and shuts down the application.</p></div>
+</li>
+</ol></div>
+</div>
+<div class="sect2">
+<h3 id="_client">8.6. Client</h3>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt></tt></pre></div></div>
+<div class="paragraph"><p>The client example results in the following program execution:</p></div>
+<h4 id="_main_2" class="float">Main</h4>
+<div class="olist arabic"><ol class="arabic">
+<li>
+<p>
+<em>main()</em>
+</p>
+<div class="paragraph"><p>First the application is initialized. After the initialization is finished the
+application is started.</p></div>
+</li>
+</ol></div>
+<h4 id="_initialization_2" class="float">Initialization</h4>
+<div class="olist arabic"><ol class="arabic" start="2">
+<li>
+<p>
+<em>init()</em>
+</p>
+<div class="paragraph"><p>The initialization contains the registration of a message handler, an event
+handler and an availability handler.</p></div>
+<div class="paragraph"><p>The event handler declares again a callback (<em>on_state_cbk</em>) for state changes
+that occur.</p></div>
+<div class="paragraph"><p>The message handler declares a callback (<em>on_message_cbk</em>) for messages that
+are received from any service, any service instance and any method.</p></div>
+<div class="paragraph"><p>The availability handler declares a callback (<em>on_availability_cbk</em>) which is
+called when the specific service is available (specifying the service id and the
+service instance id).</p></div>
+</li>
+</ol></div>
+<h4 id="_start_2" class="float">Start</h4>
+<div class="olist arabic"><ol class="arabic" start="3">
+<li>
+<p>
+<em>start()</em>
+</p>
+<div class="paragraph"><p>The application will be started. This function only returns when the application
+will be stopped.</p></div>
+</li>
+</ol></div>
+<h4 id="_callbacks_2" class="float">Callbacks</h4>
+<div class="olist arabic"><ol class="arabic" start="4">
+<li>
+<p>
+<em>on_state_cbk()</em>
+</p>
+<div class="paragraph"><p>This function is called by the application when an state change occurred. If the
+application was successfully registered at the runtime then the specific service
+is requested.</p></div>
+</li>
+<li>
+<p>
+<em>on_availability_cbk()</em>
+</p>
+<div class="paragraph"><p>This function is called when the requested service is available or no longer
+available.</p></div>
+<div class="paragraph"><p>First there is a check if the change of the availability is related to the
+<em>hello world service</em> and the availability changed to true.
+If the check is successful a service request is created and the appropriate
+service information are set (service id, service instance id, service method
+id).
+After that the payload of the request is created. The data of the payload is
+<em>World</em> and will be set afterwards.
+Finally the request is sent to the service.</p></div>
+</li>
+<li>
+<p>
+<em>on_message_cbk()</em>
+</p>
+<div class="paragraph"><p>This function is called when a message/response was received.
+If the response is from the requested service, of type <em>RESPONSE</em> and the return
+code is <em>OK</em> then the payload of the response is printed. Finally the
+application is stopped.</p></div>
+</li>
+</ol></div>
+<h4 id="_stop_2" class="float">Stop</h4>
+<div class="olist arabic"><ol class="arabic" start="7">
+<li>
+<p>
+<em>stop()</em>
+</p>
+<div class="paragraph"><p>This function unregister the event and the message handler and shuts down the
+application.</p></div>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_trace_connector">9. Trace Connector</h2>
+<div class="sectionbody">
+<div class="paragraph"><p><a id="traceconnector"></a></p></div>
+<div class="sect2">
+<h3 id="_overview_prerequisites">9.1. Overview/Prerequisites</h3>
+<div class="paragraph"><p>The Trace Connector is used to forward the internal messages that are sent over
+the Unix Domain Sockets to DLT.<br />
+Thus, it requires that DLT is installed and the DLT module can be found in the
+context of CMake.</p></div>
+</div>
+<div class="sect2">
+<h3 id="_configuration">9.2. Configuration</h3>
+<div class="sect3">
+<h4 id="_static_configuration">9.2.1. Static Configuration</h4>
+<div class="paragraph"><p>The Trace Connector can be configured statically over the
+<a href="#config-tracing">JSON configuration file</a>.<br /></p></div>
+<h4 id="_example_1_minimal_configuration" class="float">Example 1 (Minimal Configuration)</h4>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #990000">...</span>
+
+    <span style="color: #FF0000">"tracing"</span> <span style="color: #990000">:</span>
+    {
+        <span style="color: #FF0000">"enable"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"true"</span>
+    }<span style="color: #990000">,</span>
+
+    <span style="color: #990000">...</span></tt></pre></div></div>
+<div class="paragraph"><p>This is the minimal configuration of the Trace Connector. This just enables the
+tracing and all of the sent internal messages will be traced/forwarded to DLT.</p></div>
+<h4 id="_example_2_using_filters" class="float">Example 2 (Using Filters)</h4>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #990000">...</span>
+
+    <span style="color: #FF0000">"tracing"</span> <span style="color: #990000">:</span>
+    {
+        <span style="color: #FF0000">"enable"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"true"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"channels"</span> <span style="color: #990000">:</span>
+        <span style="color: #990000">[</span>
+            {
+                <span style="color: #FF0000">"name"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"My channel"</span><span style="color: #990000">,</span>
+                <span style="color: #FF0000">"id"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"MC"</span>
+            }
+        <span style="color: #990000">],</span>
+        <span style="color: #FF0000">"filters"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span>
+            {
+                <span style="color: #FF0000">"channel"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"MC"</span><span style="color: #990000">,</span>
+                <span style="color: #FF0000">"matches"</span> <span style="color: #990000">:</span> <span style="color: #990000">[</span> { <span style="color: #FF0000">"service"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x1234"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"instance"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"any"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"method"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0x80e8"</span> } <span style="color: #990000">],</span>
+                <span style="color: #FF0000">"type"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"positive"</span>
+            }
+        <span style="color: #990000">]</span>
+    }<span style="color: #990000">,</span>
+
+    <span style="color: #990000">...</span></tt></pre></div></div>
+<div class="paragraph"><p>As it is a positive filter, the example filter ensures that only messages
+representing method <em>0x80e8</em> from instances of service <em>0x1234</em> will be
+forwarded to the DLT. If it was specified as a negative filter, all messages
+except messages representing method <em>0x80e8</em> from instances of service
+<em>0x1234</em> would be forwarded to the DLT.</p></div>
+<div class="paragraph"><p>The general filter rules are:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+The default filter is a positive filter for all messages.
+</p>
+</li>
+<li>
+<p>
+The default filter is active on a channel as long as no other positive
+filter is specified.
+</p>
+</li>
+<li>
+<p>
+Negative filters block matching messages. Negative filters overrule
+positive filters. Thus, as soon as a messages matches a negative filter it
+will not be forwarded.
+</p>
+</li>
+<li>
+<p>
+The identifier <em>0xffff</em> is a wildcard that matches any service, instance or method.
+The keyword <em>any</em> can be used as a replacement for <em>0xffff</em>.
+</p>
+</li>
+<li>
+<p>
+Wildcards must not be used within range filters.
+</p>
+</li>
+</ul></div>
+</div>
+<div class="sect3">
+<h4 id="_dynamic_configuration">9.2.2. Dynamic Configuration</h4>
+<div class="paragraph"><p>The Trace Connector can also be configured dynamically over its interfaces.
+You need to include <em>&lt;vsomeip/trace.hpp&gt;</em> to access its public interface.</p></div>
+<h4 id="_example" class="float">Example:</h4>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>    <span style="color: #990000">//</span> get trace connector
+    std<span style="color: #990000">::</span>shared_ptr<span style="color: #990000">&lt;</span>vsomeip<span style="color: #990000">::</span>trace<span style="color: #990000">::</span>connector<span style="color: #990000">&gt;</span> its_connector
+        <span style="color: #990000">=</span> vsomeip<span style="color: #990000">::</span>trace<span style="color: #990000">::</span>connector<span style="color: #990000">::</span><span style="font-weight: bold"><span style="color: #000000">get()</span></span><span style="color: #990000">;</span>
+
+    <span style="color: #990000">//</span> add channel
+    std<span style="color: #990000">::</span>shared_ptr<span style="color: #990000">&lt;</span>vsomeip<span style="color: #990000">::</span>trace<span style="color: #990000">::</span>channel<span style="color: #990000">&gt;</span> its_channel
+        <span style="color: #990000">=</span> its_connector-<span style="color: #990000">&gt;</span>create_channel<span style="color: #990000">(</span><span style="color: #FF0000">"MC"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"My channel"</span><span style="color: #990000">);</span>
+
+    <span style="color: #990000">//</span> add filter rule
+    vsomeip<span style="color: #990000">::</span>trace<span style="color: #990000">::</span>match_t its_match
+        <span style="color: #990000">=</span> std<span style="color: #990000">::</span>make_tuple<span style="color: #990000">(</span><span style="color: #993399">0x1234</span><span style="color: #990000">,</span> <span style="color: #993399">0xffff</span><span style="color: #990000">,</span> <span style="color: #993399">0x80e8</span><span style="color: #990000">);</span>
+    vsomeip<span style="color: #990000">::</span>trace<span style="color: #990000">::</span>filter_id_t its_filter_id
+        <span style="color: #990000">=</span> its_channel-<span style="color: #990000">&gt;</span>add_filter<span style="color: #990000">(</span>its_match<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">true</span></span><span style="color: #990000">);</span>
+
+    <span style="color: #990000">//</span> init trace connector
+    its_connector-<span style="color: #990000">&gt;</span><span style="font-weight: bold"><span style="color: #000000">init()</span></span><span style="color: #990000">;</span>
+
+    <span style="color: #990000">//</span> <span style="font-weight: bold"><span style="color: #0000FF">enable</span></span> trace connector
+    its_connector-<span style="color: #990000">&gt;</span>set_enabled<span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">true</span></span><span style="color: #990000">);</span>
+
+    <span style="color: #990000">//</span> remove the filter
+    its_channel-<span style="color: #990000">&gt;</span>remove_filter<span style="color: #990000">(</span>its_filter_id<span style="color: #990000">);</span></tt></pre></div></div>
+<div class="paragraph"><p><a id="npdu"></a></p></div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_vsomeip_npdu_feature">10. vsomeip nPDU feature</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>This is the add-on documentation for the nPDU feature, aka. <em>Zugverfahren</em>.</p></div>
+<div class="paragraph"><p>The nPDU feature can be used to reduce network load as it enables the vsomeip
+stack to combine multiple vsomeip messages in one single ethernet frame.</p></div>
+<div class="paragraph"><p>Some general <em>important</em> things regarding the nPDU feature first:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Due to its nature the nPDU feature trades lower network load for speed.
+</p>
+</li>
+<li>
+<p>
+As the nPDU feature requires some settings which are not transmitted
+through the service discovery, it&#8217;s <strong>not</strong> sufficient anymore to have an json
+file without a "services" section on the client side.
+</p>
+</li>
+<li>
+<p>
+As the client- and server-endpoints of a node are managed by the routing
+ manager (which is the application entered at "routing" in the json file)
+ the nPDU feature settings <strong>always</strong> have to be defined in the json file used by
+ the application acting as routing manager.
+</p>
+</li>
+<li>
+<p>
+The nPDU feature timings are defined in milliseconds.
+</p>
+</li>
+<li>
+<p>
+Node internal communication over UNIX domain sockets is not affected by the
+  nPDU feature.
+</p>
+</li>
+<li>
+<p>
+If the debounce times configuration for a method in the json file is missing
+  or incomplete the default values are used: 2ms debounce time and 5ms max
+  retention time. The global default values can be overwritten via the
+  <code>npdu-default-timings</code> json object.
+</p>
+</li>
+</ul></div>
+<div class="sect2">
+<h3 id="_configuration_2">10.1. Configuration</h3>
+<div class="paragraph"><p>There are two parameters specific for the nPDU feature:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<strong>debounce time</strong>: minimal time between sending a message to the same method of
+  a remote service over the same connection (src/dst address + src/dst port).
+</p>
+</li>
+<li>
+<p>
+<strong>max retention time</strong>: the maximum time which a message to the same method of a
+  remote service over the same connection (src/dst address + src/dst port) is
+  allowed to be buffered on sender side.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>For more information please see the corresponding requirement documents.</p></div>
+<div class="paragraph"><p>The nPDU feature specific settings are configured in the json file in the
+"services" section on service level in a special <em>debounce-times</em> section:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #990000">[...]</span>
+<span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+<span style="color: #990000">[</span>
+    {
+        <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+        {
+            <span style="color: #990000">//</span> nPDU feature configuration <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> this
+            <span style="color: #990000">//</span> service here
+        }
+    }
+<span style="color: #990000">],</span>
+<span style="color: #990000">[...]</span></tt></pre></div></div>
+<div class="paragraph"><p>Additionally nPDU default timings can be configured globally.</p></div>
+<div class="paragraph"><p>The global default timings can be overwritten via the <code>npdu-default-timings</code>
+json object. For example the following configuration snippet shows how to set
+all default timings to zero:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span>
+    <span style="color: #990000">[...]</span>
+    <span style="color: #FF0000">"npdu-default-timings"</span> <span style="color: #990000">:</span> {
+        <span style="color: #FF0000">"debounce-time-request"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"debounce-time-response"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"max-retention-time-request"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0"</span><span style="color: #990000">,</span>
+        <span style="color: #FF0000">"max-retention-time-response"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"0"</span>
+    }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+<div class="sect3">
+<h4 id="_example_1_one_service_with_one_method_offered_over_udp">10.1.1. Example 1: One service with one method offered over UDP</h4>
+<div class="ulist"><ul>
+<li>
+<p>
+The service is hosted on IP: 192.168.1.9.
+</p>
+</li>
+<li>
+<p>
+The service is offered on port 30509 via UDP.
+</p>
+</li>
+<li>
+<p>
+The service has the ID 0x1000
+</p>
+</li>
+<li>
+<p>
+The method has the ID 0x0001
+</p>
+</li>
+<li>
+<p>
+The client accesses the service from IP: 192.168.1.77
+</p>
+</li>
+</ul></div>
+<div class="sect4">
+<h5 id="_service_side">Service side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for responses should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 10 milliseconds
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 100 milliseconds
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"responses"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"10"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"100"</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+<div class="sect4">
+<h5 id="_client_side">Client side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for requests to the service on 192.168.1.9 should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 20 milliseconds
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 200 milliseconds
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.77"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span> <span style="color: #990000">//</span> required to mark service as external
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"requests"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"20"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"200"</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_example_2_one_service_with_two_methods_offered_over_udp">10.1.2. Example 2: One service with two methods offered over UDP</h4>
+<div class="ulist"><ul>
+<li>
+<p>
+The service is hosted on IP: 192.168.1.9.
+</p>
+</li>
+<li>
+<p>
+The service is offered on port 30509 via UDP.
+</p>
+</li>
+<li>
+<p>
+The service has the ID 0x1000
+</p>
+</li>
+<li>
+<p>
+The method has the ID 0x0001
+</p>
+</li>
+<li>
+<p>
+The second method has the ID 0x0002
+</p>
+</li>
+<li>
+<p>
+The client accesses the service from IP: 192.168.1.77
+</p>
+</li>
+</ul></div>
+<div class="sect4">
+<h5 id="_service_side_2">Service side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for responses should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 10 milliseconds for method 0x1001 and 20 for 0x1002
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 100 milliseconds for method 0x1001 and 200 for 0x1002
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"responses"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"10"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"100"</span>
+                    }<span style="color: #990000">,</span>
+                    <span style="color: #FF0000">"0x1002"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"20"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"200"</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+<div class="sect4">
+<h5 id="_client_side_2">Client side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for requests to the service on 192.168.1.9 should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 20 milliseconds for method 0x1001 and 40 for 0x1002
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 200 milliseconds for method 0x1001 and 400 for 0x1002
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.77"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span> <span style="color: #990000">//</span> required to mark service as external
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"requests"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"20"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"200"</span>
+                    }<span style="color: #990000">,</span>
+                    <span style="color: #FF0000">"0x1002"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"40"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"400"</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_example_3_one_service_with_one_method_offered_over_udp_and_tcp">10.1.3. Example 3: One service with one method offered over UDP and TCP</h4>
+<div class="ulist"><ul>
+<li>
+<p>
+The service is hosted on IP: 192.168.1.9.
+</p>
+</li>
+<li>
+<p>
+The service is offered on port 30509 via UDP.
+</p>
+</li>
+<li>
+<p>
+The service is offered on port 30510 via TCP.
+</p>
+</li>
+<li>
+<p>
+The service has the ID 0x1000
+</p>
+</li>
+<li>
+<p>
+The method has the ID 0x0001
+</p>
+</li>
+<li>
+<p>
+The client accesses the service from IP: 192.168.1.77
+</p>
+</li>
+</ul></div>
+<div class="sect4">
+<h5 id="_service_side_3">Service side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for responses should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 10 milliseconds
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 100 milliseconds
+</p>
+</li>
+<li>
+<p>
+TCP should use the same settings as UDP
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"reliable"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"port"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30510"</span><span style="color: #990000">,</span>
+                <span style="color: #FF0000">"enable-magic-cookies"</span><span style="color: #990000">:</span><span style="color: #FF0000">"false"</span>
+            }<span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"responses"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"10"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"100"</span><span style="color: #990000">,</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+<div class="sect4">
+<h5 id="_client_side_3">Client side</h5>
+<div class="ulist"><ul>
+<li>
+<p>
+Debounce time for requests to the service on 192.168.1.9 should have a:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+debounce time of 20 milliseconds
+</p>
+</li>
+<li>
+<p>
+maximum retention time of 200 milliseconds
+</p>
+</li>
+<li>
+<p>
+TCP should use the same settings as UDP
+</p>
+</li>
+</ul></div>
+</li>
+</ul></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.77"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x0001"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.1.9"</span><span style="color: #990000">,</span> <span style="color: #990000">//</span> required to mark service as external
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30509"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"reliable"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"port"</span><span style="color: #990000">:</span><span style="color: #FF0000">"30510"</span><span style="color: #990000">,</span>
+                <span style="color: #FF0000">"enable-magic-cookies"</span><span style="color: #990000">:</span><span style="color: #FF0000">"false"</span>
+            }<span style="color: #990000">,</span>
+            <span style="color: #FF0000">"debounce-times"</span><span style="color: #990000">:</span>
+            {
+                <span style="color: #FF0000">"requests"</span><span style="color: #990000">:</span> {
+                    <span style="color: #FF0000">"0x1001"</span> <span style="color: #990000">:</span> {
+                        <span style="color: #FF0000">"debounce-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"20"</span><span style="color: #990000">,</span>
+                        <span style="color: #FF0000">"maximum-retention-time"</span><span style="color: #990000">:</span><span style="color: #FF0000">"200"</span><span style="color: #990000">,</span>
+                    }
+                }
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+<div class="paragraph"><p><a id="someiptp"></a></p></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_some_ip_tp">11. SOME/IP TP</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>With SOME/IP Transport Protocol (TP) it is possible to transport messages which
+exceed the UDP payload size limit of 1400 byte. If enabled the message is
+segmented and send in multiple UDP datagrams.</p></div>
+<div class="paragraph"><p>Example configuration:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+Service 0x1111/0x1 is hosted on 192.168.0.1 on UDP port 40000
+</p>
+</li>
+<li>
+<p>
+Client is running on 192.168.0.100
+</p>
+</li>
+<li>
+<p>
+The service has two methods with ID: 0x1 and 0x2 which require large requests
+  and large responses. Additionally the service offers a field with ID 0x8001
+  which requires a large payloads as well.
+</p>
+</li>
+<li>
+<p>
+The maximum payload size on service side should be limited to 5000 bytes.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Configuration service side:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.0.1"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"40000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"someip-tp"</span><span style="color: #990000">:</span> {
+                <span style="color: #FF0000">"service-to-client"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span>
+                    <span style="color: #FF0000">"0x1"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"0x2"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"0x8001"</span>
+                <span style="color: #990000">]</span>
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"max-payload-size-unreliable"</span> <span style="color: #990000">:</span> <span style="color: #FF0000">"5000"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+<div class="paragraph"><p>Configuration client side:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>{
+    <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.0.100"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"logging"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }<span style="color: #990000">,</span>
+    <span style="color: #FF0000">"applications"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span> <span style="color: #990000">[...]</span> <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"services"</span><span style="color: #990000">:</span>
+    <span style="color: #990000">[</span>
+        {
+            <span style="color: #FF0000">"service"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1000"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"instance"</span><span style="color: #990000">:</span><span style="color: #FF0000">"0x1"</span><span style="color: #990000">,</span>
+            <span style="color: #FF0000">"unicast"</span><span style="color: #990000">:</span><span style="color: #FF0000">"192.168.0.1"</span><span style="color: #990000">,</span> <span style="color: #990000">//</span> required to mark service as external
+            <span style="color: #FF0000">"unreliable"</span><span style="color: #990000">:</span><span style="color: #FF0000">"40000"</span><span style="color: #990000">,</span> <span style="color: #990000">//</span> required to mark service as external
+            <span style="color: #FF0000">"someip-tp"</span><span style="color: #990000">:</span> {
+                <span style="color: #FF0000">"client-to-service"</span><span style="color: #990000">:</span> <span style="color: #990000">[</span>
+                    <span style="color: #FF0000">"0x1"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"0x2"</span>
+                <span style="color: #990000">]</span>
+            }
+        }
+    <span style="color: #990000">],</span>
+    <span style="color: #FF0000">"routing"</span><span style="color: #990000">:</span><span style="color: #FF0000">"[...]"</span><span style="color: #990000">,</span>
+    <span style="color: #FF0000">"service-discovery"</span><span style="color: #990000">:</span> { <span style="color: #990000">[...]</span> }
+}</tt></pre></div></div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_tools">12. Tools</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_vsomeip_ctrl">12.1. vsomeip_ctrl</h3>
+<div class="paragraph"><p><a id="vsomeip_ctrl"></a>
+<code>vsomeip_ctrl</code> is a small utility which can be used to send SOME/IP messages
+from the commandline. If a response arrives within 5 seconds the response will
+be printed.</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+It can be build via <code>vsomeip_ctrl</code> make target (<code>make vsomeip_ctrl</code>).
+</p>
+</li>
+<li>
+<p>
+The instance id of the target service has to be passed in hexadecimal
+  notation.
+</p>
+</li>
+<li>
+<p>
+The complete message has to be passed in hexadecimal notation.
+</p>
+</li>
+<li>
+<p>
+See the <code>--help</code> parameter for available options.
+</p>
+</li>
+<li>
+<p>
+If <code>vsomeip_ctrl</code> is used to send messages to a remote service and no
+ <code>routingmanagerd</code> is running on the local machine, make sure to pass a json
+ configuration file where <code>vsomeip_ctrl</code> is set as routing manager via
+ environment variable.
+</p>
+</li>
+<li>
+<p>
+If <code>vsomeip_ctrl</code> is used to send messages to a local service and no
+ <code>routingmanagerd</code> is running on the local machine, make sure to use the same json
+ configuration file as the local service.
+</p>
+</li>
+</ul></div>
+<div class="paragraph"><p>Example: Calling method with method id 0x80e8 on service with service id 0x1234,
+instance id 0x5678:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #990000">.</span>/vsomeip_ctrl --instance <span style="color: #993399">5678</span> --message 123480e800000015134300030100000000000009efbbbf576f726c6400</tt></pre></div></div>
+<div class="paragraph"><p>Example: Sending a message to service with service id 0x1234, instance id
+0x5678 and method id 0x0bb8 via TCP</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #990000">.</span>/vsomeip_ctrl --tcp --instance <span style="color: #993399">5678</span> --message 12340bb8000000081344000101010000</tt></pre></div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+<div id="footer">
+<div id="footer-text">
+Last updated
+ 2022-08-04 12:48:15 EDT
+</div>
+</div>
+</body>
+</html>

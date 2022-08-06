@@ -1,0 +1,18 @@
+<map id="/home/kali/projects/vsomeip/implementation/endpoints/include/server_endpoint_impl.hpp" name="/home/kali/projects/vsomeip/implementation/endpoints/include/server_endpoint_impl.hpp">
+<area shape="rect" id="node1" title=" " alt="" coords="1024,5,1215,76"/>
+<area shape="rect" id="node2" href="$local__server__endpoint__impl_8hpp.html" title=" " alt="" coords="1357,124,1556,195"/>
+<area shape="rect" id="node10" href="$tcp__server__endpoint__impl_8hpp.html" title=" " alt="" coords="457,124,656,195"/>
+<area shape="rect" id="node14" href="$udp__server__endpoint__impl_8hpp.html" title=" " alt="" coords="683,124,881,195"/>
+<area shape="rect" id="node16" href="$server__endpoint__impl_8cpp.html" title=" " alt="" coords="1580,124,1803,195"/>
+<area shape="rect" id="node3" href="$endpoint__manager__base_8cpp.html" title=" " alt="" coords="1821,243,2012,313"/>
+<area shape="rect" id="node4" href="$endpoint__manager__impl_8cpp.html" title=" " alt="" coords="901,243,1092,313"/>
+<area shape="rect" id="node5" href="$local__client__endpoint__impl_8cpp.html" title=" " alt="" coords="2036,243,2227,313"/>
+<area shape="rect" id="node6" href="$local__server__endpoint__impl_8cpp.html" title=" " alt="" coords="2251,243,2447,313"/>
+<area shape="rect" id="node7" href="$routing__manager__base_8cpp.html" title=" " alt="" coords="1117,243,1327,313"/>
+<area shape="rect" id="node8" href="$routing__manager__proxy_8cpp.html" title=" " alt="" coords="1351,243,1562,313"/>
+<area shape="rect" id="node9" href="$routing__manager__stub_8cpp.html" title=" " alt="" coords="1586,243,1797,313"/>
+<area shape="rect" id="node11" href="$tcp__server__endpoint__impl_8cpp.html" title=" " alt="" coords="5,243,196,313"/>
+<area shape="rect" id="node12" href="$routing__manager__impl_8cpp.html" title=" " alt="" coords="451,243,662,313"/>
+<area shape="rect" id="node13" href="$service__discovery__impl_8cpp.html" title=" " alt="" coords="220,243,427,313"/>
+<area shape="rect" id="node15" href="$udp__server__endpoint__impl_8cpp.html" title=" " alt="" coords="687,243,877,313"/>
+</map>

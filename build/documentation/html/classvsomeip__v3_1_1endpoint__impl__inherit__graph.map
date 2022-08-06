@@ -1,0 +1,12 @@
+<map id="vsomeip_v3::endpoint_impl&lt; Protocol &gt;" name="vsomeip_v3::endpoint_impl&lt; Protocol &gt;">
+<area shape="rect" id="node1" title=" " alt="" coords="220,201,387,243"/>
+<area shape="rect" id="node3" href="$classvsomeip__v3_1_1client__endpoint__impl.html" title=" " alt="" coords="435,104,640,145"/>
+<area shape="rect" id="node7" href="$classvsomeip__v3_1_1server__endpoint__impl.html" title=" " alt="" coords="435,233,640,275"/>
+<area shape="rect" id="node2" href="$classvsomeip__v3_1_1endpoint.html" title=" " alt="" coords="5,209,172,235"/>
+<area shape="rect" id="node4" href="$classvsomeip__v3_1_1local__client__endpoint__impl.html" title=" " alt="" coords="691,5,873,47"/>
+<area shape="rect" id="node5" href="$classvsomeip__v3_1_1tcp__client__endpoint__impl.html" title=" " alt="" coords="696,71,868,112"/>
+<area shape="rect" id="node6" href="$classvsomeip__v3_1_1udp__client__endpoint__impl.html" title=" " alt="" coords="694,136,870,177"/>
+<area shape="rect" id="node8" href="$classvsomeip__v3_1_1local__server__endpoint__impl.html" title=" " alt="" coords="688,201,876,243"/>
+<area shape="rect" id="node9" href="$classvsomeip__v3_1_1tcp__server__endpoint__impl.html" title=" " alt="" coords="693,267,871,308"/>
+<area shape="rect" id="node10" href="$classvsomeip__v3_1_1udp__server__endpoint__impl.html" title=" " alt="" coords="691,332,873,373"/>
+</map>

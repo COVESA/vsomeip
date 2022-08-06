@@ -1,0 +1,10 @@
+<map id="vsomeip_v3::routing_manager_impl" name="vsomeip_v3::routing_manager_impl">
+<area shape="rect" id="node1" title=" " alt="" coords="512,161,667,203"/>
+<area shape="rect" id="node2" href="$classvsomeip__v3_1_1routing__manager__base.html" title=" " alt="" coords="296,96,451,137"/>
+<area shape="rect" id="node3" href="$classvsomeip__v3_1_1routing__manager.html" title=" " alt="" coords="23,5,178,47"/>
+<area shape="rect" id="node4" href="$classvsomeip__v3_1_1routing__host.html" title=" " alt="" coords="5,71,196,98"/>
+<area shape="rect" id="node5" title=" " alt="" coords="25,122,177,178"/>
+<area shape="rect" id="node6" href="$classvsomeip__v3_1_1routing__manager__host.html" title=" " alt="" coords="23,203,178,244"/>
+<area shape="rect" id="node7" href="$classvsomeip__v3_1_1routing__manager__stub__host.html" title=" " alt="" coords="295,161,452,203"/>
+<area shape="rect" id="node8" href="$classvsomeip__v3_1_1sd_1_1service__discovery__host.html" title=" " alt="" coords="284,227,463,268"/>
+</map>
