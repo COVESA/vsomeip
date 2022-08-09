@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/kali/projects'
+make: Leaving directory '/home/kali/projects'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+
