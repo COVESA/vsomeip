@@ -3,7 +3,13 @@
     "logging":
     {
         "level":"debug",
-        "console":"true"
+        "console":"true",
+        "dlt": "true"
+    },
+    "tracing":
+    {
+        "enable": "true",
+        "sd_enable": "true"
     },
 
     "applications":

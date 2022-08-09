@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=/usr/local
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: vsomeip
+Description: New SOME/IP stack, feature complete
+Version: 3.1.20
+Libs: -L${libdir} -lvsomeip3
+Cflags: -I${includedir}
+

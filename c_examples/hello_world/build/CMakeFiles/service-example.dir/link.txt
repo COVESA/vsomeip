@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -std=c++0x -rdynamic "CMakeFiles/service-example.dir/src/service-example.cpp.o" -o service-example  -lvsomeip 

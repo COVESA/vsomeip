@@ -345,11 +345,11 @@ TEST_E2E_PROFILE_04:BOOL=OFF
 //The Group ID of the user running the test: Needed for security
 TEST_GID:STRING=123456789
 
-//No help, variable specified on the command line.
-TEST_IP_MASTER:UNINITIALIZED=10.0.3.1
+//The IP address of the interface which will act as test master
+TEST_IP_MASTER:STRING=10.0.3.1
 
-//No help, variable specified on the command line.
-TEST_IP_SLAVE:UNINITIALIZED=10.0.3.125
+//The IP address of the interface which will act as test slave
+TEST_IP_SLAVE:STRING=10.0.3.125
 
 //The second IP address of the interface which will act as test
 // slave
@@ -629,7 +629,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=5
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=9
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

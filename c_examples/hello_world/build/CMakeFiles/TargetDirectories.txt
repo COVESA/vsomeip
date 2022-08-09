@@ -1,0 +1,3 @@
+/home/kali/projects/vsomeip/c_examples/hello_world/build/CMakeFiles/service-example.dir
+/home/kali/projects/vsomeip/c_examples/hello_world/build/CMakeFiles/edit_cache.dir
+/home/kali/projects/vsomeip/c_examples/hello_world/build/CMakeFiles/rebuild_cache.dir
