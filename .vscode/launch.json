@@ -5,13 +5,26 @@
     "version": "0.2.0",
     "configurations": [
     {
-        "name": "DbgGtest",
+        "name": "Client",
         "type": "cppdbg",
         "request": "launch",
         "cwd": "${fileDirname}",
         "miDebuggerPath": "gdb",
-        "program": "${workspaceRoot}/vsomeip/build/examples/hello_world/hello_world_client"
+        "program": "${workspaceRoot}/build/examples/hello_world/hello_world_client"
+    },
+    {
+        "name": "Service",
+        "type": "cppdbg",
+        "request": "launch",
+        "cwd": "${fileDirname}",
+        "miDebuggerPath": "gdb",
+        "program": "${workspaceRoot}/build/examples/hello_world/hello_world_service"
     }
-
+    ],
+    "compounds": [
+        {
+            "name": "Ser+Cli",
+            "configurations": ["Client","Service"]
+        }
     ]
 }
