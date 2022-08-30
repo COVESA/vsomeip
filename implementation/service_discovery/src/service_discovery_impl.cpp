@@ -1183,8 +1183,9 @@ service_discovery_impl::process_serviceentry(
 
     for (auto i : { 1, 2 }) {
         for (auto its_index : _entry->get_options(uint8_t(i))) {
-            if( _options.size() > its_index ) {
-                std::shared_ptr < option_impl > its_option = _options[its_index];
+            const std::size_t i = its_index - 1;
+            if( _options.size() > i ) {
+                std::shared_ptr < option_impl > its_option = _options[i];
 
                 switch (its_option->get_type()) {
                 case option_type_e::IP4_ENDPOINT: {
