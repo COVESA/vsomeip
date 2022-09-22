@@ -118,8 +118,8 @@ bool eventgroupentry_impl::matches(const eventgroupentry_impl& _other,
         std::vector<std::shared_ptr<ip_option_impl>> its_options_current;
         std::vector<std::shared_ptr<ip_option_impl>> its_options_other;
         const std::size_t its_options_size = _options.size();
-        for (const auto option_run : {0,1}) {
-            for (const auto option_index : options_[option_run]) {
+        for (const auto& option_run : {0,1}) {
+            for (const auto& option_index : options_[option_run]) {
                 if (its_options_size > option_index) {
                     switch (_options[option_index]->get_type()) {
                         case option_type_e::IP4_ENDPOINT:
@@ -137,7 +137,7 @@ bool eventgroupentry_impl::matches(const eventgroupentry_impl& _other,
                     }
                 }
             }
-            for (const auto option_index : _other.options_[option_run]) {
+            for (const auto& option_index : _other.options_[option_run]) {
                 if (its_options_size > option_index) {
                     switch (_options[option_index]->get_type()) {
                         case option_type_e::IP4_ENDPOINT:
@@ -212,8 +212,8 @@ std::shared_ptr<endpoint_definition> eventgroupentry_impl::get_target(
 
 std::shared_ptr<selective_option_impl>
 eventgroupentry_impl::get_selective_option() const {
-    for (const auto i : {0, 1}) {
-        for (const auto j : options_[i]) {
+    for (const auto& i : {0, 1}) {
+        for (const auto& j : options_[i]) {
             auto its_option = std::dynamic_pointer_cast<
                     selective_option_impl>(owner_->get_option(j));
             if (its_option)

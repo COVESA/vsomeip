@@ -3972,7 +3972,7 @@ configuration_impl::load_overlay(const std::string &_name) {
         its_input.insert(its_overlay);
         read_data(its_input, its_elements, its_failed, false);
 
-        for (const auto f : its_failed)
+        for (const auto& f : its_failed)
             VSOMEIP_ERROR << "Reading configuration data from " << f << " failed!";
 
         is_overlay_ = true;

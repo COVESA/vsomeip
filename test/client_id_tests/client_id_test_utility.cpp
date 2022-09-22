@@ -312,7 +312,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
         EXPECT_EQ(VSOMEIP_CLIENT_UNSET, vsomeip::utility::request_client_id(
                         configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max",
                         VSOMEIP_CLIENT_UNSET));
-        for (const auto c : its_clients) {
+        for (const auto& c : its_clients) {
             utility::release_client_id(c);
         }
     }
@@ -396,7 +396,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
                         VSOMEIP_CLIENT_UNSET));
 
         // release all
-        for (const auto c : its_clients) {
+        for (const auto& c : its_clients) {
             utility::release_client_id(c);
         }
         its_clients.clear();

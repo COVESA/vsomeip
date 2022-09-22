@@ -125,7 +125,7 @@ void routing_manager_proxy::stop() {
         sender_ = nullptr;
     }
 
-    for (const auto client : ep_mgr_->get_connected_clients()) {
+    for (const auto& client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
             remove_local(client, true);
         }
@@ -1733,7 +1733,7 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                 for (const client_t client : known_clients_) {
                     auto its_client = pending_incoming_subscripitons_.find(client);
                     if (its_client != pending_incoming_subscripitons_.end()) {
-                        for (const auto subscription : its_client->second) {
+                        for (const auto& subscription : its_client->second) {
                             subscription_actions.push_front(
                                 { subscription.service_, subscription.instance_,
                                         subscription.eventgroup_, client,
@@ -1850,7 +1850,7 @@ void routing_manager_proxy::reconnect(const std::unordered_set<client_t> &_clien
 
 
     // Remove all local connections/endpoints
-    for (const auto its_client : _clients) {
+    for (const auto& its_client : _clients) {
         if (its_client != VSOMEIP_ROUTING_CLIENT) {
             remove_local(its_client, true);
         }

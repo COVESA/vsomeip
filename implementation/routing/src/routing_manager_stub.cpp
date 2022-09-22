@@ -2257,7 +2257,7 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
     pending_security_update_id_t its_policy_id;
 
     // serialize the policies and send them...
-    for (const auto p : _policies) {
+    for (const auto& p : _policies) {
         std::vector<byte_t> its_policy_data;
         if (p->serialize(its_policy_data)) {
             std::vector<byte_t> its_message;
@@ -2279,7 +2279,7 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
 
             its_message.insert(its_message.end(), its_policy_data.begin(), its_policy_data.end());
 
-            for (const auto c : _clients) {
+            for (const auto& c : _clients) {
                 std::shared_ptr<endpoint> its_endpoint = host_->find_local(c);
                 if (its_endpoint)
                     its_endpoint->send(&its_message[0], static_cast<uint32_t>(its_message.size()));

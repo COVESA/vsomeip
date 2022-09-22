@@ -757,7 +757,7 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
 
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
-        for (const auto q : queues_) {
+        for (const auto& q : queues_) {
             its_queue_size += q.second.second.size();
         }
     }

@@ -158,7 +158,7 @@ endpoint_manager_base::log_client_states() const {
 
     {
         std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
-        for (const auto e : local_endpoints_) {
+        for (const auto& e : local_endpoints_) {
             size_t its_queue_size = e.second->get_queue_size();
             if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                 its_client_queue_sizes.push_back(
