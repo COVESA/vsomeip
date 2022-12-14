@@ -323,11 +323,11 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
             if (!multicast_local_) {
                 if (is_v4) {
                     multicast_local_ = std::unique_ptr<endpoint_type>(
-                            new endpoint_type(boost::asio::ip::address_v4::any(), local_port_));
+                            new endpoint_type(boost::asio::ip::address_v4::from_string(_address), local_port_));
                 }
                 if (is_v6) {
                     multicast_local_ = std::unique_ptr<endpoint_type>(
-                            new endpoint_type(boost::asio::ip::address_v6::any(), local_port_));
+                            new endpoint_type(boost::asio::ip::address_v6::from_string(_address), local_port_));
                 }
             }
 
