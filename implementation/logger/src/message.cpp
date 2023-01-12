@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <thread>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -21,6 +22,28 @@
 
 #include "../include/logger_impl.hpp"
 #include "../../configuration/include/configuration.hpp"
+
+namespace {
+void logToOstrem(std::ostream& stream, const struct tm* its_time, unsigned long its_ms, const char *its_level,
+    const std::string& payload) {
+    stream
+        << std::dec << std::setw(4) << its_time->tm_year + 1900 << "-"
+        << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon << "-"
+        << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mday << " "
+        << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_hour << ":"
+        << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_min << ":"
+        << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_sec << "."
+        << std::dec << std::setw(6) << std::setfill('0') << its_ms << std::setfill(' ')<< 
+        " [" << std::setw(17)<< std::this_thread::get_id() << "] "
+        "[" << std::setw(7) << its_level << "] "
+        << payload
+        << std::endl;
+}
+
+#ifdef ANDROID
+    const char* androidTag = LOG_TAG == NULL ? "vsomeip" :  LOG_TAG + ".vsomeip";
+#endif
+}
 
 namespace vsomeip_v3 {
 namespace logger {
@@ -80,39 +103,29 @@ message::~message() {
 
         if (its_configuration->has_console_log()) {
 #ifndef ANDROID
-            std::cout
-                << std::dec << std::setw(4) << its_time->tm_year + 1900 << "-"
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon << "-"
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mday << " "
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_hour << ":"
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_min << ":"
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_sec << "."
-                << std::dec << std::setw(6) << std::setfill('0') << its_ms << " ["
-                << its_level << "] "
-                << buffer_.data_.str()
-                << std::endl;
+            logToOstrem(std::cout, its_time, its_ms, its_level, buffer_.data_.str());
 #else
             switch (level_) {
             case level_e::LL_FATAL:
-                (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_ERROR, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_ERROR:
-                (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_ERROR, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_WARNING:
-                (void)__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_WARN, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_INFO:
-                (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_INFO, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_DEBUG:
-                (void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_DEBUG, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             case level_e::LL_VERBOSE:
-                (void)__android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_VERBOSE, androidTag, "%s", buffer_.data_.str().c_str());
                 break;
             default:
-                (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", buffer_.data_.str().c_str());
+                (void)__android_log_print(ANDROID_LOG_INFO, androidTag, "%s", buffer_.data_.str().c_str());
             };
 #endif // !ANDROID
         }
@@ -122,17 +135,7 @@ message::~message() {
                     its_configuration->get_logfile(),
                     std::ios_base::app);
             if (its_logfile.is_open()) {
-                its_logfile
-                    << std::dec << std::setw(4) << its_time->tm_year + 1900 << "-"
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon << "-"
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mday << " "
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_hour << ":"
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_min << ":"
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_sec << "."
-                    << std::dec << std::setw(6) << std::setfill('0') << its_ms << " ["
-                    << its_level << "] "
-                    << buffer_.data_.str()
-                    << std::endl;
+                logToOstrem(its_logfile, its_time, its_ms, its_level, buffer_.data_.str());
             }
         }
     } else if (its_configuration->has_dlt_log()) {

@@ -18,6 +18,13 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/handler.hpp>
 
+namespace boost {
+namespace asio {
+    class io_context;
+    typedef io_context io_service;
+}
+}
+
 namespace vsomeip_v3 {
 
 class configuration_public;
@@ -920,6 +927,8 @@ public:
     virtual void remove_security_policy_configuration(uint32_t _uid,
                                                       uint32_t _gid,
                                                       security_update_handler_t _handler) = 0;
+                                                      
+    virtual boost::asio::io_service & get_io() = 0;
 };
 
 /** @} */
