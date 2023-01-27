@@ -537,6 +537,24 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
             }
         }
     }
+    if (_instance == ANY_INSTANCE) {
+        auto its_infos = find_any_service(_service);
+        for (auto its_info : its_infos) {
+            if ((_major == its_info->get_major()
+                    || DEFAULT_MAJOR == its_info->get_major()
+                    || ANY_MAJOR == _major)
+                    && (_minor <= its_info->get_minor()
+                            || DEFAULT_MINOR == its_info->get_minor()
+                            || _minor == ANY_MINOR)) {
+                if(!its_info->is_local()) {
+                    requested_service_add(_client, _service, its_info->get_instance(), _major, _minor);
+                    its_info->add_client(_client);
+                    ep_mgr_impl_->find_or_create_remote_client(
+                            _service, its_info->get_instance());
+                }
+            }
+        }
+    }
 
     if (_client == get_client()) {
         stub_->create_local_receiver();
@@ -2285,6 +2303,10 @@ void routing_manager_impl::add_routing_info(
                 auto found_service = client_id.second.find(_service);
                 if (found_service != client_id.second.end()) {
                     auto found_instance = found_service->second.find(_instance);
+                    if (found_instance == found_service->second.end()) {
+                        // check if any instance was requested
+                        found_instance = found_service->second.find(ANY_INSTANCE);
+                    }
                     if (found_instance != found_service->second.end()) {
                         for (const auto &major_minor_pair : found_instance->second) {
                             if ((major_minor_pair.first == _major
@@ -2321,6 +2343,10 @@ void routing_manager_impl::add_routing_info(
             auto found_service = client_id.second.find(_service);
             if (found_service != client_id.second.end()) {
                 auto found_instance = found_service->second.find(_instance);
+                if (found_instance == found_service->second.end()) {
+                    // check if any instance was requested
+                    found_instance = found_service->second.find(ANY_INSTANCE);
+                }
                 if (found_instance != found_service->second.end()) {
                     for (const auto &major_minor_pair : found_instance->second) {
                         if ((major_minor_pair.first == _major
@@ -2379,8 +2405,12 @@ void routing_manager_impl::add_routing_info(
                 for (const auto &client_id : requested_services_) {
                     const auto found_service = client_id.second.find(_service);
                     if (found_service != client_id.second.end()) {
-                        const auto found_instance = found_service->second.find(
+                        auto found_instance = found_service->second.find(
                                 _instance);
+                        if (found_instance == found_service->second.end()) {
+                            // check if any instance was requested
+                            found_instance = found_service->second.find(ANY_INSTANCE);
+                        }
                         if (found_instance != found_service->second.end()) {
                             for (const auto &major_minor_pair : found_instance->second) {
                                 if ((major_minor_pair.first == _major
@@ -2421,6 +2451,10 @@ void routing_manager_impl::add_routing_info(
             auto found_service = client_id.second.find(_service);
             if (found_service != client_id.second.end()) {
                 auto found_instance = found_service->second.find(_instance);
+                if (found_instance == found_service->second.end()) {
+                    // check if any instance was requested
+                    found_instance = found_service->second.find(ANY_INSTANCE);
+                }
                 if (found_instance != found_service->second.end()) {
                     for (const auto &major_minor_pair : found_instance->second) {
                         if ((major_minor_pair.first == _major

@@ -163,6 +163,19 @@ void routing_manager_base::request_service(client_t _client,
                     << std::dec << _minor;
         }
     }
+    if (_instance == ANY_INSTANCE) {
+        auto its_infos = find_any_service(_service);
+        for (auto its_info : its_infos) {
+            if ((_major == its_info->get_major()
+                || DEFAULT_MAJOR == its_info->get_major()
+                || ANY_MAJOR == _major)
+                && (_minor <= its_info->get_minor()
+                        || DEFAULT_MINOR == its_info->get_minor()
+                        || _minor == ANY_MINOR)) {
+                its_info->add_client(_client);
+            }
+        }
+    }
 }
 
 void routing_manager_base::release_service(client_t _client,
@@ -909,6 +922,19 @@ std::shared_ptr<serviceinfo> routing_manager_base::find_service(
         }
     }
     return (its_info);
+}
+
+std::vector<std::shared_ptr<serviceinfo>> routing_manager_base::find_any_service(
+        service_t _service) const {
+    std::vector<std::shared_ptr<serviceinfo>> its_infos;
+    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    auto found_service = services_.find(_service);
+    if (found_service != services_.end()) {
+        for (auto i : found_service->second) {
+            its_infos.push_back(i.second);
+        }
+    }
+    return (its_infos);
 }
 
 void routing_manager_base::clear_service_info(service_t _service, instance_t _instance,

@@ -131,6 +131,7 @@ public:
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
 
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
+    std::vector<std::shared_ptr<serviceinfo>> find_any_service(service_t _service) const;
 
     client_t find_local_client(service_t _service, instance_t _instance) const;
     client_t find_local_client_unlocked(service_t _service, instance_t _instance) const;
