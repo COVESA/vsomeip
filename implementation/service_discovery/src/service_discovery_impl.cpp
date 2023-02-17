@@ -249,7 +249,7 @@ service_discovery_impl::subscribe(
                     its_subscription->set_selective(true);
                     its_subscription->remove_client(VSOMEIP_ROUTING_CLIENT);
                     for (const auto& e : _info->get_events()) {
-                        for (const auto c : e->get_subscribers(_eventgroup)) {
+                        for (const auto& c : e->get_subscribers(_eventgroup)) {
                             its_subscription->add_client(c);
                         }
                     }
@@ -769,7 +769,7 @@ service_discovery_impl::create_eventgroup_entry(
             its_entry->set_ttl(_subscription->get_ttl());
             its_data.entry_ = its_entry;
 
-            for (const auto its_client : _subscription->get_clients()) {
+            for (const auto& its_client : _subscription->get_clients()) {
                 if (_subscription->get_state(its_client)
                         == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     its_other = std::make_shared<eventgroupentry_impl>();
@@ -821,7 +821,7 @@ service_discovery_impl::create_eventgroup_entry(
                 its_data.entry_ = its_entry;
             }
 
-            for (const auto its_client : _subscription->get_clients()) {
+            for (const auto& its_client : _subscription->get_clients()) {
                 if (_subscription->get_state(its_client)
                         == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     if (!its_other) {
@@ -1473,7 +1473,7 @@ service_discovery_impl::process_offerservice_serviceentry(
                         if (its_data.entry_) {
                             add_entry_data(_resubscribes, its_data);
                         }
-                        for (const auto its_client : its_subscription->get_clients()) {
+                        for (const auto& its_client : its_subscription->get_clients()) {
                             its_subscription->set_state(its_client,
                                     subscription_state_e::ST_NOT_ACKNOWLEDGED);
                         }
@@ -1616,7 +1616,7 @@ service_discovery_impl::on_endpoint_connected(
 
                                     its_subscription->set_endpoint(its_reliable, true);
                                     its_subscription->set_endpoint(its_unreliable, false);
-                                    for (const auto its_client : its_subscription->get_clients())
+                                    for (const auto& its_client : its_subscription->get_clients())
                                         its_subscription->set_state(its_client,
                                                 subscription_state_e::ST_NOT_ACKNOWLEDGED);
 
@@ -2377,7 +2377,7 @@ service_discovery_impl::handle_eventgroup_subscription_nack(
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
                 auto its_subscription = found_eventgroup->second;
-                for (const auto its_client : _clients) {
+                for (const auto& its_client : _clients) {
                     host_->on_subscribe_nack(its_client,
                             _service, _instance, _eventgroup, ANY_EVENT,
                             PENDING_SUBSCRIPTION_ID); // TODO: This is a dummy call...
@@ -2412,7 +2412,7 @@ service_discovery_impl::handle_eventgroup_subscription_ack(
         if (found_instance != found_service->second.end()) {
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
-                for (const auto its_client : _clients) {
+                for (const auto& its_client : _clients) {
                     if (found_eventgroup->second->get_state(its_client)
                             == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
                         found_eventgroup->second->set_state(its_client,

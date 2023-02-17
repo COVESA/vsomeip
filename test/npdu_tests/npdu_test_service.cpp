@@ -92,7 +92,7 @@ void npdu_test_service::stop()
     VSOMEIP_INFO << "Stopping...";
     if (!undershot_debounce_times_.empty()) {
         std::chrono::microseconds sum(0);
-        for (const auto t : undershot_debounce_times_) {
+        for (const auto& t : undershot_debounce_times_) {
             sum += t;
         }
         double average = static_cast<double>(sum.count())/static_cast<double>(undershot_debounce_times_.size());

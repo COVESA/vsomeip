@@ -758,7 +758,7 @@ security_impl::load_policy(const boost::property_tree::ptree &_tree) {
                 policy->allow_who_ = true;
             }
             if (has_uid_range && has_gid_range) {
-                for (const auto u : its_uid_interval_set)
+                for (const auto& u : its_uid_interval_set)
                     policy->credentials_ += std::make_pair(u, its_gid_interval_set);
                 policy->allow_who_ = true;
             }
@@ -819,7 +819,7 @@ security_impl::load_policy_body(std::shared_ptr<policy> &_policy,
                             its_instance_interval_set.insert(all_instances);
                             its_method_interval_set.insert(all_methods);
                         }
-                        for (const auto i : its_instance_interval_set) {
+                        for (const auto& i : its_instance_interval_set) {
                             its_instance_method_intervals
                                 += std::make_pair(i, its_method_interval_set);
                         }
@@ -838,7 +838,7 @@ security_impl::load_policy_body(std::shared_ptr<policy> &_policy,
                             }
                             if (its_method_interval_set.empty())
                                 its_method_interval_set.insert(all_methods);
-                            for (const auto i : its_instance_interval_set) {
+                            for (const auto& i : its_instance_interval_set) {
                                 its_instance_method_intervals
                                     += std::make_pair(i, its_method_interval_set);
                             }
@@ -853,7 +853,7 @@ security_impl::load_policy_body(std::shared_ptr<policy> &_policy,
 
                             // try to only load instance ranges with any method to be allowed
                             load_interval_set(k->second, its_legacy_instance_interval_set);
-                            for (const auto i : its_legacy_instance_interval_set) {
+                            for (const auto& i : its_legacy_instance_interval_set) {
                                 its_instance_method_intervals
                                     += std::make_pair(i, its_legacy_method_interval_set);
                             }
@@ -929,7 +929,7 @@ security_impl::load_credential(
             }
         }
 
-        for (const auto its_uid_interval : its_uid_interval_set) {
+        for (const auto& its_uid_interval : its_uid_interval_set) {
             _credentials
                 += std::make_pair(its_uid_interval, its_gid_interval_set);
         }
@@ -1109,9 +1109,9 @@ security_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
                     auto its_service_min = std::max(its_o_lower, its_r_lower);
                     auto its_service_max = std::min(its_r_upper, its_o_upper);
 
-                    for (const auto i : o.second) {
+                    for (const auto& i : o.second) {
                         for (const auto& j : r.second) {
-                            for (const auto k : j.second) {
+                            for (const auto& k : j.second) {
                                 instance_t its_i_lower, its_i_upper, its_k_lower, its_k_upper;
                                 get_bounds(i, its_i_lower, its_i_upper);
                                 get_bounds(k, its_k_lower, its_k_upper);

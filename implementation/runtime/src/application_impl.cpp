@@ -2157,7 +2157,7 @@ bool application_impl::check_for_active_subscription(service_t _service,
                         std::shared_ptr<event> its_event = routing_->find_event(
                                 _service, _instance, _event);
                         if (its_event) {
-                            for (const auto eg : its_event->get_eventgroups()) {
+                            for (const auto& eg : its_event->get_eventgroups()) {
                                 auto found_eventgroup = found_any_event->second.find(eg);
                                 if (found_eventgroup != found_any_event->second.end()) {
                                     // set the flag for initial event received to true

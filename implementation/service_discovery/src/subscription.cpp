@@ -100,7 +100,7 @@ std::set<client_t> subscription::get_clients() const {
     std::set<client_t> its_clients;
     {
         std::lock_guard<std::mutex> its_lock(clients_mutex_);
-        for (const auto its_item : clients_)
+        for (const auto& its_item : clients_)
             its_clients.insert(its_item.first);
     }
     return its_clients;
