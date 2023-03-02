@@ -123,6 +123,13 @@ void endpoint_manager_base::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     rm_->on_disconnect(_endpoint);
 }
 
+bool endpoint_manager_base::on_bind_error(std::shared_ptr<endpoint> _endpoint, uint16_t _remote_port) {
+    (void)_endpoint;
+    (void)_remote_port;
+    return true;
+    // intentionally left blank
+}
+
 void endpoint_manager_base::on_error(
         const byte_t *_data, length_t _length, endpoint* const _receiver,
         const boost::asio::ip::address &_remote_address,
@@ -158,7 +165,7 @@ endpoint_manager_base::log_client_states() const {
 
     {
         std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
-        for (const auto& e : local_endpoints_) {
+        for (const auto &e : local_endpoints_) {
             size_t its_queue_size = e.second->get_queue_size();
             if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {
                 its_client_queue_sizes.push_back(

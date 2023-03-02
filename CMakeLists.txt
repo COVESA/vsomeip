@@ -11,8 +11,8 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 1)
-set (VSOMEIP_PATCH_VERSION 20)
-set (VSOMEIP_HOTFIX_VERSION 3)
+set (VSOMEIP_PATCH_VERSION 37)
+set (VSOMEIP_HOTFIX_VERSION 1)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
@@ -141,7 +141,7 @@ find_package(Threads REQUIRED)
 
 # Boost
 find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
-include_directories( ${Boost_INCLUDE_DIR} )
+include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
 
 if(Boost_FOUND)
   if(Boost_LIBRARY_DIR)
@@ -183,7 +183,7 @@ find_package(PkgConfig)
 # DLT
 if(VSOMEIP_ENABLE_DLT EQUAL 1)
 pkg_check_modules(DLT "automotive-dlt >= 2.11")
-if(DLT_FOUND) 
+if(DLT_FOUND)
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_DLT")
 endif(DLT_FOUND)
 endif()
@@ -352,7 +352,7 @@ endif ()
 target_include_directories(
     ${VSOMEIP_COMPAT_NAME}
     PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}> # for headers when building
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface/compat>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
     $<INSTALL_INTERFACE:include/compat> # for clients in install mode
 )
@@ -416,7 +416,7 @@ foreach ( file ${vsomeip_INCLUDE} )
 endforeach()
 
 install (
-    TARGETS ${VSOMEIP_NAME} 
+    TARGETS ${VSOMEIP_NAME}
     # IMPORTANT: Add the vsomeip library to the "export-set"
     EXPORT vsomeip3Targets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT
@@ -704,11 +704,11 @@ endif()
 
 add_custom_target(build_tests)
 add_dependencies(build_tests vsomeip3)
+add_dependencies(build_tests vsomeip3-e2e)
 add_dependencies(build_tests vsomeip3-sd)
 
 set(CMAKE_CTEST_COMMAND ctest -V)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
-
 add_dependencies(check build_tests)
 
 ##############################################################################

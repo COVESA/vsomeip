@@ -1113,6 +1113,14 @@ Time which the stack collects new service offers before they enter the
 repetition phase. This can be used to reduce the number of
 sent messages during startup. The default setting is _500ms_.
 +
+
+** `max_remote_subscribers`
++
+Limit the number of possible remote subscribers from same remote IP address
+to an eventgroup provided by a service/instance if the remote subscriber uses
+different ports for its subscriptions. The default setting is _3_.
++
+
 //Watchdog
 * anchor:config-watchdog[]`watchdog` (optional)
 +

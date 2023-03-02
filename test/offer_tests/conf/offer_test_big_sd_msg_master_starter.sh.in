@@ -33,6 +33,10 @@ elif [ ! -z "$USE_DOCKER" ]; then
     echo "Waiting for 5s"
     sleep 5
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && sleep 10; ./offer_test_big_sd_msg_slave_starter.sh" &
+elif [ ! -z "$JENKINS" ]; then
+    echo "Waiting for 5s"
+    sleep 5
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./offer_test_big_sd_msg_slave_starter.sh\" >> $WS_ROOT/slave_test_output 2>&1" &
 else
 cat <<End-of-message
 *******************************************************************************

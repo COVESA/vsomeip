@@ -111,12 +111,12 @@ bool deserializer::deserialize(uint8_t *_data, std::size_t _length) {
     return true;
 }
 
-bool deserializer::deserialize(std::string& _target, std::size_t _length) {
+bool deserializer::deserialize(std::string &_target, std::size_t _length) {
     if (_length > remaining_ || _length > _target.capacity()) {
         return false;
     }
-    _target.assign(position_, position_ + _length);
-    position_ += _length;
+    _target.assign(position_, position_ + long(_length));
+    position_ += long(_length);
     remaining_ -= _length;
 
     return true;
@@ -135,7 +135,7 @@ bool deserializer::deserialize(std::vector< uint8_t >& _value) {
 }
 
 bool deserializer::look_ahead(std::size_t _index, uint8_t &_value) const {
-    if (_index >= data_.size())
+    if (_index > remaining_)
         return false;
 
     _value = *(position_ + static_cast<std::vector<byte_t>::difference_type>(_index));
@@ -144,7 +144,7 @@ bool deserializer::look_ahead(std::size_t _index, uint8_t &_value) const {
 }
 
 bool deserializer::look_ahead(std::size_t _index, uint16_t &_value) const {
-    if (_index+1 >= data_.size())
+    if (_index+1 > remaining_)
         return false;
 
     std::vector< uint8_t >::iterator i = position_ +
@@ -155,7 +155,7 @@ bool deserializer::look_ahead(std::size_t _index, uint16_t &_value) const {
 }
 
 bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
-    if (_index+3 >= data_.size())
+    if (_index+3 > remaining_)
         return false;
 
     std::vector< uint8_t >::const_iterator i = position_ + static_cast<std::vector<byte_t>::difference_type>(_index);

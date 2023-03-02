@@ -47,8 +47,11 @@ public:
     bool is_local() const;
     void print_status();
     bool is_reliable() const;
+
+    void send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
+                  const message_buffer_ptr_t &_sent_msg);
 private:
-    void send_queued();
+    void send_queued(message_buffer_ptr_t _buffer);
     void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,
@@ -66,7 +69,7 @@ private:
 private:
     const boost::asio::ip::address remote_address_;
     const std::uint16_t remote_port_;
-    const std::uint32_t udp_receive_buffer_size_;
+    int udp_receive_buffer_size_;
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
 };
 

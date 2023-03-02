@@ -140,7 +140,7 @@ public:
 
     void on_subscribe_nack(client_t _client, service_t _service,
                     instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                    remote_subscription_id_t _id);
+                    remote_subscription_id_t _id, bool _simulated);
 
 
     // interface to stub
@@ -396,6 +396,12 @@ private:
             const std::set<client_t> &_removed,
             const remote_subscription_id_t _id);
 
+    void send_expired_subscription(client_t _offering_client,
+            const service_t _service, const instance_t _instance,
+            const eventgroup_t _eventgroup,
+            const std::set<client_t> &_removed,
+            const remote_subscription_id_t _id);
+
     void cleanup_server_endpoint(service_t _service,
                                  const std::shared_ptr<endpoint>& _endpoint);
 
@@ -413,6 +419,8 @@ private:
     bool insert_event_statistics(service_t _service, instance_t _instance,
             method_t _method, length_t _length);
     void statistics_log_timer_cbk(boost::system::error_code const & _error);
+
+    void send_suspend() const;
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
@@ -476,7 +484,6 @@ private:
     pending_remote_offer_id_t pending_remote_offer_id_;
     std::map<pending_remote_offer_id_t, std::pair<service_t, instance_t>> pending_remote_offers_;
 
-    std::mutex last_resume_mutex_;
     std::chrono::steady_clock::time_point last_resume_;
 
     std::mutex offer_serialization_mutex_;
@@ -493,6 +500,9 @@ private:
         msg_statistic_t> message_statistics_;
     std::tuple<service_t, instance_t, method_t> message_to_discard_;
     uint32_t ignored_statistics_counter_;
+
+    // synchronize update_remote_subscription() and send_(un)subscription()
+    std::mutex update_remote_subscription_mutex_;
 };
 
 }  // namespace vsomeip_v3

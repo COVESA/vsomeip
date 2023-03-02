@@ -59,6 +59,7 @@ public:
 
     virtual bool is_reliable() const = 0;
     virtual std::uint16_t get_local_port() const = 0;
+    virtual void set_local_port(uint16_t _port) = 0;
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
@@ -98,8 +99,10 @@ protected:
 protected:
     queue_type queues_;
 
-    std::mutex clients_mutex_;
-    std::map<client_t, std::map<session_t, endpoint_type> > clients_;
+    std::mutex requests_mutex_;
+    std::map<client_t,
+        std::map<std::tuple<session_t, service_t, instance_t>, endpoint_type>
+    > requests_;
 
     std::map<endpoint_type, std::shared_ptr<train>> trains_;
 

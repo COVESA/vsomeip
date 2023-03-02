@@ -203,20 +203,13 @@ bool local_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
     return ret;
 }
 
-void local_client_endpoint_impl::send_queued() {
+void local_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
     static const byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
     static const byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
     std::vector<boost::asio::const_buffer> bufs;
 
-    message_buffer_ptr_t its_buffer;
-    if(queue_.size()) {
-        its_buffer = queue_.front();
-    } else {
-        return;
-    }
-
     bufs.push_back(boost::asio::buffer(its_start_tag));
-    bufs.push_back(boost::asio::buffer(*its_buffer));
+    bufs.push_back(boost::asio::buffer(*_buffer));
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
     {
@@ -231,7 +224,7 @@ void local_client_endpoint_impl::send_queued() {
                 >(shared_from_this()),
                 std::placeholders::_1,
                 std::placeholders::_2,
-                its_buffer
+                _buffer
             )
         );
     }

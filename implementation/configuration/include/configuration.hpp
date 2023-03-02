@@ -254,7 +254,7 @@ public:
 
     virtual bool is_secure_service(service_t _service, instance_t _instance) const = 0;
 
-    virtual std::uint32_t get_udp_receive_buffer_size() const = 0;
+    virtual int get_udp_receive_buffer_size() const = 0;
 
     virtual bool check_routing_credentials(client_t _client, uint32_t _uid, uint32_t _gid) const = 0;
 
@@ -273,6 +273,11 @@ public:
     virtual uint32_t get_statistics_interval() const = 0;
     virtual uint32_t get_statistics_min_freq() const = 0;
     virtual uint32_t get_statistics_max_messages() const = 0;
+
+    virtual uint8_t get_max_remote_subscribers() const = 0;
+
+    virtual partition_id_t get_partition_id(
+            service_t _service, instance_t _instance) const = 0;
 };
 
 } // namespace vsomeip_v3

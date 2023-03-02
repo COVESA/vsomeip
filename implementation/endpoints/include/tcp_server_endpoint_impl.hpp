@@ -52,6 +52,7 @@ public:
     bool get_default_target(service_t, endpoint_type &) const;
 
     std::uint16_t get_local_port() const;
+    void set_local_port(uint16_t _port);
     bool is_reliable() const;
     bool is_local() const;
 

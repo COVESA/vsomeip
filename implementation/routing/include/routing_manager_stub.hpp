@@ -66,6 +66,11 @@ public:
             instance_t _instance, eventgroup_t _eventgroup,
             event_t _event, remote_subscription_id_t _id);
 
+    bool send_expired_subscription(const std::shared_ptr<endpoint>& _target,
+            client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            event_t _event, remote_subscription_id_t _id);
+
     void send_subscribe_nack(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
@@ -115,6 +120,8 @@ public:
             const std::set<std::shared_ptr<policy> > &_policies);
     void remove_requester_policies(uid_t _uid, gid_t _gid);
 
+    void send_suspend() const;
+
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
@@ -123,6 +130,9 @@ private:
 
     void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
 
+    void inform_provider(client_t _hoster, service_t _service,
+            instance_t _instance, major_version_t _major, minor_version_t _minor,
+            routing_info_entry_e _entry);
     void inform_requesters(client_t _hoster, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor, routing_info_entry_e _entry,

@@ -79,7 +79,8 @@ public:
     void unsubscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, client_t _client);
     void unsubscribe_all(service_t _service, instance_t _instance);
-    void reset_subscriptions(service_t _service, instance_t _instance);
+    void unsubscribe_all_on_suspend();
+    void remove_subscriptions(service_t _service, instance_t _instance);
 
     bool send(bool _is_announcing);
 
@@ -239,7 +240,7 @@ private:
             const std::shared_ptr<endpoint> &_unreliable,
             boost::asio::ip::address &_address) const;
 
-    std::shared_ptr<request> find_request(service_t _service, instance_t _instance);
+    void update_request(service_t _service, instance_t _instance);
 
     void start_offer_debounce_timer(bool _first_start);
     void on_offer_debounce_timer_expired(const boost::system::error_code &_error);

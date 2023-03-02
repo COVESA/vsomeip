@@ -86,7 +86,7 @@ public:
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, remote_subscription_id_t _subscription_id) = 0;
+            event_t _event, remote_subscription_id_t _subscription_id, bool _simulated) = 0;
 
     virtual std::chrono::steady_clock::time_point expire_subscriptions(bool _force) = 0;
 

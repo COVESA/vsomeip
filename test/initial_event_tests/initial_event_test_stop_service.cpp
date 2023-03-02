@@ -35,6 +35,8 @@ public:
             stop_thread_(std::bind(&initial_event_test_stop_service::wait_for_stop, this)),
             called_other_node_(false) {
         if (!app_->init()) {
+            offer_thread_.detach();
+            stop_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
@@ -72,8 +74,12 @@ public:
     }
 
     ~initial_event_test_stop_service() {
-        offer_thread_.join();
-        stop_thread_.join();
+        if (offer_thread_.joinable()) {
+            offer_thread_.join();
+        }
+        if (stop_thread_.joinable()) {
+            stop_thread_.join();
+        }
     }
 
     void offer() {

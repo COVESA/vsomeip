@@ -30,7 +30,10 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting offer test on slave LXC offer_test_external_slave_starter.sh"
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./event_test_slave_starter.sh $COMMUNICATIONMODE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name otems --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && sleep 10; ./event_test_slave_starter.sh $COMMUNICATIONMODE" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && sleep 10; ./event_test_slave_starter.sh $COMMUNICATIONMODE" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./event_test_slave_starter.sh $COMMUNICATIONMODE\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
 cat <<End-of-message
 *******************************************************************************
@@ -56,11 +59,6 @@ done
 
 kill $PID_VSOMEIPD
 sleep 1
-
-if [ ! -z "$USE_DOCKER" ]; then
-    docker stop otems
-    docker rm otems
-fi
 
 # Check if everything went well
 exit $FAIL

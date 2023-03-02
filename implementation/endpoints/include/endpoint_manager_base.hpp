@@ -50,6 +50,7 @@ public:
     // endpoint_host interface
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint);
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint);
+    virtual bool on_bind_error(std::shared_ptr<endpoint> _endpoint, uint16_t _remote_port);
     virtual void on_error(const byte_t *_data, length_t _length,
                           endpoint* const _receiver,
                           const boost::asio::ip::address &_remote_address,

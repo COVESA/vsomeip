@@ -33,7 +33,10 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external e2e profile 04 test on slave LXC"
     ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./e2e_profile_04_test_external_slave_start.sh $SERVICE_JSON_FILE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker run --name citms --cap-add NET_ADMIN $DOCKER_IMAGE sh -c "route add -net 224.0.0.0/4 dev eth0 && cd $DOCKER_TESTS && ./e2e_profile_04_test_external_slave_start.sh $SERVICE_JSON_FILE" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./e2e_profile_04_test_external_slave_start.sh $SERVICE_JSON_FILE" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./e2e_profile_04_test_external_slave_start.sh $SERVICE_JSON_FILE\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
 cat <<End-of-message
 *******************************************************************************
@@ -59,11 +62,6 @@ do
         wait "$client_pid" || ((FAIL+=1))
     fi
 done
-
-if [ ! -z "$USE_DOCKER" ]; then
-    docker stop citms
-    docker rm citms
-fi
 
 kill $PID_CLIENT
 

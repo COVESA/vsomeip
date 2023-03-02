@@ -1,5 +1,117 @@
 Changes
 =======
+v3.1.37.1
+- Support REQUEST_ACK message type (PR #237)
+- Fix typo in error message (PR #238)
+- Fix for bug #239, as one process use two stubs for different vlans (PR #247, Issues #223 #239 #241)
+- Fix multicast timeout crash on Windows caused by bad use of reinterpret_cast (PR #272)
+- Update configuration paths to reside on vendor partition (PR #274)
+- Retry failed netlink operations (PR #283)
+- Fixed android build error (PR #288)
+- Fix for configuration option deserialize bug (PR #300, Issue #263)
+- Accept return codes within range 0x20-0x5E as valid (PR #312)
+- Add support for broadcast (PR #314)
+- Fix for TC8 test case SOMEIPSRV_RPC_07 and SOMEIPSRV_SD_BEHAVIOR_03 (PR #316, Issue #315)
+- Support boost 1.76 (PR #318)
+- Fix big endian support in byteorder.hpp (PR #320)
+- Use Reference to Prevent Copying (PR #356)
+- Add CI using github actions (PR #140)
+
+v3.1.37
+- Added dependency from network tests to e2e library (plugin).
+- Avoid services becoming available when the daemon is suspended
+- Handling with some udp errors in send_cbk process,
+    restarting the connection.
+
+v3.1.36
+- Fix for ELVIS-339712: Fix handling of subscription objects
+   during unsubscribe.
+
+v3.1.35
+- Reworked fix for ELVIS-3310053
+- Improve checking for matching responses.
+    - When sending a response, vSomeIP only checked for a request with
+      the corresponding combination of client and session identifiers.
+    - This led to the possibility, that a response was sent for the
+      wrong service and/or method because of matching client and session
+      identifiers.
+    - This commit implements a full check of service, method, client and
+      session identifiers to ensure a response fits to the received
+      request.
+- Rework to get rid of clang-tidy (llvm14) warnings.
+- Facilitate manual execution of (some) subscription tests.
+    - Switch log level from "debug" to "warning" to facilitate the selection
+      of the script name that must be executed on client side.
+- Do not send initial events for rejected subscriptions.
+
+v3.1.34
+- Use default ports if an acceptance configuration does not specify any.
+- Prevent StopSubscribe/Subscribe on first offer reception.
+- Ignore routing state settings to the current state.
+- Explicitely clean subscriptions if a service removal is reported.
+- Use SOL_RECBUFFORCE instead of SOL_RECVBUF.
+  
+v3.1.33
+- Corrected flag initialization to avoid wait time when re-establishing
+  connections.
+
+v3.1.32
+- Fix bug which could lead to deleting requested services of routing
+  manager.
+- Add Jenkins pipeline.
+- Fix race condition which could lead to false positive security
+  warnings.
+- Fix handling of remote subscriptions for unoffered services: Fix bug
+  which could lead to erroneously not accepting remote subscriptions
+  after a service was stop being offered and offered again.
+
+v3.1.31
+- Fix race condition which could lead to not establishing a TCP
+  connection to a remote service
+
+v3.1.30
+- Fixed lock order inversion
+- Fixed UDP socket bind error handling
+
+v3.1.29
+- Do not send re-subscriptions on suspend
+
+v3.1.28
+- Fixed race condition in client endpoint send queue
+- Improved robustness when receiving malformed remote subscriptions
+- Cleanup remote subscribers on suspend
+
+v3.1.27
+- Performance improvement: Added service partitioning:
+  Each configured partition will lead to a separate client port being used
+  to connect to a remote server port
+- Improve handling of expired subscriptions
+- Fixed race condition when starting "last message received" - timer.
+
+v3.1.26
+- Improve handling of expired subscriptions
+
+v3.1.25
+- Fix event payload caching at proxy
+
+v3.1.24
+- Fix for initial events
+
+v3.1.23
+- Fixed crash in TCP client endpoint
+- Fixed TCP socket bind error handling
+
+v3.1.22
+- Fixed joining multicast group for udp server endpoints
+
+v3.1.21
+- Fixed missing DLT logs if DLT was enabled in config in parallel with file or console logging.
+- Avoid heap-buffer-overflow in look_ahead() when deserializing SD entry / option type.
+- Restart UDP client endpoint on connection refused error.
+- Select a free client port that was not used recently.
+- Limit the number of possible remote subscribers from same remote IP address
+  to an eventgroup provided by a service/instance if the remote
+  subscriber uses different ports for its subscriptions.
 
 v3.1.20.3
 - Correct detection payload changes (Issue #164)

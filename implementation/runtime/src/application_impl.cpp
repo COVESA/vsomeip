@@ -961,7 +961,7 @@ void application_impl::on_subscription(service_t _service, instance_t _instance,
         }
     }
 
-    if(handler_found) {
+    if (handler_found) {
         if(auto its_handler = its_handlers.first) {
             // "normal" subscription handler exists
             _accepted_cb(its_handler(_client, _uid, _gid, _subscribed));

@@ -15,11 +15,26 @@ TEST(someip_offer_test, send_offer_service_sd_message)
 {
     try {
         boost::asio::io_service io;
+        boost::system::error_code ec;
         boost::asio::ip::udp::socket::endpoint_type target_sd(
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30490);
-        boost::asio::ip::udp::socket udp_socket(io,
-                boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+
+        boost::asio::ip::udp::socket udp_socket(io);
+
+        boost::asio::ip::udp::endpoint rx_endpoint_(boost::asio::ip::udp::v4(), 30490);
+        udp_socket.open(rx_endpoint_.protocol(), ec);
+
+        if(ec)
+            std::cout <<" udp_socket open create error "<<std::endl;
+
+        boost::asio::socket_base::reuse_address optionReuseAddress(true);
+        udp_socket.set_option(optionReuseAddress, ec);
+        udp_socket.bind(boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490), ec);
+        if(ec)
+            std::cout <<" udp_socket BIND error "<<std::endl;
+
+        boost::asio::detail::throw_error(ec);
         std::uint8_t its_offer_service_message[] = {
             0xff, 0xff, 0x81, 0x00,
             0x00, 0x00, 0x00, 0x3c,
@@ -39,6 +54,7 @@ TEST(someip_offer_test, send_offer_service_sd_message)
             0x0a, 0x00, 0x03, 0x7D, // slave address
             0x00, 0x11, 0x75, 0x31
         };
+
         for (int var = 0; var < 15; ++var) {
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
             ++its_offer_service_message[11];
@@ -53,8 +69,10 @@ TEST(someip_offer_test, send_offer_service_sd_message)
         boost::asio::ip::udp::socket::endpoint_type target_service(
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30001);
+
         udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
-    } catch (...) {
+    } catch (const std::exception& e) {
+        std::cout << e.what() << std::endl;
         ASSERT_FALSE(true);
     }
 }
