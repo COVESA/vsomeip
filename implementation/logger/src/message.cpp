@@ -82,7 +82,7 @@ message::~message() {
 #ifndef ANDROID
             std::cout
                 << std::dec << std::setw(4) << its_time->tm_year + 1900 << "-"
-                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon << "-"
+                << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon + 1 << "-"
                 << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mday << " "
                 << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_hour << ":"
                 << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_min << ":"
@@ -124,7 +124,7 @@ message::~message() {
             if (its_logfile.is_open()) {
                 its_logfile
                     << std::dec << std::setw(4) << its_time->tm_year + 1900 << "-"
-                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon << "-"
+                    << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mon + 1 << "-"
                     << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_mday << " "
                     << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_hour << ":"
                     << std::dec << std::setw(2) << std::setfill('0') << its_time->tm_min << ":"
