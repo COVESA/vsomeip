@@ -2,7 +2,7 @@
     "unicast" : "@TEST_IP_MASTER@",
     "logging" : 
     {
-        "level" : "debug",
+        "level" : "warning",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/var/log/vsomeip.log" },
         "dlt" : "false"

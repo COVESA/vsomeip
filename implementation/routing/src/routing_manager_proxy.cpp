@@ -1071,6 +1071,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                                     << " ~> Skip message!";
                             return;
                         }
+                        cache_event_payload(its_message);
                     }
                 }
 #ifdef USE_DLT
@@ -1162,34 +1163,35 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                         [this, self, its_client, its_service, its_instance,
                             its_eventgroup, its_event, its_subscription_id, its_major]
                                 (const bool _subscription_accepted){
+                        std::uint32_t its_count = 0;
                         if(_subscription_accepted) {
                             send_subscribe_ack(its_client, its_service, its_instance,
                                            its_eventgroup, its_event, its_subscription_id);
+                            std::set<event_t> its_already_subscribed_events;
+                            bool inserted = insert_subscription(its_service, its_instance, its_eventgroup,
+                                    its_event, VSOMEIP_ROUTING_CLIENT, &its_already_subscribed_events);
+                            if (inserted) {
+                                notify_remote_initially(its_service, its_instance, its_eventgroup,
+                                        its_already_subscribed_events);
+                            }
+#ifdef VSOMEIP_ENABLE_COMPAT
+                            send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client, true);
+#endif
+                            its_count = get_remote_subscriber_count(its_service, its_instance, its_eventgroup, true);
                         } else {
                             send_subscribe_nack(its_client, its_service, its_instance,
                                            its_eventgroup, its_event, its_subscription_id);
                         }
-                        std::set<event_t> its_already_subscribed_events;
-                        bool inserted = insert_subscription(its_service, its_instance, its_eventgroup,
-                                its_event, VSOMEIP_ROUTING_CLIENT, &its_already_subscribed_events);
-                        if (inserted) {
-                            notify_remote_initially(its_service, its_instance, its_eventgroup,
-                                    its_already_subscribed_events);
-                        }
-#ifdef VSOMEIP_ENABLE_COMPAT
-                        send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client, true);
-#endif
-                        std::uint32_t its_count = get_remote_subscriber_count(
-                                its_service, its_instance, its_eventgroup, true);
                         VSOMEIP_INFO << "SUBSCRIBE("
                             << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
                             << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                             << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
                             << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << ":"
                             << std::hex << std::setw(4) << std::setfill('0') << its_event << ":"
-                            << std::dec << (uint16_t)its_major << "]"
+                            << std::dec << (uint16_t)its_major << "] "
                             << (bool)(its_subscription_id != PENDING_SUBSCRIPTION_ID) << " "
-                            << std::dec << its_count;
+                            << (_subscription_accepted ? std::to_string(its_count) : "-")
+                            << (_subscription_accepted ? " ACCEPTED" : " NOT ACCEPTED");
 #ifdef VSOMEIP_ENABLE_COMPAT
                         routing_manager_base::erase_incoming_subscription_state(its_client, its_service,
                                 its_instance, its_eventgroup, its_event);
@@ -1282,7 +1284,7 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
 
         case VSOMEIP_UNSUBSCRIBE:
             if (_size != VSOMEIP_UNSUBSCRIBE_COMMAND_SIZE) {
-                VSOMEIP_WARNING << "Received an UNSUBSCRIBE command with wrong ~> skip!";
+                VSOMEIP_WARNING << "Received an UNSUBSCRIBE command with wrong size ~> skip!";
                 break;
             }
             std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
@@ -1311,6 +1313,44 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
                                      its_subscription_id);
             }
             VSOMEIP_INFO << "UNSUBSCRIBE("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_event << "] "
+                << (bool)(its_subscription_id != PENDING_SUBSCRIPTION_ID) << " "
+                << std::dec << its_remote_subscriber_count;
+            break;
+
+        case VSOMEIP_EXPIRED_SUBSCRIPTION:
+            if (_size != VSOMEIP_EXPIRED_SUBSCRIPTION_COMMAND_SIZE) {
+                VSOMEIP_WARNING << "Received an VSOMEIP_EXPIRED_SUBSCRIPTION command with wrong size ~> skip!";
+                break;
+            }
+            std::memcpy(&its_service, &_data[VSOMEIP_COMMAND_PAYLOAD_POS],
+                    sizeof(its_service));
+            std::memcpy(&its_instance, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 2],
+                    sizeof(its_instance));
+            std::memcpy(&its_eventgroup, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 4],
+                    sizeof(its_eventgroup));
+            std::memcpy(&its_event, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 6],
+                    sizeof(its_event));
+            std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 8],
+                    sizeof(its_subscription_id));
+            host_->on_subscription(its_service, its_instance, its_eventgroup, its_client, its_sender_uid, its_sender_gid, false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
+            if (its_subscription_id == PENDING_SUBSCRIPTION_ID) {
+                // Local subscriber: withdraw subscription
+                routing_manager_base::unsubscribe(its_client, its_sender_uid, its_sender_gid, its_service, its_instance, its_eventgroup, its_event);
+            } else {
+                // Remote subscriber: withdraw subscription only if no more remote subscriber exists
+                its_remote_subscriber_count = get_remote_subscriber_count(its_service,
+                        its_instance, its_eventgroup, false);
+                if (!its_remote_subscriber_count) {
+                    routing_manager_base::unsubscribe(VSOMEIP_ROUTING_CLIENT, ANY_UID, ANY_GID, its_service,
+                            its_instance, its_eventgroup, its_event);
+                }
+            }
+            VSOMEIP_INFO << "UNSUBSCRIBE EXPIRED SUBSCRIPTION("
                 << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
@@ -1538,6 +1578,11 @@ void routing_manager_proxy::on_message(const byte_t *_data, length_t _size,
             }
             break;
         }
+
+        case VSOMEIP_SUSPEND:
+            on_suspend(); // cleanup remote subscribers
+            break;
+
         default:
             break;
         }
@@ -1666,6 +1711,10 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                         j += uint32_t(sizeof(minor_version_t));
 
                         if (routing_info_entry == routing_info_entry_e::RIE_ADD_SERVICE_INSTANCE) {
+                            if (get_routing_state() == routing_state_e::RS_SUSPENDED) {
+                                VSOMEIP_INFO << "rmp::" <<__func__ << " We are in suspended mode, the service will not be added!";
+                                return;
+                            }
                             {
                                 std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
                                 known_clients_.insert(its_client);
@@ -1704,6 +1753,14 @@ void routing_manager_proxy::on_routing_info(const byte_t *_data,
                                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                                 << std::hex << std::setw(4) << std::setfill('0') << its_instance
                                 << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
+
+                            if (its_client == get_client()) {
+                                VSOMEIP_INFO << __func__
+                                        << ": Clearing subscriptions for service ["
+                                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                        << std::hex << std::setw(4) << std::setfill('0') << its_instance << "]";
+                                unsubscribe_all(its_service, its_instance);
+                            }
                         }
 
                         its_services_size -= uint32_t(sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t) );
@@ -2650,6 +2707,28 @@ void routing_manager_proxy::on_client_assign_ack(const client_t &_client) {
                 << "). Ignoring it. ("
                 << (int)state_ << ")";
     }
+}
+
+void routing_manager_proxy::on_suspend() {
+
+    VSOMEIP_INFO << __func__ << ": Application "
+            << std::hex << std::setw(4) << std::setfill('0')
+            << host_->get_client();
+
+    std::lock_guard<std::mutex> its_lock(remote_subscriber_count_mutex_);
+
+    // Unsubscribe everything that is left over.
+    for (const auto &s : remote_subscriber_count_) {
+        for (const auto &i : s.second) {
+            for (const auto e : i.second)
+                routing_manager_base::unsubscribe(
+                    VSOMEIP_ROUTING_CLIENT, ANY_UID, ANY_GID,
+                    s.first, i.first, e.first, ANY_EVENT);
+        }
+    }
+
+    // Remove all entries.
+    remote_subscriber_count_.clear();
 }
 
 }  // namespace vsomeip_v3

@@ -470,7 +470,7 @@ security_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
     }
 
     if (its_matching_policy) {
-        for (const auto& r : _policy->requests_) {
+        for (const auto &r : _policy->requests_) {
             service_t its_lower, its_upper;
             get_bounds(r.first, its_lower, its_upper);
             for (auto s = its_lower; s <= its_upper; s++) {
@@ -479,7 +479,7 @@ security_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
                 its_matching_policy->requests_ += std::make_pair(its_service, r.second);
             }
         }
-        for (const auto& o : _policy->offers_) {
+        for (const auto &o : _policy->offers_) {
             service_t its_lower, its_upper;
             get_bounds(o.first, its_lower, its_upper);
             for (auto s = its_lower; s <= its_upper; s++) {
@@ -1081,8 +1081,8 @@ security_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
     }
 
     std::lock_guard<std::mutex> its_lock(_policy->mutex_);
-    for (const auto& o : _policy->offers_) {
-        for (const auto& p : its_policies) {
+    for (const auto &o : _policy->offers_) {
+        for (const auto &p : its_policies) {
             if (p == _policy)
                 continue;
 
@@ -1091,7 +1091,7 @@ security_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
             auto its_policy = std::make_shared<policy>();
             its_policy->credentials_ = p->credentials_;
 
-            for (const auto& r : p->requests_) {
+            for (const auto &r : p->requests_) {
                 // o represents an offer by a service interval and its instances
                 // (a set of intervals)
                 // r represents a request by a service interval and its instances
@@ -1109,8 +1109,8 @@ security_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
                     auto its_service_min = std::max(its_o_lower, its_r_lower);
                     auto its_service_max = std::min(its_r_upper, its_o_upper);
 
-                    for (const auto& i : o.second) {
-                        for (const auto& j : r.second) {
+                    for (const auto &i : o.second) {
+                        for (const auto &j : r.second) {
                             for (const auto& k : j.second) {
                                 instance_t its_i_lower, its_i_upper, its_k_lower, its_k_upper;
                                 get_bounds(i, its_i_lower, its_i_upper);
@@ -1151,7 +1151,7 @@ security_impl::get_clients(uid_t _uid, gid_t _gid,
         std::unordered_set<client_t> &_clients) const {
 
     std::lock_guard<std::mutex> its_lock(ids_mutex_);
-    for (const auto& i : ids_) {
+    for (const auto &i : ids_) {
         if (i.second.first == _uid && i.second.second == _gid)
             _clients.insert(i.first);
     }

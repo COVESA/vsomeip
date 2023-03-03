@@ -82,6 +82,8 @@ public:
     // endpoint_host interface
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
+    bool on_bind_error(std::shared_ptr<endpoint> _endpoint,
+            std::uint16_t _remote_port);
     void on_error(const byte_t *_data, length_t _length,
                           endpoint* const _receiver,
                           const boost::asio::ip::address &_remote_address,
@@ -113,8 +115,15 @@ private:
                 std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
-    typedef std::map<boost::asio::ip::address, std::map<uint16_t,
-                std::map<bool, std::shared_ptr<endpoint>>>> client_endpoints_by_ip_t;
+    typedef std::map<boost::asio::ip::address,
+        std::map<uint16_t,
+            std::map<bool,
+                  std::map<partition_id_t,
+                    std::shared_ptr<endpoint>
+                >
+            >
+        >
+    > client_endpoints_by_ip_t;
     client_endpoints_by_ip_t client_endpoints_by_ip_;
 
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;

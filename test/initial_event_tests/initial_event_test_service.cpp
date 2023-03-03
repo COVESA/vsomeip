@@ -31,6 +31,7 @@ public:
             offer_thread_(std::bind(&initial_event_test_service::run, this)),
             reliability_type_(_reliability_type) {
         if (!app_->init()) {
+            offer_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
@@ -64,7 +65,9 @@ public:
     }
 
     ~initial_event_test_service() {
-        offer_thread_.join();
+        if (offer_thread_.joinable()) {
+            offer_thread_.join();
+        }
     }
 
     void offer() {

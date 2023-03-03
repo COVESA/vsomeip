@@ -55,7 +55,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
         if (setsockopt(unicast_socket_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size()) == -1) {
+                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
             VSOMEIP_WARNING << "UDP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
@@ -79,28 +79,46 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     unicast_socket_.set_option(option, ec);
     boost::asio::detail::throw_error(ec, "broadcast option");
 
-    const std::uint32_t its_udp_recv_buffer_size =
+    const int its_udp_recv_buffer_size =
             configuration_->get_udp_receive_buffer_size();
     unicast_socket_.set_option(boost::asio::socket_base::receive_buffer_size(
             its_udp_recv_buffer_size), ec);
-
     if (ec) {
-        VSOMEIP_WARNING << "udp_server_endpoint_impl:: couldn't set "
+        VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't set "
                 << "SO_RCVBUF: " << ec.message() << " to: " << std::dec
                 << its_udp_recv_buffer_size << " local port: " << std::dec
                 << local_port_;
-    } else {
-        boost::asio::socket_base::receive_buffer_size its_option;
-        unicast_socket_.get_option(its_option, ec);
-        if (ec) {
-            VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't get "
-                    << "SO_RCVBUF: " << ec.message() << " local port:"
-                    << std::dec << local_port_;
-        } else {
-            VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUF is: "
-                    << std::dec << its_option.value();
-        }
     }
+
+    boost::asio::socket_base::receive_buffer_size its_option;
+    unicast_socket_.get_option(its_option, ec);
+#ifdef __linux__
+    // If regular setting of the buffer size did not work, try to force
+    // (requires CAP_NET_ADMIN to be successful)
+    if (its_option.value() < 0
+            || its_option.value() < its_udp_recv_buffer_size) {
+        ec.assign(setsockopt(unicast_socket_.native_handle(),
+                    SOL_SOCKET, SO_RCVBUFFORCE,
+                    &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)),
+                boost::system::generic_category());
+        if (!ec) {
+            VSOMEIP_INFO << "udp_server_endpoint_impl: "
+                    << "SO_RCVBUFFORCE successful.";
+        }
+        unicast_socket_.get_option(its_option, ec);
+    }
+#endif
+    if (ec) {
+        VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't get "
+                << "SO_RCVBUF: " << ec.message() << " local port:"
+                << std::dec << local_port_;
+    } else {
+        VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUF is: "
+                << std::dec << its_option.value()
+                << " (" << its_udp_recv_buffer_size << ") local port:"
+                << std::dec << local_port_;
+    }
+
 
 #ifdef _WIN32
     const char* optval("0001");
@@ -345,29 +363,44 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
                 multicast_socket_->bind(*multicast_local_, ec);
                 boost::asio::detail::throw_error(ec, "bind multicast");
 
-                const std::uint32_t its_udp_recv_buffer_size =
+                const int its_udp_recv_buffer_size =
                         configuration_->get_udp_receive_buffer_size();
-
                 multicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(
                         its_udp_recv_buffer_size), ec);
-
                 if (ec) {
-                    VSOMEIP_WARNING << "udp_server_endpoint_impl:: couldn't set "
+                    VSOMEIP_WARNING << "udp_server_endpoint_impl<multicast>: couldn't set "
                             << "SO_RCVBUF: " << ec.message() << " to: " << std::dec
                             << its_udp_recv_buffer_size << " local port: " << std::dec
                             << local_port_;
-                } else {
-                    boost::asio::socket_base::receive_buffer_size its_option;
-                    multicast_socket_->get_option(its_option, ec);
+                }
 
-                    if (ec) {
-                        VSOMEIP_WARNING << "udp_server_endpoint_impl: couldn't get "
-                                << "SO_RCVBUF: " << ec.message() << " local port:"
-                                << std::dec << local_port_;
-                    } else {
-                        VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUF (Multicast) is: "
-                                << std::dec << its_option.value();
+                boost::asio::socket_base::receive_buffer_size its_option;
+                multicast_socket_->get_option(its_option, ec);
+            #ifdef __linux__
+                // If regular setting of the buffer size did not work, try to force
+                // (requires CAP_NET_ADMIN to be successful)
+                if (its_option.value() < 0
+                        || its_option.value() < its_udp_recv_buffer_size) {
+                    ec.assign(setsockopt(multicast_socket_->native_handle(),
+                                SOL_SOCKET, SO_RCVBUFFORCE,
+                                &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)),
+                            boost::system::generic_category());
+                    if (!ec) {
+                        VSOMEIP_INFO << "udp_server_endpoint_impl<multicast>: "
+                                << "SO_RCVBUFFORCE: successful.";
                     }
+                    multicast_socket_->get_option(its_option, ec);
+                }
+            #endif
+                if (ec) {
+                    VSOMEIP_WARNING << "udp_server_endpoint_impl<multicast>: couldn't get "
+                            << "SO_RCVBUF: " << ec.message() << " local port:"
+                            << std::dec << local_port_;
+                } else {
+                    VSOMEIP_INFO << "udp_server_endpoint_impl<multicast>: SO_RCVBUF is: "
+                            << std::dec << its_option.value()
+                            << " (" << its_udp_recv_buffer_size << ") local port:"
+                            << std::dec << local_port_;
                 }
 
 #ifdef _WIN32
@@ -413,7 +446,8 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
             joined_group_ = true;
 
         } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "udp_server_endpoint_impl::join" << ":" << e.what();
+            VSOMEIP_ERROR << "udp_server_endpoint_impl::join" << ":" << e.what()
+                          << " address: " << _address;
         }
     };
 
@@ -467,7 +501,8 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string &_address) {
         }
     }
     catch (const std::exception &e) {
-        VSOMEIP_ERROR << __func__ << ":" << e.what();
+        VSOMEIP_ERROR << __func__ << ":" << e.what()
+                      << " address: " << _address;
     }
 }
 
@@ -498,6 +533,10 @@ bool udp_server_endpoint_impl::get_default_target(service_t _service,
 
 std::uint16_t udp_server_endpoint_impl::get_local_port() const {
     return local_port_;
+}
+
+void udp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
+    (void)_port;
 }
 
 void udp_server_endpoint_impl::on_unicast_received(
@@ -624,9 +663,13 @@ void udp_server_endpoint_impl::on_message_received(
                             const session_t its_session = VSOMEIP_BYTES_TO_WORD(
                                     _buffer[i + VSOMEIP_SESSION_POS_MIN],
                                     _buffer[i + VSOMEIP_SESSION_POS_MAX]);
-                            clients_mutex_.lock();
-                            clients_[its_client][its_session] = _remote;
-                            clients_mutex_.unlock();
+                            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                                    _buffer[i + VSOMEIP_METHOD_POS_MIN],
+                                    _buffer[i + VSOMEIP_METHOD_POS_MAX]);
+
+                            std::lock_guard<std::mutex> its_requests_guard(requests_mutex_);
+                            requests_[its_client]
+                                [std::make_tuple(its_service, its_method, its_session)] = _remote;
                         }
                     } else if (its_service != VSOMEIP_SD_SERVICE
                             && utility::is_notification(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
@@ -656,11 +699,19 @@ void udp_server_endpoint_impl::on_message_received(
                                         res.second[VSOMEIP_CLIENT_POS_MIN],
                                         res.second[VSOMEIP_CLIENT_POS_MAX]);
                                 if (its_client != MAGIC_COOKIE_CLIENT) {
+                                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                                            res.second[VSOMEIP_SERVICE_POS_MIN],
+                                            res.second[VSOMEIP_SERVICE_POS_MAX]);
+                                    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                                            res.second[VSOMEIP_METHOD_POS_MIN],
+                                            res.second[VSOMEIP_METHOD_POS_MAX]);
                                     const session_t its_session = VSOMEIP_BYTES_TO_WORD(
                                             res.second[VSOMEIP_SESSION_POS_MIN],
                                             res.second[VSOMEIP_SESSION_POS_MAX]);
-                                    std::lock_guard<std::mutex> its_client_lock(clients_mutex_);
-                                    clients_[its_client][its_session] = _remote;
+
+                                    std::lock_guard<std::mutex> its_requests_guard(requests_mutex_);
+                                    requests_[its_client]
+                                        [std::make_tuple(its_service, its_method, its_session)] = _remote;
                                 }
                             } else if (its_service != VSOMEIP_SD_SERVICE
                                     && utility::is_notification(res.second[VSOMEIP_MESSAGE_TYPE_POS])

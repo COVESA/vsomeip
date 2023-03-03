@@ -36,6 +36,8 @@ export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_six
 export VSOMEIP_CONFIGURATION=$SLAVE_JSON_FILE
 ./subscribe_notify_test_service 6 $RELIABILITY_TYPE $3 &
 
+sleep 3
+
 # Wait until all applications are finished
 for job in $(jobs -p)
 do
@@ -44,7 +46,7 @@ do
     wait $job || ((FAIL+=1))
 done
 
-# Check if both exited successfully 
+# Check if both exited successfully
 if [ $FAIL -eq 0 ]
 then
     exit 0

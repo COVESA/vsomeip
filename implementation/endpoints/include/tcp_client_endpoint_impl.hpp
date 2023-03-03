@@ -42,7 +42,7 @@ public:
     void send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
                   const message_buffer_ptr_t& _sent_msg);
 private:
-    void send_queued();
+    void send_queued(message_buffer_ptr_t _buffer);
     void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,

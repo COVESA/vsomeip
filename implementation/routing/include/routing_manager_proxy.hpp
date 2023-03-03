@@ -194,6 +194,8 @@ private:
     void on_update_security_credentials(const byte_t *_data, uint32_t _size);
     void on_client_assign_ack(const client_t &_client);
 
+    void on_suspend();
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,

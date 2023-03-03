@@ -70,6 +70,7 @@ public:
     virtual std::uint16_t get_remote_port() const;
 
     std::uint16_t get_local_port() const;
+    void set_local_port(uint16_t _port);
     virtual bool is_reliable() const = 0;
 
     size_t get_queue_size() const;
@@ -93,7 +94,8 @@ protected:
         CONNECTED,
         ESTABLISHED
     };
-    virtual void send_queued() = 0;
+    message_buffer_ptr_t get_front();
+    virtual void send_queued(message_buffer_ptr_t _buffer) = 0;
     virtual void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,

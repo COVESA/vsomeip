@@ -29,6 +29,7 @@ public:
     void offer();
     void stop_offer();
     void join_offer_thread();
+    void detach_offer_thread();
     void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message> &_request);
     void run();

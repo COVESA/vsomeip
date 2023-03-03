@@ -24,7 +24,8 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         host_(_host),
         io_(host_->get_io()),
         client_(host_->get_client()),
-        configuration_(host_->get_configuration())
+        configuration_(host_->get_configuration()),
+        routing_state_(routing_state_e::RS_UNKNOWN)
 #ifdef USE_DLT
         , tc_(trace::connector_impl::get())
 #endif
@@ -458,6 +459,8 @@ void routing_manager_base::register_event(client_t _client,
             its_eventgroupinfo->set_service(_service);
             its_eventgroupinfo->set_instance(_instance);
             its_eventgroupinfo->set_eventgroup(eg);
+            its_eventgroupinfo->set_max_remote_subscribers(
+                    configuration_->get_max_remote_subscribers());
             std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
             eventgroups_[_service][_instance][eg] = its_eventgroupinfo;
         }
@@ -549,22 +552,24 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
         return true;
     }
 
-    if (_sender == find_local_client(_service, _instance)) {
-        // sender is still offering the service
-        return true;
-    }
+    {
+        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        if (_sender == find_local_client_unlocked(_service, _instance)) {
+            // sender is still offering the service
+            return true;
+        }
 
-    std::lock_guard<std::mutex> its_lock(local_services_mutex_);
-    auto found_service = local_services_history_.find(_service);
-    if (found_service != local_services_history_.end()) {
-       auto found_instance = found_service->second.find(_instance);
-       if (found_instance != found_service->second.end()) {
-           auto found_client = found_instance->second.find(_sender);
-           if (found_client != found_instance->second.end()) {
-               // sender was offering the service and is still connected
-               return true;
+        auto found_service = local_services_history_.find(_service);
+        if (found_service != local_services_history_.end()) {
+           auto found_instance = found_service->second.find(_instance);
+           if (found_instance != found_service->second.end()) {
+               auto found_client = found_instance->second.find(_sender);
+               if (found_client != found_instance->second.end()) {
+                   // sender was offering the service and is still connected
+                   return true;
+               }
            }
-       }
+        }
     }
 
     // service is now offered by another client
@@ -644,6 +649,21 @@ void routing_manager_base::unsubscribe(client_t _client, uid_t _uid, gid_t _gid,
                 if (e)
                     e->remove_subscriber(_eventgroup, _client);
             }
+        }
+    }
+}
+
+void
+routing_manager_base::unsubscribe_all(
+        service_t _service, instance_t _instance) {
+
+    std::lock_guard<std::mutex> its_guard(events_mutex_);
+    auto find_service = events_.find(_service);
+    if (find_service != events_.end()) {
+        auto find_instance = find_service->second.find(_instance);
+        if (find_instance != find_service->second.end()) {
+            for (auto &e : find_instance->second)
+                e.second->clear_subscribers();
         }
     }
 }
@@ -982,6 +1002,11 @@ std::set<client_t> routing_manager_base::find_local_clients(service_t _service, 
 client_t routing_manager_base::find_local_client(service_t _service,
                                                  instance_t _instance) const {
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+    return find_local_client_unlocked(_service, _instance);
+}
+
+client_t routing_manager_base::find_local_client_unlocked(service_t _service,
+                                                 instance_t _instance) const {
     client_t its_client(VSOMEIP_ROUTING_CLIENT);
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
@@ -1394,6 +1419,11 @@ routing_manager_base::get_subscriptions(const client_t _client) {
         }
     }
     return result;
+}
+
+routing_state_e
+routing_manager_base::get_routing_state() {
+    return routing_state_;
 }
 
 #ifdef VSOMEIP_ENABLE_COMPAT

@@ -130,8 +130,10 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, bool _force) {
             }
         }
     } else {
-        VSOMEIP_INFO << "Can't set payload for event " << std::hex
-                << message_->get_method() << " as it isn't provided";
+        VSOMEIP_INFO << "Can't set payload for event "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
+                << " as it isn't provided";
     }
 }
 
@@ -146,8 +148,10 @@ void event::set_payload(const std::shared_ptr<payload> &_payload, client_t _clie
             }
         }
     } else {
-        VSOMEIP_INFO << "Can't set payload for event " << std::hex
-                << message_->get_method() << " as it isn't provided";
+        VSOMEIP_INFO << "Can't set payload for event "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
+                << ". It isn't provided";
     }
 }
 
@@ -164,8 +168,10 @@ void event::set_payload(const std::shared_ptr<payload> &_payload,
             }
         }
     } else {
-        VSOMEIP_INFO << "Can't set payload for event " << std::hex
-                << message_->get_method() << " as it isn't provided";
+        VSOMEIP_INFO << "Can't set payload for event "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
+                << ". It isn't provided";
     }
 }
 
@@ -281,7 +287,9 @@ void event::notify() {
         routing_->send(VSOMEIP_ROUTING_CLIENT, message_);
     } else {
         VSOMEIP_INFO << __func__
-                << ": Notifying " << std::hex << get_event()
+                << ": Notifying "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Event payload not (yet) set!";
     }
 }
@@ -293,7 +301,9 @@ void event::notify_one(client_t _client,
         notify_one_unlocked(_client, _target);
     } else {
         VSOMEIP_WARNING << __func__
-                << ": Notifying " << std::hex << get_event()
+                << ": Notifying "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Target undefined";
     }
 }
@@ -306,13 +316,17 @@ void event::notify_one_unlocked(client_t _client,
             routing_->send_to(_client, _target, message_);
         } else {
             VSOMEIP_INFO << __func__
-                    << ": Notifying " << std::hex << get_event()
+                    << ": Notifying "
+                    << std::hex << std::setw(4) << std::setfill('0')
+                    << get_service() << "." << get_instance() << "." << get_event()
                     << " failed. Event payload not (yet) set!";
             pending_.insert(_target);
         }
     } else {
         VSOMEIP_WARNING << __func__
-                << ": Notifying " << std::hex << get_event()
+                << ": Notifying "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Target undefined";
     }
 }
@@ -329,7 +343,8 @@ void event::notify_one_unlocked(client_t _client) {
     } else {
         VSOMEIP_INFO << __func__
                 << ": Notifying "
-                << std::hex << message_->get_method()
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "." << get_event()
                 << " to client " << _client
                 << " failed. Event payload not set!";
     }
@@ -403,9 +418,12 @@ bool event::add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _for
         ret = eventgroups_[_eventgroup].insert(_client).second;
     } else {
         VSOMEIP_WARNING << __func__ << ": Didnt' insert client "
-                << std::hex << std::setw(4) << std::setfill('0') << _client
-                << " to eventgroup 0x"
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup;
+                << std::hex << std::setw(4) << std::setfill('0')
+                << _client
+                << " to eventgroup "
+                << std::hex << std::setw(4) << std::setfill('0')
+                << get_service() << "." << get_instance() << "."
+                << _eventgroup;
     }
     return ret;
 }

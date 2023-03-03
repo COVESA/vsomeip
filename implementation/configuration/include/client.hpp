@@ -16,16 +16,20 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 struct client {
-    client() : service_(ANY_SERVICE), instance_(ANY_INSTANCE) {}
+    client() : service_(ANY_SERVICE),
+            instance_(ANY_INSTANCE) {
+    }
 
     // ports for specific service / instance
     service_t service_;
     instance_t instance_;
     std::map<bool, std::set<uint16_t> > ports_;
+    std::map<bool, uint16_t> last_used_specific_client_port_;
 
     // client port ranges mapped to remote port ranges
     std::map<bool, std::pair<uint16_t, uint16_t> > remote_ports_;
     std::map<bool, std::pair<uint16_t, uint16_t> > client_ports_;
+    std::map<bool, uint16_t> last_used_client_port_;
 };
 
 } // namespace cfg

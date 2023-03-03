@@ -94,7 +94,8 @@ configuration_impl::configuration_impl()
       log_statistics_(true),
       statistics_interval_(VSOMEIP_DEFAULT_STATISTICS_INTERVAL),
       statistics_min_freq_(VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ),
-      statistics_max_messages_(VSOMEIP_DEFAULT_STATISTICS_MAX_MSG) {
+      statistics_max_messages_(VSOMEIP_DEFAULT_STATISTICS_MAX_MSG),
+      max_remote_subscribers_(VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS) {
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
@@ -199,6 +200,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     statistics_interval_ = _other.statistics_interval_;
     statistics_min_freq_ = _other.statistics_min_freq_;
     statistics_max_messages_ = _other.statistics_max_messages_;
+    max_remote_subscribers_ = _other.max_remote_subscribers_;
 }
 
 configuration_impl::~configuration_impl() {
@@ -510,6 +512,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_debounce(e);
             load_acceptances(e);
             load_secure_services(e);
+            load_partitions(e);
         }
     }
 
@@ -1320,6 +1323,24 @@ void configuration_impl::load_service_discovery(
                     load_ttl_factors(i->second, &ttl_factors_subscriptions_);
                     is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS] = true;
                 }
+            } else if (its_key == "max_remote_subscribers") {
+                if (!is_overlay_ && is_configured_[ET_MAX_REMOTE_SUBSCRIBERS]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.max_remote_subscribers."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    int tmp;
+                    its_converter << its_value;
+                    its_converter >> tmp;
+                    max_remote_subscribers_ = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
+                                    (std::numeric_limits<std::uint8_t>::max)() :
+                                    static_cast<std::uint8_t>(tmp);
+                    if (max_remote_subscribers_ == 0) {
+                        VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
+                                << std::dec << VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS << ")";
+                        max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
+                    }
+                    is_configured_[ET_MAX_REMOTE_SUBSCRIBERS] = true;
+                }
             }
         }
     } catch (...) {
@@ -1832,6 +1853,10 @@ void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
         its_client->remote_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->client_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->client_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
+        its_client->last_used_specific_client_port_[true]  = ILLEGAL_PORT;
+        its_client->last_used_specific_client_port_[false] = ILLEGAL_PORT;
+        its_client->last_used_client_port_[true]  = ILLEGAL_PORT;
+        its_client->last_used_client_port_[false] = ILLEGAL_PORT;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -2128,6 +2153,92 @@ void configuration_impl::load_selective_broadcasts_support(const configuration_e
     }
 }
 
+
+void
+configuration_impl::load_partitions(const configuration_element &_element) {
+
+    try {
+        auto its_partitions = _element.tree_.get_child("partitions");
+        for (auto i = its_partitions.begin(); i != its_partitions.end(); ++i) {
+            load_partition(i->second);
+        }
+    } catch (...) {
+    }
+}
+
+void
+configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
+
+    static partition_id_t its_partition_id(VSOMEIP_DEFAULT_PARTITION_ID);
+
+    try {
+
+        std::stringstream its_converter;
+        std::map<service_t, std::set<instance_t> > its_partition_members;
+
+        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+            service_t its_service(0x0);
+            instance_t its_instance(0x0);
+            std::string its_service_s, its_instance_s;
+
+            for (auto j = i->second.begin(); j != i->second.end(); ++j) {
+                std::string its_key(j->first);
+                std::string its_data(j->second.data());
+
+                its_converter.str("");
+                its_converter.clear();
+
+                if (its_data.find("0x") != std::string::npos)
+                    its_converter << std::hex;
+                else
+                    its_converter << std::dec;
+                its_converter << its_data;
+
+                if (its_key == "service") {
+                    its_converter >> its_service;
+                    its_service_s = its_data;
+                } else if (its_key == "instance") {
+                    its_converter >> its_instance;
+                    its_instance_s = its_data;
+                }
+            }
+
+            if (its_service > 0 && its_instance > 0)
+                its_partition_members[its_service].insert(its_instance);
+            else
+                VSOMEIP_ERROR << "P: <" << its_service_s << "."
+                    << its_instance_s << "> is no valid service instance.";
+
+        }
+
+        if (!its_partition_members.empty()) {
+            std::lock_guard<std::mutex> its_lock(partitions_mutex_);
+            its_partition_id++;
+
+            std::stringstream its_log;
+            its_log << "P"
+                    << std::dec << static_cast<int>(its_partition_id)
+                    << " [";
+
+            for (const auto &i : its_partition_members) {
+                for (const auto j : i.second) {
+                    partitions_[i.first][j] = its_partition_id;
+                    its_log << "<"
+                            << std::setw(4) << std::setfill('0') << std::hex
+                            << i.first << "."
+                            << std::setw(4) << std::setfill('0') << std::hex
+                            << j
+                            << ">";
+                }
+            }
+
+            its_log << "]";
+            VSOMEIP_INFO << its_log.str();
+        }
+    } catch (...) {
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Internal helper
 ///////////////////////////////////////////////////////////////////////////////
@@ -2351,19 +2462,14 @@ bool configuration_impl::get_client_port(
         std::map<bool, std::set<uint16_t> > &_used_client_ports,
         uint16_t &_client_port) const {
     bool is_configured(false);
-
     _client_port = ILLEGAL_PORT;
-    auto its_client = find_client(_service, _instance);
 
-    // Check for service, instance specific port configuration
-    if (its_client  && !its_client->ports_[_reliable].empty()) {
+    uint16_t its_specific_port(ILLEGAL_PORT);
+    if (find_specific_port(its_specific_port, _service, _instance, _reliable, _used_client_ports)) {
         is_configured = true;
-        for (auto its_port : its_client->ports_[_reliable]) {
-            // Found free configured port
-            if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
-                _client_port = its_port;
-                return true;
-            }
+        if (its_specific_port != ILLEGAL_PORT) {
+            _client_port = its_specific_port;
+            return true;
         }
     }
 
@@ -2615,18 +2721,120 @@ bool configuration_impl::find_port(uint16_t &_port, uint16_t _remote, bool _reli
     std::list<std::shared_ptr<client>>::const_iterator it;
 
     for (it = clients_.begin(); it != clients_.end(); ++it) {
-        if (is_in_port_range(_remote, (*it)->remote_ports_[_reliable])) {
+        if (_remote != ILLEGAL_PORT && is_in_port_range(_remote,
+                (*it)->remote_ports_[_reliable])) {
             is_configured = true;
-            for (uint16_t its_port = (*it)->client_ports_[_reliable].first;
-                    its_port <= (*it)->client_ports_[_reliable].second;  its_port++ ) {
-                if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+            uint16_t its_port(ILLEGAL_PORT);
+            if ((*it)->last_used_client_port_[_reliable] != ILLEGAL_PORT &&
+                    is_in_port_range(((*it)->last_used_client_port_[_reliable])++,
+                            (*it)->client_ports_[_reliable])) {
+                its_port = ((*it)->last_used_client_port_[_reliable])++;
+            } else {
+                // on initial start of port search
+                if ((*it)->last_used_client_port_[_reliable] == ILLEGAL_PORT) {
+                    its_port = (*it)->client_ports_[_reliable].first;
+                } else {
+                    continue;
+                }
+            }
+            while (its_port <= (*it)->client_ports_[_reliable].second) {
+                if (_used_client_ports[_reliable].find(its_port)
+                        == _used_client_ports[_reliable].end()) {
                     _port = its_port;
+                    (*it)->last_used_client_port_[_reliable] = its_port;
+                    return true;
+                }
+                its_port++;
+            }
+        }
+    }
+    // no free port was found in _used_client_ports or last_used_port
+    // cannot be incremented for any client port range
+    // -> reset last used port for all available client port ranges
+    for (it = clients_.begin(); it != clients_.end(); ++it) {
+        if (_remote != ILLEGAL_PORT && is_in_port_range(_remote,
+                (*it)->remote_ports_[_reliable])) {
+            (*it)->last_used_client_port_[_reliable] = ILLEGAL_PORT;
+        }
+    }
+    // ensure that all configured client ports are checked from beginning
+    for (it = clients_.begin(); it != clients_.end(); ++it) {
+        if (_remote != ILLEGAL_PORT && is_in_port_range(_remote,
+                (*it)->remote_ports_[_reliable])) {
+            uint16_t its_port(ILLEGAL_PORT);
+            its_port = (*it)->client_ports_[_reliable].first;
+            while (its_port <= (*it)->client_ports_[_reliable].second) {
+                if (_used_client_ports[_reliable].find(its_port)
+                        == _used_client_ports[_reliable].end()) {
+                    _port = its_port;
+                    (*it)->last_used_client_port_[_reliable] = its_port;
+                    return true;
+                }
+                its_port++;
+            }
+        }
+    }
+    return is_configured;
+}
+
+bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
+        instance_t _instance, bool _reliable,
+        std::map<bool, std::set<uint16_t> > &_used_client_ports) const {
+    bool is_configured(false);
+    bool check_all(false);
+    std::list<std::shared_ptr<client>>::const_iterator it;
+    auto its_client = find_client(_service, _instance);
+
+    // Check for service, instance specific port configuration
+    if (its_client  && !its_client->ports_[_reliable].empty()) {
+        is_configured = true;
+        std::set<uint16_t>::const_iterator it;
+        if (its_client->last_used_specific_client_port_[_reliable] == ILLEGAL_PORT) {
+            it = its_client->ports_[_reliable].begin();
+        } else {
+            it = its_client->ports_[_reliable].find(
+                    its_client->last_used_specific_client_port_[_reliable]);
+            auto it_next = std::next(it, 1);
+            if (it_next != its_client->ports_[_reliable].end()) {
+                check_all = true;
+                it = it_next;
+            } else {
+                it = its_client->ports_[_reliable].begin();
+            }
+        }
+        while (it != its_client->ports_[_reliable].end()) {
+            if (_used_client_ports[_reliable].find(*it)
+                    == _used_client_ports[_reliable].end()) {
+                _port = *it;
+                its_client->last_used_specific_client_port_[_reliable] = *it;
+                VSOMEIP_INFO << "configuration_impl:find_specific_port #1:"
+                        << " service: " << std::hex << _service
+                        << " instance: " << _instance
+                        << " reliable: " << std::dec << _reliable
+                        << " return specific port: " << (uint32_t)_port;
+                return true;
+            }
+            ++it;
+        }
+        if (check_all) {
+            // no free port was found
+            // ensure that all configured client ports are checked from beginning
+            for (auto its_port : _used_client_ports[_reliable]) {
+                if (_used_client_ports[_reliable].find(its_port)
+                       == _used_client_ports[_reliable].end()) {
+                    _port = its_port;
+                    its_client->last_used_specific_client_port_[_reliable] = its_port;
+                    VSOMEIP_INFO << "configuration_impl:find_specific_port #2:"
+                            << " service: " << std::hex << _service
+                            << " instance: " << _instance
+                            << " reliable: " << std::dec << _reliable
+                            << " return specific port: " << (uint32_t)_port;
                     return true;
                 }
             }
         }
+        its_client->last_used_specific_client_port_[_reliable] = ILLEGAL_PORT;
     }
-
     return is_configured;
 }
 
@@ -3414,21 +3622,52 @@ configuration_impl::load_acceptance_data(
                 // If optional was not set, use default!
                 if (!has_optional) {
                     const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
+                    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
                     const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
 
                     its_ports.operator [](is_reliable).first.insert(its_optional_client);
+                    its_ports.operator [](is_reliable).first.insert(its_optional_client_spare);
                     its_ports.operator [](is_reliable).first.insert(its_optional_server);
                 }
 
                 // If secure was not set, use default!
                 if (!has_secure) {
                     const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
+                    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
                     const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
 
                     its_ports.operator [](is_reliable).second.insert(its_secure_client);
+                    its_ports.operator [](is_reliable).second.insert(its_secure_client_spare);
                     its_ports.operator [](is_reliable).second.insert(its_secure_server);
                 }
             }
+        }
+
+        // If no ports are specified, use default!
+        if (its_ports.empty()) {
+            const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
+            const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
+            const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+
+            // optional
+            its_ports.operator [](false).first.insert(its_optional_client);
+            its_ports.operator [](false).first.insert(its_optional_client_spare);
+            its_ports.operator [](false).first.insert(its_optional_server);
+            its_ports.operator [](true).first.insert(its_optional_client);
+            its_ports.operator [](true).first.insert(its_optional_client_spare);
+            its_ports.operator [](true).first.insert(its_optional_server);
+
+            // secure
+            const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
+            const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
+            const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
+
+            its_ports.operator [](false).second.insert(its_secure_client);
+            its_ports.operator [](false).second.insert(its_secure_client_spare);
+            its_ports.operator [](false).second.insert(its_secure_server);
+            its_ports.operator [](true).second.insert(its_secure_client);
+            its_ports.operator [](true).second.insert(its_secure_client_spare);
+            its_ports.operator [](true).second.insert(its_secure_server);
         }
 
         if (!its_address.is_unspecified()) {
@@ -3572,8 +3811,7 @@ configuration_impl::load_udp_receive_buffer_size(const configuration_element &_e
             } else {
                 const std::string s(_element.tree_.get_child(urbs).data());
                 try {
-                    udp_receive_buffer_size_ = static_cast<std::uint32_t>(std::stoul(
-                            s.c_str(), NULL, 10));
+                    udp_receive_buffer_size_ = std::stoi(s.c_str(), NULL, 10);
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR<< __func__ << ": " << urbs << " " << e.what();
                 }
@@ -3774,8 +4012,11 @@ void configuration_impl::set_sd_acceptance_rule(
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
 
     const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
+    const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
     const auto its_optional_server = boost::icl::interval<std::uint16_t>::closed(30501, 30599);
+
     const auto its_secure_client = boost::icl::interval<std::uint16_t>::closed(32491, 32499);
+    const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
     const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
 
     const bool rules_active = (sd_acceptance_rules_active_.find(_address)
@@ -3801,8 +4042,10 @@ void configuration_impl::set_sd_acceptance_rule(
                         (found_reliability->second.first.empty()
                                 && found_reliability->second.second.empty())) {
                     found_reliability->second.first.add(its_optional_client);
+                    found_reliability->second.first.add(its_optional_client_spare);
                     found_reliability->second.first.add(its_optional_server);
                     found_reliability->second.second.add(its_secure_client);
+                    found_reliability->second.second.add(its_secure_client_spare);
                     found_reliability->second.second.add(its_secure_server);
                     if (!rules_active) {
                         sd_acceptance_rules_active_.insert(_address);
@@ -3819,8 +4062,10 @@ void configuration_impl::set_sd_acceptance_rule(
                 }
             } else {
                 found_reliability->second.first.erase(its_optional_client);
+                found_reliability->second.first.erase(its_optional_client_spare);
                 found_reliability->second.first.erase(its_optional_server);
                 found_reliability->second.second.erase(its_secure_client);
+                found_reliability->second.second.erase(its_secure_client_spare);
                 found_reliability->second.second.erase(its_secure_server);
                 if (found_reliability->second.first.empty()
                         && found_reliability->second.second.empty()) {
@@ -3836,9 +4081,11 @@ void configuration_impl::set_sd_acceptance_rule(
         } else if (_enable) {
             boost::icl::interval_set<std::uint16_t> its_optional_default;
             its_optional_default.add(its_optional_client);
+            its_optional_default.add(its_optional_client_spare);
             its_optional_default.add(its_optional_server);
             boost::icl::interval_set<std::uint16_t> its_secure_default;
             its_secure_default.add(its_secure_client);
+            its_secure_default.add(its_secure_client_spare);
             its_secure_default.add(its_secure_server);
 
             found_address->second.second.emplace(
@@ -3857,9 +4104,11 @@ void configuration_impl::set_sd_acceptance_rule(
     } else if (_enable) {
         boost::icl::interval_set<std::uint16_t> its_optional_default;
         its_optional_default.add(its_optional_client);
+        its_optional_default.add(its_optional_client_spare);
         its_optional_default.add(its_optional_server);
         boost::icl::interval_set<std::uint16_t> its_secure_default;
         its_secure_default.add(its_secure_client);
+        its_secure_default.add(its_secure_client_spare);
         its_secure_default.add(its_secure_server);
 
         sd_acceptance_rules_.emplace(std::make_pair(_address,
@@ -3921,7 +4170,7 @@ bool configuration_impl::is_secure_service(service_t _service, instance_t _insta
     return (false);
 }
 
-std::uint32_t configuration_impl::get_udp_receive_buffer_size() const {
+int configuration_impl::get_udp_receive_buffer_size() const {
     return udp_receive_buffer_size_;
 }
 
@@ -4001,5 +4250,27 @@ uint32_t configuration_impl::get_statistics_max_messages() const {
     return statistics_max_messages_;
 }
 
-}  // namespace config
+uint8_t configuration_impl::get_max_remote_subscribers() const {
+    return max_remote_subscribers_;
+}
+
+partition_id_t
+configuration_impl::get_partition_id(
+        service_t _service, instance_t _instance) const {
+
+    partition_id_t its_id(VSOMEIP_DEFAULT_PARTITION_ID);
+
+    std::lock_guard<std::mutex> its_lock(partitions_mutex_);
+    auto find_service = partitions_.find(_service);
+    if (find_service != partitions_.end()) {
+        auto find_instance = find_service->second.find(_instance);
+        if (find_instance != find_service->second.end()) {
+            its_id = find_instance->second;
+        }
+    }
+
+    return (its_id);
+}
+
+}  // namespace cfg
 }  // namespace vsomeip_v3

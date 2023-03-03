@@ -34,11 +34,6 @@ do
     fi
 done
 
-if [ ! -z "$USE_DOCKER" ]; then
-    docker stop citms
-    docker rm citms
-fi
-
 kill $PID_SERVICE
 
 # Check if both exited successfully

@@ -220,7 +220,7 @@ public:
 
     VSOMEIP_EXPORT bool is_secure_service(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT std::uint32_t get_udp_receive_buffer_size() const;
+    VSOMEIP_EXPORT int get_udp_receive_buffer_size() const;
 
     VSOMEIP_EXPORT bool has_overlay(const std::string &_name) const;
     VSOMEIP_EXPORT void load_overlay(const std::string &_name);
@@ -238,6 +238,11 @@ public:
     VSOMEIP_EXPORT uint32_t get_statistics_interval() const;
     VSOMEIP_EXPORT uint32_t get_statistics_min_freq() const;
     VSOMEIP_EXPORT uint32_t get_statistics_max_messages() const;
+
+    VSOMEIP_EXPORT uint8_t get_max_remote_subscribers() const;
+
+    VSOMEIP_EXPORT partition_id_t get_partition_id(
+            service_t _service, instance_t _instance) const;
 
 private:
     void read_data(const std::set<std::string> &_input,
@@ -355,6 +360,9 @@ private:
             instance_t _instance, eventgroup_t _eventgroup) const;
     bool find_port(uint16_t &_port, uint16_t _remote, bool _reliable,
             std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
+    bool find_specific_port(uint16_t &_port, service_t _service,
+            instance_t _instance, bool _reliable,
+            std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
 
     void set_magic_cookies_unicast_address();
 
@@ -378,6 +386,9 @@ private:
 
     void load_secure_services(const configuration_element &_element);
     void load_secure_service(const boost::property_tree::ptree &_tree);
+
+    void load_partitions(const configuration_element &_element);
+    void load_partition(const boost::property_tree::ptree &_tree);
 
 private:
     std::mutex mutex_;
@@ -514,7 +525,9 @@ protected:
         ET_PLUGIN_TYPE,
         ET_ROUTING_CREDENTIALS,
         ET_SHUTDOWN_TIMEOUT,
-        ET_MAX = 42
+        ET_MAX_REMOTE_SUBSCRIBERS,
+        ET_PARTITIONS,
+        ET_MAX = 44
     };
 
     bool is_configured_[ET_MAX];
@@ -552,7 +565,7 @@ protected:
     bool has_issued_methods_warning_;
     bool has_issued_clients_warning_;
 
-    std::uint32_t udp_receive_buffer_size_;
+    int udp_receive_buffer_size_;
 
     std::chrono::nanoseconds npdu_default_debounce_requ_;
     std::chrono::nanoseconds npdu_default_debounce_resp_;
@@ -568,6 +581,14 @@ protected:
     uint32_t statistics_interval_;
     uint32_t statistics_min_freq_;
     uint32_t statistics_max_messages_;
+    uint8_t max_remote_subscribers_;
+
+    mutable std::mutex partitions_mutex_;
+    std::map<service_t,
+        std::map<instance_t,
+            partition_id_t
+        >
+    > partitions_;
 };
 
 } // namespace cfg
