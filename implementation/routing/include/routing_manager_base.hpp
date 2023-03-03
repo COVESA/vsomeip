@@ -121,6 +121,8 @@ public:
 
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
+    virtual routing_state_e get_routing_state();
+
     virtual void register_client_error_handler(client_t _client,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
@@ -131,6 +133,7 @@ public:
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
 
     client_t find_local_client(service_t _service, instance_t _instance) const;
+    client_t find_local_client_unlocked(service_t _service, instance_t _instance) const;
 
     std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
             event_t _event) const;
@@ -208,6 +211,8 @@ protected:
             instance_t _instance, method_t _method);
     bool is_subscribe_to_any_event_allowed(credentials_t _credentials, client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    void unsubscribe_all(service_t _service, instance_t _instance);
+
 #ifdef VSOMEIP_ENABLE_COMPAT
     void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event, subscription_state_e _state);
@@ -258,6 +263,9 @@ protected:
                 std::shared_ptr<event> > > > events_;
 
     std::mutex event_registration_mutex_;
+
+    std::mutex routing_state_mutex_;
+    routing_state_e routing_state_;
 
 #ifdef USE_DLT
     std::shared_ptr<trace::connector_impl> tc_;

@@ -79,6 +79,9 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_payload_test_client_external_start.sh" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./external_local_payload_test_client_external_start.sh\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
 cat <<End-of-message
 *******************************************************************************

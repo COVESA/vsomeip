@@ -86,6 +86,11 @@ void big_payload_test_service::join_offer_thread()
     offer_thread_.join();
 }
 
+void big_payload_test_service::detach_offer_thread()
+{
+    offer_thread_.detach();
+}
+
 void big_payload_test_service::offer() {
     app_->offer_service(service_id_,
             big_payload_test::TEST_SERVICE_INSTANCE_ID);
@@ -241,6 +246,8 @@ TEST(someip_big_payload_test, receive_ten_messages_and_send_reply)
     if (test_service.init()) {
         test_service.start();
         test_service.join_offer_thread();
+    } else {
+        test_service.detach_offer_thread();
     }
 }
 

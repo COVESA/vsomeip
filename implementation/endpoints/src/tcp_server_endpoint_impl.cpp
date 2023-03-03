@@ -50,7 +50,7 @@ tcp_server_endpoint_impl::tcp_server_endpoint_impl(
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
         if (setsockopt(acceptor_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (int)its_device.size()) == -1) {
+                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
             VSOMEIP_WARNING << "TCP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
@@ -152,6 +152,38 @@ void tcp_server_endpoint_impl::send_queued(const queue_iterator_type _queue_iter
                     << static_cast<std::uint16_t>(_queue_iterator->first.port())
                     << " dropping outstanding messages (" << std::dec
                     << _queue_iterator->second.second.size() << ").";
+
+            if (_queue_iterator->second.second.size()) {
+                std::set<service_t> its_services;
+
+                // check all outstanding messages of this connection
+                // whether stop handlers need to be called
+                for (const auto &its_buffer : _queue_iterator->second.second) {
+                    if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
+                        service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                            (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
+                            (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
+                        its_services.insert(its_service);
+                    }
+                }
+
+                for (auto its_service : its_services) {
+                    auto found_cbk = prepare_stop_handlers_.find(its_service);
+                    if (found_cbk != prepare_stop_handlers_.end()) {
+                        VSOMEIP_INFO << "Calling prepare stop handler "
+                                << "for service: 0x"
+                                << std::hex << std::setw(4) << std::setfill('0')
+                                << its_service;
+                        auto handler = found_cbk->second;
+                        auto ptr = this->shared_from_this();
+                        service_.post([ptr, handler, its_service](){
+                                handler(ptr, its_service);
+                        });
+                        prepare_stop_handlers_.erase(found_cbk);
+                    }
+                }
+            }
+
             queues_.erase(_queue_iterator->first);
         }
     }
@@ -257,6 +289,10 @@ void tcp_server_endpoint_impl::accept_cbk(const connection::ptr& _connection,
 
 std::uint16_t tcp_server_endpoint_impl::get_local_port() const {
     return local_port_;
+}
+
+void tcp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
+    (void)_port;
 }
 
 bool tcp_server_endpoint_impl::is_reliable() const {
@@ -551,12 +587,19 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                                     recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MIN],
                                     recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MAX]);
                             if (its_client != MAGIC_COOKIE_CLIENT) {
+                                const service_t its_service = VSOMEIP_BYTES_TO_WORD(
+                                        recv_buffer_[its_iteration_gap + VSOMEIP_SERVICE_POS_MIN],
+                                        recv_buffer_[its_iteration_gap + VSOMEIP_SERVICE_POS_MAX]);
+                                const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                                        recv_buffer_[its_iteration_gap + VSOMEIP_METHOD_POS_MIN],
+                                        recv_buffer_[its_iteration_gap + VSOMEIP_METHOD_POS_MAX]);
                                 const session_t its_session = VSOMEIP_BYTES_TO_WORD(
                                         recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MIN],
                                         recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MAX]);
-                                its_server->clients_mutex_.lock();
-                                its_server->clients_[its_client][its_session] = remote_;
-                                its_server->clients_mutex_.unlock();
+
+                                std::lock_guard<std::mutex> its_requests_guard(its_server->requests_mutex_);
+                                its_server->requests_[its_client]
+                                    [std::make_tuple(its_service, its_method, its_session)] = remote_;
                             }
                         }
                         if (!magic_cookies_enabled_) {

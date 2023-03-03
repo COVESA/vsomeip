@@ -49,6 +49,12 @@ elif [ ! -z "$USE_DOCKER" ]; then
     else
        docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./big_payload_test_service_external_start.sh" &
     fi
+elif [ ! -z "$JENKINS" ]; then
+    if [[ $# -gt 0 ]]; then
+        ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./big_payload_test_service_external_start.sh $1\" >> $WS_ROOT/slave_test_output 2>&1" &
+    else
+        ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./big_payload_test_service_external_start.sh \" >> $WS_ROOT/slave_test_output 2>&1" &
+    fi
 else
 cat <<End-of-message
 *******************************************************************************

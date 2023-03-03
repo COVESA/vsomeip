@@ -46,6 +46,9 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
     cat <<End-of-message
 *******************************************************************************
@@ -74,7 +77,6 @@ wait $PID_CLIENT || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-echo ""
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]; then

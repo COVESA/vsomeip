@@ -135,7 +135,8 @@ message::~message() {
                     << std::endl;
             }
         }
-    } else if (its_configuration->has_dlt_log()) {
+    }
+    if (its_configuration->has_dlt_log()) {
 #ifdef USE_DLT
         its_logger->log(level_, buffer_.data_.str().c_str());
 #endif // USE_DLT

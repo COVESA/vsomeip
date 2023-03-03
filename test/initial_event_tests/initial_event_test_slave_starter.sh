@@ -41,6 +41,8 @@ export VSOMEIP_APPLICATION_NAME=initial_event_test_service_six
 ./initial_event_test_service 6 $REMAINING_OPTIONS &
 PID_SERVICE_SIX=$!
 
+sleep 3
+
 unset VSOMEIP_APPLICATION_NAME
 
 # Array for client pids
@@ -93,7 +95,7 @@ kill $PID_SERVICE_FOUR
 sleep 1
 echo ""
 
-# Check if both exited successfully 
+# Check if both exited successfully
 if [ $FAIL -eq 0 ]
 then
     exit 0

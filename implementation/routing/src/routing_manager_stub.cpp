@@ -399,7 +399,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 std::memcpy(&its_subscription_id, &_data[VSOMEIP_COMMAND_PAYLOAD_POS + 10],
                         sizeof(its_subscription_id));
                 host_->on_subscribe_nack(its_subscriber, its_service,
-                        its_instance, its_eventgroup, its_notifier, its_subscription_id);
+                        its_instance, its_eventgroup, its_notifier,
+                        its_subscription_id, false);
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
                     << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
                     << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
@@ -946,6 +947,8 @@ void routing_manager_stub::on_stop_offer_service(client_t _client,
                     if (0 == found_service->second.size()) {
                         found_client->second.second.erase(_service);
                     }
+                    inform_provider(_client, _service, _instance, _major, _minor,
+                            routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE);
                     inform_requesters(_client, _service, _instance, _major, _minor,
                             routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE, false);
                 } else if( _major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR) {
@@ -953,6 +956,8 @@ void routing_manager_stub::on_stop_offer_service(client_t _client,
                     if (0 == found_service->second.size()) {
                         found_client->second.second.erase(_service);
                     }
+                    inform_provider(_client, _service, _instance, _major, _minor,
+                            routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE);
                     inform_requesters(_client, _service, _instance, _major, _minor,
                             routing_info_entry_e::RIE_DEL_SERVICE_INSTANCE, false);
                 }
@@ -1285,16 +1290,9 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     for (auto its_requesting_client : service_requests_) {
         auto its_service = its_requesting_client.second.find(_service);
         if (its_service != its_requesting_client.second.end()) {
-            for (auto its_instance : its_service->second) {
-                if (its_instance.first == ANY_INSTANCE ||
-                        its_instance.first == _instance) {
-                    its_requesting_clients.insert(its_requesting_client.first);
-                } else {
-                    auto found_instance = its_service->second.find(_instance);
-                    if (found_instance != its_service->second.end()) {
-                        its_requesting_clients.insert(its_requesting_client.first);
-                    }
-                }
+            if (its_service->second.find(_instance) != its_service->second.end()
+                    || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
+                 its_requesting_clients.insert(its_requesting_client.first);
             }
         }
     }
@@ -1302,11 +1300,11 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     // search for UID / GID linked with the client ID that offers the requested services
     std::pair<uint32_t, uint32_t> its_uid_gid;
     if (security::get()->get_client_to_uid_gid_mapping(_hoster, its_uid_gid)) {
+        its_credentials.insert(its_uid_gid);
         for (auto its_requesting_client : its_requesting_clients) {
             std::pair<uint32_t, uint32_t> its_requester_uid_gid;
             if (security::get()->get_client_to_uid_gid_mapping(its_requesting_client, its_requester_uid_gid)) {
                 if (its_uid_gid != its_requester_uid_gid) {
-                    its_credentials.insert(std::make_pair(std::get<0>(its_uid_gid), std::get<1>(its_uid_gid)));
                     create_client_credentials_info(its_requesting_client);
                     insert_client_credentials_info(its_requesting_client, its_credentials);
                     send_client_credentials_info(its_requesting_client);
@@ -1316,20 +1314,27 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     }
 }
 
+void routing_manager_stub::inform_provider(client_t _hoster, service_t _service,
+        instance_t _instance, major_version_t _major, minor_version_t _minor,
+        routing_info_entry_e _entry) {
+
+	if (_hoster != VSOMEIP_ROUTING_CLIENT
+			&& _hoster != host_->get_client()) {
+		create_client_routing_info(_hoster);
+		insert_client_routing_info(_hoster, _entry, _hoster,
+				_service, _instance, _major, _minor);
+		send_client_routing_info(_hoster);
+	}
+};
+
 void routing_manager_stub::inform_requesters(client_t _hoster, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor,
         routing_info_entry_e _entry, bool _inform_service) {
     for (auto its_client : service_requests_) {
         auto its_service = its_client.second.find(_service);
         if (its_service != its_client.second.end()) {
-            bool send(false);
-            for (auto its_instance : its_service->second) {
-                if (its_instance.first == ANY_INSTANCE ||
-                        its_instance.first == _instance) {
-                    send = true;
-                }
-            }
-            if (send) {
+            if (its_service->second.find(_instance) != its_service->second.end()
+                    || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
                 if (_inform_service) {
                     if (_hoster != VSOMEIP_ROUTING_CLIENT &&
                             _hoster != host_->get_client()) {
@@ -1437,6 +1442,44 @@ bool routing_manager_stub::send_unsubscribe(
         return _target->send(its_command, sizeof(its_command));
     } else {
         VSOMEIP_WARNING << __func__ << " Couldn't send unsubscription to local client ["
+                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
+                << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
+                << _client;
+        return false;
+    }
+}
+
+bool routing_manager_stub::send_expired_subscription(
+        const std::shared_ptr<endpoint>& _target,
+        client_t _client, service_t _service, instance_t _instance,
+        eventgroup_t _eventgroup, event_t _event,
+        remote_subscription_id_t _id) {
+    if (_target) {
+        byte_t its_command[VSOMEIP_EXPIRED_SUBSCRIPTION_COMMAND_SIZE];
+        uint32_t its_size = VSOMEIP_EXPIRED_SUBSCRIPTION_COMMAND_SIZE
+                - VSOMEIP_COMMAND_HEADER_SIZE;
+        its_command[VSOMEIP_COMMAND_TYPE_POS] = VSOMEIP_EXPIRED_SUBSCRIPTION;
+        std::memcpy(&its_command[VSOMEIP_COMMAND_CLIENT_POS], &_client,
+                sizeof(_client));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_SIZE_POS_MIN], &its_size,
+                sizeof(its_size));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS], &_service,
+                sizeof(_service));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 2], &_instance,
+                sizeof(_instance));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 4], &_eventgroup,
+                sizeof(_eventgroup));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 6], &_event,
+                sizeof(_event));
+        std::memcpy(&its_command[VSOMEIP_COMMAND_PAYLOAD_POS + 8], &_id,
+                sizeof(_id));
+
+        return _target->send(its_command, sizeof(its_command));
+    } else {
+        VSOMEIP_WARNING << __func__ << " Couldn't send expired subscription to local client ["
                 << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
                 << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
@@ -2257,7 +2300,7 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
     pending_security_update_id_t its_policy_id;
 
     // serialize the policies and send them...
-    for (const auto& p : _policies) {
+    for (const auto &p : _policies) {
         std::vector<byte_t> its_policy_data;
         if (p->serialize(its_policy_data)) {
             std::vector<byte_t> its_message;
@@ -2567,6 +2610,14 @@ void routing_manager_stub::on_security_update_response(
             }
         }
     }
+}
+
+void routing_manager_stub::send_suspend() const {
+
+    static const std::vector<byte_t> its_suspend(
+        { VSOMEIP_SUSPEND, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 });
+
+    broadcast(its_suspend);
 }
 
 } // namespace vsomeip_v3

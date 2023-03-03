@@ -62,7 +62,7 @@ public:
             std::chrono::nanoseconds *_debouncing,
             std::chrono::nanoseconds *_maximum_retention) const;
 private:
-    void send_queued();
+    void send_queued(message_buffer_ptr_t _buffer);
 
     void send_magic_cookie();
 

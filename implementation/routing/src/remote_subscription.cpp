@@ -46,6 +46,21 @@ remote_subscription::equals(
     return operator ==(*_other);
 }
 
+bool
+remote_subscription::address_equals(
+        const std::shared_ptr<remote_subscription> &_other) const {
+    bool relibale_address_equals(false);
+    bool unrelibale_address_equals(false);
+
+    if (reliable_ && (*_other).reliable_)
+        relibale_address_equals = (reliable_->get_address()
+                == (*_other).reliable_->get_address());
+    if (unreliable_ && (*_other).unreliable_)
+        unrelibale_address_equals = (unreliable_->get_address()
+                == (*_other).unreliable_->get_address());
+    return (relibale_address_equals || unrelibale_address_equals);
+}
+
 void
 remote_subscription::reset(const std::set<client_t> &_clients) {
     auto its_client_state = std::make_pair(
@@ -135,7 +150,7 @@ std::set<client_t>
 remote_subscription::get_clients() const {
     std::lock_guard<std::mutex> its_lock(mutex_);
     std::set<client_t> its_clients;
-    for (const auto& its_item : clients_)
+    for (const auto &its_item : clients_)
         its_clients.insert(its_item.first);
     return its_clients;
 }
@@ -311,6 +326,19 @@ remote_subscription::get_answers() const {
 void
 remote_subscription::set_answers(const std::uint32_t _answers) {
     answers_ = _answers;
+}
+
+bool
+remote_subscription::get_ip_address(boost::asio::ip::address &_address) const {
+    if (reliable_) {
+        _address = reliable_->get_address();
+        return true;
+    }
+    else if (unreliable_) {
+        _address = unreliable_->get_address();
+        return true;
+    }
+    return false;
 }
 
 } // namespace vsomeip_v3

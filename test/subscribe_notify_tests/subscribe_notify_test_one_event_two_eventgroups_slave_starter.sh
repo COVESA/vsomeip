@@ -32,12 +32,10 @@ PID_SERVICE=$!
 # wait until service exits successfully
 wait $PID_SERVICE || FAIL=$(($FAIL+1))
 
-
 # kill daemon
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-echo ""
 
 # Check if both exited successfully 
 if [ $FAIL -eq 0 ]; then

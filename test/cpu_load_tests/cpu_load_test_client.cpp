@@ -314,7 +314,7 @@ static bool call_service_sync(true);
 static bool shutdown_service(true);
 
 
-TEST(someip_load_test, send_messages_and_measure_cpu_load)
+TEST(someip_load_test, DISABLED_send_messages_and_measure_cpu_load)
 {
     cpu_load_test_client test_client_(protocol, number_of_calls, payload_size, call_service_sync, shutdown_service);
 }

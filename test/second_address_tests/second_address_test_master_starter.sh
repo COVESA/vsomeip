@@ -47,6 +47,9 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS; sleep 10; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
 cat <<End-of-message
 *******************************************************************************

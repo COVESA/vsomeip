@@ -185,38 +185,45 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8
 
         const service_t its_service = VSOMEIP_BYTES_TO_WORD(
                 _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        const method_t its_method = VSOMEIP_BYTES_TO_WORD(
+                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
         const client_t its_client = VSOMEIP_BYTES_TO_WORD(
                 _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
         const session_t its_session = VSOMEIP_BYTES_TO_WORD(
                 _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
 
-        clients_mutex_.lock();
-        auto found_client = clients_.find(its_client);
-        if (found_client != clients_.end()) {
-            auto found_session = found_client->second.find(its_session);
-            if (found_session != found_client->second.end()) {
-                its_target = found_session->second;
+        requests_mutex_.lock();
+        auto found_client = requests_.find(its_client);
+        if (found_client != requests_.end()) {
+            auto its_request = std::make_tuple(its_service, its_method, its_session);
+            auto found_request = found_client->second.find(its_request);
+            if (found_request != found_client->second.end()) {
+                its_target = found_request->second;
                 is_valid_target = true;
-                found_client->second.erase(its_session);
+                found_client->second.erase(found_request);
             } else {
-                VSOMEIP_WARNING << "server_endpoint::send: session_id 0x"
-                        << std::hex << its_session
-                        << " not found for client 0x" << its_client;
-                const method_t its_method =
-                        VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                             _data[VSOMEIP_METHOD_POS_MAX]);
+                VSOMEIP_WARNING << "server_endpoint::send: request ["
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << its_service << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << its_method << "/"
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << its_client << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << its_session
+                        << "] could not be found.";
                 if (its_service == VSOMEIP_SD_SERVICE
                         && its_method == VSOMEIP_SD_METHOD) {
                     VSOMEIP_ERROR << "Clearing clients map as a request was "
                             "received on SD port";
-                    clients_.clear();
+                    requests_.clear();
                     is_valid_target = get_default_target(its_service, its_target);
                 }
             }
         } else {
             is_valid_target = get_default_target(its_service, its_target);
         }
-        clients_mutex_.unlock();
+        requests_mutex_.unlock();
 
         if (is_valid_target) {
             is_valid_target = send_intern(its_target, _data, _size);
@@ -757,7 +764,7 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
 
     {
         std::lock_guard<std::mutex> its_lock(mutex_);
-        for (const auto& q : queues_) {
+        for (const auto &q : queues_) {
             its_queue_size += q.second.second.size();
         }
     }

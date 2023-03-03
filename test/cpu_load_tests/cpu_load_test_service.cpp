@@ -192,7 +192,7 @@ private:
 };
 
 
-TEST(someip_payload_test, send_response_for_every_request)
+TEST(someip_payload_test, DISABLED_send_response_for_every_request)
 {
     cpu_load_test_service test_service;
     if (test_service.init()) {

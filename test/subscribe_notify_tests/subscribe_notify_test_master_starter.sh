@@ -40,7 +40,7 @@ export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_three
 export VSOMEIP_CONFIGURATION=$MASTER_JSON_FILE
 ./subscribe_notify_test_service 3 $RELIABILITY_TYPE $3 &
 
-sleep 1
+sleep 3
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $CLIENT_JSON_FILE $2"
@@ -48,6 +48,9 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3\" >> $WS_ROOT/slave_test_output 2>&1" &
+
 else
     cat <<End-of-message
 *******************************************************************************

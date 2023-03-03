@@ -30,6 +30,8 @@ public:
             stopped_(false),
             stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
         if (!app_->init()) {
+            offer_thread_.detach();
+            stop_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
@@ -59,14 +61,19 @@ public:
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_response_[std::make_pair(i.service_id, i.method_id)] = 0;
+            other_services_received_request_[i.offering_client] = 0;
         }
 
         app_->start();
     }
 
     ~client_id_test_service() {
-        offer_thread_.join();
-        stop_thread_.join();
+        if (offer_thread_.joinable()) {
+            offer_thread_.join();
+        }
+        if (stop_thread_.joinable()) {
+            stop_thread_.join();
+        }
     }
 
     void offer() {
@@ -128,6 +135,13 @@ public:
             std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()
             ->create_response(_message);
             app_->send(its_response);
+
+            other_services_received_request_[_message->get_client()]++;
+            if(all_responses_and_requests_received()) {
+                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                stopped_ = true;
+                stop_condition_.notify_one();
+            }
         }
     }
 
@@ -146,16 +160,27 @@ public:
             other_services_received_response_[std::make_pair(_message->get_service(),
                                                              _message->get_method())]++;
 
-            if(std::all_of(other_services_received_response_.cbegin(),
-                           other_services_received_response_.cend(),
-                           [](const std::map<std::pair<vsomeip::service_t,
-                                   vsomeip::method_t>, std::uint32_t>::value_type& v)
-                           { return v.second == client_id_test::messages_to_send;})) {
+            if(all_responses_and_requests_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 stopped_ = true;
                 stop_condition_.notify_one();
             }
         }
+    }
+
+    bool all_responses_and_requests_received() {
+        const bool responses = std::all_of(
+               other_services_received_response_.cbegin(),
+               other_services_received_response_.cend(),
+               [](const std::map<std::pair<vsomeip::service_t,
+                       vsomeip::method_t>, std::uint32_t>::value_type& v)
+               { return v.second == client_id_test::messages_to_send;});
+        const bool requests = std::all_of(
+                other_services_received_request_.cbegin(),
+                other_services_received_request_.cend(),
+                [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v)
+                { return v.second == client_id_test::messages_to_send;});
+        return (responses && requests);
     }
 
     void run() {
@@ -212,7 +237,7 @@ public:
         }
         VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id
-                << "] Received responses from all other services, going down";
+                << "] Received responses and requests from all other services, going down";
 
         // let offer thread exit
         {
@@ -231,6 +256,7 @@ private:
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
     std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_response_;
+    std::map<vsomeip::client_t, std::uint32_t> other_services_received_request_;
 
     bool blocked_;
     std::mutex mutex_;

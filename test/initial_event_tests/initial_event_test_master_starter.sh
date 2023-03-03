@@ -31,6 +31,8 @@ if [ ! -z "$USE_LXC_TEST" ]; then
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
+elif [ ! -z "$JENKINS" ]; then
+    ssh -tt -i $PRV_KEY -o StrictHostKeyChecking=no jenkins@$IP_SLAVE "bash -ci \"set -m; cd $WS_ROOT/build/test; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\" >> $WS_ROOT/slave_test_output 2>&1" &
 else
 cat <<End-of-message
 *******************************************************************************
@@ -69,6 +71,8 @@ PID_SERVICE_TWO=$!
 export VSOMEIP_APPLICATION_NAME=initial_event_test_service_three
 ./initial_event_test_service 3 $REMAINING_OPTIONS &
 PID_SERVICE_THREE=$!
+
+sleep 3
 
 unset VSOMEIP_APPLICATION_NAME
 
@@ -125,9 +129,10 @@ kill $FIRST_PID
 wait $FIRST_PID || FAIL=$(($FAIL+1))
 
 # shutdown the services
-kill $PID_SERVICE_THREE
-kill $PID_SERVICE_TWO
-kill $PID_SERVICE_ONE
+kill $PID_SERVICE_THREE $PID_SERVICE_TWO $PID_SERVICE_ONE
+wait $PID_SERVICE_THREE $PID_SERVICE_TWO $PID_SERVICE_ONE
+
+
 
 sleep 1
 echo ""

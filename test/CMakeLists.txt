@@ -2214,6 +2214,15 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
     )
 
+    set(TEST_OFFER_SERVICE_AVAILABILITY_CHECKER ${TEST_OFFER_NAME}_service_availability_checker)
+    add_executable(${TEST_OFFER_SERVICE_AVAILABILITY_CHECKER} offer_tests/${TEST_OFFER_NAME}_service_availability_checker.cpp)
+    target_link_libraries(${TEST_OFFER_SERVICE_AVAILABILITY_CHECKER}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
     set(TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER ${TEST_OFFER_NAME}_external_sd_msg_sender)
     add_executable(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER} offer_tests/${TEST_OFFER_NAME}_external_sd_msg_sender.cpp)
     target_link_libraries(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER}
@@ -2318,7 +2327,11 @@ if(NOT ${TESTS_BAT})
         ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
         ${TEST_OFFER_SERVICE}
     )
-
+    set(TEST_OFFER_EXTERNAL_SLAVE_SD_STARTER ${TEST_OFFER_NAME}_external_slave_sd_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/offer_tests/${TEST_OFFER_EXTERNAL_SLAVE_SD_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_EXTERNAL_SLAVE_SD_STARTER}
+        ${TEST_OFFER_SERVICE}
+    )
     # Copy starter scripts for external test to $BUILDDIR/test
     set(TEST_OFFER_BIG_MASTER_STARTER ${TEST_OFFER_BIG_NAME}_master_starter.sh)
     configure_file(
@@ -3073,6 +3086,73 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
 endif()
 
 ##############################################################################
+# suspend resume tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+
+    set(TEST_SUSPEND_RESUME_NAME suspend_resume_test)
+    set(TEST_SUSPEND_RESUME_SERVICE ${TEST_SUSPEND_RESUME_NAME}_service)
+    set(TEST_SUSPEND_RESUME_CLIENT ${TEST_SUSPEND_RESUME_NAME}_client)
+
+    add_executable(${TEST_SUSPEND_RESUME_SERVICE}
+        suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE}.cpp
+    )
+    target_link_libraries(${TEST_SUSPEND_RESUME_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    add_executable(${TEST_SUSPEND_RESUME_CLIENT}
+        suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_SUSPEND_RESUME_CLIENT}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE ${TEST_SUSPEND_RESUME_SERVICE}.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
+        ${TEST_SUSPEND_RESUME_CLIENT}
+    )
+
+    set(TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE ${TEST_SUSPEND_RESUME_CLIENT}.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
+        ${TEST_SUSPEND_RESUME_CLIENT}
+    )
+
+    set(TEST_SUSPEND_RESUME_MASTER_START_SCRIPT ${TEST_SUSPEND_RESUME_NAME}_master_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT}
+        ${TEST_SUSPEND_RESUME_CLIENT}
+    )
+
+    set(TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT ${TEST_SUSPEND_RESUME_NAME}_slave_starter.sh)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/suspend_resume_tests/${TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT}
+        ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT}
+        ${TEST_SUSPEND_RESUME_CLIENT}
+    )
+
+endif()
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -3109,6 +3189,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_OFFER_CLIENT} gtest)
     add_dependencies(${TEST_OFFER_SERVICE_EXTERNAL} gtest)
     add_dependencies(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER} gtest)
+    add_dependencies(${TEST_OFFER_SERVICE_AVAILABILITY_CHECKER} gtest)
     add_dependencies(${TEST_OFFERED_SERVICES_INFO_CLIENT} gtest)
     add_dependencies(${TEST_OFFERED_SERVICES_INFO_SERVICE} gtest)
     add_dependencies(${TEST_PENDING_SUBSCRIPTION_SERVICE} gtest)
@@ -3143,6 +3224,8 @@ if(NOT ${TESTS_BAT})
         add_dependencies(${TEST_SECOND_ADDRESS_CLIENT} gtest)
         add_dependencies(${TEST_SECOND_ADDRESS_SERVICE} gtest)
     endif()
+    add_dependencies(${TEST_SUSPEND_RESUME_CLIENT} gtest)
+    add_dependencies(${TEST_SUSPEND_RESUME_SERVICE} gtest)
 else()
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
@@ -3185,6 +3268,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_OFFER_CLIENT})
     add_dependencies(build_tests ${TEST_OFFER_SERVICE_EXTERNAL})
     add_dependencies(build_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
+    add_dependencies(build_tests ${TEST_OFFER_SERVICE_AVAILABILITY_CHECKER})
     add_dependencies(build_tests ${TEST_OFFER_BIG_SERVICE})
     add_dependencies(build_tests ${TEST_OFFER_BIG_CLIENT})
     add_dependencies(build_tests ${TEST_RESTART_ROUTING_SERVICE})
@@ -3202,8 +3286,8 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_tests ${TEST_E2E_SERVICE})
     add_dependencies(build_tests ${TEST_E2E_CLIENT})
     if (${TEST_E2E_PROFILE_04})
-    add_dependencies(build_tests ${TEST_E2E_PROFILE_04_SERVICE})
-    add_dependencies(build_tests ${TEST_E2E_PROFILE_04_CLIENT})
+        add_dependencies(build_tests ${TEST_E2E_PROFILE_04_SERVICE})
+        add_dependencies(build_tests ${TEST_E2E_PROFILE_04_CLIENT})
     endif()
     add_dependencies(build_tests ${TEST_EVENT_SERVICE})
     add_dependencies(build_tests ${TEST_EVENT_CLIENT})
@@ -3223,6 +3307,8 @@ if(NOT ${TESTS_BAT})
         add_dependencies(build_tests ${TEST_SECOND_ADDRESS_CLIENT})
         add_dependencies(build_tests ${TEST_SECOND_ADDRESS_SERVICE})
     endif()
+    add_dependencies(build_tests ${TEST_SUSPEND_RESUME_CLIENT})
+    add_dependencies(build_tests ${TEST_SUSPEND_RESUME_SERVICE})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -3574,6 +3660,10 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
     set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp PROPERTIES TIMEOUT 120)
 
+    add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp_client_subscribes_twice
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} UDP CLIENT_SUBSCRIBES_TWICE)
+    set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp_client_subscribes_twice PROPERTIES TIMEOUT 120)
+
     # offer tests
     add_test(NAME ${TEST_OFFER_NAME}_local
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_OFFER_LOCAL_STARTER})
@@ -3734,6 +3824,13 @@ if(NOT ${TESTS_BAT})
         )
         set_tests_properties(${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp PROPERTIES TIMEOUT 180)
     endif()
+
+    # suspend resume test
+    add_test(NAME ${TEST_SUSPEND_RESUME_NAME}_initial
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT} SERVICE
+    )
+    set_tests_properties(${TEST_SUSPEND_RESUME_NAME}_initial PROPERTIES TIMEOUT 80)
+
 else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}

@@ -52,6 +52,7 @@ public:
     virtual void remove_default_target(service_t _service) = 0;
 
     virtual std::uint16_t get_local_port() const = 0;
+    virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
 
