@@ -1,10 +1,11 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
 #include <sstream>
+#include <thread>
 
 #include <boost/asio/ip/multicast.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -16,7 +17,6 @@
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-
 namespace vsomeip_v3 {
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(
@@ -24,7 +24,7 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
         const std::shared_ptr<routing_host>& _routing_host,
         const endpoint_type& _local,
         const endpoint_type& _remote,
-        boost::asio::io_service &_io,
+        boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
     : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local,
                                     _remote, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
@@ -53,6 +53,7 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
+    start_connecting_timer();
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
@@ -63,11 +64,9 @@ void udp_client_endpoint_impl::connect() {
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "udp_client_endpoint_impl::connect: couldn't enable "
-                    << "SO_REUSEADDR: " << its_error.message()
-                    << " local port:" << std::dec << local_.port()
-                    << " remote:" << get_address_port_remote();
+                    << "SO_REUSEADDR: " << its_error.message() << " remote:"
+                    << get_address_port_remote();
         }
-
         socket_->set_option(boost::asio::socket_base::receive_buffer_size(
                 udp_receive_buffer_size_), its_error);
         if (its_error) {
@@ -109,12 +108,17 @@ void udp_client_endpoint_impl::connect() {
                     << " remote:" << get_address_port_remote();
         }
 
-#ifndef _WIN32
+        if (local_.port() == ILLEGAL_PORT) {
+            // Let the OS assign the port
+            local_.port(0);
+        }
+
+#if defined(__linux__) || defined(ANDROID)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
             if (setsockopt(socket_->native_handle(),
-                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
+                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), socklen_t(its_device.size())) == -1) {
                 VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\"";
             }
         }
@@ -135,7 +139,7 @@ void udp_client_endpoint_impl::connect() {
                 std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
                 if (its_host) {
                     // set new client port depending on service / instance / remote port
-                    if (!its_host->on_bind_error(shared_from_this(), remote_port_)) {
+                    if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_)) {
                         VSOMEIP_WARNING << "udp_client_endpoint::connect: "
                                 "Failed to set new local port for uce: "
                                 << " local: " << local_.address().to_string()
@@ -162,7 +166,6 @@ void udp_client_endpoint_impl::connect() {
                 }
                 return;
             }
-            return;
         }
 
         state_ = cei_state_e::CONNECTING;
@@ -210,26 +213,44 @@ void udp_client_endpoint_impl::restart(bool _force) {
     start_connect_timer();
 }
 
-void udp_client_endpoint_impl::send_queued(message_buffer_ptr_t _buffer) {
+void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry) {
+    static std::chrono::steady_clock::time_point its_last_sent;
 #if 0
     std::stringstream msg;
     msg << "ucei<" << remote_.address() << ":"
         << std::dec << remote_.port()  << ">::sq: ";
     for (std::size_t i = 0; i < _buffer->size(); i++)
         msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_buffer)[i] << " ";
+            << (int)(*_entry.first)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
+
+        // Check whether we need to wait (SOME/IP-TP separation time)
+        if (_entry.second > 0) {
+            if (its_last_sent != std::chrono::steady_clock::time_point()) {
+                const auto its_elapsed
+                    = std::chrono::duration_cast<std::chrono::microseconds>(
+                                std::chrono::steady_clock::now() - its_last_sent).count();
+                if (_entry.second > its_elapsed)
+                    std::this_thread::sleep_for(
+                            std::chrono::microseconds(_entry.second - its_elapsed));
+            }
+            its_last_sent = std::chrono::steady_clock::now();
+        } else {
+            its_last_sent = std::chrono::steady_clock::time_point();
+        }
+
+        // Send
         socket_->async_send(
-            boost::asio::buffer(*_buffer),
+            boost::asio::buffer(*_entry.first),
             std::bind(
                 &udp_client_endpoint_base_impl::send_cbk,
                 shared_from_this(),
                 std::placeholders::_1,
                 std::placeholders::_2,
-                _buffer
+                _entry.first
             )
         );
     }
@@ -342,9 +363,9 @@ void udp_client_endpoint_impl::receive_cbk(
                         // ensure to send back a message w/ wrong protocol version
                         its_host->on_message(&(*_recv_buffer)[i],
                                              VSOMEIP_SOMEIP_HEADER_SIZE + 8, this,
-                                             boost::asio::ip::address(),
+                                             false,
                                              VSOMEIP_ROUTING_CLIENT,
-                                             std::make_pair(ANY_UID, ANY_GID),
+                                             nullptr,
                                              remote_address_,
                                              remote_port_);
                     } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(
@@ -371,17 +392,19 @@ void udp_client_endpoint_impl::receive_cbk(
                     if (res.first) {
                         its_host->on_message(&res.second[0],
                                 static_cast<std::uint32_t>(res.second.size()),
-                                this, boost::asio::ip::address(),
+                                this,
+                                false,
                                 VSOMEIP_ROUTING_CLIENT,
-                                std::make_pair(ANY_UID, ANY_GID),
+                                nullptr,
                                 remote_address_,
                                 remote_port_);
                     }
                 } else {
                     its_host->on_message(&(*_recv_buffer)[i], current_message_size,
-                            this, boost::asio::ip::address(),
+                            this,
+                            false,
                             VSOMEIP_ROUTING_CLIENT,
-                            std::make_pair(ANY_UID, ANY_GID),
+                            nullptr,
                             remote_address_,
                             remote_port_);
                 }
@@ -412,8 +435,7 @@ void udp_client_endpoint_impl::receive_cbk(
     }
 }
 
-const std::string udp_client_endpoint_impl::get_address_port_remote() const {
-    boost::system::error_code ec;
+std::string udp_client_endpoint_impl::get_address_port_remote() const {
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::asio::ip::address its_address;
@@ -425,7 +447,7 @@ const std::string udp_client_endpoint_impl::get_address_port_remote() const {
     return its_address_port;
 }
 
-const std::string udp_client_endpoint_impl::get_address_port_local() const {
+std::string udp_client_endpoint_impl::get_address_port_local() const {
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;
@@ -466,17 +488,21 @@ std::string udp_client_endpoint_impl::get_remote_information() const {
             + std::to_string(remote_.port());
 }
 
-void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
-                  const message_buffer_ptr_t &_sent_msg) {
+void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
+                          std::size_t _bytes, const message_buffer_ptr_t &_sent_msg) {
     (void)_bytes;
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
-            queue_size_ -= queue_.front()->size();
+            queue_size_ -= queue_.front().first->size();
             queue_.pop_front();
-            auto its_buffer = get_front();
-            if (its_buffer)
-                send_queued(its_buffer);
+
+            update_last_departure();
+
+            auto its_entry = get_front();
+            if (its_entry.first) {
+                send_queued(its_entry);
+            }
         }
     } else if (_error == boost::asio::error::broken_pipe) {
         state_ = cei_state_e::CLOSED;
@@ -594,10 +620,12 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
     }
 }
 
-bool udp_client_endpoint_impl::tp_segmentation_enabled(service_t _service,
-                                                       method_t _method) const {
-    return configuration_->tp_segment_messages_client_to_service(_service,
-            remote_address_.to_string(), remote_port_, _method);
+bool udp_client_endpoint_impl::tp_segmentation_enabled(
+        service_t _service, method_t _method) const {
+
+    return configuration_->is_tp_client(_service,
+            remote_address_.to_string(), remote_port_,
+            _method);
 }
 
 bool udp_client_endpoint_impl::is_reliable() const {

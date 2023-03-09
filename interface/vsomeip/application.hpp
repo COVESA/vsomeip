@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,14 +12,17 @@
 #include <map>
 #include <vector>
 
+#include <vsomeip/deprecated.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/structured_types.hpp>
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/handler.hpp>
 
 namespace vsomeip_v3 {
 
+class configuration;
 class configuration_public;
 class event;
 class payload;
@@ -475,7 +478,7 @@ public:
      * \param _handler Handler function to be called on state change.
      *
      */
-    virtual void register_state_handler(state_handler_t _handler) = 0;
+    virtual void register_state_handler(const state_handler_t &_handler) = 0;
 
     /**
      *
@@ -517,7 +520,7 @@ public:
      */
     virtual void register_message_handler(service_t _service,
             instance_t _instance, method_t _method,
-            message_handler_t _handler) = 0;
+            const message_handler_t &_handler) = 0;
     /**
      *
      * \brief Unregisters the message handler for the specified service
@@ -559,7 +562,7 @@ public:
      *
      */
     virtual void register_availability_handler(service_t _service,
-            instance_t _instance, availability_handler_t _handler,
+            instance_t _instance, const availability_handler_t &_handler,
             major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
@@ -599,35 +602,37 @@ public:
      * handler decides if the subscription is accepted or not.
      *
      */
+    VSOMEIP_DEPRECATED_UID_GID
     virtual void register_subscription_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
-            subscription_handler_t _handler) = 0;
+            const subscription_handler_t &_handler) = 0;
 
     /**
-      *
-      * \brief Registers an async subscription handler.
-      *
-      * A subscription handler is called whenever the subscription state of an
-      * eventgroup changes. The callback is called with the client identifier
-      * and a boolean that indicates whether the client subscribed or
-      * unsubscribed.
-      * This method offers the possibility to asynchronously accept/rejects
-      * subscriptions through a callback.
-      *
-      * \param _service Service identifier of service instance whose
-      * subscription state is to be monitored.
-      * \param _instance Instance identifier of service instance whose
-      * subscription state is to be monitored.
-      * \param _eventgroup Eventgroup identifier of eventgroup whose
-      * subscription state is to be monitored.
-      * \param _handler Callback that shall be called. The value passed to the
-      * callback passed as a parameter to this handler decides if the
-      * subscription is accepted or not.
-      *
-      */
-     virtual void register_async_subscription_handler(
-             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-             async_subscription_handler_t _handler) = 0;
+     *
+     * \brief Registers an async subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     * This method offers the possibility to asynchronously accept/rejects
+     * subscriptions through a callback.
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called. The value passed to the
+     * callback passed as a parameter to this handler decides if the
+     * subscription is accepted or not.
+     *
+     */
+    VSOMEIP_DEPRECATED_UID_GID
+    virtual void register_async_subscription_handler(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const async_subscription_handler_t &_handler) = 0;
 
     /**
      *
@@ -742,7 +747,7 @@ public:
      * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE = 0x01, OT_ALL = 0x02)
      * \param offered_services_handler_t handler which gets called with a vector of service instance pairs that are currently offered
      */
-    virtual void get_offered_services_async(offer_type_e _offer_type, offered_services_handler_t _handler) = 0;
+    virtual void get_offered_services_async(offer_type_e _offer_type, const offered_services_handler_t &_handler) = 0;
 
     /**
      *
@@ -769,7 +774,7 @@ public:
      * \param _handler A watchdog handler, pass nullptr to deactivate.
      * \param _interval Call interval in seconds, pass std::chrono::seconds::zero() to deactivate.
      */
-    virtual void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval) = 0;
+    virtual void set_watchdog_handler(const watchdog_handler_t &_handler, std::chrono::seconds _interval) = 0;
 
     /**
      *  \brief Enables or disables calling of registered acceptance
@@ -784,8 +789,8 @@ public:
      *  \param _enable enable or disable calling of offer acceptance handler
      */
     virtual void set_sd_acceptance_required(const remote_info_t& _remote,
-                                         const std::string& _path,
-                                         bool _enable) = 0;
+                                            const std::string& _path,
+                                            bool _enable) = 0;
 
     /**
      *  \brief Enables or disables calling of registered acceptance
@@ -823,7 +828,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_sd_acceptance_handler(sd_acceptance_handler_t _handler) = 0;
+    virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t &_handler) = 0;
 
     /**
      * \brief Registers a handler which will be called upon detection of a
@@ -835,7 +840,7 @@ public:
      * \param _handler The handler to be called
      */
     virtual void register_reboot_notification_handler(
-            reboot_notification_handler_t _handler) = 0;
+            const reboot_notification_handler_t &_handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing reached
@@ -847,7 +852,7 @@ public:
      * \param _handler The handler to be called
      */
     virtual void register_routing_ready_handler(
-            routing_ready_handler_t _handler) = 0;
+            const routing_ready_handler_t &_handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing state
@@ -859,7 +864,7 @@ public:
      * \param _handler The handler to be called
      */
     virtual void register_routing_state_handler(
-            routing_state_handler_t _handler) = 0;
+            const routing_state_handler_t &_handler) = 0;
 
     /**
      * \brief Update service configuration to offer a local service on the
@@ -903,7 +908,7 @@ public:
                                                       uint32_t _gid,
                                                       std::shared_ptr<policy> _policy,
                                                       std::shared_ptr<payload> _payload,
-                                                      security_update_handler_t _handler) = 0;
+                                                      const security_update_handler_t &_handler) = 0;
 
     /**
      * \brief Remove a security configuration for routing manager and all local clients
@@ -919,7 +924,186 @@ public:
      */
     virtual void remove_security_policy_configuration(uint32_t _uid,
                                                       uint32_t _gid,
-                                                      security_update_handler_t _handler) = 0;
+                                                      const security_update_handler_t &_handler) = 0;
+
+    /**
+     *
+     * \brief Registers a subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called. The value returned by this
+     * handler decides if the subscription is accepted or not.
+     *
+     */
+    VSOMEIP_DEPRECATED_UID_GID
+    virtual void register_subscription_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            const subscription_handler_ext_t &_handler) = 0;
+
+    /**
+     *
+     * \brief Registers an async subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     * This method offers the possibility to asynchronously accept/rejects
+     * subscriptions through a callback.
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called. The value passed to the
+     * callback passed as a parameter to this handler decides if the
+     * subscription is accepted or not.
+     *
+     */
+    VSOMEIP_DEPRECATED_UID_GID
+    virtual void register_async_subscription_handler(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            const async_subscription_handler_ext_t &_handler) = 0;
+
+
+    /**
+     *
+     * \brief Subscribes to an eventgroup.
+     *
+     * A user application must call this function to subscribe to an eventgroup.
+     * Before calling subscribe it must register all events it interested in by
+     * calls to @ref request_event. The method additionally allows to specify
+     * a specific event. If a specific event is specified, all other events of
+     * the eventgroup are not received by the application.
+     *
+     * Note: For external services, providing a specific event does not change
+     * anything regarding the message routing. The specific event is only used
+     * to filter incoming events and to determine which initial events must be
+     * sent.
+     *
+     * \param _service Service identifier of the service that contains the
+     * eventgroup.
+     * \param _instance Instance identifier of the service that contains the
+     * eventgroup.
+     * \param _eventgroup Eventgroup identifier of the eventgroup.
+     * \param _major Major version number of the service.
+     * \param _event All (Default) or a specific event.
+     * \param _filter Filter configuration to decide whether or not an
+     * incoming event will be forwarded to the application.
+     */
+    virtual void subscribe_with_debounce(service_t _service, instance_t _instance,
+                eventgroup_t _eventgroup, major_version_t _major,
+                event_t _event, const debounce_filter_t &_filter) = 0;
+
+    /**
+     * \brief Registers a handler which will be called upon reception of
+     * a remote VSOMEIP/SD message with the sending ECU's IP address and port as
+     * parameter
+     *
+     * This method has only an effect when called on the application acting as
+     * routing manager
+     *
+     * \param _handler The handler to be called
+     */
+    virtual void register_message_acceptance_handler(const message_acceptance_handler_t &_handler) = 0;
+
+    /**
+     * \brief Get the configuration additional data of an application plugin
+     *
+     * \return The configuration additional data of an application plugin
+     */
+    virtual std::map<std::string, std::string> get_additional_data(
+            const std::string &_plugin_name) = 0;
+
+
+    /**
+     *
+     * \brief Register a callback that is called when service instances
+     * availability (state) changes.
+     *
+     * This method allows for the registration of callbacks that are called
+     * whenever a service appears or disappears. It is possible to specify
+     * wildcards for service, instance and/or version. Additionally, the
+     * version specification is optional and defaults to DEFAULT_MAJOR
+     * /DEFAULT_MINOR.
+     *
+     * \param _service Service identifier of the service instance whose
+     * availability shall be reported. Can be set to ANY_SERVICE.
+     * \param _instance Instance identifier of the service instance whose
+     * availability shall be reported. Can be set to ANY_INSTANCE.
+     * \param _handler Callback to be called if availability (state) changes.
+     * \param _major Major service version. The parameter defaults to
+     * DEFAULT_MAJOR and can be set to ANY_MAJOR.
+     * \param _minor Minor service version. The parameter defaults to
+     * DEFAULT_MINOR and can be set to ANY_MINOR.
+     *
+     */
+    virtual void register_availability_handler(service_t _service,
+            instance_t _instance, const availability_state_handler_t &_handler,
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
+
+    /**
+     *
+     * \brief Registers a subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     * (vsomeip_sec_client_t-aware)
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called. The value returned by this
+     * handler decides if the subscription is accepted or not.
+     *
+     */
+    virtual void register_subscription_handler(service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+            const subscription_handler_sec_t &_handler) = 0;
+
+    /**
+     *
+     * \brief Registers an async subscription handler.
+     *
+     * A subscription handler is called whenever the subscription state of an
+     * eventgroup changes. The callback is called with the client identifier
+     * and a boolean that indicates whether the client subscribed or
+     * unsubscribed.
+     * This method offers the possibility to asynchronously accept/rejects
+     * subscriptions through a callback.
+     * (vsomeip_sec_client_t-aware)
+     *
+     * \param _service Service identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _instance Instance identifier of service instance whose
+     * subscription state is to be monitored.
+     * \param _eventgroup Eventgroup identifier of eventgroup whose
+     * subscription state is to be monitored.
+     * \param _handler Callback that shall be called. The value passed to the
+     * callback passed as a parameter to this handler decides if the
+     * subscription is accepted or not.
+     *
+     */
+    virtual void register_async_subscription_handler(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            async_subscription_handler_sec_t _handler) = 0;
 };
 
 /** @} */

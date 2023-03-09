@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,10 +6,9 @@
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
-#include "../../utility/include/byteorder.hpp"
 
-#include "../../../../../e2e_protection/include/e2e/profile/profile04/checker.hpp"
-
+#include "../../../../include/e2e/profile/profile04/checker.hpp"
+#include "../../../../../utility/include/byteorder.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -51,10 +50,9 @@ void profile_04_checker::check(const e2e_buffer &_buffer, instance_t _instance,
                             uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
                             if (its_received_data_id == its_data_id
                                     && static_cast<size_t>(its_received_length) == _buffer.size()
-                                    && verify_counter(its_received_counter)) {
-                            _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
+                                    && verify_counter(_instance, its_received_counter)) {
+                                _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
                             }
-                            counter_ = its_received_counter;
                         }
                     }
                 }
@@ -72,18 +70,19 @@ profile_04_checker::verify_input(const e2e_buffer &_buffer) const {
 }
 
 bool
-profile_04_checker::verify_counter(uint16_t _received_counter) const {
+profile_04_checker::verify_counter(instance_t _instance, uint16_t _received_counter) {
 
-    static bool has_counter(false);
     uint16_t its_delta(0);
 
-    if (has_counter) {
-        if (counter_ < _received_counter)
-            its_delta = uint16_t(_received_counter - counter_);
+    auto find_counter = counter_.find(_instance);
+    if (find_counter != counter_.end()) {
+        uint16_t its_counter = find_counter->second;
+        if (its_counter < _received_counter)
+            its_delta = uint16_t(_received_counter - its_counter);
         else
-            its_delta = uint16_t(uint16_t(0xffff) - counter_ + _received_counter);
+            its_delta = uint16_t(uint16_t(0xffff) - its_counter + _received_counter);
     } else {
-        has_counter = true;
+        counter_[_instance] = _received_counter;
     }
 
     return (its_delta <= config_.max_delta_counter_);

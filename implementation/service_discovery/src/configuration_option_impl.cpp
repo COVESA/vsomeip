@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -21,8 +21,8 @@ configuration_option_impl::~configuration_option_impl() {
 }
 
 bool
-configuration_option_impl::operator ==(const option_impl &_other) const {
-    bool is_equal(option_impl::operator ==(_other));
+configuration_option_impl::equals(const option_impl &_other) const {
+    bool is_equal(option_impl::equals(_other));
 
     if (is_equal) {
         const configuration_option_impl &its_other
@@ -123,8 +123,6 @@ bool configuration_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
                     is_successful = false;
                 }
             }
-        } else {
-              break;
         }
     } while (is_successful && _from->get_remaining() > 0);
 

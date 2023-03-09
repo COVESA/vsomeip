@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -40,9 +40,16 @@ public:
     virtual void show();
 #endif
 private:
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
     std::vector<byte_t> data_;
     std::uint32_t shrink_count_;
     std::uint32_t buffer_shrink_threshold_;
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 };
 
 } // namespace vsomeip_v3

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -86,6 +86,13 @@ enum class reliability_type_e : uint8_t {
     RT_UNRELIABLE = 0x02,
     RT_BOTH = 0x3, // RT_RELIABLE | RT_UNRELIABLE
     RT_UNKNOWN = 0xFF
+};
+
+enum class availability_state_e : uint8_t {
+    AS_UNAVAILABLE = 0x00, // unseen
+    AS_OFFERED = 0x01,     // seen, but not requested/not yet usable
+    AS_AVAILABLE = 0x02,   // seen and usable
+    AS_UNKNOWN = 0xFF
 };
 
 } // namespace vsomeip_v3

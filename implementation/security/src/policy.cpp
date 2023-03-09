@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -175,7 +175,7 @@ policy::deserialize_ids(const byte_t * &_data, uint32_t &_size,
         if (its_result == false)
             return (false);
 
-        for (const auto& i : its_instances)
+        for (const auto i : its_instances)
             its_ids += std::make_pair(i, its_methods);
 
         its_array_length -= (its_current_size - _size);
@@ -202,7 +202,8 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
 
         uint32_t its_current_size(_size);
 
-        uint16_t its_low, its_high;
+        uint16_t its_low = 0;
+        uint16_t its_high = 0;
         its_result = deserialize_id_item(_data, _size, its_low, its_high);
         if (its_result == false)
             return (false);
@@ -378,7 +379,7 @@ policy::serialize_interval_set(
     uint32_t its_interval_set_size(0);
     serialize_u32(its_interval_set_size, _data);
 
-    for (const auto& i : _intervals)
+    for (const auto i : _intervals)
         serialize_interval(i, _data);
 
     its_interval_set_size = static_cast<uint32_t>(_data.size()

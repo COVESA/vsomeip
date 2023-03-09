@@ -3,15 +3,15 @@ cc_defaults {
     vendor: true,
 
     cppflags: [
-        "-std=c++11",
+        "-std=c++14",
         "-Wno-unused-parameter",
     ],
 
     shared_libs: [
         "libvsomeip3",
-        "libvsomeip3-cfg",
-        "libvsomeip3-e2e",
-        "libvsomeip3-sd",
+        "libvsomeip_cfg",
+        "libvsomeip_e2e",
+        "libvsomeip_sd",
         "liblog",
     ],
 }
@@ -32,11 +32,4 @@ cc_binary {
     srcs: [
         "hello_world_client_main.cpp",
     ],
-}
-
-prebuilt_etc {
-    name: "helloworld-local.json",
-    vendor: true,
-    sub_dir: "vsomeip",
-    src: "helloworld-local.json",
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,9 @@
 #include <mutex>
 
 #ifdef USE_DLT
+#ifndef ANDROID
 #include <dlt/dlt.h>
+#endif
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -43,7 +45,9 @@ private:
     std::shared_ptr<configuration> configuration_;
 
 #ifdef USE_DLT
-    DLT_DECLARE_CONTEXT(dlt_);
+#ifndef ANDROID
+    DLT_DECLARE_CONTEXT(dlt_)
+#endif
 #endif
 };
 

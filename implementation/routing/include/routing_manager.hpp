@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,11 +10,19 @@
 #include <set>
 #include <vector>
 
-#include <boost/asio/io_service.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
+#	include <boost/asio/io_service.hpp>
+#	define io_context io_service
+#else
+#	include <boost/asio/io_context.hpp>
+#endif
 
 #include <vsomeip/function_types.hpp>
+#include <vsomeip/structured_types.hpp>
 #include <vsomeip/message.hpp>
 #include <vsomeip/handler.hpp>
+#include <vsomeip/vsomeip_sec.h>
+
 #include "types.hpp"
 
 namespace vsomeip_v3 {
@@ -30,10 +38,12 @@ public:
     virtual ~routing_manager() {
     }
 
-    virtual boost::asio::io_service & get_io() = 0;
+    virtual boost::asio::io_context &get_io() = 0;
     virtual client_t get_client() const = 0;
-    virtual void set_client(const client_t &_client) = 0;
-    virtual session_t get_session() = 0;
+//    virtual void set_client(const client_t &_client) = 0;
+    virtual session_t get_session(bool _is_request) = 0;
+
+    virtual const vsomeip_sec_client_t *get_sec_client() const = 0;
 
     virtual void init() = 0;
     virtual void start() = 0;
@@ -54,24 +64,29 @@ public:
     virtual void release_service(client_t _client, service_t _service,
             instance_t _instance) = 0;
 
-    virtual void subscribe(client_t _client, uid_t _uid, gid_t _gid, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, event_t _event) = 0;
+    virtual void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
+            service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, major_version_t _major,
+            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) = 0;
 
-    virtual void unsubscribe(client_t _client, uid_t _uid, gid_t _gid, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+    virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
+            service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event) = 0;
 
-    virtual bool send(client_t _client, std::shared_ptr<message> _message) = 0;
+    virtual bool send(client_t _client, std::shared_ptr<message> _message,
+            bool _force) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
             instance_t _instance, bool _reliable,
             client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
-            credentials_t _credentials = {ANY_UID, ANY_GID},
-            uint8_t _status_check = 0, bool _sent_from_remote = false) = 0;
+            const vsomeip_sec_client_t *_sec_client = nullptr,
+            uint8_t _status_check = 0,
+            bool _sent_from_remote = false,
+            bool _force = true) = 0;
 
     virtual bool send_to(const client_t _client,
             const std::shared_ptr<endpoint_definition> &_target,
-            std::shared_ptr<message>) = 0;
+            std::shared_ptr<message> _message) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, instance_t _instance) = 0;

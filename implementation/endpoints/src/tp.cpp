@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,7 +16,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
 #include <arpa/inet.h>
 #else
 #include <Winsock2.h>
@@ -26,10 +26,10 @@
 namespace vsomeip_v3 {
 namespace tp {
 
-const std::uint16_t tp::tp_max_segment_length_ = 1392;
+tp_split_messages_t
+tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
+        std::uint16_t _max_segment_length) {
 
-tp_split_messages_t tp::tp_split_message(const std::uint8_t * const _data,
-                                         std::uint32_t _size) {
     tp_split_messages_t split_messages;
 
     if (_size < VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
@@ -38,16 +38,15 @@ tp_split_messages_t tp::tp_split_message(const std::uint8_t * const _data,
     }
 
     const auto data_end = _data + _size;
-
     for (auto current_offset = _data + VSOMEIP_FULL_HEADER_SIZE; current_offset < data_end;) {
         auto msg = std::make_shared<message_buffer_t>();
-        msg->reserve(VSOMEIP_FULL_HEADER_SIZE + sizeof(tp_header_t) + tp_max_segment_length_);
+        msg->reserve(VSOMEIP_FULL_HEADER_SIZE + sizeof(tp_header_t) + _max_segment_length);
         // copy the header
         msg->insert(msg->end(), _data, _data + VSOMEIP_FULL_HEADER_SIZE);
         // change the message type
         (*msg)[VSOMEIP_MESSAGE_TYPE_POS] = (*msg)[VSOMEIP_MESSAGE_TYPE_POS] | 0x20;
         // check if last segment
-        const auto segment_end = current_offset + tp_max_segment_length_;
+        const auto segment_end = current_offset + _max_segment_length;
         const bool is_last_segment = (segment_end >= data_end);
         // insert tp_header
         const tp_header_t header = htonl(
@@ -63,7 +62,7 @@ tp_split_messages_t tp::tp_split_message(const std::uint8_t * const _data,
             current_offset = data_end;
         } else {
             msg->insert(msg->end(), current_offset, segment_end);
-            current_offset += tp_max_segment_length_;
+            current_offset += _max_segment_length;
         }
         // update length
         const length_t its_length = static_cast<length_t>(msg->size()
@@ -74,6 +73,8 @@ tp_split_messages_t tp::tp_split_message(const std::uint8_t * const _data,
 
     return split_messages;
 }
+
+const std::uint16_t tp::tp_max_segment_length_;
 
 } // namespace tp
 } // namespace vsomeip_v3

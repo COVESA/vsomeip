@@ -1,7 +1,7 @@
 ### vsomeip
 
 ##### Copyright
-Copyright (C) 2015-2017, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2022, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 ##### License
 
@@ -15,29 +15,24 @@ The vsomeip stack implements the http://some-ip.com/ (Scalable service-Oriented
 MiddlewarE over IP (SOME/IP)) protocol. The stack consists out of:
 
 * a shared library for SOME/IP (`libvsomeip3.so`)
-* a second shared library for SOME/IP's service discovery (`libvsomeip3-sd.so`)
-  which is loaded during runtime if the service discovery is enabled.
+* a shared library for SOME/IP's configuration module (`libvsomeip3-cfg.so`)
+* a shared library for SOME/IP's service discovery (`libvsomeip3-sd.so`)
+* a shared library for SOME/IP's E2E protection module (`libvsomeip3-e2e.so`)
+
+Optional:
+
+* a shared library for compatibility with vsomeip v2 (`libvsomeip.so`)
 
 ##### Build Instructions for Linux
 
 ###### Dependencies
 
-- A C++11 enabled compiler like gcc >= 4.8 is needed.
+- A C++14 enabled compiler is needed (default for gcc >= v6.1).
 - vsomeip uses CMake as buildsystem.
-- vsomeip uses Boost >= 1.55:
+- vsomeip uses Boost >= 1.55.0:
 
-Ubuntu 14.04:
-
-`sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev libboost-log1.55-dev`
-
-Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
--- URL: https://launchpad.net/~boost-latest/+archive/ubuntu/ppa
---`sudo add-apt-repository ppa:boost-latest/ppa`
---`sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
-    libboost-log1.55-dev`
-
-For the tests Google's test framework https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed.
--- URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip
+For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
+-- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
 
 To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
 --`sudo apt-get install asciidoc source-highlight doxygen graphviz`
@@ -114,5 +109,6 @@ In order that the vsomeip library is also included in the Android image, the lib
 PRODUCT_PACKAGES += \
     libvsomeip \
     libvsomeip_cfg \
-    libvsomeip_sd
+    libvsomeip_sd \
+    libvsomeip_e2e \
 ```

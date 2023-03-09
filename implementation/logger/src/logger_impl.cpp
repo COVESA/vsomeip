@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,17 +25,21 @@ logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
 
+#ifndef ANDROID
     std::string its_context_id = runtime::get_property("LogContext");
     if (its_context_id == "")
         its_context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
 
     DLT_REGISTER_CONTEXT(its_logger->dlt_, its_context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
 #endif
+#endif
 }
 
 logger_impl::~logger_impl() {
 #ifdef USE_DLT
+#ifndef ANDROID
     DLT_UNREGISTER_CONTEXT(dlt_);
+#endif
 #endif
 }
 
@@ -45,6 +49,7 @@ logger_impl::get_configuration() const {
 }
 
 #ifdef USE_DLT
+#ifndef ANDROID
 void
 logger_impl::log(level_e _level, const char *_data) {
 
@@ -76,13 +81,14 @@ logger_impl::log(level_e _level, const char *_data) {
     DLT_LOG_STRING(dlt_, its_level, _data);
 }
 #endif
+#endif
 
 static std::shared_ptr<logger_impl> *the_logger_ptr__(nullptr);
 static std::mutex the_logger_mutex__;
 
 std::shared_ptr<logger_impl>
 logger_impl::get() {
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
     std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
 #endif
     if (the_logger_ptr__ == nullptr) {
@@ -97,12 +103,15 @@ logger_impl::get() {
     return (nullptr);
 }
 
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
 static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void)
 {
+    // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
+    // Since this function only runs on the main thread, no mutex should be needed. Leaving a 
+    // comment pending a refactor.
+    // std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
     if (the_logger_ptr__ != nullptr) {
-        std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
         the_logger_ptr__->reset();
         delete the_logger_ptr__;
         the_logger_ptr__ = nullptr;

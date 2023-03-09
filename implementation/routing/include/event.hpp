@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,7 +13,6 @@
 #include <set>
 #include <atomic>
 
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/steady_timer.hpp>
 
@@ -35,6 +34,8 @@ class message;
 class payload;
 class routing_manager;
 
+struct debounce_filter_t;
+
 class event
         : public std::enable_shared_from_this<event> {
 public:
@@ -52,16 +53,19 @@ public:
     event_t get_event() const;
     void set_event(event_t _event);
 
-    const std::shared_ptr<payload> get_payload() const;
+    std::shared_ptr<payload> get_payload() const;
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             const client_t _client, bool _force);
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             const client_t _client,
-            const std::shared_ptr<endpoint_definition>& _target, bool _force);
+            const std::shared_ptr<endpoint_definition>& _target);
 
-    bool set_payload_dont_notify(const std::shared_ptr<payload> &_payload);
+    bool prepare_update_payload(const std::shared_ptr<payload> &_payload,
+            bool _force);
+    void update_payload();
+
     bool set_payload_notify_pending(const std::shared_ptr<payload> &_payload);
 
     void set_payload(const std::shared_ptr<payload> &_payload, bool _force);
@@ -90,20 +94,25 @@ public:
     void set_epsilon_change_function(
             const epsilon_change_func_t &_epsilon_change_func);
 
-    const std::set<eventgroup_t> get_eventgroups() const;
+    std::set<eventgroup_t> get_eventgroups() const;
     std::set<eventgroup_t> get_eventgroups(client_t _client) const;
     void add_eventgroup(eventgroup_t _eventgroup);
     void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
 
     void notify_one(client_t _client,
             const std::shared_ptr<endpoint_definition> &_target);
-    void notify_one(client_t _client);
+    void notify_one(client_t _client, bool _force);
 
 
-    bool add_subscriber(eventgroup_t _eventgroup, client_t _client, bool _force);
+    bool add_subscriber(eventgroup_t _eventgroup,
+            const std::shared_ptr<debounce_filter_t> &_filter,
+            client_t _client, bool _force);
     void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
     bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
     std::set<client_t> get_subscribers();
+    std::set<client_t> get_filtered_subscribers(bool _force);
+    std::set<client_t> update_and_get_filtered_subscribers(
+            const std::shared_ptr<payload> &_payload, bool _force);
     VSOMEIP_EXPORT std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
     void clear_subscribers();
 
@@ -122,30 +131,34 @@ public:
 
     void remove_pending(const std::shared_ptr<endpoint_definition> &_target);
 
+    void set_session();
+
 private:
     void update_cbk(boost::system::error_code const &_error);
-    void notify();
+    void notify(bool _force);
     void notify(client_t _client,
             const std::shared_ptr<endpoint_definition> &_target);
 
     void start_cycle();
     void stop_cycle();
 
-    bool compare(const std::shared_ptr<payload> &_lhs,
+    bool has_changed(const std::shared_ptr<payload> &_lhs,
             const std::shared_ptr<payload> &_rhs) const;
 
-    bool set_payload_helper(const std::shared_ptr<payload> &_payload,
-            bool _force);
-    void reset_payload(const std::shared_ptr<payload> &_payload);
-
-    void notify_one_unlocked(client_t _client);
+    void notify_one_unlocked(client_t _client, bool _force);
     void notify_one_unlocked(client_t _client,
             const std::shared_ptr<endpoint_definition> &_target);
+
+    bool prepare_update_payload_unlocked(
+            const std::shared_ptr<payload> &_payload, bool _force);
+    void update_payload_unlocked();
 
 private:
     routing_manager *routing_;
     mutable std::mutex mutex_;
-    std::shared_ptr<message> message_;
+
+    std::shared_ptr<message> current_;
+    std::shared_ptr<message> update_;
 
     std::atomic<event_type_e> type_;
 
@@ -172,6 +185,11 @@ private:
     std::atomic<reliability_type_e> reliability_;
 
     std::set<std::shared_ptr<endpoint_definition> > pending_;
+
+    std::mutex filters_mutex_;
+    std::map<client_t, epsilon_change_func_t> filters_;
+    std::mutex last_forwarded_mutex_;
+    std::map<client_t, std::chrono::steady_clock::time_point> last_forwarded_;
 };
 
 }  // namespace vsomeip_v3

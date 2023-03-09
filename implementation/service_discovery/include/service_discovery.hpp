@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,7 +6,6 @@
 #ifndef VSOMEIP_V3_SD_SERVICE_DISCOVERY_HPP_
 #define VSOMEIP_V3_SD_SERVICE_DISCOVERY_HPP_
 
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/primitive_types.hpp>
@@ -28,7 +27,7 @@ public:
     virtual ~service_discovery() {
     }
 
-    virtual boost::asio::io_service & get_io() = 0;
+    virtual boost::asio::io_context &get_io() = 0;
 
     virtual void init() = 0;
     virtual void start() = 0;
@@ -51,14 +50,15 @@ public:
 
     virtual void on_message(const byte_t *_data, length_t _length,
             const boost::asio::ip::address &_sender,
-            const boost::asio::ip::address &_destination) = 0;
+            bool _is_multicast) = 0;
 
     virtual void on_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
     virtual void offer_service(const std::shared_ptr<serviceinfo> &_info) = 0;
-    virtual void stop_offer_service(const std::shared_ptr<serviceinfo> &_info) = 0;
+    virtual bool stop_offer_service(const std::shared_ptr<serviceinfo> &_info, bool _send) = 0;
+    virtual bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>> &_infos) = 0;
 
     virtual void set_diagnosis_mode(const bool _activate) = 0;
 
@@ -68,9 +68,9 @@ public:
             const std::shared_ptr<remote_subscription> &_subscription) = 0;
 
     virtual void register_sd_acceptance_handler(
-            sd_acceptance_handler_t _handler) = 0;
+            const sd_acceptance_handler_t &_handler) = 0;
     virtual void register_reboot_notification_handler(
-            reboot_notification_handler_t _handler) = 0;
+            const reboot_notification_handler_t &_handler) = 0;
 };
 
 } // namespace sd

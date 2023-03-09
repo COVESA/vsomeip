@@ -1,5 +1,5 @@
 {
-global: 
+global:
     extern "C++" {
         *vsomeip_v3::configuration;
         vsomeip_v3::configuration::*;
@@ -25,6 +25,9 @@ global:
         *vsomeip_v3::payload_impl::*;
         *vsomeip_v3::policy_manager;
         vsomeip_v3::policy_manager::*;
+        *vsomeip_v3::policy_manager_impl;
+        vsomeip_v3::policy_manager_impl::*;
+        vsomeip_v3::security::authenticate_router;
         *vsomeip_v3::runtime;
         vsomeip_v3::runtime::get*;
         vsomeip_v3::runtime::set_property*;
@@ -36,19 +39,13 @@ global:
         vsomeip_v3::eventgroupinfo::*;
         *vsomeip_v3::remote_subscription;
         vsomeip_v3::remote_subscription::*;
-        *vsomeip_v3::security;
-        vsomeip_v3::security::*;
-        *vsomeip_v3::security_impl;
-        vsomeip_v3::security_impl::*;
-        *vsomeip_v3::servicegroup;
-        vsomeip_v3::servicegroup::*;
         *vsomeip_v3::serviceinfo;
         vsomeip_v3::serviceinfo::*;
         *vsomeip_v3::sd::runtime;
         vsomeip_v3::sd::runtime::*;
         *vsomeip_v3::utility;
         vsomeip_v3::utility::is*;
-        vsomeip_v3::utility::parse*;
+        vsomeip_v3::utility::data*;
         *vsomeip_v3::plugin_manager;
         vsomeip_v3::plugin_manager::*;
         vsomeip_v3::tp::tp_reassembler::*;
@@ -60,7 +57,7 @@ global:
         *vsomeip::runtime;
         vsomeip::logger::*;
         *vsomeip::logger;
-    }; 
+    };
     vsomeip_plugin_init;
 local:
     *;

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,6 @@
 #include <vector>
 
 #include <boost/array.hpp>
-#include <boost/asio/io_service.hpp>
 
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
@@ -26,14 +25,33 @@ template<typename Protocol>
 class server_endpoint_impl: public endpoint_impl<Protocol>,
         public std::enable_shared_from_this<server_endpoint_impl<Protocol> > {
 public:
-    typedef typename Protocol::socket socket_type;
-    typedef typename Protocol::endpoint endpoint_type;
-    typedef typename std::map<endpoint_type, std::pair<size_t, std::deque<message_buffer_ptr_t>>> queue_type;
-    typedef typename queue_type::iterator queue_iterator_type;
+    using socket_type = typename Protocol::socket;
+    using endpoint_type = typename Protocol::endpoint;
+    struct endpoint_data_type {
+        endpoint_data_type(boost::asio::io_context &_io)
+            : train_(std::make_shared<train>()),
+              dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_io)),
+              has_last_departure_(false),
+              queue_size_(0) {
+        }
+
+        std::shared_ptr<train> train_;
+        std::map<std::chrono::steady_clock::time_point,
+            std::deque<std::shared_ptr<train> > > dispatched_trains_;
+        std::shared_ptr<boost::asio::steady_timer> dispatch_timer_;
+        std::chrono::steady_clock::time_point last_departure_;
+        bool has_last_departure_;
+
+        std::deque<std::pair<message_buffer_ptr_t, uint32_t> > queue_;
+        std::size_t queue_size_;
+    };
+
+    using target_data_type = typename std::map<endpoint_type, endpoint_data_type>;
+    using target_data_iterator_type = typename target_data_type::iterator;
 
     server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,
-                         endpoint_type _local, boost::asio::io_service &_io,
+                         endpoint_type _local, boost::asio::io_context &_io,
                          std::uint32_t _max_message_size,
                          configuration::endpoint_queue_limit_t _queue_limit,
                          const std::shared_ptr<configuration>& _configuration);
@@ -49,11 +67,10 @@ public:
     bool send(const std::vector<byte_t>& _cmd_header, const byte_t *_data,
               uint32_t _size);
 
-    void prepare_stop(endpoint::prepare_stop_handler_t _handler,
+    void prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
                       service_t _service);
     virtual void stop();
-    bool flush(endpoint_type _target,
-               const std::shared_ptr<train>& _train);
+    bool flush(target_data_iterator_type _it);
 
     size_t get_queue_size() const;
 
@@ -63,16 +80,15 @@ public:
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(const queue_iterator_type _queue_iterator,
+    void send_cbk(const target_data_iterator_type _it,
                   boost::system::error_code const &_error, std::size_t _bytes);
-    void flush_cbk(endpoint_type _target,
-                   const std::shared_ptr<train>& _train,
-                   const boost::system::error_code &_error_code);
+    void flush_cbk(target_data_iterator_type _it,
+            const boost::system::error_code &_error_code);
 
 protected:
     virtual bool send_intern(endpoint_type _target, const byte_t *_data,
                              uint32_t _port);
-    virtual void send_queued(const queue_iterator_type _queue_iterator) = 0;
+    virtual bool send_queued(const target_data_iterator_type _it) = 0;
     virtual void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,
@@ -85,26 +101,23 @@ protected:
 
     typename endpoint_impl<Protocol>::cms_ret_e check_message_size(
             const std::uint8_t * const _data, std::uint32_t _size,
-            const endpoint_type& _target);
+            const endpoint_type &_target);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size,
                            std::size_t _current_queue_size) const;
-    void queue_train(const queue_iterator_type _queue_iterator,
-                     const std::shared_ptr<train>& _train,
-                     bool _queue_size_zero_on_entry);
-    queue_iterator_type find_or_create_queue_unlocked(const endpoint_type& _target);
-    std::shared_ptr<train> find_or_create_train_unlocked(const endpoint_type& _target);
+    bool queue_train(const target_data_iterator_type _it,
+            const std::shared_ptr<train> &_train,
+            bool _queue_size_zero_on_entry);
 
-    void send_segments(const tp::tp_split_messages_t &_segments, const endpoint_type &_target);
+    void send_segments(const tp::tp_split_messages_t &_segments,
+            std::uint32_t _separation_time, const endpoint_type &_target);
+
+    target_data_iterator_type find_or_create_target_unlocked(endpoint_type _target);
 
 protected:
-    queue_type queues_;
+    std::mutex clients_mutex_;
+    std::map<client_t, std::map<session_t, endpoint_type> > clients_;
 
-    std::mutex requests_mutex_;
-    std::map<client_t,
-        std::map<std::tuple<session_t, service_t, instance_t>, endpoint_type>
-    > requests_;
-
-    std::map<endpoint_type, std::shared_ptr<train>> trains_;
+    target_data_type targets_;
 
     std::map<service_t, endpoint::prepare_stop_handler_t> prepare_stop_handlers_;
 
@@ -116,12 +129,18 @@ protected:
 
 private:
     virtual std::string get_remote_information(
-            const queue_iterator_type _queue_iterator) const = 0;
+            const target_data_iterator_type _queue_iterator) const = 0;
     virtual std::string get_remote_information(
             const endpoint_type& _remote) const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
                                          method_t _method) const = 0;
-    void wait_until_debounce_time_reached(const std::shared_ptr<train>& _train) const;
+
+    void schedule_train(endpoint_data_type &_target);
+    void update_last_departure(endpoint_data_type &_data);
+
+    void start_dispatch_timer(target_data_iterator_type _it,
+            const std::chrono::steady_clock::time_point &_now);
+    void cancel_dispatch_timer(target_data_iterator_type _it);
 };
 
 } // namespace vsomeip_v3

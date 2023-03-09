@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +12,7 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_interface {
 
-typedef uint8_t check_status_t;
+using check_status_t = std::uint8_t;
 enum generic_check_status : check_status_t { E2E_OK, E2E_WRONG_CRC, E2E_ERROR};
 
 

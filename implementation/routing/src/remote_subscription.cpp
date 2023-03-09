@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2018-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,7 +13,6 @@ remote_subscription::remote_subscription()
     : id_(PENDING_SUBSCRIPTION_ID),
       is_initial_(true),
       force_initial_events_(false),
-      major_(DEFAULT_MAJOR),
       ttl_(DEFAULT_TTL),
       reserved_(0),
       counter_(0),

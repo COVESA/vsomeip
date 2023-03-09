@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -164,17 +164,18 @@ bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
     return true;
 }
 
-message_impl * deserializer::deserialize_message() {
-    message_impl* deserialized_message = new message_impl;
-    if (0 != deserialized_message) {
-        if (false == deserialized_message->deserialize(this)) {
-            VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
-            delete deserialized_message;
-            deserialized_message = nullptr;
-        }
+message_impl * deserializer::deserialize_message() try {
+    std::unique_ptr<message_impl> deserialized_message{new message_impl};
+    if (false == deserialized_message->deserialize(this)) {
+        VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
+        deserialized_message = nullptr;
     }
 
-    return deserialized_message;
+    return deserialized_message.release();
+}
+catch (const std::exception& e) {
+    VSOMEIP_ERROR << "SOME/IP message deserialization failed with exception: " << e.what();
+    return nullptr;
 }
 
 void deserializer::set_data(const byte_t *_data,  std::size_t _length) {
@@ -187,6 +188,14 @@ void deserializer::set_data(const byte_t *_data,  std::size_t _length) {
         position_ = data_.end();
         remaining_ = 0;
     }
+}
+
+void
+deserializer::set_data(const std::vector<byte_t> &_data) {
+
+    data_ = std::move(_data);
+    position_ = data_.begin();
+    remaining_ = data_.size();
 }
 
 void deserializer::append_data(const byte_t *_data, std::size_t _length) {

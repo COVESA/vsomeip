@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,9 +8,15 @@
 
 #include <memory>
 
-#include <boost/asio/io_service.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
+#	include <boost/asio/io_service.hpp>
+#	define io_context io_service
+#else
+#	include <boost/asio/io_context.hpp>
+#endif
 
 #include <vsomeip/error.hpp>
+#include <vsomeip/vsomeip_sec.h>
 
 namespace vsomeip_v3 {
 
@@ -24,22 +30,30 @@ public:
 
     virtual client_t get_client() const = 0;
     virtual void set_client(const client_t &_client) = 0;
-    virtual session_t get_session() = 0;
+    virtual session_t get_session(bool _is_request) = 0;
+
+    virtual const vsomeip_sec_client_t *get_sec_client() const = 0;
+
     virtual const std::string & get_name() const = 0;
     virtual std::shared_ptr<configuration> get_configuration() const = 0;
-    virtual boost::asio::io_service & get_io() = 0;
+    virtual boost::asio::io_context &get_io() = 0;
 
     virtual void on_availability(service_t _service, instance_t _instance,
-    bool _is_available, major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+            availability_state_e _state,
+            major_version_t _major = DEFAULT_MAJOR,
+            minor_version_t _minor = DEFAULT_MINOR) = 0;
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(std::shared_ptr<message> &&_message) = 0;
     virtual void on_subscription(service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, client_t _client, uid_t _uid, gid_t _gid, bool _subscribed,
-        std::function<void(bool)> _accepted_cb) = 0;
+        eventgroup_t _eventgroup,
+        client_t _client, const vsomeip_sec_client_t *_sec_client,
+        const std::string &_env, bool _subscribed,
+        const std::function<void(bool)> &_accepted_cb) = 0;
     virtual void on_subscription_status(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event, uint16_t _error) = 0;
     virtual void send(std::shared_ptr<message> _message) = 0;
-    virtual void on_offered_services_info(std::vector<std::pair<service_t, instance_t>> &_services) = 0;
+    virtual void on_offered_services_info(
+            std::vector<std::pair<service_t, instance_t>> &_services) = 0;
     virtual bool is_routing() const = 0;
 };
 

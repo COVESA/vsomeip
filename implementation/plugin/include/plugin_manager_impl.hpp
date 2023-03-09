@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2016-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -29,7 +29,8 @@ public:
 
         VSOMEIP_EXPORT void load_plugins();
 
-        VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type, std::string _name);
+        VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type,
+                const std::string &_name);
 
         VSOMEIP_EXPORT std::shared_ptr<plugin> load_plugin(
                 const std::string& _library, plugin_type_e _type,
@@ -37,11 +38,12 @@ public:
 
         VSOMEIP_EXPORT bool unload_plugin(plugin_type_e _type);
 
+        VSOMEIP_EXPORT void * load_library(const std::string &_path);
+        VSOMEIP_EXPORT void * load_symbol(void * _handle, const std::string &_symbol);
+        VSOMEIP_EXPORT void unload_library(void * _handle);
+
 private:
         void add_plugin(const std::shared_ptr<plugin> &_plugin, const std::string& _name);
-
-        void * load_library(const std::string &_path);
-        void * load_symbol(void * _handle, const std::string &_symbol);
 
         bool plugins_loaded_;
         std::mutex loader_mutex_;

@@ -3,12 +3,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8.7...3.23.2)
+cmake_minimum_required (VERSION 2.8.7)
 project (vSomeIPHelloWorld)
 
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(VSOMEIP_NAME "vsomeip3")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 include_directories(${VSOMEIP_INCLUDE_DIRS})
 
@@ -17,16 +19,17 @@ target_sources(vsomeip_hello_world_service INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_service.hpp"
 )
 target_include_directories(vsomeip_hello_world_service INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 add_library(vsomeip_hello_world_client INTERFACE)
 target_sources(vsomeip_hello_world_client INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_client.hpp"
 )
+
 target_include_directories(vsomeip_hello_world_client INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        )
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
     # This will get us acces to

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,7 +7,9 @@
 #define VSOMEIP_V3_TRACE_CONNECTOR_HPP_
 
 #ifdef USE_DLT
+#ifndef ANDROID
 #include <dlt/dlt.h>
+#endif
 #endif
 
 #include <mutex>
@@ -58,7 +60,7 @@ public:
     VSOMEIP_EXPORT std::shared_ptr<channel> get_channel(const std::string &_id) const;
 
     VSOMEIP_EXPORT void trace(const byte_t *_header, uint16_t _header_size,
-            const byte_t *_data, uint16_t _data_size);
+            const byte_t *_data, uint32_t _data_size);
 
 private:
     bool is_enabled_;
@@ -67,9 +69,13 @@ private:
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;
     mutable std::mutex channels_mutex_;
 
+    std::shared_ptr<channel_impl> get_channel_impl(const std::string &_id) const;
+
 #ifdef USE_DLT
+#ifndef ANDROID
     std::map<std::string, std::shared_ptr<DltContext>> contexts_;
     mutable std::mutex contexts_mutex_;
+#endif
 #endif
 
 };

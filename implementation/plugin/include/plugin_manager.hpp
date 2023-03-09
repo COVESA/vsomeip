@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,8 +19,10 @@ public:
     VSOMEIP_EXPORT virtual ~plugin_manager() {};
     VSOMEIP_EXPORT static std::shared_ptr<plugin_manager> get();
     VSOMEIP_EXPORT virtual void load_plugins() = 0;
-    VSOMEIP_EXPORT virtual std::shared_ptr<plugin> get_plugin(plugin_type_e _type, std::string _name) = 0;
-
+    VSOMEIP_EXPORT virtual std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string &_name) = 0;
+    VSOMEIP_EXPORT virtual void * load_library(const std::string &_path) = 0;
+    VSOMEIP_EXPORT virtual void * load_symbol(void * _handle, const std::string &_symbol) = 0;
+    VSOMEIP_EXPORT virtual void unload_library(void * _handle) = 0;
 };
 
 } // namespace vsomeip_v3

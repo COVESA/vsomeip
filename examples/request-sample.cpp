@@ -64,7 +64,7 @@ public:
         std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
         std::vector< vsomeip::byte_t > its_payload_data;
         for (std::size_t i = 0; i < 10; ++i)
-            its_payload_data.push_back(static_cast<vsomeip::byte_t>(i % 256));
+            its_payload_data.push_back(vsomeip::byte_t(i % 256));
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
 

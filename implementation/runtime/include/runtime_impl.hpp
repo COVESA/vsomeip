@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,6 +24,8 @@ public:
 
     std::shared_ptr<application> create_application(
             const std::string &_name);
+    std::shared_ptr<application> create_application(
+            const std::string &_name, const std::string &_path);
 
     std::shared_ptr<message> create_message(bool _reliable) const;
     std::shared_ptr<message> create_request(bool _reliable) const;

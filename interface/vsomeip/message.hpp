@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,9 @@
 
 #include <memory>
 
+#include <vsomeip/deprecated.hpp>
 #include <vsomeip/message_base.hpp>
+#include <vsomeip/vsomeip_sec.h>
 
 namespace vsomeip_v3 {
 
@@ -62,12 +64,22 @@ public:
     /**
      * \brief Return uid of the message sender.
      */
-    VSOMEIP_EXPORT virtual uid_t get_uid() const = 0;
+    VSOMEIP_DEPRECATED_UID_GID VSOMEIP_EXPORT virtual uid_t get_uid() const = 0;
 
     /**
      * \brief Return gid of the message sender.
      */
-    VSOMEIP_EXPORT virtual gid_t get_gid() const = 0;
+    VSOMEIP_DEPRECATED_UID_GID VSOMEIP_EXPORT virtual gid_t get_gid() const = 0;
+
+    /**
+     * \brief Return environment (hostname) of the message sender.
+     */
+    VSOMEIP_EXPORT virtual std::string get_env() const = 0;
+
+    /**
+     * \brief Return security client of the message sender.
+     */
+    VSOMEIP_EXPORT virtual vsomeip_sec_client_t get_sec_client() const = 0;
 };
 
 /** @} */

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -178,7 +178,7 @@ const message_impl::options_t & message_impl::get_options() const {
 std::shared_ptr<option_impl>
 message_impl::find_option(const std::shared_ptr<option_impl> &_option) const {
     for (auto its_option : options_) {
-        if (its_option->equals(_option))
+        if (its_option->equals(*_option))
             return its_option;
     }
     return nullptr;
@@ -419,13 +419,24 @@ length_t message_impl::get_someip_length() const {
 }
 
 uid_t message_impl::get_uid() const {
-    return ANY_UID;
+    return (ANY_UID);
 }
 
 gid_t message_impl::get_gid() const {
-    return ANY_GID;
+    return (ANY_GID);
 }
 
+vsomeip_sec_client_t message_impl::get_sec_client() const {
+    static vsomeip_sec_client_t its_dummy_sec_client{
+        VSOMEIP_CLIENT_UDS, {vsomeip_sec_uds_client_credentials_t{ANY_UID, ANY_GID}}
+    };
+
+    return (its_dummy_sec_client);
+}
+
+std::string message_impl::get_env() const {
+    return ("");
+}
 
 } // namespace sd
 } // namespace vsomeip_v3
