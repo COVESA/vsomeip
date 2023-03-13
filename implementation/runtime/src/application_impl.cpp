@@ -353,7 +353,7 @@ void application_impl::start() {
     }
 #endif
     if (!is_initialized_) {
-        VSOMEIP_ERROR << "Trying to start an unintialized application.";
+        VSOMEIP_ERROR << "Trying to start an uninitialized application.";
         return;
     }
 
