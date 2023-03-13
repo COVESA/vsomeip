@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2016-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -39,12 +39,7 @@ typedef create_plugin_func (*plugin_init_func)();
  */
 class VSOMEIP_IMPORT_EXPORT_PLUGIN plugin {
 public:
-    virtual ~plugin()
-#ifndef ANDROID
-    {}
-#else
-    ;
-#endif
+    virtual ~plugin() {}
 
     virtual uint32_t get_plugin_version() const = 0;
     virtual const std::string &get_plugin_name() const = 0;
@@ -65,15 +60,15 @@ public:
         type_ = _type;
     }
 
-    const std::string &get_plugin_name() const override {
+    const std::string &get_plugin_name() const {
         return name_;
     }
 
-    uint32_t get_plugin_version() const override {
+    uint32_t get_plugin_version() const {
         return version_;
     }
 
-    plugin_type_e get_plugin_type() const override {
+    plugin_type_e get_plugin_type() const {
         return type_;
     }
 

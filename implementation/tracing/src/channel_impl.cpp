@@ -1,4 +1,4 @@
-// Copyright (C) 2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2017-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,6 +24,14 @@ std::string channel_impl::get_name() const {
 
 filter_id_t channel_impl::add_filter(
         const match_t &_match, bool _is_positive) {
+    filter_type_e its_filter_type = (_is_positive ?
+        filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
+
+    return (add_filter(_match, its_filter_type));
+}
+
+filter_id_t channel_impl::add_filter(
+        const match_t &_match, filter_type_e _type) {
 
     // Create a filter function
     std::function<bool (service_t, instance_t, method_t)> its_filter_func;
@@ -86,11 +94,19 @@ filter_id_t channel_impl::add_filter(
         }
     }
 
-    return add_filter_intern(its_filter_func, _is_positive);
+    return add_filter_intern(its_filter_func, _type);
 }
 
 filter_id_t channel_impl::add_filter(
         const std::vector<match_t> &_matches, bool _is_positive) {
+    filter_type_e its_filter_type = (_is_positive ?
+        filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
+
+    return (add_filter(_matches, its_filter_type));
+}
+
+filter_id_t channel_impl::add_filter(
+        const std::vector<match_t> &_matches, filter_type_e _type) {
     bool has_service(false);
     bool has_instance(false);
     bool has_method(false);
@@ -197,11 +213,11 @@ filter_id_t channel_impl::add_filter(
         }
     }
 
-    return add_filter_intern(its_filter_func, _is_positive);
+    return add_filter_intern(its_filter_func, _type);
 }
 
 filter_id_t channel_impl::add_filter(
-        const match_t &_from, const match_t &_to, bool _is_positive) {
+        const match_t &_from, const match_t &_to, filter_type_e _type) {
 
     // Check usage of ANY_* which is forbidden here
     if (std::get<0>(_from) == ANY_SERVICE ||
@@ -222,7 +238,15 @@ filter_id_t channel_impl::add_filter(
                 && std::get<2>(_from) <= _m && _m <= std::get<2>(_to));
     };
 
-    return add_filter_intern(its_filter_func, _is_positive);
+    return add_filter_intern(its_filter_func, _type);
+}
+
+filter_id_t channel_impl::add_filter(
+        const match_t &_from, const match_t &_to, bool _is_positive) {
+    filter_type_e its_filter_type = (_is_positive ?
+        filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
+
+    return (add_filter(_from, _to, its_filter_type));
 }
 
 void channel_impl::remove_filter(filter_id_t _id) {
@@ -231,42 +255,52 @@ void channel_impl::remove_filter(filter_id_t _id) {
     negative_.erase(_id);
 }
 
-filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, bool _is_positive) {
+filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, filter_type_e _type) {
     filter_id_t its_id = current_filter_id_.fetch_add(1);
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (_is_positive)
-        positive_[its_id] = _func;
-    else
-        negative_[its_id] = _func;
+    switch(_type) {
+        case (filter_type_e::NEGATIVE) :
+            negative_[its_id] = _func;
+            break;
+        case (filter_type_e::HEADER_ONLY) :
+            positive_[its_id] = std::make_pair(_func, false);
+            break;
+        default :
+            positive_[its_id] = std::make_pair(_func, true);
+    }
 
     return its_id;
 }
 
-bool channel_impl::matches(
+std::pair<bool, bool> channel_impl::matches(
         service_t _service, instance_t _instance, method_t _method) {
     std::lock_guard<std::mutex> its_lock(mutex_);
 
     // If a negative filter matches --> drop!
     for (auto &its_filter : negative_) {
-        if (its_filter.second(_service, _instance, _method)) {
-            return false;
-        }
+        if (its_filter.second(_service, _instance, _method))
+            return std::make_pair(false, false);
+    }
+
+    // If a positive/header-only filter matches --> forward!
+    bool has_positive(false);
+    for (auto &its_filter : positive_) {
+        if (its_filter.second.first(_service, _instance, _method))
+          return std::make_pair(true, its_filter.second.second);
+
+        // If we have a positive filter that is no header-only
+        // filter, set the flag
+        if (its_filter.second.second)
+            has_positive = true;
     }
 
     // If no positive filter is defined --> forward!
-    if (positive_.size() == 0)
-        return true;
+    if (!has_positive)
+        return std::make_pair(true, true);
 
-    // If a positive filter matches --> forward!
-    for (auto &its_filter : positive_) {
-        if (its_filter.second(_service, _instance, _method)) {
-            return true;
-        }
-    }
-
-    // drop!
-    return false;
+    // Default --> Drop!
+    return std::make_pair(false, false);
 }
 
 } // namespace trace

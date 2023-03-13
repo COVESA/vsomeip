@@ -5,13 +5,13 @@
 
 #include "../include/policy_manager_impl.hpp"
 
+#ifndef VSOMEIP_DISABLE_SECURITY
 namespace vsomeip_v3 {
 
 std::shared_ptr<policy_manager>
 policy_manager::get() {
-    static std::shared_ptr<policy_manager> the_policy_manager
-        = std::make_shared<policy_manager_impl>();
-    return the_policy_manager;
+    return policy_manager_impl::get();
 }
 
 } // namespace vsomeip_v3
+#endif

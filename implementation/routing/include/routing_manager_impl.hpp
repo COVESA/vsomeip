@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,6 @@
 #include <unordered_set>
 
 #include <boost/asio/ip/address.hpp>
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/primitive_types.hpp>
@@ -36,7 +35,6 @@ class deserializer;
 class eventgroupinfo;
 class routing_manager_host;
 class routing_manager_stub;
-class servicegroup;
 class serializer;
 class service_endpoint;
 
@@ -55,8 +53,13 @@ public:
     routing_manager_impl(routing_manager_host *_host);
     ~routing_manager_impl();
 
-    boost::asio::io_service & get_io();
+    boost::asio::io_context &get_io();
     client_t get_client() const;
+    const vsomeip_sec_client_t *get_sec_client() const;
+    std::string get_client_host() const;
+    void set_client_host(const std::string &_client_host);
+
+    bool is_routing_manager() const;
 
     void init();
     void start();
@@ -77,21 +80,23 @@ public:
     void release_service(client_t _client,
             service_t _service, instance_t _instance);
 
-    void subscribe(client_t _client, uid_t _uid, gid_t _gid,
+    void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, event_t _event);
+            eventgroup_t _eventgroup, major_version_t _major,
+            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
 
-    void unsubscribe(client_t _client, uid_t _uid, gid_t _gid,
+    void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event);
 
-    bool send(client_t _client, std::shared_ptr<message> _message);
+    bool send(client_t _client, std::shared_ptr<message> _message,
+            bool _force);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
             instance_t _instance, bool _reliable,
-            client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
-            credentials_t _credentials = {ANY_UID, ANY_GID},
-            uint8_t _status_check = 0, bool _sent_from_remote = false);
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
+            uint8_t _status_check, bool _sent_from_remote,
+            bool _force);
 
     bool send_to(const client_t _client,
             const std::shared_ptr<endpoint_definition> &_target,
@@ -120,7 +125,7 @@ public:
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups,
             event_type_e _type, reliability_type_e _reliability,
-            bool _is_provided);
+            bool _is_provided, bool _is_cyclic);
 
     void unregister_shadow_event(client_t _client, service_t _service,
             instance_t _instance, event_t _event,
@@ -140,7 +145,7 @@ public:
 
     void on_subscribe_nack(client_t _client, service_t _service,
                     instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                    remote_subscription_id_t _id, bool _simulated);
+                    remote_subscription_id_t _id);
 
 
     // interface to stub
@@ -161,7 +166,7 @@ public:
             major_version_t _major, minor_version_t _minor);
 
     void on_availability(service_t _service, instance_t _instance,
-            bool _is_available,
+            availability_state_e _state,
             major_version_t _major, minor_version_t _minor);
 
     void on_pong(client_t _client);
@@ -178,13 +183,13 @@ public:
     void on_disconnect(const std::shared_ptr<endpoint>& _endpoint);
 
     void on_message(const byte_t *_data, length_t _size, endpoint *_receiver,
-                    const boost::asio::ip::address &_destination,
-                    client_t _bound_client, credentials_t _credentials,
-                    const boost::asio::ip::address &_remote_address,
-                    std::uint16_t _remote_port);
+            bool _is_multicast,
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
+            const boost::asio::ip::address &_remote_address,
+            std::uint16_t _remote_port);
     bool on_message(service_t _service, instance_t _instance,
             const byte_t *_data, length_t _size, bool _reliable,
-            client_t _bound_client, credentials_t _credentials,
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _check_status = 0,
             bool _is_from_remote = false);
     void on_notification(client_t _client, service_t _service,
@@ -199,8 +204,6 @@ public:
                                      bool _magic_cookies_enabled);
 
     // interface "service_discovery_host"
-    typedef std::map<std::string, std::shared_ptr<servicegroup> > servicegroups_t;
-    const servicegroups_t & get_servicegroups() const;
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
     services_t get_offered_services() const;
@@ -285,15 +288,27 @@ public:
     void on_resend_provided_events_response(pending_remote_offer_id_t _id);
     client_t find_local_client(service_t _service, instance_t _instance);
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
-    bool is_subscribe_to_any_event_allowed(credentials_t _credentials, client_t _client,
+    bool is_subscribe_to_any_event_allowed(
+            const vsomeip_sec_client_t *_sec_client, client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
+#ifndef VSOMEIP_DISABLE_SECURITY
     bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
     bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
             const security_update_handler_t &_handler);
+#endif
+
+    void add_known_client(client_t _client, const std::string &_client_host);
+
+    void register_message_acceptance_handler(
+            const message_acceptance_handler_t &_handler);
+
+    void remove_subscriptions(port_t _local_port,
+            const boost::asio::ip::address &_remote_address,
+            port_t _remote_port);
 
 private:
     bool offer_service(client_t _client,
@@ -307,12 +322,12 @@ private:
             bool _must_queue);
 
     bool deliver_message(const byte_t *_data, length_t _size,
-            instance_t _instance, bool _reliable, client_t _bound_client,
-            credentials_t _credentials,
+            instance_t _instance, bool _reliable,
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check = 0, bool _is_from_remote = false);
     bool deliver_notification(service_t _service, instance_t _instance,
-            const byte_t *_data, length_t _length, bool _reliable, client_t _bound_client,
-            credentials_t _credentials,
+            const byte_t *_data, length_t _length, bool _reliable,
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check = 0, bool _is_from_remote = false);
 
 
@@ -351,38 +366,49 @@ private:
     bool handle_local_offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,minor_version_t _minor);
 
-    void send_subscribe(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            major_version_t _major, event_t _event);
+    void send_subscribe(client_t _client,
+            service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, major_version_t _major,
+            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
 
     void on_net_interface_or_route_state_changed(bool _is_interface,
-                                                 std::string _if,
+                                                 const std::string &_if,
                                                  bool _available);
 
     void start_ip_routing();
 
-    void requested_service_add(client_t _client, service_t _service,
+    void add_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
-    void requested_service_remove(client_t _client, service_t _service,
-                       instance_t _instance);
+    void remove_requested_service(client_t _client, service_t _service,
+                       instance_t _instance, major_version_t _major,
+                       minor_version_t _minor);
+    std::vector<std::pair<service_t, instance_t>> get_requested_services(client_t _client);
+    std::set<client_t> get_requesters(service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
+    std::set<client_t> get_requesters_unlocked(service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
+    bool has_requester_unlocked(service_t _service,
+            instance_t _instance, major_version_t _major,
+            minor_version_t _minor);
 
-    void call_sd_endpoint_connected(const boost::system::error_code& _error,
-                                             service_t _service, instance_t _instance,
-                                             const std::shared_ptr<endpoint>& _endpoint,
-                                             std::shared_ptr<boost::asio::steady_timer> _timer);
+    void call_sd_endpoint_connected(const boost::system::error_code &_error,
+            service_t _service, instance_t _instance,
+            const std::shared_ptr<endpoint> &_endpoint,
+            std::shared_ptr<boost::asio::steady_timer> _timer);
 
-    bool create_placeholder_event_and_subscribe(service_t _service,
-                                                instance_t _instance,
-                                                eventgroup_t _eventgroup,
-                                                event_t _event,
-                                                client_t _client);
+    bool create_placeholder_event_and_subscribe(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            client_t _client);
 
     void handle_subscription_state(client_t _client, service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event);
 
-    void memory_log_timer_cbk(boost::system::error_code const & _error);
-    void status_log_timer_cbk(boost::system::error_code const & _error);
+    void memory_log_timer_cbk(boost::system::error_code const &_error);
+    void status_log_timer_cbk(boost::system::error_code const &_error);
 
     void send_subscription(const client_t _offering_client,
             const service_t _service, const instance_t _instance,
@@ -416,25 +442,48 @@ private:
 
     bool is_last_stop_callback(const uint32_t _callback_id);
 
+    std::string get_env(client_t _client) const;
+    std::string get_env_unlocked(client_t _client) const;
+
     bool insert_event_statistics(service_t _service, instance_t _instance,
             method_t _method, length_t _length);
     void statistics_log_timer_cbk(boost::system::error_code const & _error);
 
+    bool get_guest(client_t _client, boost::asio::ip::address &_address,
+            port_t &_port) const;
+    void add_guest(client_t _client, const boost::asio::ip::address &_address,
+            port_t _port);
+    void remove_guest(client_t _client);
+
     void send_suspend() const;
+
+    void clear_local_services();
+
+    bool is_acl_message_allowed(endpoint *_receiver,
+            service_t _service, instance_t _instance,
+            const boost::asio::ip::address &_remote_address) const;
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
     std::mutex requested_services_mutex_;
-    std::map<client_t,
-            std::map<service_t,
-                    std::map<instance_t,
-                            std::set<std::pair<major_version_t, minor_version_t>>>>> requested_services_;
+    std::map<service_t,
+        std::map<instance_t,
+            std::map<major_version_t,
+                std::map<minor_version_t, std::set<client_t> >
+            >
+        >
+    > requested_services_;
 
     std::mutex remote_subscribers_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<client_t,
-        std::set<std::shared_ptr<endpoint_definition>>>>> remote_subscribers_;
+    std::map<service_t,
+        std::map<instance_t,
+            std::map<client_t,
+                std::set<std::shared_ptr<endpoint_definition> >
+            >
+        >
+    > remote_subscribers_;
 
     std::shared_ptr<serviceinfo> sd_info_;
 
@@ -446,7 +495,7 @@ private:
     bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
     std::shared_ptr<netlink_connector> netlink_connector_;
 #endif
 
@@ -503,6 +552,8 @@ private:
 
     // synchronize update_remote_subscription() and send_(un)subscription()
     std::mutex update_remote_subscription_mutex_;
+
+    message_acceptance_handler_t message_acceptance_handler_;
 };
 
 }  // namespace vsomeip_v3

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,21 +16,33 @@
 #include <atomic>
 #include <unordered_set>
 
-#include <boost/asio/io_service.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
+#    include <boost/asio/io_service.hpp>
+#    define io_context io_service
+#else
+#    include <boost/asio/io_context.hpp>
+#endif
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/handler.hpp>
-
-#include "../../endpoints/include/endpoint_host.hpp"
-#include "../include/routing_host.hpp"
+#include <vsomeip/vsomeip_sec.h>
 
 #include "types.hpp"
+#include "../include/routing_host.hpp"
+#include "../../endpoints/include/endpoint_host.hpp"
+#include "../../protocol/include/protocol.hpp"
+#include "../../protocol/include/routing_info_entry.hpp"
 
 namespace vsomeip_v3 {
 
 class configuration;
-struct policy;
+#if defined(__linux__) || defined(ANDROID)
+class netlink_connector;
+#endif // __linux__ || ANDROID
 class routing_manager_stub_host;
+
+struct debounce_filter_t;
+struct policy;
 
 class routing_manager_stub: public routing_host,
         public std::enable_shared_from_this<routing_manager_stub> {
@@ -44,10 +56,9 @@ public:
     void start();
     void stop();
 
-    void on_message(const byte_t *_data, length_t _size, endpoint *_receiver,
-            const boost::asio::ip::address &_destination,
-            client_t _bound_client,
-            credentials_t _credentials,
+    void on_message(const byte_t *_data, length_t _size,
+            endpoint *_receiver, bool _is_multicast,
+            client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             const boost::asio::ip::address &_remote_address,
             std::uint16_t _remote_port);
 
@@ -56,9 +67,11 @@ public:
     void on_stop_offer_service(client_t _client, service_t _service,
             instance_t _instance,  major_version_t _major, minor_version_t _minor);
 
-    bool send_subscribe(const std::shared_ptr<endpoint>& _target,
-            client_t _client, service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
+    bool send_subscribe(
+            const std::shared_ptr<endpoint> &_target, client_t _client,
+            service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, major_version_t _major,
+            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
             remote_subscription_id_t _id);
 
     bool send_unsubscribe(const std::shared_ptr<endpoint>& _target,
@@ -85,16 +98,18 @@ public:
     bool send_ping(client_t _client);
     bool is_registered(client_t _client) const;
     client_t get_client() const;
-    void handle_credentials(const client_t _client, std::set<service_data_t>& _requests);
-    void handle_requests(const client_t _client, std::set<service_data_t>& _requests);
+    void handle_credentials(const client_t _client, std::set<protocol::service> &_requests);
+    void handle_requests(const client_t _client, std::set<protocol::service> &_requests);
 
-    void update_registration(client_t _client, registration_type_e _type);
+    void update_registration(client_t _client, registration_type_e _type,
+            const boost::asio::ip::address &_address, port_t _port);
 
     void print_endpoint_status() const;
 
     bool send_provided_event_resend_request(client_t _client,
                                             pending_remote_offer_id_t _id);
 
+#ifndef VSOMEIP_DISABLE_SECURITY
     bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
@@ -119,8 +134,15 @@ public:
     bool add_requester_policies(uid_t _uid, gid_t _gid,
             const std::set<std::shared_ptr<policy> > &_policies);
     void remove_requester_policies(uid_t _uid, gid_t _gid);
+#endif // !VSOMEIP_DISABLE_SECURITY
+
+    void add_known_client(client_t _client, const std::string &_client_host);
 
     void send_suspend() const;
+
+    void remove_subscriptions(port_t _local_port,
+            const boost::asio::ip::address &_remote_address,
+            port_t _remote_port);
 
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
@@ -128,14 +150,13 @@ private:
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
 
+    void on_offered_service_request(client_t _client, offer_type_e _offer_type);
+
     void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
 
-    void inform_provider(client_t _hoster, service_t _service,
-            instance_t _instance, major_version_t _major, minor_version_t _minor,
-            routing_info_entry_e _entry);
     void inform_requesters(client_t _hoster, service_t _service,
             instance_t _instance, major_version_t _major,
-            minor_version_t _minor, routing_info_entry_e _entry,
+            minor_version_t _minor, protocol::routing_info_entry_type_e _entry,
             bool _inform_service);
 
     void broadcast_ping() const;
@@ -151,27 +172,35 @@ private:
         (void)_routing_state;
     };
 
-    bool is_already_connected(client_t _source, client_t _sink);
-    void create_client_routing_info(const client_t _target);
-    void insert_client_routing_info(client_t _target, routing_info_entry_e _entry,
-            client_t _client, service_t _service = ANY_SERVICE,
-            instance_t _instance = ANY_INSTANCE,
-            major_version_t _major = ANY_MAJOR,
-            minor_version_t _minor = ANY_MINOR);
-    void send_client_routing_info(const client_t _target);
+    inline bool is_connected(client_t _source, client_t _sink) const {
 
-    void create_offered_services_info(const client_t _target);
-    void insert_offered_services_info(client_t _target,
-            routing_info_entry_e _entry,
-            service_t _service,
-            instance_t _instance,
-            major_version_t _major,
-            minor_version_t _minor);
-    void send_offered_services_info(const client_t _target);
+        auto find_source = connection_matrix_.find(_source);
+        if (find_source != connection_matrix_.end())
+            return (find_source->second.find(_sink)
+                    != find_source->second.end());
 
-    void create_client_credentials_info(const client_t _target);
-    void insert_client_credentials_info(client_t _target, std::set<std::pair<uint32_t, uint32_t>> _credentials);
-    void send_client_credentials_info(const client_t _target);
+        return (false);
+    }
+    inline void add_connection(client_t _source, client_t _sink) {
+
+        connection_matrix_[_source].insert(_sink);
+    }
+    inline void remove_connection(client_t _source, client_t _sink) {
+
+        auto find_source = connection_matrix_.find(_source);
+        if (find_source != connection_matrix_.end())
+            find_source->second.erase(_sink);
+    }
+    inline void remove_source(client_t _source) {
+
+        connection_matrix_.erase(_source);
+    }
+
+    void send_client_routing_info(const client_t _target,
+            protocol::routing_info_entry &_entry);
+    void send_client_routing_info(const client_t _target,
+            std::vector<protocol::routing_info_entry> &&_entries);
+    void send_client_credentials(client_t _target, std::set<std::pair<uint32_t, uint32_t>> &_credentials);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
@@ -199,13 +228,17 @@ private:
 
     void add_pending_security_update_handler(
             pending_security_update_id_t _id,
-            security_update_handler_t _handler);
+            const security_update_handler_t &_handler);
     void add_pending_security_update_timer(
             pending_security_update_id_t _id);
 
+#if defined(__linux__) || defined(ANDROID)
+    void on_net_state_change(bool _is_interface, const std::string &_name, bool _is_available);
+#endif
+
 private:
     routing_manager_stub_host *host_;
-    boost::asio::io_service &io_;
+    boost::asio::io_context &io_;
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
 
@@ -213,7 +246,8 @@ private:
     std::set<client_t> used_client_ids_;
     std::mutex used_client_ids_mutex_;
 
-    std::shared_ptr<endpoint> endpoint_;
+    std::shared_ptr<endpoint> root_;  // Routing manager endpoint
+
     std::shared_ptr<endpoint> local_receiver_;
     std::mutex local_receiver_mutex_;
 
@@ -229,8 +263,8 @@ private:
     std::condition_variable client_registration_condition_;
 
     std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
+    std::map<client_t, std::pair<boost::asio::ip::address, port_t> > internal_client_ports_;
     const std::uint32_t max_local_message_size_;
-    static const std::vector<byte_t> its_ping_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;
@@ -238,10 +272,6 @@ private:
 
     std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
     std::map<client_t, std::set<client_t>> connection_matrix_;
-
-    std::map<client_t, std::vector<byte_t>> client_routing_info_;
-    std::map<client_t, std::vector<byte_t>> offered_services_info_;
-    std::map<client_t, std::vector<byte_t>> client_credentials_info_;
 
     std::mutex pending_security_updates_mutex_;
     pending_security_update_id_t pending_security_update_id_;
@@ -262,6 +292,14 @@ private:
             std::set<std::shared_ptr<policy> >
         >
     > requester_policies_;
+
+
+#if defined(__linux__) || defined(ANDROID)
+    // netlink connector for internal network
+    // (replacement for Unix Domain Sockets if configured)
+    std::shared_ptr<netlink_connector> local_link_connector_;
+    bool is_local_link_available_;
+#endif
 };
 
 } // namespace vsomeip_v3

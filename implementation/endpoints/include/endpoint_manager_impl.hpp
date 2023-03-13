@@ -1,10 +1,14 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef VSOMEIP_V3_ENDPOINT_MANAGER_IMPL_HPP_
 #define VSOMEIP_V3_ENDPOINT_MANAGER_IMPL_HPP_
+
+#include <condition_variable>
+#include <queue>
+#include <thread>
 
 #include "../include/endpoint_manager_base.hpp"
 
@@ -15,9 +19,9 @@ class routing_host;
 class endpoint_manager_impl : public endpoint_manager_base {
 public:
     endpoint_manager_impl(routing_manager_base* const _rm,
-                          boost::asio::io_service& _io,
+                          boost::asio::io_context &_io,
                           const std::shared_ptr<configuration>& _configuration);
-    ~endpoint_manager_impl() = default;
+    ~endpoint_manager_impl();
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service,
                                                            instance_t _instance,
@@ -66,9 +70,10 @@ public:
 
     void print_status() const;
 
-    std::shared_ptr<local_server_endpoint_impl> create_local_server(
-            bool* _is_socket_activated,
-            const std::shared_ptr<routing_host>& _routing_host);
+    bool create_routing_root(
+            std::shared_ptr<endpoint> &_root,
+            bool &_is_socket_activated,
+            const std::shared_ptr<routing_host> &_host);
 
     instance_t find_instance(service_t _service,
                              endpoint* const _endpoint) const;
@@ -83,16 +88,29 @@ public:
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     bool on_bind_error(std::shared_ptr<endpoint> _endpoint,
+            const boost::asio::ip::address &_remote_address,
             std::uint16_t _remote_port);
     void on_error(const byte_t *_data, length_t _length,
-                          endpoint* const _receiver,
-                          const boost::asio::ip::address &_remote_address,
-                          std::uint16_t _remote_port);
-    void release_port(uint16_t _port, bool _reliable);
+            endpoint* const _receiver,
+            const boost::asio::ip::address &_remote_address,
+            std::uint16_t _remote_port);
+
+    void get_used_client_ports(
+            const boost::asio::ip::address &_remote_address, port_t _remote_port,
+            std::map<bool, std::set<port_t> > &_used_ports);
+    void request_used_client_port(
+            const boost::asio::ip::address &_remote_address, port_t _remote_port,
+            bool _reliable, port_t _local_port);
+    void release_used_client_port(
+            const boost::asio::ip::address &_remote_address, port_t _remote_port,
+            bool _reliable, port_t _local_port);
 
     // Statistics
     void log_client_states() const;
     void log_server_states() const;
+
+    // add join/leave options
+    void add_multicast_option(const multicast_option_t &_option);
 
 private:
     std::shared_ptr<endpoint> find_remote_client(service_t _service,
@@ -105,40 +123,49 @@ private:
             const boost::asio::ip::address &_address, uint16_t _local_port,
             uint16_t _remote_port, bool _reliable);
 
+    // process join/leave options
+    void process_multicast_options();
+
 private:
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
     std::map<service_t, std::map<instance_t,
             std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
 
-    typedef std::map<service_t, std::map<instance_t,
-                std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
+    using remote_services_t =
+        std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint>>>>;
     remote_services_t remote_services_;
 
-    typedef std::map<boost::asio::ip::address,
-        std::map<uint16_t,
-            std::map<bool,
-                  std::map<partition_id_t,
-                    std::shared_ptr<endpoint>
-                >
-            >
-        >
-    > client_endpoints_by_ip_t;
+    using client_endpoints_by_ip_t =
+        std::map<boost::asio::ip::address,
+            std::map<std::uint16_t,
+                std::map<bool, std::map<partition_id_t, std::shared_ptr<endpoint>>>>>;
     client_endpoints_by_ip_t client_endpoints_by_ip_;
 
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;
     std::map<service_t, std::map<boost::asio::ip::address, instance_t> > service_instances_multicast_;
 
-    std::map<bool, std::set<uint16_t>> used_client_ports_;
+    std::map<boost::asio::ip::address,
+        std::map<port_t,
+            std::map<bool, std::set<port_t> >
+        >
+    > used_client_ports_;
     std::mutex used_client_ports_mutex_;
 
     // Server endpoints for local services
-    typedef std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint>>> server_endpoints_t;
+    using server_endpoints_t = std::map<std::uint16_t, std::map<bool, std::shared_ptr<endpoint>>>;
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)
     std::map<service_t, std::map<instance_t,
                     std::shared_ptr<endpoint_definition>>> multicast_info;
+
+    // Socket option processing (join, leave)
+    std::mutex options_mutex_;
+    bool is_processing_options_;
+    std::condition_variable options_condition_;
+    std::queue<multicast_option_t> options_queue_;
+    std::thread options_thread_;
 };
 
 } // namespace vsomeip_v3

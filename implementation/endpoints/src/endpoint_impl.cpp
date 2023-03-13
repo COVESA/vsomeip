@@ -1,13 +1,15 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
-#include <boost/asio/ip/udp_ext.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
 #include <boost/asio/local/stream_protocol_ext.hpp>
+#include <boost/asio/ip/udp_ext.hpp>
+#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
@@ -24,11 +26,11 @@ endpoint_impl<Protocol>::endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
         const endpoint_type& _local,
-        boost::asio::io_service &_io,
+        boost::asio::io_context &_io,
         std::uint32_t _max_message_size,
         configuration::endpoint_queue_limit_t _queue_limit,
         const std::shared_ptr<configuration>& _configuration)
-    : service_(_io),
+    : io_(_io),
       endpoint_host_(_endpoint_host),
       routing_host_(_routing_host),
       is_supporting_magic_cookies_(false),
@@ -125,18 +127,32 @@ uint32_t endpoint_impl<Protocol>::get_use_count() {
 }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::register_error_handler(error_handler_t _error_handler) {
+void endpoint_impl<Protocol>::register_error_handler(const error_handler_t &_error_handler) {
     std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
     this->error_handler_ = _error_handler;
 }
 
+template<typename Protocol>
+instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
+
+    instance_t its_instance(0xFFFF);
+
+    auto its_host = endpoint_host_.lock();
+    if (its_host)
+        its_instance = its_host->find_instance(_service, this);
+
+    return (its_instance);
+}
+
 // Instantiate template
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
 template class endpoint_impl<boost::asio::local::stream_protocol>;
+#if VSOMEIP_BOOST_VERSION < 106600
 template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
+template class endpoint_impl<boost::asio::ip::udp_ext>;
+#endif
 #endif
 template class endpoint_impl<boost::asio::ip::tcp>;
 template class endpoint_impl<boost::asio::ip::udp>;
-template class endpoint_impl<boost::asio::ip::udp_ext>;
 
 } // namespace vsomeip_v3

@@ -1,16 +1,36 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/internal/logger.hpp>
+#include <vsomeip/runtime.hpp>
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/byteorder.hpp"
+
+#ifdef ANDROID
+#include <utils/Log.h>
+
+#ifdef ALOGI
+#undef ALOGI
+#endif
+
+#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
+#ifndef LOGE
+#define LOGI ALOGI
+#endif
+
+#endif
 
 namespace vsomeip_v3 {
 namespace trace {
@@ -30,6 +50,7 @@ connector_impl::connector_impl() :
         = std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID,
                                          VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
 #ifdef USE_DLT
+#ifndef ANDROID
     std::shared_ptr<DltContext> its_default_context
         = std::make_shared<DltContext>();
 
@@ -37,6 +58,7 @@ connector_impl::connector_impl() :
     DLT_REGISTER_CONTEXT_LL_TS(*(its_default_context.get()),
             VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME,
             DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
+#endif
 #endif
 }
 
@@ -60,14 +82,14 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
 
         for (auto &its_filter : _configuration->filters_) {
             for (auto &its_channel : its_filter->channels_) {
-                std::shared_ptr<channel> its_channel_ptr = get_channel(its_channel);
+                auto its_channel_ptr = get_channel_impl(its_channel);
                 if (its_channel_ptr) {
                     if (its_filter->is_range_) {
                         its_channel_ptr->add_filter(its_filter->matches_[0],
-                                its_filter->matches_[1], its_filter->is_positive_);
+                                its_filter->matches_[1], its_filter->ftype_);
                     } else {
                         its_channel_ptr->add_filter(its_filter->matches_,
-                                its_filter->is_positive_);
+                                its_filter->ftype_);
                     }
                 }
             }
@@ -82,8 +104,10 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
 
 void connector_impl::reset() {
 #ifdef USE_DLT
+#ifndef ANDROID
     std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     contexts_.clear();
+#endif
 #endif
     // reset to default
     std::lock_guard<std::mutex> its_lock_channels(channels_mutex_);
@@ -131,11 +155,13 @@ std::shared_ptr<channel> connector_impl::add_channel(
 
     // register context
 #ifdef USE_DLT
+#ifndef ANDROID
     std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
     contexts_[_id] = its_context;
     DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
             DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
+#endif
 #endif
 
     return its_channel;
@@ -152,11 +178,13 @@ bool connector_impl::remove_channel(const trace_channel_t &_id) {
     if (has_removed) {
         // unregister context
 #ifdef USE_DLT
+#ifndef ANDROID
         std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
         auto its_context = contexts_.find(_id);
         if (its_context != contexts_.end()) {
             DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
         }
+#endif
 #endif
     }
 
@@ -169,16 +197,27 @@ std::shared_ptr<channel> connector_impl::get_channel(const std::string &_id) con
     return (its_channel != channels_.end() ? its_channel->second : nullptr);
 }
 
+std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string &_id) const {
+    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    auto its_channel = channels_.find(_id);
+    return (its_channel != channels_.end() ? its_channel->second : nullptr);
+}
+
 void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
-        const byte_t *_data, uint16_t _data_size) {
-#ifdef USE_DLT
+        const byte_t *_data, uint32_t _data_size) {
+
+#if USE_DLT
     if (!is_enabled_)
         return;
 
     if (_data_size == 0)
         return; // no data
 
-    if (is_sd_message(_data, _data_size) && !is_sd_enabled_)
+    // Clip
+    const uint16_t its_data_size
+        = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
+
+    if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
         return; // tracing of service discovery messages is disabled!
 
     service_t its_service = VSOMEIP_BYTES_TO_WORD(
@@ -197,19 +236,54 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
 
     // Forward to channel if the filter set of the channel allows
     std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+    #ifndef ANDROID
+        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+    #endif
     for (auto its_channel : channels_) {
-        if (its_channel.second->matches(its_service, its_instance, its_method)) {
-            auto its_context = contexts_.find(its_channel.second->get_id());
-            if (its_context != contexts_.end()) {
-                DLT_TRACE_NETWORK_SEGMENTED(*(its_context->second.get()),
-                    DLT_NW_TRACE_IPC,
-                    _header_size, static_cast<void *>(const_cast<byte_t *>(_header)),
-                    _data_size, static_cast<void *>(const_cast<byte_t *>(_data)));
-            } else {
-                // This should never happen!
-                VSOMEIP_ERROR << "tracing: found channel without DLT context!";
-            }
+        auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
+        if (ftype.first) {
+            #ifndef ANDROID
+                auto its_context = contexts_.find(its_channel.second->get_id());
+                if (its_context != contexts_.end()) {
+                    try {
+                        if (ftype.second) {
+                            //Positive Filter
+                            DLT_TRACE_NETWORK_SEGMENTED(*(its_context->second.get()),
+                                DLT_NW_TRACE_IPC,
+                                _header_size, static_cast<void *>(const_cast<byte_t *>(_header)),
+                                its_data_size, static_cast<void *>(const_cast<byte_t *>(_data)));
+                        } else {
+                            //Header-Only Filter
+                            DLT_TRACE_NETWORK_TRUNCATED(*(its_context->second.get()),
+                                DLT_NW_TRACE_IPC,
+                                _header_size, static_cast<void *>(const_cast<byte_t *>(_header)),
+                                VSOMEIP_FULL_HEADER_SIZE,
+                                static_cast<void *>(const_cast<byte_t *>(_data)));
+                        }
+                    } catch (const std::exception& e) {
+                        VSOMEIP_INFO << "connector_impl::trace: "
+                            << "Exception caught when trying to log a trace with DLT. "
+                            << e.what();
+                    }
+                } else {
+                    // This should never happen!
+                    VSOMEIP_ERROR << "tracing: found channel without DLT context!";
+                }
+            #else
+                std::stringstream ss;
+                ss << "TC:";
+                for(int i = 0; i < _header_size; i++) {
+                    ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_header[i]);
+                }
+                if (ftype.second)
+                    _data_size = VSOMEIP_FULL_HEADER_SIZE;
+                for(int i = 0; i < its_data_size; i++) {
+                    ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
+                }
+                std::string app = runtime::get_property("LogApplication");
+
+                ALOGI(app.c_str(), ss.str().c_str());
+            #endif
         }
     }
 #else

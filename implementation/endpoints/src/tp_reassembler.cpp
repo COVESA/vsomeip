@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,7 +23,7 @@
 namespace vsomeip_v3 {
 namespace tp {
 
-tp_reassembler::tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_service &_io) :
+tp_reassembler::tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_context &_io) :
     max_message_size_(_max_message_size),
     cleanup_timer_running_(false),
     cleanup_timer_(_io) {
@@ -175,7 +175,6 @@ void tp_reassembler::cleanup_timer_start(bool _force) {
 }
 
 void tp_reassembler::cleanup_timer_start_unlocked(bool _force) {
-    boost::system::error_code ec;
     if (!cleanup_timer_running_ || _force) {
         cleanup_timer_.expires_from_now(std::chrono::seconds(5));
         cleanup_timer_running_ = true;

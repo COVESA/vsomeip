@@ -19,7 +19,7 @@ const ttl_t DEFAULT_TTL = 0xFFFFFF; // "until next reboot"
 
 const std::string DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t DEFAULT_PORT = 30500;
-const uint16_t ILLEGAL_PORT = 0;
+const uint16_t ILLEGAL_PORT = 0xFFFF;
 
 const uint16_t NO_TRACE_FILTER_EXPRESSION = 0x0000;
 

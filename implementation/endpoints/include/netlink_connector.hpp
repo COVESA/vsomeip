@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
 #define VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
 
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
 
 #include <sys/socket.h>
 #include <linux/netlink.h>
@@ -15,7 +15,6 @@
 #include <map>
 #include <mutex>
 
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/basic_raw_socket.hpp>
 #include <boost/asio/ip/address.hpp>
 
@@ -27,23 +26,23 @@ template <typename Protocol>
 class nl_endpoint {
 public:
     /// The protocol type associated with the endpoint.
-    typedef Protocol protocol_type;
-    typedef boost::asio::detail::socket_addr_type data_type;
+    using protocol_type = Protocol;
+    using data_type = boost::asio::detail::socket_addr_type;
 
     /// Default constructor.
     nl_endpoint()
     {
         sockaddr.nl_family = PF_NETLINK;
         sockaddr.nl_groups = 0;
-        sockaddr.nl_pid = static_cast<unsigned int>(getpid());
+        sockaddr.nl_pid = 0; // Let the kernel do the assignment
     }
 
     /// Construct an endpoint using the specified path name.
-    nl_endpoint(int group, int pid=getpid())
+    nl_endpoint(int group)
     {
         sockaddr.nl_family = PF_NETLINK;
         sockaddr.nl_groups = static_cast<unsigned int>(group);
-        sockaddr.nl_pid = static_cast<unsigned int>(pid);
+        sockaddr.nl_pid = 0;
     }
 
     /// Copy constructor.
@@ -124,25 +123,31 @@ public:
         return PF_NETLINK;
     }
 
-    typedef nl_endpoint<nl_protocol> endpoint;
-    typedef boost::asio::basic_raw_socket<nl_protocol> socket;
+    using endpoint = nl_endpoint<nl_protocol>;
+    using socket = boost::asio::basic_raw_socket<nl_protocol>;
 
 private:
     int proto;
 };
 
-typedef std::function< void (bool, std::string, bool) > net_if_changed_handler_t;
+using net_if_changed_handler_t = std::function< void (
+    bool,        // true = is interface, false = is route
+    std::string, // interface name
+    bool)        // available?
+>;
 
 class netlink_connector : public std::enable_shared_from_this<netlink_connector> {
 public:
-    netlink_connector(boost::asio::io_service& _io, boost::asio::ip::address _address,
-                      boost::asio::ip::address _multicast_address):
+    netlink_connector(boost::asio::io_context &_io, const boost::asio::ip::address &_address,
+                        const boost::asio::ip::address &_multicast_address,
+                        bool _is_requiring_link = true):
         net_if_index_for_address_(0),
         handler_(nullptr),
         socket_(_io),
         recv_buffer_(recv_buffer_size, 0),
         address_(_address),
-        multicast_address_(_multicast_address) {
+        multicast_address_(_multicast_address),
+        is_requiring_link_(_is_requiring_link) {
     }
     ~netlink_connector() {}
 
@@ -180,10 +185,11 @@ private:
 
     boost::asio::ip::address address_;
     boost::asio::ip::address multicast_address_;
+    bool is_requiring_link_;
 };
 
 } // namespace vsomeip_v3
 
-#endif // NOT _WIN32
+#endif // __linux__ || ANDROID
 
 #endif // VSOMEIP_V3_NETLINK_CONNECTOR_HPP_

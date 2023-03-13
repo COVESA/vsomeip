@@ -638,7 +638,7 @@ application_impl::is_selective_event(
     if (its_service != eventgroups_.end()) {
         const auto its_instance = its_service->second.find(_instance);
         if (its_instance != its_service->second.end()) {
-            for (const auto& eg : _eventgroups) {
+            for (const auto eg : _eventgroups) {
                 const auto its_egrp = its_instance->second.find(eg);
                 if (its_egrp != its_instance->second.end()) {
                     is_selective = true;

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,9 +16,8 @@
 
 namespace vsomeip_v3 {
 
-typedef client_endpoint_impl<
-            boost::asio::ip::tcp
-        > tcp_client_endpoint_base_impl;
+using tcp_client_endpoint_base_impl =
+    client_endpoint_impl<boost::asio::ip::tcp>;
 
 class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
@@ -26,7 +25,7 @@ public:
                              const std::shared_ptr<routing_host>& _routing_host,
                              const endpoint_type& _local,
                              const endpoint_type& _remote,
-                             boost::asio::io_service &_io,
+                             boost::asio::io_context &_io,
                              const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_client_endpoint_impl();
 
@@ -42,7 +41,7 @@ public:
     void send_cbk(boost::system::error_code const &_error, std::size_t _bytes,
                   const message_buffer_ptr_t& _sent_msg);
 private:
-    void send_queued(message_buffer_ptr_t _buffer);
+    void send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry);
     void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,
@@ -63,8 +62,8 @@ private:
                  std::size_t _missing_capacity);
     void calculate_shrink_count(const message_buffer_ptr_t& _recv_buffer,
                                 std::size_t _recv_buffer_size);
-    const std::string get_address_port_remote() const;
-    const std::string get_address_port_local() const;
+    std::string get_address_port_remote() const;
+    std::string get_address_port_local() const;
     void handle_recv_buffer_exception(const std::exception &_e,
                                       const message_buffer_ptr_t& _recv_buffer,
                                       std::size_t _recv_buffer_size);

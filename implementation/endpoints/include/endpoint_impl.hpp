@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,7 +11,6 @@
 #include <mutex>
 #include <atomic>
 
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include "buffer.hpp"
@@ -26,12 +25,12 @@ class routing_host;
 template<typename Protocol>
 class endpoint_impl: public virtual endpoint {
 public:
-    typedef typename Protocol::endpoint endpoint_type;
+    using endpoint_type = typename Protocol::endpoint;
 
     endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                   const std::shared_ptr<routing_host>& _routing_host,
                   const endpoint_type& _local,
-                  boost::asio::io_service &_io,
+                  boost::asio::io_context &_io,
                   std::uint32_t _max_message_size,
                   configuration::endpoint_queue_limit_t _queue_limit,
                   const std::shared_ptr<configuration>& _configuration);
@@ -50,7 +49,7 @@ public:
     void decrement_use_count();
     uint32_t get_use_count();
 
-    void register_error_handler(error_handler_t _error_handler);
+    void register_error_handler(const error_handler_t &_error_handler);
     virtual void print_status() = 0;
 
     virtual size_t get_queue_size() const = 0;
@@ -63,6 +62,7 @@ public:
 
 protected:
     uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
+    instance_t get_instance(service_t _service);
 
 protected:
     enum class cms_ret_e : uint8_t {
@@ -72,7 +72,7 @@ protected:
     };
 
     // Reference to service context
-    boost::asio::io_service &service_;
+    boost::asio::io_context &io_;
 
     // References to hosts
     std::weak_ptr<endpoint_host> endpoint_host_;

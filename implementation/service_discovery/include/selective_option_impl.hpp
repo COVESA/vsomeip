@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2018-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,7 +25,7 @@ public:
     selective_option_impl();
     virtual ~selective_option_impl();
 
-    bool operator==(const option_impl &_other) const;
+    bool equals(const option_impl &_other) const;
 
     std::set<client_t> get_clients() const;
     void set_clients(const std::set<client_t> &_clients);

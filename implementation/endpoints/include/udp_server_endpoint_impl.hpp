@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,10 +6,11 @@
 #ifndef VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 
-#include <boost/asio/io_service.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
 #include <boost/asio/ip/udp_ext.hpp>
-
-#include <atomic>
+#else
+#include <boost/asio/ip/udp.hpp>
+#endif
 
 #include <vsomeip/defines.hpp>
 
@@ -18,9 +19,13 @@
 
 namespace vsomeip_v3 {
 
-typedef server_endpoint_impl<
-            boost::asio::ip::udp_ext
-        > udp_server_endpoint_base_impl;
+#if VSOMEIP_BOOST_VERSION < 106600
+using udp_server_endpoint_base_impl =
+    server_endpoint_impl<boost::asio::ip::udp_ext>;
+#else
+using udp_server_endpoint_base_impl =
+    server_endpoint_impl<boost::asio::ip::udp>;
+#endif
 
 class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 
@@ -28,7 +33,7 @@ public:
     udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                              const std::shared_ptr<routing_host>& _routing_host,
                              const endpoint_type& _local,
-                             boost::asio::io_service &_io,
+                             boost::asio::io_context &_io,
                              const std::shared_ptr<configuration>& _configuration);
     virtual ~udp_server_endpoint_impl();
 
@@ -41,7 +46,7 @@ public:
             const byte_t *_data, uint32_t _size);
     bool send_error(const std::shared_ptr<endpoint_definition> _target,
                 const byte_t *_data, uint32_t _size);
-    void send_queued(const queue_iterator_type _queue_iterator);
+    bool send_queued(const target_data_iterator_type _it);
     void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,
@@ -49,7 +54,9 @@ public:
 
     VSOMEIP_EXPORT void join(const std::string &_address);
     VSOMEIP_EXPORT void join_unlocked(const std::string &_address);
-    void leave(const std::string &_address);
+    VSOMEIP_EXPORT void leave(const std::string &_address);
+    VSOMEIP_EXPORT void set_multicast_option(
+            const boost::asio::ip::address &_address, bool _is_join);
 
     void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port);
@@ -71,32 +78,34 @@ private:
     bool is_joined(const std::string &_address) const;
     bool is_joined(const std::string &_address, bool* _received) const;
     std::string get_remote_information(
-            const queue_iterator_type _queue_iterator) const;
+            const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
 
-    const std::string get_address_port_local() const;
+    std::string get_address_port_local() const;
     bool tp_segmentation_enabled(service_t _service, method_t _method) const;
 
     void on_unicast_received(boost::system::error_code const &_error,
-            std::size_t _bytes,
-            boost::asio::ip::address const &_destination);
+            std::size_t _bytes);
 
     void on_multicast_received(boost::system::error_code const &_error,
-            std::size_t _bytes,
-            boost::asio::ip::address const &_destination,
-            uint8_t _multicast_id);
+            std::size_t _bytes, uint8_t _multicast_id,
+			const boost::asio::ip::address &_destination);
 
     void on_message_received(boost::system::error_code const &_error,
                      std::size_t _bytes,
-                     boost::asio::ip::address const &_destination,
+                     bool _is_multicast,
                      endpoint_type const &_remote,
                      message_buffer_t const &_buffer);
+
+    bool is_same_subnet(const boost::asio::ip::address &_address) const;
 
 private:
     socket_type unicast_socket_;
     endpoint_type unicast_remote_;
     message_buffer_t unicast_recv_buffer_;
     mutable std::mutex unicast_mutex_;
+
+    bool is_v4_;
 
     std::unique_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
@@ -109,6 +118,9 @@ private:
 
     mutable std::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
+
+    boost::asio::ip::address netmask_;
+    unsigned short prefix_;
 
     const std::uint16_t local_port_;
 

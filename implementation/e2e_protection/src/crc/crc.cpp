@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -30,7 +30,11 @@ namespace vsomeip_v3 {
 uint8_t e2e_crc::calculate_profile_01(buffer_view _buffer_view, const uint8_t _start_value) {
     uint8_t crc = _start_value ^ 0xFFU;
     for (uint8_t byte : _buffer_view) {
-        crc = static_cast<uint8_t>(lookup_table_profile_01_[static_cast<uint8_t>((byte) ^ crc)] ^ (crc >> 8U));
+        /*
+         * XXX Right-shifting 8 bits on uint8_t results in 0 every time.
+         *     It is, quintessentially, shifting all bits into the void.
+         */
+        crc = static_cast<uint8_t>(lookup_table_profile_01_[static_cast<uint8_t>((byte) ^ crc)]/* ^ (crc >> 8U)*/);
     }
     crc = crc ^ 0xFFU;
     return crc;
@@ -181,4 +185,3 @@ const uint32_t e2e_crc::lookup_table_profile_custom_[256] = {
 };
 
 } // namespace vsomeip_v3
-

@@ -15,7 +15,7 @@ vsomeip
 
 Copyright
 +++++++
-Copyright (C) 2015-2019, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2022, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 License
 +++++++
@@ -42,7 +42,7 @@ Build Instructions
 ------------------
 Dependencies
 ~~~~~~~~~~~~
-* A C++11 enabled compiler like gcc >= 5.2 is needed.
+* A C++14 enabled compiler is needed (default for gcc >= v6.1)
 * vsomeip uses cmake as buildsystem.
 * vsomeip uses Boost >= 1.55:
 ** Ubuntu 14.04:
@@ -142,15 +142,6 @@ to be ready to send/receive messages, call cmake like:
 [source,bash]
 ----
 cmake -DROUTING_READY_MESSAGE=<YOUR MESSAGE> ..
-----
-
-Compilation with configuration overlays
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To compile vsomeip with configuration overlays enabled, call cmake
-like:
-[source,bash]
-----
-cmake -DENABLE_CONFIGURATION_OVERLAYS=1 ..
 ----
 
 Compilation with vSomeIP 2 compatibility layer
@@ -272,6 +263,8 @@ On startup the following environment variables are read out:
    local configuration file `./vsomeip.json` and/or a local configuration folder `./vsomeip`.
    If `VSOMEIP_CONFIGURATION` is set to a valid file or directory path, this is used instead
    of the standard configuration (thus neither default nor local file/folder will be parsed).
+* `VSOMEIP_CONFIGURATION_<application>`: Application-specific version of `VSOMEIP_CONFIGURATION`.
+   Please note that <application> must be valid as part of an environment variable.
 * `VSOMEIP_MANDATORY_CONFIGURATION_FILES`: vsomeip allows to specify mandatory configuration
    files to speed-up application startup. While mandatory configuration files are read by all
    applications, all other configuration files are only read by the application that is 
@@ -550,14 +543,6 @@ The plug-in type (valid values: _application_plugin_).
 An application plug-in extends the functionality on application level. It gets informed
 by vsomeip over the basic application states (INIT/START/STOP) and can, based on these
 notifications, access the standard "application"-API via the runtime.
-+
-** 'overlay' (optional)
-+
-Contains the path to a configuration that overwrites specific configuration elements
-(unicast, netmask, device, network, diagnosis address & mask, service discovery) for the 
-application. This allows to manage different network addresses from a single process.
-+
-NOTE: This feature is only available if vsomeip was compiled with ENABLE_CONFIGURATION_OVERLAYS.
 +
 * `services` (array)
 +
@@ -951,14 +936,15 @@ Event ID.
 
 *** `on_change`
 +
-Specifies whether the event is only forwared on 
-paylaod change or not. (valid values: _true_, _false_).
+Specifies whether the event is forwarded on 
+payload change or not. (valid values: _true_, _false_).
+Default is _false_.
 
 *** `ignore`
 +
 Array of payload indexes with given bit mask (optional) 
 to be ignored in payload change evaluation. 
-Instead of specifying an index / bitmask pair, one can only define the paylaod index 
+Instead of specifying an index / bitmask pair, one can only define the payload index 
 which shall be ignored in the evaluation.
 
 **** `index`
@@ -973,17 +959,64 @@ Example mask: 0x0f ignores payload changes in low nibble of the byte at given in
 *** `interval`
 +
 Specifies if the event shall be debounced based on elapsed time interval.
-(valid values: _time in ms_, _never_).
+(valid values: _time in ms_, _never_). Default is _never_.
 
-*** `on_change_resets_interval_` (optional)
+*** `on_change_resets_interval` (optional)
 Specifies if interval timer is reset when payload change was detected.
-(valid values: _false_, _true_).
+(valid values: _false_, _true_). Defaults to _false_.
 
-* `routing`
+* `routing` (optional)
 +
-The name of the application that is responsible for the routing.
+Specifies the properties of the routing. Either a string that specifies the application that hosts the
+routing component or a structure that specifies all properties of the routing. If the routing is not
+specified, the first started application will host the routing component.
 
-* `routing-credentials`
+** `host`
++
+Properties of the routing manager.
+
+*** `name`
++
+Name if the application that hosts the routing component.
+
+*** `uid`
++
+User identifier of the process that runs the routing component. Must be specified if credential checks
+are enabled by _check_credentials_ set to true.
+
+*** `gid`
++
+Group identifier of the process that runs the routing component. Must be specified if credential checks
+are enabled by _check_credentials_ set to true.
+
+*** `unicast` (optional)
++
+The unicast address that shall be used by the routing manager, if the internal communication shall be done
+by using TCP connections.
+
+*** `port` (optional)
++
+The port that shall be used by the routing manager, if the internal communication shall be done
+by using TCP connections.
+
+** `guests` (optional)
++
+Properties of all applications that do not host the routing component, if the internal communication shall be 
+done using TCP connections.
+
+*** `unicast`
++
+The unicast address that shall be used by the applications to connect to the routing manager.
+
+*** `ports`
++
+A set of port ranges that shall be used to connect to the routing manager. Each client application requires
+two ports, one for receiving messages from other applications and one to send messages to other applications.
+Notes: Each configured port range must contain an even number of ports. If an even port number is configured
+to be the routing host port, the first port in the range must also be even. If an uneven port number is 
+configured to be the routing host port, the first port in the range must also be uneven.
+
+* `routing-credentials` (deprecated)
 +
 The UID / GID of the application acting as routing manager.
 (Must be specified if credentials checks are enabled using _check_credentials_ set to _true_ in order to successfully check the routing managers credentials passed on connect)
@@ -1113,14 +1146,6 @@ Time which the stack collects new service offers before they enter the
 repetition phase. This can be used to reduce the number of
 sent messages during startup. The default setting is _500ms_.
 +
-
-** `max_remote_subscribers`
-+
-Limit the number of possible remote subscribers from same remote IP address
-to an eventgroup provided by a service/instance if the remote subscriber uses
-different ports for its subscriptions. The default setting is _3_.
-+
-
 //Watchdog
 * anchor:config-watchdog[]`watchdog` (optional)
 +
@@ -1408,6 +1433,31 @@ They give a basic overview how to use the security related configuration tags de
 in this chapter to run a simple request/response or subscribe/notify example locally or
 remotely.
 
+
+Security policy extensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+vsomeip policy extension configuration supports the definition of paths that contain additional
+security policies to be loaded whenever a client with a yet unknown hostname connects to a local server endpoint.
+The following configuration parameters are available and can be defined in a file named `vsomeip_policy_extensions.json`.
+
+// Security policy extension
+* anchor:config-policy-extension[]`container_policies` (optional array)
++
+Specifies the additional configuration folders to be loaded for each container hostname / filesystem path pair.
+
+** `container`
++
+Specifies the linux hostname.
+
+** `path`
++
+Specifies a filesystem path (relative to vsomeip_policy_extensions.json or absolute) which contains
+$UID_$GID subfolders that hold a `vsomeip_security.json` file.
+Note: ($UID / $GID is the UID /GID of the vsomeip client application
+to which a client from hostname defined with `container`connetcs to.
+
+
 Audit Mode
 ~~~~~~~~~~
 vsomeip's security implementation can be put in a so called 'Audit Mode' where
@@ -1551,7 +1601,7 @@ Service
 
 [source, bash]
 ----
-include::../examples/hello_world/hello_world_service.cpp[]
+include::../examples/hello_world/hello_world_service_main.cpp[]
 ----
 
 The service example results in the following program execution:
@@ -1634,7 +1684,7 @@ Client
 ~~~~~~
 [source, bash]
 ----
-include::../examples/hello_world/hello_world_client.cpp[]
+include::../examples/hello_world/hello_world_client_main.cpp[]
 ----
 
 The client example results in the following program execution:
@@ -1829,17 +1879,17 @@ Example:
 ----
     // get trace connector
     std::shared_ptr<vsomeip::trace::connector> its_connector 
-	= vsomeip::trace::connector::get();
+    = vsomeip::trace::connector::get();
 
     // add channel
     std::shared_ptr<vsomeip::trace::channel> its_channel
-	= its_connector->create_channel("MC", "My channel");
+    = its_connector->create_channel("MC", "My channel");
 
     // add filter rule
     vsomeip::trace::match_t its_match
         = std::make_tuple(0x1234, 0xffff, 0x80e8);    
     vsomeip::trace::filter_id_t its_filter_id 
-	= its_channel->add_filter(its_match, true);
+    = its_channel->add_filter(its_match, true);
 
     // init trace connector    
     its_connector->init();

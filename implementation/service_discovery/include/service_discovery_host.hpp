@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,7 +11,12 @@
 #include <chrono>
 
 #include <boost/asio/ip/address.hpp>
-#include <boost/asio/io_service.hpp>
+#if VSOMEIP_BOOST_VERSION < 106600
+#	include <boost/asio/io_service.hpp>
+#	define io_context io_service
+#else
+#	include <boost/asio/io_context.hpp>
+#endif
 
 #include "../../routing/include/function_types.hpp"
 #include "../../routing/include/types.hpp"
@@ -31,7 +36,7 @@ public:
     virtual ~service_discovery_host() {
     }
 
-    virtual boost::asio::io_service & get_io() = 0;
+    virtual boost::asio::io_context &get_io() = 0;
 
     virtual std::shared_ptr<endpoint> create_service_discovery_endpoint(
             const std::string &_address, uint16_t _port, bool _reliable) = 0;
@@ -40,7 +45,8 @@ public:
     virtual std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const = 0;
 
-    virtual bool send(client_t _client, std::shared_ptr<message> _message) = 0;
+    virtual bool send(client_t _client, std::shared_ptr<message> _message,
+            bool _force) = 0;
 
     virtual bool send_via_sd(const std::shared_ptr<endpoint_definition> &_target,
             const byte_t *_data, uint32_t _size, uint16_t _sd_port) = 0;
@@ -86,7 +92,7 @@ public:
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, remote_subscription_id_t _subscription_id, bool _simulated) = 0;
+            event_t _event, remote_subscription_id_t _subscription_id) = 0;
 
     virtual std::chrono::steady_clock::time_point expire_subscriptions(bool _force) = 0;
 

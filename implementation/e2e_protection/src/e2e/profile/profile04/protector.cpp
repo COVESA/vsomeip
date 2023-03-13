@@ -1,14 +1,13 @@
-// Copyright (C) 2020 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
 
-#include "../../../../../e2e_protection/include/e2e/profile/profile04/protector.hpp"
-
 #include <vsomeip/internal/logger.hpp>
-#include "../../utility/include/byteorder.hpp"
+#include "../../../../include/e2e/profile/profile04/protector.hpp"
+#include "../../../../../utility/include/byteorder.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -31,7 +30,7 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         write_16(_buffer, static_cast<uint16_t>(_buffer.size()), 0);
 
         /** @req [SWS_E2E_00365] */
-        write_16(_buffer, counter_, 2);
+        write_16(_buffer, get_counter(_instance), 2);
 
         /** @req [SWS_E2E_00366] */
         uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
@@ -44,7 +43,7 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         write_32(_buffer, its_crc, 8);
 
         /** @req [SWS_E2E_00369] */
-        increment_counter();
+        increment_counter(_instance);
     }
 }
 
@@ -71,9 +70,26 @@ protector::write_32(e2e_buffer &_buffer, uint32_t _data, size_t _index) {
     _buffer[config_.offset_ + _index + 3] = VSOMEIP_LONG_BYTE0(_data);
 }
 
+uint16_t
+protector::get_counter(instance_t _instance) const {
+
+    uint16_t its_counter(0);
+
+    auto find_counter = counter_.find(_instance);
+    if (find_counter != counter_.end())
+        its_counter = find_counter->second;
+
+    return (its_counter);
+}
+
 void
-protector::increment_counter() {
-    counter_++;
+protector::increment_counter(instance_t _instance) {
+
+    auto find_counter = counter_.find(_instance);
+    if (find_counter != counter_.end())
+        find_counter->second++;
+    else
+        counter_[_instance] = 1;
 }
 
 } // namespace profile04

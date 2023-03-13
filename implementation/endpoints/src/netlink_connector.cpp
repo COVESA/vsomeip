@@ -1,9 +1,9 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef _WIN32
+#if defined(__linux__) || defined(ANDROID)
 
 #include <thread>
 
@@ -16,12 +16,6 @@
 #include "../include/netlink_connector.hpp"
 
 namespace vsomeip_v3 {
-
-namespace {
-    const std::uint32_t ifa_request_sequence = 1;
-    const std::uint32_t ifi_request_sequence = 2;
-    const std::uint32_t rt_request_sequence = 3;
-}
 
 void netlink_connector::register_net_if_changes_handler(const net_if_changed_handler_t& _handler) {
     handler_ = _handler;
@@ -66,15 +60,14 @@ void netlink_connector::start() {
                 RTMGRP_IPV4_ROUTE | RTMGRP_IPV6_ROUTE |
                 RTMGRP_IPV4_MROUTE | RTMGRP_IPV6_MROUTE), ec);
 
-        if (ec) {
+        if (ec && ec != boost::asio::error::address_in_use) {
             VSOMEIP_WARNING << "Error binding NETLINK socket: " << ec.message();
             if (handler_) {
                 handler_(true, "n/a", true);
                 handler_(false, "n/a", true);
             }
-#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+
             return;
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
         }
 
         send_ifa_request();
@@ -122,7 +115,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                         auto its_if = net_if_flags_.find(static_cast<int>(ifa->ifa_index));
                         if (its_if != net_if_flags_.end()) {
                             if ((its_if->second & IFF_UP) &&
-                                    (its_if->second & IFF_RUNNING)) {
+                                    (is_requiring_link_ ? (its_if->second & IFF_RUNNING) : true)) {
                                 if (handler_) {
                                     if_indextoname(ifa->ifa_index,ifname);
                                     handler_(true, ifname, true);
@@ -148,7 +141,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                     net_if_flags_[ifi->ifi_index] = ifi->ifi_flags;
                     if (net_if_index_for_address_ == ifi->ifi_index) {
                         if ((ifi->ifi_flags & IFF_UP) &&
-                            (ifi->ifi_flags & IFF_RUNNING)) {
+                            (is_requiring_link_ ? (ifi->ifi_flags & IFF_RUNNING) : true)) {
                             if (handler_) {
                                 if_indextoname(static_cast<unsigned int>(ifi->ifi_index),ifname);
                                 handler_(true, ifname, true);
@@ -187,32 +180,9 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                 }
                 case NLMSG_ERROR: {
                     struct nlmsgerr *errmsg = (nlmsgerr *)NLMSG_DATA(nlh);
-                    if (errmsg->error == 0) {
-                        // Ack from netlink
-                        break;
-                    }
-
                     VSOMEIP_ERROR << "netlink_connector::receive_cbk received "
-                        "error message: " << strerror(errmsg->error)
-                        << " type " << std::dec << errmsg->msg.nlmsg_type
+                        "error message: " << std::dec << nlh->nlmsg_type
                         << " seq " << errmsg->msg.nlmsg_seq;
-
-                    std::string request_type{};
-                    if (errmsg->msg.nlmsg_type == RTM_GETADDR && errmsg->msg.nlmsg_seq == ifa_request_sequence) {
-                        request_type = "address request";
-                        send_ifa_request();
-                    } else if (errmsg->msg.nlmsg_type == RTM_GETLINK && errmsg->msg.nlmsg_seq == ifi_request_sequence) {
-                        request_type = "link request";
-                        send_ifi_request();
-                    } else if (errmsg->msg.nlmsg_type == RTM_GETROUTE && errmsg->msg.nlmsg_seq == rt_request_sequence) {
-                        request_type = "route request";
-                        send_rt_request();
-                    }
-
-                    if (!request_type.empty()) {
-                        VSOMEIP_INFO << "Retrying netlink " << request_type;
-                    }
-
                     break;
                 }
                 case NLMSG_DONE:
@@ -271,16 +241,16 @@ void netlink_connector::send_cbk(boost::system::error_code const &_error, std::s
 }
 
 void netlink_connector::send_ifa_request() {
-    typedef struct {
+    struct netlink_address_msg {
         struct nlmsghdr nlhdr;
         struct ifaddrmsg addrmsg;
-    } netlink_address_msg;
+    };
     netlink_address_msg get_address_msg;
     memset(&get_address_msg, 0, sizeof(get_address_msg));
     get_address_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifaddrmsg));
     get_address_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_address_msg.nlhdr.nlmsg_type = RTM_GETADDR;
-    get_address_msg.nlhdr.nlmsg_seq = ifa_request_sequence;
+    get_address_msg.nlhdr.nlmsg_seq = 1;
     if (address_.is_v4()) {
         get_address_msg.addrmsg.ifa_family = AF_INET;
     } else {
@@ -299,17 +269,17 @@ void netlink_connector::send_ifa_request() {
 }
 
 void netlink_connector::send_ifi_request() {
-    typedef struct {
+    struct netlink_link_msg {
         struct nlmsghdr nlhdr;
         struct ifinfomsg infomsg;
-    } netlink_link_msg;
+    };
     netlink_link_msg get_link_msg;
     memset(&get_link_msg, 0, sizeof(get_link_msg));
     get_link_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
     get_link_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_link_msg.nlhdr.nlmsg_type = RTM_GETLINK;
     get_link_msg.infomsg.ifi_family = AF_UNSPEC;
-    get_link_msg.nlhdr.nlmsg_seq = ifi_request_sequence;
+    get_link_msg.nlhdr.nlmsg_seq = 2;
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -326,17 +296,17 @@ void netlink_connector::send_ifi_request() {
 }
 
 void netlink_connector::send_rt_request() {
-    typedef struct {
+    struct netlink_route_msg {
         struct nlmsghdr nlhdr;
         struct rtgenmsg routemsg;
-    } netlink_route_msg;
+    };
 
     netlink_route_msg get_route_msg;
     memset(&get_route_msg, 0, sizeof(get_route_msg));
     get_route_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtgenmsg));
     get_route_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
     get_route_msg.nlhdr.nlmsg_type = RTM_GETROUTE;
-    get_route_msg.nlhdr.nlmsg_seq = rt_request_sequence;
+    get_route_msg.nlhdr.nlmsg_seq = 3;
     if (multicast_address_.is_v6()) {
         get_route_msg.routemsg.rtgen_family = AF_INET6;
     } else {
@@ -470,5 +440,4 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
 
 } // namespace vsomeip_v3
 
-#endif // #ifndef _WIN32
-
+#endif // __linux__ or ANDROID

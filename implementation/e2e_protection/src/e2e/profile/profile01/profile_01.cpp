@@ -1,14 +1,10 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "../../../../../e2e_protection/include/e2e/profile/profile01/profile_01.hpp"
-#include "../../../../../e2e_protection/include/crc/crc.hpp"
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <iomanip>
+#include "../../../../include/e2e/profile/profile01/profile_01.hpp"
+#include "../../../../include/crc/crc.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {

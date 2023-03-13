@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,7 +19,7 @@ public:
     ip_option_impl();
     ip_option_impl(const uint16_t _port, const bool _is_reliable);
     virtual ~ip_option_impl();
-    virtual bool operator ==(const option_impl &_other) const;
+    bool equals(const option_impl &_other) const;
 
     uint16_t get_port() const;
     void set_port(uint16_t _port);

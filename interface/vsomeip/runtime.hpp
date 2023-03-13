@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -207,6 +207,26 @@ public:
      *
      */
     virtual void remove_application( const std::string &_name) = 0;
+
+    /**
+     *
+     * \brief Creates a vsomeip application object.
+     *
+     * An application object manages service offers and requests as well as
+     * event subscriptions. It allows to register user application functions
+     * as callbacks that are called on specific events during runtime, e.g
+     * to react on incoming SOME/IP messages.
+     * An application object is identified by a unique name that is also used
+     * in (and therefore has to match) the configuration files of vsomeip. If
+     * the name is left empty, the application name is taken from the
+     * environment variable "VSOMEIP_APPLICATION_NAME"
+     *
+     * \param _name Name of the application on the system.
+     * \param _path Path to the configuration file or folder.
+     *
+     */
+    virtual std::shared_ptr<application> create_application(
+            const std::string &_name, const std::string &_path) = 0;
 };
 
 /** @} */

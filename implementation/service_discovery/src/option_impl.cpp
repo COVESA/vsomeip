@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,13 +19,9 @@ option_impl::option_impl() :
 option_impl::~option_impl() {
 }
 
-bool option_impl::operator ==(const option_impl &_other) const {
-    return (type_ == _other.type_ && length_ == _other.length_);
-}
-
 bool
-option_impl::equals(const std::shared_ptr<option_impl> &_other) const {
-    return (this->operator ==(*(_other.get())));
+option_impl::equals(const option_impl &_other) const {
+   return (type_ == _other.get_type() && length_ == _other.get_length());
 }
 
 uint16_t option_impl::get_length() const {

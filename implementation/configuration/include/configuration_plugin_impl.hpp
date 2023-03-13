@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -27,14 +27,15 @@ public:
     configuration_plugin_impl();
     virtual ~configuration_plugin_impl();
 
-    std::shared_ptr<configuration> get_configuration(const std::string &_name);
+    std::shared_ptr<configuration> get_configuration(const std::string &_name,
+            const std::string &_path);
 
 private:
     std::mutex mutex_;
     std::shared_ptr<cfg::configuration_impl> default_;
-#ifdef VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
+#if 0
     std::map<std::string, std::shared_ptr<cfg::configuration_impl> > configurations_;
-#endif // VSOMEIP_ENABLE_CONFIGURATION_OVERLAYS
+#endif
 };
 
 } // namespace vsomeip_v3

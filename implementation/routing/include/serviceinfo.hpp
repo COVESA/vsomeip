@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,6 @@
 namespace vsomeip_v3 {
 
 class endpoint;
-class servicegroup;
 
 class serviceinfo {
 public:
@@ -27,9 +26,6 @@ public:
             ttl_t _ttl, bool _is_local);
     VSOMEIP_EXPORT serviceinfo(const serviceinfo& _other);
     VSOMEIP_EXPORT ~serviceinfo();
-
-    VSOMEIP_EXPORT servicegroup * get_group() const;
-    VSOMEIP_EXPORT void set_group(servicegroup *_group);
 
     VSOMEIP_EXPORT service_t get_service() const;
     VSOMEIP_EXPORT instance_t get_instance() const;
@@ -57,8 +53,6 @@ public:
     VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
 
 private:
-    servicegroup *group_;
-
     service_t service_;
     instance_t instance_;
 

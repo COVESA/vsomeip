@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +12,7 @@
 #define VSOMEIP_SOMEIP_SD_DATA_SIZE              12
 #define VSOMEIP_SOMEIP_SD_ENTRY_LENGTH_SIZE      4
 #define VSOMEIP_SOMEIP_SD_ENTRY_SIZE             16
-#define VSOMEIP_SOMEIP_SD_IPV4_OPTION_SIZE       12
+#define VSOMEIP_SOMEIP_SD_IPV3_OPTION_SIZE       12
 #define VSOMEIP_SOMEIP_SD_IPV6_OPTION_SIZE       24
 #define VSOMEIP_SOMEIP_SD_LOAD_BALANCING_OPTION_SIZE 8
 #define VSOMEIP_SOMEIP_SD_PROTECTION_OPTION_SIZE 12

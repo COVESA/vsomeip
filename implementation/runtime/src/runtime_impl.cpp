@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -35,15 +35,22 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
+
+    return (create_application(_name, ""));
+}
+
+std::shared_ptr<application> runtime_impl::create_application(
+        const std::string &_name, const std::string &_path) {
     static std::uint32_t postfix_id = 0;
     std::lock_guard<std::mutex> its_lock(applications_mutex_);
-    std::string its_name_ = _name;
+    std::string its_name = _name;
     auto found_application = applications_.find(_name);
     if( found_application != applications_.end()) {
-        its_name_ += "_" + std::to_string(postfix_id++);
+        its_name += "_" + std::to_string(postfix_id++);
     }
-    std::shared_ptr<application> application = std::make_shared<application_impl>(its_name_);
-    applications_[its_name_] = application;
+    std::shared_ptr<application> application
+        = std::make_shared<application_impl>(its_name, _path);
+    applications_[its_name] = application;
     return application;
 }
 

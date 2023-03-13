@@ -3,16 +3,16 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8.12...3.23.3)
+cmake_minimum_required (VERSION 3.10)
 project (vsomeip)
 
 set (VSOMEIP_NAME vsomeip3)
 set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
-set (VSOMEIP_MINOR_VERSION 1)
-set (VSOMEIP_PATCH_VERSION 37)
-set (VSOMEIP_HOTFIX_VERSION 1)
+set (VSOMEIP_MINOR_VERSION 3)
+set (VSOMEIP_PATCH_VERSION 0)
+set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
@@ -31,9 +31,9 @@ endif()
 ###################################################################################################
 
 # Offer the user the choice of overriding the installation directories
-set (INSTALL_LIB_DIR lib CACHE STRING "Installation directory for libraries")
-set (INSTALL_BIN_DIR bin CACHE STRING "Installation directory for executables")
-set (INSTALL_INCLUDE_DIR include CACHE STRING "Installation directory for header files")
+set (INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
+set (INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
+set (INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header files")
 
 if (WIN32 AND NOT CYGWIN)
     set (DEF_INSTALL_CMAKE_DIR CMake)
@@ -41,7 +41,15 @@ else ()
     set (DEF_INSTALL_CMAKE_DIR lib/cmake/${VSOMEIP_NAME})
 endif ()
 
-set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE STRING "Installation directory for CMake files")
+set (INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
+
+# Make relative paths absolute (needed later on)
+foreach (p LIB BIN INCLUDE CMAKE)
+    set (var INSTALL_${p}_DIR)
+    if (NOT IS_ABSOLUTE "${${var}}")
+        set (ABSOLUTE_${var} "${CMAKE_INSTALL_PREFIX}/${${var}}") # Add all targets to the build-tree export set
+    endif ()
+endforeach ()
 
 ###################################################################################################
 # Set a default build type if none was specified
@@ -55,27 +63,24 @@ endif()
 
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    set(OS "LINUX")
     set(DL_LIBRARY "dl")
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # This is only relevant for GCC and causes warnings on Clang
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wl,-z,relro,-z,now")
+endif()
+
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "-D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security -fPIE -pie -Wl,-z,relro,-z,now")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+
+    # force all use of std::mutex and std::recursive_mutex to use runtime init
+    # instead of static initialization so mutexes can be hooked to enable PI as needed
+    add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Android")
-    set(OS "ANDROID")
-    set(DL_LIBRARY "")
-    set(EXPORTSYMBOLS "")
-    set(NO_DEPRECATED "")
-    set(OPTIMIZE "")
-
-    find_library(ANDROID_LOG_LIB log)
-    set(OS_LIBS ${ANDROID_LOG_LIB})
-endif(${CMAKE_SYSTEM_NAME} MATCHES "Android")
-
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-    set(OS "FREEBSD")
     set(DL_LIBRARY "")
     set(EXPORTSYMBOLS "")
     set(NO_DEPRECATED "-Wno-deprecated")
@@ -83,7 +88,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS_CXX_FLAGS "-pthread")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-################################################################################
+############################################My lib link flags####################################
 # Options
 ################################################################################
 
@@ -99,19 +104,20 @@ if (ENABLE_SIGNAL_HANDLING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
-# Sanitizer
-if (ENABLE_THREAD_SANITIZER)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-endif ()
+if (NOT MSVC)
+    # Sanitizer
+    if (ENABLE_THREAD_SANITIZER)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+    endif ()
 
-if (ENABLE_LEAK_SANITIZER)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
-endif ()
+    if (ENABLE_LEAK_SANITIZER)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+    endif ()
 
-# Configuration overlays
-if (ENABLE_CONFIGURATION_OVERLAYS)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_CONFIGURATION_OVERLAYS")
-endif ()
+    if (ENABLE_PROFILING)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+    endif ()
+endif (NOT MSVC)
 
 # Compatibility
 if (ENABLE_COMPAT)
@@ -127,10 +133,13 @@ else ()
 set (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS 0)
 endif ()
 
-# Session handling configuration
-if (ENABLE_SESSION_HANDLING_CONFIG)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_HAS_SESSION_HANDLING_CONFIG")
+# Security / Policy handling
+if (DISABLE_SECURITY)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_DISABLE_SECURITY")
 endif ()
+
+# Suppress deprecation warnings for vSomeIP interfaces
+add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 
 ################################################################################
 # Dependencies
@@ -164,19 +173,14 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-if (${VSOMEIP_BOOST_VERSION} GREATER 107600)
-message( ERROR "boost version ${VSOMEIP_BOOST_VERSION} is not (yet) supported. Latest supported version is 1.76.0" )
-elseif(${VSOMEIP_BOOST_VERSION} GREATER 107500)
-set(VSOMEIP_BOOST_HELPER implementation/helper/1.76)
-elseif(${VSOMEIP_BOOST_VERSION} GREATER 107300)
-set(VSOMEIP_BOOST_HELPER implementation/helper/1.74)
-elseif(${VSOMEIP_BOOST_VERSION} GREATER 106999)
-set(VSOMEIP_BOOST_HELPER implementation/helper/1.70)
-elseif(${VSOMEIP_BOOST_VERSION} GREATER 106599)
-set(VSOMEIP_BOOST_HELPER implementation/helper/1.66)
-else()
-set(VSOMEIP_BOOST_HELPER implementation/helper/1.55)
-endif()
+
+if (${VSOMEIP_BOOST_VERSION} LESS 106600)
+include_directories(SYSTEM
+    implementation/helper
+)
+endif ()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
 find_package(PkgConfig)
 
@@ -191,12 +195,10 @@ endif()
 # SystemD
 pkg_check_modules(SystemD "libsystemd")
 
-if(NOT SystemD_FOUND OR ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+if(NOT SystemD_FOUND)
 MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
-else()
-list(APPEND OS_LIBS ${SystemD_LIBRARIES})
-endif(NOT SystemD_FOUND OR ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+endif(NOT SystemD_FOUND)
 
 # Multiple routing managers
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
@@ -212,7 +214,6 @@ include_directories(
 )
 
 include_directories(SYSTEM
-    ${VSOMEIP_BOOST_HELPER}
     ${DLT_INCLUDE_DIRS}
 )
 
@@ -230,16 +231,14 @@ if (MSVC)
     message("using MSVC Compiler")
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc")
+    # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /std:c++latest /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${OS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++11 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
-    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
-        set(USE_RT "rt")
-    endif()
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++14 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set(USE_RT "rt")
 endif()
 
 ################################################################################
@@ -256,7 +255,7 @@ if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     endif()
 
-    target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
+    target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 endif ()
 
 ################################################################################
@@ -268,6 +267,7 @@ file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/tracing/src/*.cpp"
     "implementation/message/src/*.cpp"
     "implementation/plugin/src/*.cpp"
+    "implementation/protocol/src/*.cpp"
     "implementation/routing/src/*.cpp"
     "implementation/runtime/src/*.cpp"
     "implementation/security/src/*.cpp"
@@ -276,23 +276,30 @@ file(GLOB ${VSOMEIP_NAME}_SRC
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
 list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")
 endif()
+
+if (WIN32)
+list(FILTER ${VSOMEIP_NAME}_SRC EXCLUDE REGEX ".*uds.*")
+endif()
+
 list(SORT ${VSOMEIP_NAME}_SRC)
 
 add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
 set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+else ()
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept")
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
     $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>)
 # PRIVATE means the listed libraries won't be included in the "link interface",
-# meaning the exported vsomeip3Targets.cmake targets won't try to link against
+# meaning the exported ${VSOMEIP_NAME}Targets.cmake targets won't try to link against
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OS_LIBS})
+target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 ################################################################################
 # Service Discovery library
@@ -308,7 +315,7 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
-target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${OS_LIBS})
+target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 
 ################################################################################
@@ -325,7 +332,7 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
-target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
+target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 ################################################################################
 # Compatibility library
@@ -356,7 +363,7 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
     $<INSTALL_INTERFACE:include/compat> # for clients in install mode
 )
-target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${OS_LIBS})
+target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 endif ()
 
@@ -407,7 +414,7 @@ message("Predefined diagnosis address: ${VSOMEIP_DIAGNOSIS_ADDRESS}")
 ################################################################################
 set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
-file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.hpp"  )
+file (GLOB_RECURSE vsomeip_INCLUDE RELATIVE ${INCLUDE_PATH} "interface/*.h*"  )
 list (SORT vsomeip_INCLUDE)
 
 foreach ( file ${vsomeip_INCLUDE} )
@@ -418,7 +425,7 @@ endforeach()
 install (
     TARGETS ${VSOMEIP_NAME}
     # IMPORTANT: Add the vsomeip library to the "export-set"
-    EXPORT vsomeip3Targets
+    EXPORT ${VSOMEIP_NAME}Targets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT
     ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
@@ -485,15 +492,15 @@ install (
 )
 
 # Add all targets to the build-tree export set
-export (TARGETS ${VSOMEIP_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeip3Targets.cmake")
+export (TARGETS ${VSOMEIP_NAME} FILE "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Targets.cmake")
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
 export (PACKAGE ${VSOMEIP_NAME})
 
-# Create the vsomeip3Config.cmake and vsomeip3ConfigVersion files
-configure_file (vsomeip3Config.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake" @ONLY)
-configure_file (vsomeip3ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake" @ONLY)
+# Create the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion files
+configure_file (${VSOMEIP_NAME}Config.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Config.cmake" @ONLY)
+configure_file (${VSOMEIP_NAME}ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake" @ONLY)
 
 # configure internal.hpp for correct version number
 configure_file (
@@ -501,18 +508,18 @@ configure_file (
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp"
 )
 
-# Install the vsomeip3Config.cmake and vsomeip3ConfigVersion.cmake
+# Install the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion.cmake
 install (
     FILES
-    "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake"
-    "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake"
+    "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake"
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev
 )
 
 # Install the export set for use with the install-tree
 install (
-    EXPORT vsomeip3Targets
+    EXPORT ${VSOMEIP_NAME}Targets
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev
 )
@@ -581,31 +588,31 @@ endif()
 ##############################################################################
 # create pkg-config file
 if(NOT WIN32)
-        configure_file(vsomeip3.pc.in ${PROJECT_BINARY_DIR}/vsomeip3.pc @ONLY)
-        install(FILES ${PROJECT_BINARY_DIR}/vsomeip3.pc DESTINATION lib/pkgconfig)
+        configure_file(${VSOMEIP_NAME}.pc.in ${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}.pc @ONLY)
+        install(FILES ${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}.pc DESTINATION lib/pkgconfig)
 endif()
 
 ##############################################################################
-if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
-    # build routing manager daemon (Non-Windows only)
-    if (NOT MSVC)
-    add_subdirectory( examples/routingmanagerd )
-    endif()
-
-    # build tools
-    add_custom_target( tools )
-    add_subdirectory( tools )
-
-    # build examples
-    add_custom_target( examples )
-    add_subdirectory( examples EXCLUDE_FROM_ALL )
-    add_custom_target( hello_world )
-    add_subdirectory( examples/hello_world  EXCLUDE_FROM_ALL )
+# build routing manager daemon (Non-Windows only)
+if (NOT MSVC)
+add_subdirectory( examples/routingmanagerd )
 endif()
+
+# build tools
+add_custom_target( tools )
+add_subdirectory( tools )
+
+# build examples
+add_custom_target( examples )
+add_subdirectory( examples EXCLUDE_FROM_ALL )
 
 ##############################################################################
 # Test section
 ##############################################################################
+
+##############################################################################
+# google benchmark
+find_package(benchmark)
 
 ##############################################################################
 # google test
@@ -654,9 +661,9 @@ SET(TEST_IP_SLAVE "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
 if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
    (${TEST_IP_SLAVE}  STREQUAL ${TEST_IP_DEFAULT_VALUE}))
     message(WARNING "TEST_IP_MASTER and/or TEST_IP_SLAVE isn't set. "
-                    "Only local tests will be runnable "
-                    "Please specify them via for example "
-                    "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.125")
+                    "Remote tests cannot be run. "
+                    "To enable, please specify for example "
+                    "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.2")
 endif()
 
 SET(TEST_IP_SLAVE_SECOND "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
@@ -673,15 +680,7 @@ else()
     set(TEST_SECOND_ADDRESS "ON")
 endif()
 
-set(TEST_E2E_PROFILE_04 "OFF" CACHE BOOL
-    "Controls whether E2E Profile 04 tests should run or not")
-if (ENABLE_SESSION_HANDLING_CONFIG)
-    set(TEST_E2E_PROFILE_04 "ON")
-else ()
-    message(WARNING "ENABLE_SESSION_HANDLING_CONFIG isn't set. "
-                    "Test of E2E Profile 04 is not enabled.")
-endif ()
-
+set(TEST_E2E_PROFILE_04 "ON")
 
 SET(TEST_UID_DEFAULT_VALUE "123456789")
 SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING
@@ -694,7 +693,8 @@ SET(TEST_SECURITY "ON" CACHE BOOL
     "Controls whether security tests should run or not")
 
 if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
-   (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}))
+   (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}) OR
+   DISABLE_SECURITY)
     message(WARNING "TEST_UID and/or TEST_GID isn't set. "
                     "Security Tests are not runnable "
                     "Please specify them for example "
@@ -703,13 +703,26 @@ if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
 endif()
 
 add_custom_target(build_tests)
-add_dependencies(build_tests vsomeip3)
-add_dependencies(build_tests vsomeip3-e2e)
-add_dependencies(build_tests vsomeip3-sd)
 
 set(CMAKE_CTEST_COMMAND ctest -V)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 add_dependencies(check build_tests)
+
+add_custom_target(build_network_tests)
+add_dependencies(build_network_tests ${VSOMEIP_NAME})
+add_dependencies(build_network_tests ${VSOMEIP_NAME}-e2e)
+add_dependencies(build_network_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_tests build_network_tests)
+
+add_custom_target(build_unit_tests)
+add_dependencies(build_unit_tests ${VSOMEIP_NAME})
+add_dependencies(build_unit_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_tests build_unit_tests)
+
+add_custom_target(build_benchmark_tests)
+add_dependencies(build_benchmark_tests ${VSOMEIP_NAME})
+add_dependencies(build_benchmark_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_tests build_benchmark_tests)
 
 ##############################################################################
 # add test directory

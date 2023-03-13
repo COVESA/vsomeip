@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,8 +11,13 @@
 #include <mutex>
 #include <memory>
 
+#if VSOMEIP_BOOST_VERSION < 106600
+#	include <boost/asio/io_service.hpp>
+#	define io_context io_service
+#else
+#	include <boost/asio/io_context.hpp>
+#endif
 #include <boost/asio/ip/address.hpp>
-#include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/primitive_types.hpp>
@@ -25,7 +30,7 @@ namespace tp {
 
 class tp_reassembler : public std::enable_shared_from_this<tp_reassembler> {
 public:
-    tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_service &_io);
+    tp_reassembler(std::uint32_t _max_message_size, boost::asio::io_context &_io);
     /**
      * @return Returns a pair consisting of a bool and a message_buffer_t. The
      * value of the bool is set to true if the pair contains a finished message

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -119,12 +119,18 @@ void eventgroupinfo::set_multicast(const boost::asio::ip::address &_address,
     port_ = _port;
 }
 
-const std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
+std::set<std::shared_ptr<event> > eventgroupinfo::get_events() const {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     return events_;
 }
 
 void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
+
+    if (_event == nullptr) {
+        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        return;
+    }
+
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.insert(_event);
 
@@ -158,6 +164,12 @@ void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
 }
 
 void eventgroupinfo::remove_event(const std::shared_ptr<event>& _event) {
+
+    if (_event == nullptr) {
+        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        return;
+    }
+
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     events_.erase(_event);
 }
@@ -217,13 +229,19 @@ eventgroupinfo::update_remote_subscription(
         const bool _is_subscribe) {
 
     bool its_result(false);
+
+    if (_subscription == nullptr) {
+        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        return (its_result);
+    }
+
     std::shared_ptr<endpoint_definition> its_subscriber;
     std::set<std::shared_ptr<event> > its_events;
 
     {
         std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
 
-        for (const auto& its_item : subscriptions_) {
+        for (const auto &its_item : subscriptions_) {
             if (its_item.second->equals(_subscription)) {
                 // update existing subscription
                 _changed = its_item.second->update(
@@ -231,16 +249,17 @@ eventgroupinfo::update_remote_subscription(
                 _id = its_item.second->get_id();
 
                 // Copy acknowledgment states from existing subscription
-                for (const auto& its_client : _subscription->get_clients()) {
-                    const auto its_state = its_item.second->get_client_state(its_client);
-                    if (_is_subscribe &&
-                            its_state == remote_subscription_state_e::SUBSCRIPTION_UNKNOWN) {
-                        _subscription->set_client_state(its_client,
-                                remote_subscription_state_e::SUBSCRIPTION_PENDING);
+                for (const auto its_client : _subscription->get_clients()) {
+                    auto its_state = its_item.second->get_client_state(its_client);
+                    if (_is_subscribe
+                            && its_state == remote_subscription_state_e::SUBSCRIPTION_UNKNOWN) {
+                        // We met the current subscription object during its
+                        // unsubscribe process. Therefore, trigger a resubscription.
+                        its_state = remote_subscription_state_e::SUBSCRIPTION_PENDING;
                         _changed.insert(its_client);
-                    } else {
-                        _subscription->set_client_state(its_client, its_state);
                     }
+
+                    _subscription->set_client_state(its_client, its_state);
                 }
 
                 if (_is_subscribe) {
@@ -295,6 +314,11 @@ eventgroupinfo::is_remote_subscription_limit_reached(
         const std::shared_ptr<remote_subscription> &_subscription) {
     bool limit_reached(false);
 
+    if (_subscription == nullptr) {
+        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        return (limit_reached);
+    }
+
     if (subscriptions_.size() <= max_remote_subscribers_) {
         return false;
     }
@@ -321,6 +345,11 @@ eventgroupinfo::is_remote_subscription_limit_reached(
 remote_subscription_id_t
 eventgroupinfo::add_remote_subscription(
         const std::shared_ptr<remote_subscription> &_subscription) {
+
+    if (_subscription == nullptr) {
+        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        return id_;
+    }
     std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
 
     update_id();
@@ -419,7 +448,6 @@ void
 eventgroupinfo::send_initial_events(
         const std::shared_ptr<endpoint_definition> &_reliable,
         const std::shared_ptr<endpoint_definition> &_unreliable) const {
-
     std::set<std::shared_ptr<event> > its_reliable_events, its_unreliable_events;
 
     // Build sets of reliable/unreliable events first to avoid having to
@@ -465,11 +493,23 @@ eventgroupinfo::send_initial_events(
     }
 
     // Send events
-    for (const auto &its_event : its_reliable_events)
-        its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+    if (!its_reliable_events.empty()) {
+        if (_reliable != nullptr) {
+            for (const auto &its_event : its_reliable_events)
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
+        } else {
+            VSOMEIP_ERROR << __func__ << ": Received ptr (_reliable) is null";
+        }
+    }
 
-    for (const auto &its_event : its_unreliable_events)
-        its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+    if (!its_unreliable_events.empty()) {
+        if (_unreliable != nullptr) {
+            for (const auto &its_event : its_unreliable_events)
+                its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
+        } else {
+            VSOMEIP_ERROR << __func__ << ": Received ptr (_unreliable) is null";
+        }
+    }
 }
 
 uint8_t eventgroupinfo::get_max_remote_subscribers() const {

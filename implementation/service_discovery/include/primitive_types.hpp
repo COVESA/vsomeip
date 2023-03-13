@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,15 +12,15 @@ namespace vsomeip_v3 {
 namespace sd {
 
 // Load balancing
-typedef uint16_t priority_t;
-typedef uint16_t weight_t;
+using priority_t = std::uint16_t;
+using weight_t = std::uint16_t;
 
 // Protection
-typedef uint32_t alive_counter_t;
-typedef uint32_t crc_t;
+using alive_counter_t = std::uint32_t;
+using crc_t = std::uint32_t;
 
 //
-typedef uint8_t flags_t;
+using flags_t = std::uint8_t;
 
 } // namespace sd
 } // namespace vsomeip_v3

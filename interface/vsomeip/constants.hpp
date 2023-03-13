@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,13 +19,14 @@ const ttl_t DEFAULT_TTL = 0xFFFFFF; // "until next reboot"
 
 const std::string DEFAULT_MULTICAST = "224.0.0.0";
 const uint16_t DEFAULT_PORT = 30500;
-const uint16_t ILLEGAL_PORT = 0;
+const uint16_t ILLEGAL_PORT = 0xFFFF;
 const uint16_t ANY_PORT = 0;
 
 const uint16_t NO_TRACE_FILTER_EXPRESSION = 0x0000;
 
 const service_t ANY_SERVICE = 0xFFFF;
 const instance_t ANY_INSTANCE = 0xFFFF;
+const eventgroup_t ANY_EVENTGROUP = 0xFFFF;
 const method_t ANY_METHOD = 0xFFFF;
 const major_version_t ANY_MAJOR = 0xFF;
 const minor_version_t ANY_MINOR = 0xFFFFFFFF;

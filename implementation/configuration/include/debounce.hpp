@@ -1,4 +1,4 @@
-// Copyright (C) 2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2017-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -21,7 +21,7 @@ namespace cfg {
 struct debounce {
     debounce() : on_change_(false),
             on_change_resets_interval_(false),
-            interval_(0),
+            interval_(-1), // aka "never"
             last_forwarded_((std::chrono::steady_clock::time_point::max)()) {
     }
 

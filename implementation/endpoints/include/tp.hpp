@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -24,9 +24,9 @@ namespace tp {
 #define VSOMEIP_TP_PAYLOAD_POS      20
 
 // 28 bit length + 3 bit reserved + 1 bit more segments
-typedef std::uint32_t tp_header_t;
-typedef std::uint8_t tp_message_type_t;
-typedef std::vector<message_buffer_ptr_t> tp_split_messages_t;
+using tp_header_t = std::uint32_t;
+using tp_message_type_t = std::uint8_t;
+using tp_split_messages_t = std::vector<message_buffer_ptr_t>;
 
 const std::uint8_t TP_FLAG = 0x20;
 
@@ -49,9 +49,10 @@ public:
     }
 
     static tp_split_messages_t tp_split_message(
-            const std::uint8_t * const _data, std::uint32_t _size);
+            const std::uint8_t * const _data, std::uint32_t _size,
+            std::uint16_t _max_segment_length);
 
-    static const std::uint16_t tp_max_segment_length_;
+    static const std::uint16_t tp_max_segment_length_ = 1392;
 };
 
 } // namespace tp
