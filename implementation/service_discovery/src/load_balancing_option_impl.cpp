@@ -28,7 +28,7 @@ load_balancing_option_impl::equals(const option_impl &_other) const {
         const load_balancing_option_impl &its_other
             = dynamic_cast<const load_balancing_option_impl &>(_other);
         is_equal = (priority_ == its_other.priority_
-            && priority_ == its_other.weight_);
+            && weight_ == its_other.weight_);
     }
 
     return is_equal;
