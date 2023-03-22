@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <time.h>
+#include <inttypes.h>
 #endif
 
 #include <boost/asio/steady_timer.hpp>
@@ -4159,7 +4160,7 @@ void routing_manager_impl::memory_log_timer_cbk(
     std::uint64_t its_data(0);
     std::uint64_t its_dirtypages(0);
 
-    if (EOF == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size,
+    if (EOF == std::fscanf(its_file, "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64, &its_size,
                     &its_rsssize, &its_sharedpages, &its_text, &its_lib,
                     &its_data, &its_dirtypages)) {
         VSOMEIP_ERROR<< "memory_log_timer_cbk: error reading:"
