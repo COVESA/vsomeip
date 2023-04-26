@@ -112,7 +112,7 @@ void udp_client_endpoint_impl::connect() {
             local_.port(0);
         }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {

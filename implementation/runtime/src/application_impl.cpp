@@ -394,7 +394,7 @@ void application_impl::start() {
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" ("
                 << std::hex << std::setw(4) << std::setfill('0') << client_
                 << ") using "  << std::dec << io_thread_count << " threads"
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 << " I/O nice " << io_thread_nice_level
 #endif
         ;
@@ -1745,7 +1745,7 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     {
         std::stringstream s;
         s << std::hex << std::setw(4) << std::setfill('0')
@@ -2100,7 +2100,7 @@ void application_impl::shutdown() {
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
     ;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     boost::asio::detail::posix_signal_blocker blocker;
     {
         std::stringstream s;

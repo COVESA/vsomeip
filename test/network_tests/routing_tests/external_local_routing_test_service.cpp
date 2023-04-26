@@ -176,7 +176,7 @@ TEST(someip_external_local_routing_test, receive_ten_messages_over_local_and_ext
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

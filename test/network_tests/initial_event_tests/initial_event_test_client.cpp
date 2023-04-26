@@ -564,7 +564,7 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     // Block all signals

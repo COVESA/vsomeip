@@ -332,7 +332,7 @@ TEST(someip_event_test, communicate_using_second_address)
     second_address_test_client its_sample(second_address_test::service, use_tcp);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

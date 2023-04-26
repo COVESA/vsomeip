@@ -29,7 +29,11 @@ stop_watch::usec_t stop_watch::get_total_elapsed_seconds() const {
 stop_watch::usec_t stop_watch::now() {
     struct timespec ts;
 
+#ifdef __QNX__
+    const int ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
     const int ret = clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+#endif
     assert(!ret);
     static_cast<void>(ret); // prevent warning in release build
 

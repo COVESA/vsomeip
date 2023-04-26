@@ -229,7 +229,7 @@ TEST(someip_offer_test_big_sd_msg, subscribe_or_call_method_at_service)
     offer_test_big_sd_msg_client its_sample(offer_test::service);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

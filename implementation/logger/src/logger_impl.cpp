@@ -88,7 +88,7 @@ static std::mutex the_logger_mutex__;
 
 std::shared_ptr<logger_impl>
 logger_impl::get() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
 #endif
     if (the_logger_ptr__ == nullptr) {
@@ -103,7 +103,7 @@ logger_impl::get() {
     return nullptr;
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void)
 {

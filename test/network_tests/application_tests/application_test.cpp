@@ -466,7 +466,7 @@ TEST_F(someip_application_exception_test, catch_exception_in_invoked_handler) {
 
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -30,7 +30,7 @@ TEST(someip_application_test_availability, register_availability_handlers)
     its_daemon.stop();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

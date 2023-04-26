@@ -600,7 +600,7 @@ TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_i
     its_client_ids.clear();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

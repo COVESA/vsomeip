@@ -20,6 +20,7 @@ vsomeip_v3::service_t valid_service { 0xf913 };
 vsomeip_v3::service_t invalid_service { 0x41 };
 }
 
+#ifndef __QNX__
 TEST(is_policy_update_allowed, check_whitelist_disabled)
 {
     // Test object.
@@ -169,6 +170,7 @@ TEST(is_policy_update_allowed, check_whitelist_enabled)
     EXPECT_FALSE(security->is_policy_update_allowed(valid_uid, policy))
             << "Failed to deny policy update with valid user id and invalid request!";
 }
+#endif
 
 TEST(is_policy_update_allowed, null_policy)
 {

@@ -1266,7 +1266,7 @@ policy_manager_impl::get_security_config_folder(const std::string &its_folder) c
     std::stringstream its_security_config_folder;
     its_security_config_folder << its_folder;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     its_security_config_folder << "/" << getuid() << "_" << getgid();
 #endif
 
@@ -1439,7 +1439,7 @@ static std::mutex the_policy_manager_mutex__;
 
 std::shared_ptr<policy_manager_impl>
 policy_manager_impl::get() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
 #endif
     if(the_policy_manager_ptr__ == nullptr) {
@@ -1454,7 +1454,7 @@ policy_manager_impl::get() {
     return nullptr;
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 static void security_teardown(void) __attribute__((destructor));
 static void security_teardown(void)
 {

@@ -38,7 +38,7 @@ TEST(someip_application_test_single_process, notify_increasing_counter)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

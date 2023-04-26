@@ -201,7 +201,7 @@ TEST(suspend_resume_test, fast)
     its_service.run_test();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
 
     ::testing::InitGoogleTest(&argc, argv);

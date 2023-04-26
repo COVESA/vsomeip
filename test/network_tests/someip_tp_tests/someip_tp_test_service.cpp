@@ -382,7 +382,7 @@ TEST(someip_someip_tp_test, echo_requests)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

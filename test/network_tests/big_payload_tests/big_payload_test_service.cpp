@@ -251,7 +251,7 @@ TEST(someip_big_payload_test, receive_ten_messages_and_send_reply)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

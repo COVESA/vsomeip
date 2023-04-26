@@ -114,7 +114,7 @@
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
 #define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // microseconds
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>
 #endif
 

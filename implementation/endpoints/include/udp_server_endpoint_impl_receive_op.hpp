@@ -7,7 +7,7 @@
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
 #if VSOMEIP_BOOST_VERSION >= 106600
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 
 #include <iomanip>
 

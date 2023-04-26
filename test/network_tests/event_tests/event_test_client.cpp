@@ -253,7 +253,7 @@ TEST(someip_event_test, subscribe_or_call_method_at_service)
     event_test_client its_sample(event_test::service, passed_mode, use_tcp);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

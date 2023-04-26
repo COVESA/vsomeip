@@ -641,7 +641,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
 
     local_port_ = 0;
     if (socket_->is_open()) {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
             VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
                     << std::string(std::strerror(errno))
@@ -830,7 +830,7 @@ void client_endpoint_impl<Protocol>::start_dispatch_timer(
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     dispatch_timer_.expires_from_now(its_offset);
 #else
     dispatch_timer_.expires_from_now(
@@ -857,7 +857,7 @@ void client_endpoint_impl<Protocol>::update_last_departure() {
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 template class client_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;

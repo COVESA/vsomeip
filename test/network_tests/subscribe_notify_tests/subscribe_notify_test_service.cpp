@@ -477,7 +477,7 @@ TEST(someip_subscribe_notify_test, send_ten_notifications_to_service)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

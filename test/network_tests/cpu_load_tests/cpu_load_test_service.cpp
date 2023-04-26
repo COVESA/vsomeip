@@ -200,7 +200,7 @@ TEST(someip_payload_test, DISABLED_send_response_for_every_request)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
