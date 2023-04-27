@@ -433,10 +433,9 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
             if (!updated) {
                 services_[_service][_instance] = its_service;
                 VSOMEIP_INFO << "Added new remote configuration for service ["
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << its_service->service_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << its_service->instance_ << "]";
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << its_service->service_ << "."
+                        << std::setw(4) << its_service->instance_ << "]";
             }
             if (_magic_cookies_enabled) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -2568,10 +2567,9 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
                 for (const auto &m : p.second) {
                     partitions_[p.first][m] = its_partition_id;
                     its_log << "<"
-                            << std::setw(4) << std::setfill('0') << std::hex
-                            << p.first << "."
-                            << std::setw(4) << std::setfill('0') << std::hex
-                            << m
+                            << std::setfill('0') << std::hex
+                            << std::setw(4) << p.first << "."
+                            << std::setw(4) << m
                             << ">";
                 }
             }
@@ -3807,9 +3805,9 @@ configuration_impl::load_service_debounce(
             auto find_instance = find_service->second.find(its_instance);
             if (find_instance != find_service->second.end()) {
                 VSOMEIP_ERROR << "Multiple debounce configurations for service "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service
-                    << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance;
                 return;
             }
         }
@@ -4215,12 +4213,13 @@ void configuration_impl::load_someip_tp_for_service(
                             = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method ["
-                                << std::hex << std::setw(4) << std::setfill('0') << _service->service_ << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _service->instance_ << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << its_method << "]:"
-                                << " using ("
-                                << std::dec << its_entry->second.first << ", "
-                                << std::dec << its_entry->second.second << ")";
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << _service->service_ << "."
+                                << std::setw(4) << _service->instance_ << "."
+                                << std::setw(4) << its_method << "]:"
+                                << " using (" << std::dec
+                                << its_entry->second.first << ", "
+                                << its_entry->second.second << ")";
                     }
                 } else {
                     const auto its_entry = _service->tp_service_config_.find(its_method);
@@ -4229,11 +4228,12 @@ void configuration_impl::load_someip_tp_for_service(
                             = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method ["
-                                << std::hex << std::setw(4) << std::setfill('0') << _service->service_ << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << _service->instance_ << "."
-                                << std::hex << std::setw(4) << std::setfill('0') << its_method << "]:"
-                                << " using ("
-                                << std::dec << its_entry->second.first << ", "
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << _service->service_ << "."
+                                << std::setw(4) << _service->instance_ << "."
+                                << std::setw(4) << its_method << "]:"
+                                << " using (" << std::dec
+                                << its_entry->second.first << ", "
                                 << std::dec << its_entry->second.second << ")";
                     }
                 }

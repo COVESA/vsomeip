@@ -111,10 +111,10 @@ void serializer::reset() {
 #ifdef VSOMEIP_DEBUGGING
 void serializer::show() {
     std::stringstream its_data;
-    its_data << "SERIALIZED: ";
+    its_data << "SERIALIZED: "
+             << std::setfill('0') << std::hex;
     for (const byte_t& e : data_)
-        its_data << std::setw(2) << std::setfill('0')
-                 << std::hex << (int)e;
+        its_data << std::setw(2) << (int)e;
     VSOMEIP_INFO << its_data.str();
 }
 #endif

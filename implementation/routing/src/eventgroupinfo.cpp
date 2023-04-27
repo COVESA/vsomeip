@@ -330,9 +330,10 @@ eventgroupinfo::is_remote_subscription_limit_reached(
             if (find_address->second > max_remote_subscribers_) {
                 VSOMEIP_WARNING << ": remote subscriber limit [" << std::dec
                         << (uint32_t)max_remote_subscribers_ << "] to ["
-                        << std::hex << std::setw(4) << std::setfill('0') << service_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << instance_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << eventgroup_ << "]"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << service_ << "."
+                        << std::setw(4) << instance_ << "."
+                        << std::setw(4) << eventgroup_ << "]"
                         << " reached for remote address: " << its_address.to_string()
                         << " rejecting subscription!";
                 return true;
@@ -483,10 +484,11 @@ eventgroupinfo::send_initial_events(
                     break;
                 default:
                     VSOMEIP_WARNING << __func__ << "Event reliability unknown: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << service_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << instance_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << eventgroup_ << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_event->get_event() << "]";
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << service_ << "."
+                        << std::setw(4) << instance_ << "."
+                        << std::setw(4) << eventgroup_ << "."
+                        << std::setw(4) << its_event->get_event() << "]";
                 }
             }
         }

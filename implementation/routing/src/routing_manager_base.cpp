@@ -106,13 +106,15 @@ bool routing_manager_base::offer_service(client_t _client,
             its_info->set_ttl(DEFAULT_TTL);
         } else {
             VSOMEIP_ERROR << "rm_base::offer_service service property mismatch ("
-                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << ":"
-                    << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << ":"
-                    << std::dec << its_info->get_minor() << "] passed: "
-                    << std::dec << static_cast<std::uint32_t>(_major) << ":"
-                    << std::dec << _minor;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << ":"
+                    << std::dec
+                    << static_cast<std::uint32_t>(its_info->get_major()) << ":"
+                    << its_info->get_minor() << "] passed: "
+                    << static_cast<std::uint32_t>(_major) << ":"
+                    << _minor;
             return false;
         }
     } else {
@@ -175,13 +177,15 @@ void routing_manager_base::request_service(client_t _client,
             its_info->add_client(_client);
         } else {
             VSOMEIP_ERROR << "rm_base::request_service service property mismatch ("
-                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << ":"
-                    << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << ":"
-                    << std::dec << its_info->get_minor() << "] passed: "
-                    << std::dec << static_cast<std::uint32_t>(_major) << ":"
-                    << std::dec << _minor;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << ":"
+                    << std::dec
+                    << static_cast<std::uint32_t>(its_info->get_major()) << ":"
+                    << its_info->get_minor() << "] passed: "
+                    << static_cast<std::uint32_t>(_major) << ":"
+                    << _minor;
         }
     }
 }
@@ -327,12 +331,10 @@ void routing_manager_base::register_event(client_t _client,
             if (its_debounce) {
                 VSOMEIP_WARNING << "Using debounce configuration for "
                         << " SOME/IP event "
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _notifier << ".";
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _notifier << ".";
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="
                         << (its_debounce->on_change_ ? "true" : "false")
@@ -759,11 +761,12 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance,
                 // cache notification if subscription is in progress
                 if (subscription_state_e::IS_SUBSCRIBING == its_subscription_state) {
                     VSOMEIP_INFO << "routing_manager_base::notify_one("
-                        << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << valid_group << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _client << "): ["
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << valid_group << "."
+                        << std::setw(4) << _event << "]"
                         << " insert pending notification!";
                     std::shared_ptr<message> its_notification
                         = runtime::get()->create_notification();
@@ -801,11 +804,12 @@ void routing_manager_base::send_pending_notify_ones(service_t _service, instance
             auto its_group = its_instance->second.find(_eventgroup);
             if (its_group != its_instance->second.end()) {
                 VSOMEIP_INFO << "routing_manager_base::send_pending_notify_ones("
-                    << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_group->second->get_method() << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << _eventgroup << "."
+                    << std::setw(4) << its_group->second->get_method() << "]";
 
                 notify_one(_service, _instance, its_group->second->get_method(),
                         its_group->second->get_payload(), _client, false, _remote_subscriber);
@@ -1271,11 +1275,12 @@ bool routing_manager_base::insert_subscription(
                     host_->is_routing());
         } else {
             VSOMEIP_WARNING << "routing_manager_base::insert_subscription("
-                << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _client << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "."
+                << std::setw(4) << _event << "]"
                 << " received subscription for unknown (unrequested / "
                 << "unoffered) event. Creating placeholder event holding "
                 << "subscription until event is requested/offered.";
@@ -1307,11 +1312,12 @@ bool routing_manager_base::insert_subscription(
         }
         if (create_place_holder) {
             VSOMEIP_WARNING << "routing_manager_base::insert_subscription("
-                << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _client << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "."
+                << std::setw(4) << _event << "]"
                 << " received subscription for unknown (unrequested / "
                 << "unoffered) eventgroup. Creating placeholder event holding "
                 << "subscription until event is requested/offered.";
