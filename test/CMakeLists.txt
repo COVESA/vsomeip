@@ -3153,6 +3153,95 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# any instance tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_ANY_INSTANCE_NAME any_instance_test)
+    set(TEST_ANY_INSTANCE_SERVICE ${TEST_ANY_INSTANCE_NAME}_service)
+    add_executable(${TEST_ANY_INSTANCE_SERVICE} any_instance_tests/${TEST_ANY_INSTANCE_NAME}_service.cpp)
+    target_link_libraries(${TEST_ANY_INSTANCE_SERVICE}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_ANY_INSTANCE_CLIENT ${TEST_ANY_INSTANCE_NAME}_client)
+    add_executable(${TEST_ANY_INSTANCE_CLIENT} any_instance_tests/${TEST_ANY_INSTANCE_NAME}_client.cpp)
+    target_link_libraries(${TEST_ANY_INSTANCE_CLIENT}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_ANY_INSTANCE_AVAILABILITY_CHECKER ${TEST_ANY_INSTANCE_NAME}_client_availability_checker)
+    add_executable(${TEST_ANY_INSTANCE_AVAILABILITY_CHECKER} any_instance_tests/${TEST_ANY_INSTANCE_NAME}_client_availability_checker.cpp)
+    target_link_libraries(${TEST_ANY_INSTANCE_AVAILABILITY_CHECKER}
+        vsomeip3
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    set(TEST_ANY_INSTANCE_MASTER_CONFIG_FILE ${TEST_ANY_INSTANCE_NAME}_master.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/conf/${TEST_ANY_INSTANCE_MASTER_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_CONFIG_FILE}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+
+    set(TEST_ANY_INSTANCE_MASTER_TCP_CONFIG_FILE ${TEST_ANY_INSTANCE_NAME}_master_tcp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/conf/${TEST_ANY_INSTANCE_MASTER_TCP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_TCP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_TCP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_TCP_CONFIG_FILE}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+
+    set(TEST_ANY_INSTANCE_MASTER_UDP_CONFIG_FILE ${TEST_ANY_INSTANCE_NAME}_master_udp.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/conf/${TEST_ANY_INSTANCE_MASTER_UDP_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_UDP_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_UDP_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_UDP_CONFIG_FILE}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+
+    set(TEST_ANY_INSTANCE_SLAVE_CONFIG_FILE ${TEST_ANY_INSTANCE_NAME}_slave.json)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/conf/${TEST_ANY_INSTANCE_SLAVE_CONFIG_FILE}.in
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_SLAVE_CONFIG_FILE}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_SLAVE_CONFIG_FILE}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+
+    # Copy starter scripts for external test to $BUILDDIR/test
+    set(TEST_ANY_INSTANCE_MASTER_STARTER ${TEST_ANY_INSTANCE_NAME}_master_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_MASTER_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_STARTER}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+    set(TEST_ANY_INSTANCE_SLAVE_STARTER ${TEST_ANY_INSTANCE_NAME}_slave_starter.sh)
+    copy_to_builddir(${PROJECT_SOURCE_DIR}/test/any_instance_tests/${TEST_ANY_INSTANCE_SLAVE_STARTER}
+        ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_SLAVE_STARTER}
+        ${TEST_ANY_INSTANCE_SERVICE}
+    )
+endif()
+
+##############################################################################
 # Add for every test a dependency to gtest
 ##############################################################################
 
@@ -3309,6 +3398,9 @@ if(NOT ${TESTS_BAT})
     endif()
     add_dependencies(build_tests ${TEST_SUSPEND_RESUME_CLIENT})
     add_dependencies(build_tests ${TEST_SUSPEND_RESUME_SERVICE})
+    add_dependencies(build_tests ${TEST_ANY_INSTANCE_SERVICE})
+    add_dependencies(build_tests ${TEST_ANY_INSTANCE_CLIENT})
+    add_dependencies(build_tests ${TEST_ANY_INSTANCE_AVAILABILITY_CHECKER})
 else()
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_tests ${TEST_LOCAL_ROUTING_CLIENT})
@@ -3830,6 +3922,18 @@ if(NOT ${TESTS_BAT})
         COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT} SERVICE
     )
     set_tests_properties(${TEST_SUSPEND_RESUME_NAME}_initial PROPERTIES TIMEOUT 80)
+
+    add_test(NAME ${TEST_ANY_INSTANCE_NAME}
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_STARTER}
+    )
+
+    add_test(NAME ${TEST_ANY_INSTANCE_NAME}_tcp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_STARTER} TCP
+    )
+
+    add_test(NAME ${TEST_ANY_INSTANCE_NAME}_udp
+        COMMAND ${PROJECT_BINARY_DIR}/test/${TEST_ANY_INSTANCE_MASTER_STARTER} UDP
+    )
 
 else()
     # Routing tests
