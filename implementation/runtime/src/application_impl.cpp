@@ -849,7 +849,7 @@ void application_impl::send(std::shared_ptr<message> _message) {
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
         VSOMEIP_INFO << "application_impl::send: ("
             << std::hex << std::setfill('0')
-            << std::setw(4) << client_ <<"): ["
+            << std::setw(4) << client_ << "): ["
             << std::setw(4) << _message->get_service() << "."
             << std::setw(4) << _message->get_instance() << "."
             << std::setw(4) << _message->get_method() << ":"
@@ -1972,7 +1972,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->instance_id_))))) {
         VSOMEIP_INFO << "Invoking handler: ("
             << std::hex << std::setfill('0')
-            << std::setw(4) << client_ <<"): ["
+            << std::setw(4) << client_ << "): ["
             << std::setw(4) << its_sync_handler->service_id_ << "."
             << std::setw(4) << its_sync_handler->instance_id_ << "."
             << std::setw(4) << its_sync_handler->method_id_ << ":"
@@ -2202,7 +2202,7 @@ void application_impl::send_back_cached_event(service_t _service,
         on_message(std::move(its_message));
         VSOMEIP_INFO << "Sending back cached event ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << client_ <<"): ["
+                << std::setw(4) << client_ << "): ["
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _instance << "."
                 << std::setw(4) << _event << "]";
@@ -2226,7 +2226,7 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
             on_message(std::move(its_message));
             VSOMEIP_INFO << "Sending back cached event ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << client_ <<"): ["
+                    << std::setw(4) << client_ << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _instance << "."
                     << std::setw(4) << its_event_id
@@ -2432,14 +2432,14 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
         case handler_type_e::AVAILABILITY:
             VSOMEIP_WARNING << "BLOCKING CALL AVAILABILITY("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << get_client() <<"): ["
+                << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
                 << std::setw(4) << _handler->instance_id_ << "]";
             break;
         case handler_type_e::MESSAGE:
             VSOMEIP_WARNING << "BLOCKING CALL MESSAGE("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << get_client() <<"): ["
+                << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
                 << std::setw(4) << _handler->instance_id_ << "."
                 << std::setw(4) << _handler->method_id_ << ":"
@@ -2452,7 +2452,7 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
         case handler_type_e::SUBSCRIPTION:
             VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << get_client() <<"): ["
+                << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
                 << std::setw(4) << _handler->instance_id_ << "."
                 << std::setw(4) << _handler->eventgroup_id_ << ":"
@@ -2460,11 +2460,11 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
             break;
         case handler_type_e::OFFERED_SERVICES_INFO:
             VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
         case handler_type_e::WATCHDOG:
             VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
         case handler_type_e::UNKNOWN:
             VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN("

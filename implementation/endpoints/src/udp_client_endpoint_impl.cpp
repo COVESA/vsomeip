@@ -538,7 +538,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                         << " " << std::dec << queue_.size()
                         << " " << std::dec << queue_size_ << " ("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << its_client <<"): ["
+                        << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_method << "."
                         << std::setw(4) << its_session << "]";
@@ -614,7 +614,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 << " " << std::dec << queue_.size()
                 << " " << std::dec << queue_size_ << " ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]";

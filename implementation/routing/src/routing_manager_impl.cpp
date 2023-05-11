@@ -406,7 +406,7 @@ bool routing_manager_impl::offer_service(client_t _client,
 
     VSOMEIP_INFO << "OFFER("
         << std::hex << std::setfill('0')
-        << std::setw(4) << _client <<"): ["
+        << std::setw(4) << _client << "): ["
         << std::setw(4) << _service << "."
         << std::setw(4) << _instance
         << ":" << std::dec << int(_major) << "." << _minor << "]"
@@ -500,7 +500,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
 
     VSOMEIP_INFO << "STOP OFFER("
         << std::hex << std::setfill('0')
-        << std::setw(4) << _client <<"): ["
+        << std::setw(4) << _client << "): ["
         << std::setw(4) << _service << "."
         << std::setw(4) << _instance
         << ":" << std::dec << int(_major) << "." << _minor << "]"
@@ -539,7 +539,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
     } else {
         VSOMEIP_WARNING << __func__ << " received STOP_OFFER("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << _client <<"): ["
+                << std::setw(4) << _client << "): ["
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _instance
                 << ":" << std::dec << int(_major) << "." << _minor << "] "
@@ -654,7 +654,7 @@ void routing_manager_impl::subscribe(
 
     VSOMEIP_INFO << "SUBSCRIBE("
         << std::hex << std::setfill('0')
-        << std::setw(4) << _client <<"): ["
+        << std::setw(4) << _client << "): ["
         << std::setw(4) << _service << "."
         << std::setw(4) << _instance << "."
         << std::setw(4) << _eventgroup << ":"
@@ -3026,7 +3026,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
 
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _instance << "."
                     << std::setw(4) << _eventgroup << "]"
@@ -3112,7 +3112,7 @@ void routing_manager_impl::on_subscribe_nack(client_t _client,
                 discovery_->update_remote_subscription(its_subscription);
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _instance << "."
                     << std::setw(4) << _eventgroup << "]"
@@ -3507,7 +3507,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                                                         its_stored_client);
                                 VSOMEIP_WARNING << "OFFER("
                                     << std::hex << std::setfill('0')
-                                    << std::setw(4) << _client <<"): ["
+                                    << std::setw(4) << _client << "): ["
                                     << std::setw(4) << _service << "."
                                     << std::setw(4) << _instance << ":"
                                     << std::dec << int(_major) << "." << std::dec << _minor
@@ -3646,7 +3646,7 @@ void routing_manager_impl::handle_client_error(client_t _client) {
                 if (std::get<3>(instance_iter->second) == _client) {
                     VSOMEIP_WARNING << "OFFER("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << std::get<2>(instance_iter->second) <<"): ["
+                        << std::setw(4) << std::get<2>(instance_iter->second) << "): ["
                         << std::setw(4) << service_iter->first << "."
                         << std::setw(4) << instance_iter->first << ":"
                         << std::dec

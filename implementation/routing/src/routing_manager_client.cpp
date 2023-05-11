@@ -834,7 +834,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                         _data[VSOMEIP_CLIENT_POS_MAX]);
                 VSOMEIP_INFO << "routing_manager_client::send: ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << get_client() <<"): ["
+                    << std::setw(4) << get_client() << "): ["
                     << std::setw(4) << its_service << "."
                     << std::setw(4) << _instance << "."
                     << std::setw(4) << its_method << ":"
@@ -846,7 +846,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         } else {
             VSOMEIP_ERROR << "routing_manager_client::send: ("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                <<"): message too short to log: " << std::dec << _size;
+                << "): message too short to log: " << std::dec << _size;
         }
     }
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
@@ -1315,7 +1315,7 @@ void routing_manager_client::on_message(
                         }
                         VSOMEIP_INFO << "SUBSCRIBE("
                             << std::hex << std::setfill('0')
-                            << std::setw(4) << its_client <<"): ["
+                            << std::setw(4) << its_client << "): ["
                             << std::setw(4) << its_service << "."
                             << std::setw(4) << its_instance << "."
                             << std::setw(4) << its_eventgroup << ":"
@@ -1418,7 +1418,7 @@ void routing_manager_client::on_message(
                 if (its_pending_id == PENDING_SUBSCRIPTION_ID) { // local subscription
                     VSOMEIP_INFO << "SUBSCRIBE("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << its_client <<"): ["
+                        << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_instance << "."
                         << std::setw(4) << its_eventgroup << ":"
@@ -1882,7 +1882,7 @@ void routing_manager_client::on_routing_info(
                             availability_state_e::AS_AVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_AVAILABLE("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << get_client() <<"): ["
+                        << std::setw(4) << get_client() << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_instance
                         << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
@@ -1915,7 +1915,7 @@ void routing_manager_client::on_routing_info(
                             availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_UNAVAILABLE("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << get_client() <<"): ["
+                        << std::setw(4) << get_client() << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_instance
                         << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
@@ -2038,7 +2038,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
     }
 
     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
-            <<": Reconnecting to routing manager.";
+            << ": Reconnecting to routing manager.";
 
 #if defined(__linux__) || defined(ANDROID)
     if (!its_security->check_credentials(get_client(), get_sec_client())) {

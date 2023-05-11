@@ -118,7 +118,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                 VSOMEIP_WARNING << "tce::restart: dropping message: "
                         << "remote:" << self->get_address_port_remote() << " ("
                         << std::hex << std::setfill('0')
-                        << std::setw(4) << its_client <<"): ["
+                        << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_method << "."
                         << std::setw(4) << its_session << "]"
@@ -424,7 +424,7 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(
                 << " bytes to sent: " << std::dec << _bytes_to_send << " "
                 << "remote:" << get_address_port_remote() << " ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << _client <<"): ["
+                << std::setw(4) << _client << "): ["
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _method << "."
                 << std::setw(4) << _session << "]";
@@ -442,7 +442,7 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(
                     << " bytes to sent: " << std::dec << _bytes_to_send << " "
                     << "remote:" << get_address_port_remote() << " ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _method << "."
                     << std::setw(4) << _session << "]";
@@ -454,7 +454,7 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(
                     << " bytes to sent: " << std::dec << _bytes_to_send << " "
                     << "remote:" << get_address_port_remote() << " ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _method << "."
                     << std::setw(4) << _session << "]";
@@ -796,7 +796,7 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
         std::size_t _recv_buffer_size) {
 
     std::stringstream its_message;
-    its_message <<"tcp_client_endpoint_impl::connection catched exception"
+    its_message << "tcp_client_endpoint_impl::connection catched exception"
             << _e.what() << " local: " << get_address_port_local()
             << " remote: " << get_address_port_remote()
             << " shutting down connection. Start of buffer: "
@@ -934,7 +934,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 << " " << std::dec << queue_.size()
                 << " " << std::dec << queue_size_ << " ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]";

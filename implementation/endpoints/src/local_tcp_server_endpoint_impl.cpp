@@ -761,7 +761,7 @@ std::string local_tcp_server_endpoint_impl::connection::get_path_remote() const 
 void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
         const std::exception &_e) {
     std::stringstream its_message;
-    its_message <<"local_tcp_server_endpoint_impl::connection catched exception"
+    its_message << "local_tcp_server_endpoint_impl::connection catched exception"
             << _e.what() << " local: " << get_path_local() << " remote: "
             << get_path_remote() << " shutting down connection. Start of buffer: "
             << std::setfill('0') << std::hex;

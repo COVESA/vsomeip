@@ -498,7 +498,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
             its_udp_server_endpoint->join_unlocked(_address.to_string());
         }
     } else {
-        VSOMEIP_ERROR <<"Could not find/create multicast endpoint!";
+        VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
 }
 

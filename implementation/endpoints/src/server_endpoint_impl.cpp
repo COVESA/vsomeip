@@ -530,7 +530,7 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
                 << endpoint_impl<Protocol>::queue_limit_
                 << ") reached. Dropping message ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]"
@@ -743,7 +743,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << std::dec << its_data.queue_.size() << " "
                 << its_data.queue_size_ << " ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]";

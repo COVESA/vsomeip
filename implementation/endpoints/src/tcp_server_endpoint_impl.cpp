@@ -875,7 +875,7 @@ std::string tcp_server_endpoint_impl::connection::get_address_port_local() const
 void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
         const std::exception &_e) {
     std::stringstream its_message;
-    its_message <<"tcp_server_endpoint_impl::connection catched exception"
+    its_message << "tcp_server_endpoint_impl::connection catched exception"
             << _e.what() << " local: " << get_address_port_local()
             << " remote: " << get_address_port_remote()
             << " shutting down connection. Start of buffer: "
@@ -920,7 +920,7 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                 << " bytes to sent: " << std::dec << _bytes_to_send << " "
                 << "remote:" << get_address_port_remote() << " ("
                 << std::hex << std::setfill('0')
-                << std::setw(4) << _client <<"): ["
+                << std::setw(4) << _client << "): ["
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _method << "."
                 << std::setw(4) << _session << "]";
@@ -939,7 +939,7 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                     << " bytes to sent: " << std::dec << _bytes_to_send
                     << " remote:" << get_address_port_remote() << " ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _method << "."
                     << std::setw(4) << _session << "]";
@@ -951,7 +951,7 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                     << " bytes to sent: " << std::dec << _bytes_to_send
                     << " remote:" << get_address_port_remote() << " ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _method << "."
                     << std::setw(4) << _session << "]";

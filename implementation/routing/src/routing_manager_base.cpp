@@ -107,7 +107,7 @@ bool routing_manager_base::offer_service(client_t _client,
         } else {
             VSOMEIP_ERROR << "rm_base::offer_service service property mismatch ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _instance << ":"
                     << std::dec
@@ -178,7 +178,7 @@ void routing_manager_base::request_service(client_t _client,
         } else {
             VSOMEIP_ERROR << "rm_base::request_service service property mismatch ("
                     << std::hex << std::setfill('0')
-                    << std::setw(4) << _client <<"): ["
+                    << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
                     << std::setw(4) << _instance << ":"
                     << std::dec

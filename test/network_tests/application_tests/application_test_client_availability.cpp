@@ -172,7 +172,7 @@ public:
                 availability_condition_.wait(its_lock);
             }
         }
-        VSOMEIP_INFO <<" Everything is available";
+        VSOMEIP_INFO << " Everything is available";
         all_availability_handlers_called_ = true;
     }
 

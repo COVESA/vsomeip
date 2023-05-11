@@ -140,7 +140,7 @@ public:
         << _message->get_session() << "] from Service/Method ["
         << std::setw(4) << std::setfill('0') << std::hex
         << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-        << std::hex << _message->get_method() <<"] got:" << std::dec << counter;
+        << std::hex << _message->get_method() << "] got:" << std::dec << counter;
 
         ASSERT_GT(counter, last_received_counter_);
         last_received_counter_ = counter;
