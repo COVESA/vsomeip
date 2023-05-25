@@ -273,12 +273,13 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
                 _data[VSOMEIP_MESSAGE_TYPE_POS]);
 
         ss << "("
-           << std::hex << std::setw(4) << std::setfill('0') << its_client << ") ["
-           << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-           << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-           << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_interface_version) << "."
-           << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_msg_type) << "."
-           << std::hex << std::setw(4) << std::setfill('0') << its_session
+           << std::hex << std::setfill('0')
+           << std::setw(4) << its_client << ") ["
+           << std::setw(4) << its_service << "."
+           << std::setw(4) << its_method << "."
+           << std::setw(2) << std::uint32_t(its_interface_version) << "."
+           << std::setw(2) << std::uint32_t(its_msg_type) << "."
+           << std::setw(4) << its_session
            << "] ";
         if (_data_length > VSOMEIP_TP_HEADER_POS_MAX) {
             const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(

@@ -156,7 +156,7 @@ public:
             << _message->get_session() << "] from Service/Method ["
             << std::setw(4) << std::setfill('0') << std::hex
             << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-            << std::hex << _message->get_method() <<"]";
+            << std::hex << _message->get_method() << "]";
             other_services_received_response_[std::make_pair(_message->get_service(),
                                                              _message->get_method())]++;
 
@@ -220,7 +220,7 @@ public:
                         << "] Sending a request to Service/Method ["
                         << std::setw(4) << std::setfill('0') << std::hex
                         << i.service_id << "/" << std::setw(4) << std::setfill('0')
-                        << std::hex << i.instance_id <<"]";
+                        << std::hex << i.instance_id << "]";
             }
         }
 

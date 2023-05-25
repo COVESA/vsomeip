@@ -875,20 +875,19 @@ std::string tcp_server_endpoint_impl::connection::get_address_port_local() const
 void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
         const std::exception &_e) {
     std::stringstream its_message;
-    its_message <<"tcp_server_endpoint_impl::connection catched exception"
+    its_message << "tcp_server_endpoint_impl::connection catched exception"
             << _e.what() << " local: " << get_address_port_local()
             << " remote: " << get_address_port_remote()
-            << " shutting down connection. Start of buffer: ";
+            << " shutting down connection. Start of buffer: "
+            << std::setfill('0') << std::hex;
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
-        its_message << std::setw(2) << std::setfill('0') << std::hex
-            << (int) (recv_buffer_[i]) << " ";
+        its_message << std::setw(2) << (int) (recv_buffer_[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
     for (int i = 15; recv_buffer_size_ > 15 && i >= 0; i--) {
-        its_message << std::setw(2) << std::setfill('0') << std::hex
-            <<  (int) (recv_buffer_[static_cast<size_t>(i)]) << " ";
+        its_message << std::setw(2) <<  (int) (recv_buffer_[static_cast<size_t>(i)]) << " ";
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
@@ -920,10 +919,11 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                 << ") bytes transferred: " << std::dec << _bytes_transferred
                 << " bytes to sent: " << std::dec << _bytes_to_send << " "
                 << "remote:" << get_address_port_remote() << " ("
-                << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _client << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _method << "."
+                << std::setw(4) << _session << "]";
         stop_and_remove_connection();
         return 0;
     }
@@ -938,10 +938,11 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                     << "ms bytes transferred: " << std::dec << _bytes_transferred
                     << " bytes to sent: " << std::dec << _bytes_to_send
                     << " remote:" << get_address_port_remote() << " ("
-                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _method << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _method << "."
+                    << std::setw(4) << _session << "]";
         } else {
             VSOMEIP_WARNING << "tse::write_completion_condition: "
                     << _error.message() << "(" << std::dec << _error.value()
@@ -949,10 +950,11 @@ tcp_server_endpoint_impl::connection::write_completion_condition(
                     << "ms bytes transferred: " << std::dec << _bytes_transferred
                     << " bytes to sent: " << std::dec << _bytes_to_send
                     << " remote:" << get_address_port_remote() << " ("
-                    << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _method << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _method << "."
+                    << std::setw(4) << _session << "]";
         }
     }
     return _bytes_to_send - _bytes_transferred;

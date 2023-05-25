@@ -129,10 +129,11 @@ void endpoint_manager_impl::is_remote_service_known(
                         *_reliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Reliable service endpoint has changed: ["
-                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
                             << std::dec << static_cast<std::uint32_t>(_major) << "."
-                            << std::dec << _minor << "] old: "
+                            << _minor << "] old: "
                             << its_definition->get_address().to_string() << ":"
                             << its_definition->get_port() << " new: "
                             << _reliable_address.to_string() << ":"
@@ -149,10 +150,11 @@ void endpoint_manager_impl::is_remote_service_known(
                         *_unreliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Unreliable service endpoint has changed: ["
-                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
                             << std::dec << static_cast<std::uint32_t>(_major) << "."
-                            << std::dec << _minor << "] old: "
+                            << _minor << "] old: "
                             << its_definition->get_address().to_string() << ":"
                             << its_definition->get_port() << " new: "
                             << _unreliable_address.to_string() << ":"
@@ -496,7 +498,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
             its_udp_server_endpoint->join_unlocked(_address.to_string());
         }
     } else {
-        VSOMEIP_ERROR <<"Could not find/create multicast endpoint!";
+        VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
 }
 

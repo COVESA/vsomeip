@@ -111,10 +111,10 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_response) {
-        VSOMEIP_INFO << "Received a response from Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _response->get_service()
-            << "." << std::setw(4) << std::setfill('0') << std::hex
-            << _response->get_instance() << "]:";
+        VSOMEIP_INFO << "Received a response from Service ["
+            << std::setfill('0') << std::hex
+            << std::setw(4) << _response->get_service() << "."
+            << std::setw(4) << _response->get_instance() << "]:";
         VSOMEIP_INFO << "########## begin message";
         VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
                 << _response->get_service() 

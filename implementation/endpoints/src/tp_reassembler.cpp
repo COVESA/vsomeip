@@ -83,13 +83,14 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
                     VSOMEIP_WARNING << __func__ << ": Received new segment "
                             "although old one is not finished yet. Dropping "
                             "old. ("
-                            << std::hex << std::setw(4) << std::setfill('0') << its_client << ") ["
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                            << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_interface_version) << "."
-                            << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_msg_type) << "] Old: 0x"
-                            << std::hex << std::setw(4) << std::setfill('0') << found_tp_msg->second.first << ", new: 0x"
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_client << ") ["
+                            << std::setw(4) << its_service << "."
+                            << std::setw(4) << its_method << "."
+                            << std::setw(2) << std::uint32_t(its_interface_version) << "."
+                            << std::setw(2) << std::uint32_t(its_msg_type) << "] Old: 0x"
+                            << std::setw(4) << found_tp_msg->second.first << ", new: 0x"
+                            << std::setw(4) << its_session;
                     // new segment with different session id -> throw away current
                     found_tp_msg->second.first = its_session;
                     found_tp_msg->second.second = tp_message(_data, _data_size, max_message_size_);
@@ -137,12 +138,13 @@ bool tp_reassembler::cleanup_unfinished_messages() {
                             << ": deleting unfinished SOME/IP-TP message from: "
                             << ip_iter->first.to_string() << ":" << std::dec
                             << port_iter->first << " ("
-                            << std::hex << std::setw(4) << std::setfill('0') << its_client << ") ["
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                            << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_interface_version) << "."
-                            << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_msg_type) << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << tp_id_iter->second.first << "]";
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_client << ") ["
+                            << std::setw(4) << its_service << "."
+                            << std::setw(4) << its_method << "."
+                            << std::setw(2) << std::uint32_t(its_interface_version) << "."
+                            << std::setw(2) << std::uint32_t(its_msg_type) << "."
+                            << std::setw(4) << tp_id_iter->second.first << "]";
                     tp_id_iter = port_iter->second.erase(tp_id_iter);
                 } else {
                     tp_id_iter++;

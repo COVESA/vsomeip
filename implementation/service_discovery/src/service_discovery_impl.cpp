@@ -354,9 +354,10 @@ service_discovery_impl::send_subscription(
             }
         } else if (its_reliability_type == reliability_type_e::RT_UNKNOWN) {
             VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't determine reliability type for subscription to ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << _eventgroup << "] ";
         }
 
         if (its_data.entry_) {
@@ -555,9 +556,10 @@ service_discovery_impl::unsubscribe_all_on_suspend() {
                         its_stopsubscribes[its_address].push_back(its_current_message);
                     } else {
                         VSOMEIP_WARNING << __func__ << ": Failed to create StopSubscribe entry for: "
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_instance.first << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup.first
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_service.first << "."
+                            << std::setw(4) << its_instance.first << "."
+                            << std::setw(4) << its_eventgroup.first
                             << " address: " << its_address.to_string();
                     }
                 }
@@ -797,9 +799,10 @@ service_discovery_impl::create_eventgroup_entry(
             } else {
                 VSOMEIP_WARNING << __func__ << ": Cannot create subscription as "
                         "reliable endpoint is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup << "]";
             }
             break;
         case reliability_type_e::RT_UNRELIABLE:
@@ -808,9 +811,10 @@ service_discovery_impl::create_eventgroup_entry(
             } else {
                 VSOMEIP_WARNING << __func__ << ": Cannot create subscription as "
                         "unreliable endpoint is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup << "]";
             }
             break;
         case reliability_type_e::RT_BOTH:
@@ -820,9 +824,10 @@ service_discovery_impl::create_eventgroup_entry(
             } else {
                 VSOMEIP_WARNING << __func__ << ": Cannot create subscription as "
                         "endpoint is zero: ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup << "]"
                         << " reliable: " << !!its_reliable_endpoint
                         << " unreliable: " << !!its_unreliable_endpoint;
             }
@@ -835,9 +840,10 @@ service_discovery_impl::create_eventgroup_entry(
             && _reliability_type != reliability_type_e::RT_UNKNOWN) {
         VSOMEIP_WARNING << __func__ << ": Didn't insert subscription as "
                 "subscription doesn't match reliability type: ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] "
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "] "
                 << (uint16_t) _reliability_type;
         return its_data;
     }
@@ -882,9 +888,10 @@ service_discovery_impl::create_eventgroup_entry(
         } else {
             VSOMEIP_WARNING << __func__ << ": Cannot create subscription as "
                     "local reliable port is zero: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << _eventgroup << "]";
             its_data.entry_ = nullptr;
             its_data.other_ = nullptr;
             return its_data;
@@ -935,9 +942,10 @@ service_discovery_impl::create_eventgroup_entry(
         } else {
             VSOMEIP_WARNING << __func__ << ": Cannot create subscription as "
                     " local unreliable port is zero: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << _eventgroup << "]";
             its_data.entry_ = nullptr;
             its_data.other_ = nullptr;
             return its_data;
@@ -1407,9 +1415,8 @@ service_discovery_impl::process_offerservice_serviceentry(
                      && !configuration_->is_secure_port(_unreliable_address, _unreliable_port, false)))) {
 
         VSOMEIP_WARNING << __func__ << ": Ignoring offer of ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service
-                << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "." << std::setw(4) << _instance
                 << "]";
         return;
     }
@@ -1422,8 +1429,9 @@ service_discovery_impl::process_offerservice_serviceentry(
 
     if (offer_type == reliability_type_e::RT_UNKNOWN) {
         VSOMEIP_WARNING << __func__ << ": Unknown remote offer type ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "]";
         return; // Unknown remote offer type --> no way to access it!
     }
 
@@ -1490,8 +1498,9 @@ service_discovery_impl::process_offerservice_serviceentry(
             _reliable_address, _reliable_port,
             _unreliable_address, _unreliable_port)) {
         VSOMEIP_WARNING << __func__ << ": Remote offer type changed ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "]";
 
         // Only update eventgroup reliability type if it was initially unknown
         auto its_eventgroups = host_->get_subscribed_eventgroups(_service, _instance);
@@ -1503,11 +1512,12 @@ service_discovery_impl::process_offerservice_serviceentry(
                     if (offer_type != reliability_type_e::RT_UNKNOWN
                             && offer_type != its_info->get_reliability()) {
                         VSOMEIP_WARNING << "sd::" << __func__ << ": eventgroup reliability type changed ["
-                                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                                    << std::hex << std::setw(4) << std::setfill('0') << eg << "]"
+                                    << std::hex << std::setfill('0')
+                                    << std::setw(4) << _service << "."
+                                    << std::setw(4) << _instance << "."
+                                    << std::setw(4) << eg << "]"
                                     << " using reliability type:  "
-                                    << std::hex << std::setw(4) << std::setfill('0') << (uint16_t) offer_type;
+                                    << std::setw(4) << (uint16_t) offer_type;
                         its_info->set_reliability(offer_type);
                     }
                 }
@@ -1813,11 +1823,11 @@ service_discovery_impl::process_eventgroupentry(
             VSOMEIP_ERROR << __func__
                     << ": Received a SubscribeEventGroup entry for unknown eventgroup "
                     << " from: " << its_sender.to_string(ec) << " for: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup
-                    << "] session: " << std::hex << std::setw(4) << std::setfill('0')
-                    << its_session << ", ttl: " << its_ttl;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup
+                    << "] session: " << std::setw(4) << its_session << ", ttl: " << its_ttl;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1830,11 +1840,11 @@ service_discovery_impl::process_eventgroupentry(
             VSOMEIP_WARNING << __func__
                     << ": Received a SubscribeEventGroup[N]Ack entry for unknown eventgroup "
                     << " from: " << its_sender.to_string(ec) << " for: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup
-                    << "] session: " << std::hex << std::setw(4) << std::setfill('0')
-                    << its_session << ", ttl: " << its_ttl;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup
+                    << "] session: " << std::setw(4) << its_session << ", ttl: " << its_ttl;
         }
         return;
     }
@@ -2292,14 +2302,15 @@ service_discovery_impl::handle_eventgroup_subscription(
         // TODO: Add sender and session id
         VSOMEIP_WARNING << __func__
                 << ": Subscription for ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "]"
                 << " not valid: Event configuration ("
                 << (std::uint32_t)_info->get_reliability()
                 << ") does not match the provided endpoint options: "
                 << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
-                << _second_address.to_string(ec) << ":" << std::dec << _second_port;
+                << _second_address.to_string(ec) << ":" << _second_port;
 
         return;
     }
@@ -2321,9 +2332,10 @@ service_discovery_impl::handle_eventgroup_subscription(
         VSOMEIP_ERROR << __func__
                 << ": Requested major version:[" << (uint32_t) _major
                 << "] in subscription to service: ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "]"
                 << " does not match with services major version:["
                 << (uint32_t) _info->get_major() << "] subscriber: "
                 << _first_address.to_string(ec) << ":" << std::dec << _first_port;
@@ -2352,9 +2364,10 @@ service_discovery_impl::handle_eventgroup_subscription(
                             << its_reliable->get_address().to_string()
                             << ":" << its_reliable->get_port()
                             << "] not established for subscription to: ["
-                            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
+                            << std::setw(4) << _eventgroup << "] ";
                     return;
                 }
             } else { // udp unicast
@@ -2381,9 +2394,10 @@ service_discovery_impl::handle_eventgroup_subscription(
                             << its_reliable->get_address().to_string()
                             << ":" << its_reliable->get_port()
                             << "] not established for subscription to: ["
-                            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
+                            << std::setw(4) << _eventgroup << "] ";
                     return;
                 }
             } else { // udp unicast
@@ -3565,8 +3579,9 @@ service_discovery_impl::update_remote_offer_type(
         case reliability_type_e::RT_UNKNOWN:
         default:
             VSOMEIP_WARNING << __func__ << ": unknown offer type ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "]"
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "]"
                     << static_cast<int>(_offer_type);
             break;
     }
@@ -3827,18 +3842,20 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(
             // and update reliability type of eventgroup
             its_reliability = get_remote_offer_type(_service, _instance);
             VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't determine eventgroup reliability type for ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup << "]"
                         << " using reliability type:  "
-                        << std::hex << std::setw(4) << std::setfill('0') << (uint16_t) its_reliability;
+                        << std::setw(4) << (uint16_t) its_reliability;
             its_info->set_reliability(its_reliability);
         }
     } else {
         VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't lock eventgroupinfo ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "] ";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "] ";
         auto its_eg_info = host_->find_eventgroup(_service, _instance, _eventgroup);
         if (its_eg_info) {
             _subscription->set_eventgroupinfo(its_eg_info);
@@ -3848,9 +3865,10 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(
 
     if (its_reliability == reliability_type_e::RT_UNKNOWN) {
         VSOMEIP_WARNING << "sd::" << __func__ << ": eventgroup reliability type is unknown ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << _eventgroup << "]";
     }
     return its_reliability;
 }

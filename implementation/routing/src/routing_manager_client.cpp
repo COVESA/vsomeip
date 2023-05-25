@@ -833,19 +833,20 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                         _data[VSOMEIP_CLIENT_POS_MIN],
                         _data[VSOMEIP_CLIENT_POS_MAX]);
                 VSOMEIP_INFO << "routing_manager_client::send: ("
-                    << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_method << ":"
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session << ":"
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "] "
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << get_client() << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << its_method << ":"
+                    << std::setw(4) << its_session << ":"
+                    << std::setw(4) << its_client << "] "
                     << "type=" << std::hex << static_cast<std::uint32_t>(_data[VSOMEIP_MESSAGE_TYPE_POS])
                     << " thread=" << std::hex << std::this_thread::get_id();
             }
         } else {
             VSOMEIP_ERROR << "routing_manager_client::send: ("
                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                <<"): message too short to log: " << std::dec << _size;
+                << "): message too short to log: " << std::dec << _size;
         }
     }
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
@@ -1053,12 +1054,12 @@ void routing_manager_client::on_message(
         if (configuration_->is_security_enabled()
                 && configuration_->is_local_routing()
                 && !is_from_routing && _bound_client != its_client) {
-            VSOMEIP_WARNING << std::hex << "Client "
-                << std::setw(4) << std::setfill('0') << get_client()
+            VSOMEIP_WARNING << std::hex << std::setfill('0')
+                << "Client " << std::setw(4) << get_client()
                 << " received a message with command " << int(its_id)
-                << " from " << std::setw(4) << std::setfill('0')
-                << its_client << " which doesn't match the bound client "
-                << std::setw(4) << std::setfill('0') << _bound_client
+                << " from " << std::setw(4) << its_client
+                << " which doesn't match the bound client "
+                << std::setw(4) << _bound_client
                 << " ~> skip message!";
             return;
         }
@@ -1115,12 +1116,13 @@ void routing_manager_client::on_message(
                             if (configuration_->is_security_enabled()
                                     && configuration_->is_local_routing()
                                     && its_message->get_client() != _bound_client) {
-                                VSOMEIP_WARNING << std::hex << "vSomeIP Security: Client 0x" << std::setw(4) << std::setfill('0') << get_client()
-                                    << " received a request from client 0x" << std::setw(4) << std::setfill('0')
-                                    << its_message->get_client() << " to service/instance/method "
+                                VSOMEIP_WARNING << std::hex << std::setfill('0')
+                                    << "vSomeIP Security: Client 0x" << std::setw(4) << get_client()
+                                    << " received a request from client 0x" << std::setw(4) << its_message->get_client()
+                                    << " to service/instance/method "
                                     << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method() << " which doesn't match the bound client 0x"
-                                    << std::setw(4) << std::setfill('0') << _bound_client
+                                    << "/" << its_message->get_method()
+                                    << " which doesn't match the bound client 0x" << std::setw(4) << _bound_client
                                     << " ~> skip message!";
                                 return;
                             }
@@ -1312,11 +1314,12 @@ void routing_manager_client::on_message(
                                            its_eventgroup, its_event, its_pending_id);
                         }
                         VSOMEIP_INFO << "SUBSCRIBE("
-                            << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << ":"
-                            << std::hex << std::setw(4) << std::setfill('0') << its_event << ":"
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_client << "): ["
+                            << std::setw(4) << its_service << "."
+                            << std::setw(4) << its_instance << "."
+                            << std::setw(4) << its_eventgroup << ":"
+                            << std::setw(4) << its_event << ":"
                             << std::dec << (uint16_t)its_major << "] "
                             << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID)
 							<< " "
@@ -1414,11 +1417,12 @@ void routing_manager_client::on_message(
 
                 if (its_pending_id == PENDING_SUBSCRIPTION_ID) { // local subscription
                     VSOMEIP_INFO << "SUBSCRIBE("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << ":"
-                        << std::hex << std::setw(4) << std::setfill('0') << its_event << ":"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << its_client << "): ["
+                        << std::setw(4) << its_service << "."
+                        << std::setw(4) << its_instance << "."
+                        << std::setw(4) << its_eventgroup << ":"
+                        << std::setw(4) << its_event << ":"
                         << std::dec << (uint16_t)its_major << "]";
                 }
             } else {
@@ -1462,11 +1466,12 @@ void routing_manager_client::on_message(
                     send_unsubscribe_ack(its_service, its_instance, its_eventgroup, its_pending_id);
                 }
                 VSOMEIP_INFO << "UNSUBSCRIBE("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event << "] "
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_event << "] "
                     << (bool)(its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
                     << std::dec << its_remote_subscriber_count;
             } else
@@ -1506,11 +1511,12 @@ void routing_manager_client::on_message(
                     }
                 }
                 VSOMEIP_INFO << "EXPIRED SUBSCRIPTION("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event << "] "
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_event << "] "
                     << (bool)(its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
                     << std::dec << its_remote_subscriber_count;
             } else
@@ -1534,11 +1540,12 @@ void routing_manager_client::on_message(
 
                 on_subscribe_nack(its_subscriber, its_service, its_instance, its_eventgroup, its_event);
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_event << "]";
             } else
                 VSOMEIP_ERROR << __func__
                     << ": subscribe nack command deserialization failed ("
@@ -1560,11 +1567,12 @@ void routing_manager_client::on_message(
 
                 on_subscribe_ack(its_subscriber, its_service, its_instance, its_eventgroup, its_event);
                 VSOMEIP_INFO << "SUBSCRIBE ACK("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_event << "]";
             } else
                 VSOMEIP_ERROR << __func__
                     << ": subscribe ack command deserialization failed ("
@@ -1873,9 +1881,10 @@ void routing_manager_client::on_routing_info(
                     host_->on_availability(its_service, its_instance,
                             availability_state_e::AS_AVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_AVAILABLE("
-                        << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_instance
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << get_client() << "): ["
+                        << std::setw(4) << its_service << "."
+                        << std::setw(4) << its_instance
                         << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
                 }
                 break;
@@ -1905,9 +1914,10 @@ void routing_manager_client::on_routing_info(
                     host_->on_availability(its_service, its_instance,
                             availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_UNAVAILABLE("
-                        << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_instance
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << get_client() << "): ["
+                        << std::setw(4) << its_service << "."
+                        << std::setw(4) << its_instance
                         << ":" << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
                 }
                 break;
@@ -2028,7 +2038,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
     }
 
     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
-            <<": Reconnecting to routing manager.";
+            << ": Reconnecting to routing manager.";
 
 #if defined(__linux__) || defined(ANDROID)
     if (!its_security->check_credentials(get_client(), get_sec_client())) {
@@ -2289,10 +2299,11 @@ void routing_manager_client::send_register_event(client_t _client,
 
         if (_is_provided) {
             VSOMEIP_INFO << "REGISTER EVENT("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() << "): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _notifier
+                << std::hex << std::setfill('0')
+                << std::setw(4) << get_client() << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _notifier
                 << ":is_provider=" << std::boolalpha << _is_provided << "]";
         }
     } else

@@ -124,13 +124,14 @@ public:
 
     void on_message(const std::shared_ptr< vsomeip::message > &_response) {
         std::cout << "Received a response from Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
+                << std::setfill('0') << std::hex
+                << std::setw(4) << _response->get_service()
                 << "."
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                << std::setw(4) << _response->get_instance()
                 << "] to Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
+                << std::setw(4) << _response->get_client()
                 << "/"
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
+                << std::setw(4) << _response->get_session()
                 << "]"
                 << std::endl;
         if (is_available_)
@@ -154,13 +155,14 @@ public:
                 if (is_available_) {
                     app_->send(request_);
                     std::cout << "Client/Session ["
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
+                            << std::setfill('0') << std::hex
+                            << std::setw(4) << request_->get_client()
                             << "/"
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
+                            << std::setw(4) << request_->get_session()
                             << "] sent a request to Service ["
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
+                            << std::setw(4) << request_->get_service()
                             << "."
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
+                            << std::setw(4) << request_->get_instance()
                             << "]"
                             << std::endl;
                     blocked_ = false;

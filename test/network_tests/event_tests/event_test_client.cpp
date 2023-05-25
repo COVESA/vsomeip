@@ -139,7 +139,7 @@ public:
         << _message->get_session() << "] from Service/Method ["
         << std::setw(4) << std::setfill('0') << std::hex
         << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-        << std::hex << _message->get_method() <<"]";
+        << std::hex << _message->get_method() << "]";
 
     }
 

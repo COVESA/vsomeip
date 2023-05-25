@@ -470,11 +470,12 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         its_instance, its_eventgroup, its_notifier, its_subscription_id);
 
                 VSOMEIP_INFO << "SUBSCRIBE ACK("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_notifier << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_notifier << "]";
             } else
                 VSOMEIP_ERROR << __func__
                     << ": deserializing subscribe ack failed ("
@@ -501,11 +502,12 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         its_instance, its_eventgroup, its_notifier, its_subscription_id);
 
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_notifier << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "."
+                    << std::setw(4) << its_notifier << "]";
             } else
                 VSOMEIP_ERROR << __func__
                     << ": deserializing subscribe nack failed ("
@@ -530,10 +532,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         its_instance, its_eventgroup, its_subscription_id);
 
                 VSOMEIP_INFO << "UNSUBSCRIBE ACK("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(4) << its_eventgroup << "]";
             } else
                 VSOMEIP_ERROR << __func__
                     << ": deserializing unsubscribe ack failed ("
@@ -700,12 +703,13 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             register_event.is_provided(), register_event.is_cyclic());
 
                     VSOMEIP_INFO << "REGISTER EVENT("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_instance
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << its_client << "): ["
+                        << std::setw(4) << its_service << "."
+                        << std::setw(4) << its_instance
                         << ":eventtype=" << std::dec << (int)register_event.get_event_type()
                         << ":is_provided=" << std::boolalpha << register_event.is_provided()
-                        << ":reliable=" << std::dec << (int)register_event.get_reliability() << "]";
+                        << ":reliable=" << (int)register_event.get_reliability() << "]";
                 }
 
 
@@ -726,10 +730,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         its_command.get_event(), its_command.is_provided());
 
                 VSOMEIP_INFO << "UNREGISTER EVENT("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_command.get_client() << "): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_command.get_service() << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_command.get_instance() << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_command.get_event()
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << its_command.get_client() << "): ["
+                        << std::setw(4) << its_command.get_service() << "."
+                        << std::setw(4) << its_command.get_instance() << "."
+                        << std::setw(4) << its_command.get_event()
                         << ":is_provider=" << std::boolalpha << its_command.is_provided() << "]";
             } else
                 VSOMEIP_ERROR << __func__ << ": unregister event deserialization failed ("
@@ -1325,12 +1330,12 @@ bool routing_manager_stub::send_subscribe(
     } else {
         VSOMEIP_WARNING << __func__
             << " Couldn't send subscription to local client ["
-            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
-            << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
-            << _client;
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _service << "."
+            << std::setw(4) << _instance << "."
+            << std::setw(4) << _eventgroup << "."
+            << std::setw(4) << _event << "]"
+            << " subscriber: " << std::setw(4) << _client;
     }
 
     return (has_sent);
@@ -1367,12 +1372,12 @@ bool routing_manager_stub::send_unsubscribe(
     } else {
         VSOMEIP_WARNING << __func__
             << " Couldn't send unsubscription to local client ["
-            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
-            << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
-            << _client;
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _service << "."
+            << std::setw(4) << _instance << "."
+            << std::setw(4) << _eventgroup << "."
+            << std::setw(4) << _event << "]"
+            << " subscriber: "<< std::setw(4) << _client;
     }
 
     return (has_sent);
@@ -1409,12 +1414,12 @@ bool routing_manager_stub::send_expired_subscription(
     } else {
         VSOMEIP_WARNING << __func__
             << " Couldn't send expired subscription to local client ["
-            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _event << "]"
-            << " subscriber: "<< std::hex << std::setw(4) << std::setfill('0')
-            << _client;
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _service << "."
+            << std::setw(4) << _instance << "."
+            << std::setw(4) << _eventgroup << "."
+            << std::setw(4) << _event << "]"
+            << " subscriber: "<< std::setw(4) << _client;
     }
 
     return (has_sent);
@@ -1772,8 +1777,7 @@ void routing_manager_stub::update_registration(client_t _client,
         const boost::asio::ip::address &_address, port_t _port) {
 
     std::stringstream its_client;
-    its_client << std::hex << std::setw(4) << std::setfill('0')
-            << _client;
+    its_client << std::hex << std::setfill('0') << std::setw(4) << _client;
 
     if (_port > 0 && _port < ILLEGAL_PORT) {
         its_client << " @ " << _address.to_string() << ":" << std::dec << _port;
@@ -2416,11 +2420,11 @@ bool routing_manager_stub::update_security_policy_configuration(
         for (auto its_client : its_clients_to_inform) {
             if (!send_update_security_policy_request(its_client, its_id, _uid, _payload)) {
                 VSOMEIP_INFO << __func__ << ": Couldn't send update security policy "
-                                        << "request to client 0x" << std::hex << std::setw(4)
-                                        << std::setfill('0') << its_client << " policy UID: "
-                                        << std::hex << std::setw(4) << std::setfill('0') << _uid << " GID: "
-                                        << std::hex << std::setw(4) << std::setfill('0') << _gid
-                                        << " with update ID: 0x" << std::hex << its_id
+                                        << std::hex << std::setfill('0')
+                                        << "request to client 0x" << std::setw(4) << its_client
+                                        << " policy UID: " << std::setw(4) << _uid
+                                        << " GID: " << std::setw(4) << _gid
+                                        << " with update ID: 0x" << its_id
                                         << " as client already disconnected";
                 // remove client from expected answer list
                 pending_security_update_remove(its_id, its_client);
@@ -2478,11 +2482,11 @@ bool routing_manager_stub::remove_security_policy_configuration(
                 for (auto its_client : its_clients_to_inform) {
                     if (!send_remove_security_policy_request(its_client, its_id, _uid, _gid)) {
                         VSOMEIP_INFO << __func__ << ": Couldn't send remove security policy "
-                                                << "request to client 0x" << std::hex << std::setw(4)
-                                                << std::setfill('0') << its_client << " policy UID: "
-                                                << std::hex << std::setw(4) << std::setfill('0') << _uid << " GID: "
-                                                << std::hex << std::setw(4) << std::setfill('0') << _gid
-                                                << " with update ID: 0x" << std::hex << its_id
+                                                << std::hex << std::setfill('0')
+                                                << "request to client 0x" << std::setw(4) << its_client
+                                                << " policy UID: " << std::setw(4) << _uid
+                                                << " GID: " << std::setw(4) << _gid
+                                                << " with update ID: 0x" << its_id
                                                 << " as client already disconnected";
                         // remove client from expected answer list
                         pending_security_update_remove(its_id, its_client);

@@ -270,10 +270,11 @@ bool server_endpoint_impl<Protocol>::send_intern(
             const session_t its_session = VSOMEIP_BYTES_TO_WORD(
                     _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
             VSOMEIP_WARNING << "server_endpoint::send: Service is stopping, ignoring message: ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_method << "."
+                    << std::setw(4) << its_client << "."
+                    << std::setw(4) << its_session << "]";
             return false;
         }
     }
@@ -528,12 +529,13 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_
                 << ") reached. Dropping message ("
-                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]"
                 << " queue_size: " << std::dec << _current_queue_size
-                << " data size: " << std::dec << _size;
+                << " data size: " << _size;
         return false;
     }
     return true;
@@ -739,11 +741,12 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << " (" << std::dec << _error.value() << ") "
                 << get_remote_information(_it) << " "
                 << std::dec << its_data.queue_.size() << " "
-                << std::dec << its_data.queue_size_ << " ("
-                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+                << its_data.queue_size_ << " ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]";
         cancel_dispatch_timer(_it);
         targets_.erase(_it);
         if (!prepare_stop_handlers_.empty()) {

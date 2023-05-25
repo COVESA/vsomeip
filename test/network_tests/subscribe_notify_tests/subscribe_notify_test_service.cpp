@@ -319,7 +319,7 @@ public:
             << "] subscribing to Service/Instance/Eventgroup ["
             << std::setw(4) << std::setfill('0') << std::hex << i.service_id << "/"
             << std::setw(4) << std::setfill('0') << std::hex << i.instance_id
-            << "/" << std::setw(4) << std::setfill('0') << std::hex << i.eventgroup_id <<"]";
+            << "/" << std::setw(4) << std::setfill('0') << std::hex << i.eventgroup_id << "]";
         }
 
         while (wait_until_notified_from_other_services_) {

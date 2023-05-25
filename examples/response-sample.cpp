@@ -94,11 +94,11 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_request) {
-        std::cout << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "]"
-            << std::endl;
+        std::cout << "Received a message with Client/Session ["
+		  << std::setfill('0') << std::hex
+		  << std::setw(4) << _request->get_client() << "/"
+		  << std::setw(4) << _request->get_session() << "]"
+		  << std::endl;
 
         std::shared_ptr<vsomeip::message> its_response
             = vsomeip::runtime::get()->create_response(_request);

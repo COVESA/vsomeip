@@ -231,9 +231,9 @@ endpoint_manager_base::log_client_states() const {
     });
 
     size_t its_max(std::min(size_t(10), its_client_queue_sizes.size()));
+    its_log << std::setfill('0');
     for (size_t i = 0; i < its_max; i++) {
-        its_log << std::hex << std::setw(4) << std::setfill('0')
-                << its_client_queue_sizes[i].first << ":"
+        its_log << std::hex << std::setw(4) << its_client_queue_sizes[i].first << ":"
                 << std::dec << its_client_queue_sizes[i].second;
         if (i < its_max-1)
             its_log << ", ";

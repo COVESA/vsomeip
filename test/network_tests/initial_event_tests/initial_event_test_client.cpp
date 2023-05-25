@@ -219,7 +219,7 @@ public:
                 << _message->get_session() << "] from Service/Method ["
                 << std::setw(4) << std::setfill('0') << std::hex
                 << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-                << std::hex << _message->get_method() <<"] (now have: "
+                << std::hex << _message->get_method() << "] (now have: "
                 << std::dec << other_services_received_notification_[std::make_pair(_message->get_service(),
                                                                         _message->get_method())] << ")";
             }

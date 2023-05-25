@@ -235,10 +235,10 @@ void deserializer::show() const {
     its_message << "("
             << std::hex << std::setw(2) << std::setfill('0')
             << (int)*position_ << ", "
-            << std:: dec << remaining_ << ") ";
+            << std:: dec << remaining_ << ") "
+            << std::hex << std::setfill('0');
     for (int i = 0; i < data_.size(); ++i)
-        its_message << std::hex << std::setw(2) << std::setfill('0')
-                    << (int)data_[i] << " ";
+        its_message << std::setw(2) << (int)data_[i] << " ";
     VSOMEIP_INFO << its_message;
 }
 #endif
