@@ -301,6 +301,10 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
 # the build.
 target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
+if(NOT WIN32)
+    target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
+endif()
+
 ################################################################################
 # Service Discovery library
 ################################################################################

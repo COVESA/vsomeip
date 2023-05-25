@@ -178,7 +178,7 @@ void * plugin_manager_impl::load_library(const std::string &_path) {
 #ifdef _WIN32
     return LoadLibrary(_path.c_str());
 #else
-    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 }
 
