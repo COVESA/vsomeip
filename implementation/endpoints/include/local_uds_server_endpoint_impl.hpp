@@ -25,13 +25,13 @@
 
 namespace vsomeip_v3 {
 
-using local_uds_server_endpoint_base_impl = server_endpoint_impl<
+typedef server_endpoint_impl<
 #if VSOMEIP_BOOST_VERSION < 106600
-    boost::asio::local::stream_protocol_ext
+            boost::asio::local::stream_protocol_ext
 #else
-    boost::asio::local::stream_protocol
+            boost::asio::local::stream_protocol
 #endif
-    >;
+        > local_uds_server_endpoint_base_impl;
 
 class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl {
 public:
@@ -87,7 +87,7 @@ private:
     class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        using ptr = std::shared_ptr<connection>;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
                           std::uint32_t _max_message_size,
@@ -160,7 +160,7 @@ private:
 #else
     boost::asio::local::stream_protocol::acceptor acceptor_;
 #endif
-    using connections_t = std::map<client_t, connection::ptr>;
+    typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
 

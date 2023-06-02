@@ -67,7 +67,7 @@ public:
     void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
@@ -146,7 +146,7 @@ private:
     void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
@@ -195,7 +195,7 @@ private:
 
     bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _notifier, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _notifier, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client);
 
     void request_debounce_timeout_cbk(boost::system::error_code const &_error);

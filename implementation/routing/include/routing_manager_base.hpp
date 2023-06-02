@@ -99,7 +99,7 @@ public:
             const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     virtual void unsubscribe(client_t _client,
             const vsomeip_sec_client_t *_sec_client,
@@ -199,7 +199,7 @@ protected:
 
     bool insert_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event,
-            const std::shared_ptr<debounce_filter_t> &_filter, client_t _client,
+            const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client,
             std::set<event_t> *_already_subscribed_events);
 
     std::shared_ptr<serializer> get_serializer();
@@ -213,7 +213,7 @@ protected:
     virtual void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) = 0;
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
     void remove_pending_subscription(service_t _service, instance_t _instance,
                                      eventgroup_t _eventgroup, event_t _event);
@@ -258,7 +258,7 @@ protected:
 private:
     virtual bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client) = 0;
 
 protected:
@@ -276,9 +276,8 @@ protected:
     std::condition_variable deserializer_condition_;
 
     mutable std::mutex local_services_mutex_;
-    using local_services_map_t =
-        std::map<service_t, std::map<instance_t,
-            std::tuple<major_version_t, minor_version_t, client_t>>>;
+    typedef std::map<service_t, std::map<instance_t,
+            std::tuple<major_version_t, minor_version_t, client_t>>> local_services_map_t;
     local_services_map_t local_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t> > > local_services_history_;
 
@@ -306,7 +305,7 @@ protected:
         eventgroup_t eventgroup_;
         major_version_t major_;
         event_t event_;
-        std::shared_ptr<debounce_filter_t> filter_;
+        std::shared_ptr<debounce_filter_impl_t> filter_;
         vsomeip_sec_client_t sec_client_;
 
         bool operator<(const subscription_data_t &_other) const {

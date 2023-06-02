@@ -83,7 +83,7 @@ public:
     void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
@@ -369,7 +369,7 @@ private:
     void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void on_net_interface_or_route_state_changed(bool _is_interface,
                                                  const std::string &_if,
@@ -401,7 +401,7 @@ private:
 
     bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client);
 
     void handle_subscription_state(client_t _client, service_t _service, instance_t _instance,

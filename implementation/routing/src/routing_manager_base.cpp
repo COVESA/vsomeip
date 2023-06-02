@@ -9,6 +9,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/routing_manager_base.hpp"
+#include "../../configuration/include/debounce_filter_impl.hpp"
 #include "../../protocol/include/send_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
@@ -326,7 +327,7 @@ void routing_manager_base::register_event(client_t _client,
         }
 
         if (_is_shadow && !_epsilon_change_func) {
-            std::shared_ptr<debounce_filter_t> its_debounce
+            std::shared_ptr<debounce_filter_impl_t> its_debounce
                 = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
             if (its_debounce) {
                 VSOMEIP_WARNING << "Using debounce configuration for "
@@ -350,8 +351,6 @@ void routing_manager_base::register_event(client_t _client,
                     const std::shared_ptr<payload> &_old,
                     const std::shared_ptr<payload> &_new) {
 
-                    static std::chrono::steady_clock::time_point its_last_forwarded
-                        = std::chrono::steady_clock::time_point::max();
                     bool is_changed(false), is_elapsed(false);
 
                     // Check whether we should forward because of changed data
@@ -403,13 +402,12 @@ void routing_manager_base::register_event(client_t _client,
                         // we did last time
                         std::chrono::steady_clock::time_point its_current
                             = std::chrono::steady_clock::now();
-
-                        std::int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                           its_current - its_last_forwarded).count();
-                        is_elapsed = (its_last_forwarded == std::chrono::steady_clock::time_point::max()
+                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           its_current - its_debounce->last_forwarded_).count();
+                        is_elapsed = (its_debounce->last_forwarded_ == std::chrono::steady_clock::time_point::max()
                                 || elapsed >= its_debounce->interval_);
                         if (is_elapsed || (is_changed && its_debounce->on_change_resets_interval_))
-                            its_last_forwarded = its_current;
+                            its_debounce->last_forwarded_ = its_current;
                     }
                     return (is_changed || is_elapsed);
                 };
@@ -658,7 +656,7 @@ void routing_manager_base::subscribe(client_t _client,
         const vsomeip_sec_client_t *_sec_client,
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) {
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
     (void)_major;
     (void)_sec_client;
@@ -1264,7 +1262,7 @@ bool routing_manager_base::send_local(
 
 bool routing_manager_base::insert_subscription(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
         client_t _client, std::set<event_t> *_already_subscribed_events) {
 
     bool is_inserted(false);
@@ -1336,8 +1334,7 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
                 << std::hex << std::setw(4) << std::setfill('0')
                 << get_client()
                 << " has no available serializer. Waiting...";
-
-        serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); });
+        serializer_condition_.wait(its_lock);
         VSOMEIP_INFO << __func__ << ": Client "
                         << std::hex << std::setw(4) << std::setfill('0')
                         << get_client()
@@ -1364,8 +1361,7 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
     while (deserializers_.empty()) {
         VSOMEIP_INFO << std::hex << "client " << get_client() <<
                 "routing_manager_base::get_deserializer ~> all in use!";
-
-        deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });
+        deserializer_condition_.wait(its_lock);
         VSOMEIP_INFO << std::hex << "client " << get_client() <<
                         "routing_manager_base::get_deserializer ~> wait finished!";
     }

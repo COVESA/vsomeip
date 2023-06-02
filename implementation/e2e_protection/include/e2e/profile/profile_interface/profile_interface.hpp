@@ -12,7 +12,7 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_interface {
 
-using check_status_t = std::uint8_t;
+typedef uint8_t check_status_t;
 enum generic_check_status : check_status_t { E2E_OK, E2E_WRONG_CRC, E2E_ERROR};
 
 

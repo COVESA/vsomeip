@@ -19,8 +19,8 @@ class endpoint_definition;
 
 class endpoint {
 public:
-    using error_handler_t = std::function<void()>;
-    using prepare_stop_handler_t = std::function<void(const std::shared_ptr<endpoint>&, service_t)>;
+    typedef std::function<void()> error_handler_t;
+    typedef std::function<void(const std::shared_ptr<endpoint>&, service_t)> prepare_stop_handler_t;
 
     virtual ~endpoint() {}
 

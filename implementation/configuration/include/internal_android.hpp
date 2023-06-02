@@ -54,8 +54,10 @@
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
-#define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      100
+#define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      500
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
+#define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
+#define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10  // miliseconds
 
 #define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
 
@@ -137,14 +139,6 @@ enum class port_type_e {
     PT_UNSECURE,
     PT_UNKNOWN
 };
-
-typedef std::map<service_t,
-    std::map<instance_t,
-        std::map<event_t,
-            std::shared_ptr<debounce_filter_t>
-        >
-    >
-> debounce_configuration_t;
 
 typedef uint8_t partition_id_t;
 const partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;

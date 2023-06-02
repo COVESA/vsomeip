@@ -10,8 +10,9 @@ namespace vsomeip_v3 {
 
 class remote_subscription;
 
-using remote_subscription_callback_t =
-    std::function<void (const std::shared_ptr<remote_subscription> &_subscription)>;
+typedef std::function<
+    void (const std::shared_ptr<remote_subscription> &_subscription)
+> remote_subscription_callback_t;
 
 } // namespace vsomeip_v3
 

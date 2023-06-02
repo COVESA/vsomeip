@@ -44,7 +44,11 @@ class serviceentry_impl;
 class service_discovery_host;
 class subscription;
 
-using requests_t = std::map<service_t, std::map<instance_t, std::shared_ptr<request>>>;
+typedef std::map<service_t,
+            std::map<instance_t,
+                std::shared_ptr<request>
+            >
+        > requests_t;
 
 struct entry_data_t {
     std::shared_ptr<entry_impl> entry_;
@@ -132,7 +136,7 @@ private:
             const std::shared_ptr<endpoint_definition> &_target,
             const std::set<client_t> &_clients);
 
-    using expired_ports_t = std::set<std::pair<bool, std::uint16_t>>;
+    typedef std::set<std::pair<bool, std::uint16_t>> expired_ports_t;
     struct sd_acceptance_state_t {
         explicit sd_acceptance_state_t(expired_ports_t& _expired_ports)
             : expired_ports_(_expired_ports),

@@ -932,9 +932,9 @@ void routing_manager_stub::client_registration_func(void) {
 #endif
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
-        client_registration_condition_.wait(its_lock, [this] {
-                return pending_client_registrations_.size() || !client_registration_running_;
-            });
+        while (!pending_client_registrations_.size() && client_registration_running_) {
+            client_registration_condition_.wait(its_lock);
+        }
 
         std::map<client_t, std::vector<registration_type_e>> its_registrations(
                 pending_client_registrations_);
@@ -1300,7 +1300,7 @@ bool routing_manager_stub::send_subscribe(
         const std::shared_ptr<endpoint>& _target, client_t _client,
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
         remote_subscription_id_t _id) {
 
     bool has_sent(false);

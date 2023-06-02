@@ -559,7 +559,9 @@ void application_impl::stop() {
 
     if (block) {
         std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
-        block_stop_cv_.wait(block_stop_lock, [this] { return block_stopping_; });
+        while (!block_stopping_) {
+            block_stop_cv_.wait(block_stop_lock);
+        }
         block_stopping_ = false;
     }
 }
@@ -1767,10 +1769,9 @@ void application_impl::main_dispatch() {
             // Cancel other waiting dispatcher
             dispatcher_condition_.notify_all();
             // Wait for new handlers to execute
-            dispatcher_condition_.wait(its_lock, [this, &its_id] {
-                    return !(is_dispatching_
-                             && (handlers_.empty() || !is_active_dispatcher(its_id)));
-                });
+            while (is_dispatching_ && (handlers_.empty() || !is_active_dispatcher(its_id))) {
+                dispatcher_condition_.wait(its_lock);
+            }
         } else {
             std::shared_ptr<sync_handler> its_handler;
             while (is_dispatching_  && is_active_dispatcher(its_id)
@@ -1818,8 +1819,7 @@ void application_impl::dispatch() {
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
-             dispatcher_condition_.wait(its_lock,
-                                       [this, &its_id] { return !is_active_dispatcher(its_id); });
+             dispatcher_condition_.wait(its_lock);
              // Maybe woken up from main dispatcher
              if (handlers_.empty() && !is_active_dispatcher(its_id)) {
                  if (!is_dispatching_) {
@@ -2114,7 +2114,9 @@ void application_impl::shutdown() {
 
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
-        stop_cv_.wait(its_lock, [this] {return stopped_; });
+        while(!stopped_) {
+            stop_cv_.wait(its_lock);
+        }
     }
     {
         std::lock_guard<std::mutex> its_handler_lock(handlers_mutex_);
@@ -2894,7 +2896,7 @@ void application_impl::subscribe_with_debounce(service_t _service, instance_t _i
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
 
-            auto its_filter = std::make_shared<debounce_filter_t>(_filter);
+            auto its_filter = std::make_shared<debounce_filter_impl_t>(_filter);
             routing_->subscribe(client_, get_sec_client(),
                     _service, _instance, _eventgroup, _major,
                     _event, its_filter);

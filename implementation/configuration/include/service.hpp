@@ -32,7 +32,7 @@ struct service {
 
     // [0] = debounce_time
     // [1] = retention_time
-    using npdu_time_configuration_t = std::map<method_t, std::array<std::chrono::nanoseconds, 2>>;
+    typedef std::map<method_t, std::array<std::chrono::nanoseconds, 2>> npdu_time_configuration_t;
     npdu_time_configuration_t debounce_times_requests_;
     npdu_time_configuration_t debounce_times_responses_;
 

@@ -16,7 +16,7 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 struct e2e {
-    using custom_parameters_t = std::map<std::string, std::string, std::less<>>;
+    typedef std::map<std::string, std::string> custom_parameters_t;
 
     e2e() :
         variant(""),

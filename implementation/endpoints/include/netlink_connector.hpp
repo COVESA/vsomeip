@@ -26,8 +26,8 @@ template <typename Protocol>
 class nl_endpoint {
 public:
     /// The protocol type associated with the endpoint.
-    using protocol_type = Protocol;
-    using data_type = boost::asio::detail::socket_addr_type;
+    typedef Protocol protocol_type;
+    typedef boost::asio::detail::socket_addr_type data_type;
 
     /// Default constructor.
     nl_endpoint()
@@ -123,18 +123,18 @@ public:
         return PF_NETLINK;
     }
 
-    using endpoint = nl_endpoint<nl_protocol>;
-    using socket = boost::asio::basic_raw_socket<nl_protocol>;
+    typedef nl_endpoint<nl_protocol> endpoint;
+    typedef boost::asio::basic_raw_socket<nl_protocol> socket;
 
 private:
     int proto;
 };
 
-using net_if_changed_handler_t = std::function< void (
+typedef std::function< void (
     bool,        // true = is interface, false = is route
     std::string, // interface name
     bool)        // available?
->;
+> net_if_changed_handler_t;
 
 class netlink_connector : public std::enable_shared_from_this<netlink_connector> {
 public:

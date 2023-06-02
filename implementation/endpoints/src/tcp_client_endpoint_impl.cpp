@@ -214,6 +214,10 @@ void tcp_client_endpoint_impl::connect() {
                                 << " remote:" << get_address_port_remote();
                     }
                 }
+                {
+                    std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+                    connecting_timer_.cancel();
+                }
                 try {
                     // don't connect on bind error to avoid using a random port
                     strand_.post(std::bind(&client_endpoint_impl::connect_cbk,
@@ -234,7 +238,7 @@ void tcp_client_endpoint_impl::connect() {
             remote_,
             strand_.wrap(
                 std::bind(
-                    &tcp_client_endpoint_base_impl::connect_cbk,
+                    &tcp_client_endpoint_base_impl::cancel_and_connect_cbk,
                     shared_from_this(),
                     std::placeholders::_1
                 )
@@ -243,6 +247,10 @@ void tcp_client_endpoint_impl::connect() {
     } else {
         VSOMEIP_WARNING << "tcp_client_endpoint::connect: Error opening socket: "
                 << its_error.message() << " remote:" << get_address_port_remote();
+        {
+            std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+            connecting_timer_.cancel();
+        }
         strand_.post(std::bind(&tcp_client_endpoint_base_impl::connect_cbk,
                                 shared_from_this(), its_error));
     }

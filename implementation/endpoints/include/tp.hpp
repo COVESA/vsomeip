@@ -24,9 +24,9 @@ namespace tp {
 #define VSOMEIP_TP_PAYLOAD_POS      20
 
 // 28 bit length + 3 bit reserved + 1 bit more segments
-using tp_header_t = std::uint32_t;
-using tp_message_type_t = std::uint8_t;
-using tp_split_messages_t = std::vector<message_buffer_ptr_t>;
+typedef std::uint32_t tp_header_t;
+typedef std::uint8_t tp_message_type_t;
+typedef std::vector<message_buffer_ptr_t> tp_split_messages_t;
 
 const std::uint8_t TP_FLAG = 0x20;
 

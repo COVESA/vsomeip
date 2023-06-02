@@ -25,7 +25,7 @@ class routing_host;
 template<typename Protocol>
 class endpoint_impl: public virtual endpoint {
 public:
-    using endpoint_type = typename Protocol::endpoint;
+    typedef typename Protocol::endpoint endpoint_type;
 
     endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                   const std::shared_ptr<routing_host>& _routing_host,

@@ -16,7 +16,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-using commandize_t = std::uint32_t;
+typedef uint32_t command_size_t;
 
 class command {
 public:

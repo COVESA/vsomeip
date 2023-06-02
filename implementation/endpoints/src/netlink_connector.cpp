@@ -241,10 +241,10 @@ void netlink_connector::send_cbk(boost::system::error_code const &_error, std::s
 }
 
 void netlink_connector::send_ifa_request() {
-    struct netlink_address_msg {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct ifaddrmsg addrmsg;
-    };
+    } netlink_address_msg;
     netlink_address_msg get_address_msg;
     memset(&get_address_msg, 0, sizeof(get_address_msg));
     get_address_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifaddrmsg));
@@ -269,10 +269,10 @@ void netlink_connector::send_ifa_request() {
 }
 
 void netlink_connector::send_ifi_request() {
-    struct netlink_link_msg {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct ifinfomsg infomsg;
-    };
+    } netlink_link_msg;
     netlink_link_msg get_link_msg;
     memset(&get_link_msg, 0, sizeof(get_link_msg));
     get_link_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
@@ -296,10 +296,10 @@ void netlink_connector::send_ifi_request() {
 }
 
 void netlink_connector::send_rt_request() {
-    struct netlink_route_msg {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct rtgenmsg routemsg;
-    };
+    } netlink_route_msg;
 
     netlink_route_msg get_route_msg;
     memset(&get_route_msg, 0, sizeof(get_route_msg));

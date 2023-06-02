@@ -109,7 +109,6 @@ void local_uds_client_endpoint_impl::stop() {
 }
 
 void local_uds_client_endpoint_impl::connect() {
-    start_connecting_timer();
     boost::system::error_code its_connect_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -249,17 +248,14 @@ void local_uds_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
 
     if (_error) {
+        VSOMEIP_INFO << "local_uds_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
         } else if (_error == boost::asio::error::connection_reset
-                || _error == boost::asio::error::eof
                 || _error == boost::asio::error::bad_descriptor) {
-            VSOMEIP_INFO << __func__ <<  " local_uds_client_endpoint:"
-                    " connection_reset/EOF/bad_descriptor";
-        } else if (_error) {
-            VSOMEIP_ERROR << "Local endpoint received message ("
-                          << _error.message() << ")";
+            restart(true);
+            return;
         }
         error_handler_t handler;
         {

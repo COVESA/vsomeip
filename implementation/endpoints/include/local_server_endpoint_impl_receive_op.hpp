@@ -13,10 +13,10 @@
 
 namespace vsomeip_v3 {
 
-using socket_type_t = boost::asio::local::stream_protocol::socket;
-using receive_handler_t = std::function<
+typedef boost::asio::local::stream_protocol::socket socket_type_t;
+typedef std::function<
     void (boost::system::error_code const &_error, size_t _size,
-          const std::uint32_t &, const std::uint32_t &)>;
+          const uint32_t &, const uint32_t &)> receive_handler_t;
 
 struct local_server_endpoint_impl_receive_op {
 

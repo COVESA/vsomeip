@@ -20,7 +20,9 @@
 
 namespace vsomeip_v3 {
 
-using local_tcp_server_endpoint_base_impl = server_endpoint_impl<boost::asio::ip::tcp>;
+typedef server_endpoint_impl<
+            boost::asio::ip::tcp
+        > local_tcp_server_endpoint_base_impl;
 
 class local_tcp_server_endpoint_impl
         : public local_tcp_server_endpoint_base_impl {
@@ -70,7 +72,7 @@ private:
     class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        using ptr = std::shared_ptr<connection>;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(const std::shared_ptr<local_tcp_server_endpoint_impl>& _server,
                           std::uint32_t _max_message_size,
@@ -133,7 +135,7 @@ private:
     std::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
 
-    using connections_t = std::map<client_t, connection::ptr>;
+    typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
 

@@ -14,7 +14,9 @@
 
 namespace vsomeip_v3 {
 
-using local_tcp_client_endpoint_base_impl = client_endpoint_impl<boost::asio::ip::tcp>;
+typedef client_endpoint_impl<
+            boost::asio::ip::tcp
+        > local_tcp_client_endpoint_base_impl;
 
 class local_tcp_client_endpoint_impl: public local_tcp_client_endpoint_base_impl {
 public:

@@ -375,17 +375,18 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    using availability_major_minor_t =
-        std::map<major_version_t,
-            std::map<minor_version_t, std::pair<availability_state_handler_t, bool>>>;
+    typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_state_handler_t,
+            bool>>> availability_major_minor_t;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
     // Availability
-    using available_instance_t =
-        std::map<instance_t,
-            std::map<major_version_t, std::pair<minor_version_t, availability_state_e>>>;
-    using available_ext_t = std::map<service_t, available_instance_t>;
+    typedef std::map<instance_t,
+        std::map<major_version_t,
+            std::pair<minor_version_t, availability_state_e>
+        >
+    > available_instance_t;
+    typedef std::map<service_t, available_instance_t> available_ext_t;
     mutable available_ext_t available_;
 
     // Subscription handlers

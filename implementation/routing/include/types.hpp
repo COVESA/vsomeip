@@ -18,13 +18,18 @@ namespace vsomeip_v3 {
 class serviceinfo;
 class endpoint_definition;
 
-using services_t = std::map<service_t, std::map<instance_t, std::shared_ptr<serviceinfo>>>;
+
+typedef std::map<service_t,
+                 std::map<instance_t,
+                          std::shared_ptr<serviceinfo> > > services_t;
 
 class eventgroupinfo;
 
-using eventgroups_t =
-    std::map<service_t,
-        std::map<instance_t, std::map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>>;
+typedef std::map<service_t,
+                 std::map<instance_t,
+                          std::map<eventgroup_t,
+                                   std::shared_ptr<
+                                       eventgroupinfo> > > > eventgroups_t;
 
 enum class registration_type_e : std::uint8_t {
     REGISTER = 0x1,
@@ -42,7 +47,7 @@ enum class remote_subscription_state_e : std::uint8_t {
     SUBSCRIPTION_UNKNOWN = 0xFF
 };
 
-using remote_subscription_id_t = std::uint16_t;
+typedef std::uint16_t remote_subscription_id_t;
 
 struct msg_statistic_t {
     uint32_t counter_;
