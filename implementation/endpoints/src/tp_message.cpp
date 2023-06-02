@@ -223,7 +223,7 @@ bool tp_message::add_segment(const byte_t* const _data,
             }
             if (last_segment_received_) {
                 // check if all segments are present
-                std::uint32_t last_end = (std::numeric_limits<std::uint32_t>::max)();
+                std::uint32_t last_end = std::numeric_limits<std::uint32_t>::max();
                 bool complete(true);
                 for (const auto& seg : segments_) {
                     if (last_end + 1 != seg.start_) {

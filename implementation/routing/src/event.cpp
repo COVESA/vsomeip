@@ -45,7 +45,7 @@ event::event(routing_manager *_routing, bool _is_shadow)
 service_t
 event::get_service() const {
 
-    return (current_->get_service());
+    return current_->get_service();
 }
 
 void
@@ -58,7 +58,7 @@ event::set_service(service_t _service) {
 instance_t
 event::get_instance() const {
 
-    return (current_->get_instance());
+    return current_->get_instance();
 }
 
 void
@@ -84,7 +84,7 @@ event::set_version(major_version_t _major) {
 event_t
 event::get_event() const {
 
-    return (current_->get_method());
+    return current_->get_method();
 }
 
 void
@@ -97,7 +97,7 @@ event::set_event(event_t _event) {
 event_type_e
 event::get_type() const {
 
-    return (type_);
+    return type_;
 }
 
 void
@@ -115,7 +115,7 @@ event::is_field() const {
 bool
 event::is_provided() const {
 
-    return (is_provided_);
+    return is_provided_;
 }
 
 void
@@ -132,7 +132,7 @@ std::shared_ptr<payload>
 event::get_payload() const {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    return (current_->get_payload());
+    return current_->get_payload();
 }
 
 void
@@ -234,10 +234,10 @@ event::set_payload_notify_pending(const std::shared_ptr<payload> &_payload) {
 
         update_payload_unlocked();
 
-        return (true);
+        return true;
     }
 
-    return (false);
+    return false;
 }
 
 void
@@ -436,7 +436,7 @@ event::prepare_update_payload(const std::shared_ptr<payload> &_payload,
         bool _force) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    return (prepare_update_payload_unlocked(_payload, _force));
+    return prepare_update_payload_unlocked(_payload, _force);
 }
 
 bool
@@ -454,7 +454,7 @@ event::prepare_update_payload_unlocked(
             && cycle_ == std::chrono::milliseconds::zero()
             && !is_change) {
 
-        return (false);
+        return false;
     }
 
     if (is_change)
@@ -465,7 +465,7 @@ event::prepare_update_payload_unlocked(
 
     is_set_ = true;
 
-    return (true);
+    return true;
 }
 
 void
@@ -688,7 +688,7 @@ event::get_filtered_subscribers(bool _force) {
                 || epsilon_change_func_(its_payload, its_payload_update));
 
         if (must_forward)
-            return (its_subscribers);
+            return its_subscribers;
 
     } else {
         byte_t is_allowed(0xff);
@@ -714,7 +714,7 @@ event::get_filtered_subscribers(bool _force) {
         }
     }
 
-    return (its_filtered_subscribers);
+    return its_filtered_subscribers;
 }
 
 std::set<client_t>
@@ -728,7 +728,7 @@ event::update_and_get_filtered_subscribers(
     if (_is_from_remote)
         update_payload_unlocked();
 
-    return (its_subscribers);
+    return its_subscribers;
 }
 
 void
@@ -816,7 +816,7 @@ event::has_changed(const std::shared_ptr<payload> &_lhs,
             its_pos++;
         }
     }
-    return (is_change);
+    return is_change;
 }
 
 std::set<client_t>

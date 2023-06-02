@@ -66,7 +66,7 @@ assign_client_ack_command::deserialize(const std::vector<byte_t> &_buffer,
 client_t
 assign_client_ack_command::get_assigned() const {
 
-    return (assigned_);
+    return assigned_;
 }
 
 void

@@ -179,7 +179,7 @@ private:
         VSOMEIP_DEBUG << __func__ << ": is_subscribe=" << std::boolalpha << _is_subscribe;
         if (!_is_subscribe)
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        return (true);
+        return true;
     }
 
 private: // members

@@ -80,7 +80,7 @@ void serviceinfo::set_precise_ttl(std::chrono::milliseconds _precise_ttl) {
 
 std::shared_ptr<endpoint> serviceinfo::get_endpoint(bool _reliable) const {
   std::lock_guard<std::mutex> its_lock(endpoint_mutex_);
-  return (_reliable ? reliable_ : unreliable_);
+  return _reliable ? reliable_ : unreliable_;
 }
 
 void serviceinfo::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,

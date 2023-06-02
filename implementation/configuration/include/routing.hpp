@@ -32,7 +32,7 @@ struct routing_host_t {
         unicast_ = _other.unicast_;
         port_ = _other.port_;
 
-        return (*this);
+        return *this;
     }
 };
 
@@ -44,7 +44,7 @@ struct routing_guests_t {
         unicast_ = _other.unicast_;
         ports_ = _other.ports_;
 
-        return (*this);
+        return *this;
     }
 };
 
@@ -61,7 +61,7 @@ struct routing_t {
         host_ = _other.host_;
         guests_ = _other.guests_;
 
-        return (*this);
+        return *this;
     }
 };
 

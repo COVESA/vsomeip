@@ -321,7 +321,7 @@ bool udp_server_endpoint_impl::send_queued(
         std::bind(
             &udp_server_endpoint_base_impl::send_cbk,
             shared_from_this(),
-            _it,
+            _it->first,
             std::placeholders::_1,
             std::placeholders::_2
         )
@@ -708,10 +708,10 @@ bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_a
                 its_mask = byte_t(0xff << (((i+1) * sizeof(byte_t)) - prefix_));
 
             if ((its_local[i] & its_mask) != (its_address[i] & its_mask))
-                return (false);
+                return false;
         }
 
-        return (true);
+        return true;
     }
 #else
     if (_address.is_v4()) {
@@ -724,7 +724,7 @@ bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_a
         is_same = (its_hosts.find(_address.to_v6()) != its_hosts.end());
     }
 #endif
-    return (is_same);
+    return is_same;
 }
 
 void udp_server_endpoint_impl::print_status() {
@@ -807,8 +807,7 @@ udp_server_endpoint_impl::set_multicast_option(
         if (!multicast_socket_) {
             std::lock_guard<std::mutex> its_guard(multicast_mutex_);
 
-            multicast_socket_ = std::unique_ptr<socket_type>(
-                    new socket_type(io_, local_.protocol()));
+            multicast_socket_ = std::make_unique<socket_type>(io_, local_.protocol());
 
             multicast_socket_->set_option(ip::udp::socket::reuse_address(true), ec);
             if (ec)
@@ -834,11 +833,11 @@ udp_server_endpoint_impl::set_multicast_option(
 
             if (!multicast_local_) {
                 if (is_v4_) {
-                    multicast_local_ = std::unique_ptr<endpoint_type>(
-                        new endpoint_type(boost::asio::ip::address_v4::any(), local_port_));
+                    multicast_local_ = std::make_unique<endpoint_type>
+                        (boost::asio::ip::address_v4::any(), local_port_);
                 } else { // is_v6
-                    multicast_local_ = std::unique_ptr<endpoint_type>(
-                        new endpoint_type(boost::asio::ip::address_v6::any(), local_port_));
+                    multicast_local_ = std::make_unique<endpoint_type>
+                        (boost::asio::ip::address_v6::any(), local_port_);
                 }
             }
 

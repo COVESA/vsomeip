@@ -20,7 +20,7 @@ uint32_t profile_04::compute_crc(const profile_config &_config, const e2e_buffer
         computed_crc = e2e_crc::calculate_profile_04(its_after, computed_crc);
     }
 
-    return (computed_crc);
+    return computed_crc;
 }
 
 } // namespace profile04

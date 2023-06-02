@@ -141,7 +141,7 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
     if (its_host)
         its_instance = its_host->find_instance(_service, this);
 
-    return (its_instance);
+    return its_instance;
 }
 
 // Instantiate template

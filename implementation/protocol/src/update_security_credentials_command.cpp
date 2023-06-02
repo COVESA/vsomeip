@@ -89,7 +89,7 @@ update_security_credentials_command::deserialize(const std::vector<byte_t> &_buf
 std::set<std::pair<uid_t, gid_t> >
 update_security_credentials_command::get_credentials() const {
 
-    return (credentials_);
+    return credentials_;
 }
 
 void

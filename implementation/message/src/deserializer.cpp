@@ -165,7 +165,7 @@ bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
 }
 
 message_impl * deserializer::deserialize_message() try {
-    std::unique_ptr<message_impl> deserialized_message{new message_impl};
+    std::unique_ptr<message_impl> deserialized_message = std::make_unique<message_impl>();
     if (false == deserialized_message->deserialize(this)) {
         VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
         deserialized_message = nullptr;

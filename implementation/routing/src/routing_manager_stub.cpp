@@ -706,7 +706,8 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         << std::hex << std::setfill('0')
                         << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
-                        << std::setw(4) << its_instance
+                        << std::setw(4) << its_instance << "."
+                        << std::setw(4) << register_event.get_event()
                         << ":eventtype=" << std::dec << (int)register_event.get_event_type()
                         << ":is_provided=" << std::boolalpha << register_event.is_provided()
                         << ":reliable=" << (int)register_event.get_reliability() << "]";
@@ -1338,7 +1339,7 @@ bool routing_manager_stub::send_subscribe(
             << " subscriber: " << std::setw(4) << _client;
     }
 
-    return (has_sent);
+    return has_sent;
 }
 
 bool routing_manager_stub::send_unsubscribe(
@@ -1380,7 +1381,7 @@ bool routing_manager_stub::send_unsubscribe(
             << " subscriber: "<< std::setw(4) << _client;
     }
 
-    return (has_sent);
+    return has_sent;
 }
 
 bool routing_manager_stub::send_expired_subscription(
@@ -1422,7 +1423,7 @@ bool routing_manager_stub::send_expired_subscription(
             << " subscriber: "<< std::setw(4) << _client;
     }
 
-    return (has_sent);
+    return has_sent;
 }
 
 void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _service,
@@ -1667,7 +1668,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
         }
     }
 
-    return (has_sent);
+    return has_sent;
 }
 
 void routing_manager_stub::on_ping_timer_expired(
@@ -2036,14 +2037,14 @@ bool routing_manager_stub::send_provided_event_resend_request(
         its_command.serialize(its_buffer, its_error);
 
         if (its_error == protocol::error_e::ERROR_OK)
-            return (its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size())));
+            return its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
         VSOMEIP_WARNING << __func__ << " Couldn't send provided event resend "
                 "request to local client: 0x"
                 << std::hex << std::setw(4) << std::setfill('0') << _client;
     }
 
-    return (false);
+    return false;
 }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -2152,7 +2153,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
             << ": could not send cached security policies to registering client: 0x"
             << std::hex << std::setw(4) << std::setfill('0') << _client;
 
-    return (false);
+    return false;
 }
 
 bool routing_manager_stub::send_remove_security_policy_request(
@@ -2172,7 +2173,7 @@ bool routing_manager_stub::send_remove_security_policy_request(
     if (its_error == protocol::error_e::ERROR_OK) {
         std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
         if (its_endpoint)
-            return (its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size())));
+            return its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
         else
             VSOMEIP_ERROR << __func__
                 << ": cannot find local client endpoint for client "
@@ -2184,7 +2185,7 @@ bool routing_manager_stub::send_remove_security_policy_request(
             << std::dec << static_cast<int>(its_error)
             << ")";
 
-    return (false);
+    return false;
 
 }
 
@@ -2213,7 +2214,7 @@ routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid,
     if (!its_clients.empty())
         return send_requester_policies(its_clients, _policies);
 
-    return (true);
+    return true;
 }
 
 void
@@ -2316,7 +2317,7 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
         }
     }
 
-    return (true);
+    return true;
 }
 
 void routing_manager_stub::on_security_update_timeout(

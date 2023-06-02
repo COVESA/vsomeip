@@ -68,7 +68,7 @@ register_application_command::deserialize(const std::vector<byte_t> &_buffer,
 port_t
 register_application_command::get_port() const {
 
-    return (port_);
+    return port_;
 }
 
 void

@@ -148,6 +148,6 @@ void virtual_server_endpoint_impl::print_status() {
 }
 
 size_t virtual_server_endpoint_impl::get_queue_size() const {
-    return 0;;
+    return 0;
 }
 } // namespace vsomeip_v3

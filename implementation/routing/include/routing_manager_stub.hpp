@@ -179,7 +179,7 @@ private:
             return (find_source->second.find(_sink)
                     != find_source->second.end());
 
-        return (false);
+        return false;
     }
     inline void add_connection(client_t _source, client_t _sink) {
 

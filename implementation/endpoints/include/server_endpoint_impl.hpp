@@ -70,7 +70,7 @@ public:
     void prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
                       service_t _service);
     virtual void stop();
-    bool flush(target_data_iterator_type _it);
+    bool flush(endpoint_type _it);
 
     size_t get_queue_size() const;
 
@@ -80,9 +80,9 @@ public:
 
 public:
     void connect_cbk(boost::system::error_code const &_error);
-    void send_cbk(const target_data_iterator_type _it,
+    void send_cbk(const endpoint_type _key,
                   boost::system::error_code const &_error, std::size_t _bytes);
-    void flush_cbk(target_data_iterator_type _it,
+    void flush_cbk(endpoint_type _key,
             const boost::system::error_code &_error_code);
 
 protected:

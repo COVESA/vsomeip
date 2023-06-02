@@ -99,7 +99,7 @@ multiple_services_command_base::deserialize(const std::vector<byte_t> &_buffer,
 std::set<service>
 multiple_services_command_base::get_services() const {
 
-    return (services_);
+    return services_;
 }
 
 void

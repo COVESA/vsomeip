@@ -75,7 +75,7 @@ uid_t message_impl::get_uid() const {
         its_uid = sec_client_.client.uds_client.user;
     }
 
-    return (its_uid);
+    return its_uid;
 }
 
 gid_t message_impl::get_gid() const {
@@ -86,12 +86,12 @@ gid_t message_impl::get_gid() const {
         its_gid = sec_client_.client.uds_client.group;
     }
 
-    return (its_gid);
+    return its_gid;
 }
 
 vsomeip_sec_client_t message_impl::get_sec_client() const {
 
-    return (sec_client_);
+    return sec_client_;
 }
 
 void message_impl::set_sec_client(const vsomeip_sec_client_t &_sec_client) {

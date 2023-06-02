@@ -100,7 +100,7 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
 std::set<std::shared_ptr<policy> >
 distribute_security_policies_command::get_policies() const {
 
-    return (policies_);
+    return policies_;
 }
 
 void

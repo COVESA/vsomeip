@@ -1,7 +1,22 @@
 Changes
 =======
 
-v3.3.0
+v3.3.5.1
+- Fix typo in application_impl.cpp
+- Update load_balancing_option_impl.cpp
+- Fix format specifier in memory_log_timer_cbk
+- Isolate boost
+- Remove redundant ostream manipulators
+- Fix for configuration option deserialize bug
+- Accept return codes within range 0x20 - 0x5E as valid
+
+v3.3.5
+- Do NOT use iterators in asynchronous operations.
+- Add event identifier to "REGISTER EVENT" log message at routing manager stub.
+- Fix for crash in flush function, server_endpoint_impl class
+- added FD_CLOEXEC flag in all open operations
+- Use "make_unique" and "make_shared" to construct "unique_ptr" and "shared_ptr"
+- Removed redundant pairs of parentheses
 - Do not erase while iterating.
 - Changed invalid call of deserialize to serialize
 - Fixed the the problem in policy::deserialize counts down the given policy size,
@@ -10,10 +25,13 @@ and after deserializing the policy it is 0.
 - Fix timestamp format of log message
 - Prevent crash when logging with DLT
 - load_security_update_whitelist Unit and Benchmark Tests
-- Added protection when a message is destroyed.
+- Added protection when a message is destroyed
+- Pu/connect timeout refactor
 - Rework the addition of services when in suspended mode
 - Remove const qualifier from function return types
 - Adapt to boost 1.81.0
+
+v3.3.4
 - Removed VSOMEIP_DEPRECATED_UID_GID from some elements.
 - Add nullptr guards to receive_cbk.
 - Add nullptr check to receive_cbk.
@@ -28,10 +46,14 @@ and after deserializing the policy it is 0.
 - Reduce log level of some vsomeip messages.
 - Change dependency on LINK UP.
 - Change rejoining mechanism in UDP server endpoint.
+
+v3.3.3
 - Fixed android build issues
 - Added more DLT log info on credentials error
 - Fixed ICON register issues.
 - Added an  unlocked method to get the policy extension path
+
+v3.3.2
 - Manage E2E Profile04 counters per instance
 - Fix handling of subscription objects during unsubscribe.
 - Remove subscription on connection resets.
@@ -48,6 +70,8 @@ and after deserializing the policy it is 0.
 - Handling with some udp errors in send_cbk process.
 - Avoid services becoming available when the daemon is suspended.
 - refactor: remove `set_bound_sec_client()` from `local_tcp_server_endpoint_impl`.
+
+v3.3.1
 - Refactor `plugin_manager_impl::load_symbol()`
 - Use consistent naming for `security::is_client_allowed_to_access()`
 - Raise C++ standard used to C++17 on non-Windows platforms
@@ -65,6 +89,8 @@ and after deserializing the policy it is 0.
 - Make the sec client a member of the connection
 - Add support for TCP clients in the default security hooks
 - Fix security checks when using internal TCP sockets
+
+v3.3.0
 - Introduced protocol classes
 - Extended interface to allow application specific configurations
 - Allow to switch off internal routing

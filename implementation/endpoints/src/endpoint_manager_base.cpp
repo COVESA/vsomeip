@@ -57,7 +57,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _
         its_endpoint = create_local_unlocked(_client);
         its_endpoint->start();
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_local(client_t _client) {
@@ -154,7 +154,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         }
     }
 
-    return (its_server_endpoint);
+    return its_server_endpoint;
 }
 
 void endpoint_manager_base::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -305,7 +305,7 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
         rm_->register_client_error_handler(_client, its_endpoint);
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_local_unlocked(client_t _client) {
@@ -314,7 +314,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_local_unlocked(client_t _c
     if (found_endpoint != local_endpoints_.end()) {
         its_endpoint = found_endpoint->second;
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 instance_t endpoint_manager_base::find_instance(
@@ -342,12 +342,12 @@ endpoint_manager_base::get_local_server_port(port_t &_port,
                     && r != configuration_->get_routing_host_port()) {
 
                 _port = port_t(r);
-                return (true);
+                return true;
             }
         }
     }
 
-    return (false);
+    return false;
 }
 
 void

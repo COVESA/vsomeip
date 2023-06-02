@@ -123,7 +123,7 @@ static inline id_e get_command(byte_t _byte) {
     id_e its_id(id_e::UNKNOWN_ID);
     if (_byte <= static_cast<byte_t>(id_e::SUSPEND_ID))
         its_id = static_cast<id_e>(_byte);
-    return (its_id);
+    return its_id;
 }
 
 static inline bool operator==(const byte_t &_lhs, const id_e &_rhs) {

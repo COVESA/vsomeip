@@ -36,7 +36,7 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
         const std::shared_ptr<configuration>& _configuration)
         : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io,
                 _max_message_size, _queue_limit, _configuration),
-          socket_(new socket_type(_io)), remote_(_remote),
+          socket_(std::make_unique<socket_type>(_io)), remote_(_remote),
           flush_timer_(_io), connect_timer_(_io),
           connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
           state_(cei_state_e::CLOSED),
@@ -146,7 +146,7 @@ client_endpoint_impl<Protocol>::get_front() {
     if (queue_.size())
         its_entry = queue_.front();
 
-    return (its_entry);
+    return its_entry;
 }
 
 
@@ -405,7 +405,7 @@ bool client_endpoint_impl<Protocol>::flush() {
         start_dispatch_timer(its_now);
     }
 
-    return (has_queued);
+    return has_queued;
 }
 
 template<typename Protocol>

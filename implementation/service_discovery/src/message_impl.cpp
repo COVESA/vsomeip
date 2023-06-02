@@ -419,11 +419,11 @@ length_t message_impl::get_someip_length() const {
 }
 
 uid_t message_impl::get_uid() const {
-    return (ANY_UID);
+    return ANY_UID;
 }
 
 gid_t message_impl::get_gid() const {
-    return (ANY_GID);
+    return ANY_GID;
 }
 
 vsomeip_sec_client_t message_impl::get_sec_client() const {
@@ -431,7 +431,7 @@ vsomeip_sec_client_t message_impl::get_sec_client() const {
         VSOMEIP_CLIENT_UDS, {vsomeip_sec_uds_client_credentials_t{ANY_UID, ANY_GID}}
     };
 
-    return (its_dummy_sec_client);
+    return its_dummy_sec_client;
 }
 
 std::string message_impl::get_env() const {

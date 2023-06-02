@@ -79,7 +79,7 @@ routing_info_command::deserialize(const std::vector<byte_t> &_buffer,
 const std::vector<routing_info_entry> &
 routing_info_command::get_entries() const {
 
-    return (entries_);
+    return entries_;
 }
 
 void
