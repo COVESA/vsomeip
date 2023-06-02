@@ -58,7 +58,7 @@ debounce_test_client::init() {
         app_->subscribe(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE,
                 DEBOUNCE_EVENTGROUP, DEBOUNCE_MAJOR, DEBOUNCE_EVENT_4);
     }
-    return (its_result);
+    return its_result;
 }
 
 void
@@ -192,7 +192,7 @@ debounce_test_client::compare_payload(
         std::size_t _index) const {
 
     auto its_expected_payload = payloads__[test_id_][_index];
-    return ((*_payload) == (*its_expected_payload));
+    return (*_payload == *its_expected_payload);
 }
 
 void

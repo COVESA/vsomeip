@@ -49,7 +49,7 @@ debounce_test_service::init() {
         app_->offer_service(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE,
                 DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
     }
-    return (is_initialized);
+    return is_initialized;
 }
 
 void

@@ -31,11 +31,11 @@ class configuration;
 class utility {
 public:
     static inline bool is_request(std::shared_ptr<message> _message) {
-        return (_message ? is_request(_message->get_message_type()) : false);
+        return _message ? is_request(_message->get_message_type()) : false;
     }
 
     static inline bool is_request(byte_t _type) {
-        return (is_request(static_cast<message_type_e>(_type)));
+        return is_request(static_cast<message_type_e>(_type));
     }
 
     static inline bool is_request(message_type_e _type) {
@@ -49,7 +49,7 @@ public:
     }
 
     static inline bool is_request_no_return(byte_t _type) {
-        return (is_request_no_return(static_cast<message_type_e>(_type)));
+        return is_request_no_return(static_cast<message_type_e>(_type));
     }
 
     static inline bool is_request_no_return(message_type_e _type) {
@@ -74,7 +74,7 @@ public:
     }
 
     static inline bool is_notification(byte_t _type) {
-        return (is_notification(static_cast<message_type_e>(_type)));
+        return is_notification(static_cast<message_type_e>(_type));
     }
 
     static inline bool is_notification(message_type_e _type) {
@@ -84,7 +84,7 @@ public:
     static uint64_t get_message_size(const byte_t *_data, size_t _size);
     static inline uint64_t get_message_size(std::vector<byte_t> &_data) {
         if (_data.size() > 0) {
-            return (get_message_size(&_data[0], _data.size()));
+            return get_message_size(&_data[0], _data.size());
         }
         return 0;
     }
@@ -131,7 +131,9 @@ public:
                 || _code == return_code_e::E_WRONG_PROTOCOL_VERSION
                 || _code == return_code_e::E_WRONG_INTERFACE_VERSION
                 || _code == return_code_e::E_MALFORMED_MESSAGE
-                || _code == return_code_e::E_WRONG_MESSAGE_TYPE);
+                || _code == return_code_e::E_WRONG_MESSAGE_TYPE
+                || (static_cast<std::uint8_t>(_code) >= 0x20
+                    && static_cast<std::uint8_t>(_code) <= 0x5E));
     }
 
     static inline bool compare(const vsomeip_sec_client_t &_lhs,
@@ -155,7 +157,7 @@ public:
                 break;
             }
         }
-        return (is_equal);
+        return is_equal;
     }
 
 private:

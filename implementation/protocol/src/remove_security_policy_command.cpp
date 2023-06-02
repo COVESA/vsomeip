@@ -76,7 +76,7 @@ remove_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
 uint32_t
 remove_security_policy_command::get_update_id() const {
 
-    return (update_id_);
+    return update_id_;
 }
 
 void
@@ -89,7 +89,7 @@ remove_security_policy_command::set_update_id(uint32_t _update_id) {
 uid_t
 remove_security_policy_command::get_uid() const {
 
-    return (uid_);
+    return uid_;
 }
 
 void
@@ -101,7 +101,7 @@ remove_security_policy_command::set_uid(uid_t _uid) {
 gid_t
 remove_security_policy_command::get_gid() const {
 
-    return (gid_);
+    return gid_;
 }
 
 void

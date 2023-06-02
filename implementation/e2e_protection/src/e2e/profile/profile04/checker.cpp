@@ -94,7 +94,7 @@ profile_04_checker::read_16(const e2e_buffer &_buffer,
 
     _data = VSOMEIP_BYTES_TO_WORD(_buffer[config_.offset_ + _index],
                                   _buffer[config_.offset_ + _index + 1]);
-    return (true);
+    return true;
 }
 
 bool
@@ -105,7 +105,7 @@ profile_04_checker::read_32(const e2e_buffer &_buffer,
                                   _buffer[config_.offset_ + _index + 1],
                                   _buffer[config_.offset_ + _index + 2],
                                   _buffer[config_.offset_ + _index + 3]);
-    return (true);
+    return true;
 }
 
 } // namespace profile01

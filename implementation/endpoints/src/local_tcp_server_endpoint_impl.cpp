@@ -438,11 +438,11 @@ client_t local_tcp_server_endpoint_impl::assign_client(
         VSOMEIP_ERROR << __func__
                 << ": assign client command deserialization failed ("
                 << std::dec << static_cast<int>(its_error) << ")";
-        return (VSOMEIP_CLIENT_UNSET);
+        return VSOMEIP_CLIENT_UNSET;
     }
 
-    return (utility::request_client_id(configuration_,
-            its_command.get_name(), its_command.get_client()));
+    return utility::request_client_id(configuration_,
+            its_command.get_name(), its_command.get_client());
 }
 
 void local_tcp_server_endpoint_impl::get_configured_times_from_endpoint(

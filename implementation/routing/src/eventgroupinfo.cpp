@@ -232,7 +232,7 @@ eventgroupinfo::update_remote_subscription(
 
     if (_subscription == nullptr) {
         VSOMEIP_ERROR << __func__ << ": Received ptr is null";
-        return (its_result);
+        return its_result;
     }
 
     std::shared_ptr<endpoint_definition> its_subscriber;
@@ -306,7 +306,7 @@ eventgroupinfo::update_remote_subscription(
             its_event->remove_pending(its_subscriber);
     }
 
-    return (its_result);
+    return its_result;
 }
 
 bool
@@ -316,7 +316,7 @@ eventgroupinfo::is_remote_subscription_limit_reached(
 
     if (_subscription == nullptr) {
         VSOMEIP_ERROR << __func__ << ": Received ptr is null";
-        return (limit_reached);
+        return limit_reached;
     }
 
     if (subscriptions_.size() <= max_remote_subscribers_) {

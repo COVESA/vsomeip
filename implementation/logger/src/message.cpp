@@ -203,13 +203,13 @@ message::buffer::overflow(std::streambuf::int_type c) {
         data_ << (char)c;
     }
 
-    return (c);
+    return c;
 }
 
 std::streamsize
 message::buffer::xsputn(const char *s, std::streamsize n) {
     data_.write(s, n);
-    return (n);
+    return n;
 }
 
 } // namespace logger

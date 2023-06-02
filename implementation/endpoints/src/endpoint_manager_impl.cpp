@@ -292,7 +292,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(
                 << " (" << _reliable << ")";
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(
@@ -306,7 +306,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(
             its_endpoint = found_endpoint->second;
         }
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
@@ -327,7 +327,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
         }
         its_endpoint->increment_use_count();
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliable) {
@@ -631,7 +631,7 @@ endpoint_manager_impl::create_routing_root(
                 << its_routing_host_id
                 << "]";
 
-        return (false);
+        return false;
     }
 
     if (configuration_->is_local_routing()) {
@@ -691,7 +691,7 @@ endpoint_manager_impl::create_routing_root(
                             << std::hex << std::setw(4) << std::setfill('0')
                             << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
 
-                    return (false);
+                    return false;
                 }
             }
 
@@ -713,7 +713,7 @@ endpoint_manager_impl::create_routing_root(
                     << std::hex << std::setw(4) << std::setfill('0')
                     << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
 
-            return (false);
+            return false;
         }
 
         _is_socket_activated = false;
@@ -736,13 +736,13 @@ endpoint_manager_impl::create_routing_root(
                     << std::hex << std::setw(4) << std::setfill('0')
                     << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
 
-            return (false);
+            return false;
         }
 
         _is_socket_activated = false;
     }
 
-    return (true);
+    return true;
 }
 
 instance_t endpoint_manager_impl::find_instance(
@@ -800,11 +800,11 @@ bool endpoint_manager_impl::remove_instance_multicast(service_t _service,
                         service_instances_multicast_.erase(_service);
                     }
                 }
-                return (true);
+                return true;
             }
         }
     }
-    return (false);
+    return false;
 }
 
 void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -1057,7 +1057,7 @@ endpoint_manager_impl::find_remote_client(
         }
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(
@@ -1166,7 +1166,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_client_endpoint(
         VSOMEIP_ERROR << __func__ << " Client endpoint creation failed";
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 void

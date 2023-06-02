@@ -70,7 +70,7 @@ e2e_profile_04_test_service::init() {
     app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
             static_cast<vsomeip::event_t>(0x8001), its_payload);
 
-    return (true);
+    return true;
 }
 
 void

@@ -27,7 +27,7 @@ e2e_profile_04_test_client::init() {
 
     if (!app_->init()) {
         ADD_FAILURE() << __func__ << ": Cannot initialize application";
-        return (false);
+        return false;
     }
 
     app_->register_state_handler(
@@ -45,7 +45,7 @@ e2e_profile_04_test_client::init() {
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
 
-    return (true);
+    return true;
 }
 
 void

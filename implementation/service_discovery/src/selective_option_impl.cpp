@@ -33,7 +33,7 @@ selective_option_impl::equals(const option_impl &_other) const {
 
 std::set<client_t> selective_option_impl::get_clients() const {
     std::set<client_t> its_clients(clients_);
-    return (its_clients);
+    return its_clients;
 }
 
 void selective_option_impl::set_clients(const std::set<client_t> &_clients) {
@@ -44,7 +44,7 @@ void selective_option_impl::set_clients(const std::set<client_t> &_clients) {
 bool selective_option_impl::add_client(client_t _client) {
     auto its_result = clients_.insert(_client);
     length_ = uint16_t(1 + clients_.size() * sizeof(client_t));
-    return (its_result.second);
+    return its_result.second;
 }
 
 bool selective_option_impl::remove_client(client_t _client) {
@@ -55,7 +55,7 @@ bool selective_option_impl::remove_client(client_t _client) {
 }
 
 bool selective_option_impl::has_clients() const {
-    return (!clients_.empty());
+    return !clients_.empty();
 }
 
 bool selective_option_impl::has_client(client_t _client) {

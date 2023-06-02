@@ -98,9 +98,9 @@ logger_impl::get() {
         if (!(*the_logger_ptr__)) {
             *the_logger_ptr__ = std::make_shared<logger_impl>();
         }
-        return (*the_logger_ptr__);
+        return *the_logger_ptr__;
     }
-    return (nullptr);
+    return nullptr;
 }
 
 #if defined(__linux__) || defined(ANDROID)
@@ -108,7 +108,7 @@ static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void)
 {
     // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-    // Since this function only runs on the main thread, no mutex should be needed. Leaving a 
+    // Since this function only runs on the main thread, no mutex should be needed. Leaving a
     // comment pending a refactor.
     // std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
     if (the_logger_ptr__ != nullptr) {

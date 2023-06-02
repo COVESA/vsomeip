@@ -657,7 +657,7 @@ application_impl::is_available_unlocked(
                     || _minor == DEFAULT_MINOR) {
                 its_state = found_major->second.second;
             }
-        } else if ((_major == DEFAULT_MAJOR || _major == ANY_MAJOR)) {
+        } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
             for (const auto &found_major : _found_instance->second) {
                 if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
                     its_state = found_major.second.second;
@@ -705,7 +705,7 @@ application_impl::is_available_unlocked(
             }
         }
     }
-    return (its_state);
+    return its_state;
 }
 
 bool application_impl::are_available(
@@ -836,9 +836,9 @@ application_impl::are_available_unlocked(available_t &_available,
     if (_available.empty()) {
         _available[_service][_instance][_major] = _minor ;
 
-        return (availability_state_e::AS_UNAVAILABLE);
+        return availability_state_e::AS_UNAVAILABLE;
     }
-    return (availability_state_e::AS_AVAILABLE);
+    return availability_state_e::AS_AVAILABLE;
 }
 
 void application_impl::send(std::shared_ptr<message> _message) {
@@ -853,8 +853,8 @@ void application_impl::send(std::shared_ptr<message> _message) {
             << std::setw(4) << _message->get_service() << "."
             << std::setw(4) << _message->get_instance() << "."
             << std::setw(4) << _message->get_method() << ":"
-            << std::setw(4) << ((is_request) ? session_ : _message->get_session()) << ":"
-            << std::setw(4) << ((is_request) ? client_.load() : _message->get_client()) << "] "
+            << std::setw(4) << (is_request ? session_ : _message->get_session()) << ":"
+            << std::setw(4) << (is_request ? client_.load() : _message->get_client()) << "] "
             << "type=" << static_cast<std::uint32_t>(_message->get_message_type())
             << " thread=" << std::this_thread::get_id();
     }
@@ -1442,7 +1442,7 @@ void application_impl::set_client(const client_t &_client) {
 session_t application_impl::get_session(bool _is_request) {
 
     if (!has_session_handling_ && !_is_request)
-        return (0);
+        return 0;
 
     std::lock_guard<std::mutex> its_lock(session_mutex_);
     if (0 == ++session_) {
@@ -2911,11 +2911,11 @@ application_impl::is_local_endpoint(const boost::asio::ip::address &_unicast,
         boost::asio::ip::tcp::socket its_socket(io_, its_endpoint);
         its_socket.close();
 
-        return (true);
+        return true;
     } catch (...) {
     }
 
-    return (false);
+    return false;
 }
 
 void application_impl::register_message_acceptance_handler(

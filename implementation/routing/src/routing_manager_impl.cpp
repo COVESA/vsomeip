@@ -104,7 +104,7 @@ client_t routing_manager_impl::get_client() const {
 
 const vsomeip_sec_client_t *routing_manager_impl::get_sec_client() const {
 
-    return (routing_manager_base::get_sec_client());
+    return routing_manager_base::get_sec_client();
 }
 
 std::string routing_manager_impl::get_client_host() const {
@@ -125,7 +125,7 @@ std::string routing_manager_impl::get_env_unlocked(client_t _client) const {
 
     auto find_client = known_clients_.find(_client);
     if (find_client != known_clients_.end()) {
-        return (find_client->second);
+        return find_client->second;
     }
     return "";
 }
@@ -1077,7 +1077,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         }
     }
 
-    return (is_sent);
+    return is_sent;
 }
 
 bool routing_manager_impl::send_to(
@@ -1120,7 +1120,7 @@ bool routing_manager_impl::send_to(
     } else {
         VSOMEIP_ERROR<< "routing_manager_impl::send_to: serialization failed.";
     }
-    return (is_sent);
+    return is_sent;
 }
 
 bool routing_manager_impl::send_to(
@@ -2758,7 +2758,7 @@ routing_manager_impl::expire_subscriptions(
                     // Note: get_remote_subscription delivers a copied
                     // set of subscriptions. Thus, its is possible to
                     // to remove them within the loop.
-                    auto its_ep_definition = (_reliable) ?
+                    auto its_ep_definition = _reliable ?
                                     its_subscription->get_reliable() :
                                     its_subscription->get_unreliable();
 
@@ -4051,7 +4051,7 @@ routing_manager_impl::get_requested_services(client_t _client) {
             }
         }
     }
-    return (its_requests);
+    return its_requests;
 }
 
 std::set<client_t>
@@ -4059,7 +4059,7 @@ routing_manager_impl::get_requesters(service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
 
     std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
-    return (get_requesters_unlocked(_service, _instance, _major, _minor));
+    return get_requesters_unlocked(_service, _instance, _major, _minor);
 }
 
 std::set<client_t>
@@ -4092,7 +4092,7 @@ routing_manager_impl::get_requesters_unlocked(
             }
         }
     }
-    return (its_requesters);
+    return its_requesters;
 }
 
 bool
@@ -4112,14 +4112,14 @@ routing_manager_impl::has_requester_unlocked(
                                 || _minor == DEFAULT_MINOR
                                 || its_minor.first == ANY_MINOR) {
 
-                            return (true);
+                            return true;
                         }
                     }
                 }
             }
         }
     }
-    return (false);
+    return false;
 }
 
 std::set<eventgroup_t>
@@ -4744,7 +4744,7 @@ routing_manager_impl::update_security_policy_configuration(
         return stub_->update_security_policy_configuration(_uid, _gid,
                           _policy, _payload, _handler);
 
-    return (false);
+    return false;
 }
 
 bool
@@ -4756,7 +4756,7 @@ routing_manager_impl::remove_security_policy_configuration(
         return stub_->remove_security_policy_configuration(_uid, _gid,
                           _handler);
 
-    return (false);
+    return false;
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
 
@@ -4866,7 +4866,7 @@ bool
 routing_manager_impl::get_guest(client_t _client,
         boost::asio::ip::address &_address, port_t &_port) const {
 
-    return (routing_manager_base::get_guest(_client, _address, _port));
+    return routing_manager_base::get_guest(_client, _address, _port);
 }
 
 void

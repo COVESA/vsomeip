@@ -51,7 +51,7 @@ tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
         // insert tp_header
         const tp_header_t header = htonl(
                 static_cast<tp_header_t>((current_offset - VSOMEIP_FULL_HEADER_SIZE - _data)) |
-                static_cast<tp_header_t>((is_last_segment) ? 0x0u : 0x1u));
+                static_cast<tp_header_t>(is_last_segment ? 0x0u : 0x1u));
 
         const byte_t * const headerp = reinterpret_cast<const byte_t*>(&header);
         msg->insert(msg->end(), headerp, headerp + sizeof(tp_header_t));

@@ -291,7 +291,7 @@ std::string routing_manager_client::get_env_unlocked(client_t _client) const {
 
    auto find_client = known_clients_.find(_client);
    if (find_client != known_clients_.end()) {
-       return (find_client->second);
+       return find_client->second;
    }
    return "";
 }
@@ -936,7 +936,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                     _data, _size, _instance, _reliable, its_command, _status_check);
         }
     }
-    return (is_sent);
+    return is_sent;
 }
 
 bool routing_manager_client::send_to(const client_t _client,
@@ -947,7 +947,7 @@ bool routing_manager_client::send_to(const client_t _client,
     (void)_target;
     (void)_message;
 
-    return (false);
+    return false;
 }
 
 bool routing_manager_client::send_to(
@@ -959,7 +959,7 @@ bool routing_manager_client::send_to(
     (void)_size;
     (void)_instance;
 
-    return (false);
+    return false;
 }
 
 void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoint) {
@@ -2088,7 +2088,7 @@ void routing_manager_client::assign_client() {
 
             boost::system::error_code ec;
             register_application_timer_.cancel(ec);
-            register_application_timer_.expires_from_now(std::chrono::milliseconds(10000));
+            register_application_timer_.expires_from_now(std::chrono::milliseconds(3000));
             register_application_timer_.async_wait(
                     std::bind(
                             &routing_manager_client::assign_client_timeout_cbk,

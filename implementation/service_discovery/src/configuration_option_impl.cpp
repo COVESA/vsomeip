@@ -123,6 +123,8 @@ bool configuration_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
                     is_successful = false;
                 }
             }
+        } else {
+              break;
         }
     } while (is_successful && _from->get_remaining() > 0);
 

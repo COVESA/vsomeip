@@ -488,7 +488,7 @@ void
 service_discovery_impl::unsubscribe_all(
         service_t _service, instance_t _instance) {
 
-    auto its_current_message = std::make_shared<message_impl>();;
+    auto its_current_message = std::make_shared<message_impl>();
     boost::asio::ip::address its_address;
 
     {

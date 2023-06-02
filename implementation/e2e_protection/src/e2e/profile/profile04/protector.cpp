@@ -79,7 +79,7 @@ protector::get_counter(instance_t _instance) const {
     if (find_counter != counter_.end())
         its_counter = find_counter->second;
 
-    return (its_counter);
+    return its_counter;
 }
 
 void

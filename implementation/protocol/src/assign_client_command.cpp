@@ -70,7 +70,7 @@ assign_client_command::deserialize(const std::vector<byte_t> &_buffer,
 std::string
 assign_client_command::get_name() const {
 
-    return (name_);
+    return name_;
 }
 
 void

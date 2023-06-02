@@ -67,7 +67,7 @@ security_policy_response_command_base::deserialize(
 uint32_t
 security_policy_response_command_base::get_update_id() const {
 
-    return (update_id_);
+    return update_id_;
 }
 
 void

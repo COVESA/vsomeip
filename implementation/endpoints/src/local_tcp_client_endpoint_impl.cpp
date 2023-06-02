@@ -355,7 +355,7 @@ bool local_tcp_client_endpoint_impl::is_reliable() const {
 
 std::uint32_t local_tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
 
-    return (MAX_RECONNECTS_UNLIMITED);
+    return MAX_RECONNECTS_UNLIMITED;
 }
 
 bool local_tcp_client_endpoint_impl::tp_segmentation_enabled(

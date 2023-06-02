@@ -16,22 +16,22 @@ bool
 policy::get_uid_gid(uid_t &_uid, gid_t &_gid) const {
 
     if (credentials_.size() != 1)
-        return (false);
+        return false;
 
     const auto its_uids = credentials_.begin()->first;
     const auto its_gids = credentials_.begin()->second;
 
     if (its_gids.size() != 1)
-        return (false);
+        return false;
 
     if (its_uids.lower() != its_uids.upper()
         || its_gids.begin()->lower() != its_gids.begin()->upper())
-        return (false);
+        return false;
 
     _uid = its_uids.lower();
     _gid = its_gids.begin()->lower();
 
-    return (true);
+    return true;
 }
 
 bool
@@ -42,13 +42,13 @@ policy::deserialize_uid_gid(const byte_t * &_data, uint32_t &_size,
 
     its_result = deserialize_u32(_data, _size, _uid);
     if (its_result == false)
-        return (false);
+        return false;
 
     its_result = deserialize_u32(_data, _size, _gid);
     if (its_result == false)
-        return (false);
+        return false;
 
-    return (true);
+    return true;
 }
 
 bool
@@ -62,7 +62,7 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
 
     its_result = deserialize_uid_gid(_data, _size, its_uid, its_gid);
     if (its_result == false)
-        return (false);
+        return false;
 
     // Fill policy uid/gid
     const auto its_uid_interval
@@ -79,7 +79,7 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
     uint32_t its_requests_length;
     its_result = deserialize_u32(_data, _size, its_requests_length);
     if (its_result == false)
-        return (false);
+        return false;
 
     // Deserialize requests
     while (0 < its_requests_length) {
@@ -89,12 +89,12 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
         uint16_t its_service;
         its_result = deserialize_u16(_data, _size, its_service);
         if (its_result == false)
-            return (false);
+            return false;
 
         if (its_service == 0x0000 || its_service == 0xffff) {
             VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x"
                     << std::hex << its_service << " is not allowed!";
-            return (false);
+            return false;
         }
 
         const auto its_service_interval
@@ -104,7 +104,7 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
             boost::icl::interval_set<method_t> > its_ids;
         its_result = deserialize_ids(_data, _size, its_ids);
         if (its_result == false)
-            return (false);
+            return false;
 
         requests_ += std::make_pair(its_service_interval, its_ids);
 
@@ -115,7 +115,7 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
     uint32_t its_offers_length;
     its_result = deserialize_u32(_data, _size, its_offers_length);
     if (its_result == false)
-        return (false);
+        return false;
 
     while (0 < its_offers_length) {
 
@@ -124,7 +124,7 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
         uint16_t its_service;
         its_result = deserialize_u16(_data, _size, its_service);
         if (its_result == false)
-            return (false);
+            return false;
 
         if (its_service == 0x0000 || its_service == 0xFFFF) {
             VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x"
@@ -139,14 +139,14 @@ policy::deserialize(const byte_t * &_data, uint32_t &_size) {
         its_result = deserialize_id_item_list(_data, _size,
                 its_instance_interval_set);
         if (its_result == false)
-            return (false);
+            return false;
 
         offers_ += std::make_pair(its_service_interval, its_instance_interval_set);
 
         its_offers_length -= (its_current_size - _size);
     }
 
-    return (true);
+    return true;
 }
 
 bool
@@ -161,7 +161,7 @@ policy::deserialize_ids(const byte_t * &_data, uint32_t &_size,
 
     its_result = deserialize_u32(_data, _size, its_array_length);
     if (its_result == false)
-        return (false);
+        return false;
 
     while (0 < its_array_length) {
         uint32_t its_current_size(_size);
@@ -169,11 +169,11 @@ policy::deserialize_ids(const byte_t * &_data, uint32_t &_size,
         boost::icl::interval_set<uint16_t> its_instances, its_methods;
         its_result = deserialize_id_item_list(_data, _size, its_instances);
         if (its_result == false)
-            return (false);
+            return false;
 
         its_result = deserialize_id_item_list(_data, _size, its_methods);
         if (its_result == false)
-            return (false);
+            return false;
 
         for (const auto i : its_instances)
             its_ids += std::make_pair(i, its_methods);
@@ -183,7 +183,7 @@ policy::deserialize_ids(const byte_t * &_data, uint32_t &_size,
 
     _ids = std::move(its_ids);
 
-    return (true);
+    return true;
 }
 
 bool
@@ -196,7 +196,7 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
 
     its_result = deserialize_u32(_data, _size, its_length);
     if (its_result == false)
-        return (its_result);
+        return its_result;
 
     while (0 < its_length) {
 
@@ -206,7 +206,7 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
         uint16_t its_high = 0;
         its_result = deserialize_id_item(_data, _size, its_low, its_high);
         if (its_result == false)
-            return (false);
+            return false;
 
         its_intervals.insert(boost::icl::interval<uint16_t>::closed(its_low, its_high));
 
@@ -215,7 +215,7 @@ policy::deserialize_id_item_list(const byte_t * &_data, uint32_t &_size,
 
     _intervals = std::move(its_intervals);
 
-    return (true);
+    return true;
 }
 
 bool
@@ -227,30 +227,30 @@ policy::deserialize_id_item(const byte_t * &_data, uint32_t &_size,
 
     its_result = deserialize_u32(_data, _size, its_length);
     if (its_result == false)
-        return (false);
+        return false;
 
     its_result = deserialize_u32(_data, _size, its_type);
     if (its_result == false)
-        return (false);
+        return false;
 
     if (its_type == 1 && its_length == sizeof(uint16_t)) {
         its_result = deserialize_u16(_data, _size, _low);
         if (its_result == false)
-            return (false);
+            return false;
 
         _high = _low;
     } else if (its_type == 2
             && its_length == sizeof(uint16_t) + sizeof(uint16_t)) {
         its_result = deserialize_u16(_data, _size, _low);
         if (its_result == false)
-            return (false);
+            return false;
 
         its_result = deserialize_u16(_data, _size, _high);
         if (its_result == false)
-            return (false);
+            return false;
 
         if (_low > _high)
-            return (false);
+            return false;
     }
 
     // handle ANY_METHOD configuration
@@ -266,14 +266,14 @@ policy::deserialize_u16(const byte_t * &_data, uint32_t &_size,
         uint16_t &_value) const {
 
     if (_size < sizeof(uint16_t))
-        return (false);
+        return false;
 
     _value = VSOMEIP_BYTES_TO_WORD(_data[0], _data[1]);
 
     _data += sizeof(uint16_t);
     _size -= static_cast<uint16_t>(sizeof(uint16_t));
 
-    return (true);
+    return true;
 }
 
 bool
@@ -281,14 +281,14 @@ policy::deserialize_u32(const byte_t * &_data, uint32_t &_size,
         uint32_t &_value) const {
 
     if (_size < sizeof(uint32_t))
-        return (false);
+        return false;
 
     _value = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
 
     _data += sizeof(uint32_t);
     _size -= static_cast<uint32_t>(sizeof(uint32_t));
 
-    return (true);
+    return true;
 }
 
 bool
@@ -300,7 +300,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
 
     its_result = serialize_uid_gid(_data);
     if (!its_result)
-        return (false);
+        return false;
 
     size_t its_requests_pos = _data.size();
     uint32_t its_requests_size(0);
@@ -335,7 +335,7 @@ policy::serialize(std::vector<byte_t> &_data) const {
     uint32_t its_offers_size = 0;
     serialize_u32(its_offers_size, _data);
 
-    return (true);
+    return true;
 }
 
 bool
@@ -343,31 +343,31 @@ policy::serialize_uid_gid(std::vector<byte_t> &_data) const {
 
     if (credentials_.size() != 1) {
         VSOMEIP_ERROR << "Unserializable policy (ids).";
-        return (false);
+        return false;
     }
 
     auto its_credential = *(credentials_.begin());
     if (its_credential.second.size() != 1) {
         VSOMEIP_ERROR << "Unserializable policy (intervals).";
-        return (false);
+        return false;
     }
 
     auto its_uid_interval = its_credential.first;
     if (its_uid_interval.lower() != its_uid_interval.upper()) {
         VSOMEIP_ERROR << "Unserializable policy (uid).";
-        return (false);
+        return false;
     }
 
     auto its_gid_interval = *(its_credential.second.begin());
     if (its_gid_interval.lower() != its_gid_interval.upper()) {
         VSOMEIP_ERROR << "Unserializable policy (gid).";
-        return (false);
+        return false;
     }
 
     serialize_u32(its_uid_interval.lower(), _data);
     serialize_u32(its_gid_interval.lower(), _data);
 
-    return (true);
+    return true;
 }
 
 void

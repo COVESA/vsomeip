@@ -36,7 +36,7 @@ runtime_impl::~runtime_impl() {
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
 
-    return (create_application(_name, ""));
+    return create_application(_name, "");
 }
 
 std::shared_ptr<application> runtime_impl::create_application(
@@ -61,7 +61,7 @@ std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
     its_message->set_return_code(return_code_e::E_OK);
     its_message->set_reliable(_reliable);
     its_message->set_interface_version(DEFAULT_MAJOR);
-    return (its_message);
+    return its_message;
 }
 
 std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
@@ -72,7 +72,7 @@ std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
     its_request->set_return_code(return_code_e::E_OK);
     its_request->set_reliable(_reliable);
     its_request->set_interface_version(DEFAULT_MAJOR);
-    return (its_request);
+    return its_request;
 }
 
 std::shared_ptr<message> runtime_impl::create_response(
@@ -88,7 +88,7 @@ std::shared_ptr<message> runtime_impl::create_response(
     its_response->set_message_type(message_type_e::MT_RESPONSE);
     its_response->set_return_code(return_code_e::E_OK);
     its_response->set_reliable(_request->is_reliable());
-    return (its_response);
+    return its_response;
 }
 
 std::shared_ptr<message> runtime_impl::create_notification(
@@ -100,21 +100,21 @@ std::shared_ptr<message> runtime_impl::create_notification(
     its_notification->set_return_code(return_code_e::E_OK);
     its_notification->set_reliable(_reliable);
     its_notification->set_interface_version(DEFAULT_MAJOR);
-    return (its_notification);
+    return its_notification;
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload() const {
-    return (std::make_shared<payload_impl>());
+    return std::make_shared<payload_impl>();
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(const byte_t *_data,
         uint32_t _size) const {
-    return (std::make_shared<payload_impl>(_data, _size));
+    return std::make_shared<payload_impl>(_data, _size);
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(
         const std::vector<byte_t> &_data) const {
-    return (std::make_shared<payload_impl>(_data));
+    return std::make_shared<payload_impl>(_data);
 }
 
 std::shared_ptr<application> runtime_impl::get_application(

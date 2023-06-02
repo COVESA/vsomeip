@@ -498,7 +498,7 @@ void tcp_server_endpoint_impl::connection::send_queued(
                            std::chrono::steady_clock::now()),
                 std::bind(&tcp_server_endpoint_base_impl::send_cbk,
                           its_server,
-                          _it,
+                          _it->first,
                           std::placeholders::_1,
                           std::placeholders::_2));
     }

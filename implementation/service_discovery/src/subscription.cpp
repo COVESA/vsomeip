@@ -27,7 +27,7 @@ void subscription::set_ttl(ttl_t _ttl) {
 }
 
 std::shared_ptr<endpoint> subscription::get_endpoint(bool _reliable) const {
-    return (_reliable ? reliable_ : unreliable_);
+    return _reliable ? reliable_ : unreliable_;
 }
 
 void subscription::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
@@ -93,7 +93,7 @@ subscription::remove_client(const client_t _client) {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
     auto its_size = clients_.size();
     clients_.erase(_client);
-    return (its_size > clients_.size());
+    return its_size > clients_.size();
 }
 
 std::set<client_t> subscription::get_clients() const {
@@ -113,7 +113,7 @@ bool subscription::has_client() const {
 
 bool subscription::has_client(const client_t _client) const {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
-    return (clients_.find(_client) != clients_.end());
+    return clients_.find(_client) != clients_.end();
 }
 
 void subscription::set_eventgroupinfo(

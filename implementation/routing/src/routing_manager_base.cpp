@@ -50,12 +50,12 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
 
 boost::asio::io_context &routing_manager_base::get_io() {
 
-    return (io_);
+    return io_;
 }
 
 client_t routing_manager_base::get_client() const {
 
-    return (host_->get_client());
+    return host_->get_client();
 }
 
 void routing_manager_base::set_client(const client_t &_client) {
@@ -69,7 +69,7 @@ session_t routing_manager_base::get_session(bool _is_request) {
 
 const vsomeip_sec_client_t *routing_manager_base::get_sec_client() const {
 
-    return (host_->get_sec_client());
+    return host_->get_sec_client();
 }
 
 std::string routing_manager_base::get_client_host() const {
@@ -528,11 +528,11 @@ std::set<std::shared_ptr<event>> routing_manager_base::find_events(
         if (found_instance != found_service->second.end()) {
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
-                return (found_eventgroup->second->get_events());
+                return found_eventgroup->second->get_events();
             }
         }
     }
-    return (its_events);
+    return its_events;
 }
 
 std::vector<event_t> routing_manager_base::find_events(
@@ -548,7 +548,7 @@ std::vector<event_t> routing_manager_base::find_events(
             }
         }
     }
-    return (its_events);
+    return its_events;
 }
 
 bool routing_manager_base::is_response_allowed(client_t _sender, service_t _service,
@@ -908,7 +908,7 @@ bool routing_manager_base::send(client_t _client,
     } else {
         VSOMEIP_ERROR << "Failed to serialize message. Check message size!";
     }
-    return (is_sent);
+    return is_sent;
 }
 
 // ********************************* PROTECTED **************************************
@@ -940,7 +940,7 @@ std::shared_ptr<serviceinfo> routing_manager_base::find_service(
             its_info = found_instance->second;
         }
     }
-    return (its_info);
+    return its_info;
 }
 
 void routing_manager_base::clear_service_info(service_t _service, instance_t _instance,
@@ -1128,7 +1128,7 @@ std::shared_ptr<event> routing_manager_base::find_event(service_t _service,
             }
         }
     }
-    return (its_event);
+    return its_event;
 }
 
 std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
@@ -1176,7 +1176,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
             }
         }
     }
-    return (its_info);
+    return its_info;
 }
 
 void routing_manager_base::remove_eventgroup_info(service_t _service,
@@ -1259,7 +1259,7 @@ bool routing_manager_base::send_local(
         has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
     }
 
-    return (has_sent);
+    return has_sent;
 }
 
 bool routing_manager_base::insert_subscription(
@@ -1347,7 +1347,7 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
     auto its_serializer = serializers_.front();
     serializers_.pop();
 
-    return (its_serializer);
+    return its_serializer;
 }
 
 void routing_manager_base::put_serializer(
@@ -1373,7 +1373,7 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
     auto its_deserializer = deserializers_.front();
     deserializers_.pop();
 
-    return (its_deserializer);
+    return its_deserializer;
 }
 
 void routing_manager_base::put_deserializer(
@@ -1461,12 +1461,12 @@ routing_manager_base::get_guest(client_t _client,
     std::lock_guard<std::mutex> its_lock(guests_mutex_);
     auto find_guest = guests_.find(_client);
     if (find_guest == guests_.end())
-        return (false);
+        return false;
 
     _address = find_guest->second.first;
     _port = find_guest->second.second;
 
-    return (true);
+    return true;
 }
 
 void

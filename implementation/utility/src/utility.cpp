@@ -49,7 +49,7 @@ uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
         its_size = VSOMEIP_SOMEIP_HEADER_SIZE
                 + VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7]);
     }
-    return (its_size);
+    return its_size;
 }
 
 uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
@@ -58,7 +58,7 @@ uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
         its_size = VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7])
                 - VSOMEIP_SOMEIP_HEADER_SIZE;
     }
-    return (its_size);
+    return its_size;
 }
 
 bool utility::is_routing_manager(const std::string &_network) {
@@ -66,11 +66,11 @@ bool utility::is_routing_manager(const std::string &_network) {
     // Therefore, subsequent calls can be immediately answered...
     std::lock_guard<std::mutex> its_lock(mutex__);
     if (data__.find(_network) != data__.end())
-        return (false);
+        return false;
 
     auto r = data__.insert(std::make_pair(_network, data_t()));
     if (!r.second)
-        return (false);
+        return false;
 
 #ifdef _WIN32
     wchar_t its_tmp_folder[MAX_PATH];
@@ -198,7 +198,7 @@ utility::request_client_id(
 
     auto r = data__.find(_config->get_network());
     if (r == data__.end())
-        return (VSOMEIP_CLIENT_UNSET);
+        return VSOMEIP_CLIENT_UNSET;
 
     if (r->second.next_client_ == VSOMEIP_CLIENT_UNSET) {
         r->second.next_client_ = its_smallest_client;
@@ -208,13 +208,13 @@ utility::request_client_id(
         const auto its_iterator = r->second.used_clients_.find(_client);
         if (its_iterator == r->second.used_clients_.end()) { // unused identifier
             r->second.used_clients_[_client] = _name;
-            return (_client);
+            return _client;
         } else { // already in use
 
             // The name matches the assigned name --> return client
             // NOTE: THIS REQUIRES A CONSISTENT CONFIGURATION!!!
             if (its_iterator->second == _name) {
-                return (_client);
+                return _client;
             }
 
             VSOMEIP_WARNING << "Requested client identifier "
@@ -243,13 +243,13 @@ utility::request_client_id(
                     "Max amount of possible concurrent active vsomeip "
                     "applications reached ("  << std::dec << r->second.used_clients_.size()
                     << ").";
-            return (VSOMEIP_CLIENT_UNSET);
+            return VSOMEIP_CLIENT_UNSET;
         }
     } while (r->second.used_clients_.find(r->second.next_client_) != r->second.used_clients_.end()
             || _config->is_configured_client_id(r->second.next_client_));
 
     r->second.used_clients_[r->second.next_client_] = _name;
-    return (r->second.next_client_);
+    return r->second.next_client_;
 }
 
 void

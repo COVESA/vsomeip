@@ -377,7 +377,7 @@ bool server_endpoint_impl<Protocol>::send_intern(
     // STEP 10: restart timer with current departure time
     start_dispatch_timer(its_target_iterator, its_now);
 
-    return (true);
+    return true;
 }
 
 template<typename Protocol>
@@ -444,7 +444,7 @@ server_endpoint_impl<Protocol>::find_or_create_target_unlocked(endpoint_type _ta
         its_iterator = its_result.first;
     }
 
-    return (its_iterator);
+    return its_iterator;
 }
 
 template<typename Protocol>
@@ -560,14 +560,18 @@ bool server_endpoint_impl<Protocol>::queue_train(
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::flush(target_data_iterator_type _it) {
+bool server_endpoint_impl<Protocol>::flush(endpoint_type _key) {
 
     bool has_queued(true);
     bool is_current_train(true);
-    auto &its_data = _it->second;
 
     std::lock_guard<std::mutex> its_lock(mutex_);
 
+    auto it = targets_.find(_key);
+    if (it == targets_.end())
+        return false;
+
+    auto &its_data = it->second;
     auto its_train(its_data.train_);
     if (!its_data.dispatched_trains_.empty()) {
 
@@ -575,18 +579,20 @@ bool server_endpoint_impl<Protocol>::flush(target_data_iterator_type _it) {
         if (its_dispatched->first <= its_train->departure_) {
 
             is_current_train = false;
-            its_train = its_dispatched->second.front();
-            its_dispatched->second.pop_front();
-            if (its_dispatched->second.empty()) {
+            if (!its_dispatched->second.empty()) {
+                its_train = its_dispatched->second.front();
+                its_dispatched->second.pop_front();
+                if (its_dispatched->second.empty()) {
 
-                its_data.dispatched_trains_.erase(its_dispatched);
+                    its_data.dispatched_trains_.erase(its_dispatched);
+                }
             }
         }
     }
 
     if (!its_train->buffer_->empty()) {
 
-        queue_train(_it, its_train, its_data.queue_.empty());
+        queue_train(it, its_train, its_data.queue_.empty());
 
         // Reset current train if necessary
         if (is_current_train) {
@@ -599,10 +605,10 @@ bool server_endpoint_impl<Protocol>::flush(target_data_iterator_type _it) {
     if (!is_current_train || !its_data.dispatched_trains_.empty()) {
 
         auto its_now(std::chrono::steady_clock::now());
-        start_dispatch_timer(_it, its_now);
+        start_dispatch_timer(it, its_now);
     }
 
-    return (has_queued);
+    return has_queued;
 }
 
 template<typename Protocol>
@@ -613,7 +619,7 @@ void server_endpoint_impl<Protocol>::connect_cbk(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::send_cbk(
-        const target_data_iterator_type _it,
+        const endpoint_type _key,
         boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
 
@@ -626,6 +632,10 @@ void server_endpoint_impl<Protocol>::send_cbk(
     }
 
     std::lock_guard<std::mutex> its_lock(mutex_);
+
+    auto it = targets_.find(_key);
+    if (it == targets_.end())
+        return;
 
     auto check_if_all_msgs_for_stopped_service_are_sent = [&]() {
         bool found_service_msg(false);
@@ -692,7 +702,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
         }
     };
 
-    auto& its_data = _it->second;
+    auto& its_data = it->second;
     if (!_error) {
         its_data.queue_size_ -= its_data.queue_.front().first->size();
         its_data.queue_.pop_front();
@@ -705,11 +715,11 @@ void server_endpoint_impl<Protocol>::send_cbk(
         }
 
         if (!its_data.queue_.empty()) {
-            (void)send_queued(_it);
+            (void)send_queued(it);
         } else if (!prepare_stop_handlers_.empty() && endpoint_impl<Protocol>::sending_blocked_) {
             // endpoint is shutting down completely
-            cancel_dispatch_timer(_it);
-            targets_.erase(_it);
+            cancel_dispatch_timer(it);
+            targets_.erase(it);
             check_if_all_queues_are_empty();
         }
     } else {
@@ -739,7 +749,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
         // delete remaining outstanding responses
         VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
-                << get_remote_information(_it) << " "
+                << get_remote_information(it) << " "
                 << std::dec << its_data.queue_.size() << " "
                 << its_data.queue_size_ << " ("
                 << std::hex << std::setfill('0')
@@ -747,8 +757,8 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]";
-        cancel_dispatch_timer(_it);
-        targets_.erase(_it);
+        cancel_dispatch_timer(it);
+        targets_.erase(it);
         if (!prepare_stop_handlers_.empty()) {
             if (endpoint_impl<Protocol>::sending_blocked_) {
                 // endpoint is shutting down completely, ensure to call
@@ -765,12 +775,12 @@ void server_endpoint_impl<Protocol>::send_cbk(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::flush_cbk(
-        target_data_iterator_type _it,
+        endpoint_type _key,
         const boost::system::error_code &_error_code) {
 
     if (!_error_code) {
 
-        (void) flush(_it);
+        (void) flush(_key);
     }
 }
 
@@ -783,7 +793,7 @@ size_t server_endpoint_impl<Protocol>::get_queue_size() const {
             its_queue_size += t.second.queue_size_;
         }
     }
-    return (its_queue_size);
+    return its_queue_size;
 }
 
 template<typename Protocol>
@@ -822,7 +832,7 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(
 #endif
     its_data.dispatch_timer_->async_wait(
             std::bind(&server_endpoint_impl<Protocol>::flush_cbk,
-                      this->shared_from_this(), _it, std::placeholders::_1));
+                      this->shared_from_this(), _it->first, std::placeholders::_1));
 }
 
 template<typename Protocol>

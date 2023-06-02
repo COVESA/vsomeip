@@ -834,9 +834,9 @@ configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
         }
 
     } catch (...) {
-        return (false);
+        return false;
     }
-    return (true);
+    return true;
 }
 
 bool
@@ -862,7 +862,7 @@ configuration_impl::load_routing_guests(const boost::property_tree::ptree &_tree
     } catch (...) {
         // intentionally left empty
     }
-    return (true);
+    return true;
 }
 
 void
@@ -1570,8 +1570,8 @@ void configuration_impl::load_service_discovery(
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    sd_repetitions_max_ = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
-                                    (std::numeric_limits<std::uint8_t>::max)() :
+                    sd_repetitions_max_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ?
+                                    std::numeric_limits<std::uint8_t>::max() :
                                     static_cast<std::uint8_t>(tmp);
                     is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX] = true;
                 }
@@ -1641,8 +1641,8 @@ void configuration_impl::load_service_discovery(
                     int tmp;
                     its_converter << its_value;
                     its_converter >> tmp;
-                    max_remote_subscribers_ = (tmp > (std::numeric_limits<std::uint8_t>::max)()) ?
-                                    (std::numeric_limits<std::uint8_t>::max)() :
+                    max_remote_subscribers_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ?
+                                    std::numeric_limits<std::uint8_t>::max() :
                                     static_cast<std::uint8_t>(tmp);
                     if (max_remote_subscribers_ == 0) {
                         VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
@@ -1675,8 +1675,8 @@ void configuration_impl::load_delays(
                 its_converter >> tmp_repetition_max;
                 sd_repetitions_max_ =
                         (tmp_repetition_max
-                                > (std::numeric_limits<std::uint8_t>::max)()) ?
-                                        (std::numeric_limits<std::uint8_t>::max)() :
+                                > std::numeric_limits<std::uint8_t>::max()) ?
+                                        std::numeric_limits<std::uint8_t>::max() :
                                         static_cast<std::uint8_t>(tmp_repetition_max);
             } else if (its_key == "cyclic-offer") {
                 its_converter << std::dec << i->second.data();
@@ -2030,8 +2030,8 @@ void configuration_impl::load_eventgroup(
                 its_converter << std::dec << its_value;
                 its_converter >> std::dec >> its_threshold;
                 its_eventgroup->threshold_ =
-                        (its_threshold > (std::numeric_limits<std::uint8_t>::max)()) ?
-                                (std::numeric_limits<std::uint8_t>::max)() :
+                        (its_threshold > std::numeric_limits<std::uint8_t>::max()) ?
+                                std::numeric_limits<std::uint8_t>::max() :
                                 static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
@@ -2829,37 +2829,37 @@ bool configuration_impl::has_enabled_magic_cookies(const std::string &_address,
 }
 
 bool configuration_impl::is_routing_enabled() const {
-    return (routing_.is_enabled_);
+    return routing_.is_enabled_;
 }
 
 const std::string &
 configuration_impl::get_routing_host_name() const {
 
-    return (routing_.host_.name_);
+    return routing_.host_.name_;
 }
 
 const boost::asio::ip::address &
 configuration_impl::get_routing_host_address() const {
 
-    return (routing_.host_.unicast_);
+    return routing_.host_.unicast_;
 }
 
 port_t
 configuration_impl::get_routing_host_port() const {
 
-    return (routing_.host_.port_);
+    return routing_.host_.port_;
 }
 
 const boost::asio::ip::address &
 configuration_impl::get_routing_guest_address() const {
 
-    return (routing_.guests_.unicast_);
+    return routing_.guests_.unicast_;
 }
 
 std::set<std::pair<port_t, port_t> >
 configuration_impl::get_routing_guest_ports() const {
 
-    return (routing_.guests_.ports_);
+    return routing_.guests_.ports_;
 }
 
 bool
@@ -2872,7 +2872,7 @@ configuration_impl::is_local_routing() const {
     } catch (...) {
     }
 
-    return (is_local);
+    return is_local;
 }
 
 client_t configuration_impl::get_id(const std::string &_name) const {
@@ -2955,7 +2955,7 @@ bool configuration_impl::has_session_handling(const std::string &_name) const {
     if (found_application != applications_.end())
         its_value = found_application->second.has_session_handling_;
 
-    return (its_value);
+    return its_value;
 }
 
 std::set<std::pair<service_t, instance_t> >
@@ -4331,7 +4331,7 @@ configuration_impl::get_debounce(const std::string &_name,
             if (found_instance != found_service->second.end()) {
                 auto found_event = found_instance->second.find(_event);
                 if (found_event != found_instance->second.end()) {
-                    return (found_event->second);
+                    return found_event->second;
                 }
             }
         }
@@ -4345,11 +4345,11 @@ configuration_impl::get_debounce(const std::string &_name,
         if (found_instance != found_service->second.end()) {
             auto found_event = found_instance->second.find(_event);
             if (found_event != found_instance->second.end()) {
-                return (found_event->second);
+                return found_event->second;
             }
         }
     }
-    return (nullptr);
+    return nullptr;
 }
 
 void
@@ -4441,7 +4441,7 @@ bool configuration_impl::is_protected_port(
         }
     }
 
-    return (is_required);
+    return is_required;
 }
 
 bool configuration_impl::is_secure_port(
@@ -4463,7 +4463,7 @@ bool configuration_impl::is_secure_port(
         }
     }
 
-    return (is_secure);
+    return is_secure;
 }
 
 void configuration_impl::set_sd_acceptance_rule(
@@ -4626,12 +4626,12 @@ bool configuration_impl::is_secure_service(service_t _service, instance_t _insta
     const auto its_service = secure_services_.find(_service);
     if (its_service != secure_services_.end())
         return (its_service->second.find(_instance) != its_service->second.end());
-    return (false);
+    return false;
 }
 
 int configuration_impl::get_udp_receive_buffer_size() const {
 
-	return (udp_receive_buffer_size_);
+	return udp_receive_buffer_size_;
 }
 
 bool configuration_impl::is_tp_client(
@@ -4748,7 +4748,7 @@ configuration_impl::get_partition_id(
         }
     }
 
-    return (its_id);
+    return its_id;
 }
 
 reliability_type_e
@@ -4776,19 +4776,19 @@ configuration_impl::get_reliability_type(
 bool
 configuration_impl::is_security_enabled() const {
 
-    return (is_security_enabled_);
+    return is_security_enabled_;
 }
 
 bool
 configuration_impl::is_security_audit() const {
 
-    return (is_security_audit_);
+    return is_security_audit_;
 }
 
 bool
 configuration_impl::is_remote_access_allowed() const {
 
-    return (is_remote_access_allowed_);
+    return is_remote_access_allowed_;
 }
 
 }  // namespace cfg

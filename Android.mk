@@ -100,7 +100,7 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.3.0\" \
+    -DVSOMEIP_VERSION=\"3.3.5\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -147,7 +147,7 @@ LOCAL_CFLAGS := \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.3.0\" \
+    -DVSOMEIP_VERSION=\"3.3.5\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -194,8 +194,8 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.3.0\" \
-    -DVSOMEIP_COMPAT_VERSION=\"3.3.0\" \
+    -DVSOMEIP_VERSION=\"3.3.5\" \
+    -DVSOMEIP_COMPAT_VERSION=\"3.3.5\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -210,5 +210,7 @@ LOCAL_CFLAGS :=  \
     -Wno-header-guard \
     -Wno-overloaded-virtual \
     -Wl,-wrap,socket \
+    -Wl,-wrap,accept \
+    -Wl,-wrap,open \
 
 include $(BUILD_SHARED_LIBRARY)

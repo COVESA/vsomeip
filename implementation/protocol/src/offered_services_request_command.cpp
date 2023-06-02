@@ -65,7 +65,7 @@ offered_services_request_command::deserialize(const std::vector<byte_t> &_buffer
 offer_type_e
 offered_services_request_command::get_offer_type() const {
 
-    return (offer_type_);
+    return offer_type_;
 }
 
 void

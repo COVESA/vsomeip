@@ -43,7 +43,7 @@ configuration_plugin_impl::get_configuration(const std::string &_name,
         configurations_[_name] = its_configuration;
     }
 
-    return (its_configuration);
+    return its_configuration;
 #endif
 }
 

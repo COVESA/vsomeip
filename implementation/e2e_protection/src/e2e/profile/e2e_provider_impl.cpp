@@ -99,9 +99,9 @@ std::size_t e2e_provider_impl::get_protection_base(e2exf::data_identifier_t id) 
 {
     const auto found_base = custom_bases_.find(id);
     if (found_base != custom_bases_.end())
-        return (found_base->second);
+        return found_base->second;
 
-    return (0);
+    return 0;
 }
 
 void e2e_provider_impl::protect(e2exf::data_identifier_t id, e2e_buffer &_buffer,

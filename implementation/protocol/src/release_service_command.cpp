@@ -76,7 +76,7 @@ release_service_command::deserialize(const std::vector<byte_t> &_buffer,
 service_t
 release_service_command::get_service() const {
 
-    return (service_.service_);
+    return service_.service_;
 }
 
 void
@@ -88,7 +88,7 @@ release_service_command::set_service(service_t _service) {
 instance_t
 release_service_command::get_instance() const {
 
-    return (service_.instance_);
+    return service_.instance_;
 }
 
 void

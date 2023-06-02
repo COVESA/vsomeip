@@ -55,7 +55,7 @@ cc_defaults {
 
 cc_defaults {
     name: "vsomeip_lib_defaults",
-    
+
     cflags: [
         "-DVSOMEIP_BOOST_VERSION=107100",
         "-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED",
@@ -80,14 +80,15 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.3.0\"",
+        "-DVSOMEIP_COMPAT_VERSION=\"3.3.5\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
     ],
 
     ldflags: [
         "-Wl,-wrap,socket",
-        "-Wl,-wrap,accept"
+        "-Wl,-wrap,accept",
+        "-Wl,-wrap,open"
     ],
 
     rtti: true,

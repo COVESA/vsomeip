@@ -66,7 +66,7 @@ resend_provided_events_command::deserialize(const std::vector<byte_t> &_buffer,
 pending_remote_offer_id_t
 resend_provided_events_command::get_remote_offer_id() const {
 
-    return (remote_offer_id_);
+    return remote_offer_id_;
 }
 
 void

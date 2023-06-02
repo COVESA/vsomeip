@@ -5,6 +5,7 @@
 
 #ifdef __linux__
 
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -33,6 +34,20 @@ extern "C"
     {
         return accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);
     }
+
+    /*
+     * The real open(2), renamed by GCC.
+     */
+    int __real_open(const char *filename, int flags, ...);
+
+    /*
+     * Overrides open(2) to set O_CLOEXEC by default.
+     */
+    int __wrap_open(const char *filename, int flags, ...)
+    {
+        return __real_open(filename, flags|O_CLOEXEC);
+    }
+
 }
 
 #endif
