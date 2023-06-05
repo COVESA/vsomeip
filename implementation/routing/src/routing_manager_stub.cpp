@@ -347,7 +347,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 its_minor = its_command.get_minor();
 
                 if (VSOMEIP_SEC_OK == security::is_client_allowed_to_offer(
-                		_sec_client, its_service, its_instance)) {
+                        _sec_client, its_service, its_instance)) {
                     host_->offer_service(its_client, its_service, its_instance,
                             its_major, its_minor);
                 } else {
@@ -413,7 +413,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     }
                 } else {
                     if (VSOMEIP_SEC_OK == security::is_client_allowed_to_access_member(
-                    		_sec_client, its_service, its_instance, its_notifier)) {
+                            _sec_client, its_service, its_instance, its_notifier)) {
                         host_->subscribe(its_client, _sec_client, its_service, its_instance,
                                 its_eventgroup, its_major, its_notifier, its_filter);
                     } else {
@@ -571,7 +571,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     // but check requests sent by local proxies to remote against policy.
                     if (utility::is_request(its_message_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                         if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
-                        		_sec_client, its_service, its_instance, its_method)) {
+                                _sec_client, its_service, its_instance, its_method)) {
                             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_client
                                     << " : routing_manager_stub::on_message: "
                                     << " isn't allowed to send a request to service/instance/method "
@@ -644,7 +644,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 std::set<protocol::service> its_allowed_requests;
                 for (const auto &r : its_requests) {
                     if (VSOMEIP_SEC_OK == security::is_client_allowed_to_request(
-                    		_sec_client, r.service_, r.instance_)) {
+                            _sec_client, r.service_, r.instance_)) {
                         host_->request_service(its_client,
                             r.service_, r.instance_, r.major_, r.minor_);
                         its_allowed_requests.insert(r);
@@ -836,14 +836,17 @@ void routing_manager_stub::on_register_application(client_t _client) {
             vsomeip_sec_client_t its_sec_client;
             std::set<std::shared_ptr<policy> > its_policies;
 
-            policy_manager_impl::get()->get_client_to_sec_client_mapping(_client, its_sec_client);
-            if (its_sec_client.client_type == VSOMEIP_CLIENT_UDS) {
-                get_requester_policies(its_sec_client.client.uds_client.user,
-                        its_sec_client.client.uds_client.group, its_policies);
-            }
+            bool has_mapping = policy_manager_impl::get()
+                    ->get_client_to_sec_client_mapping(_client, its_sec_client);
+            if (has_mapping) {
+                if (its_sec_client.client_type == VSOMEIP_CLIENT_UDS) {
+                    get_requester_policies(its_sec_client.client.uds_client.user,
+                            its_sec_client.client.uds_client.group, its_policies);
+                }
 
-            if (!its_policies.empty())
-                send_requester_policies({ _client }, its_policies);
+                if (!its_policies.empty())
+                    send_requester_policies({ _client }, its_policies);
+            }
         }
 #endif // !VSOMEIP_DISABLE_SECURITY
     }

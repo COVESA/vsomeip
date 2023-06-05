@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 3)
-set (VSOMEIP_PATCH_VERSION 7)
+set (VSOMEIP_PATCH_VERSION 8)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -105,13 +105,22 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
 if (NOT MSVC)
-    # Sanitizer
+    # Sanitizers
+
+    if (ENABLE_UNDEFINED_SANITIZER)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    endif ()
+
     if (ENABLE_THREAD_SANITIZER)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
     endif ()
 
     if (ENABLE_LEAK_SANITIZER)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+    endif ()
+
+    if (ENABLE_ADDRESS_SANITIZER)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif ()
 
     if (ENABLE_PROFILING)

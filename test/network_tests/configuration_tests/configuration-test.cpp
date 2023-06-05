@@ -232,7 +232,6 @@ void check_file(const std::string &_config_file,
     EXPECT_EQ(7u, its_configuration->get_allowed_missing_pongs());
 
     // file permissions
-    EXPECT_EQ(0444u, its_configuration->get_permissions_shm());
     EXPECT_EQ(0222u, its_configuration->get_permissions_uds());
 
     // selective broadcasts

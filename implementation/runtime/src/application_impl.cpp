@@ -238,7 +238,7 @@ bool application_impl::init() {
 
     std::shared_ptr<configuration> its_configuration = get_configuration();
     if (its_configuration) {
-        VSOMEIP_INFO << "Initializing vsomeip application \"" << name_ << "\".";
+        VSOMEIP_INFO << "Initializing vsomeip (" VSOMEIP_VERSION ") application \"" << name_ << "\".";
         client_ = its_configuration->get_id(name_);
 
         // Max dispatchers is the configured maximum number of dispatchers and

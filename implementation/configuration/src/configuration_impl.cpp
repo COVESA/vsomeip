@@ -76,7 +76,6 @@ configuration_impl::configuration_impl(const std::string &_path)
       watchdog_(std::make_shared<watchdog>()),
       log_version_(true),
       log_version_interval_(10),
-      permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
       network_("vsomeip"),
       e2e_enabled_(false),
@@ -123,7 +122,6 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       max_reliable_message_size_(_other.max_reliable_message_size_),
       max_unreliable_message_size_(_other.max_unreliable_message_size_),
       buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
-      permissions_shm_(VSOMEIP_DEFAULT_SHM_PERMISSION),
       permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
       endpoint_queue_limit_external_(_other.endpoint_queue_limit_external_),
       endpoint_queue_limit_local_(_other.endpoint_queue_limit_local_),
@@ -2427,11 +2425,7 @@ void configuration_impl::load_permissions(const configuration_element &_element)
                     ++i) {
                 std::string its_key(i->first);
                 std::stringstream its_converter;
-                if (its_key == "permissions-shm") {
-                    std::string its_value(i->second.data());
-                    its_converter << std::oct << its_value;
-                    its_converter >> permissions_shm_;
-                } else if (its_key == "permissions-uds") {
+                if (its_key == "permissions-uds") {
                     std::string its_value(i->second.data());
                     its_converter << std::oct << its_value;
                     its_converter >> permissions_uds_;
@@ -3458,10 +3452,6 @@ uint32_t configuration_impl::get_allowed_missing_pongs() const {
 }
 std::uint32_t configuration_impl::get_permissions_uds() const {
     return permissions_uds_;
-}
-
-std::uint32_t configuration_impl::get_permissions_shm() const {
-    return permissions_shm_;
 }
 
 std::map<plugin_type_e, std::set<std::string>> configuration_impl::get_plugins(

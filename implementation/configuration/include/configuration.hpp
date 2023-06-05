@@ -186,7 +186,6 @@ public:
 
     // File permissions
     virtual std::uint32_t get_permissions_uds() const = 0;
-    virtual std::uint32_t get_permissions_shm() const = 0;
 
     virtual bool log_version() const = 0;
     virtual uint32_t get_log_version_interval() const = 0;
