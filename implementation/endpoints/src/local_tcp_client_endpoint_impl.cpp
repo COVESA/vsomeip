@@ -144,6 +144,10 @@ void local_tcp_client_endpoint_impl::connect() {
         }
     }
     // call connect_cbk asynchronously
+    {
+        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        connecting_timer_.cancel();
+    }
     try {
         strand_.post(
                 std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
@@ -247,17 +251,10 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
 
     if (_error) {
+        VSOMEIP_INFO << "local_tcp_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
-        } else if (_error == boost::asio::error::connection_reset
-                || _error == boost::asio::error::eof
-                || _error == boost::asio::error::bad_descriptor) {
-            VSOMEIP_INFO << __func__ << " local_tcp_client_endpoint:"
-                    " connection_reset/EOF/bad_descriptor";
-        } else if (_error) {
-            VSOMEIP_ERROR << "Local endpoint received message ("
-                          << _error.message() << ")";
         }
         error_handler_t handler;
         {

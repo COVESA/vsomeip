@@ -20,8 +20,9 @@ namespace vsomeip_v3 {
 
 class endpoint_adapter;
 
-using udp_client_endpoint_base_impl =
-    client_endpoint_impl<boost::asio::ip::udp>;
+typedef client_endpoint_impl<
+            boost::asio::ip::udp
+        > udp_client_endpoint_base_impl;
 
 class udp_client_endpoint_impl: virtual public udp_client_endpoint_base_impl {
 

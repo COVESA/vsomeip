@@ -14,8 +14,9 @@
 
 namespace vsomeip_v3 {
 
-using local_uds_client_endpoint_base_impl =
-    client_endpoint_impl<boost::asio::local::stream_protocol>;
+typedef client_endpoint_impl<
+            boost::asio::local::stream_protocol
+        > local_uds_client_endpoint_base_impl;
 
 class local_uds_client_endpoint_impl: public local_uds_client_endpoint_base_impl {
 public:

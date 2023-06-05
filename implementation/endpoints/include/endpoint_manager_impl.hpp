@@ -132,14 +132,19 @@ private:
     std::map<service_t, std::map<instance_t,
             std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
 
-    using remote_services_t =
-        std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint>>>>;
+    typedef std::map<service_t, std::map<instance_t,
+                std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
-    using client_endpoints_by_ip_t =
-        std::map<boost::asio::ip::address,
-            std::map<std::uint16_t,
-                std::map<bool, std::map<partition_id_t, std::shared_ptr<endpoint>>>>>;
+    typedef std::map<boost::asio::ip::address,
+        std::map<uint16_t,
+            std::map<bool,
+                  std::map<partition_id_t,
+                    std::shared_ptr<endpoint>
+                >
+            >
+        >
+    > client_endpoints_by_ip_t;
     client_endpoints_by_ip_t client_endpoints_by_ip_;
 
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;
@@ -153,7 +158,7 @@ private:
     std::mutex used_client_ports_mutex_;
 
     // Server endpoints for local services
-    using server_endpoints_t = std::map<std::uint16_t, std::map<bool, std::shared_ptr<endpoint>>>;
+    typedef std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint>>> server_endpoints_t;
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)

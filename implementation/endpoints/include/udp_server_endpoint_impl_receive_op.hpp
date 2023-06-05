@@ -19,11 +19,11 @@ namespace vsomeip_v3 {
 
 struct udp_server_endpoint_impl_receive_op {
 
-    using socket_type_t = boost::asio::ip::udp::socket;
-    using endpoint_type_t = boost::asio::ip::udp::endpoint;
-    using receive_handler_t =
-        std::function<void(boost::system::error_code const &_error, std::size_t _size,
-                            std::uint8_t, const boost::asio::ip::address &)>;
+    typedef boost::asio::ip::udp::socket socket_type_t;
+    typedef boost::asio::ip::udp::endpoint endpoint_type_t;
+    typedef std::function<
+        void (boost::system::error_code const &_error, size_t _size,
+              uint8_t, const boost::asio::ip::address &)> receive_handler_t;
 
     socket_type_t &socket_;
     endpoint_type_t &sender_;

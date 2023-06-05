@@ -28,8 +28,6 @@
 
 namespace vsomeip_v3 {
 
-struct debounce_filter_t;
-
 namespace cfg {
 
 struct client;
@@ -204,7 +202,7 @@ public:
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_t> get_debounce(
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(
             const std::string &_name,
             service_t _service, instance_t _instance, event_t _event) const;
 
@@ -373,9 +371,9 @@ private:
     void load_service_debounce(const boost::property_tree::ptree &_tree,
             debounce_configuration_t &_debounces);
     void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces);
+            std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces);
+                std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);

@@ -40,7 +40,7 @@
 namespace vsomeip_v3 {
 
 class event;
-struct debounce_filter_t;
+struct debounce_filter_impl_t;
 
 class configuration {
 public:
@@ -212,18 +212,18 @@ public:
     virtual uint32_t get_log_status_interval() const = 0;
 
     // TTL factor
-    using ttl_factor_t = std::uint32_t;
-    using ttl_map_t = std::map<service_t, std::map<instance_t, ttl_factor_t>>;
+    typedef std::uint32_t ttl_factor_t;
+    typedef std::map<service_t, std::map<instance_t, ttl_factor_t>> ttl_map_t;
     virtual ttl_map_t get_ttl_factor_offers() const = 0;
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
 
     // Debouncing
-    virtual std::shared_ptr<debounce_filter_t> get_debounce(
+    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(
             const std::string &_name,
             service_t _service, instance_t _instance, event_t _event) const = 0;
 
     // Queue size limit endpoints
-    using endpoint_queue_limit_t = std::uint32_t;
+    typedef std::uint32_t endpoint_queue_limit_t;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
@@ -241,13 +241,13 @@ public:
                 const boost::asio::ip::address& _address, std::uint16_t _port,
                 bool _reliable) const = 0;
 
-    using port_range_t = std::pair<std::uint16_t, std::uint16_t>;
+    typedef std::pair<std::uint16_t, std::uint16_t> port_range_t;
     virtual void set_sd_acceptance_rule(
             const boost::asio::ip::address &_address,
             port_range_t _port_range, port_type_e _type,
             const std::string &_path, bool _reliable, bool _enable, bool _default) = 0;
 
-    using sd_acceptance_rules_t = std::map<
+    typedef std::map<
         boost::asio::ip::address, // other device
         std::pair<
             std::string, // path to file that determines whether or not IPsec is active
@@ -259,7 +259,7 @@ public:
                 >
             >
         >
-    >;
+    > sd_acceptance_rules_t;
     virtual sd_acceptance_rules_t get_sd_acceptance_rules() = 0;
     virtual void set_sd_acceptance_rules_active(
             const boost::asio::ip::address& _address, bool _enable) = 0;

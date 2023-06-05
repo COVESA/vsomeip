@@ -650,7 +650,7 @@ void routing_manager_impl::subscribe(
         client_t _client, const vsomeip_sec_client_t *_sec_client,
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) {
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
     VSOMEIP_INFO << "SUBSCRIBE("
         << std::hex << std::setfill('0')
@@ -3687,7 +3687,7 @@ std::shared_ptr<endpoint_manager_impl> routing_manager_impl::get_endpoint_manage
 
 void routing_manager_impl::send_subscribe(client_t _client, service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) {
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
     auto endpoint = ep_mgr_->find_local(_service, _instance);
     if (endpoint && stub_) {
         stub_->send_subscribe(endpoint, _client,
@@ -4220,7 +4220,7 @@ void routing_manager_impl::call_sd_endpoint_connected(
 
 bool routing_manager_impl::create_placeholder_event_and_subscribe(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
         client_t _client) {
 
     bool is_inserted(false);

@@ -17,9 +17,8 @@
 
 #include "../include/event.hpp"
 #include "../include/routing_manager.hpp"
-#include "../../message/include/payload_impl.hpp"
-
 #include "../../endpoints/include/endpoint_definition.hpp"
+#include "../../message/include/payload_impl.hpp"
 
 namespace vsomeip_v3 {
 
@@ -416,10 +415,6 @@ event::notify_one_unlocked(client_t _client, bool _force) {
 
     if (is_set_) {
         set_session();
-        {
-            std::lock_guard<std::mutex> its_last_forwarded_guard(last_forwarded_mutex_);
-            last_forwarded_[_client] = std::chrono::steady_clock::now();
-        }
         routing_->send(_client, update_, _force);
     } else {
         VSOMEIP_INFO << __func__
@@ -513,7 +508,7 @@ event::has_ref() {
 
 bool
 event::add_subscriber(eventgroup_t _eventgroup,
-        const std::shared_ptr<debounce_filter_t> &_filter,
+        const std::shared_ptr<debounce_filter_impl_t> &_filter,
         client_t _client, bool _force) {
 
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
@@ -544,7 +539,7 @@ event::add_subscriber(eventgroup_t _eventgroup,
             VSOMEIP_INFO << "Filter parameters: "
                     << its_filter_parameters.str();
 
-            filters_[_client] = [_filter, _client, this](
+            filters_[_client] = [_filter](
                 const std::shared_ptr<payload> &_old,
                 const std::shared_ptr<payload> &_new) {
 
@@ -600,17 +595,12 @@ event::add_subscriber(eventgroup_t _eventgroup,
                     std::chrono::steady_clock::time_point its_current
                         = std::chrono::steady_clock::now();
 
-                    std::lock_guard<std::mutex> its_last_forwarded_guard(last_forwarded_mutex_);
-                    is_elapsed = (last_forwarded_.find(_client) == last_forwarded_.end());
-                    if (!is_elapsed) {
-                        std::int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                           its_current - last_forwarded_[_client]).count();
-                        is_elapsed = (elapsed >= _filter->interval_);
-                    }
-
+                    int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            its_current - _filter->last_forwarded_).count();
+                    is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                            || elapsed >= _filter->interval_);
                     if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
-                        last_forwarded_[_client] = its_current;
-                }
+                        _filter->last_forwarded_ = its_current;                }
 
                 return (is_changed || is_elapsed);
             };
@@ -638,9 +628,6 @@ event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {
     auto find_eventgroup = eventgroups_.find(_eventgroup);
     if (find_eventgroup != eventgroups_.end())
         find_eventgroup->second.erase(_client);
-
-    std::lock_guard<std::mutex> its_last_forwarded_guard(last_forwarded_mutex_);
-    last_forwarded_.erase(_client);
 }
 
 bool

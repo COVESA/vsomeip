@@ -12,15 +12,9 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/plugin.hpp>
 
-#ifdef ANDROID
-#include "internal_android.hpp"
-#else
-#include "internal.hpp"
-#endif
+#include "debounce_filter_impl.hpp"
 
 namespace vsomeip_v3 {
-
-struct debounce_filter_t;
 
 namespace cfg {
 

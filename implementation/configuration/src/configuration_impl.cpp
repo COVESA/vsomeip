@@ -3772,7 +3772,7 @@ configuration_impl::load_service_debounce(
 
     service_t its_service(0);
     instance_t its_instance(0);
-    std::map<event_t, std::shared_ptr<debounce_filter_t>> its_debounces;
+    std::map<event_t, std::shared_ptr<debounce_filter_impl_t>> its_debounces;
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
@@ -3818,7 +3818,7 @@ configuration_impl::load_service_debounce(
 void
 configuration_impl::load_events_debounce(
         const boost::property_tree::ptree &_tree,
-        std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces) {
+        std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         load_event_debounce(i->second, _debounces);
@@ -3828,10 +3828,10 @@ configuration_impl::load_events_debounce(
 void
 configuration_impl::load_event_debounce(
         const boost::property_tree::ptree &_tree,
-        std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces) {
+        std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
 
     event_t its_event(0);
-    auto its_debounce = std::make_shared<debounce_filter_t>();
+    auto its_debounce = std::make_shared<debounce_filter_impl_t>();
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
@@ -4318,7 +4318,7 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
     }
 }
 
-std::shared_ptr<debounce_filter_t>
+std::shared_ptr<debounce_filter_impl_t>
 configuration_impl::get_debounce(const std::string &_name,
         service_t _service, instance_t _instance, event_t _event) const {
 

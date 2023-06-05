@@ -25,8 +25,8 @@ template<typename Protocol>
 class server_endpoint_impl: public endpoint_impl<Protocol>,
         public std::enable_shared_from_this<server_endpoint_impl<Protocol> > {
 public:
-    using socket_type = typename Protocol::socket;
-    using endpoint_type = typename Protocol::endpoint;
+    typedef typename Protocol::socket socket_type;
+    typedef typename Protocol::endpoint endpoint_type;
     struct endpoint_data_type {
         endpoint_data_type(boost::asio::io_context &_io)
             : train_(std::make_shared<train>()),
@@ -46,8 +46,8 @@ public:
         std::size_t queue_size_;
     };
 
-    using target_data_type = typename std::map<endpoint_type, endpoint_data_type>;
-    using target_data_iterator_type = typename target_data_type::iterator;
+    typedef typename std::map<endpoint_type, endpoint_data_type> target_data_type;
+    typedef typename target_data_type::iterator target_data_iterator_type;
 
     server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,

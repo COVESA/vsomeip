@@ -170,7 +170,7 @@ void udp_server_endpoint_impl::stop() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(multicast_mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
             boost::system::error_code its_error;
@@ -364,7 +364,7 @@ bool udp_server_endpoint_impl::is_joined(
 
 void udp_server_endpoint_impl::join(const std::string &_address) {
 
-    std::lock_guard<std::mutex> its_lock(multicast_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
     join_unlocked(_address);
 }
 
@@ -409,7 +409,7 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
 
 void udp_server_endpoint_impl::leave(const std::string &_address) {
 
-    std::lock_guard<std::mutex> its_lock(multicast_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
     leave_unlocked(_address);
 }
 
@@ -484,7 +484,7 @@ void udp_server_endpoint_impl::on_unicast_received(
             // By locking the multicast mutex here it is ensured that unicast
             // & multicast messages are not processed in parallel. This aligns
             // the behavior of endpoints with one and two active sockets.
-            std::lock_guard<std::mutex> its_lock(multicast_mutex_);
+            std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
             on_message_received(_error, _bytes, false,
                     unicast_remote_, unicast_recv_buffer_);
         }
@@ -498,7 +498,7 @@ void udp_server_endpoint_impl::on_multicast_received(
         uint8_t _multicast_id,
         const boost::asio::ip::address &_destination) {
 
-    std::lock_guard<std::mutex> its_lock(multicast_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
     if (_error != boost::asio::error::operation_aborted) {
         // Filter messages sent from the same source address
         if (multicast_remote_.address() != local_.address()
@@ -805,7 +805,7 @@ udp_server_endpoint_impl::set_multicast_option(
 
     if (_is_join) {
         if (!multicast_socket_) {
-            std::lock_guard<std::mutex> its_guard(multicast_mutex_);
+            std::lock_guard<std::recursive_mutex> its_guard(multicast_mutex_);
 
             multicast_socket_ = std::make_unique<socket_type>(io_, local_.protocol());
 
@@ -932,7 +932,7 @@ udp_server_endpoint_impl::set_multicast_option(
         multicast_socket_->set_option(its_join_option, ec);
 
         if (!ec) {
-            std::lock_guard<std::mutex> its_guard(multicast_mutex_);
+            std::lock_guard<std::recursive_mutex> its_guard(multicast_mutex_);
             joined_[_address.to_string()] = false;
             joined_group_ = true;
         }
@@ -942,7 +942,7 @@ udp_server_endpoint_impl::set_multicast_option(
             multicast_socket_->set_option(its_leave_option, ec);
 
             if (!ec) {
-                std::lock_guard<std::mutex> its_guard(multicast_mutex_);
+                std::lock_guard<std::recursive_mutex> its_guard(multicast_mutex_);
                 joined_.erase(_address.to_string());
 
                 if (0 == joined_.size()) {

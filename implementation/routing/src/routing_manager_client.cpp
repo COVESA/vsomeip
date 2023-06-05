@@ -603,7 +603,7 @@ void routing_manager_client::subscribe(
         client_t _client, const vsomeip_sec_client_t *_sec_client,
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) {
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
     (void)_client;
 
@@ -623,7 +623,7 @@ void routing_manager_client::subscribe(
 void routing_manager_client::send_subscribe(client_t _client,
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup, major_version_t _major,
-        event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) {
+        event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
     if (_event == ANY_EVENT) {
         if (!is_subscribe_to_any_event_allowed(get_sec_client(), _client, _service, _instance, _eventgroup)) {
@@ -1940,7 +1940,7 @@ void routing_manager_client::on_routing_info(
             client_t client_id_;
             major_version_t major_;
             event_t event_;
-            std::shared_ptr<debounce_filter_t> filter_;
+            std::shared_ptr<debounce_filter_impl_t> filter_;
             vsomeip_sec_client_t sec_client_;
             std::string env_;
         };
@@ -2595,7 +2595,7 @@ bool routing_manager_client::is_client_known(client_t _client) {
 
 bool routing_manager_client::create_placeholder_event_and_subscribe(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        event_t _notifier, const std::shared_ptr<debounce_filter_t> &_filter,
+        event_t _notifier, const std::shared_ptr<debounce_filter_impl_t> &_filter,
         client_t _client) {
 
     std::lock_guard<std::mutex> its_lock(stop_mutex_);

@@ -20,11 +20,13 @@
 namespace vsomeip_v3 {
 
 #if VSOMEIP_BOOST_VERSION < 106600
-using udp_server_endpoint_base_impl =
-    server_endpoint_impl<boost::asio::ip::udp_ext>;
+typedef server_endpoint_impl<
+            boost::asio::ip::udp_ext
+        > udp_server_endpoint_base_impl;
 #else
-using udp_server_endpoint_base_impl =
-    server_endpoint_impl<boost::asio::ip::udp>;
+typedef server_endpoint_impl<
+            boost::asio::ip::udp
+        > udp_server_endpoint_base_impl;
 #endif
 
 class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
@@ -111,7 +113,7 @@ private:
     std::unique_ptr<endpoint_type> multicast_local_;
     endpoint_type multicast_remote_;
     message_buffer_t multicast_recv_buffer_;
-    mutable std::mutex multicast_mutex_;
+    mutable std::recursive_mutex multicast_mutex_;
     uint8_t multicast_id_;
     std::map<std::string, bool> joined_;
     std::atomic<bool> joined_group_;

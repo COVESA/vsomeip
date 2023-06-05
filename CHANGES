@@ -1,6 +1,13 @@
 Changes
 =======
 
+v3.3.6
+- The "last forwarded" timestamp must be handled per event
+- Fix deadlock
+- Restart the connection on broken unix sockets
+- Fix routing root not binding to local tcp if
+- Rework connecting timeout
+
 v3.3.5.1
 - Fix typo in application_impl.cpp
 - Update load_balancing_option_impl.cpp

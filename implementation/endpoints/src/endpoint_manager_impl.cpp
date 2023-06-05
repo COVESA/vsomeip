@@ -492,11 +492,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
 
         auto its_udp_server_endpoint
             = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
-        if (_port != configuration_->get_sd_port()) {
-            its_udp_server_endpoint->join(_address.to_string());
-        } else {
-            its_udp_server_endpoint->join_unlocked(_address.to_string());
-        }
+        its_udp_server_endpoint->join(_address.to_string());
     } else {
         VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
@@ -725,19 +721,30 @@ endpoint_manager_impl::create_routing_root(
         VSOMEIP_INFO << __func__ << ": Routing root @ "
                 << its_address.to_string() << ":" << std::dec << its_port;
 
-        try {
-            _root =
-                std::make_shared <local_tcp_server_endpoint_impl>(
-                        shared_from_this(), _host,
-                        boost::asio::ip::tcp::endpoint(its_address, its_port),
-                        io_, configuration_, true);
-        } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "Remote routing root endpoint creation failed. Client ID: "
-                    << std::hex << std::setw(4) << std::setfill('0')
+        bool create_routing_result = false;
+        for (int attempt = 0; attempt < VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES; ++attempt) {
+            try {
+                _root =
+                    std::make_shared <local_tcp_server_endpoint_impl>(
+                            shared_from_this(), _host,
+                            boost::asio::ip::tcp::endpoint(its_address, its_port),
+                            io_, configuration_, true);
+                create_routing_result = true;
+                break;
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << "endpoint_manager_impl::create_routing_root: "
+                    << "Remote routing root endpoint creation failed (Attempt: " << attempt << ")."
+                    << "Client ID: " << std::hex << std::setw(4) << std::setfill('0')
                     << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
 
-            return false;
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL));
+            }
         }
+        
+        if (!create_routing_result) {
+            return false;
+        } 
 
         _is_socket_activated = false;
     }
@@ -1303,9 +1310,7 @@ endpoint_manager_impl::process_multicast_options() {
                 its_lock.lock();
             }
         } else {
-            options_condition_.wait(its_lock, [this] {
-                return !options_queue_.empty() || !is_processing_options_;
-            });
+            options_condition_.wait(its_lock);
         }
     }
 }

@@ -38,16 +38,15 @@ extern "C"
     /*
      * The real open(2), renamed by GCC.
      */
-    int __real_open(const char *filename, int flags, ...);
+    int __real_open(const char *pathname, int flags, mode_t mode);
 
     /*
      * Overrides open(2) to set O_CLOEXEC by default.
      */
-    int __wrap_open(const char *filename, int flags, ...)
+    int __wrap_open(const char *pathname, int flags, mode_t mode)
     {
-        return __real_open(filename, flags|O_CLOEXEC);
+        return __real_open(pathname, flags | O_CLOEXEC, mode);
     }
-
 }
 
 #endif

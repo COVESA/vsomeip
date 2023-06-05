@@ -45,8 +45,8 @@ class selective_option_impl;
 class message_impl
         : public vsomeip_v3::message, public vsomeip_v3::message_base_impl {
 public:
-    using entries_t = std::vector<std::shared_ptr<entry_impl>>;
-    using options_t = std::vector<std::shared_ptr<option_impl>>;
+    typedef std::vector<std::shared_ptr<entry_impl>> entries_t;
+    typedef std::vector<std::shared_ptr<option_impl>> options_t;
     struct forced_initial_events_t {
         std::shared_ptr<vsomeip_v3::endpoint_definition> target_;
         vsomeip_v3::service_t service_;

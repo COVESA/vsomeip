@@ -30,8 +30,8 @@
 
 namespace vsomeip_v3 {
 
-using message_buffer_t = std::vector<byte_t>;
-using message_buffer_ptr_t = std::shared_ptr<message_buffer_t>;
+typedef std::vector<byte_t> message_buffer_t;
+typedef std::shared_ptr<message_buffer_t> message_buffer_ptr_t;
 
 #if 0
 struct timing {

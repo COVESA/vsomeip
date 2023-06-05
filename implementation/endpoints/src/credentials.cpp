@@ -131,7 +131,7 @@ void credentials::send_credentials(const int _fd, client_t _client, std::string 
     // send client id with credentials
     ssize_t ns = sendmsg(_fd, &msgh, 0);
     if (ns == -1) {
-        VSOMEIP_ERROR << __func__ << ": Sending credentials failed. errno: " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Sending credentials failed. errno: " << std::strerror(errno);
     }
 }
 

@@ -35,8 +35,8 @@ template<typename Protocol>
 class client_endpoint_impl: public endpoint_impl<Protocol>, public client_endpoint,
         public std::enable_shared_from_this<client_endpoint_impl<Protocol> > {
 public:
-    using endpoint_type = typename Protocol::endpoint;
-    using socket_type = typename Protocol::socket;
+    typedef typename Protocol::endpoint endpoint_type;
+    typedef typename Protocol::socket socket_type;
 
     client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,
@@ -76,6 +76,7 @@ public:
     size_t get_queue_size() const;
 
 public:
+    void cancel_and_connect_cbk(boost::system::error_code const &_error);
     void connect_cbk(boost::system::error_code const &_error);
     void wait_connect_cbk(boost::system::error_code const &_error);
     void wait_connecting_cbk(boost::system::error_code const &_error);

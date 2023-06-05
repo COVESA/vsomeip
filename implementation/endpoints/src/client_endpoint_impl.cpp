@@ -412,11 +412,6 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::connect_cbk(
         boost::system::error_code const &_error) {
 
-    if (_error != boost::asio::error::timed_out) {
-        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
-        connecting_timer_.cancel();
-    }
-
     if (_error == boost::asio::error::operation_aborted
             || endpoint_impl<Protocol>::sending_blocked_) {
         // endpoint was stopped
@@ -466,6 +461,18 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             receive();
         }
     }
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
+        boost::system::error_code const &_error) {
+    {
+        /* Need this for TCP endpoints for now because we have no
+         direct control about the point in time the connect has finished */
+        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        connecting_timer_.cancel();
+    }
+    connect_cbk(_error);
 }
 
 template<typename Protocol>
