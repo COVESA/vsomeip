@@ -119,7 +119,11 @@ message::~message() try {
         // Prepare time stamp
         auto its_time_t = std::chrono::system_clock::to_time_t(when_);
         struct tm its_time;
+#ifdef _WIN32
+        localtime_s(&its_time, &its_time_t);
+#else
         localtime_r(&its_time_t, &its_time);
+#endif
         auto its_ms = (when_.time_since_epoch().count() / 100) % 1000000;
 
         if (its_configuration->has_console_log()) {

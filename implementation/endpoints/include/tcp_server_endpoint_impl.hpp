@@ -41,7 +41,6 @@ public:
     bool send_error(const std::shared_ptr<endpoint_definition> _target,
                 const byte_t *_data, uint32_t _size);
     bool send_queued(const target_data_iterator_type _it);
-    void send_queued_sync(const target_data_iterator_type _it);
     void get_configured_times_from_endpoint(
             service_t _service, method_t _method,
             std::chrono::nanoseconds *_debouncing,
@@ -83,7 +82,6 @@ private:
         void receive();
 
         void send_queued(const target_data_iterator_type _it);
-        void send_queued_sync(const target_data_iterator_type _it);
 
         void set_remote_info(const endpoint_type &_remote);
         std::string get_address_port_remote() const;

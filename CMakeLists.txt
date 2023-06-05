@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 3)
-set (VSOMEIP_PATCH_VERSION 6)
+set (VSOMEIP_PATCH_VERSION 7)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -232,7 +232,7 @@ if (MSVC)
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /std:c++latest /wd4250")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /std:c++14 /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )

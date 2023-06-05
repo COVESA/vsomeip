@@ -1271,7 +1271,7 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance,
 
             if (its_targets.size() > 0) {
                 for (const auto &its_target : its_targets) {
-                    its_event->set_payload(_payload, _client, its_target);
+                    its_event->set_payload(_payload, _client, its_target, _force);
                 }
             }
         } else {
@@ -1678,7 +1678,7 @@ void routing_manager_impl::on_notification(client_t _client,
                     its_event->set_payload(its_payload, false);
                 }
             } else {
-                 its_event->set_payload(its_payload, false, true);
+                 its_event->set_payload(its_payload, VSOMEIP_ROUTING_CLIENT, true);
             }
         }
     }

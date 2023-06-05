@@ -56,7 +56,7 @@ public:
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             const client_t _client,
-            const std::shared_ptr<endpoint_definition>& _target);
+            const std::shared_ptr<endpoint_definition>& _target, bool _force);
 
     bool prepare_update_payload(const std::shared_ptr<payload> &_payload,
             bool _force);

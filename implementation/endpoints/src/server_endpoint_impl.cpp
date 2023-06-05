@@ -39,10 +39,7 @@ server_endpoint_impl<Protocol>::server_endpoint_impl(
         configuration::endpoint_queue_limit_t _queue_limit,
         const std::shared_ptr<configuration>& _configuration)
     : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io, _max_message_size,
-                              _queue_limit, _configuration),
-                              sent_timer_(_io) {
-
-    is_sending_ = false;
+                              _queue_limit, _configuration) {
 }
 
 template<typename Protocol>
@@ -66,8 +63,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(
             // cancel dispatch timer
             t->second.dispatch_timer_->cancel(ec);
             if (its_train->buffer_->size() > 0) {
-                const bool queue_size_zero_on_entry(t->second.queue_.empty());
-                if (queue_train(t, its_train, queue_size_zero_on_entry))
+                if (queue_train(t, its_train))
                     its_erased.push_back(t);
                 queued_train = true;
             }
@@ -79,10 +75,8 @@ void server_endpoint_impl<Protocol>::prepare_stop(
                 if (passenger_iter.first == _service) {
                     // cancel dispatch timer
                     t->second.dispatch_timer_->cancel(ec);
-                    // queue train
-                    const bool queue_size_zero_on_entry(t->second.queue_.empty());
                     // TODO: Queue all(!) trains here...
-                    if (queue_train(t, its_train, queue_size_zero_on_entry))
+                    if (queue_train(t, its_train))
                         its_erased.push_back(t);
                     queued_train = true;
                     break;
@@ -418,13 +412,12 @@ void server_endpoint_impl<Protocol>::send_segments(
         its_data.train_->departure_ = its_now + its_retention;
     }
 
-    const bool queue_size_still_zero(its_data.queue_.empty());
     for (const auto &s : _segments) {
         its_data.queue_.emplace_back(std::make_pair(s, _separation_time));
         its_data.queue_size_ += s->size();
     }
 
-    if (queue_size_still_zero && !its_data.queue_.empty()) { // no writing in progress
+    if (!its_data.is_sending_ && !its_data.queue_.empty()) { // no writing in progress
         // respect minimal debounce time
         schedule_train(its_data);
         // ignore retention time and send immediately as the train is full anyway
@@ -438,7 +431,6 @@ server_endpoint_impl<Protocol>::find_or_create_target_unlocked(endpoint_type _ta
 
     auto its_iterator = targets_.find(_target);
     if (its_iterator == targets_.end()) {
-
         auto its_result = targets_.emplace(
                 std::make_pair(_target, endpoint_data_type(this->io_)));
         its_iterator = its_result.first;
@@ -543,8 +535,7 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::queue_train(
-        target_data_iterator_type _it, const std::shared_ptr<train> &_train,
-        bool _queue_size_zero_on_entry) {
+        target_data_iterator_type _it, const std::shared_ptr<train> &_train) {
 
     bool must_erase(false);
 
@@ -552,7 +543,7 @@ bool server_endpoint_impl<Protocol>::queue_train(
     its_data.queue_.push_back(std::make_pair(_train->buffer_, 0));
     its_data.queue_size_ += _train->buffer_->size();
 
-    if (_queue_size_zero_on_entry && !its_data.queue_.empty()) { // no writing in progress
+    if (!its_data.is_sending_) { // no writing in progress
         must_erase = send_queued(_it);
     }
 
@@ -592,7 +583,7 @@ bool server_endpoint_impl<Protocol>::flush(endpoint_type _key) {
 
     if (!its_train->buffer_->empty()) {
 
-        queue_train(it, its_train, its_data.queue_.empty());
+        queue_train(it, its_train);
 
         // Reset current train if necessary
         if (is_current_train) {
@@ -623,20 +614,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
     (void)_bytes;
 
-    {
-        std::lock_guard<std::mutex> its_sent_lock(sent_mutex_);
-        is_sending_ = false;
-
-        boost::system::error_code ec;
-        sent_timer_.cancel(ec);
-    }
-
-    std::lock_guard<std::mutex> its_lock(mutex_);
-
-    auto it = targets_.find(_key);
-    if (it == targets_.end())
-        return;
-
+    // Helper
     auto check_if_all_msgs_for_stopped_service_are_sent = [&]() {
         bool found_service_msg(false);
         service_t its_stopped_service(ANY_SERVICE);
@@ -666,12 +644,9 @@ void server_endpoint_impl<Protocol>::send_cbk(
             } else { // all messages of the to be stopped service have been sent
                 auto handler = stp_hndlr_iter->second;
                 auto ptr = this->shared_from_this();
-#if defined(__linux__) || defined(ANDROID)
-                endpoint_impl<Protocol>::
-#endif
-                    io_.post([ptr, handler, its_stopped_service](){
-                        handler(ptr, its_stopped_service);
-                    });
+                endpoint_impl<Protocol>::io_.post([ptr, handler, its_stopped_service](){
+                    handler(ptr, its_stopped_service);
+                });
                 stp_hndlr_iter = prepare_stop_handlers_.erase(stp_hndlr_iter);
             }
         }
@@ -691,18 +666,26 @@ void server_endpoint_impl<Protocol>::send_cbk(
             if (found_cbk != prepare_stop_handlers_.end()) {
                 auto handler = found_cbk->second;
                 auto ptr = this->shared_from_this();
-#if defined(__linux__) || defined(ANDROID)
-                endpoint_impl<Protocol>::
-#endif
-                    io_.post([ptr, handler](){
-                            handler(ptr, ANY_SERVICE);
-                    });
+                endpoint_impl<Protocol>::io_.post([ptr, handler](){
+                    handler(ptr, ANY_SERVICE);
+                });
                 prepare_stop_handlers_.erase(found_cbk);
             }
         }
     };
 
+
+    std::lock_guard<std::mutex> its_lock(mutex_);
+
+    auto it = targets_.find(_key);
+    if (it == targets_.end())
+        return;
+
     auto& its_data = it->second;
+
+    boost::system::error_code ec;
+    its_data.sent_timer_.cancel(ec);
+
     if (!_error) {
         its_data.queue_size_ -= its_data.queue_.front().first->size();
         its_data.queue_.pop_front();
@@ -716,11 +699,14 @@ void server_endpoint_impl<Protocol>::send_cbk(
 
         if (!its_data.queue_.empty()) {
             (void)send_queued(it);
-        } else if (!prepare_stop_handlers_.empty() && endpoint_impl<Protocol>::sending_blocked_) {
-            // endpoint is shutting down completely
-            cancel_dispatch_timer(it);
-            targets_.erase(it);
-            check_if_all_queues_are_empty();
+        } else {
+            if (!prepare_stop_handlers_.empty() && endpoint_impl<Protocol>::sending_blocked_) {
+                // endpoint is shutting down completely
+                cancel_dispatch_timer(it);
+                targets_.erase(it);
+                check_if_all_queues_are_empty();
+            }
+            its_data.is_sending_ = false;
         }
     } else {
         message_buffer_ptr_t its_buffer;
@@ -769,7 +755,6 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 check_if_all_msgs_for_stopped_service_are_sent();
             }
         }
-
     }
 }
 
@@ -852,15 +837,18 @@ void server_endpoint_impl<Protocol>::update_last_departure(
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(ANDROID)
+#ifdef __linux__
+template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #if VSOMEIP_BOOST_VERSION < 106600
 template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
-template class server_endpoint_impl<boost::asio::ip::udp_ext>;
-#else
-template class server_endpoint_impl<boost::asio::local::stream_protocol>;
-template class server_endpoint_impl<boost::asio::ip::udp>;
 #endif
 #endif
+
 template class server_endpoint_impl<boost::asio::ip::tcp>;
+template class server_endpoint_impl<boost::asio::ip::udp>;
+
+#if VSOMEIP_BOOST_VERSION < 106600
+template class server_endpoint_impl<boost::asio::ip::udp_ext>;
+#endif
 
 }  // namespace vsomeip_v3

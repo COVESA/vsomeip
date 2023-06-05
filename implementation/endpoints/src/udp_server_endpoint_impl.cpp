@@ -268,7 +268,6 @@ bool udp_server_endpoint_impl::send_error(
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto& its_data = its_target_iterator->second;
-    const bool queue_size_zero_on_entry(its_data.queue_.empty());
 
     if (check_message_size(nullptr, _size, its_target) == endpoint_impl::cms_ret_e::MSG_OK &&
         check_queue_limit(_data, _size, its_data.queue_size_)) {
@@ -276,7 +275,7 @@ bool udp_server_endpoint_impl::send_error(
                 std::make_pair(std::make_shared<message_buffer_t>(_data, _data + _size), 0));
         its_data.queue_size_ += _size;
 
-        if (queue_size_zero_on_entry) { // no writing in progress
+        if (!its_data.is_sending_) { // no writing in progress
             (void)send_queued(its_target_iterator);
         }
         ret = true;
@@ -315,6 +314,7 @@ bool udp_server_endpoint_impl::send_queued(
         its_last_sent = std::chrono::steady_clock::time_point();
     }
 
+    _it->second.is_sending_ = true;
     unicast_socket_.async_send_to(
         boost::asio::buffer(*its_entry.first),
         _it->first,
@@ -815,11 +815,11 @@ udp_server_endpoint_impl::set_multicast_option(
                     << ": set reuse address option failed (" << ec.message() << ")";
 
 #ifdef _WIN32
-            const char *its_option("0001");
+            const char *its_pktinfo_option("0001");
             ::setsockopt(multicast_socket_->native_handle(),
                     (is_v4_ ? IPPROTO_IP : IPPROTO_IPV6),
                     (is_v4_ ? IP_PKTINFO : IPV6_PKTINFO),
-                    its_option, sizeof(its_option));
+                    its_pktinfo_option, sizeof(its_pktinfo_option));
 #else
             int its_pktinfo_option(1);
             ::setsockopt(multicast_socket_->native_handle(),
