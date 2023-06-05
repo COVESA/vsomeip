@@ -1,5 +1,11 @@
 Changes
 =======
+v3.3.8
+- Check buffer size when serializing/deserializing event registrations
+- Remove leftovers from shm usage
+- Avoid using uninitialized variable
+- Displays lib version when starting any app
+
 v3.3.7
 - Fix handling of endpoint options
 - Fix build on Windows
@@ -20,7 +26,7 @@ v3.3.5.1
 - Fix typo in application_impl.cpp
 - Update load_balancing_option_impl.cpp
 - Fix format specifier in memory_log_timer_cbk
-- Isolate boost
+- Prevent boost symbols from leaking into global namespace
 - Remove redundant ostream manipulators
 - Fix for configuration option deserialize bug
 - Accept return codes within range 0x20 - 0x5E as valid

@@ -16,7 +16,19 @@ register_event::register_event(service_t service, instance_t instance,
 }
 
 void
-register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset) const {
+register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset, error_e &_error) const {
+
+    size_t its_size(_offset
+                    + sizeof(service_) + sizeof(instance_)
+                    + sizeof(event_) + sizeof(event_type_)
+                    + sizeof(is_provided_) + sizeof(reliability_)
+                    + sizeof(is_cyclic_) + sizeof(num_eventg_));
+
+    // First check: Does the static part of the data fit into the buffer?
+    if (_buffer.size() < its_size) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
 
     std::memcpy(&_buffer[_offset], &service_, sizeof(service_));
     _offset += sizeof(service_);
@@ -35,6 +47,12 @@ register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset) const {
     std::memcpy(&_buffer[_offset], &num_eventg_, sizeof(num_eventg_));
     _offset += sizeof(num_eventg_);
 
+    // Second check: Does the dynamic part of the data fit into the buffer?
+    if (_buffer.size() < _offset + (num_eventg_ * sizeof(eventgroup_t))) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
+
     for (const auto g : eventgroups_) {
         std::memcpy(&_buffer[_offset], &g, sizeof(g));
         _offset += sizeof(g);
@@ -42,7 +60,19 @@ register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset) const {
 }
 
 void
-register_event::deserialize(const std::vector<byte_t> &_buffer, size_t &_offset) {
+register_event::deserialize(const std::vector<byte_t> &_buffer, size_t &_offset, error_e &_error) {
+
+    size_t its_size(_offset
+                    + sizeof(service_) + sizeof(instance_)
+                    + sizeof(event_) + sizeof(event_type_)
+                    + sizeof(is_provided_) + sizeof(reliability_)
+                    + sizeof(is_cyclic_) + sizeof(num_eventg_));
+
+    // First check: Does the buffer contain the full static part of the data?
+    if (_buffer.size() < its_size) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
 
     std::memcpy(&service_, &_buffer[_offset], sizeof(service_));
     _offset += sizeof(service_);
@@ -60,6 +90,12 @@ register_event::deserialize(const std::vector<byte_t> &_buffer, size_t &_offset)
     _offset += sizeof(is_cyclic_);
     std::memcpy(&num_eventg_, &_buffer[_offset], sizeof(num_eventg_));
     _offset += sizeof(num_eventg_);
+
+    // Second check: Does the buffer contain the full dynamic part of the data?
+    if (_buffer.size() < _offset + (num_eventg_ * sizeof(eventgroup_t))) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
 
     eventgroups_.clear();
     for (size_t i = 0; i < num_eventg_; i++) {

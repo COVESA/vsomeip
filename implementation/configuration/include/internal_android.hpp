@@ -106,6 +106,10 @@
 
 #define VSOMEIP_ROUTING_READY_MESSAGE           "SOME/IP routing ready."
 
+#ifndef VSOMEIP_VERSION
+#define VSOMEIP_VERSION "unknown version"
+#endif
+
 namespace vsomeip_v3 {
 
 typedef enum {

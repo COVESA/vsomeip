@@ -24,21 +24,22 @@ register_events_command::add_registration(const register_event &_register_event)
             + sizeof(_register_event.is_provided()) + sizeof(_register_event.get_reliability())
             + sizeof(_register_event.is_cyclic()) + sizeof(_register_event.get_num_eventgroups())
             + (_register_event.get_num_eventgroups() * sizeof(eventgroup_t) ));
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
+
+    // check size
+    if (its_size > std::numeric_limits<command_size_t>::max())
         return false;
-    } else {
-        // set size
-        size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
-        registrations_.push_back(_register_event);
-    }
+
+    // set size
+    size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
+    registrations_.push_back(_register_event);
+
     return true;
 }
 
 void
 register_events_command::serialize(std::vector<byte_t> &_buffer, error_e &_error) const {
 
-    if (size_ + COMMAND_HEADER_SIZE> std::numeric_limits<command_size_t>::max()) {
-
+    if (size_ + COMMAND_HEADER_SIZE > std::numeric_limits<command_size_t>::max()) {
         _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
         return;
     }
@@ -54,7 +55,9 @@ register_events_command::serialize(std::vector<byte_t> &_buffer, error_e &_error
     // serialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);
     for(auto &reg : registrations_) {
-        reg.serialize(_buffer, its_offset);
+        reg.serialize(_buffer, its_offset, _error);
+        if (_error != error_e::ERROR_OK)
+        	return;
     }
 }
 
@@ -74,18 +77,12 @@ register_events_command::deserialize(const std::vector<byte_t> &_buffer, error_e
 
     size_t its_offset(COMMAND_HEADER_SIZE);
 
-    while(its_offset < _buffer.size()) {
-        size_t its_size(its_offset+ sizeof(service_t) + sizeof(instance_t)
-            + sizeof(event_t) + sizeof(event_type_e)
-            + sizeof(bool) + sizeof(bool) + sizeof(bool) + sizeof(uint16_t)
-            + sizeof(eventgroup_t)); // at least one is needed
-        if (its_size > _buffer.size()) {
-             _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-            return;
-        }
-
+    while (its_offset < _buffer.size()) {
         register_event event_command;
-        event_command.deserialize(_buffer, its_offset);
+        event_command.deserialize(_buffer, its_offset, _error);
+        if (_error != error_e::ERROR_OK)
+        	return;
+
         registrations_.push_back(event_command);
     }
 }

@@ -3395,10 +3395,6 @@ routing_manager_impl::expire_subscriptions(bool _force) {
 
 void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const & _error) {
     if (!_error) {
-
-#ifndef VSOMEIP_VERSION
-#define VSOMEIP_VERSION "unknown version"
-#endif
         static int its_counter(0);
         static uint32_t its_interval = configuration_->get_log_version_interval();
 

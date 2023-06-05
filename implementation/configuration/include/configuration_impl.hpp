@@ -182,7 +182,6 @@ public:
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
-    VSOMEIP_EXPORT std::uint32_t get_permissions_shm() const;
 
     VSOMEIP_EXPORT bool check_routing_credentials(client_t _client,
             const vsomeip_sec_client_t *_sec_client) const;
@@ -560,7 +559,6 @@ protected:
     };
 
     bool is_configured_[ET_MAX];
-    std::uint32_t permissions_shm_;
     std::uint32_t permissions_uds_;
 
     std::string network_;
