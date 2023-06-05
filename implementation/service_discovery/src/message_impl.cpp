@@ -27,6 +27,7 @@
 #include "../include/protection_option_impl.hpp"
 #include "../include/selective_option_impl.hpp"
 #include "../include/message_impl.hpp"
+#include "../include/unknown_option_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/payload_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -399,7 +400,7 @@ option_impl * message_impl::deserialize_option(vsomeip_v3::deserializer *_from) 
             break;
 
         default:
-            deserialized_option = new option_impl();
+            deserialized_option = new unknown_option_impl();
             break;
         };
 

@@ -1,5 +1,13 @@
 Changes
 =======
+v3.3.7
+- Fix handling of endpoint options
+- Fix build on Windows
+- Fix client-side logging filters
+- Rework in event::set_payload
+- Release no longer in use client endpoints
+- Rework condition for starting the send operation
+- Verify if the event is shadow
 
 v3.3.6
 - The "last forwarded" timestamp must be handled per event

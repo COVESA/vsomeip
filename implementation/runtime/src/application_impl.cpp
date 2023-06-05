@@ -204,34 +204,32 @@ bool application_impl::init() {
             do {
                 const uint16_t prev_val(val);
                 its_converter >> std::hex >> std::setw(4) >> val;
-                if (its_converter.good()) {
-                    const std::stringstream::int_type c = its_converter.eof()?'\0':its_converter.get();
-                    switch (c) {
-                    case '"':
-                    case '.':
-                    case ':':
-                    case ' ':
-                    case '\0': {
-                            if ('.' != c) {
-                                if (0xffffu == prev_val) {
-                                    VSOMEIP_INFO << "+filter "
-                                    << std::hex << std::setfill('0')
-                                    << std::setw(4) << val;
-                                    client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
-                                } else {
-                                    VSOMEIP_INFO << "+filter "
-                                    << std::hex << std::setfill('0')
-                                    << std::setw(4) << prev_val << "." << std::setw(4) << val;
-                                    client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
-                                }
-                                val = 0xffffu;
+                const std::stringstream::int_type c = its_converter.eof()?'\0':its_converter.get();
+                switch (c) {
+                case '"':
+                case '.':
+                case ':':
+                case ' ':
+                case '\0': {
+                        if ('.' != c) {
+                            if (0xffffu == prev_val) {
+                                VSOMEIP_INFO << "+filter "
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << val;
+                                client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
+                            } else {
+                                VSOMEIP_INFO << "+filter "
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << prev_val << "." << std::setw(4) << val;
+                                client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
                             }
+                            val = 0xffffu;
                         }
-                        break;
-                    default:
-                        stop_parsing = true;
-                        break;
                     }
+                    break;
+                default:
+                    stop_parsing = true;
+                    break;
                 }
             }
             while (!stop_parsing && its_converter.good());

@@ -151,20 +151,23 @@ void
 event::set_payload(const std::shared_ptr<payload> &_payload, bool _force) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (is_provided_ && prepare_update_payload_unlocked(_payload, _force)) {
-        if (is_updating_on_change_) {
-            if (change_resets_cycle_)
-                stop_cycle();
+    if (is_provided_) {
+        if (prepare_update_payload_unlocked(_payload, _force)) {
+            if (is_updating_on_change_) {
+                if (change_resets_cycle_)
+                    stop_cycle();
 
-            notify(_force);
+                notify(_force);
 
-            if (change_resets_cycle_)
-                start_cycle();
+                if (change_resets_cycle_)
+                    start_cycle();
 
-            update_payload_unlocked();
+                update_payload_unlocked();
+            }
         }
     } else {
-        VSOMEIP_INFO << "Cannot set payload for event ["
+        VSOMEIP_INFO << __func__ << ":" << __LINE__
+                << " Cannot set payload for event ["
                 << std::hex << std::setw(4) << std::setfill('0')
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
@@ -178,13 +181,16 @@ event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
             bool _force) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (is_provided_ && prepare_update_payload_unlocked(_payload, _force)) {
-        if (is_updating_on_change_) {
-            notify_one_unlocked(_client, _force);
-            update_payload_unlocked();
+    if (is_provided_) {
+        if (prepare_update_payload_unlocked(_payload, _force)) {
+            if (is_updating_on_change_) {
+                notify_one_unlocked(_client, _force);
+                update_payload_unlocked();
+            }
         }
     } else {
-        VSOMEIP_INFO << "Cannot set payload for event ["
+        VSOMEIP_INFO << __func__ << ":" << __LINE__
+                << " Cannot set payload for event ["
                 << std::hex << std::setw(4) << std::setfill('0')
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
@@ -196,16 +202,20 @@ event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
 void
 event::set_payload(const std::shared_ptr<payload> &_payload,
         const client_t _client,
-        const std::shared_ptr<endpoint_definition> &_target) {
+        const std::shared_ptr<endpoint_definition> &_target,
+        bool _force) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    if (is_provided_ && prepare_update_payload_unlocked(_payload, false)) {
-        if (is_updating_on_change_) {
-            notify_one_unlocked(_client, _target);
-            update_payload_unlocked();
+    if (is_provided_) {
+        if (prepare_update_payload_unlocked(_payload, _force)) {
+            if (is_updating_on_change_) {
+                notify_one_unlocked(_client, _target);
+                update_payload_unlocked();
+            }
         }
     } else {
-        VSOMEIP_INFO << "Cannot set payload for event ["
+        VSOMEIP_INFO << __func__ << ":" << __LINE__
+                << " Cannot set payload for event ["
                 << std::hex << std::setw(4) << std::setfill('0')
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
@@ -444,21 +454,21 @@ event::prepare_update_payload_unlocked(
                 _payload->get_data(), _payload->get_length());
 
     bool is_change = has_changed(current_->get_payload(), its_payload);
+
     if (!_force
             && type_ == event_type_e::ET_FIELD
             && cycle_ == std::chrono::milliseconds::zero()
-            && !is_change) {
-
+            && !is_change
+            && !is_shadow_) {
         return false;
     }
 
-    if (is_change)
-        update_->set_payload(its_payload);
+    update_->set_payload(its_payload);
 
-    if (!is_set_)
+    if (!is_set_) {
         start_cycle();
-
-    is_set_ = true;
+        is_set_ = true;
+    }
 
     return true;
 }

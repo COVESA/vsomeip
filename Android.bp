@@ -80,7 +80,7 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.3.6\"",
+        "-DVSOMEIP_COMPAT_VERSION=\"3.3.7\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
     ],

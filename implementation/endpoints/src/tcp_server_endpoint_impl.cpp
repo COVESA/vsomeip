@@ -133,7 +133,6 @@ bool tcp_server_endpoint_impl::send_error(
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto &its_data = its_target_iterator->second;
-    const bool queue_size_zero_on_entry(its_data.queue_.empty());
 
     if (check_message_size(nullptr, _size, its_target) == endpoint_impl::cms_ret_e::MSG_OK &&
         check_queue_limit(_data, _size, its_data.queue_size_)) {
@@ -141,7 +140,7 @@ bool tcp_server_endpoint_impl::send_error(
                 std::make_pair(std::make_shared<message_buffer_t>(_data, _data + _size), 0));
         its_data.queue_size_ += _size;
 
-        if (queue_size_zero_on_entry) { // no writing in progress
+        if (!its_data.is_sending_) { // no writing in progress
             send_queued(its_target_iterator);
         }
         ret = true;
@@ -151,7 +150,7 @@ bool tcp_server_endpoint_impl::send_error(
 
 bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {
 
-	bool must_erase(false);
+    bool must_erase(false);
     connection::ptr its_connection;
     {
         std::lock_guard<std::mutex> its_lock(connections_mutex_);
@@ -483,10 +482,7 @@ void tcp_server_endpoint_impl::connection::send_queued(
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        {
-            std::lock_guard<std::mutex> its_sent_lock(its_server->sent_mutex_);
-            its_server->is_sending_ = true;
-        }
+        _it->second.is_sending_ = true;
 
         boost::asio::async_write(socket_, boost::asio::buffer(*its_buffer),
                  std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition,
@@ -501,33 +497,6 @@ void tcp_server_endpoint_impl::connection::send_queued(
                           _it->first,
                           std::placeholders::_1,
                           std::placeholders::_2));
-    }
-}
-
-void tcp_server_endpoint_impl::connection::send_queued_sync(
-        const target_data_iterator_type _it) {
-
-    message_buffer_ptr_t its_buffer = _it->second.queue_.front().first;
-    if (magic_cookies_enabled_) {
-        const std::chrono::steady_clock::time_point now =
-                std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(
-                now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
-            if (send_magic_cookie(its_buffer)) {
-                last_cookie_sent_ = now;
-                _it->second.queue_size_ += sizeof(SERVICE_COOKIE);
-            }
-        }
-    }
-
-    try {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        boost::asio::write(socket_, boost::asio::buffer(*its_buffer));
-    } catch (const boost::system::system_error &e) {
-        if (e.code() != boost::asio::error::broken_pipe) {
-            VSOMEIP_ERROR << "tcp_server_endpoint_impl::connection::"
-            << __func__ << " " << e.what();
-        }
     }
 }
 
@@ -1033,26 +1002,33 @@ bool tcp_server_endpoint_impl::tp_segmentation_enabled(service_t _service,
 }
 
 void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::error_code &_error) {
+
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
-    std::unique_lock<std::mutex> its_sent_lock(its_server->sent_mutex_);
-    if (!its_server->is_sending_ || !_error) {
-        its_sent_lock.unlock();
-        if (!_error)
+    if (!its_server)
+        return;
+
+    std::lock_guard<std::mutex> its_lock(its_server->mutex_);
+    auto it = its_server->targets_.find(remote_);
+    if (it != its_server->targets_.end()) {
+        auto &its_data = it->second;
+        if (its_data.is_sending_ && _error) {
+            std::chrono::milliseconds its_timeout(VSOMEIP_MAX_TCP_SENT_WAIT_TIME);
+            boost::system::error_code ec;
+            its_data.sent_timer_.expires_from_now(its_timeout, ec);
+            its_data.sent_timer_.async_wait(std::bind(&tcp_server_endpoint_impl::connection::wait_until_sent,
+                    std::dynamic_pointer_cast<tcp_server_endpoint_impl::connection>(shared_from_this()),
+                    std::placeholders::_1));
+            return;
+        } else {
             VSOMEIP_WARNING << __func__
-                << ": Maximum wait time for send operation exceeded for tse.";
-        {
-            std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
-            stop();
+                    << ": Maximum wait time for send operation exceeded for tse.";
         }
-        its_server->remove_connection(this);
-    } else {
-        std::chrono::milliseconds its_timeout(VSOMEIP_MAX_TCP_SENT_WAIT_TIME);
-        boost::system::error_code ec;
-        its_server->sent_timer_.expires_from_now(its_timeout, ec);
-        its_server->sent_timer_.async_wait(std::bind(&tcp_server_endpoint_impl::connection::wait_until_sent,
-                std::dynamic_pointer_cast<tcp_server_endpoint_impl::connection>(shared_from_this()),
-                std::placeholders::_1));
     }
+    {
+        std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+        stop();
+    }
+    its_server->remove_connection(this);
 }
 
 }  // namespace vsomeip_v3

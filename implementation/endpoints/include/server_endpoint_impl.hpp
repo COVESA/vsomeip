@@ -32,7 +32,20 @@ public:
             : train_(std::make_shared<train>()),
               dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_io)),
               has_last_departure_(false),
-              queue_size_(0) {
+              queue_size_(0),
+              is_sending_(false),
+              sent_timer_(_io),
+			  io_(_io) {
+        }
+
+        endpoint_data_type(const endpoint_data_type &&_source)
+        	: train_(_source.train_),
+			  dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_source.io_)),
+			  has_last_departure_(_source.has_last_departure_),
+			  queue_size_(_source.queue_size_),
+			  is_sending_(_source.is_sending_),
+			  sent_timer_(_source.io_),
+			  io_(_source.io_) {
         }
 
         std::shared_ptr<train> train_;
@@ -44,6 +57,11 @@ public:
 
         std::deque<std::pair<message_buffer_ptr_t, uint32_t> > queue_;
         std::size_t queue_size_;
+
+        bool is_sending_;
+        boost::asio::steady_timer sent_timer_;
+
+        boost::asio::io_context &io_;
     };
 
     typedef typename std::map<endpoint_type, endpoint_data_type> target_data_type;
@@ -105,8 +123,7 @@ protected:
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size,
                            std::size_t _current_queue_size) const;
     bool queue_train(const target_data_iterator_type _it,
-            const std::shared_ptr<train> &_train,
-            bool _queue_size_zero_on_entry);
+            const std::shared_ptr<train> &_train);
 
     void send_segments(const tp::tp_split_messages_t &_segments,
             std::uint32_t _separation_time, const endpoint_type &_target);
@@ -122,10 +139,6 @@ protected:
     std::map<service_t, endpoint::prepare_stop_handler_t> prepare_stop_handlers_;
 
     mutable std::mutex mutex_;
-
-    std::mutex sent_mutex_;
-    bool is_sending_;
-    boost::asio::steady_timer sent_timer_;
 
 private:
     virtual std::string get_remote_information(
