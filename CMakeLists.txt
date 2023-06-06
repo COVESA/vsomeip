@@ -533,6 +533,7 @@ install (
 # Install the export set for use with the install-tree
 install (
     EXPORT ${VSOMEIP_NAME}Targets
+    NAMESPACE Covesa::
     DESTINATION "${INSTALL_CMAKE_DIR}"
     COMPONENT dev
 )
