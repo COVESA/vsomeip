@@ -1624,7 +1624,7 @@ void routing_manager_client::on_message(
 #ifndef VSOMEIP_DISABLE_SECURITY
         case protocol::id_e::UPDATE_SECURITY_POLICY_INT_ID:
             is_internal_policy_update = true;
-            [[gnu::fallthrough]];
+	    // fall-through
         case protocol::id_e::UPDATE_SECURITY_POLICY_ID:
         {
             if (!configuration_->is_security_enabled() || is_from_routing) {
