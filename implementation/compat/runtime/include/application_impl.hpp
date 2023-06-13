@@ -152,7 +152,7 @@ public:
 
     virtual void register_async_subscription_handler(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            async_subscription_handler_t _handler);
+            const async_subscription_handler_t& _handler);
 
     virtual void set_offer_acceptance_required(
             ip_address_t _address, const std::string _path, bool _enable);

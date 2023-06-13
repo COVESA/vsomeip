@@ -509,7 +509,7 @@ application_impl::set_watchdog_handler(
 void
 application_impl::register_async_subscription_handler(
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        async_subscription_handler_t _handler) {
+        const async_subscription_handler_t& _handler) {
 
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);

@@ -157,7 +157,7 @@ public:
             eventgroup_t _eventgroup, event_t _event, uint16_t _error);
     VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective);
+            const subscription_status_handler_t& _handler, bool _is_selective);
     VSOMEIP_EXPORT void unregister_subscription_status_handler(service_t _service,
                 instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
@@ -224,7 +224,7 @@ public:
                 const subscription_handler_sec_t &_handler);
     VSOMEIP_EXPORT void register_async_subscription_handler(
                 service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                async_subscription_handler_sec_t _handler);
+                const async_subscription_handler_sec_t& _handler);
 
 private:
     //

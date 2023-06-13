@@ -1305,7 +1305,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
 void application_impl::register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective) {
+            const subscription_status_handler_t& _handler, bool _is_selective) {
     std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
     if (_handler) {
         subscription_status_handlers_[_service][_instance][_eventgroup][_event] =
@@ -2629,7 +2629,7 @@ void application_impl::register_async_subscription_handler(service_t _service,
 
 void application_impl::register_async_subscription_handler(service_t _service,
     instance_t _instance, eventgroup_t _eventgroup,
-    async_subscription_handler_sec_t _handler) {
+    const async_subscription_handler_sec_t& _handler) {
 
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
