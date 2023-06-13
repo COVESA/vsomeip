@@ -947,7 +947,7 @@ public:
      */
     virtual void register_async_subscription_handler(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            async_subscription_handler_t _handler) = 0;
+            const async_subscription_handler_t& _handler) = 0;
 
     /**
      *  \brief Enables or disables calling of registered offer acceptance
