@@ -110,7 +110,7 @@ public:
     VSOMEIP_EXPORT virtual request_t get_request() const = 0;
 
     /**
-     * \brief Set the client identifier in the message header.
+     * \brief Get the client identifier in the message header.
      */
     VSOMEIP_EXPORT virtual client_t get_client() const = 0;
 
