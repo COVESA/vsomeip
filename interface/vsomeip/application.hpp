@@ -407,7 +407,7 @@ public:
      *
      * \brief Sends a message.
      *
-     * Serializes the specified message object, determines the taget and sends
+     * Serializes the specified message object, determines the target and sends
      * the message to the target. For requests, the request identifier is
      * automatically built from the client identifier and the session
      * identifier.
