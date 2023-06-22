@@ -153,10 +153,11 @@ private:
     mutable boost::shared_mutex policy_extension_paths_mutex_;
     //map[hostname, pair[path,  map[complete path with UID/GID, control loading]]
     std::map<std::string, std::pair<std::string, std::map<std::string, bool>>> policy_extension_paths_;
+
+    bool check_routing_credentials_;
 #endif // !VSOMEIP_DISABLE_SECURITY
 
     bool is_configured_;
-    bool check_routing_credentials_;
 
     mutable std::mutex routing_credentials_mutex_;
     std::pair<uint32_t, uint32_t> routing_credentials_;
