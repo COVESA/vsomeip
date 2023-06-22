@@ -114,11 +114,31 @@ service_discovery_impl::init() {
         initial_delay_max = tmp;
     }
 
-    std::random_device r;
-    std::mt19937 e(r());
-    std::uniform_int_distribution<std::uint32_t> distribution(
-            initial_delay_min, initial_delay_max);
-    initial_delay_ = std::chrono::milliseconds(distribution(e));
+    try {
+        std::random_device r;
+        std::mt19937 e(r());
+        std::uniform_int_distribution<std::uint32_t> distribution(
+                initial_delay_min, initial_delay_max);
+        initial_delay_ = std::chrono::milliseconds(distribution(e));
+    } catch (std::exception const& e) {
+        VSOMEIP_ERROR << "Failed to generate random initial delay: " << e.what();
+
+        // Fallback to the Mersenne Twister engine
+        auto const seed = static_cast<std::mt19937::result_type>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now().time_since_epoch())
+                .count());
+
+        std::mt19937 mtwister{seed};
+
+        // Interpolate between initial_delay bounds
+        initial_delay_ = std::chrono::milliseconds(
+            initial_delay_min +
+            (static_cast<std::int64_t>(mtwister()) *
+             static_cast<std::int64_t>(initial_delay_max - initial_delay_min) /
+             static_cast<std::int64_t>(std::mt19937::max() -
+                                       std::mt19937::min())));
+    }
 
 
     repetitions_base_delay_ = std::chrono::milliseconds(
