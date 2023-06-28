@@ -2806,6 +2806,21 @@ bool configuration_impl::get_client_port(
             << _instance << " remote_port: "
             << _remote_port << " reliable: "
             << _reliable;
+
+    // Add reuse port support
+    uint16_t its_reuse_port(ILLEGAL_PORT);
+    if(!_used_client_ports[_reliable].empty()){
+        its_reuse_port = *(_used_client_ports[_reliable].begin());
+        if (its_reuse_port != ILLEGAL_PORT) {
+            _client_port = its_reuse_port;
+            VSOMEIP_INFO << "Cannot find free client port, so reuse port configuration for communication to service: "
+            << _service << " instance: "
+            << _instance << " remote_port: "
+            << _remote_port << "client_port:" << _client_port
+            << " reliable: " << _reliable;
+            return true;
+        }
+    }
     return false;
 }
 
