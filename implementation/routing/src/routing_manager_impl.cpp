@@ -4066,28 +4066,39 @@ routing_manager_impl::get_requesters_unlocked(
     std::set<client_t> its_requesters;
 
     auto found_service = requested_services_.find(_service);
-    if (found_service != requested_services_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto& its_major : found_instance->second) {
-                if (its_major.first == _major || _major == DEFAULT_MAJOR
-                        || its_major.first == ANY_MAJOR) {
-                    for (const auto &its_minor : its_major.second) {
-                        if (its_minor.first <= _minor
-                                || _minor == DEFAULT_MINOR
-                                || its_minor.first == ANY_MINOR) {
-                            if (its_requesters.empty()) {
-                                its_requesters = its_minor.second;
-                            } else {
-                                its_requesters.insert(its_minor.second.cbegin(),
-                                                      its_minor.second.cend());
-                            }
-                        }
+    if (found_service == requested_services_.end()){
+        found_service = requested_services_.find(ANY_SERVICE);
+        if (found_service == requested_services_.end()) {
+            return its_requesters;
+        }
+    }
+
+    auto found_instance = found_service->second.find(_instance);
+    if (found_instance == found_service->second.end()) {
+        found_instance = found_service->second.find(ANY_INSTANCE);
+        if (found_instance == found_service->second.end()) {
+            return its_requesters;
+        }
+    }
+
+    for (const auto& its_major : found_instance->second) {
+        if (its_major.first == _major || _major == DEFAULT_MAJOR
+                || its_major.first == ANY_MAJOR) {
+            for (const auto &its_minor : its_major.second) {
+                if (its_minor.first <= _minor
+                        || _minor == DEFAULT_MINOR
+                        || its_minor.first == ANY_MINOR) {
+                    if (its_requesters.empty()) {
+                        its_requesters = its_minor.second;
+                    } else {
+                        its_requesters.insert(its_minor.second.cbegin(),
+                                                its_minor.second.cend());
                     }
                 }
             }
         }
     }
+
     return its_requesters;
 }
 
@@ -4097,24 +4108,35 @@ routing_manager_impl::has_requester_unlocked(
         major_version_t _major, minor_version_t _minor) {
 
     auto found_service = requested_services_.find(_service);
-    if (found_service != requested_services_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto& its_major : found_instance->second) {
-                if (its_major.first == _major || _major == DEFAULT_MAJOR
-                        || its_major.first == ANY_MAJOR) {
-                    for (const auto &its_minor : its_major.second) {
-                        if (its_minor.first <= _minor
-                                || _minor == DEFAULT_MINOR
-                                || its_minor.first == ANY_MINOR) {
+    if (found_service == requested_services_.end()) {
+        found_service = requested_services_.find(ANY_SERVICE);
+        if (found_service == requested_services_.end()) {
+            return false;
+        }
+    }
 
-                            return true;
-                        }
-                    }
+    auto found_instance = found_service->second.find(_instance);
+    if (found_instance == found_service->second.end()) {
+        found_instance = found_service->second.find(ANY_INSTANCE);
+        if (found_instance == found_service->second.end()) {
+            return false;
+        }
+    }
+
+    for (const auto& its_major : found_instance->second) {
+        if (its_major.first == _major || _major == DEFAULT_MAJOR
+                || its_major.first == ANY_MAJOR) {
+            for (const auto &its_minor : its_major.second) {
+                if (its_minor.first <= _minor
+                        || _minor == DEFAULT_MINOR
+                        || its_minor.first == ANY_MINOR) {
+
+                    return true;
                 }
             }
         }
     }
+
     return false;
 }
 
