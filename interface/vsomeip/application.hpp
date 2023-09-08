@@ -258,8 +258,6 @@ public:
      * \param _instance Instance identifier of the requested service instance.
      * \param _major Major service version (Default: 0xFF).
      * \param _minor Minor service version (Default: 0xFFFFFF).
-     * \param _use_exclusive_proxy Create an IP endpoint that is exclusively
-     * used for the communication of this application to the service instance.
      *
      */
     virtual void request_service(service_t _service, instance_t _instance,
