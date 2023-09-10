@@ -36,8 +36,6 @@ class serviceentry_impl;
 
 class option_impl;
 class configuration_option_impl;
-class ipv4_option_impl;
-class ipv6_option_impl;
 class load_balancing_option_impl;
 class protection_option_impl;
 class selective_option_impl;
