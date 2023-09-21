@@ -109,4 +109,4 @@ test/security_tests/security_test_local_config.json
 /test/event_tests/event_test_master.json
 /test/event_tests/event_test_slave_tcp.json
 /test/event_tests/event_test_slave_udp.json
-
+.vagrant
