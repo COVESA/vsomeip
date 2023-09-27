@@ -58,8 +58,18 @@ value_t read_value_from_config(const std::shared_ptr<vsomeip_v3::cfg::e2e> &_con
 
 } // namespace
 
+#ifdef VSOMEIP_STATIC_PLUGINS
+namespace vsomeip_v3 {
 
+create_plugin_func plugin_manager_impl_init_hook_e2e()
+{
+    return e2e::e2e_provider_impl::get_plugin;
+}
+
+} // namespace vsomeip_v3
+#else
 VSOMEIP_PLUGIN(vsomeip_v3::e2e::e2e_provider_impl)
+#endif
 
 namespace vsomeip_v3 {
 namespace e2e {

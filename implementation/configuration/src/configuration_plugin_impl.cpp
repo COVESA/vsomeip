@@ -8,7 +8,18 @@
 #include "../include/configuration_plugin_impl.hpp"
 #include "../include/configuration_impl.hpp"
 
+#ifdef VSOMEIP_STATIC_PLUGINS
+namespace vsomeip_v3 {
+
+create_plugin_func plugin_manager_impl_init_hook_cfg()
+{
+    return configuration_plugin_impl::get_plugin;
+}
+
+} // namespace vsomeip_v3
+#else
 VSOMEIP_PLUGIN(vsomeip_v3::configuration_plugin_impl)
+#endif
 
 namespace vsomeip_v3 {
 
