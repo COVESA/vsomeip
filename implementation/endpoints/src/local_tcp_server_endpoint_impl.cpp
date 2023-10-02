@@ -370,7 +370,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
 void local_tcp_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
             VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
                           << "' (" << errno << ") " << get_path_local();

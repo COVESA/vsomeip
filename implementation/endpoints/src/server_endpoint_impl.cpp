@@ -808,7 +808,7 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     its_data.dispatch_timer_->expires_from_now(its_offset);
 #else
     its_data.dispatch_timer_->expires_from_now(
@@ -842,6 +842,10 @@ template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #if VSOMEIP_BOOST_VERSION < 106600
 template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
+#endif
+
+#ifdef __QNX__
+template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 
 template class server_endpoint_impl<boost::asio::ip::tcp>;

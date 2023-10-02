@@ -26,8 +26,13 @@ typedef uint32_t gid_t;
 #endif
 
 typedef struct {
+#ifdef __QNX__
+    uint32_t user;
+    uint32_t group;
+#else
     uid_t user;
     gid_t group;
+#endif
 } vsomeip_sec_uds_client_credentials_t;
 
 typedef struct {

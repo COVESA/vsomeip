@@ -159,7 +159,11 @@ find_package(Threads REQUIRED)
 
 # Boost
 find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
-include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    include_directories(${Boost_INCLUDE_DIR} )
+else()
+    include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+endif()
 
 if(Boost_FOUND)
   if(Boost_LIBRARY_DIR)
@@ -245,6 +249,8 @@ if (MSVC)
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set(USE_RT "")
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++14 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
@@ -347,6 +353,9 @@ endif ()
 
 target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    target_link_libraries(${VSOMEIP_NAME}-e2e socket)
+endif()
 ################################################################################
 # Compatibility library
 ################################################################################
@@ -395,7 +404,11 @@ set(EXAMPLE_CONFIG_FILES
 ################################################################################
 # Configuration parameters
 ################################################################################
-set (VSOMEIP_BASE_PATH "/tmp")
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set (VSOMEIP_BASE_PATH "/var")
+else()
+    set (VSOMEIP_BASE_PATH "/tmp")
+endif()
 if (BASE_PATH)
 set (VSOMEIP_BASE_PATH ${BASE_PATH})
 endif ()
@@ -741,3 +754,15 @@ add_dependencies(build_tests build_benchmark_tests)
 # add test directory
 
 add_subdirectory( test EXCLUDE_FROM_ALL )
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    install(DIRECTORY ${PROJECT_BINARY_DIR}/test/
+        DESTINATION bin/vsomeip_tests/test
+        PATTERN "CMakeFiles" EXCLUDE
+        PATTERN "*.cmake" EXCLUDE
+        PATTERN "Makefile" EXCLUDE
+    )
+
+    install(FILES ${PROJECT_BINARY_DIR}/examples/routingmanagerd/routingmanagerd
+        DESTINATION bin/vsomeip_tests/examples/routingmanagerd)
+endif()

@@ -368,7 +368,7 @@ TEST(someip_subscribe_notify_test_one_event_two_eventgroups, subscribe_to_servic
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

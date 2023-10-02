@@ -209,7 +209,11 @@ void * plugin_manager_impl::load_symbol(void * _handle, const std::string &_symb
             error_message = dlerror();
 #endif
 
+#ifdef __QNX__
+            VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name.c_str()) << " because: " << error_message;
+#else
             VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name) << " because: " << error_message;
+#endif
 
 #ifdef _WIN32
             // Required to release memory allocated by FormatMessageA()

@@ -159,7 +159,7 @@ void check_file(const std::string &_config_file,
 
 
     // 0. Set environment variable to config file and load it
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
 #else
     _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()
@@ -526,7 +526,7 @@ void check_file(const std::string &_config_file,
     EXPECT_EQ(15001u + 16, its_configuration->get_max_message_size_reliable("10.10.10.11", 7778));
 
     // security
-#ifndef VSOMEIP_DISABLE_SECURITY
+#if !defined(VSOMEIP_DISABLE_SECURITY) && !defined(__QNX__)
     vsomeip_sec_client_t its_x123_x456 = utility::create_uds_client(0x123, 0x456);
     EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, &its_x123_x456));
 

@@ -354,7 +354,7 @@ TEST(someip_pending_subscription_test, block_subscription_handler)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

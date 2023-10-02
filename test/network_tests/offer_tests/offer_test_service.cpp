@@ -156,7 +156,7 @@ TEST(someip_offer_test, notify_increasing_counter)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

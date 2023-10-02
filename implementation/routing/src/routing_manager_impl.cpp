@@ -10,7 +10,7 @@
 #include <forward_list>
 #include <thread>
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <unistd.h>
 #include <cstdio>
 #include <time.h>
@@ -252,7 +252,7 @@ void routing_manager_impl::start() {
         version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
                 this, std::placeholders::_1));
     }
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (configuration_->log_memory()) {
         std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
         boost::system::error_code ec;
@@ -3916,7 +3916,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
 }
 
 void routing_manager_impl::start_ip_routing() {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__QNX__) 
     if_state_running_ = true;
 #endif
 
@@ -4367,7 +4367,7 @@ void routing_manager_impl::memory_log_timer_cbk(
         return;
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     static const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
 
     std::FILE *its_file = std::fopen("/proc/self/statm", "r");

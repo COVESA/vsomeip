@@ -20,6 +20,10 @@ add_executable(${PROJECT_NAME} applet.cpp client.cpp server.cpp main.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${gtest_SOURCE_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE gtest Threads::Threads vsomeip3 ${Boost_LIBRARIES})
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE _QNX_SOURCE)
+endif()
+
 enable_testing()
 add_test(NAME ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
 add_dependencies(build_network_tests ${PROJECT_NAME})

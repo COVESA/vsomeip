@@ -319,7 +319,7 @@ TEST(someip_payload_test, send_different_payloads)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     std::string tcp_enable("--tcp");

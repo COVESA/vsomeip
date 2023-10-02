@@ -174,7 +174,7 @@ void tcp_client_endpoint_impl::connect() {
                     << " remote:" << get_address_port_remote();
         }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {

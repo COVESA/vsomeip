@@ -12,7 +12,7 @@
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_client_endpoint_impl.hpp"
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
@@ -88,7 +88,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
              << std::hex << rm_->get_client();
     const client_t its_client = rm_->get_client();
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
         if (-1 == ::unlink(its_path.str().c_str()) && errno != ENOENT) {
             VSOMEIP_ERROR << "endpoint_manager_base::init_receiver unlink failed ("
@@ -251,7 +251,7 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
              << std::hex << _client;
     std::shared_ptr<endpoint> its_endpoint;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
         VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is connecting to ["
             << std::hex << _client << "] at " << its_path.str();

@@ -16,6 +16,16 @@
 
 #include <boost/asio/detail/push_options.hpp>
 
+#ifdef __QNX__
+    #define UCRED_T struct sockcred
+    #define UCRED_UID(x) x->sc_uid
+    #define UCRED_GID(x) x->sc_gid
+
+    // Reserved memory space to receive credential
+    // through ancilliary data.
+    #define CMSG_SIZE   512
+#endif
+
 namespace boost {
 namespace asio {
 namespace detail {
@@ -27,7 +37,11 @@ signed_size_type recv(socket_type s, buf* bufs, size_t count,
 {
   uid = 0xFFFFFFFF;
   gid = 0xFFFFFFFF;
+#ifdef __QNX__
+  UCRED_T *ucredp;
+#else
   struct ucred *ucredp;
+#endif
   clear_last_error();
 #if defined(BOOST_ASIO_WINDOWS) || defined(__CYGWIN__)
   // Receive some data.
@@ -51,13 +65,25 @@ signed_size_type recv(socket_type s, buf* bufs, size_t count,
 
   union {
     struct cmsghdr cmh;
+#ifdef __QNX__
+    char   control[CMSG_SIZE];
+#else
     char   control[CMSG_SPACE(sizeof(struct ucred))];
+#endif
   } control_un;
 
   // Set 'control_un' to describe ancillary data that we want to receive
+#ifdef __QNX__
+  control_un.cmh.cmsg_len = CMSG_LEN(sizeof(UCRED_T));
+#else
   control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
+#endif
   control_un.cmh.cmsg_level = SOL_SOCKET;
+#ifdef __QNX__
+  control_un.cmh.cmsg_type = SCM_CREDS;
+#else
   control_un.cmh.cmsg_type = SCM_CREDENTIALS;
+#endif
 
   // Set 'msg' fields to describe 'control_un'
   msg.msg_control = control_un.control;
@@ -72,15 +98,29 @@ signed_size_type recv(socket_type s, buf* bufs, size_t count,
 		 cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
+#ifdef __QNX__
+	  if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_CREDS
+	      || cmsg->cmsg_len != CMSG_LEN(sizeof(UCRED_T)))
+	    continue;
+#else
 	  if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_CREDENTIALS
 	      || cmsg->cmsg_len != CMSG_LEN(sizeof(struct ucred)))
 	    continue;
+#endif
 
+#ifdef __QNX__
+      ucredp = (UCRED_T *) CMSG_DATA(cmsg);
+      if (ucredp) {
+        uid = UCRED_UID(ucredp);
+        gid = UCRED_GID(ucredp);
+      }
+#else
       ucredp = (struct ucred *) CMSG_DATA(cmsg);
       if (ucredp) {
         uid = ucredp->uid;
         gid = ucredp->gid;
       }
+#endif
 	}
   }
   return result;
@@ -94,7 +134,11 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 {
   uid = 0xFFFFFFFF;
   gid = 0xFFFFFFFF;
+#ifdef __QNX__
+  UCRED_T *ucredp;
+#else
   struct ucred *ucredp;
+#endif
   clear_last_error();
 #if defined(BOOST_ASIO_WINDOWS) || defined(__CYGWIN__)
   // Receive some data.
@@ -122,13 +166,25 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 
   union {
     struct cmsghdr cmh;
+#ifdef __QNX__
+    char   control[CMSG_SIZE];
+#else
     char   control[CMSG_SPACE(sizeof(struct ucred))];
+#endif
   } control_un;
 
   // Set 'control_un' to describe ancillary data that we want to receive
+#ifdef __QNX__
+  control_un.cmh.cmsg_len = CMSG_LEN(sizeof(UCRED_T));
+#else
   control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
+#endif
   control_un.cmh.cmsg_level = SOL_SOCKET;
+#ifdef __QNX__
+  control_un.cmh.cmsg_type = SCM_CREDS;
+#else
   control_un.cmh.cmsg_type = SCM_CREDENTIALS;
+#endif
 
   // Set 'msg' fields to describe 'control_un'
   msg.msg_control = control_un.control;
@@ -143,15 +199,29 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 		 cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
+#ifdef __QNX__
+	  if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_CREDS
+	      || cmsg->cmsg_len != CMSG_LEN(sizeof(UCRED_T)))
+	    continue;
+#else
 	  if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_CREDENTIALS
 	      || cmsg->cmsg_len != CMSG_LEN(sizeof(struct ucred)))
 	    continue;
+#endif
 
+#ifdef __QNX__
+      ucredp = (UCRED_T *) CMSG_DATA(cmsg);
+      if (ucredp) {
+        uid = UCRED_UID(ucredp);
+        gid = UCRED_GID(ucredp);
+      }
+#else
       ucredp = (struct ucred *) CMSG_DATA(cmsg);
       if (ucredp) {
         uid = ucredp->uid;
         gid = ucredp->gid;
       }
+#endif
 	}
   }
   return result;

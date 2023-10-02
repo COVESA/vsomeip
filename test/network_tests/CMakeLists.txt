@@ -122,6 +122,9 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
     )
+    if(QNX)
+        target_compile_definitions(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PRIVATE _QNX_SOURCE)
+    endif()
 
     set(TEST_APPLICATION_AVAILABILITY_NAME ${TEST_APPLICATION}_availability)
     add_executable(${TEST_APPLICATION_AVAILABILITY_NAME} application_tests/${TEST_APPLICATION_AVAILABILITY_NAME}.cpp)
@@ -394,7 +397,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter_qnx.sh)
+    else()
+        set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.in
         ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
@@ -1431,7 +1438,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_MASTER_STARTER}
         ${TEST_CLIENT_ID_SERVICE}
@@ -1780,7 +1791,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
@@ -2278,7 +2293,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
         ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
@@ -2664,7 +2683,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_MASTER_STARTER}
         ${TEST_INITIAL_EVENT_SERVICE}
@@ -2737,7 +2760,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter_qnx.sh)    
+    else()
+        set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_LOCAL_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_LOCAL_STARTER}
         ${TEST_OFFER_SERVICE}
@@ -2798,7 +2825,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy starter scripts for external test to $BUILDDIR/test
-    set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter_qnx.sh)
+    else()
+        set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
+    endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_EXTERNAL_MASTER_STARTER}.in
         ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
@@ -3207,7 +3238,7 @@ endif()
 ##############################################################################
 # npdu-test
 ##############################################################################
-if(NOT ${TESTS_BAT})
+if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_NAME npdu_test)
 
     set(TEST_NPDU_DAEMON npdu_test_rmd)
@@ -3690,6 +3721,7 @@ if(NOT ${TESTS_BAT})
     endif()
     add_dependencies(${TEST_EVENT_SERVICE} gtest)
     add_dependencies(${TEST_EVENT_CLIENT} gtest)
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)
     add_dependencies(${TEST_NPDU_SERVICE_TWO} gtest)
     add_dependencies(${TEST_NPDU_SERVICE_THREE} gtest)
@@ -3700,6 +3732,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_NPDU_CLIENT_FOUR} gtest)
     add_dependencies(${TEST_NPDU_DAEMON_CLIENT} gtest)
     add_dependencies(${TEST_NPDU_DAEMON_SERVICE} gtest)
+    endif()
     add_dependencies(${TEST_SOMEIPTP_CLIENT} gtest)
     add_dependencies(${TEST_SOMEIPTP_SERVICE} gtest)
     if(${TEST_SECOND_ADDRESS})
@@ -3774,6 +3807,7 @@ if(NOT ${TESTS_BAT})
     endif()
     add_dependencies(build_network_tests ${TEST_EVENT_SERVICE})
     add_dependencies(build_network_tests ${TEST_EVENT_CLIENT})
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_ONE})
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_TWO})
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_THREE})
@@ -3784,6 +3818,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_FOUR})
     add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_CLIENT})
     add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_SERVICE})
+    endif()
     add_dependencies(build_network_tests ${TEST_SOMEIPTP_CLIENT})
     add_dependencies(build_network_tests ${TEST_SOMEIPTP_SERVICE})
     if(${TEST_SECOND_ADDRESS})

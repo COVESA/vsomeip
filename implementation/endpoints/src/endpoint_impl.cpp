@@ -153,6 +153,13 @@ template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 #endif
 
+#ifdef __QNX__
+#if VSOMEIP_BOOST_VERSION < 106600
+template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
+#endif
+template class endpoint_impl<boost::asio::local::stream_protocol>;
+#endif
+
 template class endpoint_impl<boost::asio::ip::tcp>;
 template class endpoint_impl<boost::asio::ip::udp>;
 

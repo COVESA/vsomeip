@@ -219,7 +219,7 @@ private:
 
     void on_suspend();
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     void on_net_state_change(bool _is_interface, const std::string &_name, bool _is_available);
 #endif
 
