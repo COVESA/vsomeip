@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -47,7 +47,7 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(
           has_last_departure_(false),
           queue_size_(0),
           was_not_connected_(false),
-          local_port_(0),
+          is_sending_(false),
           strand_(_io) {
 }
 
@@ -118,7 +118,7 @@ void client_endpoint_impl<Protocol>::prepare_stop(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
         // delete unsent messages
         queue_.clear();
@@ -180,7 +180,7 @@ bool client_endpoint_impl<Protocol>::send_error(
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
     bool must_depart(false);
     auto its_now(std::chrono::steady_clock::now());
 
@@ -324,18 +324,18 @@ void client_endpoint_impl<Protocol>::send_segments(
         train_->departure_ = its_now + its_retention;
     }
 
-    const bool queue_size_still_zero(queue_.empty());
     for (const auto& s : _segments) {
         queue_.emplace_back(std::make_pair(s, _separation_time));
         queue_size_ += s->size();
     }
 
-    if (queue_size_still_zero && !queue_.empty()) { // no writing in progress
+    if (!is_sending_ && !queue_.empty()) { // no writing in progress
         // respect minimal debounce time
         schedule_train();
         // ignore retention time and send immediately as the train is full anyway
         auto its_entry = get_front();
         if (its_entry.first) {
+            is_sending_ = true;
             strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
                 this->shared_from_this(), its_entry));
         }
@@ -369,7 +369,7 @@ bool client_endpoint_impl<Protocol>::flush() {
     bool has_queued(true);
     bool is_current_train(true);
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
 
     std::shared_ptr<train> its_train(train_);
     if (!dispatched_trains_.empty()) {
@@ -389,7 +389,7 @@ bool client_endpoint_impl<Protocol>::flush() {
 
     if (!its_train->buffer_->empty()) {
 
-        queue_train(its_train, !queue_.size());
+        queue_train(its_train);
 
         // Reset current train if necessary
         if (is_current_train) {
@@ -443,12 +443,12 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
             reconnect_counter_ = 0;
-            set_local_port();
             if (was_not_connected_) {
                 was_not_connected_ = false;
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::lock_guard<std::recursive_mutex> its_lock(mutex_);
                 auto its_entry = get_front();
                 if (its_entry.first) {
+                    is_sending_ = true;
                     strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
                             this->shared_from_this(), its_entry));
                     VSOMEIP_WARNING << __func__ << ": resume sending to: "
@@ -466,13 +466,16 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         boost::system::error_code const &_error) {
+    std::size_t operations_cancelled;
     {
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
         std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
-        connecting_timer_.cancel();
+        operations_cancelled = connecting_timer_.cancel();
     }
-    connect_cbk(_error);
+    if (operations_cancelled != 0) {
+        connect_cbk(_error);
+    }
 }
 
 template<typename Protocol>
@@ -489,6 +492,7 @@ void client_endpoint_impl<Protocol>::wait_connect_cbk(
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::wait_connecting_cbk(
         boost::system::error_code const &_error) {
+
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect_cbk(boost::asio::error::timed_out);
     }
@@ -502,23 +506,28 @@ void client_endpoint_impl<Protocol>::send_cbk(
     (void)_bytes;
 
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
             queue_size_ -= queue_.front().first->size();
             queue_.pop_front();
 
             update_last_departure();
 
-            auto its_entry = get_front();
-            if (its_entry.first) {
-                send_queued(its_entry);
+            if (queue_.empty())
+                is_sending_ = false;
+            else {
+                auto its_entry = get_front();
+                if (its_entry.first) {
+                    send_queued(its_entry);
+                }
             }
         }
+        return;
     } else if (_error == boost::asio::error::broken_pipe) {
         state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             stopping = endpoint_impl<Protocol>::sending_blocked_;
             if (stopping) {
                 queue_.clear();
@@ -569,7 +578,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
             VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                     << " (" << std::dec << _error.value() << ") "
                     << get_remote_information();
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
         }
@@ -618,6 +627,9 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 << std::setw(4) << its_session << "]";
         print_status();
     }
+
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    is_sending_ = false;
 }
 
 template<typename Protocol>
@@ -639,7 +651,6 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_so
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _recreate_socket) {
 
-    local_port_ = 0;
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
@@ -674,13 +685,13 @@ std::uint16_t client_endpoint_impl<Protocol>::get_remote_port() const {
 template<typename Protocol>
 std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 
-    return local_port_;
+    return 0;
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::set_local_port(uint16_t _port) {
+void client_endpoint_impl<Protocol>::set_local_port(port_t _port) {
 
-    local_port_ = _port;
+    (void)_port; // overwritten in IP endpoints
 }
 
 template<typename Protocol>
@@ -784,14 +795,15 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
 
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::queue_train(
-        const std::shared_ptr<train> &_train, bool _queue_size_zero_on_entry) {
+        const std::shared_ptr<train> &_train) {
 
-    queue_.push_back(std::make_pair(_train->buffer_, 0));
     queue_size_ += _train->buffer_->size();
+    queue_.emplace_back(_train->buffer_, 0);
 
-    if (_queue_size_zero_on_entry && !queue_.empty()) { // no writing in progress
+    if (!is_sending_ && !queue_.empty()) { // no writing in progress
         auto its_entry = get_front();
         if (its_entry.first) {
+            is_sending_ = true;
             strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
                 this->shared_from_this(), its_entry));
         }
@@ -801,7 +813,7 @@ void client_endpoint_impl<Protocol>::queue_train(
 template<typename Protocol>
 size_t client_endpoint_impl<Protocol>::get_queue_size() const {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
     return queue_size_;
 }
 
@@ -857,7 +869,7 @@ void client_endpoint_impl<Protocol>::update_last_departure() {
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(ANDROID)|| defined(__QNX__)
 template class client_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;

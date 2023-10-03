@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -86,11 +86,11 @@ policy_manager_impl::check_credentials(client_t _client,
     if (!_sec_client)
         return true;
 
-    if (_sec_client->client_type != VSOMEIP_CLIENT_UDS)
+    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED)
         return true;
 
-    uid_t its_uid(_sec_client->client.uds_client.user);
-    gid_t its_gid(_sec_client->client.uds_client.group);
+    uid_t its_uid(_sec_client->user);
+    gid_t its_gid(_sec_client->group);
 
     bool has_id(false);
 
@@ -153,9 +153,9 @@ policy_manager_impl::check_routing_credentials(
     bool is_known_uid_gid(false);
 
     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-        its_uid = _sec_client->client.uds_client.user;
-        its_gid = _sec_client->client.uds_client.group;
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+        its_uid = _sec_client->user;
+        its_gid = _sec_client->group;
 
         if (routing_credentials_.first == its_uid
                 && routing_credentials_.second == its_gid) {
@@ -219,9 +219,9 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
     uid_t its_uid(ANY_UID);
     gid_t its_gid(ANY_GID);
     if (_sec_client) {
-        if (_sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
+        if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_uid = _sec_client->user;
+            its_gid = _sec_client->group;
         } else {
             return true;
         }
@@ -335,9 +335,9 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
 
     uint32_t its_uid(ANY_UID), its_gid(ANY_GID);
     if (_sec_client) {
-        if (_sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
+        if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_uid = _sec_client->user;
+            its_gid = _sec_client->group;
         } else {
             return true;
         }
@@ -626,6 +626,21 @@ policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size
 ///////////////////////////////////////////////////////////////////////////////
 // Configuration
 ///////////////////////////////////////////////////////////////////////////////
+bool
+policy_manager_impl::exist_in_any_client_policies_unlocked(std::shared_ptr<policy> &_policy) {
+    for (const auto &p : any_client_policies_) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        if (p->credentials_ == _policy->credentials_ &&
+            p->requests_ == _policy->requests_ &&
+            p->offers_ == _policy->offers_ &&
+            p->allow_what_ == _policy->allow_what_ &&
+            p->allow_who_ == _policy->allow_who_) {
+                return true;
+            }
+    }
+    return false;
+}
+
 void
 policy_manager_impl::load_policies(const configuration_element &_element) {
 #ifdef _WIN32
@@ -761,7 +776,9 @@ policy_manager_impl::load_policy(const boost::property_tree::ptree &_tree) {
         }
     }
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
-    any_client_policies_.push_back(policy);
+    if (!exist_in_any_client_policies_unlocked(policy))
+        any_client_policies_.push_back(policy);
+
 }
 
 void
@@ -1181,9 +1198,9 @@ policy_manager_impl::get_clients(uid_t _uid, gid_t _gid,
 
     std::lock_guard<std::mutex> its_lock(ids_mutex_);
     for (const auto &i : ids_) {
-        if (i.second.client_type == VSOMEIP_CLIENT_UDS
-                && i.second.client.uds_client.user == _uid
-                && i.second.client.uds_client.group == _gid)
+        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED
+                && i.second.user == _uid
+                && i.second.group == _gid)
             _clients.insert(i.first);
     }
 }
@@ -1305,16 +1322,16 @@ bool
 policy_manager_impl::store_client_to_sec_client_mapping(
         client_t _client, const vsomeip_sec_client_t *_sec_client) {
 
-    if (_sec_client != nullptr && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client != nullptr && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the client -> sec_client mapping
         std::lock_guard<std::mutex> its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             if (!utility::compare(found_client->second, *_sec_client)) {
-                uid_t its_old_uid = found_client->second.client.uds_client.user;
-                gid_t its_old_gid = found_client->second.client.uds_client.group;
-                uid_t its_new_uid = _sec_client->client.uds_client.user;
-                gid_t its_new_gid = _sec_client->client.uds_client.group;
+                uid_t its_old_uid = found_client->second.user;
+                gid_t its_old_gid = found_client->second.group;
+                uid_t its_new_uid = _sec_client->user;
+                gid_t its_new_gid = _sec_client->group;
 
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                         << std::hex << _client << " with UID/GID="
@@ -1400,7 +1417,7 @@ void
 policy_manager_impl::store_sec_client_to_client_mapping(
         const vsomeip_sec_client_t *_sec_client, client_t _client) {
 
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the uid gid to clients mapping
         std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
@@ -1419,7 +1436,7 @@ policy_manager_impl::get_sec_client_to_clients_mapping(
         const vsomeip_sec_client_t *_sec_client,
         std::set<client_t> &_clients) {
 
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // get the clients corresponding to uid, gid
         std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);

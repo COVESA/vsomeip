@@ -9,7 +9,7 @@
             "enable":"false",
             "path":"/tmp/vsomeip.log"
         },
-        "dlt":"false"
+        "dlt":"true"
     },
     "applications":
     [
@@ -46,7 +46,7 @@
     ],
     "routing":
     {
-        "host" : 
+        "host" :
         {
             "name" : "subscribe_notify_test_service_one",
             "unicast" : "127.0.0.1"

@@ -1,13 +1,13 @@
 {
     "unicast" : "192.168.56.101",
     "logging" :
-    { 
+    {
         "level" : "debug",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "service-sample",
@@ -20,7 +20,7 @@
             "service" : "0x1234",
             "instance" : "0x5678",
             "unreliable" : "30509",
-            "events" : 
+            "events" :
             [
                 {
                     "event" : "0x8777",
@@ -47,15 +47,15 @@
                 {
                     "eventgroup" : "0x4465",
                     "events" : [ "0x8778", "0x8779" ],
-                    "multicast" : 
-                    { 
-                        "address" : "224.225.226.233", 
+                    "multicast" :
+                    {
+                        "address" : "224.225.226.233",
                         "port" : "32344"
                     }
                 },
                 {
                     "eventgroup" : "0x4555",
-                    "events" : [ "0x8777", "0x8779" ] 
+                    "events" : [ "0x8777", "0x8779" ]
                 }
             ]
         },
@@ -63,9 +63,9 @@
             "service" : "0x1235",
             "instance" : "0x5678",
             "unreliable" : "30509",
-            "multicast" : 
-            { 
-                "address" : "224.225.226.234", 
+            "multicast" :
+            {
+                "address" : "224.225.226.234",
                 "port" : "32344"
             }
         }

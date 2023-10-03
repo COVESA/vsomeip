@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,11 +19,14 @@
 #include <gtest/gtest.h>
 
 #include "subscribe_notify_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class subscribe_notify_test_one_event_two_eventgroups_client {
+class subscribe_notify_test_one_event_two_eventgroups_client : public vsomeip_utilities::base_logger {
 public:
     subscribe_notify_test_one_event_two_eventgroups_client(
             struct subscribe_notify_test::service_info _info, bool _use_tcp) :
+            vsomeip_utilities::base_logger("SNC1", "SUBSCRIBE NOTIFY TEST ONE EVENT TWO EVENTGROUPS CLIENT"),
             app_(
                     vsomeip::runtime::get()->create_application(
                             "subscribe_notify_test_client")),

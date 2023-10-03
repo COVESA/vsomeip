@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,15 +25,18 @@
 #endif // ANDROID
 
 #include "offer_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 enum operation_mode_e {
     SUBSCRIBE,
     METHODCALL
 };
 
-class offer_test_client {
+class offer_test_client : public vsomeip_utilities::base_logger {
 public:
     offer_test_client(struct offer_test::service_info _service_info, operation_mode_e _mode) :
+            vsomeip_utilities::base_logger("OTC1", "OFFER TEST CLIENT"),
             service_info_(_service_info),
             operation_mode_(_mode),
             app_(vsomeip::runtime::get()->create_application("offer_test_client")),

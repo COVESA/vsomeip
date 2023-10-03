@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,11 +20,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "subscribe_notify_one_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-
-class subscribe_notify_one_test_service {
+class subscribe_notify_one_test_service : public vsomeip_utilities::base_logger {
 public:
     subscribe_notify_one_test_service(struct subscribe_notify_one_test::service_info _service_info, vsomeip::reliability_type_e _reliability_type) :
+            vsomeip_utilities::base_logger("SNOS", "SUBSCRIBE NOTIFY ONE TEST SERVICE"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),

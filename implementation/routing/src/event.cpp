@@ -251,7 +251,6 @@ event::set_payload_notify_pending(const std::shared_ptr<payload> &_payload) {
 
 void
 event::unset_payload(bool _force) {
-
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (_force) {
         is_set_ = false;
@@ -428,11 +427,12 @@ event::notify_one_unlocked(client_t _client, bool _force) {
         routing_->send(_client, update_, _force);
     } else {
         VSOMEIP_INFO << __func__
-                << ": Notifying "
+                << ": Initial value for ["
                 << std::hex << std::setw(4) << std::setfill('0')
                 << get_service() << "." << get_instance() << "." << get_event()
-                << " to client " << _client
-                << " failed. Event payload not set!";
+                << "] not yet set by the service/client."
+                << " Client " << _client
+                << " will not receive any initial notification!";
     }
 }
 

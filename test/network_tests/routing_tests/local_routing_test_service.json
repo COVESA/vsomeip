@@ -1,20 +1,20 @@
 {
    "unicast" : "127.0.0.1",
    "diagnosis":"0x12",
-   "logging" : 
+   "logging" :
    {
       "level" : "debug",
       "console" : "true",
-      "file" : 
+      "file" :
       {
          "enable" : "false",
          "path" : "/tmp/vsomeip.log"
       },
 
-      "dlt" : "false"
+      "dlt" : "true"
    },
 
-   "applications" : 
+   "applications" :
    [
       {
          "name" : "local_routing_test_service",
@@ -22,7 +22,7 @@
       }
    ],
 
-   "services" : 
+   "services" :
    [
       {
          "service" : "0x1234",
@@ -31,7 +31,7 @@
    ],
 
    "routing" : "routingmanagerd",
-   "service-discovery" : 
+   "service-discovery" :
    {
       "enable" : "false",
       "multicast" : "224.0.0.1",

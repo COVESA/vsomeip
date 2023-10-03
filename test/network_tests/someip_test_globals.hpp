@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,6 +8,12 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
+
+#ifdef USE_DLT
+#ifndef ANDROID
+#include <dlt/dlt.h>
+#endif
+#endif
 
 namespace vsomeip_test
 {
@@ -38,6 +44,7 @@ constexpr std::uint32_t MAX_PAYLOADSIZE_UDP = 1400;
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS = 32;
 
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS = 32;
+
 }
 
 #endif /* SOMEIP_TEST_GLOBALS_HPP_ */

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,10 +19,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "second_address_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class second_address_test_client {
+class second_address_test_client : public vsomeip_utilities::base_logger {
 public:
     second_address_test_client(struct second_address_test::service_info _service_info, bool _use_tcp) :
+            vsomeip_utilities::base_logger("SATC", "SECOND ADDRESS TEST CLIENT"),
             service_info_(_service_info),
             use_tcp_(_use_tcp),
             app_(vsomeip::runtime::get()->create_application("second_address_test_client")),

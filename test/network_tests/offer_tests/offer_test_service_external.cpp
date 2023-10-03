@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,13 +17,16 @@
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../someip_test_globals.hpp"
 #include "offer_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 static std::string service_number;
 
-class offer_test_service {
+class offer_test_service : public vsomeip_utilities::base_logger {
 public:
     offer_test_service(struct offer_test::service_info _service_info) :
+            vsomeip_utilities::base_logger("OTSE", "OFFER TEST SERVICE EXTERNAL"),
             service_info_(_service_info),
             // service with number 1 uses "routingmanagerd" as application name
             // this way the same json file can be reused for all local tests

@@ -95,6 +95,13 @@ enum class availability_state_e : uint8_t {
     AS_UNKNOWN = 0xFF
 };
 
+enum class handler_registration_type_e : uint8_t {
+    HRT_REPLACE = 0x00,
+    HRT_PREPEND = 0x01,
+    HRT_APPEND = 0x02,
+    HRT_UNKNOWN = 0xFF
+};
+
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_ENUMERATION_TYPES_HPP_

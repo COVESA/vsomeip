@@ -19,9 +19,8 @@ namespace vsomeip_v3 {
 
 message_impl::message_impl()
     : payload_(runtime::get()->create_payload()),
-      check_result_(0) {
-
-    sec_client_.client_type = VSOMEIP_CLIENT_INVALID;
+      check_result_ {0},
+      sec_client_ {ANY_UID, ANY_GID, 0, VSOMEIP_SEC_PORT_UNUSED} {
 }
 
 message_impl::~message_impl() {
@@ -69,24 +68,12 @@ bool message_impl::is_valid_crc() const {
 
 uid_t message_impl::get_uid() const {
 
-    uid_t its_uid(ANY_UID);
-
-    if (sec_client_.client_type == VSOMEIP_CLIENT_UDS) {
-        its_uid = sec_client_.client.uds_client.user;
-    }
-
-    return its_uid;
+    return sec_client_.user;
 }
 
 gid_t message_impl::get_gid() const {
 
-    gid_t its_gid(ANY_GID);
-
-    if (sec_client_.client_type == VSOMEIP_CLIENT_UDS) {
-        its_gid = sec_client_.client.uds_client.group;
-    }
-
-    return its_gid;
+    return sec_client_.group;
 }
 
 vsomeip_sec_client_t message_impl::get_sec_client() const {

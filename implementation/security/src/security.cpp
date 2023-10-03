@@ -16,20 +16,30 @@
 #include <array>
 #include <tuple>
 
-#define VSOMEIP_SEC_SYMDEF(sym) symdef_t{\
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
+
+#define VSOMEIP_SEC_POLICY_SYMDEF(sym) symdef_t{\
     "vsomeip_sec_policy_"#sym, nullptr, reinterpret_cast<void**>(&sym) \
 }
 
+#define VSOMEIP_SEC_SYMDEF(sym) symdef_t{\
+    "vsomeip_sec_"#sym, nullptr, reinterpret_cast<void**>(&sym) \
+}
+
 namespace vsomeip_v3 {
+
 bool
 security::load() {
     using symdef_t = std::tuple<const char*, void*, void**>;
-    std::array<symdef_t, 5> symbol_table{
-        VSOMEIP_SEC_SYMDEF(initialize),
-        VSOMEIP_SEC_SYMDEF(authenticate_router),
-        VSOMEIP_SEC_SYMDEF(is_client_allowed_to_offer),
-        VSOMEIP_SEC_SYMDEF(is_client_allowed_to_request),
-        VSOMEIP_SEC_SYMDEF(is_client_allowed_to_access_member)
+    std::array<symdef_t, 6> symbol_table{
+        VSOMEIP_SEC_POLICY_SYMDEF(initialize),
+        VSOMEIP_SEC_POLICY_SYMDEF(authenticate_router),
+        VSOMEIP_SEC_POLICY_SYMDEF(is_client_allowed_to_offer),
+        VSOMEIP_SEC_POLICY_SYMDEF(is_client_allowed_to_request),
+        VSOMEIP_SEC_POLICY_SYMDEF(is_client_allowed_to_access_member),
+        VSOMEIP_SEC_SYMDEF(sync_client)
     };
 
     if (auto manager = plugin_manager::get()) {
@@ -58,6 +68,12 @@ security::load() {
 
             // Symbol loading complete, success!
             return true;
+        } else {
+#ifdef _WIN32
+            VSOMEIP_ERROR << "vSomeIP Security: Loading " << VSOMEIP_SEC_LIBRARY << " failed.";
+#else
+            VSOMEIP_ERROR << "vSomeIP Security: " << dlerror();
+#endif
         }
     }
 
@@ -79,6 +95,9 @@ security::is_client_allowed_to_request = security::default_is_client_allowed_to_
 decltype(security::is_client_allowed_to_access_member)
 security::is_client_allowed_to_access_member = security::default_is_client_allowed_to_access_member;
 
+decltype(security::sync_client)
+security::sync_client = security::default_sync_client;
+
 //
 // Default interface implementation
 //
@@ -90,7 +109,7 @@ security::default_initialize(void) {
 vsomeip_sec_acl_result_t
 security::default_authenticate_router(
         const vsomeip_sec_client_t *_server) {
-    if (_server && _server->client_type == VSOMEIP_CLIENT_TCP)
+    if (_server && _server->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
 
     if (policy_manager_impl::get()->check_routing_credentials(_server))
@@ -104,7 +123,7 @@ security::default_is_client_allowed_to_offer(
         const vsomeip_sec_client_t *_client,
         vsomeip_sec_service_id_t _service,
         vsomeip_sec_instance_id_t _instance) {
-    if (_client && _client->client_type == VSOMEIP_CLIENT_TCP)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
 
     if (policy_manager_impl::get()->is_offer_allowed(_client, _service, _instance))
@@ -118,7 +137,7 @@ security::default_is_client_allowed_to_request(
         const vsomeip_sec_client_t *_client,
         vsomeip_sec_service_id_t _service,
         vsomeip_sec_instance_id_t _instance) {
-    if (_client && _client->client_type == VSOMEIP_CLIENT_TCP)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
 
     if (policy_manager_impl::get()->is_client_allowed(_client, _service, _instance, 0x00, true))
@@ -133,13 +152,19 @@ security::default_is_client_allowed_to_access_member(
         vsomeip_sec_service_id_t _service,
         vsomeip_sec_instance_id_t _instance,
         vsomeip_sec_member_id_t _member) {
-    if (_client && _client->client_type == VSOMEIP_CLIENT_TCP)
+    if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
 
     if (policy_manager_impl::get()->is_client_allowed(_client, _service, _instance, _member, false))
         return VSOMEIP_SEC_OK;
     else
         return VSOMEIP_SEC_PERM_DENIED;
+}
+
+void
+security::default_sync_client(vsomeip_sec_client_t *_client) {
+
+    (void)_client;
 }
 
 } // namespace vsomeip_v3

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,8 +11,8 @@ include_directories(
     ${gtest_SOURCE_DIR}/include
 )
 
-set(TEST_LINK_LIBRARIES gtest)
 
+set(TEST_LINK_LIBRARIES gtest)
 set(NETWORK_TEST_BIN_DIR ${PROJECT_BINARY_DIR}/test/network_tests)
 set(NETWORK_TEST_SRC_DIR ${PROJECT_SOURCE_DIR}/test/network_tests)
 
@@ -76,7 +76,6 @@ if(NOT ${TESTS_BAT})
     add_executable(${TEST_CONFIGURATION}
         configuration_tests/configuration-test.cpp
         ${PROJECT_SOURCE_DIR}/implementation/plugin/src/plugin_manager_impl.cpp
-        ${PROJECT_SOURCE_DIR}/test/common/utility.cpp
     )
     target_link_libraries(${TEST_CONFIGURATION}
         ${VSOMEIP_NAME}
@@ -84,6 +83,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
@@ -112,6 +113,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_APPLICATION_SINGLE_PROCESS_NAME ${TEST_APPLICATION}_single_process)
@@ -121,6 +124,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     if(QNX)
         target_compile_definitions(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PRIVATE _QNX_SOURCE)
@@ -133,6 +138,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE ${TEST_APPLICATION}_single_process.json)
@@ -213,6 +220,8 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_MAGIC_COOKIES_SERVICE ${TEST_MAGIC_COOKIES_NAME}_service)
@@ -221,8 +230,10 @@ if(NOT ${TESTS_BAT})
         ${VSOMEIP_NAME}
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
+        ${DLT_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -283,6 +294,8 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     ##############################################################################
@@ -296,6 +309,8 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -320,6 +335,8 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -357,6 +374,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -380,6 +399,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -420,6 +441,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -478,6 +501,8 @@ else()
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -501,6 +526,8 @@ else()
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -542,6 +569,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -569,6 +598,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -619,6 +650,8 @@ if (${TEST_SECURITY})
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
+            ${DLT_LIBRARIES}
+            vsomeip_utilities
         )
 
         # Copy config file for service into $BUILDDIR/test
@@ -713,6 +746,8 @@ if (${TEST_SECURITY})
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
+            ${DLT_LIBRARIES}
+            vsomeip_utilities
         )
     endif()
 endif()
@@ -731,6 +766,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -759,6 +796,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -910,6 +949,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_BIG_PAYLOAD_CLIENT big_payload_test_client)
@@ -919,6 +960,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client and service into $BUILDDIR/test
@@ -1268,18 +1311,22 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_CLIENT_ID_UTILITY ${TEST_CLIENT_ID_NAME}_utility)
     add_executable(${TEST_CLIENT_ID_UTILITY}
-        client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp
-        ${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
+        client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp)
+        #${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
     target_link_libraries(${TEST_CLIENT_ID_UTILITY}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -1466,6 +1513,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     set(TEST_DEBOUNCE_SERVICE ${TEST_DEBOUNCE_NAME}_service)
     add_executable(${TEST_DEBOUNCE_SERVICE} debounce_tests/${TEST_DEBOUNCE_SERVICE}.cpp)
@@ -1474,6 +1523,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -1512,6 +1563,122 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# debounce filter tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBOUNCE_FILTER_NAME debounce_filter_test)
+    set(TEST_DEBOUNCE_FILTER_CLIENT ${TEST_DEBOUNCE_FILTER_NAME}_client)
+    add_executable(${TEST_DEBOUNCE_FILTER_CLIENT} debounce_filter_tests/${TEST_DEBOUNCE_FILTER_CLIENT}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FILTER_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+    set(TEST_DEBOUNCE_FILTER_SERVICE ${TEST_DEBOUNCE_FILTER_NAME}_service)
+    add_executable(${TEST_DEBOUNCE_FILTER_SERVICE} debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FILTER_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_DEBOUNCE_FILTER_MASTER_STARTER ${TEST_DEBOUNCE_FILTER_NAME}_master_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_STARTER}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+    set(TEST_DEBOUNCE_FILTER_SLAVE_STARTER ${TEST_DEBOUNCE_FILTER_NAME}_slave_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_SLAVE_STARTER}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+
+    # configure configurations and copy them into builddir
+    set(TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_SERVICE}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+    set(TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_CLIENT}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+endif()
+
+##############################################################################
+# debounce frequency tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBOUNCE_FREQUENCY_NAME debounce_frequency_test)
+    set(TEST_DEBOUNCE_FREQUENCY_CLIENT ${TEST_DEBOUNCE_FREQUENCY_NAME}_client)
+    add_executable(${TEST_DEBOUNCE_FREQUENCY_CLIENT} debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_CLIENT}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SERVICE ${TEST_DEBOUNCE_FREQUENCY_NAME}_service)
+    add_executable(${TEST_DEBOUNCE_FREQUENCY_SERVICE} debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER ${TEST_DEBOUNCE_FREQUENCY_NAME}_master_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER}
+        ${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER ${TEST_DEBOUNCE_FREQUENCY_NAME}_slave_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER}
+        ${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+    )
+
+    # configure configurations and copy them into builddir
+    set(TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_CLIENT}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_SERVICE}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+    )
+endif()
+
+##############################################################################
 # subscribe notify tests
 ##############################################################################
 if(NOT ${TESTS_BAT})
@@ -1523,6 +1690,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test (local communication via UDS)
@@ -1818,6 +1987,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     # client
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_client)
@@ -1828,6 +1999,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE
@@ -2217,6 +2390,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2326,6 +2501,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2361,6 +2538,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_master.json)
@@ -2410,6 +2589,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_CLIENT ${TEST_INITIAL_EVENT_NAME}_client)
@@ -2419,6 +2600,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_AVAILABILITY_CHECKER ${TEST_INITIAL_EVENT_NAME}_availability_checker)
@@ -2428,6 +2611,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_STOP_SERVICE ${TEST_INITIAL_EVENT_NAME}_stop_service)
@@ -2437,6 +2622,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2711,6 +2898,33 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    set(TEST_OFFER_MULTIPLE_OFFERING offer_test_multiple_offerings)
+    add_executable(${TEST_OFFER_MULTIPLE_OFFERING} offer_tests/${TEST_OFFER_MULTIPLE_OFFERING}.cpp)
+    target_link_libraries(${TEST_OFFER_MULTIPLE_OFFERING}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_OFFER_MULTIPLE_OFFERING_STARTER ${TEST_OFFER_MULTIPLE_OFFERING}_starter.sh)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
+        ${TEST_OFFER_MULTIPLE_OFFERING}
+    )
+
+    # Copy config file for local test into $BUILDDIR/test
+    set(TEST_OFFER_MULTIPLE_OFFERING_CONFIG ${TEST_OFFER_MULTIPLE_OFFERING}.json)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
+        ${TEST_OFFER_MULTIPLE_OFFERING}
     )
 
     set(TEST_OFFER_CLIENT ${TEST_OFFER_NAME}_client)
@@ -2720,6 +2934,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_SERVICE_EXTERNAL ${TEST_OFFER_NAME}_service_external)
@@ -2729,6 +2945,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER ${TEST_OFFER_NAME}_external_sd_msg_sender)
@@ -2737,6 +2955,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # client and service for offer test big sd msg
@@ -2748,15 +2968,19 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_BIG_CLIENT ${TEST_OFFER_BIG_NAME}_client)
     add_executable(${TEST_OFFER_BIG_CLIENT} offer_tests/${TEST_OFFER_BIG_NAME}_client.cpp)
     target_link_libraries(${TEST_OFFER_BIG_CLIENT}
+        ${DLT_LIBRARIES}
         ${VSOMEIP_NAME}
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -2874,6 +3098,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFERED_SERVICES_INFO_CLIENT ${TEST_OFFERED_SERVICES_INFO_NAME}_client)
@@ -2883,6 +3109,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -2913,6 +3141,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -2935,6 +3165,8 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -2973,6 +3205,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -2995,6 +3229,8 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -3036,6 +3272,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_E2E_CLIENT}
@@ -3046,6 +3284,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3104,6 +3344,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_E2E_PROFILE_04_CLIENT}
@@ -3114,6 +3356,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3172,6 +3416,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_EVENT_CLIENT}
@@ -3182,6 +3428,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     # Copy service config file for external allow tests into $BUILDDIR/test
     set(TEST_EVENT_SLAVE_TCP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_tcp.json)
@@ -3250,6 +3498,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_DAEMON_SERVICE ${TEST_NPDU_DAEMON}_service_side)
@@ -3260,6 +3510,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     ##############################################################################
@@ -3275,6 +3527,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_TWO npdu_test_service_2)
@@ -3286,6 +3540,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_THREE npdu_test_service_3)
@@ -3297,6 +3553,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_FOUR npdu_test_service_4)
@@ -3308,6 +3566,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service w/o npdu into $BUILDDIR/test
@@ -3360,6 +3620,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_TWO npdu_test_client_2)
@@ -3370,6 +3632,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_THREE npdu_test_client_3)
@@ -3380,6 +3644,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_FOUR npdu_test_client_4)
@@ -3390,6 +3656,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for client w/o npdu into $BUILDDIR/test
@@ -3453,6 +3721,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -3476,8 +3746,10 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3522,6 +3794,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_SECOND_ADDRESS_CLIENT}
@@ -3532,6 +3806,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_service_udp.json)
@@ -3614,6 +3890,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_SUSPEND_RESUME_CLIENT}
@@ -3624,6 +3902,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE ${TEST_SUSPEND_RESUME_SERVICE}.json)
@@ -3689,6 +3969,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_CLIENT_ID_UTILITY} gtest)
     add_dependencies(${TEST_DEBOUNCE_CLIENT} gtest)
     add_dependencies(${TEST_DEBOUNCE_SERVICE} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FILTER_CLIENT} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FILTER_SERVICE} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FREQUENCY_CLIENT} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FREQUENCY_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT} gtest)
@@ -3771,6 +4055,10 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_CLIENT_ID_UTILITY})
     add_dependencies(build_network_tests ${TEST_DEBOUNCE_CLIENT})
     add_dependencies(build_network_tests ${TEST_DEBOUNCE_SERVICE})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FILTER_CLIENT})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FILTER_SERVICE})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FREQUENCY_CLIENT})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FREQUENCY_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT})
@@ -3787,6 +4075,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
     add_dependencies(build_network_tests ${TEST_OFFER_BIG_SERVICE})
     add_dependencies(build_network_tests ${TEST_OFFER_BIG_CLIENT})
+    add_dependencies(build_network_tests ${TEST_OFFER_MULTIPLE_OFFERING})
     add_dependencies(build_network_tests ${TEST_RESTART_ROUTING_SERVICE})
     add_dependencies(build_network_tests ${TEST_RESTART_ROUTING_CLIENT})
     if (${TEST_SECURITY})
@@ -3888,7 +4177,7 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
     )
-    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 960)
+    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 1800)
     add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
     )
@@ -4029,6 +4318,16 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_DEBOUNCE_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_MASTER_STARTER})
     set_tests_properties(${TEST_DEBOUNCE_UTILITY} PROPERTIES TIMEOUT 30)
+
+    # debounce filter tests
+    add_test(NAME ${TEST_DEBOUNCE_FILTER_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBOUNCE_FILTER_UTILITY} PROPERTIES TIMEOUT 30)
+
+    # debounce frequency tests
+    add_test(NAME ${TEST_DEBOUNCE_FREQUENCY_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBOUNCE_FREQUENCY_NAME} PROPERTIES TIMEOUT 30)
 
     # subscribe notify tests (local communication via UDS)
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp_local_tcp
@@ -4259,9 +4558,15 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_NAME}_external
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
+
     add_test(NAME ${TEST_OFFER_BIG_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_BIG_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_BIG_NAME} PROPERTIES TIMEOUT 360)
+
+    # Multiple Offer tests
+    add_test(NAME ${TEST_OFFER_MULTIPLE_OFFERING}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_STARTER})
+    set_tests_properties(${TEST_OFFER_MULTIPLE_OFFERING} PROPERTIES TIMEOUT 1800)
 
     # offered services info tets
     add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local
@@ -4308,7 +4613,7 @@ if(NOT ${TESTS_BAT})
 
     add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_RESUBSCRIBE_MIXED)
-    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed PROPERTIES TIMEOUT 180)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed PROPERTIES TIMEOUT 300)
 
     add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_stopsubscribe_subscribe
     COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE)

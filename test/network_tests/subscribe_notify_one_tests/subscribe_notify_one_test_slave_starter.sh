@@ -18,6 +18,7 @@ then
 fi
 
 FAIL=0
+
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_one_test_service_four
 export VSOMEIP_CONFIGURATION=$2

@@ -499,7 +499,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 its_subscription_id = its_command.get_pending_id();
 
                 host_->on_subscribe_nack(its_subscriber, its_service,
-                        its_instance, its_eventgroup, its_notifier, its_subscription_id);
+                        its_instance, its_eventgroup, false, its_subscription_id);
 
                 VSOMEIP_INFO << "SUBSCRIBE NACK("
                     << std::hex << std::setfill('0')
@@ -839,9 +839,9 @@ void routing_manager_stub::on_register_application(client_t _client) {
             bool has_mapping = policy_manager_impl::get()
                     ->get_client_to_sec_client_mapping(_client, its_sec_client);
             if (has_mapping) {
-                if (its_sec_client.client_type == VSOMEIP_CLIENT_UDS) {
-                    get_requester_policies(its_sec_client.client.uds_client.user,
-                            its_sec_client.client.uds_client.group, its_policies);
+                if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+                    get_requester_policies(its_sec_client.user,
+                            its_sec_client.group, its_policies);
                 }
 
                 if (!its_policies.empty())
@@ -1224,8 +1224,8 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     vsomeip_sec_client_t its_sec_client;
     if (policy_manager_impl::get()->get_client_to_sec_client_mapping(_hoster, its_sec_client)) {
         std::pair<uint32_t, uint32_t> its_uid_gid;
-        its_uid_gid.first = its_sec_client.client.uds_client.user;
-        its_uid_gid.second = its_sec_client.client.uds_client.group;
+        its_uid_gid.first = its_sec_client.user;
+        its_uid_gid.second = its_sec_client.group;
         its_credentials.insert(its_uid_gid);
         for (auto its_requesting_client : its_requesting_clients) {
             vsomeip_sec_client_t its_requester_sec_client;
@@ -1862,11 +1862,11 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
         for (auto its_offering_client : its_offering_clients) {
             vsomeip_sec_client_t its_sec_client;
             if (policy_manager_impl::get()->get_client_to_sec_client_mapping(its_offering_client, its_sec_client)) {
-                if (its_sec_client.client_type == VSOMEIP_CLIENT_UDS
+                if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED
                         && !utility::compare(its_sec_client, its_requester_sec_client)) {
 
                     its_credentials.insert(std::make_pair(
-                            its_sec_client.client.uds_client.user, its_sec_client.client.uds_client.group));
+                            its_sec_client.user, its_sec_client.group));
                 }
             }
         }

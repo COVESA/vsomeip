@@ -90,7 +90,8 @@ public:
     virtual port_t get_routing_host_port() const = 0;
 
     virtual const boost::asio::ip::address &get_routing_guest_address() const = 0;
-    virtual std::set<std::pair<port_t, port_t> > get_routing_guest_ports() const = 0;
+    virtual std::set<std::pair<port_t, port_t> > get_routing_guest_ports(
+            uid_t _uid, gid_t _gid) const = 0;
 
     virtual bool is_local_routing() const = 0;
 
@@ -270,6 +271,9 @@ public:
     virtual bool check_routing_credentials(client_t _client,
             const vsomeip_sec_client_t *_sec_client) const = 0;
 
+    virtual bool check_suppress_events(service_t _service,
+            instance_t _instance, event_t _event) const = 0;
+
     // SOME/IP-TP
     virtual bool is_tp_client(
             service_t _service, const std::string &_address, std::uint16_t _port,
@@ -302,6 +306,7 @@ public:
 
     // security
     virtual bool is_security_enabled() const = 0;
+    virtual bool is_security_external() const = 0;
     virtual bool is_security_audit() const = 0;
     virtual bool is_remote_access_allowed() const = 0;
 };

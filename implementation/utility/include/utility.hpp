@@ -140,21 +140,11 @@ public:
             const vsomeip_sec_client_t &_rhs) {
 
         bool is_equal(false);
-        if (_lhs.client_type == _rhs.client_type) {
-            switch (_lhs.client_type) {
-            case VSOMEIP_CLIENT_INVALID:
-                is_equal = true;
-                break;
-            case VSOMEIP_CLIENT_UDS:
-                is_equal = (_lhs.client.uds_client.user == _rhs.client.uds_client.user
-                     && _lhs.client.uds_client.group == _rhs.client.uds_client.group);
-                break;
-            case VSOMEIP_CLIENT_TCP:
-                is_equal = (_lhs.client.ip_client.ip == _rhs.client.ip_client.ip
-                     && _lhs.client.ip_client.port == _rhs.client.ip_client.port);
-                break;
-            default:
-                break;
+        if (_lhs.port == _rhs.port) {
+            if (_lhs.port == VSOMEIP_SEC_PORT_UNUSED) {
+                is_equal = (_lhs.user == _rhs.user && _lhs.group == _rhs.group);
+            } else {
+                is_equal = (_lhs.host == _rhs.host && _lhs.port == _rhs.port);
             }
         }
         return is_equal;

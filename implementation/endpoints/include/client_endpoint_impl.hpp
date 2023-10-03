@@ -109,8 +109,7 @@ protected:
     typename endpoint_impl<Protocol>::cms_ret_e check_message_size(
             const std::uint8_t * const _data, std::uint32_t _size);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size) const;
-    void queue_train(const std::shared_ptr<train> &_train,
-            bool _queue_size_zero_on_entry);
+    void queue_train(const std::shared_ptr<train> &_train);
     void update_last_departure();
 
 protected:
@@ -142,11 +141,11 @@ protected:
     std::deque<std::pair<message_buffer_ptr_t, uint32_t> > queue_;
     std::size_t queue_size_;
 
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
 
     std::atomic<bool> was_not_connected_;
 
-    std::atomic<std::uint16_t> local_port_;
+    bool is_sending_;
 
     boost::asio::io_context::strand strand_;
 

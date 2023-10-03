@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_V3_SERVICEINFO_HPP_
 #define VSOMEIP_V3_SERVICEINFO_HPP_
 
+#include <atomic>
 #include <memory>
 #include <set>
 #include <string>
@@ -69,8 +70,8 @@ private:
     std::mutex requesters_mutex_;
     std::set<client_t> requesters_;
 
-    bool is_local_;
-    bool is_in_mainphase_;
+    std::atomic_bool is_local_;
+    std::atomic_bool is_in_mainphase_;
 };
 
 }  // namespace vsomeip_v3

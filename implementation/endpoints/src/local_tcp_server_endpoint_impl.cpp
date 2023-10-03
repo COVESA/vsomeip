@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,6 +20,7 @@
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
+#include "../../security/include/security.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
 
@@ -268,15 +269,15 @@ local_tcp_server_endpoint_impl::connection::connection(
       buffer_shrink_threshold_(_buffer_shrink_threshold),
       bound_client_(VSOMEIP_CLIENT_UNSET),
       bound_client_host_(""),
-      assigned_client_(false) {
+      assigned_client_(false),
+      is_stopped_(true) {
     if (_server->is_routing_endpoint_ &&
             !_server->configuration_->is_security_enabled()) {
         assigned_client_ = true;
     }
 
-    sec_client_.client_type = VSOMEIP_CLIENT_TCP;
-    sec_client_.client.ip_client.ip = 0;
-    sec_client_.client.ip_client.port = 0;
+    sec_client_.host = 0;
+    sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
 }
 
 local_tcp_server_endpoint_impl::connection::ptr
@@ -343,6 +344,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
             return;
         }
 
+        is_stopped_ = false;
 #if VSOMEIP_BOOST_VERSION < 106600
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
@@ -369,6 +371,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
 
 void local_tcp_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    is_stopped_ = true;
     if (socket_.is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
@@ -377,8 +380,7 @@ void local_tcp_server_endpoint_impl::connection::stop() {
         }
 #endif
         boost::system::error_code its_error;
-        socket_.shutdown(socket_.shutdown_both, its_error);
-        socket_.close(its_error);
+        socket_.cancel(its_error);
     }
 }
 
@@ -637,21 +639,27 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                     its_server->send_client_identifier(its_client);
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
+                    boost::system::error_code ec;
+                    auto its_endpoint = socket_.remote_endpoint(ec);
+                    if (!ec) {
+                        auto its_address = its_endpoint.address();
+                        auto its_port = its_endpoint.port();
 
-                    auto its_address = socket_.remote_endpoint().address();
-                    auto its_port = socket_.remote_endpoint().port();
+                        if (its_address.is_v4()) {
+                            sec_client_.host
+                                = htonl(uint32_t(its_address.to_v4().to_ulong()));
+                        }
+                        sec_client_.port = its_port;
+                        security::sync_client(&sec_client_);
 
-                    sec_client_.client_type = VSOMEIP_CLIENT_TCP;
-                    if (its_address.is_v4()) {
-                        sec_client_.client.ip_client.ip
-                            = htonl(uint32_t(its_address.to_v4().to_ulong()));
+                        its_host->on_message(&recv_buffer_[its_start],
+                                            uint32_t(its_end - its_start), its_server.get(),
+                                            false, bound_client_, &sec_client_,
+                                            its_address, its_port);
+                    } else {
+                        VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                            << " endpoint encountered an error[" << ec.value() << "]: " << ec.message();
                     }
-                    sec_client_.client.ip_client.port = its_port;
-
-                    its_host->on_message(&recv_buffer_[its_start],
-                                         uint32_t(its_end - its_start), its_server.get(),
-                                         false, bound_client_, &sec_client_,
-                                         its_address, its_port);
                 } else {
                     VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                             << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message";
@@ -690,10 +698,11 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (_error == boost::asio::error::eof
+    if (is_stopped_
+            || _error == boost::asio::error::eof
             || _error == boost::asio::error::connection_reset
             || is_error) {
-        stop();
+        shutdown_and_close();
         its_server->remove_connection(bound_client_);
         policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
@@ -790,6 +799,19 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
 std::size_t
 local_tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
     return recv_buffer_.capacity();
+}
+
+void
+local_tcp_server_endpoint_impl::connection::shutdown_and_close() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    shutdown_and_close_unlocked();
+}
+
+void
+local_tcp_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
+    boost::system::error_code its_error;
+    socket_.shutdown(socket_.shutdown_both, its_error);
+    socket_.close(its_error);
 }
 
 void local_tcp_server_endpoint_impl::print_status() {

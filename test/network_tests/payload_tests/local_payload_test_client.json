@@ -1,11 +1,11 @@
 {
    "unicast" : "127.0.0.1",
    "netmask" : "255.255.255.0",
-   "logging" : 
+   "logging" :
    {
       "level" : "debug",
       "console" : "true",
-      "file" : 
+      "file" :
       {
          "enable" : "true",
          "path" : "/var/log/vsomeip.log"
@@ -14,19 +14,19 @@
       "dlt" : "true"
    },
 
-   "applications" : 
+   "applications" :
    [
       {
          "name" : "local_payload_test_client",
          "id" : "0x1343"
       }
    ],
-   "services" : 
-   [ 
+   "services" :
+   [
    ],
 
    "routing" : "local_payload_test_service",
-   "service-discovery" : 
+   "service-discovery" :
    {
       "enable" : "false",
       "multicast" : "224.0.0.1",

@@ -1,11 +1,11 @@
-// Copyright (C) 2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <gtest/gtest.h>
 
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 namespace {
     vsomeip_v3::client_t client = 1;
@@ -13,6 +13,7 @@ namespace {
     vsomeip_v3::uid_t valid_uid = 4004201;
     vsomeip_v3::gid_t invalid_gid = 1;
     vsomeip_v3::gid_t valid_gid = 4004200;
+    vsomeip_sec_ip_addr_t host_address = 0;
 }
 
 TEST(check_credentials_test, check_no_policies_loaded) {
@@ -24,7 +25,7 @@ TEST(check_credentials_test, check_no_policies_loaded) {
     ASSERT_FALSE(its_manager->is_enabled());
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
     EXPECT_TRUE(its_manager->check_credentials(client, &its_sec_client_invalid));
 }
 
@@ -53,9 +54,9 @@ TEST(check_credentials_test, check_policies_loaded) {
     ASSERT_TRUE(its_manager->is_enabled());
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid);
+    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid, host_address);
 
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
     //invalid uid and gid -> the check must return false
     EXPECT_FALSE(its_manager->check_credentials(client, &its_sec_client_invalid));
@@ -102,10 +103,10 @@ TEST(check_credentials_test, check_policies_loaded_in_audit_mode) {
     ASSERT_TRUE(its_manager->is_enabled());
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid_valid = utility::create_uds_client(invalid_uid, valid_gid);
-    vsomeip_sec_client_t its_sec_client_valid_invalid = utility::create_uds_client(valid_uid, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_valid = utility::create_uds_client(invalid_uid, valid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_valid_invalid = utility::create_uds_client(valid_uid, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
     // is expected check_credentials method always return true
     //invalid uid and gid

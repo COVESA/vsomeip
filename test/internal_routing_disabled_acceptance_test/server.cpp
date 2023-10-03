@@ -13,39 +13,51 @@
 
 server::server() : applet{"server"}, counter_event_sent{}, counter_method_request{}, counter_method_response{}
 {
+}
+
+void
+server::init() {
+    applet::init();
+
+    std::weak_ptr<server> its_me
+        = std::dynamic_pointer_cast<server>(shared_from_this());
+
     this->application->register_message_handler(
         config::SERVICE_ID,
         config::INSTANCE_ID,
         config::METHOD_ID,
-        [this](const std::shared_ptr<vsomeip_v3::message>& message){
-            std::shared_ptr runtime = vsomeip_v3::runtime::get();
-            std::shared_ptr payload = message->get_payload();
+        [its_me](const std::shared_ptr<vsomeip_v3::message>& message){
+            auto me = its_me.lock();
+            if (me) {
+                std::shared_ptr runtime = vsomeip_v3::runtime::get();
+                std::shared_ptr payload = message->get_payload();
 
-            switch(message->get_message_type())
-            {
-            case vsomeip_v3::message_type_e::MT_REQUEST:
-                std::cout << "GOT REQUEST\n";
-                this->counter_method_request++;
+                switch(message->get_message_type())
                 {
-                    std::shared_ptr response = runtime->create_response(message);
-                    response->set_payload(payload);
+                case vsomeip_v3::message_type_e::MT_REQUEST:
+                    std::cout << "GOT REQUEST\n";
+                    me->counter_method_request++;
+                    {
+                        std::shared_ptr response = runtime->create_response(message);
+                        response->set_payload(payload);
 
-                    this->application->send(response);
-                    this->counter_method_response++;
+                        me->application->send(response);
+                        me->counter_method_response++;
 
-                    this->application->notify(
-                        config::SERVICE_ID,
-                        config::INSTANCE_ID,
-                        config::EVENT_ID,
-                        payload,
-                        true
-                    );
-                    this->counter_event_sent++;
+                        me->application->notify(
+                            config::SERVICE_ID,
+                            config::INSTANCE_ID,
+                            config::EVENT_ID,
+                            payload,
+                            true
+                        );
+                        me->counter_event_sent++;
+                    }
+                    break;
+
+                default:
+                    std::cout << "unhandled message type: " << unsigned(message->get_message_type()) << '\n';
                 }
-                break;
-
-            default:
-                std::cout << "unhandled message type: " << unsigned(message->get_message_type()) << '\n';
             }
         }
     );
@@ -64,29 +76,31 @@ server::server() : applet{"server"}, counter_event_sent{}, counter_method_reques
     );
 
     std::thread{
-        [this]{
+        [its_me]{
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(1s);
 
+            auto me = its_me.lock();
             std::shared_ptr runtime = vsomeip_v3::runtime::get();
             std::shared_ptr payload = runtime->create_payload();
             for(int i = 0; i < 10; i++)
             {
                 int j = i | 0x30;
                 payload->set_data(reinterpret_cast<vsomeip_v3::byte_t*>(&j), sizeof(j));
-                this->application->notify(
+                me->application->notify(
                     config::SERVICE_ID,
                     config::INSTANCE_ID,
                     config::EVENT_ID,
                     payload,
                     true
                 );
-                this->counter_event_sent++;
+                me->counter_event_sent++;
 
                 std::this_thread::sleep_for(1s);
             }
         }
     }.detach();
+
 }
 
 server::~server()

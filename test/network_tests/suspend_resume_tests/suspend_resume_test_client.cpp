@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,11 +13,14 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "suspend_resume_test.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class suspend_resume_test_client {
+class suspend_resume_test_client : public vsomeip_utilities::base_logger {
 public:
     suspend_resume_test_client()
-        : name_("suspend_resume_test_client"),
+        : vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"),
+          name_("suspend_resume_test_client"),
           app_(vsomeip::runtime::get()->create_application(name_)),
           has_received_(false),
           runner_(std::bind(&suspend_resume_test_client::run, this)) {

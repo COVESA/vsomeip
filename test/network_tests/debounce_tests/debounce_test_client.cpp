@@ -127,6 +127,8 @@ debounce_test_client::on_availability(
             run_condition_.notify_one();
         } else {
             VSOMEIP_ERROR << __func__ << ": Debounce service becomes unavailable.";
+
+            std::lock_guard<std::mutex> its_lock(run_mutex_);
             is_available_ = false;
         }
     }

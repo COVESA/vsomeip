@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <memory>
 
 #include "applet.hpp"
 
@@ -9,6 +10,8 @@ struct client final : applet
 {
     client();
     ~client();
+
+    void init();
 
     std::size_t get_event_count() noexcept;
     std::size_t get_method_request_count() noexcept;

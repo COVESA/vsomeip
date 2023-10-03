@@ -34,6 +34,8 @@ elif [ "$OPERATIONMODE" = "CLIENT" ]; then
     export VSOMEIP_CONFIGURATION=second_address_test_master_client.json
 fi
 
+rm -f /tmp/vsomeip*
+
 ../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 

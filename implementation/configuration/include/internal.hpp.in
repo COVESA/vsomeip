@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,7 +23,7 @@
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "@DEFAULT_CONFIGURATION_FILE@"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "@DEFAULT_CONFIGURATION_FOLDER@"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -52,9 +52,9 @@
 #endif
 
 #ifdef _WIN32
-#define VSOMEIP_SEC_LIBRARY                      "vsomeip3-sec.dll"
+#define VSOMEIP_SEC_LIBRARY                      "vsomeip_sec.dll"
 #else
-#define VSOMEIP_SEC_LIBRARY                      "libvsomeip3-sec.so"
+#define VSOMEIP_SEC_LIBRARY                      "libvsomeip-sec.so.1"
 #endif
 
 #define VSOMEIP_ROUTING_CLIENT                  0
@@ -112,7 +112,10 @@
 #define VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE  19
 
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
-#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // microseconds
+#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // us
+
+#define LOCAL_TCP_PORT_WAIT_TIME                @VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME@
+#define LOCAL_TCP_PORT_MAX_WAIT_TIME            @VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME@
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>

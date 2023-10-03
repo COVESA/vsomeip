@@ -9,7 +9,7 @@
             "enable":"false",
             "path":"/tmp/vsomeip.log"
         },
-        "dlt":"false"
+        "dlt":"true"
     },
     "diagnosis":"0x62",
     "diagnosis_mask":"0xFE00",

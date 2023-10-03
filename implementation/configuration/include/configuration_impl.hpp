@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
 #define VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
@@ -36,6 +37,25 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+
+struct suppress_t {
+    service_t service;
+    instance_t instance;
+    event_t event;
+
+    inline bool operator<(const suppress_t& entry_) const {
+        if(service != entry_.service) {
+            return service < entry_.service;
+        }
+        if(instance != entry_.instance) {
+            return instance < entry_.instance;
+        }
+        if(event != entry_.event) {
+            return event < entry_.event;
+        }
+        return false;
+    }
+};
 
 class configuration_impl:
         public configuration,
@@ -112,7 +132,8 @@ public:
     VSOMEIP_EXPORT port_t get_routing_host_port() const;
 
     VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_guest_address() const;
-    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t> > get_routing_guest_ports() const;
+    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t> > get_routing_guest_ports(
+            uid_t _uid, gid_t _gid) const;
 
     VSOMEIP_EXPORT client_t get_id(const std::string &_name) const;
     VSOMEIP_EXPORT bool is_configured_client_id(client_t _id) const;
@@ -185,6 +206,9 @@ public:
 
     VSOMEIP_EXPORT bool check_routing_credentials(client_t _client,
             const vsomeip_sec_client_t *_sec_client) const;
+
+    VSOMEIP_EXPORT bool check_suppress_events(service_t _service,
+            instance_t _instance, event_t _event) const;
 
     VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const;
@@ -269,6 +293,7 @@ public:
             const uint16_t &_unreliable_port) const;
 
     VSOMEIP_EXPORT bool is_security_enabled() const;
+    VSOMEIP_EXPORT bool is_security_external() const;
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
@@ -311,6 +336,8 @@ private:
             const std::string &_name);
     bool load_routing_guests(const boost::property_tree::ptree &_tree);
     void load_routing_guest_ports(const boost::property_tree::ptree &_tree);
+    std::set<std::pair<port_t, port_t> > load_routing_guest_port_range(
+            const boost::property_tree::ptree &_tree) const;
 
     bool load_routing_credentials(const configuration_element &_element); // compatibility
     void load_routing_client_ports(const configuration_element &_element); // compatibility
@@ -327,6 +354,18 @@ private:
     void load_trace_filter_match(
             const boost::property_tree::ptree &_data,
             std::tuple<service_t, instance_t, method_t> &_match);
+
+    void load_suppress_events(const configuration_element &_element);
+    void load_suppress_events_data(
+            const boost::property_tree::ptree &_tree);
+    std::set<event_t> load_suppress_multiple_events(
+            const boost::property_tree::ptree &_tree);
+    uint16_t load_suppress_data(const std::string &_value) const;
+    std::set<event_t> load_range_events(event_t _first_event,
+            event_t _last_event) const ;
+    void insert_suppress_events(service_t  _service,
+    instance_t _instance, event_t _event);
+    void print_suppress_events(void) const;
 
     void load_network(const configuration_element &_element);
     void load_device(const configuration_element &_element);
@@ -453,6 +492,7 @@ protected:
     bool has_file_log_;
     bool has_dlt_log_;
     std::string logfile_;
+    mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
 
     std::map<
@@ -470,6 +510,9 @@ protected:
         std::map<std::uint16_t, // port
             std::map<service_t,
                 std::shared_ptr<service>>>> services_by_ip_port_;
+
+    std::set<suppress_t> suppress_events_;
+    bool is_suppress_events_enabled_;
 
     std::list< std::shared_ptr<client> > clients_;
 
@@ -628,9 +671,10 @@ protected:
         >
     > plugins_additional_;
 
-    bool is_security_enabled_;
-    bool is_security_audit_;
-    bool is_remote_access_allowed_;
+    std::atomic_bool is_security_enabled_;
+    std::atomic_bool is_security_external_;
+    std::atomic_bool is_security_audit_;
+    std::atomic_bool is_remote_access_allowed_;
 };
 
 } // namespace cfg

@@ -71,6 +71,7 @@ public:
             const sd_acceptance_handler_t &_handler) = 0;
     virtual void register_reboot_notification_handler(
             const reboot_notification_handler_t &_handler) = 0;
+    virtual std::recursive_mutex& get_subscribed_mutex() = 0;
 };
 
 } // namespace sd

@@ -1,11 +1,11 @@
 {
    "unicast" : "127.0.0.1",
    "netmask" : "255.255.255.0",
-   "logging" : 
+   "logging" :
    {
       "level" : "debug",
       "console" : "true",
-      "file" : 
+      "file" :
       {
          "enable" : "true",
          "path" : "/var/log/vsomeip.log"
@@ -14,20 +14,20 @@
       "dlt" : "true"
    },
 
-   "applications" : 
+   "applications" :
    [
       {
          "name" : "header_factory_test_client",
          "id" : "0x1343"
       }
    ],
- "services" : 
+ "services" :
  [
     {
        "service" : "0x1234",
        "instance" : "0x5678",
        "unreliable" : "30509",
-       "events" : 
+       "events" :
        [
           {
              "event" : "0x0777",
@@ -45,11 +45,11 @@
           }
        ],
 
-       "eventgroups" : 
+       "eventgroups" :
        [
           {
              "eventgroup" : "0x4455",
-             "events" : 
+             "events" :
              [
                 "0x777",
                 "0x778"
@@ -58,7 +58,7 @@
 
           {
              "eventgroup" : "0x4465",
-             "events" : 
+             "events" :
              [
                 "0x778",
                 "0x779"
@@ -69,7 +69,7 @@
 
           {
              "eventgroup" : "0x4555",
-             "events" : 
+             "events" :
              [
                 "0x777",
                 "0x779"
@@ -80,7 +80,7 @@
    ],
 
    "routing" : "header_factory_test_service",
-   "service-discovery" : 
+   "service-discovery" :
    {
     "enable" : "false",
     "multicast" : "224.0.0.1",

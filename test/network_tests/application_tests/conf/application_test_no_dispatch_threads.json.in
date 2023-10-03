@@ -9,7 +9,7 @@
             "enable":"false",
             "path":"/tmp/someip.log"
         },
-        "dlt":"false"
+        "dlt":"true"
     },
     "applications":
     [

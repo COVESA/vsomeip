@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,11 +19,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "initial_event_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-
-class initial_event_test_stop_service {
+class initial_event_test_stop_service : public vsomeip_utilities::base_logger {
 public:
     initial_event_test_stop_service(struct initial_event_test::service_info _service_info, bool _is_master) :
+            vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST STOP SERVICE"),
             service_info_(_service_info),
             is_master_(_is_master),
             app_(vsomeip::runtime::get()->create_application()),
@@ -198,10 +200,12 @@ public:
             while (wait_until_shutdown_method_called_) {
                 auto its_reason = condition_.wait_for(its_lock, std::chrono::milliseconds(250));
                 if (its_reason == std::cv_status::timeout) {
-                    std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                    its_lock.unlock();
+                    std::lock_guard<std::mutex> its_guard(stop_mutex_);
                     wait_for_stop_ = false;
                     stop_condition_.notify_one();
                     wait_until_shutdown_method_called_ = false;
+                    its_lock.lock();
                 }
             }
         }
@@ -210,10 +214,11 @@ public:
     void wait_for_stop() {
         static int its_call_number(0);
         its_call_number++;
-
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
+        {
+            std::unique_lock<std::mutex> its_lock(stop_mutex_);
+            while (wait_for_stop_) {
+                stop_condition_.wait(its_lock);
+            }
         }
         VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::setw(4) << std::setfill('0') << std::hex
                 << service_info_.service_id

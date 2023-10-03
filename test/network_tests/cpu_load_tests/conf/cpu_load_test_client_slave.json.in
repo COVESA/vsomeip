@@ -1,20 +1,20 @@
 {
    "unicast" : "@TEST_IP_SLAVE@",
    "netmask" : "255.255.255.0",
-   "logging" : 
+   "logging" :
    {
       "level" : "debug",
       "console" : "true",
-      "file" : 
+      "file" :
       {
          "enable" : "false",
          "path" : "/var/log/vsomeip.log"
       },
 
-      "dlt" : "false"
+      "dlt" : "true"
    },
 
-   "applications" : 
+   "applications" :
    [
       {
          "name" : "cpu_load_test_client",
@@ -28,7 +28,7 @@
         "max-retention-time-response" : "0"
     },
    "routing" : "cpu_load_test_client",
-   "service-discovery" : 
+   "service-discovery" :
    {
       "enable" : "true",
       "multicast" : "224.0.0.1",
