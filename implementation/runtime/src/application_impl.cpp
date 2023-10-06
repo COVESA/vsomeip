@@ -1747,7 +1747,7 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
-#if defined(__linux__) || defined(ANDROID)|| defined(__QNX__)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     {
         std::stringstream s;
         s << std::hex << std::setw(4) << std::setfill('0')
@@ -2098,11 +2098,11 @@ void application_impl::shutdown() {
     VSOMEIP_INFO << "shutdown thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
             << name_ << ") is: " << std::hex << std::this_thread::get_id()
-#if defined(__linux__) || defined(ANDROID)|| defined(__QNX__)
+#if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
     ;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     boost::asio::detail::posix_signal_blocker blocker;
     {
         std::stringstream s;

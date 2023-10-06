@@ -869,7 +869,7 @@ void client_endpoint_impl<Protocol>::update_last_departure() {
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(ANDROID)|| defined(__QNX__)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 template class client_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;

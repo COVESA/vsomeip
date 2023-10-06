@@ -204,7 +204,7 @@ void routing_manager_impl::init() {
 }
 
 void routing_manager_impl::start() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(ANDROID)
     boost::asio::ip::address its_multicast;
     try {
         its_multicast = boost::asio::ip::address::from_string(configuration_->get_sd_multicast());
@@ -252,7 +252,7 @@ void routing_manager_impl::start() {
         version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
                 this, std::placeholders::_1));
     }
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (configuration_->log_memory()) {
         std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
         boost::system::error_code ec;
