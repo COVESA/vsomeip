@@ -2795,7 +2795,7 @@ service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
     }
     offer_debounce_timer_.async_wait(
             std::bind(&service_discovery_impl::on_offer_debounce_timer_expired,
-                      this, std::placeholders::_1));
+                      shared_from_this(), std::placeholders::_1));
 }
 
 void
@@ -2814,7 +2814,7 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
     find_debounce_timer_.async_wait(
             std::bind(
                     &service_discovery_impl::on_find_debounce_timer_expired,
-                    this, std::placeholders::_1));
+                    shared_from_this(), std::placeholders::_1));
 }
 
 // initial delay
@@ -2875,7 +2875,7 @@ service_discovery_impl::on_find_debounce_timer_expired(
     its_timer->async_wait(
             std::bind(
                     &service_discovery_impl::on_find_repetition_phase_timer_expired,
-                    this, std::placeholders::_1, its_timer, its_repetitions,
+                    shared_from_this(), std::placeholders::_1, its_timer, its_repetitions,
                     its_delay.count()));
     start_find_debounce_timer(false);
 }
@@ -2962,7 +2962,7 @@ service_discovery_impl::on_offer_debounce_timer_expired(
     its_timer->async_wait(
             std::bind(
                     &service_discovery_impl::on_repetition_phase_timer_expired,
-                    this, std::placeholders::_1, its_timer, its_repetitions,
+                    shared_from_this(), std::placeholders::_1, its_timer, its_repetitions,
                     its_delay.count()));
     start_offer_debounce_timer(false);
 }
@@ -3029,7 +3029,7 @@ service_discovery_impl::on_repetition_phase_timer_expired(
             its_timer_pair->first->async_wait(
                     std::bind(
                             &service_discovery_impl::on_repetition_phase_timer_expired,
-                            this, std::placeholders::_1, its_timer_pair->first,
+                            shared_from_this(), std::placeholders::_1, its_timer_pair->first,
                             repetition, new_delay.count()));
         }
     }
@@ -3073,7 +3073,7 @@ service_discovery_impl::on_find_repetition_phase_timer_expired(
         its_timer_pair->first->async_wait(
                 std::bind(
                         &service_discovery_impl::on_find_repetition_phase_timer_expired,
-                        this, std::placeholders::_1, its_timer_pair->first,
+                        shared_from_this(), std::placeholders::_1, its_timer_pair->first,
                         repetition, new_delay.count()));
     }
 }
@@ -3210,7 +3210,7 @@ service_discovery_impl::start_main_phase_timer() {
     }
     main_phase_timer_.async_wait(
             std::bind(&service_discovery_impl::on_main_phase_timer_expired,
-                    this, std::placeholders::_1));
+                    shared_from_this(), std::placeholders::_1));
 }
 
 void
