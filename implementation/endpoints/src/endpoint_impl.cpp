@@ -148,9 +148,8 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 #if defined(__linux__) || defined(__QNX__)
 #if VSOMEIP_BOOST_VERSION < 106600
 template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#else
-template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
+template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 
 template class endpoint_impl<boost::asio::ip::tcp>;

@@ -141,7 +141,7 @@ bool tcp_server_endpoint_impl::send_error(
         its_data.queue_size_ += _size;
 
         if (!its_data.is_sending_) { // no writing in progress
-            send_queued(its_target_iterator);
+            (void)send_queued(its_target_iterator);
         }
         ret = true;
     }
@@ -157,6 +157,9 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
         auto connection_iterator = connections_.find(_it->first);
         if (connection_iterator != connections_.end()) {
             its_connection = connection_iterator->second;
+            if (its_connection) {
+                its_connection->send_queued(_it);
+            }
         } else {
             VSOMEIP_INFO << "Didn't find connection: "
                     << _it->first.address().to_string() << ":" << std::dec
@@ -196,11 +199,10 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                 }
             }
 
+            // Drop outstanding messages.
+            _it->second.queue_.clear();
             must_erase = true;
         }
-    }
-    if (its_connection) {
-        its_connection->send_queued(_it);
     }
 
     return (must_erase);
