@@ -9,7 +9,7 @@
             "enable":"false",
             "path":"/tmp/vsomeip.log"
         },
-        "dlt":"false"
+        "dlt":"true"
     },
     "routing":"routingmanagerd",
     "service-discovery":
@@ -17,4 +17,3 @@
         "enable":"false"
     }
 }
-

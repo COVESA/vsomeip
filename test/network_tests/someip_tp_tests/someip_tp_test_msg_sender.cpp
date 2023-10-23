@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -888,7 +888,7 @@ TEST_P(someip_tp, send_in_mode)
     std::mutex all_fragments_received_as_server_mutex_;
     std::unique_lock<std::mutex> all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
     std::condition_variable all_fragments_received_as_server_cond_;
-    bool wait_for_all_fragments_received_as_server_(true);
+    std::atomic<bool> wait_for_all_fragments_received_as_server_(true);
     std::atomic<std::uint16_t> remote_client_request_port(0);
 
     std::thread udp_server_send_thread([&]() {

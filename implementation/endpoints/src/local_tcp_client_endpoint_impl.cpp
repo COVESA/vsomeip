@@ -52,7 +52,7 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
     }
     state_ = cei_state_e::CONNECTING;
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = false;
         queue_.clear();
         queue_size_ = 0;
@@ -69,7 +69,7 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
 void local_tcp_client_endpoint_impl::start() {
 
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = false;
     }
     connect();
@@ -77,7 +77,7 @@ void local_tcp_client_endpoint_impl::start() {
 
 void local_tcp_client_endpoint_impl::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
@@ -112,48 +112,46 @@ void local_tcp_client_endpoint_impl::stop() {
 }
 
 void local_tcp_client_endpoint_impl::connect() {
-    start_connecting_timer();
     boost::system::error_code its_connect_error;
-    {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        boost::system::error_code its_error;
-        socket_->open(remote_.protocol(), its_error);
-
-        if (!its_error || its_error == boost::asio::error::already_open) {
-            socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
-            if (its_error) {
-                VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                        << ": Cannot enable SO_REUSEADDR"
-                        << "(" << its_error.message() << ")";
-            }
-
-            socket_->bind(local_, its_error);
-            if (its_error) {
-                VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                        << ": Cannot bind to client port " << local_.port()
-                        << "(" << its_error.message() << ")";
-            }
-
-            state_ = cei_state_e::CONNECTING;
-            socket_->connect(remote_, its_connect_error);
-        } else {
-            VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
-                    << its_error.message() << " (" << std::dec << its_error.value()
-                    << ")";
-            its_connect_error = its_error;
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    boost::system::error_code its_error;
+    socket_->open(remote_.protocol(), its_error);
+    if (!its_error || its_error == boost::asio::error::already_open) {
+        socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
+                    << ": Cannot enable SO_REUSEADDR"
+                    << "(" << its_error.message() << ")";
         }
-    }
-    // call connect_cbk asynchronously
-    {
-        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
-        connecting_timer_.cancel();
-    }
-    try {
-        strand_.post(
+        socket_->bind(local_, its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
+                    << ": Cannot bind to client port " << local_.port()
+                    << "(" << its_error.message() << ")";
+        }
+        state_ = cei_state_e::CONNECTING;
+        start_connecting_timer();
+        socket_->async_connect(
+            remote_,
+            strand_.wrap(
+                std::bind(
+                    &local_tcp_client_endpoint_impl::cancel_and_connect_cbk,
+                    shared_from_this(),
+                    std::placeholders::_1
+                )
+            )
+        );
+    } else {
+        VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
+                << its_error.message() << " (" << std::dec << its_error.value() << ")";
+        its_connect_error = its_error;
+        try {
+            strand_.post(
                 std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
                         its_connect_error));
-    } catch (const std::exception &e) {
-        VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+        }
     }
 }
 
@@ -179,9 +177,8 @@ void local_tcp_client_endpoint_impl::receive() {
 // this overrides client_endpoint_impl::send to disable the pull method
 // for local communication
 bool local_tcp_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
     bool ret(true);
-    const bool queue_size_zero_on_entry(queue_.empty());
     if (endpoint_impl::sending_blocked_ ||
         check_message_size(nullptr, _size) != cms_ret_e::MSG_OK ||
         !check_packetizer_space(_size) ||
@@ -197,7 +194,7 @@ bool local_tcp_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
         VSOMEIP_INFO << msg.str();
 #endif
         train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
-        queue_train(train_, queue_size_zero_on_entry);
+        queue_train(train_);
         train_->buffer_ = std::make_shared<message_buffer_t>();
     }
     return ret;
@@ -314,7 +311,7 @@ void local_tcp_client_endpoint_impl::print_status() {
     std::size_t its_data_size(0);
     std::size_t its_queue_size(0);
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }

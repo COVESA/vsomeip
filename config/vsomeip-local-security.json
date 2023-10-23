@@ -1,19 +1,19 @@
 {
     "unicast" : "10.0.3.1",
     "logging" :
-    { 
+    {
         "level" : "info",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "service-sample",
             "id" : "0x1277"
         },
-        {    
+        {
             "name" : "client-sample",
             "id" : "0x1344"
         }

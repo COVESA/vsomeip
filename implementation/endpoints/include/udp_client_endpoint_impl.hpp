@@ -41,9 +41,13 @@ public:
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes, const message_buffer_ptr_t& _recv_buffer);
 
+    std::uint16_t get_local_port() const;
+    void set_local_port(port_t _port);
+
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
     bool is_local() const;
+
     void print_status();
     bool is_reliable() const;
 
@@ -70,6 +74,9 @@ private:
     const std::uint16_t remote_port_;
     const int udp_receive_buffer_size_;
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
+
+    std::mutex last_sent_mutex_;
+    std::chrono::steady_clock::time_point last_sent_;
 };
 
 } // namespace vsomeip_v3

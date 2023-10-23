@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -26,6 +26,8 @@
 #endif
 
 #include "offered_services_info_test_globals.hpp"
+#include "someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 enum operation_mode_e {
     SUBSCRIBE,
@@ -36,9 +38,10 @@ std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> all_offered_services
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> local_offered_services;
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> remote_offered_services;
 
-class offered_services_info_test_client {
+class offered_services_info_test_client : public vsomeip_utilities::base_logger {
 public:
     offered_services_info_test_client(struct offer_test::service_info _service_info,offer_test::service_info _remote_service_info, operation_mode_e _mode) :
+            vsomeip_utilities::base_logger("OFIC", "OFFERED SERVICES INFO TEST CLIENT"),
             service_info_(_service_info),
             remote_service_info_(_remote_service_info),
             operation_mode_(_mode),

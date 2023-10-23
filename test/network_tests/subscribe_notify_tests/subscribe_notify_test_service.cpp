@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,13 +19,15 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "subscribe_notify_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-
-class subscribe_notify_test_service {
+class subscribe_notify_test_service : public vsomeip_utilities::base_logger {
 public:
     subscribe_notify_test_service(struct subscribe_notify_test::service_info _service_info,
                                   std::array<subscribe_notify_test::service_info, 7> _service_infos,
                                   vsomeip::reliability_type_e _reliability_type) :
+            vsomeip_utilities::base_logger("SNTS", "SUBSCRIBE NOTIFY TEST SERVICE"),
             service_info_(_service_info),
             service_infos_(_service_infos),
             app_(vsomeip::runtime::get()->create_application()),
@@ -37,7 +39,6 @@ public:
             stop_thread_(std::bind(&subscribe_notify_test_service::wait_for_stop, this)),
             wait_for_notify_(true),
             notify_thread_(std::bind(&subscribe_notify_test_service::notify, this)),
-            subscription_state_handler_called_(0),
             subscription_error_occured_(false),
             reliability_type_(_reliability_type) {
         if (!app_->init()) {
@@ -161,13 +162,11 @@ public:
 
     void on_subscription_state_change(const vsomeip::service_t _service, const vsomeip::instance_t _instance,
             const vsomeip::eventgroup_t _eventgroup, const vsomeip::event_t _event, const uint16_t _error) {
-        (void)_service;
-        (void)_instance;
-        (void)_eventgroup;
         (void)_event;
 
+        std::lock_guard<std::mutex> its_lock(subscription_state_handler_called_mutex_);
         if (!_error) {
-            subscription_state_handler_called_++;
+            subscription_state_handler_called_.insert(std::make_tuple(_service, _instance, _eventgroup));
         } else {
             subscription_error_occured_ = true;
             VSOMEIP_WARNING << std::hex << app_->get_client()
@@ -331,11 +330,12 @@ public:
         // is processed in the server - due to resubscribing the error handler
         // count may differ from expected value, but its not a real but as
         // the subscription takes places anyways and all events will be received.
+        std::lock_guard<std::mutex> its_subscription_lock(subscription_state_handler_called_mutex_);
         if (!subscription_error_occured_) {
-            ASSERT_EQ(subscribe_count, subscription_state_handler_called_);
+            ASSERT_EQ(subscribe_count, subscription_state_handler_called_.size());
         } else {
             VSOMEIP_WARNING << "Subscription state handler check skipped: CallCount="
-                    << std::dec << subscription_state_handler_called_;
+                    << std::dec << subscription_state_handler_called_.size();
         }
     }
 
@@ -450,8 +450,11 @@ private:
     std::mutex notify_mutex_;
     std::condition_variable notify_condition_;
     std::thread notify_thread_;
-    std::atomic<uint32_t> subscription_state_handler_called_;
-    std::atomic<bool> subscription_error_occured_;
+
+    std::mutex subscription_state_handler_called_mutex_;
+    bool subscription_error_occured_;
+    std::set<std::tuple<vsomeip::service_t, vsomeip::instance_t,
+			vsomeip::eventgroup_t> > subscription_state_handler_called_;
 
     std::mutex subscribers_mutex_;
     vsomeip::reliability_type_e reliability_type_;

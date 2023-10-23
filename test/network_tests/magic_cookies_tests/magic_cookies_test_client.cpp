@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,13 +14,15 @@
 #include <vsomeip/vsomeip.hpp>
 
 #include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 #include "../implementation/runtime/include/application_impl.hpp"
 #include "../implementation/routing/include/routing_manager.hpp"
 
-class magic_cookies_test_client {
+class magic_cookies_test_client : public vsomeip_utilities::base_logger {
 public:
     magic_cookies_test_client()
-        : app_(new vsomeip::application_impl("", "")),
+        : vsomeip_utilities::base_logger("MCTC", "MAGIC COOKIES TEST CLIENT"),
+          app_(new vsomeip::application_impl("", "")),
           is_blocked_(false),
           sent_messages_good_(8),
           sent_messages_bad_(7),

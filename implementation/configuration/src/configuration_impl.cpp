@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,6 +7,7 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -102,6 +103,7 @@ configuration_impl::configuration_impl(const std::string &_path)
       max_remote_subscribers_(VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS),
       path_(_path),
       is_security_enabled_(false),
+      is_security_external_(false),
       is_security_audit_(false),
       is_remote_access_allowed_(true) {
 
@@ -210,9 +212,10 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     statistics_max_messages_ = _other.statistics_max_messages_;
     max_remote_subscribers_ = _other.max_remote_subscribers_;
 
-    is_security_enabled_ = _other.is_security_enabled_;
-    is_security_audit_ = _other.is_security_audit_;
-    is_remote_access_allowed_ = _other.is_remote_access_allowed_;
+    is_security_enabled_ = _other.is_security_enabled_.load();
+    is_security_external_ = _other.is_security_external_.load();
+    is_security_audit_ = _other.is_security_audit_.load();
+    is_remote_access_allowed_ = _other.is_remote_access_allowed_.load();
 }
 
 configuration_impl::~configuration_impl() {
@@ -590,6 +593,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_secure_services(e);
             load_partitions(e);
             load_routing_client_ports(e);
+            load_suppress_events(e);
         }
     }
 
@@ -646,6 +650,7 @@ bool configuration_impl::load_logging(
                             " Ignoring definition from " + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
+                    std::lock_guard<std::mutex> lock(mutex_loglevel_);
                     loglevel_
                         = (its_value == "trace" ?
                                 vsomeip_v3::logger::level_e::LL_VERBOSE :
@@ -735,7 +740,7 @@ configuration_impl::load_routing(const configuration_element &_element) {
                 if (routing_.guests_.unicast_.is_unspecified())
                     routing_.guests_.unicast_ = routing_.host_.unicast_;
                 if (routing_.guests_.ports_.empty())
-                    routing_.guests_.ports_.insert(std::make_pair(31492, 31999));
+                    routing_.guests_.ports_[{ ANY_UID, ANY_GID }].emplace(31492, 31999);
             }
 
             // Try to validate the port configuration. Check whether a range
@@ -744,34 +749,37 @@ configuration_impl::load_routing(const configuration_element &_element) {
             // cases by reducing the range, if necessary.
             std::set<std::pair<port_t, port_t> > its_invalid_ranges;
             std::set<std::pair<port_t, port_t> > its_corrected_ranges;
-            for (auto &r : routing_.guests_.ports_) {
-                auto its_pair = std::make_pair(r.first, r.second);
+            for (auto &ug : routing_.guests_.ports_) {
+                for (auto &r : ug.second) {
+                    auto its_pair = std::make_pair(r.first, r.second);
 
-                bool is_even(((r.second - r.first + 1) % 2) == 0);
+                    bool is_even(((r.second - r.first + 1) % 2) == 0);
 
-                // If the routing host port is [un]even, the start number of the
-                // range shall also be [un]even.
-                bool is_matching((r.first % 2) == (routing_.host_.port_ % 2));
-                if (!is_matching) {
-                    its_pair.first++;
-                    if (is_even)
+                    // If the routing host port is [un]even, the start number of the
+                    // range shall also be [un]even.
+                    bool is_matching((r.first % 2) == (routing_.host_.port_ % 2));
+                    if (!is_matching) {
+                        its_pair.first++;
+                        if (is_even)
+                            its_pair.second--;
+                    } else if (!is_even) {
                         its_pair.second--;
-                } else if (!is_even) {
-                    its_pair.second--;
+                    }
+
+                    if (!is_even || !is_matching) {
+                        its_invalid_ranges.insert(r);
+                        its_corrected_ranges.insert(its_pair);
+                    }
                 }
 
-                if (!is_even || !is_matching) {
-                    its_invalid_ranges.insert(r);
-                    its_corrected_ranges.insert(its_pair);
-                }
+                for (const auto &r : its_invalid_ranges)
+                    ug.second.erase(r);
+                its_invalid_ranges.clear();
+
+                for (const auto &r : its_corrected_ranges)
+                    ug.second.insert(r);
+                its_corrected_ranges.clear();
             }
-
-            for (const auto &r : its_invalid_ranges)
-                routing_.guests_.ports_.erase(r);
-
-            for (const auto &r : its_corrected_ranges)
-                routing_.guests_.ports_.insert(r);
-
             is_configured_[ET_ROUTING] = true;
         }
     } catch (...) {
@@ -867,23 +875,62 @@ void
 configuration_impl::load_routing_guest_ports(
         const boost::property_tree::ptree &_tree) {
 
-    try {
-        for (auto its_range = _tree.begin();
-                its_range != _tree.end(); ++its_range) {
+    std::stringstream its_converter;
 
-            port_t its_first_port(0), its_last_port(0);
-            for (auto its_element = its_range->second.begin();
-                    its_element != its_range->second.end(); ++its_element) {
+    for (auto its_range = _tree.begin();
+            its_range != _tree.end(); ++its_range) {
 
-                std::string its_key(its_element->first);
-                std::string its_value(its_element->second.data());
+        uid_t its_uid { ANY_UID };
+        gid_t its_gid { ANY_GID };
+        std::set<std::pair<port_t, port_t> > its_ranges;
 
-                std::stringstream its_converter;
-                if (its_value.find("0x") == 0) {
-                    its_converter << std::hex << its_value;
-                } else {
-                    its_converter << std::dec << its_value;
-                }
+        try {
+            auto its_uid_value = its_range->second.get_child("uid").data();
+            its_converter.str("");
+            its_converter.clear();
+            its_converter << its_uid_value;
+            its_converter >> (its_uid_value.find("0x") == 0 ? std::hex : std::dec) >> its_uid;
+
+            auto its_gid_value = its_range->second.get_child("gid").data();
+            its_converter.str("");
+            its_converter.clear();
+            its_converter << its_gid_value;
+            its_converter >> (its_gid_value.find("0x") == 0 ? std::hex : std::dec) >> its_gid;
+
+            auto its_ranges_value = its_range->second.get_child("ranges");
+            its_ranges = load_routing_guest_port_range(its_ranges_value);
+        } catch (...) {
+            its_ranges = load_routing_guest_port_range(its_range->second);
+        }
+
+        if (!its_ranges.empty())
+            routing_.guests_.ports_[{ its_uid, its_gid }] = its_ranges;
+    }
+}
+
+std::set< std::pair<port_t, port_t> >
+configuration_impl::load_routing_guest_port_range(
+        const boost::property_tree::ptree &_tree) const {
+
+    std::stringstream its_converter;
+    std::set< std::pair<port_t, port_t> > its_ranges;
+
+    for (auto its_range = _tree.begin();
+             its_range != _tree.end(); ++its_range) {
+
+        port_t its_first_port { 0 };
+        port_t its_last_port { 0 };
+
+        for (auto its_element = its_range->second.begin();
+                its_element != its_range->second.end(); ++its_element) {
+
+            std::string its_key(its_element->first);
+            std::string its_value(its_element->second.data());
+
+            if (!its_value.empty()) {
+                its_converter.str("");
+                its_converter.clear();
+                its_converter << (its_value.find("0x") == 0 ? std::hex : std::dec) << its_value;
 
                 if (its_key == "first") {
                     its_converter >> its_first_port;
@@ -891,17 +938,15 @@ configuration_impl::load_routing_guest_ports(
                     its_converter >> its_last_port;
                 }
             }
-
-            if (its_first_port != 0 && its_last_port != 0) {
-                routing_.guests_.ports_.insert(std::make_pair(
-                        std::min(its_first_port, its_last_port),
-                        std::max(its_first_port, its_last_port)));
-            }
         }
-    } catch (...) {
-    }
-}
 
+        if (its_first_port > 0 && its_last_port > 0)
+            its_ranges.emplace(std::min(its_first_port, its_last_port),
+                    std::max(its_first_port, its_last_port));
+    }
+
+    return its_ranges;
+}
 
 void
 configuration_impl::load_routing_client_ports(const configuration_element &_element) {
@@ -1332,6 +1377,176 @@ void configuration_impl::load_trace_filter_match(
                 // Intentionally left empty
             }
         }
+    }
+}
+
+void configuration_impl::load_suppress_events(const configuration_element &_element) {
+    try {
+        auto its_missing_events = _element.tree_.get_child("suppress_missing_event_logs");
+
+        if(its_missing_events.size()) {
+            for (auto i = its_missing_events.begin();
+                    i != its_missing_events.end();
+                    ++i) {
+                load_suppress_events_data(i->second);
+            }
+
+            if(suppress_events_.size())
+                is_suppress_events_enabled_ = true;
+        }
+    } catch (...) {
+                // Intentionally left empty
+    }
+}
+
+void configuration_impl::load_suppress_events_data(
+        const boost::property_tree::ptree &_tree) {
+
+    //Default everything to ANY, and change with the provided values
+    service_t its_service(ANY_SERVICE);
+    instance_t its_instance(ANY_INSTANCE);
+    event_t its_event(ANY_EVENT);
+    std::set<event_t> events;
+
+    for (auto i = _tree.begin(); i != _tree.end(); ++i) {
+        std::string its_key(i->first);
+        std::string its_value(i->second.data());
+        std::stringstream its_converter;
+
+        if (its_key == "service") {
+            its_service = load_suppress_data(its_value);
+        } else if (its_key == "instance") {
+            its_instance = load_suppress_data(its_value);
+        } else if (its_key == "events") {
+            if (i->second.empty()) {    //Single Event
+                its_event = load_suppress_data(its_value);
+                events.insert(its_event);
+            } else {                        //Multiple Events/Range
+                events = load_suppress_multiple_events(i->second);
+            }
+        }
+    }
+
+    //If no event is present in the configuration, use ANY_EVENT!
+    if(events.empty())
+        events.insert(ANY_EVENT);
+
+    for(const auto& event : events) {
+        insert_suppress_events(its_service, its_instance, event);
+    }
+}
+
+std::set<event_t> configuration_impl::load_suppress_multiple_events(
+        const boost::property_tree::ptree &_tree) {
+
+    event_t its_first_event(ANY_EVENT);
+    event_t its_last_event(ANY_EVENT);
+    event_t its_event(ANY_EVENT);
+    std::set<event_t> events;
+
+    try {
+        for(auto i = _tree.begin(); i != _tree.end(); ++i) {
+            std::string its_key(i->first);
+            std::string its_value(i->second.data());
+
+            //Extract Single Event from multiple entries
+            if (i->second.size() == 0) {
+
+                if (its_key == "first") {   // Range Events
+                    its_first_event = load_suppress_data(its_value);
+                } else if (its_key == "last") {
+                    its_last_event = load_suppress_data(its_value);
+
+                    std::set<event_t> range_events = load_range_events(its_first_event, its_last_event);
+                    events.insert(range_events.begin(), range_events.end());
+                    return events;
+                } else {
+                    //Single Events
+                    its_event = load_suppress_data(its_value);
+                    events.insert(its_event);
+                }
+            } else {
+                //Go down one level in the JSON, recursively
+                std::set<event_t> range_events = load_suppress_multiple_events(i->second);
+                events.insert(range_events.begin(), range_events.end());
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+    return events;
+}
+
+uint16_t configuration_impl::load_suppress_data(const std::string &_value) const {
+
+    std::stringstream its_converter;
+    uint16_t its_converted = ANY_EVENT;
+
+    if (_value == "any") {
+        its_converted = ANY_EVENT;         //use ANY_x
+    } else if (_value.find("0x") == 0) {
+        its_converter << std::hex << _value;
+    } else {
+        its_converter << std::dec << _value;
+    }
+    its_converter >> its_converted;
+
+    return its_converted;
+}
+
+std::set<event_t> configuration_impl::load_range_events(event_t _first_event,
+    event_t _last_event) const {
+
+    std::set<event_t> range_events;
+
+    if ((_first_event != ANY_EVENT) && (_last_event != ANY_EVENT)) {
+        for (event_t its_event = _first_event; its_event<=_last_event; its_event++) {
+            range_events.insert(its_event);
+        }
+    }
+    return range_events;
+}
+
+void configuration_impl::insert_suppress_events(service_t  _service,
+    instance_t _instance, event_t _event) {
+
+    suppress_t new_event = {_service, _instance, _event};
+    suppress_events_.insert(new_event);
+}
+
+bool configuration_impl::check_suppress_events(service_t _service, instance_t _instance,
+        event_t _event) const {
+
+    if (!is_suppress_events_enabled_)
+        return false;
+
+    std::set<suppress_t> event_combinations = {
+        {_service, _instance, _event},
+        {_service, _instance, ANY_EVENT},
+        {_service, ANY_INSTANCE, _event},
+        {_service, ANY_INSTANCE, ANY_EVENT},
+        {ANY_SERVICE, _instance, _event},
+        {ANY_SERVICE, _instance, ANY_EVENT},
+        {ANY_SERVICE, ANY_INSTANCE, _event}
+        };
+
+    for (const auto &its_event: event_combinations) {
+        if (suppress_events_.find(its_event) != std::end(suppress_events_))
+            return true;
+    }
+
+    return false;
+}
+
+void configuration_impl::print_suppress_events(void) const {
+
+    VSOMEIP_INFO << "Suppress Event logs size: " << suppress_events_.size();
+
+    for (const auto& its_log : suppress_events_) {
+        VSOMEIP_INFO << std::hex << std::setfill('0')
+                    << "+[" << std::setw(4) << its_log.service
+                    << "." << std::setw(4) << its_log.instance
+                    << "." << its_log.event << "]";
     }
 }
 
@@ -2443,6 +2658,7 @@ void configuration_impl::load_security(const configuration_element &_element) {
         auto its_security = _element.tree_.get_child_optional("security");
         if (its_security) {
             is_security_enabled_ = true;
+            is_security_external_ = its_security->empty();
 
             auto its_audit_mode = its_security->get_child_optional("check_credentials");
             if (its_audit_mode) {
@@ -2473,7 +2689,8 @@ void configuration_impl::load_security(const configuration_element &_element) {
     }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    policy_manager_impl::get()->load(_element);
+    if (!is_security_external())
+        policy_manager_impl::get()->load(_element);
 #endif // !VSOMEIP_DISABLE_SECURITY
 }
 
@@ -2671,6 +2888,7 @@ const std::string & configuration_impl::get_logfile() const {
 }
 
 vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
+    std::unique_lock<std::mutex> its_lock(mutex_loglevel_);
     return loglevel_;
 }
 
@@ -2801,11 +3019,12 @@ bool configuration_impl::get_client_port(
     }
 
     // Configured ports do exist, but they are all in use
-    VSOMEIP_ERROR << "Cannot find free client port for communication to service: "
-            << _service << " instance: "
-            << _instance << " remote_port: "
-            << _remote_port << " reliable: "
-            << _reliable;
+    VSOMEIP_ERROR << "Cannot find free client port for communication to service ["
+                  << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                  << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                  << std::dec << _remote_port << "."
+                  << std::boolalpha <<_reliable << "]";
+
     return false;
 }
 
@@ -2851,9 +3070,25 @@ configuration_impl::get_routing_guest_address() const {
 }
 
 std::set<std::pair<port_t, port_t> >
-configuration_impl::get_routing_guest_ports() const {
+configuration_impl::get_routing_guest_ports(uid_t _uid, gid_t _gid) const {
 
-    return routing_.guests_.ports_;
+    auto found = routing_.guests_.ports_.find({ _uid, _gid });
+    if (found != routing_.guests_.ports_.end())
+            return found->second;
+
+    found = routing_.guests_.ports_.find({ _uid, ANY_GID });
+    if (found != routing_.guests_.ports_.end())
+            return found->second;
+
+    found = routing_.guests_.ports_.find({ ANY_UID, _gid });
+    if (found != routing_.guests_.ports_.end())
+            return found->second;
+
+    found = routing_.guests_.ports_.find({ ANY_UID, ANY_GID });
+    if (found != routing_.guests_.ports_.end())
+            return found->second;
+
+    return std::set<std::pair<port_t, port_t> >();
 }
 
 bool
@@ -4412,6 +4647,10 @@ bool configuration_impl::is_protected_port(
 
     bool is_required(is_protected_device(_address));
 
+    if (!is_required) {
+        return false;
+    }
+
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
     const auto found_address = sd_acceptance_rules_.find(_address);
     if (found_address != sd_acceptance_rules_.end()) {
@@ -4427,7 +4666,7 @@ bool configuration_impl::is_protected_port(
                 = (found_reliability->second.second.find(its_range)
                    != found_reliability->second.second.end());
 
-            is_required = ((is_required && is_optional) || is_secure);
+            is_required = is_optional || is_secure;
         }
     }
 
@@ -4621,7 +4860,7 @@ bool configuration_impl::is_secure_service(service_t _service, instance_t _insta
 
 int configuration_impl::get_udp_receive_buffer_size() const {
 
-	return udp_receive_buffer_size_;
+    return udp_receive_buffer_size_;
 }
 
 bool configuration_impl::is_tp_client(
@@ -4767,6 +5006,12 @@ bool
 configuration_impl::is_security_enabled() const {
 
     return is_security_enabled_;
+}
+
+bool
+configuration_impl::is_security_external() const {
+
+    return is_security_external_;
 }
 
 bool

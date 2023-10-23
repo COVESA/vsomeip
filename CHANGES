@@ -1,5 +1,71 @@
 Changes
 =======
+
+v3.4.9
+- Merge COVESA PR447 with support for QNX 7.1
+- Merge COVESA PR470 with changes to not instantiate
+a non existent type for boost < 1.66.0
+- Merge COVESA PR515 with changes that remove not used lines
+
+v3.4.8
+- Adds debounce_filter_tests json files to gitignore
+- Adds check for null serviceinfo
+- Implementation of debounce frequency test
+- Accept malformed StopSubscribe/Subscribe messages
+- security: Fix security library name
+- Also remove service instance from map of pending offers
+- enforce lock acquisition order to avoid LOI
+- Improved logs
+
+v3.4.7
+- Do _NOT_ try to serialize empty names
+- Avoid crash on access to invalid position from tcp_endpoint buffer
+- Fix security library name
+- revert std::move usage in train buffer's
+- Fix deadlock in mutex_
+
+v3.4.6
+- check if a policy exist in the vector of policies
+- Crash in process vsomeipd crash id: D8DF38B19EEBC79D
+- Enable guest port configuration per uid/gid
+
+v3.4.5
+- Implementation of new debounce filter test
+- test availability when double offering service
+- network test fixes
+- Try to synchronize subscribe/unsubscribe/resubscribe
+- Add vsomeip_portcfg.json to the list of mandatory configuration files
+- Check buffer before accessing it
+- Rework condition for starting the send operation for client endpoint
+- Avoid spamming the log
+- Extend security interface to enable syncing security clients
+- Revert get_local_port() behaviour
+
+v3.4.4.1
+- manually reset tables for unavailable services on suspend state
+
+v3.4.4
+- Fix deadlock if binding of UDP client endpoint fails
+- Changed local_tcp_client endpoint connect to async connect.
+- Change shutdown sequence
+- vSomeIP Security: Update vsomeip_sec
+
+v3.4.3
+- Fixed race between incoming subscription and StopOffer/Offer
+
+v3.4.2
+- Removed local_port_ attribute
+
+v3.4.1
+- Rename the new "register_message_handler" overload function
+- Set the Client identifier when sending pong command
+
+v3.4.0
+- Allow to register multiple message handlers for the same message
+- load_security_policy_extensions Unit and Benchmark Tests
+- Fix is_local flag for acl acceptance msg
+- Fix registration issues regarding connecting timeout
+
 v3.3.8
 - Check buffer size when serializing/deserializing event registrations
 - Remove leftovers from shm usage

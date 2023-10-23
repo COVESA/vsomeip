@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
@@ -182,6 +182,22 @@ void check_file(const std::string &_config_file,
                 "Either memory overflow or loading error detected!";
         return;
     }
+
+    // Check "suppress_missing_event_logs"
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0023, 0x0001, 0x8002));  // Multiple values
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0023, 0x0001, 0x8015));  // Range
+    EXPECT_FALSE(its_configuration->check_suppress_events(0x0023, 0x0001, 0x8016)); // Range
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0023, 0x0001, 0x8020));  // Single
+
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0023, 0x0002, 0x8005));  // Single
+    EXPECT_FALSE(its_configuration->check_suppress_events(0x0023, 0x0002, 0x8006));  // Single
+
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x1111, 0x00f2, 0x8001));  // "ANY" Service/Event
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0102, 0x0010, 0x8005));  // "ANY" Instance
+    EXPECT_FALSE(its_configuration->check_suppress_events(0x0102, 0x0010, 0x8007)); // "ANY" Instance
+
+    EXPECT_TRUE(its_configuration->check_suppress_events(0x0024, 0x5555, 0x8011));  // "ANY" INSTANCE
+    EXPECT_FALSE(its_configuration->check_suppress_events(0x0024, 0x5555, 0x8016)); // "ANY" INSTANCE
 
     vsomeip::cfg::configuration_impl its_copied_config(
             static_cast<vsomeip::cfg::configuration_impl&>(*its_configuration));
@@ -527,33 +543,34 @@ void check_file(const std::string &_config_file,
 
     // security
 #if !defined(VSOMEIP_DISABLE_SECURITY) && !defined(__QNX__)
-    vsomeip_sec_client_t its_x123_x456 = utility::create_uds_client(0x123, 0x456);
+    vsomeip_sec_client_t its_x123_x456 = utility::create_uds_client(0x123, 0x456, 0);
+
     EXPECT_TRUE(its_configuration->check_routing_credentials(0x7788, &its_x123_x456));
 
     // GID does not match
-    vsomeip_sec_client_t its_x123_x222 = utility::create_uds_client(0x123, 0x222);
+    vsomeip_sec_client_t its_x123_x222 = utility::create_uds_client(0x123, 0x222, 0);
     EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, &its_x123_x222));
 
     // UID does not match
-    vsomeip_sec_client_t its_x333_x456 = utility::create_uds_client(0x333, 0x456);
+    vsomeip_sec_client_t its_x333_x456 = utility::create_uds_client(0x333, 0x456, 0);
     EXPECT_FALSE(its_configuration->check_routing_credentials(0x7788, &its_x333_x456));
 
     // client is not the routing manager
-    vsomeip_sec_client_t its_x888_x999 = utility::create_uds_client(0x888, 0x999);
+    vsomeip_sec_client_t its_x888_x999 = utility::create_uds_client(0x888, 0x999, 0);
     EXPECT_TRUE(its_configuration->check_routing_credentials(0x7777, &its_x888_x999));
 
     EXPECT_TRUE(its_configuration->is_security_enabled());
-    vsomeip_sec_client_t its_1000_1000 = utility::create_uds_client(1000, 1000);
-    vsomeip_sec_client_t its_1001_1001 = utility::create_uds_client(1001, 1001);
-    vsomeip_sec_client_t its_2000_2000 = utility::create_uds_client(2000, 2000);
-    vsomeip_sec_client_t its_2001_2001 = utility::create_uds_client(2001, 2001);
-    vsomeip_sec_client_t its_4000_4000 = utility::create_uds_client(4000, 4000);
-    vsomeip_sec_client_t its_4001_4001 = utility::create_uds_client(4001, 4001);
-    vsomeip_sec_client_t its_5000_5000 = utility::create_uds_client(5000, 5000);
-    vsomeip_sec_client_t its_6000_6000 = utility::create_uds_client(6000, 6000);
-    vsomeip_sec_client_t its_7000_7000 = utility::create_uds_client(7000, 7000);
-    vsomeip_sec_client_t its_8000_8000 = utility::create_uds_client(8000, 8000);
-    vsomeip_sec_client_t its_9000_9000 = utility::create_uds_client(9000, 9000);
+    vsomeip_sec_client_t its_1000_1000 = utility::create_uds_client(1000, 1000, 0);
+    vsomeip_sec_client_t its_1001_1001 = utility::create_uds_client(1001, 1001, 0);
+    vsomeip_sec_client_t its_2000_2000 = utility::create_uds_client(2000, 2000, 0);
+    vsomeip_sec_client_t its_2001_2001 = utility::create_uds_client(2001, 2001, 0);
+    vsomeip_sec_client_t its_4000_4000 = utility::create_uds_client(4000, 4000, 0);
+    vsomeip_sec_client_t its_4001_4001 = utility::create_uds_client(4001, 4001, 0);
+    vsomeip_sec_client_t its_5000_5000 = utility::create_uds_client(5000, 5000, 0);
+    vsomeip_sec_client_t its_6000_6000 = utility::create_uds_client(6000, 6000, 0);
+    vsomeip_sec_client_t its_7000_7000 = utility::create_uds_client(7000, 7000, 0);
+    vsomeip_sec_client_t its_8000_8000 = utility::create_uds_client(8000, 8000, 0);
+    vsomeip_sec_client_t its_9000_9000 = utility::create_uds_client(9000, 9000, 0);
 
     auto its_security = vsomeip::policy_manager_impl::get();
     EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1234, 0x5678));

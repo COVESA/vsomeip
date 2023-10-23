@@ -1,12 +1,18 @@
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #include <benchmark/benchmark.h>
 
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 namespace {
     vsomeip_v3::client_t client = 1;
 
     vsomeip_v3::uid_t uid_1 = 4003031;
     vsomeip_v3::gid_t gid_1 = 4003031;
+    vsomeip_sec_ip_addr_t host_address = 0;
     vsomeip_v3::service_t  service_1 = 0xf913;
 
     vsomeip_v3::instance_t instance = 0x03;
@@ -23,7 +29,7 @@ namespace {
 static void BM_is_client_allowed_policies_not_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
 
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
     for (auto _ : state)
     {
@@ -43,7 +49,7 @@ static void BM_is_client_allowed_policies_loaded_valid_values(benchmark::State& 
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client, service_1, instance, method);
@@ -61,7 +67,7 @@ static void BM_is_client_allowed_cache_policies_loaded(benchmark::State& state) 
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
 
     its_manager->is_client_allowed(&its_sec_client, service_1, instance, method);
 
@@ -81,7 +87,7 @@ static void BM_is_client_allowed_policies_loaded_invalid_values(benchmark::State
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client_invalid, service_1, instance, method);
@@ -99,7 +105,7 @@ static void BM_is_client_allowed_policies_loaded_deny_valid_values(benchmark::St
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid);
+    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client_deny, deny_service, instance, method);
@@ -118,7 +124,7 @@ static void BM_is_client_allowed_policies_loaded_audit_mode_valid_values(benchma
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client, client, service_1, instance, method);
@@ -137,7 +143,7 @@ static void BM_is_client_allowed_cache_policies_loaded_audit_mode(benchmark::Sta
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
 
     its_manager->is_client_allowed(&its_sec_client, service_1, instance, method);
 
@@ -158,7 +164,7 @@ static void BM_is_client_allowed_policies_loaded_audit_mode_invalid_values(bench
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client_invalid, service_1, instance, method);
@@ -177,7 +183,7 @@ static void BM_is_client_allowed_policies_loaded_audit_mode_deny_valid_values(be
         its_manager->load(e, false);
     }
 
-    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid);
+    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid, host_address);
 
     for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client_deny, deny_service, instance, method);

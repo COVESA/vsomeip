@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,12 +18,14 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "initial_event_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-
-class initial_event_test_availability_checker {
+class initial_event_test_availability_checker : public vsomeip_utilities::base_logger {
 public:
     initial_event_test_availability_checker(int _client_number,
                               std::array<initial_event_test::service_info, 7> _service_infos) :
+            vsomeip_utilities::base_logger("IETC", "INITIAL EVENT TEST AVAILABILITY CHECKER"),
             client_number_(_client_number),
             service_infos_(_service_infos),
             app_(vsomeip::runtime::get()->create_application()),

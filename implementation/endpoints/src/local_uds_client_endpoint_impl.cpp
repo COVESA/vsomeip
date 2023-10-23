@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,7 +55,7 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
     }
     state_ = cei_state_e::CONNECTING;
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = false;
         queue_.clear();
         queue_size_ = 0;
@@ -76,7 +76,7 @@ void local_uds_client_endpoint_impl::start() {
 
 void local_uds_client_endpoint_impl::stop() {
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
@@ -111,6 +111,7 @@ void local_uds_client_endpoint_impl::stop() {
 }
 
 void local_uds_client_endpoint_impl::connect() {
+    start_connecting_timer();
     boost::system::error_code its_connect_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -127,7 +128,7 @@ void local_uds_client_endpoint_impl::connect() {
             socket_->connect(remote_, its_connect_error);
 
             // Credentials
-#ifndef __QNX__
+            #ifndef __QNX__
             if (!its_connect_error) {
                 auto its_host = endpoint_host_.lock();
                 if (its_host) {
@@ -140,7 +141,7 @@ void local_uds_client_endpoint_impl::connect() {
                         << its_connect_error.message() << " / " << std::dec
                         << its_connect_error.value() << ")";
             }
-#endif
+            #endif
         } else {
             VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
                     << its_error.message() << " (" << std::dec << its_error.value()
@@ -148,13 +149,20 @@ void local_uds_client_endpoint_impl::connect() {
             its_connect_error = its_error;
         }
     }
-    // call connect_cbk asynchronously
-    try {
-        strand_.post(
-                std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
-                        its_connect_error));
-    } catch (const std::exception &e) {
-        VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+    std::size_t operations_cancelled;
+    {
+        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        operations_cancelled = connecting_timer_.cancel();
+    }
+    if (operations_cancelled != 0) {
+        // call connect_cbk asynchronously
+        try {
+            strand_.post(
+                    std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                            its_connect_error));
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+        }
     }
 }
 
@@ -180,9 +188,8 @@ void local_uds_client_endpoint_impl::receive() {
 // this overrides client_endpoint_impl::send to disable the pull method
 // for local communication
 bool local_uds_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
     bool ret(true);
-    const bool queue_size_zero_on_entry(queue_.empty());
     if (endpoint_impl::sending_blocked_ ||
         check_message_size(nullptr, _size) != cms_ret_e::MSG_OK ||
         !check_packetizer_space(_size) ||
@@ -198,7 +205,7 @@ bool local_uds_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
         VSOMEIP_INFO << msg.str();
 #endif
         train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
-        queue_train(train_, queue_size_zero_on_entry);
+        queue_train(train_);
         train_->buffer_ = std::make_shared<message_buffer_t>();
     }
     return ret;
@@ -320,7 +327,7 @@ void local_uds_client_endpoint_impl::print_status() {
     std::size_t its_queue_size(0);
 
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }

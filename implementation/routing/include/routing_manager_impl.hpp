@@ -144,8 +144,8 @@ public:
                     remote_subscription_id_t _id);
 
     void on_subscribe_nack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                    remote_subscription_id_t _id);
+                    instance_t _instance, eventgroup_t _eventgroup,
+                    bool _remove, remote_subscription_id_t _id);
 
 
     // interface to stub
@@ -330,6 +330,8 @@ private:
             client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check = 0, bool _is_from_remote = false);
 
+    bool is_suppress_event(service_t _service, instance_t _instance,
+            event_t _event) const;
 
     void init_service_info(service_t _service,
             instance_t _instance, bool _is_local_service);

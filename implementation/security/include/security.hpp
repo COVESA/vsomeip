@@ -20,6 +20,7 @@ public:
     static decltype(&vsomeip_sec_policy_is_client_allowed_to_offer)         is_client_allowed_to_offer;
     static decltype(&vsomeip_sec_policy_is_client_allowed_to_request)       is_client_allowed_to_request;
     static decltype(&vsomeip_sec_policy_is_client_allowed_to_access_member) is_client_allowed_to_access_member;
+    static decltype(&vsomeip_sec_sync_client)                               sync_client;
 
 private:
     static decltype(vsomeip_sec_policy_initialize)                         default_initialize;
@@ -27,6 +28,7 @@ private:
     static decltype(vsomeip_sec_policy_is_client_allowed_to_offer)         default_is_client_allowed_to_offer;
     static decltype(vsomeip_sec_policy_is_client_allowed_to_request)       default_is_client_allowed_to_request;
     static decltype(vsomeip_sec_policy_is_client_allowed_to_access_member) default_is_client_allowed_to_access_member;
+    static decltype(vsomeip_sec_sync_client)                               default_sync_client;
 };
 
 } // namespace vsomeip_v3

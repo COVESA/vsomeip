@@ -429,7 +429,7 @@ gid_t message_impl::get_gid() const {
 
 vsomeip_sec_client_t message_impl::get_sec_client() const {
     static vsomeip_sec_client_t its_dummy_sec_client{
-        VSOMEIP_CLIENT_UDS, {vsomeip_sec_uds_client_credentials_t{ANY_UID, ANY_GID}}
+        ANY_UID, ANY_GID, 0, VSOMEIP_SEC_PORT_UNUSED
     };
 
     return its_dummy_sec_client;

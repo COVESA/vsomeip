@@ -1,12 +1,12 @@
-// Copyright (C) 2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/vsomeip.hpp>
-#include "../../implementation/security/include/policy_manager_impl.hpp"
-#include "../../implementation/configuration/include/configuration_impl.hpp"
-#include "../../implementation/utility/include/utility.hpp"
+#include "../../../implementation/security/include/policy_manager_impl.hpp"
+#include "../../../implementation/configuration/include/configuration_impl.hpp"
+#include "../../../implementation/utility/include/utility.hpp"
 
 // This is needed to silence internal warnings in boost, when e.g. including <boost/property_tree/json_parser.hpp>
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
@@ -31,7 +31,7 @@ public:
 
     static std::string get_policies_path();
 
-    static vsomeip_sec_client_t create_uds_client(uid_t user, gid_t group);
+    static vsomeip_sec_client_t create_uds_client(uid_t user, gid_t group, vsomeip_sec_ip_addr_t host);
 
     static void force_check_credentials(std::vector<vsomeip_v3::configuration_element> &_policy_elements, std::string _value);
     /**

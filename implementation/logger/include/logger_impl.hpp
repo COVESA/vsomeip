@@ -32,6 +32,7 @@ public:
     ~logger_impl();
 
     std::shared_ptr<configuration> get_configuration() const;
+    void set_configuration(const std::shared_ptr<configuration> &_configuration);
 
 #ifdef USE_DLT
     void log(level_e _level, const char *_data);
@@ -42,7 +43,9 @@ private:
 
 private:
     static std::mutex mutex__;
+
     std::shared_ptr<configuration> configuration_;
+    mutable std::mutex configuration_mutex_;
 
 #ifdef USE_DLT
 #ifndef ANDROID

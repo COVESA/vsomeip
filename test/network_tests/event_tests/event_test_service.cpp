@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,10 +17,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "event_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class event_test_service {
+class event_test_service : public vsomeip_utilities::base_logger {
 public:
     event_test_service(struct event_test::service_info _service_info, bool _use_tcp) :
+            vsomeip_utilities::base_logger("EVTS", "EVENT TEST SERVICE"),
             service_info_(_service_info),
             test_mode_(event_test::test_mode_e::UNKNOWN),
             app_(vsomeip::runtime::get()->create_application("event_test_service")),

@@ -1,10 +1,16 @@
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #include <memory>
 #include "gtest/gtest.h"
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 namespace {
     vsomeip_v3::uid_t uid_1 = 4003031;
     vsomeip_v3::gid_t gid_1 = 4003031;
+    vsomeip_sec_ip_addr_t host_address = 0;
     vsomeip_v3::service_t  service_1 = 0xf913;
 
     vsomeip_v3::service_t  service_2 = 0x41;    // service not defined in policies
@@ -30,7 +36,7 @@ TEST(is_client_allowed_test, check_no_policies_loaded) {
     //no policies loaded -> is_client_allowed must return true
     ASSERT_FALSE(its_manager->is_enabled());
 
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
     EXPECT_TRUE(its_manager->is_client_allowed(&its_sec_client_invalid, service_1, instance, method));
 }
 
@@ -56,11 +62,11 @@ TEST(is_client_allowed_test, check_policies_loaded) {
     ASSERT_FALSE(its_manager->is_audit());
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
-    vsomeip_sec_client_t its_sec_client_invalid_uid = utility::create_uds_client(invalid_uid, gid_1);
-    vsomeip_sec_client_t its_sec_client_invalid_gid = utility::create_uds_client(uid_1, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_any = utility::create_uds_client(ANY_UID, ANY_GID);
-    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_uid = utility::create_uds_client(invalid_uid, gid_1, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_gid = utility::create_uds_client(uid_1, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_any = utility::create_uds_client(ANY_UID, ANY_GID, host_address);
+    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid, host_address);
 
     //valid credential for valid service / istance / method
     EXPECT_TRUE(its_manager->is_client_allowed(&its_sec_client, service_1, instance, method));
@@ -117,11 +123,11 @@ TEST(is_client_allowed_test, check_policies_loaded) {
     ASSERT_TRUE(its_manager->is_audit());
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1);
-    vsomeip_sec_client_t its_sec_client_invalid_uid = utility::create_uds_client(invalid_uid, gid_1);
-    vsomeip_sec_client_t its_sec_client_invalid_gid = utility::create_uds_client(uid_1, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_any = utility::create_uds_client(ANY_UID, ANY_GID);
-    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid);
+    vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid_1, gid_1, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_uid = utility::create_uds_client(invalid_uid, gid_1, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_gid = utility::create_uds_client(uid_1, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_any = utility::create_uds_client(ANY_UID, ANY_GID, host_address);
+    vsomeip_sec_client_t its_sec_client_deny = utility::create_uds_client(deny_uid, deny_gid, host_address);
 
     // is expected is_client_allowed method always returns true
     // valid credential for valid service / istance / method

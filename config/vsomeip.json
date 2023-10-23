@@ -7,7 +7,7 @@
         "file" : { "enable" : "false", "path" : "/var/log/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "client-sample",
@@ -20,7 +20,7 @@
         {
             "name" : "service-sample",
             "id" : "0x1277"
-        }            
+        }
     ],
     "services" :
     [

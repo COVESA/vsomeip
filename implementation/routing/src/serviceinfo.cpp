@@ -33,8 +33,8 @@ serviceinfo::serviceinfo(const serviceinfo& _other) :
     reliable_(_other.reliable_),
     unreliable_(_other.unreliable_),
     requesters_(_other.requesters_),
-    is_local_(_other.is_local_),
-    is_in_mainphase_(_other.is_in_mainphase_)
+    is_local_(_other.is_local_.load()),
+    is_in_mainphase_(_other.is_in_mainphase_.load())
     {}
 
 serviceinfo::~serviceinfo() {

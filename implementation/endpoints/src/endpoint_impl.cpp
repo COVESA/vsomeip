@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -145,15 +145,7 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 }
 
 // Instantiate template
-#ifdef __linux__
-#if VSOMEIP_BOOST_VERSION < 106600
-template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#else
-template class endpoint_impl<boost::asio::local::stream_protocol>;
-#endif
-#endif
-
-#ifdef __QNX__
+#if defined(__linux__) || defined(__QNX__)
 #if VSOMEIP_BOOST_VERSION < 106600
 template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -1097,7 +1097,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
 
     std::thread receive_thread([&](){
         std::vector<std::uint8_t> receive_buffer(4096);
-        std::vector<vsomeip::event_t> its_received_events;
+        std::set<vsomeip::event_t> its_received_events;
 
         const std::uint32_t expected_acks(3);
         std::atomic<std::uint32_t> acks_received(0);
@@ -1106,7 +1106,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
         std::atomic<std::uint32_t> responses_received(0);
 
         const std::uint32_t expected_notifications(2);
-        std::atomic<std::uint32_t> notifications_received(0);
+        std::atomic<std::size_t> notifications_received(0);
 
         bool keep_receiving(true);
         bool first_initial_event_checked(false);
@@ -1136,6 +1136,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                                                                            receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
                     vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
                                                                          receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+
                     its_pos += its_message_size;
                     bytes_transfered -= its_message_size;
                     if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
@@ -1167,22 +1168,22 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
-                            its_received_events.push_back(msg.get_method());
+                            its_received_events.insert(msg.get_method());
                             if (its_received_events.size() == 2) {
-                                EXPECT_EQ(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u), its_received_events[0]);
-                                EXPECT_EQ(pending_subscription_test::service.event_id, its_received_events[1]);
+                                EXPECT_TRUE(its_received_events.find(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u)) != its_received_events.end());
+                                EXPECT_TRUE(its_received_events.find(pending_subscription_test::service.event_id) != its_received_events.end());
                             }
                             EXPECT_EQ(1u, msg.get_payload()->get_length());
                             EXPECT_EQ(0xDD, *msg.get_payload()->get_data());
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
-                            notifications_received++;
+                            notifications_received = its_received_events.size();
                         }
                     }
 
                     if (!first_initial_event_checked && notifications_received == 1) {
                         EXPECT_EQ(1u, its_received_events.size());
-                        EXPECT_EQ(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u), its_received_events[0]);
+                        EXPECT_TRUE(its_received_events.find(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u)) != its_received_events.end());
                         // all subscribeAcks and one initial event of first event received
                         first_initial_event_received.set_value();
                         first_initial_event_checked = true;
@@ -1191,8 +1192,8 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                     if (!second_initial_event_checked && notifications_received == 2) { // events were received as well
                         // all subscribeAcks and one initial event of second event received
                         EXPECT_EQ(2u, its_received_events.size());
-                        EXPECT_EQ(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u), its_received_events[0]);
-                        EXPECT_EQ(pending_subscription_test::service.event_id, its_received_events[1]);
+                        EXPECT_TRUE(its_received_events.find(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u)) != its_received_events.end());
+                        EXPECT_TRUE(its_received_events.find(pending_subscription_test::service.event_id) != its_received_events.end());
                         second_initial_event_received.set_value();
                         second_initial_event_checked = true;
                     }

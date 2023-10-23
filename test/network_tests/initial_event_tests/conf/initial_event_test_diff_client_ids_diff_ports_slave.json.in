@@ -10,7 +10,7 @@
             "enable":"false",
             "path":"/tmp/vsomeip.log"
         },
-        "dlt":"false"
+        "dlt":"true"
     },
     "applications":
     [

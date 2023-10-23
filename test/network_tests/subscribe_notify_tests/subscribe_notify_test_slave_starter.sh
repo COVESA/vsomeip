@@ -23,6 +23,7 @@ SLAVE_JSON_FILE=$2
 SAME_SERVICE_ID=$3
 
 FAIL=0
+
 # Start the services
 export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_four
 export VSOMEIP_CONFIGURATION=$SLAVE_JSON_FILE

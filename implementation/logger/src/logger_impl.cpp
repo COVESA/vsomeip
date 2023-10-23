@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,7 +19,7 @@ void
 logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     auto its_logger = logger_impl::get();
-    its_logger->configuration_ = _configuration;
+    its_logger->set_configuration(_configuration);
 
 #ifdef USE_DLT
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
@@ -45,7 +45,17 @@ logger_impl::~logger_impl() {
 
 std::shared_ptr<configuration>
 logger_impl::get_configuration() const {
+
+	std::lock_guard<std::mutex> its_lock(configuration_mutex_);
     return configuration_;
+}
+
+void
+logger_impl::set_configuration(
+		const std::shared_ptr<configuration> &_configuration) {
+
+	std::lock_guard<std::mutex> its_lock(configuration_mutex_);
+    configuration_ = _configuration;
 }
 
 #ifdef USE_DLT

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,6 +14,8 @@
 #include "../../implementation/configuration/include/configuration.hpp"
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
 #include "../../implementation/plugin/include/plugin_manager_impl.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 using namespace vsomeip;
 
@@ -106,9 +108,10 @@ protected:
     std::thread rm_impl_thread_;
 };
 
-class app_wrapper {
+class app_wrapper : public vsomeip_utilities::base_logger {
 public:
     app_wrapper(const std::string& _name) :
+        vsomeip_utilities::base_logger("APPW", "APP WRAPPER"),
         app_(vsomeip::runtime::get()->create_application(_name)),
         client_(VSOMEIP_CLIENT_UNSET) {
         EXPECT_TRUE(app_->init());

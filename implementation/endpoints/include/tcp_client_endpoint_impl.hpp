@@ -33,6 +33,9 @@ public:
     void start();
     void restart(bool _force);
 
+    std::uint16_t get_local_port() const;
+    void set_local_port(port_t _port);
+
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
     bool is_reliable() const;
@@ -99,8 +102,6 @@ private:
     std::atomic<uint32_t> aborted_restart_count_;
     std::chrono::steady_clock::time_point connect_timepoint_;
 
-    std::mutex sent_mutex_;
-    bool is_sending_;
     boost::asio::steady_timer sent_timer_;
 
 };

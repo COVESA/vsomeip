@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,7 +55,8 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
       prefix_(_configuration->get_prefix()),
       local_port_(_local.port()),
       tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)),
-      tp_cleanup_timer_(_io) {
+      tp_cleanup_timer_(_io),
+      is_stopped_(true) {
     is_supporting_someip_tp_ = true;
 
     boost::system::error_code ec;
@@ -154,18 +155,19 @@ bool udp_server_endpoint_impl::is_local() const {
 }
 
 void udp_server_endpoint_impl::start() {
+    is_stopped_ = false;
     receive();
 }
 
 void udp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
+    is_stopped_ = true;
     {
         std::lock_guard<std::mutex> its_lock(unicast_mutex_);
 
         if (unicast_socket_.is_open()) {
             boost::system::error_code its_error;
-            unicast_socket_.shutdown(socket_type::shutdown_both, its_error);
-            unicast_socket_.close(its_error);
+            unicast_socket_.cancel(its_error);
         }
     }
 
@@ -174,12 +176,38 @@ void udp_server_endpoint_impl::stop() {
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
             boost::system::error_code its_error;
-            multicast_socket_->shutdown(socket_type::shutdown_both, its_error);
-            multicast_socket_->close(its_error);
+            multicast_socket_->cancel(its_error);
         }
     }
 
     tp_reassembler_->stop();
+}
+
+void udp_server_endpoint_impl::shutdown_and_close() {
+    {
+        std::lock_guard<std::mutex> its_lock(unicast_mutex_);
+        unicast_shutdown_and_close_unlocked();
+    }
+
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+        multicast_shutdown_and_close_unlocked();
+    }
+}
+
+void udp_server_endpoint_impl::unicast_shutdown_and_close_unlocked() {
+    boost::system::error_code its_error;
+    unicast_socket_.shutdown(socket_type::shutdown_both, its_error);
+    unicast_socket_.close(its_error);
+}
+
+void udp_server_endpoint_impl::multicast_shutdown_and_close_unlocked() {
+    if (!multicast_socket_) {
+        return;
+    }
+    boost::system::error_code its_error;
+    multicast_socket_->shutdown(socket_type::shutdown_both, its_error);
+    multicast_socket_->close(its_error);
 }
 
 void udp_server_endpoint_impl::receive() {
@@ -286,7 +314,9 @@ bool udp_server_endpoint_impl::send_error(
 bool udp_server_endpoint_impl::send_queued(
         const target_data_iterator_type _it) {
 
-    static std::chrono::steady_clock::time_point its_last_sent;
+    std::lock_guard<std::mutex> its_last_sent_lock(last_sent_mutex_);
+    std::lock_guard<std::mutex> its_unicast_lock(unicast_mutex_);
+
     const auto its_entry = _it->second.queue_.front();
 #if 0
     std::stringstream msg;
@@ -297,21 +327,20 @@ bool udp_server_endpoint_impl::send_queued(
             << (int)(*its_entry.first)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::lock_guard<std::mutex> its_lock(unicast_mutex_);
 
     // Check whether we need to wait (SOME/IP-TP separation time)
     if (its_entry.second > 0) {
-        if (its_last_sent != std::chrono::steady_clock::time_point()) {
+        if (last_sent_ != std::chrono::steady_clock::time_point()) {
             const auto its_elapsed
                 = std::chrono::duration_cast<std::chrono::microseconds>(
-                            std::chrono::steady_clock::now() - its_last_sent).count();
+                            std::chrono::steady_clock::now() - last_sent_).count();
             if (its_entry.second > its_elapsed)
                 std::this_thread::sleep_for(
                         std::chrono::microseconds(its_entry.second - its_elapsed));
         }
-        its_last_sent = std::chrono::steady_clock::now();
+        last_sent_ = std::chrono::steady_clock::now();
     } else {
-        its_last_sent = std::chrono::steady_clock::time_point();
+        last_sent_ = std::chrono::steady_clock::time_point();
     }
 
     _it->second.is_sending_ = true;
@@ -479,7 +508,11 @@ void udp_server_endpoint_impl::on_unicast_received(
         boost::system::error_code const &_error,
         std::size_t _bytes) {
 
-    if (_error != boost::asio::error::operation_aborted) {
+    if (is_stopped_
+            || _error == boost::asio::error::eof
+            || _error == boost::asio::error::connection_reset) {
+        shutdown_and_close();
+    } else if (_error != boost::asio::error::operation_aborted) {
         {
             // By locking the multicast mutex here it is ensured that unicast
             // & multicast messages are not processed in parallel. This aligns
@@ -499,7 +532,11 @@ void udp_server_endpoint_impl::on_multicast_received(
         const boost::asio::ip::address &_destination) {
 
     std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
-    if (_error != boost::asio::error::operation_aborted) {
+    if (is_stopped_
+            || _error == boost::asio::error::eof
+            || _error == boost::asio::error::connection_reset) {
+        shutdown_and_close();
+    } else if (_error != boost::asio::error::operation_aborted) {
         // Filter messages sent from the same source address
         if (multicast_remote_.address() != local_.address()
                 && is_same_subnet(multicast_remote_.address())) {

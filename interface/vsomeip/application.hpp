@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -1102,6 +1102,43 @@ public:
     virtual void register_async_subscription_handler(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             async_subscription_handler_sec_t _handler) = 0;
+
+    /**
+     *
+     * \brief Registers a handler for the specified method or event.
+     *
+     * A user application must call this method to register callbacks for
+     * for messages that match the specified service, instance, method/event
+     * pattern. It is possible to specify wildcard values for all three
+     * identifiers arguments.
+     *
+     * Notes:
+     * - Only a single handler can be registered per service, instance,
+     *   method/event combination.
+     * - A subsequent call will overwrite an existing registration.
+     * - Handler registrations containing wildcards can be active in parallel
+     *   to handler registrations for specific service, instance, method/event
+     *   combinations.
+     *
+     * \param _service Service identifier of the service that contains the
+     * method or event. Can be set to ANY_SERVICE to register a handler for
+     * a message independent from a specific service.
+     * \param _instance Instance identifier of the service instance that
+     * contains the method or event. Can be set to ANY_INSTANCE to register
+     * a handler for a message independent from a specific service.
+     * \param _method Method/Event identifier of the method/event that is
+     * to be handled. Can be set to ANY_METHOD to register a handler for
+     * all methods and events.
+     * \param _handler Callback that will be called if a message arrives
+     * that matches the specified service, instance and method/event
+     * parameters.
+     * \param _type Replace, append to or prepend to the current handler (if
+     * any).
+     */
+    virtual void register_message_handler_ext(service_t _service,
+            instance_t _instance, method_t _method,
+            const message_handler_t &_handler,
+			handler_registration_type_e _type) = 0;
 };
 
 /** @} */

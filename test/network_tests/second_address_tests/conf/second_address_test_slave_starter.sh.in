@@ -35,6 +35,8 @@ elif [ "$OPERATIONMODE" = "SERVICE" ]; then
     fi
 fi
 
+rm -f /tmp/vsomeip*
+
 ../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 

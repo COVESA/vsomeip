@@ -1,13 +1,13 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
     "logging" :
-    { 
+    {
         "level" : "warning",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
-        "dlt" : "false"
+        "dlt" : "true"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "subscribe_notify_test_service",

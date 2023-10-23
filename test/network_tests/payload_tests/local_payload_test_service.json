@@ -1,19 +1,19 @@
 {
    "unicast" : "127.0.0.1",
-   "logging" : 
+   "logging" :
    {
       "level" : "debug",
       "console" : "true",
-      "file" : 
+      "file" :
       {
          "enable" : "false",
          "path" : "/tmp/vsomeip.log"
       },
 
-      "dlt" : "false"
+      "dlt" : "true"
    },
 
-   "applications" : 
+   "applications" :
    [
       {
          "name" : "local_payload_test_service",
@@ -21,7 +21,7 @@
       }
    ],
 
-   "services" : 
+   "services" :
    [
       {
          "service" : "0x1234",
@@ -30,7 +30,7 @@
    ],
 
    "routing" : "local_payload_test_service",
-   "service-discovery" : 
+   "service-discovery" :
    {
       "enable" : "false",
       "multicast" : "224.0.0.1",

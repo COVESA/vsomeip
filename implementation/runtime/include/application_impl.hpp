@@ -226,11 +226,22 @@ public:
                 service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                 async_subscription_handler_sec_t _handler);
 
+    VSOMEIP_EXPORT void register_message_handler_ext(
+            service_t _service, instance_t _instance, method_t _method,
+            const message_handler_t &_handler,
+            handler_registration_type_e _type);
+
 private:
+    using members_methods_t = std::map<method_t, std::deque<message_handler_t> >;
+    using members_methods_iterator_t = members_methods_t::const_iterator;
+    using members_instances_t = std::map<instance_t, members_methods_t>;
+    using members_instances_iterator_t = members_instances_t::const_iterator;
+    using members_t = std::map<service_t, members_instances_t>;
+    using members_iterator_t = members_t::const_iterator;
+
     //
     // Types
     //
-
     enum class handler_type_e : uint8_t {
         MESSAGE,
         AVAILABILITY,
@@ -270,17 +281,6 @@ private:
         session_t session_id_;
         eventgroup_t eventgroup_id_;
         handler_type_e handler_type_;
-    };
-
-    struct message_handler {
-        message_handler(const message_handler_t &_handler) :
-            handler_(_handler) {}
-
-        bool operator<(const message_handler& _other) const {
-            return handler_.target<void (*)(const std::shared_ptr<message> &)>()
-                    < _other.handler_.target<void (*)(const std::shared_ptr<message> &)>();
-        }
-        message_handler_t handler_;
     };
 
     //
@@ -332,6 +332,13 @@ private:
 
     bool is_local_endpoint(const boost::asio::ip::address &_unicast, port_t _port);
 
+    void find_service_handlers(std::deque<message_handler_t> &,
+            service_t _service, instance_t _instance, method_t _method) const;
+    void find_instance_handlers(std::deque<message_handler_t> &,
+            const members_iterator_t &_it, instance_t _instance, method_t _method) const;
+    void find_method_handlers(std::deque<message_handler_t> &,
+            const members_instances_iterator_t &_it, method_t _method) const;
+
     //
     // Attributes
     //
@@ -370,8 +377,7 @@ private:
     offered_services_handler_t offered_services_handler_;
 
     // Method/Event (=Member) handlers
-    std::map<service_t,
-            std::map<instance_t, std::map<method_t, message_handler_t> > > members_;
+    members_t members_;
     mutable std::mutex members_mutex_;
 
     // Availability handlers

@@ -28,8 +28,8 @@
                   "on_change" : "true",
                   "ignore" :
                   [
-                     { 
-                         "index" : "0", 
+                     {
+                         "index" : "0",
                          "mask" : "0x0f"
                      },
                      {
@@ -37,11 +37,11 @@
                          "mask" : "0xfe"
                      }
                   ]
-              } 
+              }
           ]
       }
   ],
-  "service-discovery" : 
+  "service-discovery" :
    {
       "enable" : "true",
       "multicast" : "224.251.192.252",

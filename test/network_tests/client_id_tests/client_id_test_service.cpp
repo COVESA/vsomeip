@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,11 +18,14 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "client_id_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 
-class client_id_test_service {
+class client_id_test_service : public vsomeip_utilities::base_logger {
 public:
     client_id_test_service(struct client_id_test::service_info _service_info) :
+            vsomeip_utilities::base_logger("CITS", "CLIENT ID TEST SERVICE"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application()),
             blocked_(false),

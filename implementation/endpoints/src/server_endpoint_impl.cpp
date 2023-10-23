@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -540,8 +540,8 @@ bool server_endpoint_impl<Protocol>::queue_train(
     bool must_erase(false);
 
     auto &its_data = _it->second;
-    its_data.queue_.push_back(std::make_pair(_train->buffer_, 0));
     its_data.queue_size_ += _train->buffer_->size();
+    its_data.queue_.emplace_back(_train->buffer_, 0);
 
     if (!its_data.is_sending_) { // no writing in progress
         must_erase = send_queued(_it);
@@ -705,8 +705,8 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 cancel_dispatch_timer(it);
                 targets_.erase(it);
                 check_if_all_queues_are_empty();
-            }
-            its_data.is_sending_ = false;
+            } else
+                its_data.is_sending_ = false;
         }
     } else {
         message_buffer_ptr_t its_buffer;

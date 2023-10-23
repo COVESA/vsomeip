@@ -46,6 +46,7 @@ global:
         *vsomeip_v3::utility;
         vsomeip_v3::utility::is*;
         vsomeip_v3::utility::data*;
+        vsomeip_v3::utility::re*;
         *vsomeip_v3::plugin_manager;
         vsomeip_v3::plugin_manager::*;
         vsomeip_v3::tp::tp_reassembler::*;

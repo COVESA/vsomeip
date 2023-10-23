@@ -101,6 +101,10 @@ private:
 
     bool is_same_subnet(const boost::asio::ip::address &_address) const;
 
+    void shutdown_and_close();
+    void unicast_shutdown_and_close_unlocked();
+    void multicast_shutdown_and_close_unlocked();
+
 private:
     socket_type unicast_socket_;
     endpoint_type unicast_remote_;
@@ -128,6 +132,11 @@ private:
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     boost::asio::steady_timer tp_cleanup_timer_;
+
+    std::mutex last_sent_mutex_;
+    std::chrono::steady_clock::time_point last_sent_;
+
+    std::atomic<bool> is_stopped_;
 };
 
 } // namespace vsomeip_v3

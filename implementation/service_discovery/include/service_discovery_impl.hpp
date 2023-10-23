@@ -64,6 +64,7 @@ public:
     virtual ~service_discovery_impl();
 
     boost::asio::io_context &get_io();
+    std::recursive_mutex& get_subscribed_mutex();
 
     void init();
     void start();
@@ -358,7 +359,6 @@ private:
     reliability_type_e get_eventgroup_reliability(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<subscription>& _subscription);
-
 private:
     boost::asio::io_context &io_;
     service_discovery_host *host_;
@@ -381,7 +381,7 @@ private:
             >
         >
     > subscribed_;
-    std::mutex subscribed_mutex_;
+    std::recursive_mutex subscribed_mutex_;
 
     std::mutex serialize_mutex_;
 

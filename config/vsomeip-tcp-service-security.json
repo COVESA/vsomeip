@@ -1,13 +1,13 @@
 {
     "unicast" : "10.0.3.1",
     "logging" :
-    { 
+    {
         "level" : "debug",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "service-sample",
@@ -25,9 +25,9 @@
             "service" : "0x1235",
             "instance" : "0x5678",
             "unreliable" : "30509",
-            "multicast" : 
-            { 
-                "address" : "224.225.226.234", 
+            "multicast" :
+            {
+                "address" : "224.225.226.234",
                 "port" : "32344"
             }
         }

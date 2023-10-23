@@ -21,7 +21,6 @@ elif [ "$COMMUNICATIONMODE" = "UDP" ]; then
     export VSOMEIP_CONFIGURATION=event_test_slave_udp.json
 fi
 
-
 ../../examples/routingmanagerd/./routingmanagerd &
 PID_VSOMEIPD=$!
 
