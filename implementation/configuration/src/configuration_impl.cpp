@@ -1618,17 +1618,17 @@ void configuration_impl::load_unicast_address(const configuration_element &_elem
                     "Ignoring definition from " << _element.name_;
         } else {
             boost::asio::ip::address temp = unicast_.from_string(its_value);
-            if( temp.is_v6())
+            if (temp.is_v6())
             {
-                if ( getNIC(its_value) >= 0)
+                int scope_id = getNIC(its_value);
+                if ( scope_id >= 0)
                 {
                     // below: '%' is the delimiter to distinguish between IP-address and scope-id, e.g. "beef::1%7"
                     unicast_ = boost::asio::ip::make_address(its_value + "%" + std::to_string(scope_id)); 
-                    VSOMEIP_INFO << "\033[41mDEBUG <configuration_impl::load_unicast_address> scope_id after getNIC: " << unicast_.to_v6().scope_id() << "\033[0m";
                 } // else, keep the default scope_id in local_
                 else unicast_ = unicast_.from_string(its_value);
             }
-            else if ( temp.is_v4()) // IPv4 somehow "automatically" processes the network interface and does NOT require special treatment
+            else if (temp.is_v4()) // IPv4 somehow "automatically" processes the network interface and does NOT require special treatment
             {
                 unicast_ = unicast_.from_string(its_value);
             }
