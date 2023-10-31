@@ -471,6 +471,13 @@ private:
     void load_partition(const boost::property_tree::ptree &_tree);
 
 private:
+    //! @brief Returns the network interface (NIC) that contains the given local 
+    //!         address. Relevant for VLAN communication in IPv6.
+    //! @param[in] _local_address The IP address in IPv6 format that should be
+    //!         used as a host.
+    //! @param[out] The network interface identifier that "contains" the IP
+    //!         address.
+    int getNIC(const std::string& _local_address);
     std::mutex mutex_;
 
     const std::string default_unicast_;
