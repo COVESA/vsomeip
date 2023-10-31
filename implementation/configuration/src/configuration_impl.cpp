@@ -41,6 +41,8 @@
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
+#include <ifaddrs.h> // TODO: only for LInux?
+
 namespace vsomeip_v3 {
 namespace cfg {
 
@@ -1380,6 +1382,64 @@ void configuration_impl::load_trace_filter_match(
     }
 }
 
+int configuration_impl::getNIC( const std::string& _local_address )
+{
+    // creating structures to browse through the available network interfaces
+    struct ifaddrs* ifaddr, *ifa;
+    int family, n;
+    sockaddr_in6* p_addrIP6;
+    std::vector<int> nic(0);    // the network interface card id. Vector in case 
+                    // more than one interface contains the searched IP address
+    struct sockaddr_in6 searched_address;
+    searched_address.sin6_family = AF_INET6;
+    searched_address.sin6_addr = in6addr_any;   // TODO: is this necessary?
+    searched_address.sin6_port = htons( 0xdead ); // dummy value. TODO: is this necessary?
+    inet_pton( AF_INET6, _local_address.c_str(), &searched_address.sin6_addr ); // actually copying 
+
+    if( getifaddrs( &ifaddr ) == -1 ) // "-1" is an error value
+    {
+        VSOMEIP_ERROR << __func__ <<  
+            strerror( errno ) << ::std::endl;
+        return -1;
+    }
+
+    /* Walk through linked list of network interfaces*/
+    for( ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++ )
+    {
+        if( ifa->ifa_addr == NULL )
+            continue;
+        family = ifa->ifa_addr->sa_family;
+
+        /* For an AF_INET6 interface address, compare the address of the NIC
+        with the searched address */
+        if( family == AF_INET6 )
+        {
+            p_addrIP6 = reinterpret_cast<sockaddr_in6*>( ifa->ifa_addr );
+            if( ::bcmp( p_addrIP6->sin6_addr.s6_addr, searched_address.sin6_addr.s6_addr, 16 ) == 0 ) // TODO: is bcmp a Linux only function?
+            {
+                nic.push_back(if_nametoindex( ifa->ifa_name ));
+            }
+        }
+    }
+    if( nic.size() > 1)
+    {
+        VSOMEIP_ERROR << __func__ << " found multiple network interfaces " <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings. In the meanwhile, using the first NIC.";
+            // message must be in sync with "return nic[0]"
+    }
+    else if (nic.size() == 0)
+    {
+        VSOMEIP_ERROR << __func__ << " NO network interfaces available" <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings.";
+        return -1;
+    } // the good case 'nic.size() == 1' needs no error handling
+    
+    freeifaddrs( ifaddr );
+    return nic[0];
+}
+
 void configuration_impl::load_suppress_events(const configuration_element &_element) {
     try {
         auto its_missing_events = _element.tree_.get_child("suppress_missing_event_logs");
@@ -1557,7 +1617,21 @@ void configuration_impl::load_unicast_address(const configuration_element &_elem
             VSOMEIP_WARNING << "Multiple definitions for unicast."
                     "Ignoring definition from " << _element.name_;
         } else {
-            unicast_ = unicast_.from_string(its_value);
+            boost::asio::ip::address temp = unicast_.from_string(its_value);
+            if( temp.is_v6())
+            {
+                if ( getNIC(its_value) >= 0)
+                {
+                    // below: '%' is the delimiter to distinguish between IP-address and scope-id, e.g. "beef::1%7"
+                    unicast_ = boost::asio::ip::make_address(its_value + "%" + std::to_string(scope_id)); 
+                    VSOMEIP_INFO << "\033[41mDEBUG <configuration_impl::load_unicast_address> scope_id after getNIC: " << unicast_.to_v6().scope_id() << "\033[0m";
+                } // else, keep the default scope_id in local_
+                else unicast_ = unicast_.from_string(its_value);
+            }
+            else if ( temp.is_v4()) // IPv4 somehow "automatically" processes the network interface and does NOT require special treatment
+            {
+                unicast_ = unicast_.from_string(its_value);
+            }
             is_configured_[ET_UNICAST] = true;
         }
     } catch (...) {
