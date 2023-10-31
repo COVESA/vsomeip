@@ -477,7 +477,7 @@ private:
     //!         used as a host.
     //! @param[out] The network interface identifier that "contains" the IP
     //!         address.
-    int getNIC(const std::string& _local_address);
+    int get_nic(const std::string& _local_address);
     std::mutex mutex_;
 
     const std::string default_unicast_;
