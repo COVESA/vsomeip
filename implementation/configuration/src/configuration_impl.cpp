@@ -1382,7 +1382,7 @@ void configuration_impl::load_trace_filter_match(
     }
 }
 
-int configuration_impl::getNIC( const std::string& _local_address )
+int configuration_impl::get_nic( const std::string& _local_address )
 {
     // creating structures to browse through the available network interfaces
     struct ifaddrs* ifaddr, *ifa;
@@ -1620,7 +1620,7 @@ void configuration_impl::load_unicast_address(const configuration_element &_elem
             boost::asio::ip::address temp = unicast_.from_string(its_value);
             if (temp.is_v6())
             {
-                int scope_id = getNIC(its_value);
+                int scope_id = get_nic(its_value);
                 if ( scope_id >= 0)
                 {
                     // below: '%' is the delimiter to distinguish between IP-address and scope-id, e.g. "beef::1%7"
