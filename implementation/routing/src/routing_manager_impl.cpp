@@ -234,7 +234,7 @@ void routing_manager_impl::start() {
     // if network interface is part of unicast-address-string. So strip it!
     char delimiter {'%'}; // "%" is a symbol for the device, e.g. "beef::1%7",
         // where 7 is the network interface #7
-    if( its_unicast.to_string().find(delimiter) != std::string::npos) 
+    if (its_unicast.to_string().find(delimiter) != std::string::npos) 
     {
         std::string temp_address = its_unicast.to_string().substr(0, (size_t)its_unicast.to_string().find(delimiter));
         netlink_connector_ = std::make_shared<netlink_connector>(
