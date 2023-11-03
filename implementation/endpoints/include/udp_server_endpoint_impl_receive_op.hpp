@@ -306,7 +306,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                     _data->sender_ = endpoint_type_t(its_sender_address, its_sender_port);
 
                     // destination
-                    struct in_pktinfo *its_pktinfo_v4;
+                    struct in_pktinfo *its_pktinfo_v4 = nullptr;
                     for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&its_header);
                          cmsg != NULL;
                          cmsg = CMSG_NXTHDR(&its_header, cmsg)) {

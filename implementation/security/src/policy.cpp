@@ -455,14 +455,14 @@ policy::print() const {
 
     for (auto its_credential : credentials_) {
         auto its_uid_interval = its_credential.first;
-        if (its_uid_interval.lower() == std::numeric_limits<uint32_t>::max()) {
+        if (its_uid_interval.lower() == std::numeric_limits<uid_t>::max()) {
             VSOMEIP_INFO << "policy::print Security configuration: UID: any";
         } else {
             VSOMEIP_INFO << "policy::print Security configuration: UID: "
                     << std::dec << its_uid_interval.lower();
         }
         for (auto its_gid_interval : its_credential.second) {
-            if (its_gid_interval.lower() == std::numeric_limits<uint32_t>::max()) {
+            if (its_gid_interval.lower() == std::numeric_limits<gid_t>::max()) {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: any";
             } else {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: "
