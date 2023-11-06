@@ -46,9 +46,9 @@ policy_manager_impl::policy_manager_impl()
     allow_remote_clients_(true),
     check_whitelist_(false),
     policy_base_path_(""),
+    check_routing_credentials_(false),
 #endif // !VSOMEIP_DISABLE_SECURITY
-    is_configured_(false),
-    check_routing_credentials_(false)
+    is_configured_(false)
 {
 }
 
