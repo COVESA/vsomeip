@@ -120,11 +120,11 @@ service_discovery_impl::init() {
         std::uniform_int_distribution<std::uint32_t> distribution(
                 initial_delay_min, initial_delay_max);
         initial_delay_ = std::chrono::milliseconds(distribution(e));
-    } catch (std::exception const& e) {
+    } catch (const std::exception& e) {
         VSOMEIP_ERROR << "Failed to generate random initial delay: " << e.what();
 
         // Fallback to the Mersenne Twister engine
-        auto const seed = static_cast<std::mt19937::result_type>(
+        const auto seed = static_cast<std::mt19937::result_type>(
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::high_resolution_clock::now().time_since_epoch())
                 .count());
