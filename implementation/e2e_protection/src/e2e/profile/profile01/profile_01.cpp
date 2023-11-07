@@ -63,7 +63,7 @@ uint8_t profile_01::compute_crc(const profile_config &_config, const e2e_buffer 
              * up to 12 bits. This is used in E2E variant 1C.
              */
             // CRC = Crc_CalculateCRC8(Config->DataID, 1, 0xFF, FALSE)
-            computed_crc = e2e_crc::calculate_profile_01(buffer_view(data_id_buffer, 1, 2), 0xFF); //CRC over low byte of Data ID (LSB)
+            computed_crc = e2e_crc::calculate_profile_01(buffer_view(data_id_buffer, 1, 2), 0x00); //CRC over low byte of Data ID (LSB)
 
             // CRC = Crc_CalculateCRC8 (0, 1, CRC, FALSE)
             data_id_buffer.clear();
@@ -84,7 +84,7 @@ uint8_t profile_01::compute_crc(const profile_config &_config, const e2e_buffer 
     // Compute the area after CRC, if  CRC is not the last byte. Start with  the byte after CRC, finish with the last byte of Data.
     if ((_config.crc_offset_) < (_config.data_length_ / 8) - 1) {
         // CRC = Crc_CalculateCRC8 (& Data[Config->CRCOffset/8 + 1], (Config->DataLength / 8 - Config->CRCOffset / 8 - 1), CRC, FALSE)
-        computed_crc = e2e_crc::calculate_profile_01(buffer_view(_buffer, static_cast<size_t>(_config.crc_offset_ + 1), _buffer.size()), computed_crc);
+        computed_crc = e2e_crc::calculate_profile_01(buffer_view(_buffer, static_cast<size_t>(_config.crc_offset_ + 1), static_cast<size_t>(_config.data_length_ / 8)), computed_crc);
     }
 
     // CRC = CRC ^ 0xFF
@@ -95,7 +95,7 @@ uint8_t profile_01::compute_crc(const profile_config &_config, const e2e_buffer 
 
 /** @req [SWS_E2E_00356] */
 bool profile_01::is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer) {
-    return (((_config.data_length_ / 8) + 1U <= _buffer.size())
+    return (((_config.data_length_ / 8) <= _buffer.size())
             && _config.crc_offset_ <= _buffer.size()
             && _config.counter_offset_ / 8 <= _buffer.size()
             && _config.data_id_nibble_offset_ / 8 <= _buffer.size());
