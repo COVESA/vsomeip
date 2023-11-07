@@ -4066,7 +4066,7 @@ routing_manager_impl::get_requesters_unlocked(
     std::set<client_t> its_requesters;
 
     auto found_service = requested_services_.find(_service);
-    if (found_service == requested_services_.end()){
+    if (found_service == requested_services_.end()) {
         found_service = requested_services_.find(ANY_SERVICE);
         if (found_service == requested_services_.end()) {
             return its_requesters;
