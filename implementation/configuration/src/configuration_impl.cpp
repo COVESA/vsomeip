@@ -41,7 +41,7 @@
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
-#include <ifaddrs.h> // TODO: only for LInux?
+#include <ifaddrs.h>
 
 namespace vsomeip_v3 {
 namespace cfg {
@@ -1392,8 +1392,8 @@ int configuration_impl::get_nic(const std::string& _local_address)
                     // more than one interface contains the searched IP address
     struct sockaddr_in6 searched_address;
     searched_address.sin6_family = AF_INET6;
-    searched_address.sin6_addr = in6addr_any;   // TODO: is this necessary?
-    searched_address.sin6_port = htons( 0xdead ); // dummy value. TODO: is this necessary?
+    searched_address.sin6_addr = in6addr_any;
+    searched_address.sin6_port = htons( 0xdead );
     inet_pton( AF_INET6, _local_address.c_str(), &searched_address.sin6_addr ); // actually copying 
 
     if (getifaddrs(&ifaddr) == -1) // "-1" is an error value
@@ -1415,7 +1415,7 @@ int configuration_impl::get_nic(const std::string& _local_address)
         if (family == AF_INET6)
         {
             p_addrIP6 = reinterpret_cast<sockaddr_in6*>(ifa->ifa_addr);
-            if (::bcmp(p_addrIP6->sin6_addr.s6_addr, searched_address.sin6_addr.s6_addr, 16) == 0) // TODO: is bcmp a Linux only function?
+            if (::bcmp(p_addrIP6->sin6_addr.s6_addr, searched_address.sin6_addr.s6_addr, 16) == 0)
             {
                 nic.push_back(if_nametoindex(ifa->ifa_name));
             }
