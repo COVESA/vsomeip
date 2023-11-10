@@ -30,9 +30,7 @@ Optional:
 - A C++14 enabled compiler is needed (default for gcc >= v6.1).
 - vsomeip uses CMake as buildsystem.
 - vsomeip uses Boost >= 1.55.0:
-
-For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
--- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
+- Google's test framework (downloaded automaticaly)
 
 To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
 --`sudo apt-get install asciidoc source-highlight doxygen graphviz`
