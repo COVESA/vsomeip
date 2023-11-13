@@ -25,17 +25,8 @@ jobs:
 
         - name: Configure CMake
           run: |
-            echo ${{steps.install-boost.outputs.BOOST_ROOT}} ${{steps.install-boost.outputs.BOOST_ROOT}}      BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
-            echo "1: "; ls -l /home
-            echo "2: "; ls -l /home/runner
-            echo "3: "; ls -l /home/runner/boost
-            echo "4: "; ls -l /home/runner/boost/boost
-            echo "5: "; ls -l /home/runner/boost/boost/include
-            echo "51: "; ls -l /home/runner/boost/boost/include/boost
             cmake -Bbuild \
             -DBOOST_ROOT=/home/runner/boost/boost/
-            -DBoost_INCLUDE_DIR=/home/runner/boost/boost/include/boost \
-            -DBoost_LIBRARY_DIRS=/home/runner/boost/boost/lib .
             cmake --build build
 
   build_on_ubuntu_183_gcc_aarch64:
