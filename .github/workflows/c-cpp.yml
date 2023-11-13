@@ -53,7 +53,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1.71-x86
+      id: windows-gcc-1_71-x86
       with:
           boost_version: 1.71.0
           platform_version: windows
