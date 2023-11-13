@@ -25,10 +25,10 @@ jobs:
 
         - name: Configure CMake
           run: |
-            cmake -Bbuild .
+            cmake -Bbuild \
+            -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
+            -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
             cmake --build build
-          env:
-            BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
   build_on_ubuntu_183_gcc_aarch64:
     runs-on: ubuntu-latest
@@ -48,10 +48,10 @@ jobs:
 
         - name: Configure CMake
           run: |
-            cmake -Bbuild .
+            cmake -Bbuild \
+            -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
+            -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
             cmake --build build
-          env:
-            BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
   build_on_windows_183_gcc_x86:
     runs-on: windows-latest
@@ -71,7 +71,7 @@ jobs:
 
     - name: Configure CMake
       run: |
-        cmake -Bbuild .
+        cmake -Bbuild \
+        -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
+        -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
         cmake --build build
-      env:
-        BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
