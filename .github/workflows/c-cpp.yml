@@ -8,24 +8,91 @@ on:
 
 jobs:
   build:
-    runs-on: [ubuntu-22.04]
+    runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
-    - name: install dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
-    - name: Run CMake+Ninja without triplet
-      uses: lukka/run-cmake@v2
+    - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
       with:
-        cmakeGenerator: 'Ninja'  
-        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
-        cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
-        cmakeAppendedArgs: '-DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install'
-        buildWithCMakeArgs: '-t all build_tests doc install'
-        buildDirectory: '${{ runner.workspace }}/build'
-    - uses: actions/upload-artifact@v2
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: x86
+
+    - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
       with:
-        name: vsomeip
-        path: '${{ runner.workspace }}/install/**/*'
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: aarch64
+
+    - name: Ubuntu - Install boost 1.83.0 with clang and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: x86
+
+    - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: aarch64
+
+    - name: Windows - Install boost 1.71.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: x86
+
+    - name: Windows - Install boost 1.71.0 with gcc and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: aarch64
+
+    - name: Windows - Install boost 1.71.0 with clang and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: x86
+
+    - name: Windows - Install boost 1.71.0 with clang and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: aarch64
+  
+    - uses: actions/checkout@v3
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
