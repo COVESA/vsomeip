@@ -7,50 +7,51 @@ on:
     branches: [ master ]
 
 jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+        - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-gcc-1_83-x86
+          with:
+              boost_version: 1.83.0
+              platform_version: 22.04
+              boost_install_dir: /home/runner/some_directory
+              toolset: gcc
+              arch: x86
+    
+        - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-gcc-1_3-aarch64
+          with:    
+              boost_version: 1.83.0
+              platform_version: 22.04
+              boost_install_dir: /home/runner/some_directory
+              toolset: gcc
+              arch: aarch64
+    
+        - name: Ubuntu - Install boost 1.83.0 with clang and x86
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-clang-1_83-x86
+          with:
+              boost_version: 1.83.0
+              platform_version: 22.04
+              boost_install_dir: /home/runner/some_directory
+              toolset: clang
+              arch: x86
+    
+        - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-clang-1_83-aarch64
+          with:
+              boost_version: 1.83.0
+              platform_version: 22.04
+              boost_install_dir: /home/runner/some_directory
+              toolset: clang
+              arch: aarch64
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Ubuntu - Install boost 1.83.0 with gcc and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1_83-x86
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: x86
-
-    - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1_3-aarch64
-      with:
-          boost_version: 1_83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: aarch64
-
-    - name: Ubuntu - Install boost 1.83.0 with clang and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1_83-x86
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: x86
-
-    - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1_83-aarch64
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: aarch64
-
     - name: Windows - Install boost 1.71.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
       id: windows-gcc-1_71-x86
@@ -95,4 +96,4 @@ jobs:
 
     - name: Show files
       run: ls -lh wheelhouse
-      shell: bash
+      shell: bash        
