@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build_linux:
+  build_on_ubuntu:
     runs-on: ubuntu-latest
     steps:
         - name: Ubuntu - Install boost 1.83.0 with gcc and x86
@@ -19,6 +19,7 @@ jobs:
               boost_install_dir: /home/runner/some_directory
               toolset: gcc
               arch: x86
+              cache: true
     
         - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
           uses: MarkusJx/install-boost@v2.4.4
@@ -29,68 +30,32 @@ jobs:
               boost_install_dir: /home/runner/some_directory
               toolset: gcc
               arch: aarch64
-    
-        - name: Ubuntu - Install boost 1.83.0 with clang and x86
-          uses: MarkusJx/install-boost@v2.4.4
-          id: ubuntu-clang-1_83-x86
-          with:
-              boost_version: 1.83.0
-              platform_version: 22.04
-              boost_install_dir: /home/runner/some_directory
-              toolset: clang
-              arch: x86
-    
-        - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
-          uses: MarkusJx/install-boost@v2.4.4
-          id: ubuntu-clang-1_83-aarch64
-          with:
-              boost_version: 1.83.0
-              platform_version: 22.04
-              boost_install_dir: /home/runner/some_directory
-              toolset: clang
-              arch: aarch64
-  build:
+              cache: true
+
+  build_on_windows:
     runs-on: ubuntu-latest
     steps:
-    - name: Windows - Install boost 1.71.0 with gcc and x86
+    - name: Windows - Install boost 1.83.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1_71-x86
+      id: windows-gcc-1_83-x86
       with:
-          boost_version: 1.71.0
+          boost_version: 1.83.0
           platform_version: windows
           boost_install_dir: /home/runner/some_directory
           toolset: gcc
           arch: x86
+          cache: true
 
-    - name: Windows - Install boost 1.71.0 with gcc and aarch64
+    - name: Windows - Install boost 1.83.0 with gcc and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1_71-aarch64
+      id: windows-gcc-1_83-aarch64
       with:
-          boost_version: 1.71.0
+          boost_version: 1.83.0
           platform_version: windows
           boost_install_dir: /home/runner/some_directory
           toolset: gcc
           arch: aarch64
-
-    - name: Windows - Install boost 1.71.0 with clang and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1_71-x86
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: x86
-
-    - name: Windows - Install boost 1.71.0 with clang and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1_71-aarch64
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: aarch64
+          cache: true
   
     - uses: actions/checkout@v3
 
