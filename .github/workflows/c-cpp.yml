@@ -10,26 +10,19 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - name: install dependencies
+
+    - name: Run CMake+Ninja without triplet
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
-    - name: Run CMake+Ninja without triplet
-      uses: lukka/run-cmake@v2
-      with:
-        cmakeGenerator: 'Ninja'  
-        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
-        cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
-        cmakeAppendedArgs: '-DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install'
-        buildWithCMakeArgs: '-t all build_tests doc install'
-        buildDirectory: '${{ runner.workspace }}/build'
+        cmake -Bbuild -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
+        cmake --build build -t all build_tests doc install'
+        
     - uses: actions/upload-artifact@v2
-      if: runner.os != 'Windows'
       with:
         name: vsomeip
         path: '${{ runner.workspace }}/install/**/*'
-  
