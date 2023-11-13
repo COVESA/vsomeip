@@ -48,7 +48,7 @@ jobs:
           with:    
               boost_version: 1.83.0
               platform_version: 20.04
-              boost_install_dir: /home/runner/some_directory
+              boost_install_dir: /home/runner
               toolset: gcc
               arch: aarch64
               cache: true
@@ -70,7 +70,7 @@ jobs:
       with:
           boost_version: 1.83.0
           platform: windows
-          boost_install_dir: /home/runner/some_directory
+          boost_install_dir: /home/runner
           toolset: msvc
           arch: x86
           cache: true
