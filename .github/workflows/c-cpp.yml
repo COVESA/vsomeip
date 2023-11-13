@@ -47,19 +47,8 @@ jobs:
           boost_version: 1.83.0
           platform: windows
           boost_install_dir: /home/runner/some_directory
-          toolset: gcc
+          toolset: msvc
           arch: x86
-          cache: true
-
-    - name: Windows - Install boost 1.83.0 with gcc and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1_83-aarch64
-      with:
-          boost_version: 1.83.0
-          platform: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: aarch64
           cache: true
   
     - uses: actions/checkout@v3
