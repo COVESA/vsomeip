@@ -28,7 +28,7 @@ jobs:
               sudo apt-get update -qq
               sudo apt-get install -y googletest asciidoc source-highlight doxygen graphviz
 
-        - name: Configure CMake
+        - name: Run CMake
           run: |
             cmake -Bbuild \
             -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
@@ -55,7 +55,7 @@ jobs:
  
         - uses: actions/checkout@v3
 
-        - name: Configure CMake
+        - name: Run CMake
           run: |
             cmake -Bbuild \
             -DBOOST_ROOT=/home/runner/boost/boost/
@@ -70,15 +70,15 @@ jobs:
       with:
           boost_version: 1.83.0
           platform: windows
-          boost_install_dir: /home/runner
+          boost_install_dir: C:\runner
           toolset: msvc
           arch: x86
           cache: true
   
     - uses: actions/checkout@v3
 
-    - name: Configure CMake
+    - name: Run CMake
       run: |
           cmake -Bbuild \
-          -DBOOST_ROOT=/home/runner/boost/boost/
+          -DBOOST_ROOT=C:\runner\boost/boost\
           cmake --build build
