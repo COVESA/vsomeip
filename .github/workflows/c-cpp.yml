@@ -8,10 +8,91 @@ on:
 
 jobs:
   build:
-    runs-on: [ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
     
     steps:
-    - uses: actions/checkout@v2
+    - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: x86
+
+    - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: aarch64
+
+    - name: Ubuntu - Install boost 1.83.0 with clang and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: x86
+
+    - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: aarch64
+
+    - name: Windows - Install boost 1.71.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: x86
+
+    - name: Windows - Install boost 1.71.0 with gcc and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: gcc
+          arch: aarch64
+
+    - name: Windows - Install boost 1.71.0 with clang and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: x86
+
+    - name: Windows - Install boost 1.71.0 with clang and aarch64
+      uses: MarkusJx/install-boost@v2.4.4
+      id: install-boost
+      with:
+          boost_version: 1.71.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: clang
+          arch: aarch64
+  
+    - uses: actions/checkout@v3
+            
     - name: install dependencies
       run: |
         sudo apt-get update -qq
