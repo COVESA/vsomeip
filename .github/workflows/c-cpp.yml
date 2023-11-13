@@ -15,7 +15,7 @@ jobs:
           id: ubuntu-gcc-1_83-x86
           with:
               boost_version: 1.83.0
-              platform_version: 22.04
+              platform_version: 20.04
               boost_install_dir: /home/runner
               toolset: gcc
               arch: x86
@@ -33,6 +33,7 @@ jobs:
             echo "5: "; ls -l /home/runner/boost/boost/include
             echo "51: "; ls -l /home/runner/boost/boost/include/boost
             cmake -Bbuild \
+            -DBOOST_ROOT=/home/runner/boost/boost/
             -DBoost_INCLUDE_DIR=/home/runner/boost/boost/include/boost \
             -DBoost_LIBRARY_DIRS=/home/runner/boost/boost/lib .
             cmake --build build
