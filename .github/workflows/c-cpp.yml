@@ -23,11 +23,21 @@ jobs:
 
         - uses: actions/checkout@v3
 
+        - name: install dependencies
+            run: |
+              sudo apt-get update -qq
+              sudo apt-get install -y googletest asciidoc source-highlight doxygen graphviz
+
         - name: Configure CMake
           run: |
             cmake -Bbuild \
-            -DBOOST_ROOT=/home/runner/boost/boost/
-            cmake --build build
+            -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
+            cmake --build build -t all build_tests doc install
+
+        - uses: actions/upload-artifact@v2
+          with:
+            name: vsomeip
+            path: '${{ runner.workspace }}/install/**/*'
 
   build_on_ubuntu_183_gcc_aarch64:
     runs-on: ubuntu-latest
@@ -41,15 +51,14 @@ jobs:
               boost_install_dir: /home/runner/some_directory
               toolset: gcc
               arch: aarch64
-              cache: false
+              cache: true
  
         - uses: actions/checkout@v3
 
         - name: Configure CMake
           run: |
             cmake -Bbuild \
-            -DBoost_INCLUDE_DIR=/home/boost/include \
-            -DBoost_LIBRARY_DIRS=/home/boost/lib .
+            -DBOOST_ROOT=/home/runner/boost/boost/
             cmake --build build
 
   build_on_windows_183_gcc_x86:
@@ -64,13 +73,12 @@ jobs:
           boost_install_dir: /home/runner/some_directory
           toolset: msvc
           arch: x86
-          cache: false
+          cache: true
   
     - uses: actions/checkout@v3
 
     - name: Configure CMake
       run: |
-        cmake -Bbuild \
-        -DBoost_INCLUDE_DIR=/home/boost/include \
-        -DBoost_LIBRARY_DIRS=/home/boost/lib .
-        cmake --build build
+          cmake -Bbuild \
+          -DBOOST_ROOT=/home/runner/boost/boost/
+          cmake --build build
