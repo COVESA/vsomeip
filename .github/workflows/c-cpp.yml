@@ -27,6 +27,9 @@ jobs:
           run: |
             ls -l /home
             ls -l /home/runner
+            ls -l /home/runner/boost
+            ls -l /home/runner/boost/include
+            ls -l /home/runner/boost/lib
             cmake -Bbuild \
             -DBoost_INCLUDE_DIR=/home/runner/boost/include \
             -DBoost_LIBRARY_DIRS=/home/runner/boost/lib .
