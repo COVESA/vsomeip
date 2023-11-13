@@ -16,7 +16,7 @@ jobs:
           with:
               boost_version: 1.83.0
               platform_version: 22.04
-              boost_install_dir: /home/runner/some_directory
+              boost_install_dir: /home/boost
               toolset: gcc
               arch: x86
               cache: true
@@ -25,9 +25,11 @@ jobs:
 
         - name: Configure CMake
           run: |
+            ls -l /home
+            ls -l /home/boost
             cmake -Bbuild \
-            -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
-            -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
+            -DBoost_INCLUDE_DIR=/home/boost/include \
+            -DBoost_LIBRARY_DIRS=/home/boost/lib .
             cmake --build build
 
   build_on_ubuntu_183_gcc_aarch64:
@@ -42,15 +44,15 @@ jobs:
               boost_install_dir: /home/runner/some_directory
               toolset: gcc
               arch: aarch64
-              cache: true
+              cache: false
  
         - uses: actions/checkout@v3
 
         - name: Configure CMake
           run: |
             cmake -Bbuild \
-            -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
-            -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
+            -DBoost_INCLUDE_DIR=/home/boost/include \
+            -DBoost_LIBRARY_DIRS=/home/boost/lib .
             cmake --build build
 
   build_on_windows_183_gcc_x86:
@@ -65,13 +67,13 @@ jobs:
           boost_install_dir: /home/runner/some_directory
           toolset: msvc
           arch: x86
-          cache: true
+          cache: false
   
     - uses: actions/checkout@v3
 
     - name: Configure CMake
       run: |
         cmake -Bbuild \
-        -DBoost_INCLUDE_DIR=${{steps.install-boost.outputs.BOOST_ROOT}}/include \
-        -DBoost_LIBRARY_DIRS=${{steps.install-boost.outputs.BOOST_ROOT}}/lib .
+        -DBoost_INCLUDE_DIR=/home/boost/include \
+        -DBoost_LIBRARY_DIRS=/home/boost/lib .
         cmake --build build
