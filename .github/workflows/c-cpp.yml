@@ -13,7 +13,7 @@ jobs:
     steps:
     - name: Ubuntu - Install boost 1.83.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: ubuntu-gcc-1.83-x86
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -23,7 +23,7 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: ubuntu-gcc-1.83-aarch64
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -33,7 +33,7 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with clang and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: ubuntu-clang-1.83-x86
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -43,7 +43,7 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: ubuntu-clang-1.83-aarch64
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -53,7 +53,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: windows-gcc-1.71-x86
       with:
           boost_version: 1.71.0
           platform_version: windows
@@ -63,7 +63,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with gcc and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: windows-gcc-1.71-aarch64
       with:
           boost_version: 1.71.0
           platform_version: windows
@@ -73,7 +73,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with clang and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: windows-clang-1.71-x86
       with:
           boost_version: 1.71.0
           platform_version: windows
@@ -83,7 +83,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with clang and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: install-boost
+      id: windows-clang-1.71-aarch64
       with:
           boost_version: 1.71.0
           platform_version: windows
