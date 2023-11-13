@@ -7,15 +7,12 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  build_linux:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
 
-    - name: Run CMake+Ninja without triplet
+    - name: Run CMake l
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
@@ -26,3 +23,23 @@ jobs:
       with:
         name: vsomeip
         path: '${{ runner.workspace }}/install/**/*'
+  
+  build_windows:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Windows - Install boost 1.83.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: windows-gcc-1_83-x86
+      with:
+          boost_version: 1.83.0
+          platform_version: windows
+          boost_install_dir: /home/runner/some_directory
+          toolset: msvc
+          arch: x86
+          cache: true
+  
+    - uses: actions/checkout@v3
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash     
