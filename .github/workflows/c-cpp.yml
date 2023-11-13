@@ -13,7 +13,7 @@ jobs:
     steps:
     - name: Ubuntu - Install boost 1.83.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1.83-x86
+      id: ubuntu-gcc-1_83-x86
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -23,9 +23,9 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1.83-aarch64
+      id: ubuntu-gcc-1_3-aarch64
       with:
-          boost_version: 1.83.0
+          boost_version: 1_83.0
           platform_version: 22.04
           boost_install_dir: /home/runner/some_directory
           toolset: gcc
@@ -33,7 +33,7 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with clang and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1.83-x86
+      id: ubuntu-clang-1_83-x86
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -43,7 +43,7 @@ jobs:
 
     - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1.83-aarch64
+      id: ubuntu-clang-1_83-aarch64
       with:
           boost_version: 1.83.0
           platform_version: 22.04
@@ -63,7 +63,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with gcc and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1.71-aarch64
+      id: windows-gcc-1_71-aarch64
       with:
           boost_version: 1.71.0
           platform_version: windows
@@ -73,7 +73,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with clang and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1.71-x86
+      id: windows-clang-1_71-x86
       with:
           boost_version: 1.71.0
           platform_version: windows
@@ -83,7 +83,7 @@ jobs:
 
     - name: Windows - Install boost 1.71.0 with clang and aarch64
       uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1.71-aarch64
+      id: windows-clang-1_71-aarch64
       with:
           boost_version: 1.71.0
           platform_version: windows
