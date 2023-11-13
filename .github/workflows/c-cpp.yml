@@ -25,14 +25,14 @@ jobs:
 
         - name: Configure CMake
           run: |
-            ls -l /home
-            ls -l /home/runner
-            ls -l /home/runner/boost
-            ls -l /home/runner/boost/boost
-            ls -l /home/runner/boost/boost-1.83.0-ubuntu-22.04-gcc-static+shared-x86
-            ls -l /home/runner/boost/boost/include
-            ls -l /home/runner/boost/include
-            ls -l /home/runner/boost/lib
+            echo "1: "; ls -l /home
+            echo "2: "; ls -l /home/runner
+            echo "3: "; ls -l /home/runner/boost
+            echo "4: "; ls -l /home/runner/boost/boost
+            echo "5: "; ls -l /home/runner/boost/boost/include
+            echo "6: "; ls -l /home/runner/boost/boost-1.83.0-ubuntu-22.04-gcc-static+shared-x86
+            echo "7: "; ls -l /home/runner/boost/include
+            echo "8: "; ls -l /home/runner/boost/lib
             cmake -Bbuild \
             -DBoost_INCLUDE_DIR=/home/runner/boost/include \
             -DBoost_LIBRARY_DIRS=/home/runner/boost/lib .
