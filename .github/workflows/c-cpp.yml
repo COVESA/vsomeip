@@ -15,7 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: install dependencies
-      if: runner.os != 'Windows'
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
