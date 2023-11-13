@@ -78,5 +78,5 @@ jobs:
 
     - name: Run CMake
       run: |
-          cmake -Bbuild -DBOOST_ROOT=C:\runner\boost/boost\ .
+          cmake -Bbuild -D BOOST_ROOT=C:\runner\boost/boost\ .
           cmake --build build
