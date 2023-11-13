@@ -31,7 +31,7 @@ jobs:
         - name: Run CMake
           run: |
             cmake -Bbuild \
-            -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
+            -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install .
             cmake --build build -t all build_tests doc install
 
         - uses: actions/upload-artifact@v2
@@ -57,8 +57,7 @@ jobs:
 
         - name: Run CMake
           run: |
-            cmake -Bbuild \
-            -DBOOST_ROOT=/home/runner/boost/boost/
+            cmake -Bbuild -DBOOST_ROOT=/home/runner/boost/boost/ .
             cmake --build build
 
   build_on_windows_183_gcc_x86:
@@ -79,6 +78,5 @@ jobs:
 
     - name: Run CMake
       run: |
-          cmake -Bbuild \
-          -DBOOST_ROOT=C:\runner\boost/boost\
+          cmake -Bbuild -DBOOST_ROOT=C:\runner\boost/boost\ .
           cmake --build build
