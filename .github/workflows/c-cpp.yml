@@ -9,18 +9,7 @@ on:
 jobs:
   build_on_ubuntu:
     runs-on: ubuntu-latest
-    steps:
-        - name: Ubuntu - Install boost 1.83.0 with gcc and x86
-          uses: MarkusJx/install-boost@v2.4.4
-          id: ubuntu-gcc-1_83-x86
-          with:
-              boost_version: 1.83.0
-              platform_version: 20.04
-              boost_install_dir: /home/runner/some_directory
-              toolset: gcc
-              arch: x86
-              cache: true
-    
+    steps:   
         - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
           uses: MarkusJx/install-boost@v2.4.4
           id: ubuntu-gcc-1_3-aarch64
