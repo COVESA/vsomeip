@@ -26,14 +26,19 @@ jobs:
           id: ubuntu-gcc-1_3-aarch64
           with:    
               boost_version: 1.83.0
-              platform_version: 22.04
+              platform_version: 20.04
               boost_install_dir: /home/runner/some_directory
               toolset: gcc
               arch: aarch64
               cache: true
 
+        - uses: actions/checkout@v3
+
+        - name: Show files
+          run: ls -l  
+
   build_on_windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
     - name: Windows - Install boost 1.83.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
@@ -60,5 +65,4 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Show files
-      run: ls -lh wheelhouse
-      shell: bash        
+      run: ls -lh
