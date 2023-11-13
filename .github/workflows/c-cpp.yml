@@ -20,8 +20,8 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
         cmake -Bbuild -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install
-        cmake --build build -t all build_tests doc install'
-        
+        cmake --build build -t all build_tests doc install
+
     - uses: actions/upload-artifact@v2
       with:
         name: vsomeip
