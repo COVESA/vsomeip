@@ -16,7 +16,7 @@ jobs:
           with:
               boost_version: 1.83.0
               platform_version: 22.04
-              boost_install_dir: /home/boost
+              boost_install_dir: /home/runner
               toolset: gcc
               arch: x86
               cache: true
@@ -26,10 +26,10 @@ jobs:
         - name: Configure CMake
           run: |
             ls -l /home
-            ls -l /home/boost
+            ls -l /home/runner
             cmake -Bbuild \
-            -DBoost_INCLUDE_DIR=/home/boost/include \
-            -DBoost_LIBRARY_DIRS=/home/boost/lib .
+            -DBoost_INCLUDE_DIR=/home/runner/boost/include \
+            -DBoost_LIBRARY_DIRS=/home/runner/boost/lib .
             cmake --build build
 
   build_on_ubuntu_183_gcc_aarch64:
