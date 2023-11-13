@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     
     steps:
     - name: Ubuntu - Install boost 1.83.0 with gcc and x86
@@ -92,21 +92,7 @@ jobs:
           arch: aarch64
   
     - uses: actions/checkout@v3
-            
-    - name: install dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
-    - name: Run CMake+Ninja without triplet
-      uses: lukka/run-cmake@v2
-      with:
-        cmakeGenerator: 'Ninja'  
-        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
-        cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
-        cmakeAppendedArgs: '-DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install'
-        buildWithCMakeArgs: '-t all build_tests doc install'
-        buildDirectory: '${{ runner.workspace }}/build'
-    - uses: actions/upload-artifact@v2
-      with:
-        name: vsomeip
-        path: '${{ runner.workspace }}/install/**/*'
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
