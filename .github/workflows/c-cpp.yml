@@ -28,6 +28,9 @@ jobs:
             ls -l /home
             ls -l /home/runner
             ls -l /home/runner/boost
+            ls -l /home/runner/boost/boost
+            ls -l /home/runner/boost/boost-1.83.0-ubuntu-22.04-gcc-static+shared-x86
+            ls -l /home/runner/boost/boost/include
             ls -l /home/runner/boost/include
             ls -l /home/runner/boost/lib
             cmake -Bbuild \
