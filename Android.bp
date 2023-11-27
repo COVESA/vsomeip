@@ -30,9 +30,9 @@ libvsomeip_sd_srcs = [
 
 cc_defaults {
     name: "vsomeip_defaults",
+    cpp_std: "c++17",
 
     cppflags: [
-        "-std=c++14",
         "-fexceptions",
         "-Wno-non-virtual-dtor",
         "-Wno-unused-const-variable",

@@ -3244,7 +3244,7 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.begin(),
             _s.end(),
-            [](unsigned char ch) { return !std::isspace(ch); }
+            [](auto const ch) { return !std::isspace(ch); }
         )
     );
 
@@ -3252,8 +3252,9 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.rbegin(),
             _s.rend(),
-            [](unsigned char ch) { return !std::isspace(ch); }).base(),
-            _s.end()
+            [](auto const ch) { return !std::isspace(ch); }
+        ).base(),
+        _s.end()
     );
 }
 
