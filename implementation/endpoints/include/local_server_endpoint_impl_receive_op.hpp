@@ -10,29 +10,52 @@
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 
 #include <boost/asio/local/stream_protocol.hpp>
+#include <memory>
 
 namespace vsomeip_v3 {
+namespace local_endpoint_receive_op {
 
 typedef boost::asio::local::stream_protocol::socket socket_type_t;
 typedef std::function<
     void (boost::system::error_code const &_error, size_t _size,
-          const uint32_t &, const uint32_t &)> receive_handler_t;
+          const std::uint32_t &, const std::uint32_t &)> receive_handler_t;
 
-struct local_server_endpoint_impl_receive_op {
-
+struct storage :
+    public std::enable_shared_from_this<storage>
+{
     socket_type_t &socket_;
     receive_handler_t handler_;
     byte_t *buffer_;
-    size_t length_;
+    std::size_t length_;
     uid_t uid_;
     gid_t gid_;
     size_t bytes_;
 
-    void operator()(boost::system::error_code _error) {
+    storage(
+        socket_type_t &_socket,
+        receive_handler_t _handler,
+        byte_t *_buffer,
+        size_t _length,
+        uid_t _uid,
+        gid_t _gid,
+        size_t _bytes
+    ) : socket_(_socket),
+        handler_(_handler),
+        buffer_(_buffer),
+        length_(_length),
+        uid_(_uid),
+        gid_(_gid),
+        bytes_(_bytes)
+    {}
+};
 
+inline
+std::function<void(boost::system::error_code _error)> 
+receive_cb (std::shared_ptr<storage> _data) {
+    return [_data](boost::system::error_code _error) {
         if (!_error) {
-            if (!socket_.native_non_blocking())
-                socket_.native_non_blocking(true, _error);
+            if (!_data->socket_.native_non_blocking())
+                _data->socket_.native_non_blocking(true, _error);
 
             for (;;) {
                 ssize_t its_result;
@@ -40,8 +63,8 @@ struct local_server_endpoint_impl_receive_op {
 
                 // Set buffer
                 struct iovec its_vec[1];
-                its_vec[0].iov_base = buffer_;
-                its_vec[0].iov_len = length_;
+                its_vec[0].iov_base = _data->buffer_;
+                its_vec[0].iov_len = _data->length_;
 
                 union {
                     struct cmsghdr cmh;
@@ -62,24 +85,24 @@ struct local_server_endpoint_impl_receive_op {
 
                 // Call recvmsg and handle its result
                 errno = 0;
-                its_result = ::recvmsg(socket_.native_handle(), &its_header, its_flags);
+                its_result = ::recvmsg(_data->socket_.native_handle(), &its_header, its_flags);
                 _error = boost::system::error_code(its_result < 0 ? errno : 0,
                         boost::asio::error::get_system_category());
-                bytes_ += _error ? 0 : static_cast<size_t>(its_result);
+                _data->bytes_ += _error ? 0 : static_cast<size_t>(its_result);
 
                 if (_error == boost::asio::error::interrupted)
                     continue;
 
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
-                    socket_.async_wait(socket_type_t::wait_read, *this);
+                    _data->socket_.async_wait(socket_type_t::wait_read, receive_cb(_data));
                     return;
                 }
 
                 if (_error)
                     break;
 
-                if (bytes_ == 0)
+                if (_data->bytes_ == 0)
                     _error = boost::asio::error::eof;
 
                 // Extract credentials (UID/GID)
@@ -94,8 +117,8 @@ struct local_server_endpoint_impl_receive_op {
 
                         its_credentials = (struct ucred *) CMSG_DATA(cmsg);
                         if (its_credentials) {
-                            uid_ = its_credentials->uid;
-                            gid_ = its_credentials->gid;
+                            _data->uid_ = its_credentials->uid;
+                            _data->gid_ = its_credentials->gid;
                             break;
                         }
                     }
@@ -106,10 +129,11 @@ struct local_server_endpoint_impl_receive_op {
         }
 
         // Call the handler
-        handler_(_error, bytes_, uid_, gid_);
-    }
-};
+        _data->handler_(_error, _data->bytes_, _data->uid_, _data->gid_);
+    };
+}
 
+} // namespace local_endpoint_receive_op
 } // namespace vsomeip
 
 #endif // __linux__ || ANDROID

@@ -40,6 +40,7 @@ public:
 
     void add_default_target(service_t, const std::string &, uint16_t);
     void remove_default_target(service_t);
+    void remove_stop_handler(service_t);
 
     virtual std::uint16_t get_local_port() const = 0;
     virtual void set_local_port(uint16_t _port) = 0;

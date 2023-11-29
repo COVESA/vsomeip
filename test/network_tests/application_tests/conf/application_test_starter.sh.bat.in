@@ -1,0 +1,25 @@
+#!/bin/sh
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+FAIL=0
+
+export VSOMEIP_CONFIGURATION=application_test_no_dispatch_threads.json
+
+if ! ./application_test
+then
+    FAIL=$((FAIL+1))
+fi
+
+export VSOMEIP_CONFIGURATION=application_test.json
+
+if ! ./application_test
+then
+    FAIL=$((FAIL+1))
+fi
+
+
+# Check if both exited successfully
+exit $FAIL

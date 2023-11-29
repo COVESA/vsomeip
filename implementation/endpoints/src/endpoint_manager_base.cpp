@@ -141,6 +141,8 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
                 VSOMEIP_INFO << __func__ << ": Connecting to other clients from "
                         << its_address.to_string() << ":" << std::dec << local_port_;
 
+                rm_->set_sec_client_port(local_port_);
+
             } catch (const boost::system::system_error &e) {
                 if (e.code() == boost::asio::error::address_in_use) {
                     its_used_ports.insert(its_port);

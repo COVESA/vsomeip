@@ -16,9 +16,9 @@ FAIL=0
 # Parameter 2: number of TCP/UDP sockets the process should have open
 check_tcp_udp_sockets_are_open ()
 {
-    # Check that the passed pid/process does listen on at least one TCP/UDP socket 
+    # Check that the passed pid/process does listen on at least one TCP/UDP socket
     # awk is used to avoid the case when a inode number is the same as a PID. The awk
-    # program filters the netstat output down to the protocol (1st field) and 
+    # program filters the netstat output down to the protocol (1st field) and
     # the PID/Program name (last field) fields.
     SERVICE_SOCKETS_LISTENING=$(netstat -tulpen 2> /dev/null | awk '{print $1 "\t"  $NF}' | grep $1 | wc -l)
     if [ $SERVICE_SOCKETS_LISTENING -lt $2 ]
@@ -30,10 +30,10 @@ check_tcp_udp_sockets_are_open ()
 # Parameter 1: the pid to check
 check_tcp_udp_sockets_are_closed ()
 {
-    # Check that the passed pid/process does not listen on any TCP/UDP socket 
+    # Check that the passed pid/process does not listen on any TCP/UDP socket
     # or has any active connection via a TCP/UDP socket
     # awk is used to avoid the case when a inode number is the same as a PID. The awk
-    # program filters the netstat output down to the protocol (1st field) and 
+    # program filters the netstat output down to the protocol (1st field) and
     # the PID/Program name (last field) fields.
     SERVICE_SOCKETS_LISTENING=$(netstat -tulpen 2> /dev/null | awk '{print $1 "\t"  $NF}' | grep $1 | wc -l)
     if [ $SERVICE_SOCKETS_LISTENING -ne 0 ]

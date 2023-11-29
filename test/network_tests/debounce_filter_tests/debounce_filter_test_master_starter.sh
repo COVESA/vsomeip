@@ -6,12 +6,6 @@
 
 FAIL=0
 
-# Cleanup
-rm -f /tmp/vsomeip*
-
-# Exclude external libraries from Thread Sanitizer
-export TSAN_OPTIONS="suppressions=tsan-suppressions.txt"
-
 export VSOMEIP_CONFIGURATION=debounce_filter_test_client.json
 ../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!

@@ -22,14 +22,16 @@ struct debounce_filter_t {
     debounce_filter_t()
         : on_change_(false),
           on_change_resets_interval_(false),
-          interval_(-1) {
+          interval_(-1),
+          send_current_value_after_(false) {
     }
 
     debounce_filter_t(const debounce_filter_t &_source)
         : on_change_(_source.on_change_),
           on_change_resets_interval_(_source.on_change_resets_interval_),
           interval_(_source.interval_),
-          ignore_(_source.ignore_) {
+          ignore_(_source.ignore_),
+          send_current_value_after_(_source.send_current_value_after_) {
     }
 
     inline void operator=(const debounce_filter_t &_other) {
@@ -37,6 +39,7 @@ struct debounce_filter_t {
         on_change_resets_interval_ = _other.on_change_resets_interval_;
         interval_ = _other.interval_;
         ignore_ = _other.ignore_;
+        send_current_value_after_ = _other.send_current_value_after_;
     }
 
     inline bool operator==(const debounce_filter_t &_other) const {
@@ -44,7 +47,8 @@ struct debounce_filter_t {
         return (on_change_ == _other.on_change_
                 && on_change_resets_interval_ == _other.on_change_resets_interval_
                 && interval_ == _other.interval_
-                && ignore_ == _other.ignore_);
+                && ignore_ == _other.ignore_
+                && send_current_value_after_ == _other.send_current_value_after_);
     }
 
     inline bool operator!=(const debounce_filter_t &_other) const {
@@ -52,13 +56,15 @@ struct debounce_filter_t {
         return (on_change_ != _other.on_change_
                 || on_change_resets_interval_ != _other.on_change_resets_interval_
                 || interval_ != _other.interval_
-                || ignore_ != _other.ignore_);
+                || ignore_ != _other.ignore_
+                || send_current_value_after_ != _other.send_current_value_after_);
     }
 
     bool on_change_;
     bool on_change_resets_interval_;
     int64_t interval_;
     std::map<std::size_t, byte_t> ignore_;
+    bool send_current_value_after_;
 };
 
 } // namespace vsomeip_v3

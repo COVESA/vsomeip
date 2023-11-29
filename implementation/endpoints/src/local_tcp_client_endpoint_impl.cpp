@@ -291,14 +291,17 @@ void local_tcp_client_endpoint_impl::receive_cbk(
     }
 }
 
-bool local_tcp_client_endpoint_impl::get_remote_address(
-        boost::asio::ip::address &_address) const {
-    (void)_address;
-    return false;
-}
+std::uint16_t local_tcp_client_endpoint_impl::get_local_port() const {
 
-std::uint16_t local_tcp_client_endpoint_impl::get_remote_port() const {
-    return 0;
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    if (socket_->is_open()) {
+        boost::system::error_code its_error;
+        endpoint_type its_local = socket_->local_endpoint(its_error);
+        if (!its_error)
+            return its_local.port();
+    }
+
+    return local_.port();
 }
 
 void local_tcp_client_endpoint_impl::set_local_port() {
