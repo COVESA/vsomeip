@@ -477,7 +477,7 @@ void local_uds_server_endpoint_impl::connection::start() {
 
         is_stopped_ = false;
 #if VSOMEIP_BOOST_VERSION >= 106600
-        local_server_endpoint_impl_receive_op its_operation {
+        auto its_storage = std::make_shared<local_endpoint_receive_op::storage>(
             socket_,
             std::bind(
                 &local_uds_server_endpoint_impl::connection::receive_cbk,
@@ -489,11 +489,12 @@ void local_uds_server_endpoint_impl::connection::start() {
             ),
             &recv_buffer_[recv_buffer_size_],
             left_buffer_size,
-            std::numeric_limits<uint32_t>::max(),
-            std::numeric_limits<uint32_t>::max(),
-            std::numeric_limits<size_t>::min()
-        };
-        socket_.async_wait(socket_type::wait_read, its_operation);
+            std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<std::size_t>::min()
+        );
+
+        socket_.async_wait(socket_type::wait_read, local_endpoint_receive_op::receive_cb(its_storage));
 #else
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),

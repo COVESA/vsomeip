@@ -982,6 +982,10 @@ Specifies if the event shall be debounced based on elapsed time interval.
 Specifies if interval timer is reset when payload change was detected.
 (valid values: _false_, _true_). Defaults to _false_.
 
+*** `send_current_value_after` (optional)
+Specifies if last message should be sent after interval timeout.
+(valid values: _false_, _true_). Defaults to _false_.
+
 * `routing` (optional)
 +
 Specifies the properties of the routing. Either a string that specifies the application that hosts the

@@ -85,8 +85,10 @@ public:
                 "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+            {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_registered_ = false;
+            }
             condition_.notify_one();
         }
     }

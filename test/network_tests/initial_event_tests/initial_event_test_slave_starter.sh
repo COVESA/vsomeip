@@ -78,6 +78,7 @@ do
     wait $job || FAIL=$(($FAIL+1))
 done
 
+echo "Starting stop service | Slave"
 # wait until all clients exited on master side
 ./initial_event_test_stop_service SLAVE &
 PID_STOP_SERVICE=$!
@@ -93,7 +94,6 @@ kill $PID_SERVICE_FIVE
 kill $PID_SERVICE_FOUR
 
 sleep 1
-echo ""
 
 # Check if they exited successfully
 if [ $FAIL -eq 0 ]

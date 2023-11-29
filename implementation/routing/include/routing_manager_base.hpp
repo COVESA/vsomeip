@@ -55,8 +55,14 @@ public:
     virtual session_t get_session(bool _is_request);
 
     virtual const vsomeip_sec_client_t *get_sec_client() const;
+    virtual void set_sec_client_port(port_t _port);
 
     virtual std::string get_env(client_t _client) const = 0;
+
+    virtual void debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter);
+    virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const std::shared_ptr<vsomeip_v3::event> &_event);
+    virtual void remove_debounce(client_t _client, event_t _event);
+    virtual void update_debounce_clients(const std::set<client_t> &_clients, event_t _event);
 
     virtual bool is_routing_manager() const;
 
@@ -182,6 +188,9 @@ protected:
             > &_subscribed_eventgroups,
             bool _remove_sec_client);
 
+    std::set<std::shared_ptr<eventgroupinfo> > find_eventgroups(service_t _service,
+            instance_t _instance) const;
+
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
 
@@ -292,6 +301,10 @@ protected:
         std::map<instance_t,
             std::map<event_t,
                 std::shared_ptr<event> > > > events_;
+
+    boost::asio::steady_timer debounce_timer;
+    std::multimap<std::chrono::steady_clock::time_point, std::tuple<client_t, bool, std::function<void (const boost::system::error_code)>, event_t>> debounce_clients_;
+    mutable std::mutex debounce_mutex_;
 
     std::mutex event_registration_mutex_;
 

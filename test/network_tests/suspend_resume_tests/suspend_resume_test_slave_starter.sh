@@ -20,7 +20,7 @@ do
     wait $job || ((FAIL+=1))
 done
 
-# Check if both exited successfully 
+# Check if both exited successfully
 if [ $FAIL -eq 0 ]
 then
     exit 0

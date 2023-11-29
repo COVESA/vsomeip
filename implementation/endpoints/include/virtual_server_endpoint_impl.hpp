@@ -50,6 +50,7 @@ public:
     void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port);
     void remove_default_target(service_t _service);
+    void remove_stop_handler(service_t _service);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_local_port() const;

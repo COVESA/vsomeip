@@ -111,6 +111,10 @@ void endpoint_impl<Protocol>::remove_default_target(service_t) {
 }
 
 template<typename Protocol>
+void endpoint_impl<Protocol>::remove_stop_handler(service_t) {
+}
+
+template<typename Protocol>
 void endpoint_impl<Protocol>::increment_use_count() {
     use_count_++;
 }

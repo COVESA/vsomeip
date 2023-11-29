@@ -255,8 +255,10 @@ routing_manager_client::on_net_state_change(
                     if (!sender_)
                         sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
 
-                    if (sender_)
+                    if (sender_) {
+                        host_->set_sec_client_port(sender_->get_local_port());
                         sender_->start();
+                    }
                 }
             }
         } else {
@@ -267,6 +269,7 @@ routing_manager_client::on_net_state_change(
 
                 if (sender_) {
                     on_disconnect(sender_);
+                    host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
                     sender_->stop();
                 }
 
