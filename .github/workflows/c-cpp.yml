@@ -7,25 +7,55 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-    runs-on: [ubuntu-22.04]
-    
+  build_on_ubuntu_boost_183_gcc_x86:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: install dependencies
+        - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-gcc-1_83-x86
+          with:
+              boost_version: 1.83.0
+              platform_version: 20.04
+              boost_install_dir: /home/runner
+              toolset: gcc
+              arch: x86
+              cache: true
+
+        - uses: actions/checkout@v3
+
+        - name: install dependencies
+          run: |
+              sudo apt-get update -qq
+              sudo apt-get install -y googletest asciidoc source-highlight doxygen graphviz
+
+        - name: Run CMake
+          run: |
+            cmake -Bbuild \
+            -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install .
+            cmake --build build -t all build_tests doc install
+
+        - uses: actions/upload-artifact@v2
+          with:
+            name: vsomeip
+            path: '${{ runner.workspace }}/install/**/*'
+
+  build_on_windows_boost_183_gcc_x86:
+    runs-on: windows-latest
+    steps:
+    - name: Windows - Install boost 1.83.0 with gcc and x86
+      uses: MarkusJx/install-boost@v2.4.4
+      id: windows-gcc-1_83-x86
+      with:
+          boost_version: 1.83.0
+          platform: windows
+          boost_install_dir: C:\runner
+          toolset: msvc
+          arch: x86
+          cache: true
+  
+    - uses: actions/checkout@v3
+
+    - name: Run CMake
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y libboost-system-dev libboost-thread-dev libboost-log-dev googletest asciidoc source-highlight doxygen graphviz
-    - name: Run CMake+Ninja without triplet
-      uses: lukka/run-cmake@v2
-      with:
-        cmakeGenerator: 'Ninja'  
-        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
-        cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
-        cmakeAppendedArgs: '-DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install'
-        buildWithCMakeArgs: '-t all build_tests doc install'
-        buildDirectory: '${{ runner.workspace }}/build'
-    - uses: actions/upload-artifact@v2
-      with:
-        name: vsomeip
-        path: '${{ runner.workspace }}/install/**/*'
+          cmake -Bbuild -D BOOST_ROOT=C:\runner\boost/boost\ .
+          cmake --build build
