@@ -1,6 +1,30 @@
 Changes
 =======
 
+v3.4.10
+- Fix QNX build
+- Fix missing Stop Offer
+- Apply extra fixes to QNX environment
+- Remove key <service, instance> from the offer_commands_
+- COVESA#478: deleted unused param _use_exclusive_proxy
+- Fix code smell related to condition variable
+- COVESA#462: Fix IPv6 Service Discovery
+- Added multicast_mutex to async function that makes use of multicast socket
+- COVESA#479: Allow service_discovery to continue without random_device
+- Fix availability handler sending false on offer
+- Set host/port in vsomeip_sec_client_t whenever possible
+- Use executor_work_guard instead of io_context::work for boost v1.66 and higher
+- Update Windows build
+- Added profile 07 as an option for E2E protection
+- ASIO: use heap-allocation to avoid using garbage data
+- Fix integer underflow in server_endpoint_impl.cpp
+- Cleanup prepare_stop_handlers_
+- Automatic unsubscribe
+- Debounce now works without routingmanagerd running
+- Debouncing: Send last received value after debounce time + X
+- Fix resource deadlock avoided crash
+- Use closure instead of callable struct
+
 v3.4.9
 - Merge COVESA PR447 with support for QNX 7.1
 - Merge COVESA PR470 with changes to not instantiate

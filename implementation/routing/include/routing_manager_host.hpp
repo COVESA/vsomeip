@@ -33,6 +33,7 @@ public:
     virtual session_t get_session(bool _is_request) = 0;
 
     virtual const vsomeip_sec_client_t *get_sec_client() const = 0;
+    virtual void set_sec_client_port(port_t _port) = 0;
 
     virtual const std::string & get_name() const = 0;
     virtual std::shared_ptr<configuration> get_configuration() const = 0;

@@ -102,6 +102,7 @@ public:
                   boost::system::error_code const &_error, std::size_t _bytes);
     void flush_cbk(endpoint_type _key,
             const boost::system::error_code &_error_code);
+    void remove_stop_handler(service_t _service);
 
 protected:
     virtual bool send_intern(endpoint_type _target, const byte_t *_data,

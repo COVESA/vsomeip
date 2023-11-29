@@ -111,6 +111,17 @@ configuration_impl::configuration_impl(const std::string &_path)
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
+
+#ifdef _WIN32
+#if VSOMEIP_BOOST_VERSION < 106600
+    routing_.host_.unicast_ = boost::asio::ip::address::from_string("127.0.0.1");
+#else
+    routing_.host_.unicast_ = boost::asio::ip::make_address("127.0.0.1");
+#endif
+    routing_.host_.port_ = 31490;
+    routing_.guests_.unicast_ = routing_.host_.unicast_;
+    routing_.guests_.ports_[{ ANY_UID, ANY_GID }].emplace(31492, 31999);
+#endif
 }
 
 configuration_impl::configuration_impl(const configuration_impl &_other)
@@ -4083,6 +4094,8 @@ configuration_impl::load_event_debounce(
                its_converter << std::dec << its_value;
                its_converter >> its_debounce->interval_;
            }
+        } else if (its_key == "send_current_value_after") {
+            its_debounce->send_current_value_after_ = (its_value == "true");
         }
     }
 

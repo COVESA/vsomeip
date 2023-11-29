@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -120,17 +120,31 @@ int routingmanagerd_process(bool _is_quiet) {
         if (its_application->is_routing()) {
             its_application->start();
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-            sighandler_thread.join();
+            if (std::this_thread::get_id() != sighandler_thread.get_id()) {
+                if (sighandler_thread.joinable()) {
+                    sighandler_thread.join();
+                }
+            } else {
+                sighandler_thread.detach();
+            }
 #endif
             return 0;
         }
         VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
     }
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
-    stop_sighandler = true;
-    sighandler_condition.notify_one();
-    sighandler_thread.join();
+    {
+        std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
+        stop_sighandler = true;
+        sighandler_condition.notify_one();
+    }    
+    if (std::this_thread::get_id() != sighandler_thread.get_id()) {
+        if (sighandler_thread.joinable()) {
+            sighandler_thread.join();
+        }
+    } else {
+        sighandler_thread.detach();
+    }
 #endif
     return -1;
 }

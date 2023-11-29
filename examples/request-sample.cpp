@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -94,7 +94,13 @@ public:
         app_->clear_all_handler();
         app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         condition_.notify_one();
-        sender_.join();
+        if (std::this_thread::get_id() != sender_.get_id()) {
+            if (sender_.joinable()) {
+                sender_.join();
+            }
+        } else {
+            sender_.detach();
+        }
         app_->stop();
     }
 #endif

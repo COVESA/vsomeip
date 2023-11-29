@@ -44,7 +44,8 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
         its_size += sizeof(filter_->on_change_)
                 + sizeof(filter_->on_change_resets_interval_)
                 + sizeof(filter_->interval_)
-                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t)));
+                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t)))
+                + sizeof(filter_->send_current_value_after_);
     }
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
@@ -78,6 +79,8 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
             _buffer[its_offset] = its_ignore.second;
             its_offset += sizeof(byte_t);
         }
+        _buffer[its_offset] = static_cast<byte_t>(filter_->send_current_value_after_);
+        its_offset += sizeof(filter_->send_current_value_after_);
     }
 }
 
@@ -138,6 +141,9 @@ subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
 
             filter_->ignore_.emplace(std::make_pair(its_key, its_value));
         }
+
+        std::memcpy(&filter_->send_current_value_after_, &_buffer[its_offset], sizeof(filter_->send_current_value_after_));
+        its_offset += sizeof(filter_->send_current_value_after_);
     }
 }
 

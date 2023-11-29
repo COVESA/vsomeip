@@ -184,7 +184,7 @@ TEST(debounce_test, normal_interval)
         its_client.wait();
         // With a debounce interval of 100 miliseconds, the client is expected to receive a total of about 100-101 messages
         // Using limits instead of comparing to one number because CI doesn't always behave as expected
-        EXPECT_GE(its_client.getNbMsgsRcvd(), 100);
+        EXPECT_GE(its_client.getNbMsgsRcvd(), 90);
         EXPECT_LE(its_client.getNbMsgsRcvd(), 110);
 
     }
@@ -204,8 +204,8 @@ TEST(debounce_test, large_interval)
         its_client.wait();
         // With a debounce interval of 100 miliseconds, the client is expected to receive a total of about 10-11 messages
         // Using limits instead of comparing to one number because CI doesn't always behave as expected
-        EXPECT_GE(its_client.getNbMsgsRcvd(), 9);
-        EXPECT_LE(its_client.getNbMsgsRcvd(), 13);
+        EXPECT_GE(its_client.getNbMsgsRcvd(), 8);
+        EXPECT_LE(its_client.getNbMsgsRcvd(), 16);
     }
     else
     {

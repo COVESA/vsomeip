@@ -20,11 +20,11 @@ fi
 FAIL=0
 
 # Start the services
-export VSOMEIP_APPLICATION_NAME=client_id_test_service_four 
+export VSOMEIP_APPLICATION_NAME=client_id_test_service_four
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 4 &
 
-export VSOMEIP_APPLICATION_NAME=client_id_test_service_five 
+export VSOMEIP_APPLICATION_NAME=client_id_test_service_five
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 5 &
 
@@ -41,7 +41,7 @@ do
     wait $job || ((FAIL+=1))
 done
 
-# Check if both exited successfully 
+# Check if both exited successfully
 if [ $FAIL -eq 0 ]
 then
     exit 0

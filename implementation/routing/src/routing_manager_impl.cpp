@@ -409,13 +409,13 @@ bool routing_manager_impl::offer_service(client_t _client,
         if (!insert_offer_command(_service, _instance,
                 uint8_t(protocol::id_e::OFFER_SERVICE_ID),
                 _client, _major, _minor)) {
-            VSOMEIP_INFO << __func__ << " ("
+            VSOMEIP_INFO << "rmi::" << __func__ << " ("
                          << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
                          << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                          << std::hex << std::setw(4) << std::setfill('0') << _instance
                          << ":" << std::dec << int(_major) << "." << std::dec << _minor << "]"
                          << " (" << std::boolalpha << _must_queue << ")"
-                         << " not offering as method was called via erase_offer_command()!";
+                         << " not offering service, because insert_offer_command returned false!";
             return false;
         }
     }
@@ -524,7 +524,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
         if (!insert_offer_command(_service, _instance,
                 uint8_t(protocol::id_e::STOP_OFFER_SERVICE_ID),
                 _client, _major, _minor)) {
-            VSOMEIP_INFO << __func__
+            VSOMEIP_INFO << "rmi::" << __func__ << " ("
                          << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
                          << std::hex << std::setw(4) << std::setfill('0') << _service << "."
                          << std::hex << std::setw(4) << std::setfill('0') << _instance
@@ -659,6 +659,25 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
             its_info->set_endpoint(nullptr, true);
             its_info->set_endpoint(nullptr, false);
             unset_all_eventpayloads(_service, _instance);
+        } else {
+            auto its_eventgroups = find_eventgroups(_service, _instance);
+            for (const auto &eg : its_eventgroups) {
+                auto its_id = eg->get_eventgroup();
+                auto its_events = eg->get_events();
+                bool eg_has_subscribers{false};
+                for (const auto &e : its_events) {
+                    e->remove_subscriber(its_id, _client);
+                    if (!e->get_subscribers().empty()) {
+                        eg_has_subscribers = true;
+                    }
+                }
+                discovery_->unsubscribe(_service, _instance, its_id, _client);
+                if (!eg_has_subscribers) {
+                    for (const auto &e : its_events) {
+                        e->unset_payload(true);
+                    }
+                }
+            }
         }
     } else {
         if (discovery_) {
@@ -1442,6 +1461,11 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service,
             // still offered
             its_copied_info->set_endpoint(std::shared_ptr<endpoint>(), !_reliable);
             discovery_->stop_offer_service(its_copied_info, true);
+            VSOMEIP_INFO << __func__ << " only sending the StopOffer to ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << '.'
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << ']'
+                        << " with reliability (" << std::boolalpha << !_reliable << ')'
+                        << " as the service is still partly offered!";
         }
     }
 
@@ -3769,9 +3793,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                             if (its_client == VSOMEIP_ROUTING_CLIENT) {
                                 // Inconsistency between services_ and local_services_ table detected
                                 // --> cleanup.
-                                VSOMEIP_WARNING << "rmi::set_routing_state (table inconsistency)" << __func__
+                                VSOMEIP_WARNING << "rmi::" << __func__ << " Found table inconsistency for ["
                                                 << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
-                                                << std::hex << std::setw(4) << std::setfill('0') << its_instance.first;
+                                                << std::hex << std::setw(4) << std::setfill('0') << its_instance.first << "]";
 
                                 del_routing_info(its_service.first, its_instance.first, has_reliable, has_unreliable);
 
@@ -3779,6 +3803,13 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                                 auto its_pending_offer = pending_offers_.find(its_service.first);
                                 if (its_pending_offer != pending_offers_.end())
                                     its_pending_offer->second.erase(its_instance.first);
+
+                                // Remove the service from the offer_commands_ and prepare_stop_handlers_ to force the next offer to be processed
+                                offer_commands_.erase(std::make_pair(its_service.first, its_instance.first));
+                                if (has_reliable)
+                                    its_instance.second->get_endpoint(true)->remove_stop_handler(its_service.first);
+                                if (has_unreliable)
+                                    its_instance.second->get_endpoint(false)->remove_stop_handler(its_service.first);    
                             }
                             VSOMEIP_WARNING << "Service "
                                 << std::hex << std::setfill('0')
