@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build_on_ubuntu_183_gcc_x86:
+  build_on_ubuntu_boost_183_gcc_x86:
     runs-on: ubuntu-latest
     steps:
         - name: Ubuntu - Install boost 1.83.0 with gcc and x86
@@ -39,7 +39,7 @@ jobs:
             name: vsomeip
             path: '${{ runner.workspace }}/install/**/*'
 
-  build_on_windows_183_gcc_x86:
+  build_on_windows_boost_183_gcc_x86:
     runs-on: windows-latest
     steps:
     - name: Windows - Install boost 1.83.0 with gcc and x86
