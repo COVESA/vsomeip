@@ -7,92 +7,55 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build_on_ubuntu_boost_183_gcc_x86:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+        - name: Ubuntu - Install boost 1.83.0 with gcc and x86
+          uses: MarkusJx/install-boost@v2.4.4
+          id: ubuntu-gcc-1_83-x86
+          with:
+              boost_version: 1.83.0
+              platform_version: 20.04
+              boost_install_dir: /home/runner
+              toolset: gcc
+              arch: x86
+              cache: true
+
+        - uses: actions/checkout@v3
+
+        - name: install dependencies
+          run: |
+              sudo apt-get update -qq
+              sudo apt-get install -y googletest asciidoc source-highlight doxygen graphviz
+
+        - name: Run CMake
+          run: |
+            cmake -Bbuild \
+            -DBOOST_ROOT=/home/runner/boost/boost/ -DGTEST_ROOT=/usr/src/googletest/googletest/ -DCMAKE_INSTALL_PREFIX=${{ runner.workspace }}/install .
+            cmake --build build -t all build_tests doc install
+
+        - uses: actions/upload-artifact@v2
+          with:
+            name: vsomeip
+            path: '${{ runner.workspace }}/install/**/*'
+
+  build_on_windows_boost_183_gcc_x86:
+    runs-on: windows-latest
+    steps:
+    - name: Windows - Install boost 1.83.0 with gcc and x86
       uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1.83-x86
+      id: windows-gcc-1_83-x86
       with:
           boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
+          platform: windows
+          boost_install_dir: C:\runner
+          toolset: msvc
           arch: x86
-
-    - name: Ubuntu - Install boost 1.83.0 with gcc and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-gcc-1.83-aarch64
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: aarch64
-
-    - name: Ubuntu - Install boost 1.83.0 with clang and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1.83-x86
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: x86
-
-    - name: Ubuntu - Install boost 1.83.0 with clang and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: ubuntu-clang-1.83-aarch64
-      with:
-          boost_version: 1.83.0
-          platform_version: 22.04
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: aarch64
-
-    - name: Windows - Install boost 1.71.0 with gcc and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1.71-x86
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: x86
-
-    - name: Windows - Install boost 1.71.0 with gcc and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1.71-aarch64
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: gcc
-          arch: aarch64
-
-    - name: Windows - Install boost 1.71.0 with clang and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1.71-x86
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: x86
-
-    - name: Windows - Install boost 1.71.0 with clang and aarch64
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-clang-1.71-aarch64
-      with:
-          boost_version: 1.71.0
-          platform_version: windows
-          boost_install_dir: /home/runner/some_directory
-          toolset: clang
-          arch: aarch64
+          cache: true
   
     - uses: actions/checkout@v3
 
-    - name: Show files
-      run: ls -lh wheelhouse
-      shell: bash
+    - name: Run CMake
+      run: |
+          cmake -Bbuild -D BOOST_ROOT=C:\runner\boost/boost\ .
+          cmake --build build
