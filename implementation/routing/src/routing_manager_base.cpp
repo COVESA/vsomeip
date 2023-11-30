@@ -24,7 +24,8 @@ namespace vsomeip_v3 {
 routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         host_(_host),
         io_(host_->get_io()),
-        configuration_(host_->get_configuration())
+        configuration_(host_->get_configuration()),
+        debounce_timer(host_->get_io())
 #ifdef USE_DLT
         , tc_(trace::connector_impl::get())
 #endif
@@ -45,6 +46,88 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         auto its_routing_port = configuration_->get_routing_host_port();
         if (!its_routing_address.is_unspecified() && !its_routing_address.is_multicast()) {
             add_guest(VSOMEIP_ROUTING_CLIENT, its_routing_address, its_routing_port);
+        }
+    }
+}
+
+void routing_manager_base::debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
+    if (!_error) {
+        std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+        if (_event && (_event->get_subscribers().find(_client) != _event->get_subscribers().end()) && _filter) {
+            bool is_elapsed{false};
+            auto its_current = std::chrono::steady_clock::now();
+
+            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    its_current - _filter->last_forwarded_).count();
+            is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                    || elapsed >= _filter->interval_);
+
+            auto debounce_client = debounce_clients_.begin();
+            auto event_id = std::get<3>(debounce_client->second);
+            bool has_update = std::get<1>(debounce_client->second);
+            if (is_elapsed) {
+                if (std::get<0>(debounce_client->second) == _client && has_update) {
+                    _event->notify_one(_client, false);
+                    has_update = false;
+                }
+                elapsed = 0;
+            }
+
+            debounce_clients_.erase(debounce_client);
+
+            auto timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(_filter->interval_ - elapsed);
+            debounce_clients_.emplace(timeout, std::make_tuple(_client, has_update, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
+                            std::placeholders::_1, _event, _client, _filter), event_id));
+        }
+
+        if (debounce_clients_.size() > 0) {
+            debounce_timer.expires_from_now(std::chrono::duration_cast<std::chrono::milliseconds>(debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
+            debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+        }
+    } 
+}
+
+void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const  std::shared_ptr<vsomeip_v3::event> &_event) {
+    if (_filter->send_current_value_after_ == true) {
+        std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+        auto sec = std::chrono::milliseconds(_filter->interval_);
+        auto timeout = std::chrono::steady_clock::now() + sec;                    
+
+        auto elem = debounce_clients_.emplace(timeout, std::make_tuple(_client, false, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
+                std::placeholders::_1, _event, _client, _filter), _event->get_event()));        
+                    
+        if (elem == debounce_clients_.begin()) {
+            debounce_timer.cancel();
+            debounce_timer.expires_from_now(sec);
+            debounce_timer.async_wait(std::get<2>(elem->second));
+        }
+    }
+}
+
+void routing_manager_base::remove_debounce(client_t _client, event_t _event) {
+    std::vector<std::chrono::steady_clock::time_point> temp_client_vector;
+
+    std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+    for (auto &debounce_client: debounce_clients_) {
+        if ((std::get<0>(debounce_client.second) == _client) && (std::get<3>(debounce_client.second) == _event)) {
+            temp_client_vector.push_back(debounce_client.first);
+        }
+    }
+    for (auto &elem: temp_client_vector) {
+        debounce_clients_.erase(elem);
+    }
+}
+
+void routing_manager_base::update_debounce_clients(const std::set<client_t> &_clients, event_t _event) {
+    std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+    for (auto& debounce_client : debounce_clients_) {
+        if (_event == std::get<3>(debounce_client.second)) {
+            std::get<1>(debounce_client.second) = true;
+            for (auto s : _clients) {
+                if (std::get<0>(debounce_client.second) == s) {
+                    std::get<1>(debounce_client.second) = false;
+                }
+            }
         }
     }
 }
@@ -71,6 +154,11 @@ session_t routing_manager_base::get_session(bool _is_request) {
 const vsomeip_sec_client_t *routing_manager_base::get_sec_client() const {
 
     return host_->get_sec_client();
+}
+
+void routing_manager_base::set_sec_client_port(port_t _port) {
+
+	host_->set_sec_client_port(_port);
 }
 
 std::string routing_manager_base::get_client_host() const {
@@ -326,7 +414,7 @@ void routing_manager_base::register_event(client_t _client,
             its_event->set_eventgroups(_eventgroups);
         }
 
-        if (_is_shadow && !_epsilon_change_func) {
+        if ((_is_shadow || is_routing_manager()) && !_epsilon_change_func) {
             std::shared_ptr<debounce_filter_impl_t> its_debounce
                 = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
             if (its_debounce) {
@@ -411,13 +499,34 @@ void routing_manager_base::register_event(client_t _client,
                     }
                     return (is_changed || is_elapsed);
                 };
+
+                // Create a new callback for this client if filter interval is used
+                register_debounce(its_debounce, _client, its_event);
             } else {
-                _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
-                                    const std::shared_ptr<payload> &_new) {
+                if (!_is_shadow && is_routing_manager()) {
+                    _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
+                                        const std::shared_ptr<payload> &_new) {
+                        bool is_change = (_old->get_length() != _new->get_length());
+                        if (!is_change) {
+                            std::size_t its_pos = 0;
+                            const byte_t *its_old_data = _old->get_data();
+                            const byte_t *its_new_data = _new->get_data();
+                            while (!is_change && its_pos < _old->get_length()) {
+                                is_change = (*its_old_data++ != *its_new_data++);
+                                its_pos++;
+                            }
+                        }
+                        return is_change;
+                    };
+                }
+                else {
+                    _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
+                                        const std::shared_ptr<payload> &_new) {
                     (void)_old;
                     (void)_new;
                     return true;
-                };
+                    };
+                }
             }
         }
 
@@ -1129,6 +1238,25 @@ std::shared_ptr<event> routing_manager_base::find_event(service_t _service,
     return its_event;
 }
 
+std::set<std::shared_ptr<eventgroupinfo> >
+routing_manager_base::find_eventgroups(
+        service_t _service, instance_t _instance) const {
+
+    std::set<std::shared_ptr<eventgroupinfo> > its_eventgroups;
+
+    std::lock_guard<std::mutex> its_lock{eventgroups_mutex_};
+    auto found_service = eventgroups_.find(_service);
+    if (found_service != eventgroups_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            for (const auto &e : found_instance->second)
+                its_eventgroups.insert(e.second);
+        }
+    }
+
+    return its_eventgroups;
+}
+
 std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup) const {
@@ -1334,7 +1462,7 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
                 << std::hex << std::setw(4) << std::setfill('0')
                 << get_client()
                 << " has no available serializer. Waiting...";
-        serializer_condition_.wait(its_lock);
+        serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); } );
         VSOMEIP_INFO << __func__ << ": Client "
                         << std::hex << std::setw(4) << std::setfill('0')
                         << get_client()
@@ -1361,7 +1489,7 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
     while (deserializers_.empty()) {
         VSOMEIP_INFO << std::hex << "client " << get_client() <<
                 "routing_manager_base::get_deserializer ~> all in use!";
-        deserializer_condition_.wait(its_lock);
+        deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });
         VSOMEIP_INFO << std::hex << "client " << get_client() <<
                         "routing_manager_base::get_deserializer ~> wait finished!";
     }

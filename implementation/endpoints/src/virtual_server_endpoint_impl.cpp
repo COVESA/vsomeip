@@ -94,6 +94,10 @@ void virtual_server_endpoint_impl::remove_default_target(
     (void)_service;
 }
 
+void virtual_server_endpoint_impl::remove_stop_handler(
+        service_t) {
+}
+
 bool virtual_server_endpoint_impl::get_remote_address(
         boost::asio::ip::address &_address) const {
     (void)_address;

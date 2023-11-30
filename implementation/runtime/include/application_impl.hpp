@@ -16,6 +16,10 @@
 #include <thread>
 #include <vector>
 
+
+#if VSOMEIP_BOOST_VERSION >= 106600
+#include <boost/asio/executor_work_guard.hpp>
+#endif
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/ip/address.hpp>
@@ -141,6 +145,7 @@ public:
     VSOMEIP_EXPORT void set_client(const client_t &_client);
     VSOMEIP_EXPORT session_t get_session(bool _is_request);
     VSOMEIP_EXPORT const vsomeip_sec_client_t *get_sec_client() const;
+    VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
@@ -357,7 +362,12 @@ private:
 
     boost::asio::io_context io_;
     std::set<std::shared_ptr<std::thread> > io_threads_;
+#if VSOMEIP_BOOST_VERSION >= 106600
+    std::shared_ptr<boost::asio::executor_work_guard<
+        boost::asio::io_context::executor_type> > work_;
+#else
     std::shared_ptr<boost::asio::io_context::work> work_;
+#endif
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;

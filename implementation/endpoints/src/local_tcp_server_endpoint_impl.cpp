@@ -47,8 +47,10 @@ local_tcp_server_endpoint_impl::local_tcp_server_endpoint_impl(
     acceptor_.open(_local.protocol(), ec);
     boost::asio::detail::throw_error(ec, "acceptor open");
 
+#ifndef _WIN32
     acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
     boost::asio::detail::throw_error(ec, "acceptor set_option");
+#endif
 
     acceptor_.bind(_local, ec);
     boost::asio::detail::throw_error(ec, "acceptor bind");
@@ -649,7 +651,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                             sec_client_.host
                                 = htonl(uint32_t(its_address.to_v4().to_ulong()));
                         }
-                        sec_client_.port = its_port;
+                        sec_client_.port = htons(its_port);
                         security::sync_client(&sec_client_);
 
                         its_host->on_message(&recv_buffer_[its_start],

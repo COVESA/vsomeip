@@ -43,7 +43,7 @@ do
     wait $job || ((FAIL+=1))
 done
 
-# Check if client and server both exited successfully 
+# Check if client and server both exited successfully
 if [ $FAIL -eq 0 ]
 then
     exit 0

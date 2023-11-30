@@ -1,0 +1,19 @@
+{
+  "unicast" : "@TEST_IP_SLAVE@",
+  "services" :
+  [
+    {
+      "service" : "0xb657",
+      "instance" : "0x0003",
+      "unreliable" : "30503"
+    }
+  ],
+  "service-discovery" :
+   {
+      "enable" : "true",
+      "multicast" : "224.251.192.252",
+      "port" : "30490",
+      "protocol" : "udp",
+      "cyclic_offer_delay" : "1000"
+   }
+}
