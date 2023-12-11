@@ -18,7 +18,7 @@ target_link_libraries(
     vsomeip3
     vsomeip3-cfg
     Threads::Threads
-    ${Boost_LIBRARIES}
+    Boost::system Boost::thread
     ${DL_LIBRARY}
     gtest
     vsomeip_utilities
