@@ -110,8 +110,8 @@ public:
     nl_protocol() {
         proto = 0;
     }
-    nl_protocol(int proto) {
-        this->proto = proto;
+    nl_protocol(int _proto) {
+        proto = _proto;
     }
     /// Obtain an identifier for the type of the protocol.
     int type() const
