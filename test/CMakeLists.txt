@@ -14,8 +14,16 @@ find_package(benchmark)
 ##############################################################################
 # google test
 
-# remove export symbols from the cxx flags
-string(REPLACE "${EXPORTSYMBOLS}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+# remove export symbols from the cxx flags.  This is messy, but there's no `remove_link_flags` function
+get_target_property(os_link_options OS_INTERFACE INTERFACE_LINK_OPTIONS)
+foreach(opt IN ITEMS ${EXPORTSYMBOLS})
+  list(REMOVE_ITEM os_link_options ${opt})
+endforeach()
+unset(opt)
+if(os_link_options)
+  set_target_properties(OS_INTERFACE PROPERTIES INTERFACE_LINK_OPTIONS "${os_link_options}")
+endif()
+unset(os_link_options)
 
 # check for set environment variable
 if(${GTEST_ROOT} STREQUAL "n/a")

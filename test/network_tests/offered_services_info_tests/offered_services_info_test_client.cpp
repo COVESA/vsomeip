@@ -22,7 +22,7 @@
 #ifdef ANDROID
 #include "../../implementation/configuration/include/internal_android.hpp"
 #else
-#include "../../implementation/configuration/include/internal.hpp"
+#include "internal.hpp"
 #endif
 
 #include "offered_services_info_test_globals.hpp"

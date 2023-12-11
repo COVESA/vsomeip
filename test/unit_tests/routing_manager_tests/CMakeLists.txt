@@ -15,10 +15,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 add_executable(${PROJECT_NAME} ${SRCS})
 target_link_libraries(
     ${PROJECT_NAME}
-    vsomeip3
-    vsomeip3-cfg
+    ${VSOMEIP_NAME}
+    ${VSOMEIP_NAME}-cfg
     Threads::Threads
-    ${Boost_LIBRARIES}
+    Boost::system Boost::thread
     ${DL_LIBRARY}
     gtest
     gmock

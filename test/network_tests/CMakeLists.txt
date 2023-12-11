@@ -58,7 +58,7 @@ function(targets_link_default_libraries targets)
     foreach(target ${targets})
         target_link_libraries(${target}
             ${VSOMEIP_NAME}
-            ${Boost_LIBRARIES}
+            Boost::system
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
             ${DLT_LIBRARIES}

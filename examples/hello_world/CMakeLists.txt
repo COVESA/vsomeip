@@ -8,7 +8,7 @@ project (vSomeIPHelloWorld)
 
 find_package(Threads REQUIRED)
 
-set(VSOMEIP_NAME "vsomeip3")
+include(GNUInstallDirs)
 
 # create_target("executable")
 function(create_target executable)
@@ -21,6 +21,10 @@ function(create_target executable)
     target_include_directories(vsomeip_hello_world_${executable} INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
+
+    if(ENABLE_SIGNAL_HANDLING)
+        target_compile_definitions(vsomeip_hello_world_example INTERFACE VSOMEIP_ENABLE_SIGNAL_HANDLING)
+    endif()
 endfunction()
 
 # link_target("executable")
@@ -29,8 +33,6 @@ function(link_target executable)
     target_sources(hello_world_${executable} PRIVATE hello_world_${executable}_main.cpp)
     target_link_libraries(hello_world_${executable} PRIVATE vsomeip_hello_world_${executable} vsomeip3 Threads::Threads)
 endfunction()
-
-include_directories(${VSOMEIP_INCLUDE_DIRS})
 
 create_target("service")
 create_target("client")
