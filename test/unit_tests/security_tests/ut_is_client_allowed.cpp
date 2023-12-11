@@ -22,8 +22,8 @@ namespace {
 
     vsomeip_v3::gid_t invalid_uid = 1;
     vsomeip_v3::gid_t invalid_gid = 1;
-    vsomeip_v3::uid_t ANY_UID = 0xFFFFFFFF;
-    vsomeip_v3::gid_t ANY_GID = 0xFFFFFFFF;
+    vsomeip_v3::uid_t ANY_UID = std::numeric_limits<uid_t>::max();
+    vsomeip_v3::gid_t ANY_GID = std::numeric_limits<uid_t>::max();
 
     vsomeip_v3::gid_t deny_uid  = 9999;
     vsomeip_v3::gid_t deny_gid  = 9999;
