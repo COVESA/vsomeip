@@ -15,18 +15,20 @@ file (GLOB INC include/common/*.hpp, include/common/vsomeip_app_utilities/*.hpp)
 # Declare the library
 # ----------------------------------------------------------------------------
 add_library (
-    ${PROJECT_NAME} SHARED
+    vsomeip_utilities
     ${SRC}
     ${INC}
 )
 
-TARGET_LINK_LIBRARIES (
-    ${PROJECT_NAME}
+target_link_libraries (
+    vsomeip_utilities
     PUBLIC
         ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
+    PRIVATE
+        Boost::system
+        Boost::filesystem
+    INTERFACE
+        DL_INTERFACE
 )
 
 # ----------------------------------------------------------------------------
@@ -34,11 +36,11 @@ TARGET_LINK_LIBRARIES (
 # by this library
 # ----------------------------------------------------------------------------
 target_include_directories (
-    ${PROJECT_NAME}
+    vsomeip_utilities
     PUBLIC include
     PRIVATE src
 )
 
 if (MSVC)
-	set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+	set_target_properties(vsomeip_utilities PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif ()
