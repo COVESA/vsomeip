@@ -5,11 +5,22 @@
 
 #include <vsomeip/constants.hpp>
 
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#include <pthread.h>
+#endif
+
 #include <chrono>
 #include <iomanip>
 #include <forward_list>
 #include <random>
 #include <thread>
+
+#include <chrono>
+
+#ifdef __QNX__
+#include <string_view>
+#include <libgen.h>
+#endif
 
 #include <vsomeip/internal/logger.hpp>
 
@@ -71,7 +82,7 @@ service_discovery_impl::service_discovery_impl(
       find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
       find_debounce_timer_(_host->get_io()),
       main_phase_timer_(_host->get_io()),
-      is_suspended_(false),
+      is_suspended_(true), // Start suspended: this is different than upstream as we start before a network interface is available
       is_diagnosis_(false),
       last_msg_received_timer_(_host->get_io()),
       last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY +
@@ -80,8 +91,7 @@ service_discovery_impl::service_discovery_impl(
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
 
-service_discovery_impl::~service_discovery_impl() {
-}
+service_discovery_impl::~service_discovery_impl() = default;
 
 boost::asio::io_context &service_discovery_impl::get_io() {
     return io_;
@@ -158,16 +168,64 @@ service_discovery_impl::init() {
             + (cyclic_offer_delay_ / 10);
 }
 
-void
-service_discovery_impl::start() {
+auto wait_for_interface() -> bool {
+#ifdef __QNX__
+    static std::string_view constexpr path = VSOMEIP_NETWORK_INT_READY_FILE;
+    if (path.empty()) {
+        VSOMEIP_ERROR << "No network interface signal path defined, service discovery will effectively be disabled.";
+        return false;
+    }
+    // Indefinite delay.  If the condition we're waiting for doesn't occur then
+    // we are in an error state and thus should not continue.
+    static auto constexpr delay_ms = std::numeric_limits<int>::max();
+    static int constexpr poll_ms = 50;
+
+    auto const start = std::chrono::steady_clock::now();
+    VSOMEIP_DEBUG << "Waiting (blocking) indefinitely on network interface (signal=" << path << ")";
+    auto const r = waitfor(path.data(), delay_ms, poll_ms);
+    auto const end = std::chrono::steady_clock::now();
+    auto diff = end - start;
+    if (0 == r)
+    {
+        VSOMEIP_DEBUG << "Waited (blocked) for network interface (signal=" << path << ") for " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms.";
+        return true;
+    } else {
+        VSOMEIP_ERROR << "Timedout waiting for network interface (signal=" << path << ") after " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms: errno=" << errno << ", msg=" << strerror(errno);
+        return false;
+    }
+#else
+    // Omitting a Linux implementation.
+    //
+    // Currently the Linux implementations use netlink in routing_manager_impl to
+    // receive network events, so this function wouldnt be expected to be used. In
+    // theory the QNX implementation could be modified to use pps (if available)
+    // to mirror the Linux functionality, which would avoid this function entirely.
+    //
+    // If however an implementation on linux wanted to use a pattern similar to
+    // this, inotify would likely be the best candidate to monitor the filesystem
+    // for this file.
+  return true;
+#endif
+}
+
+void service_discovery_impl::do_start_sd(std::function<void(void)> on_complete, bool wait_for_if)
+{
+    bool wait_for_result = false;
+    if (wait_for_if)
+    {
+        wait_for_result = wait_for_interface();
+    }
+
+    std::lock_guard<std::mutex> its_lock(endpoint_mutex_);
     if (!endpoint_) {
         endpoint_ = host_->create_service_discovery_endpoint(
                 sd_multicast_, port_, reliable_);
         if (!endpoint_) {
-            VSOMEIP_ERROR << "Couldn't start service discovery";
+            VSOMEIP_ERROR << "Couldn't start service discovery" << (wait_for_result ? "" : " - likely due to timeing out waiting for a network interface");
             return;
         }
     }
+
     {
         std::lock_guard<std::mutex> its_lock(sessions_received_mutex_);
         sessions_received_.clear();
@@ -185,13 +243,10 @@ service_discovery_impl::start() {
                 i.second->set_sent_counter(0);
             }
         }
-
-        // rejoin multicast group
         if (endpoint_ && !reliable_) {
-            auto its_server_endpoint
-                = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
-            if (its_server_endpoint)
-                its_server_endpoint->join(sd_multicast_);
+            // rejoin multicast group
+            dynamic_cast<udp_server_endpoint_impl*>(
+                    endpoint_.get())->join(sd_multicast_);
         }
     }
     is_suspended_ = false;
@@ -199,6 +254,50 @@ service_discovery_impl::start() {
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
     start_ttl_timer();
+
+    on_complete();
+}
+
+void
+service_discovery_impl::start(std::function<void(void)> on_routing_started) {
+#if defined(__QNX__)
+    auto* const use_async_sd = getenv(VSOMEIP_ENV_USE_ASYNCHRONOUS_SD);
+#else
+    // Linux/Android uses netlink, so there's less need for this
+    // asynchroneous service discovery
+    const char* use_async_sd = nullptr;
+#endif
+
+    if (use_async_sd)
+    {
+        // Perform the SD setup in a new thread, and use a wait in that block
+        // to wait for the network to be available
+        VSOMEIP_DEBUG << "Starting service discovery using separate thread";
+        endpoint_getter_thread_ = std::thread(&service_discovery_impl::do_start_sd, this, on_routing_started, true);
+        endpoint_getter_thread_.detach();
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+        {
+            auto err = pthread_setname_np(endpoint_getter_thread_.native_handle(), "sd_start");
+            if (err) {
+                VSOMEIP_ERROR << "Could not rename SD thread: " << errno << ":" << strerror(errno);
+            }
+        }
+#endif
+    } else {
+        // Perform the SD setup in the current thread (synchronously), and
+        // if VSOMEIP_ENV_WAIT_FOR_INTERFACE exists use a wait in that block
+        // to wait for the network to be available.  Note that
+        // VSOMEIP_ENV_WAIT_FOR_INTERFACE mostly exists for performance
+        // testing.
+
+#if defined(__QNX__)
+        auto* const wait_for_interface_env = getenv(VSOMEIP_ENV_WAIT_FOR_INTERFACE);
+#else
+        const char* wait_for_interface_env = nullptr;
+#endif
+        VSOMEIP_DEBUG << "Starting service discovery using main thread" << (wait_for_interface_env ? ", will block for network interface" : ", will assume network interface pre-exists");
+        do_start_sd(on_routing_started, wait_for_interface_env != nullptr);
+    }
 }
 
 void
@@ -3508,6 +3607,7 @@ service_discovery_impl::on_last_msg_received_timer_expired(
                 std::dec << last_msg_received_timer_timeout_.count() << "ms.";
 
         // Rejoin multicast group
+        std::lock_guard<std::mutex> its_lock(endpoint_mutex_);
         if (endpoint_ && !reliable_) {
             auto its_server_endpoint
                 = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
@@ -3518,7 +3618,7 @@ service_discovery_impl::on_last_msg_received_timer_expired(
         }
         {
             boost::system::error_code ec;
-            std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+            std::lock_guard<std::mutex> its_lock_inner(last_msg_received_timer_mutex_);
             last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
             last_msg_received_timer_.async_wait(
                     std::bind(

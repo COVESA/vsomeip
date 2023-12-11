@@ -236,7 +236,7 @@ void routing_manager_impl::start() {
     netlink_connector_->start();
 #else
     {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        std::lock_guard its_lock(pending_sd_offers_mutex_);
         start_ip_routing();
     }
 #endif
@@ -448,7 +448,7 @@ bool routing_manager_impl::offer_service(client_t _client,
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+        std::lock_guard its_lock(pending_sd_offers_mutex_);
         if (if_state_running_) {
             init_service_info(_service, _instance, true);
         } else {
@@ -542,7 +542,7 @@ void routing_manager_impl::stop_offer_service(client_t _client,
     }
     if (is_local) {
         {
-            std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+            std::lock_guard its_lock(pending_sd_offers_mutex_);
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end(); ) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
@@ -3881,7 +3881,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
 
                 // start processing of SD messages (incoming remote offers should lead to new subscribe messages)
-                discovery_->start();
+                discovery_->start([]() { });
 
                 // Trigger initial offer phase for relevant services
                 for (const auto &its_service : get_offered_services()) {
@@ -3950,7 +3950,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
 void routing_manager_impl::on_net_interface_or_route_state_changed(
         bool _is_interface, const std::string &_if, bool _available) {
-    std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+    std::lock_guard its_lock(pending_sd_offers_mutex_);
     auto log_change_message = [&_if, _available, _is_interface](bool _warning) {
         std::stringstream ss;
         ss << (_is_interface ? "Network interface" : "Route") << " \"" << _if
@@ -4000,26 +4000,30 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
 }
 
 void routing_manager_impl::start_ip_routing() {
-#if defined(_WIN32) || defined(__QNX__)
+#if defined(_WIN32)
     if_state_running_ = true;
 #endif
 
-    if (routing_ready_handler_) {
-        routing_ready_handler_();
-    }
+    auto on_routing_started = [this]() -> void
+    {
+        std::lock_guard its_lock(pending_sd_offers_mutex_);
+
+        if_state_running_ = true;
+        for (auto const& its_service : pending_sd_offers_) {
+            init_service_info(its_service.first, its_service.second, true);
+        }
+        pending_sd_offers_.clear();
+
+        routing_running_ = true;
+        VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
+    };
+
     if (discovery_) {
-        discovery_->start();
+        discovery_->start(on_routing_started);
     } else {
         init_routing_info();
+        on_routing_started();
     }
-
-    for (auto its_service : pending_sd_offers_) {
-        init_service_info(its_service.first, its_service.second, true);
-    }
-    pending_sd_offers_.clear();
-
-    routing_running_ = true;
-    VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
 void

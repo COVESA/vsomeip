@@ -495,7 +495,7 @@ private:
     bool if_state_running_;
     bool sd_route_set_;
     bool routing_running_;
-    std::mutex pending_sd_offers_mutex_;
+    std::recursive_mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
 #if defined(__linux__) || defined(ANDROID)
     std::shared_ptr<netlink_connector> netlink_connector_;

@@ -12,6 +12,7 @@
 #include <set>
 #include <forward_list>
 #include <atomic>
+#include <thread>
 #include <tuple>
 
 #include <boost/asio/steady_timer.hpp>
@@ -67,7 +68,12 @@ public:
     std::recursive_mutex& get_subscribed_mutex();
 
     void init();
-    void start();
+    void start(std::function<void(void)> on_routing_started);
+
+    // Function that'll do the startup work of SD, either in a new thread or
+    // in the current thread depending on the user's choice
+    void do_start_sd(std::function<void(void)> on_complete, bool wait_for_if);
+
     void stop();
 
     void request_service(service_t _service, instance_t _instance,
@@ -367,7 +373,9 @@ private:
     boost::asio::ip::address unicast_;
     uint16_t port_;
     bool reliable_;
+    std::mutex endpoint_mutex_;
     std::shared_ptr<endpoint> endpoint_;
+    std::thread endpoint_getter_thread_;
 
     std::shared_ptr<serializer> serializer_;
     std::shared_ptr<deserializer> deserializer_;

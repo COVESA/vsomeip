@@ -30,7 +30,7 @@ public:
     virtual boost::asio::io_context &get_io() = 0;
 
     virtual void init() = 0;
-    virtual void start() = 0;
+    virtual void start(std::function<void(void)> on_routing_started) = 0;
     virtual void stop() = 0;
 
     virtual void request_service(service_t _service, instance_t _instance,

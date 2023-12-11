@@ -284,7 +284,7 @@ On startup the following environment variables are read out:
    Please note that <application> must be valid as part of an environment variable.
 * `VSOMEIP_MANDATORY_CONFIGURATION_FILES`: vsomeip allows to specify mandatory configuration
    files to speed-up application startup. While mandatory configuration files are read by all
-   applications, all other configuration files are only read by the application that is 
+   applications, all other configuration files are only read by the application that is
    responsible for connections to external devices. If this configuration variable is not set,
    the default mandatory files vsomeip_std.json, vsomeip_app.json and vsomeip_plc.json are used.
 * `VSOMEIP_CLIENTSIDELOGGING`: Set this variable to an empty string to enable logging of
@@ -295,6 +295,16 @@ On startup the following environment variables are read out:
    4-digit hexadecimal notation, optionally followed by dot-separted InstanceID). For example:
    `Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001 f013.000a 1001 1002"`
    `Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001:f013.000a:1001:1002"`
+
+For systems without a netlink service (_e.g._ QNX):
+* `VSOMEIP_USE_ASYNCHRONOUS_SD`: (QNX only) Enables service discovery to run asynchronously
+   on startup and to (if enabled) wait on network availability.
+* `VSOMEIP_WAIT_FOR_INTERFACE`: Iff service discovery is running
+   asynchronously, this env var will cause it to block on network availability
+   (mostly for use in a testing scenario.)
+* `VSOMEIP_NETWORK_INT_READY_FILE`: Full path of the file that service
+   discovery is waiting on (waiting for the creation of) to indicate that a
+   network is available.
 
 NOTE: If the file/folder that is configured by `VSOMEIP_CONFIGURATION` does _not_ exist,
 the default configuration locations will be used.
