@@ -509,22 +509,22 @@ void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
     //
     // join_func must be called with multicast_mutex_ being hold!
     //
-    auto join_func = [this](const std::string& _address) {
+    auto join_func = [this](const std::string& inner_address) {
         try {
-            VSOMEIP_INFO << "Joining to multicast group " << _address << " from "
+            VSOMEIP_INFO << "Joining to multicast group " << inner_address << " from "
                           << local_.address().to_string() << ":" << local_.port() << " endpoint " << this;
 
             auto its_endpoint_host = endpoint_host_.lock();
             if (its_endpoint_host) {
                 multicast_option_t its_join_option {shared_from_this(), true,
-                                                    boost::asio::ip::make_address(_address)};
+                                                    boost::asio::ip::make_address(inner_address)};
                 its_endpoint_host->add_multicast_option(its_join_option);
             }
 
-            joined_[_address] = false;
+            joined_[inner_address] = false;
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "udp_server_endpoint_impl::join" << ":" << e.what()
-                          << " address: " << _address << ":" << local_.port() << " endpoint " << this;
+                          << " address: " << inner_address << ":" << local_.port() << " endpoint " << this;
         }
     };
 
@@ -1020,7 +1020,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
         boost::asio::ip::multicast::join_group its_join_option;
         {
-            std::lock_guard<std::mutex> its_lock(local_mutex_);
+            std::lock_guard<std::mutex> its_lock_inner(local_mutex_);
             if (is_v4_) {
                 its_join_option = boost::asio::ip::multicast::join_group(_address.to_v4(),
                                                                          local_.address().to_v4());

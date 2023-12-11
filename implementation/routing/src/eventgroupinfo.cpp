@@ -334,7 +334,7 @@ eventgroupinfo::is_remote_subscription_limit_reached(
         if (find_address != remote_subscribers_count_.end()) {
             if (find_address->second >= max_remote_subscribers_) {
                 VSOMEIP_WARNING << ": remote subscriber limit [" << std::dec
-                        << (uint32_t)max_remote_subscribers_ << "] to ["
+                        << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
                         << std::hex << std::setfill('0')
                         << std::setw(4) << service_ << "."
                         << std::setw(4) << instance_ << "."
