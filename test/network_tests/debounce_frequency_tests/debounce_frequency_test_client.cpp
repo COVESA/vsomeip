@@ -13,7 +13,7 @@
 // Flag the desired event availability
 void test_client::on_availability(vsomeip::service_t service_, vsomeip::instance_t instance_, bool _is_available) {
     if (_is_available && service_ == DEBOUNCE_SERVICE && instance_ == DEBOUNCE_INSTANCE) {
-        std::unique_lock<std::mutex> lk(mutex);
+        std::unique_lock lk{mutex};
         availability = true;
         condition_availability.notify_one();
     }
@@ -29,12 +29,12 @@ void test_client::on_message(const std::shared_ptr<vsomeip::message>& _message) 
     VSOMEIP_DEBUG << s.str();
 
     if (DEBOUNCE_SERVICE == _message->get_service() && DEBOUNCE_EVENT == _message->get_method()) {
-        std::unique_lock<std::mutex> lk(event_counter_mutex);
+        std::unique_lock lk{event_counter_mutex};
         event_1_recv_messages++;
         return;
     }
     if (DEBOUNCE_SERVICE == _message->get_service() && DEBOUNCE_EVENT_2 == _message->get_method()) {
-        std::unique_lock<std::mutex> lk(event_counter_mutex);
+        std::unique_lock lk{event_counter_mutex};
         event_2_recv_messages++;
         return;
     }
@@ -57,19 +57,19 @@ test_client::test_client(const char* app_name_, const char* app_id_) : vsomeip_u
 }
 
 int test_client::was_event1_recv() {
-    std::unique_lock<std::mutex> lk(event_counter_mutex);
+    std::unique_lock lk{event_counter_mutex};
 
     return event_1_recv_messages;
 }
 
 int test_client::was_event2_recv() {
-    std::unique_lock<std::mutex> lk(event_counter_mutex);
+    std::unique_lock lk{event_counter_mutex};
 
     return event_2_recv_messages;
 }
 
 void test_client::send_request() {
-    std::unique_lock<std::mutex> lk(mutex);
+    std::unique_lock lk{mutex};
     // Only send the requests when the service availability is secured
     if (condition_availability.wait_for(lk, std::chrono::seconds(20), [this] { return availability; })) {
 

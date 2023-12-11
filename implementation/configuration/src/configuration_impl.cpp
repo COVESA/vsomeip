@@ -2797,7 +2797,7 @@ const std::string& configuration_impl::get_logfile() const {
 }
 
 vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
-    std::unique_lock<std::mutex> its_lock(mutex_loglevel_);
+    std::unique_lock its_lock{mutex_loglevel_};
     return loglevel_;
 }
 

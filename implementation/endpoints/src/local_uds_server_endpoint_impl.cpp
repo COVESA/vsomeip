@@ -873,7 +873,7 @@ void local_uds_server_endpoint_impl::print_status() {
 
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock{c.second->get_socket_lock()};
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
 

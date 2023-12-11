@@ -1365,7 +1365,7 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
 
 std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
-    std::unique_lock<std::mutex> its_lock(serializer_mutex_);
+    std::unique_lock its_lock{serializer_mutex_};
     while (serializers_.empty()) {
         VSOMEIP_INFO << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                      << " has no available serializer. Waiting...";
@@ -1389,7 +1389,7 @@ void routing_manager_base::put_serializer(const std::shared_ptr<serializer>& _se
 
 std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
-    std::unique_lock<std::mutex> its_lock(deserializer_mutex_);
+    std::unique_lock its_lock{deserializer_mutex_};
     while (deserializers_.empty()) {
         VSOMEIP_INFO << std::hex << "client " << get_client() << "routing_manager_base::get_deserializer ~> all in use!";
         deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });

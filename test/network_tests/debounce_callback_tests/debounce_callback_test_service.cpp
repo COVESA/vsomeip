@@ -43,7 +43,7 @@ void debounce_test_service::stop() {
 void debounce_test_service::run() {
 
     {
-        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        std::unique_lock its_lock{run_mutex_};
         auto its_result = run_condition_.wait_for(its_lock, std::chrono::seconds(10));
         if (its_result == std::cv_status::timeout)
             return;
