@@ -55,7 +55,7 @@ add_executable(someip_tp_test_msg_sender
 
 # Link vsomeip-sd to test executable.
 target_link_libraries(someip_tp_test_msg_sender
-    ${VSOMEIP_NAME}-sd
+    vsomeip3-sd
 )
 
 # Add build dependencies and link libraries to executables.
