@@ -32,6 +32,9 @@ uint16_t profile_05::compute_crc(const profile_config &_config, const e2e_buffer
     return computed_crc;
 }
 
+bool profile_05::is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer) {
+    return ((_config.data_length_ / 8) + 1U <= _buffer.size());
+}
 } // namespace profile05
 } // namespace e2e
 } // namespace vsomeip_v3

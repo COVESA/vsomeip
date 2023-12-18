@@ -13,8 +13,10 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile05 {
 
-void
-protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+
+    (void)_instance;
+
     std::lock_guard<std::mutex> lock(protect_mutex_);
 
     if (_instance > VSOMEIP_E2E_PROFILE05_MAX_INSTANCE) {
@@ -22,29 +24,28 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         return;
     }
 
-    if (verify_inputs(_buffer)) {
-        write_8(_buffer, get_counter(_instance), 2);
+    if (profile_05::is_buffer_length_valid(config_, _buffer)) {
+        // write the current Counter value in Data
+        write_counter(_buffer, get_counter(_instance), 2);
+
+        // compute the CRC
         uint16_t its_crc = profile_05::compute_crc(config_, _buffer);
-        write_16(_buffer, its_crc, 0);
+
+        write_crc(_buffer, its_crc, 0);
+
+        // increment the Counter (new value will be used in the next invocation of E2E_P05Protect()),
         increment_counter(_instance);
     }
 }
 
-bool
-protector::verify_inputs(e2e_buffer &_buffer) {
-
-    return (_buffer.size() >= config_.min_data_length_
-            && _buffer.size() <= config_.max_data_length_);
-}
-
 void
-protector::write_8(e2e_buffer &_buffer, uint8_t _data, size_t _index) {
+protector::write_counter(e2e_buffer &_buffer, uint8_t _data, size_t _index) {
 
     _buffer[config_.offset_ + _index] = _data;
 }
 
 void
-protector::write_16(e2e_buffer &_buffer, uint16_t _data, size_t _index) {
+protector::write_crc(e2e_buffer &_buffer, uint16_t _data, size_t _index) {
 
     _buffer[config_.offset_ + _index] = VSOMEIP_WORD_BYTE0(_data);
     _buffer[config_.offset_ + _index + 1] = VSOMEIP_WORD_BYTE1(_data);

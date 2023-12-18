@@ -30,9 +30,8 @@ private:
     uint8_t get_counter(instance_t _instance) const;
     void increment_counter(instance_t _instance);
 
-    void write_8(e2e_buffer &_buffer, uint8_t _data, size_t _index);
-    void write_16(e2e_buffer &_buffer, uint16_t _data, size_t _index);
-    void write_32(e2e_buffer &_buffer, uint32_t _data, size_t _index);
+    void write_counter(e2e_buffer &_buffer, uint8_t _data, size_t _index);
+    void write_crc(e2e_buffer &_buffer, uint16_t _data, size_t _index);
 
 private:
     profile_config config_;

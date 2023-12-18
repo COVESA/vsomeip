@@ -17,6 +17,8 @@ namespace profile05 {
 void profile_05_checker::check(const e2e_buffer &_buffer, instance_t _instance,
         e2e::profile_interface::check_status_t &_generic_check_status) {
 
+    (void)_instance;
+
     std::lock_guard<std::mutex> lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
@@ -25,7 +27,7 @@ void profile_05_checker::check(const e2e_buffer &_buffer, instance_t _instance,
         return;
     }
 
-    if (verify_input(_buffer)) {
+    if (profile_05::is_buffer_length_valid(config_, _buffer)) {
         uint8_t its_received_counter;
         if (read_8(_buffer, its_received_counter, 2)) {
             uint16_t its_received_crc;
@@ -43,14 +45,6 @@ void profile_05_checker::check(const e2e_buffer &_buffer, instance_t _instance,
             }
         }
     }
-}
-
-bool
-profile_05_checker::verify_input(const e2e_buffer &_buffer) const {
-
-    auto its_length = _buffer.size();
-    return (its_length >= config_.min_data_length_
-            && its_length <= config_.max_data_length_);
 }
 
 bool

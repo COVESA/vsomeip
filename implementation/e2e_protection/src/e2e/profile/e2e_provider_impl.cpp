@@ -192,6 +192,7 @@ vsomeip_v3::e2e::profile05::profile_config
 e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
 
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
+    uint16_t data_length = read_value_from_config<uint16_t>(_config, "data_length");
 
     size_t offset = read_value_from_config<size_t>(_config, "crc_offset");
     if (offset % 8)
@@ -199,17 +200,11 @@ e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_con
             " (" << offset << ")";
     offset /= 8;
 
-    size_t min_data_length = read_value_from_config<size_t>(_config,
-            "min_data_length", 0);
-
-    size_t max_data_length = read_value_from_config<size_t>(_config,
-            "max_data_length", size_t(0xffff));
-
     uint16_t max_delta_counter = read_value_from_config<uint16_t>(_config,
             "max_delta_counter", uint16_t(0xffff));
 
-    return e2e::profile05::profile_config(data_id, offset,
-            min_data_length, max_data_length, max_delta_counter);
+    return e2e::profile05::profile_config(data_id, data_length,
+            offset, max_delta_counter);
 }
 
 template<>
