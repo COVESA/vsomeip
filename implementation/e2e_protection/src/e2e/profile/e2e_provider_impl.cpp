@@ -18,6 +18,10 @@
 #include "../../../../e2e_protection/include/e2e/profile/profile04/profile_04.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile04/protector.hpp"
 
+#include "../../../../e2e_protection/include/e2e/profile/profile05/checker.hpp"
+#include "../../../../e2e_protection/include/e2e/profile/profile05/profile_05.hpp"
+#include "../../../../e2e_protection/include/e2e/profile/profile05/protector.hpp"
+
 #include "../../../../e2e_protection/include/e2e/profile/profile_custom/checker.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile_custom/profile_custom.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile_custom/protector.hpp"
@@ -83,6 +87,11 @@ bool e2e_provider_impl::add_configuration(std::shared_ptr<cfg::e2e> config)
 
     if (config->profile == "P04") {
         process_e2e_profile<profile04::profile_config, profile04::profile_04_checker, profile04::protector>(config);
+        return true;
+    }
+
+    if (config->profile == "P05") {
+        process_e2e_profile<profile05::profile_config, profile05::profile_05_checker, profile05::protector>(config);
         return true;
     }
 
@@ -176,6 +185,26 @@ e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_con
 
     return e2e::profile04::profile_config(data_id, offset,
             min_data_length, max_data_length, max_delta_counter);
+}
+
+template<>
+vsomeip_v3::e2e::profile05::profile_config
+e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
+
+    uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
+    uint16_t data_length = read_value_from_config<uint16_t>(_config, "data_length");
+
+    size_t offset = read_value_from_config<size_t>(_config, "crc_offset");
+    if (offset % 8)
+        VSOMEIP_ERROR << "Offset in E2E P05 configuration must be multiple of 8"
+            " (" << offset << ")";
+    offset /= 8;
+
+    uint16_t max_delta_counter = read_value_from_config<uint16_t>(_config,
+            "max_delta_counter", uint16_t(0xffff));
+
+    return e2e::profile05::profile_config(data_id, data_length,
+            offset, max_delta_counter);
 }
 
 template<>

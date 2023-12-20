@@ -36,6 +36,8 @@ class buffer_view {
 
     const uint8_t *end(void) const { return data_ptr_ + data_length_; }
 
+    size_t data_length(void) const { return data_length_; }
+
 private:
     const uint8_t *data_ptr_;
     size_t data_length_;
