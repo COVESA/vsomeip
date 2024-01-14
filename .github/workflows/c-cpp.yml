@@ -34,29 +34,9 @@ jobs:
         - name: Build CMake
           run: cmake --build build -t all build_tests doc install
 
-        - uses: actions/upload-artifact@v2
-          with:
-            name: vsomeip
-            path: '${{ runner.workspace }}/install/**/*'
+        - name: Run test
+          run: |
+              cd ./build
+              make test
 
-  build_on_windows_boost_183_gcc_x86:
-    runs-on: windows-latest
-    steps:
-    - name: Windows - Install boost 1.83.0 with gcc and x86
-      uses: MarkusJx/install-boost@v2.4.4
-      id: windows-gcc-1_83-x86
-      with:
-          boost_version: 1.83.0
-          platform: windows
-          boost_install_dir: C:\runner
-          toolset: msvc
-          arch: x86
-          cache: true
-  
-    - uses: actions/checkout@v3
 
-    - name: Run CMake
-      run: cmake -Bbuild -D BOOST_ROOT=C:\runner\boost/boost\ .
-
-    - name: Build CMake 
-      run: cmake --build build
