@@ -12,10 +12,18 @@ body:
     validations:
       required: true
   - type: input
+    id: boost
+    attributes:
+      label: Boost Version
+      placeholder: "1.71"
+    validations:
+      required: true
+  - type: input
     id: environment
     attributes:
       label: Environment
       placeholder: "Windows 11, Ubuntu 22.04, Embedded Linux, QNX, ..."
+      description: "*or compiler used"
     validations:
       required: true
   - type: textarea
