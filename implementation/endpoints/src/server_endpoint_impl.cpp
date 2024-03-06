@@ -300,10 +300,8 @@ bool server_endpoint_impl<Protocol>::send_intern(
             _data[VSOMEIP_METHOD_POS_MAX]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
-    if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
-        get_configured_times_from_endpoint(its_service, its_method,
+    get_configured_times_from_endpoint(its_service, its_method,
                 &its_debouncing, &its_retention);
-    }
 
     // STEP 4: Check if the passenger enters an empty train
     const std::pair<service_t, method_t> its_identifier
