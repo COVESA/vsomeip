@@ -21,7 +21,10 @@ libvsomeip_cfg_srcs = [
 ]
 
 libvsomeip_e2e_srcs = [
-    "implementation/e2e_protection/src/*.cpp",
+    "implementation/e2e_protection/src/crc/*.cpp",
+    "implementation/e2e_protection/src/e2exf/*.cpp",
+    "implementation/e2e_protection/src/buffer/*.cpp",
+    "implementation/e2e_protection/src/e2e/profile/**/*.cpp",
 ]
 
 libvsomeip_sd_srcs = [
