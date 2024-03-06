@@ -311,10 +311,6 @@ bool server_endpoint_impl<Protocol>::send_intern(
     if (its_data.train_->passengers_.empty()) {
         its_data.train_->departure_ = its_now + its_retention;
     } else {
-        if (its_data.train_->passengers_.end()
-                != its_data.train_->passengers_.find(its_identifier)) {
-            must_depart = true;
-        } else {
             // STEP 5: Check whether the current message fits into the current train
             if (its_data.train_->buffer_->size() + _size > endpoint_impl<Protocol>::max_message_size_) {
                 must_depart = true;
@@ -342,7 +338,6 @@ bool server_endpoint_impl<Protocol>::send_intern(
                         }
                     }
                 }
-            }
         }
     }
 
