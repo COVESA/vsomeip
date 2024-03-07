@@ -313,30 +313,11 @@ bool server_endpoint_impl<Protocol>::send_intern(
             if (its_data.train_->buffer_->size() + _size > endpoint_impl<Protocol>::max_message_size_) {
                 must_depart = true;
             } else {
-                // STEP 6: Check debouncing time
-                if (its_debouncing > its_data.train_->minimal_max_retention_time_) {
-                    // train's latest departure would already undershot new
-                    // passenger's debounce time
-                    must_depart = true;
-                } else {
-                    if (its_now + its_debouncing > its_data.train_->departure_) {
-                        // train departs earlier as the new passenger's debounce
-                        // time allows
-                        must_depart = true;
-                    } else {
-                        // STEP 7: Check maximum retention time
-                        if (its_retention < its_data.train_->minimal_debounce_time_) {
-                            // train's earliest departure would already exceed
-                            // the new passenger's retention time.
-                            must_depart = true;
-                        } else {
-                            if (its_now + its_retention < its_data.train_->departure_) {
-                                its_data.train_->departure_ = its_now + its_retention;
-                            }
-                        }
+                    if (its_now + its_retention < its_data.train_->departure_) {
+                        its_data.train_->departure_ = its_now + its_retention;
                     }
-                }
-        }
+
+            }
     }
 
     // STEP 8: if necessary, send current buffer and create a new one
