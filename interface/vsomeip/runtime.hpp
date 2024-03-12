@@ -74,6 +74,12 @@ public:
      * \param _name Name of the application on the system.
      *
      */
+#if defined(WIN32) || defined(WIN64)
+    // standard data types, for more lossely coupled for linking in windows
+    virtual std::shared_ptr<application> create_application_std(
+            const char *_name) = 0;
+#endif
+
     virtual std::shared_ptr<application> create_application(
             const std::string &_name = "") = 0;
 

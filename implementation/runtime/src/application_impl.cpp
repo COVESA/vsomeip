@@ -1390,6 +1390,21 @@ void application_impl::unregister_message_handler(service_t _service,
     }
 }
 
+#if defined(WIN32) || defined(WIN64)
+void application_impl::offer_event_std(service_t _service, instance_t _instance,
+           event_t _notifier, uint16_t _groups[],
+           event_type_e _type,
+           std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+           bool _update_on_change,
+           const epsilon_change_func_t &_epsilon_change_func,
+           reliability_type_e _reliability) {
+    std::set<eventgroup_t> its_groups;
+    for(uint16_t i = 0; i < sizeof(_groups)/sizeof(_groups[0]); i++)
+        its_groups.insert(_groups[i]);
+    offer_event(_service, _instance, _notifier, its_groups, _type, _cycle, _change_resets_cycle, _update_on_change, _epsilon_change_func, _reliability);
+}
+#endif
+
 void application_impl::offer_event(service_t _service, instance_t _instance,
            event_t _notifier, const std::set<eventgroup_t> &_eventgroups,
            event_type_e _type,
@@ -1429,6 +1444,18 @@ void application_impl::stop_offer_event(service_t _service, instance_t _instance
    if (routing_)
        routing_->unregister_event(client_, _service, _instance, _event, true);
 }
+
+#if defined(WIN32) || defined(WIN64)
+void application_impl::request_event_std(service_t _service, instance_t _instance,
+           event_t _event, uint16_t _groups[],
+           event_type_e _type, reliability_type_e _reliability) {
+       
+        std::set<eventgroup_t> its_groups;
+        for(uint16_t i = 0; i < sizeof(_groups)/sizeof(_groups[0]); i++)
+            its_groups.insert(_groups[i]);
+        request_event(_service, _instance, _event, its_groups, _type,_reliability);
+}
+#endif
 
 void application_impl::request_event(service_t _service, instance_t _instance,
            event_t _event, const std::set<eventgroup_t> &_eventgroups,

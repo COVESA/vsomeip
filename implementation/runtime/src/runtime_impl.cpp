@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iostream>
+
 #include <vsomeip/defines.hpp>
 
 #include "../include/application_impl.hpp"
@@ -32,6 +34,13 @@ std::shared_ptr<runtime> runtime_impl::get() {
 
 runtime_impl::~runtime_impl() {
 }
+
+#if defined(WIN32) || defined(WIN64)
+std::shared_ptr<application> runtime_impl::create_application_std(const char *_name)
+{
+    return create_application(std::string(_name), "");
+}
+#endif
 
 std::shared_ptr<application> runtime_impl::create_application(
         const std::string &_name) {
