@@ -348,7 +348,7 @@ protected:
     std::string env_;
 
     std::mutex routing_state_mutex_;
-    routing_state_e routing_state_;
+    routing_state_e routing_state_{routing_state_e::RS_RUNNING};
 
 private:
     services_t services_;
