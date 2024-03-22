@@ -166,6 +166,14 @@ void udp_client_endpoint_impl::connect() {
                 }
                 return;
             }
+
+            endpoint_type its_endpoint = socket_->local_endpoint(its_error);
+            if (!its_error) {
+                local_.port(its_endpoint.port());
+            } else {
+                VSOMEIP_WARNING << "udp_client_endpoint::connect: "
+                                << "couldn't get local_endpoint: " << its_error.message();
+            }
         }
 
         state_ = cei_state_e::CONNECTING;
