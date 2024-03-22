@@ -11,12 +11,12 @@
 #if defined ANDROID || defined __ANDROID__
 #include "android/log.h"
 #define LOG_TAG "hello_world_service"
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n"), (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n"), (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
+#define LOG_INF(...) std::fprintf(stdout, __VA_ARGS__), std::fprintf(stdout, "\n"), (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
+#define LOG_ERR(...) std::fprintf(stderr, __VA_ARGS__), std::fprintf(stderr, "\n"), (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
 #else
 #include <cstdio>
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n")
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n")
+#define LOG_INF(...) std::fprintf(stdout, __VA_ARGS__), std::fprintf(stdout, "\n")
+#define LOG_ERR(...) std::fprintf(stderr, __VA_ARGS__), std::fprintf(stderr, "\n")
 #endif
 
 static vsomeip::service_t service_id = 0x1111;
@@ -32,9 +32,9 @@ public:
     hello_world_service() :
                     rtm_(vsomeip::runtime::get()),
                     app_(rtm_->create_application()),
-                    stop_(false),
-                    stop_thread_(std::bind(&hello_world_service::stop, this))
+                    stop_(false)
     {
+        stop_thread_ = std::thread{&hello_world_service::stop, this};
     }
 
     ~hello_world_service()

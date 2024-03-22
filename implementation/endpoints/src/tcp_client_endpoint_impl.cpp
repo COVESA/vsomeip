@@ -178,7 +178,7 @@ void tcp_client_endpoint_impl::connect() {
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
             if (setsockopt(socket_->native_handle(),
-                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
+                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), socklen_t(its_device.size())) == -1) {
                 VSOMEIP_WARNING << "TCP Client: Could not bind to device \"" << its_device << "\"";
             }
         }

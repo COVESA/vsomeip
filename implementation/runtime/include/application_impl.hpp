@@ -309,7 +309,7 @@ private:
     std::shared_ptr<sync_handler> get_next_handler();
     void reschedule_availability_handler(const std::shared_ptr<sync_handler> &_handler);
     bool has_active_dispatcher();
-    bool is_active_dispatcher(const std::thread::id &_id);
+    bool is_active_dispatcher(const std::thread::id &_id) const;
     void remove_elapsed_dispatchers();
 
     void shutdown();
@@ -436,7 +436,7 @@ private:
     // Dispatcher threads that are running
     std::set<std::thread::id> running_dispatchers_;
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
-    std::mutex dispatcher_mutex_;
+    mutable std::mutex dispatcher_mutex_;
 
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;

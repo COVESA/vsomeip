@@ -104,17 +104,13 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
 #endif
 }
 
-local_uds_server_endpoint_impl::~local_uds_server_endpoint_impl() {
-
-}
+local_uds_server_endpoint_impl::~local_uds_server_endpoint_impl() = default;
 
 bool local_uds_server_endpoint_impl::is_local() const {
-
     return true;
 }
 
 void local_uds_server_endpoint_impl::start() {
-
     std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
     if (acceptor_.is_open()) {
         connection::ptr new_connection = connection::create(

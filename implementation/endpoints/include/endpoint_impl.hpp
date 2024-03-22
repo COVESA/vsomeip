@@ -34,6 +34,9 @@ public:
                   std::uint32_t _max_message_size,
                   configuration::endpoint_queue_limit_t _queue_limit,
                   const std::shared_ptr<configuration>& _configuration);
+    endpoint_impl(endpoint_impl<Protocol> const&) = delete;
+    endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
+
     virtual ~endpoint_impl();
 
     void enable_magic_cookies();

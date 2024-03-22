@@ -29,7 +29,6 @@ public:
         instance_(_instance),
         app_(vsomeip::runtime::get()->create_application("vsomeip_ctrl")),
         wait_service_available_(true),
-        send_thread_(std::bind(&vsomeip_sender::send, this)),
         service_id_(0x0),
         method_id_(0x0),
         length_(0),
@@ -39,6 +38,8 @@ public:
         return_code_(vsomeip::return_code_e::E_UNKNOWN),
         wait_for_answer_(true)
     {
+        send_thread_ = std::thread{&vsomeip_sender::send, this};
+
         if (user_message_.size() < VSOMEIP_PAYLOAD_POS) {
             VSOMEIP_ERROR << "Provided message is to short, min. length "
                     "is 16 Bytes, exiting.";
@@ -117,11 +118,11 @@ public:
             << std::setw(4) << _response->get_instance() << "]:";
         VSOMEIP_INFO << "########## begin message";
         VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
-                << _response->get_service() 
+                << _response->get_service()
                 << std::hex << std::setw(4) << std::setfill('0')
                 << _response->get_method()
                 << " # service id / instance id";
-        VSOMEIP_INFO << std::hex << std::setw(8)  << std::setfill('0') 
+        VSOMEIP_INFO << std::hex << std::setw(8)  << std::setfill('0')
                 << _response->get_length() << " # length";
         VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
                 << _response->get_client()
@@ -243,7 +244,7 @@ private:
         }
 
         if (use_tcp_ && user_message_.size() > VSOMEIP_MAX_TCP_MESSAGE_SIZE) {
-            VSOMEIP_WARNING << "Max allowed message size for TCP is " 
+            VSOMEIP_WARNING << "Max allowed message size for TCP is "
                     << std::dec << VSOMEIP_MAX_TCP_MESSAGE_SIZE
                     << ". Provided message size is: " << user_message_.size();
         }
