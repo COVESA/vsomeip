@@ -2752,11 +2752,11 @@ service_discovery_impl::check_ipv4_address(
     //Check unallowed ipv4 address
     bool is_valid = true;
 
-    static const boost::asio::ip::address_v4::bytes_type its_unicast_address =
+    const boost::asio::ip::address_v4::bytes_type its_unicast_address =
             unicast_.to_v4().to_bytes();
     const boost::asio::ip::address_v4::bytes_type endpoint_address =
             its_address.to_v4().to_bytes();
-    static const boost::asio::ip::address_v4::bytes_type its_netmask =
+    const boost::asio::ip::address_v4::bytes_type its_netmask =
             configuration_->get_netmask().to_v4().to_bytes();
 
     //same address as unicast address of DUT not allowed
