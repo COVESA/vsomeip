@@ -127,6 +127,12 @@ service_discovery_impl::init() {
     repetitions_max_ = configuration_->get_sd_repetitions_max();
     cyclic_offer_delay_ = std::chrono::milliseconds(
             configuration_->get_sd_cyclic_offer_delay());
+    remaining_find_initial_debounce_reps_ = 0;
+    find_initial_debounce_reps_ = configuration_->get_sd_find_initial_debounce_reps();
+    find_initial_debounce_time_ = std::chrono::milliseconds(
+            configuration_->get_sd_find_initial_debounce_time());
+    find_debounce_time_ = std::chrono::milliseconds(
+            configuration_->get_sd_find_debounce_time());
     offer_debounce_time_ = std::chrono::milliseconds(
             configuration_->get_sd_offer_debounce_time());
     ttl_timer_runtime_ = cyclic_offer_delay_ / 2;
@@ -2758,6 +2764,8 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
     boost::system::error_code ec;
     if (_first_start) {
         find_debounce_timer_.expires_from_now(initial_delay_, ec);
+    } else if (remaining_find_initial_debounce_reps_ > 0) {
+        find_debounce_timer_.expires_from_now(find_initial_debounce_time_, ec);
     } else {
         find_debounce_timer_.expires_from_now(find_debounce_time_, ec);
     }
@@ -2765,6 +2773,17 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
         VSOMEIP_ERROR<< "service_discovery_impl::start_find_debounce_timer "
         "setting expiry time of timer failed: " << ec.message();
     }
+
+    if (_first_start) {
+        // Reset the number of remaining initial debounce cycles for find
+        remaining_find_initial_debounce_reps_ = find_initial_debounce_reps_;
+    } else {
+        if (remaining_find_initial_debounce_reps_ > 0) {
+            // Decrement the number of remaining initial debounce cycles for find
+            remaining_find_initial_debounce_reps_--;
+        }
+    }
+
     find_debounce_timer_.async_wait(
             std::bind(
                     &service_discovery_impl::on_find_debounce_timer_expired,
