@@ -195,6 +195,8 @@ public:
     VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_reps() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
 
@@ -539,6 +541,8 @@ protected:
     int32_t sd_request_response_delay_;
     std::uint32_t sd_offer_debounce_time_;
     std::uint32_t sd_find_debounce_time_;
+    uint8_t sd_find_initial_debounce_reps_;
+    std::uint32_t sd_find_initial_debounce_time_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -587,6 +591,8 @@ protected:
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS,
@@ -608,7 +614,7 @@ protected:
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
         ET_INITIAL_ROUTING_STATE,
-        ET_MAX = 47
+        ET_MAX = 49
     };
 
     bool is_configured_[ET_MAX];
