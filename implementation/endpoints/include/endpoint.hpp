@@ -22,7 +22,7 @@ public:
     typedef std::function<void()> error_handler_t;
     typedef std::function<void(const std::shared_ptr<endpoint>&, service_t)> prepare_stop_handler_t;
 
-    virtual ~endpoint() {}
+    virtual ~endpoint();
 
     virtual void start() = 0;
     virtual void prepare_stop(const prepare_stop_handler_t &_handler,

@@ -38,7 +38,7 @@ typedef create_plugin_func (*plugin_init_func)();
  */
 class VSOMEIP_IMPORT_EXPORT_PLUGIN plugin {
 public:
-    virtual ~plugin() {}
+    virtual ~plugin();
 
     virtual uint32_t get_plugin_version() const = 0;
     virtual const std::string &get_plugin_name() const = 0;
@@ -59,15 +59,15 @@ public:
         type_ = _type;
     }
 
-    const std::string &get_plugin_name() const {
+    const std::string &get_plugin_name() const override {
         return name_;
     }
 
-    uint32_t get_plugin_version() const {
+    uint32_t get_plugin_version() const override {
         return version_;
     }
 
-    plugin_type_e get_plugin_type() const {
+    plugin_type_e get_plugin_type() const override {
         return type_;
     }
 
