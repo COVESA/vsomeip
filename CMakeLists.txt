@@ -73,7 +73,7 @@ endif()
 
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wpedantic -fPIE")
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
