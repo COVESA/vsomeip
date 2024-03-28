@@ -17,7 +17,7 @@ class configuration;
 
 class configuration_plugin {
 public:
-    virtual ~configuration_plugin() = default;
+    virtual ~configuration_plugin();
     virtual std::shared_ptr<configuration> get_configuration(
             const std::string &_name, const std::string &_path) = 0;
 };

@@ -3,8 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <vsomeip/plugin.hpp>
 #include <vsomeip/runtime.hpp>
 
+#include "../../configuration/include/configuration_plugin.hpp"
+#include "../../endpoints/include/client_endpoint.hpp"
+#include "../../endpoints/include/endpoint.hpp"
 #include "../include/runtime_impl.hpp"
 
 namespace vsomeip_v3 {
@@ -21,4 +25,17 @@ std::shared_ptr<runtime> runtime::get() {
     return runtime_impl::get();
 }
 
-} // namespace vsomeip_v3
+// non-inline destructors to make typeinfo of the type visible outside the shared library boundary
+plugin::~plugin() {
+}
+
+endpoint::~endpoint() {
+}
+
+client_endpoint::~client_endpoint() {
+}
+
+configuration_plugin::~configuration_plugin() {
+}
+
+}  // namespace vsomeip_v3
