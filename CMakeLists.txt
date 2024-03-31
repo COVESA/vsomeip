@@ -196,7 +196,7 @@ include_directories(SYSTEM
 )
 endif ()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-undefined -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
 find_package(PkgConfig)
 
@@ -289,6 +289,7 @@ file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/runtime/src/*.cpp"
     "implementation/security/src/*.cpp"
     "implementation/utility/src/*.cpp"
+    "implementation/configuration/src/configuration_plugin.cpp"
 )
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
 list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")
