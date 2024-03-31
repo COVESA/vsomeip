@@ -67,7 +67,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
-    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
+    set(EXPORTSYMBOLS "")
     set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
 endif()
 

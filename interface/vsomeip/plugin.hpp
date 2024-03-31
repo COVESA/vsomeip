@@ -39,6 +39,8 @@ typedef create_plugin_func (*plugin_init_func)();
  */
 class VSOMEIP_IMPORT_EXPORT_PLUGIN plugin {
 public:
+
+    // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
     virtual ~plugin();
 
     virtual uint32_t get_plugin_version() const = 0;

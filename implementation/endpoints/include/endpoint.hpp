@@ -22,6 +22,7 @@ public:
     typedef std::function<void()> error_handler_t;
     typedef std::function<void(const std::shared_ptr<endpoint>&, service_t)> prepare_stop_handler_t;
 
+    // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
     virtual ~endpoint();
 
     virtual void start() = 0;
