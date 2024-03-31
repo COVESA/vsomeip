@@ -196,7 +196,7 @@ include_directories(SYSTEM
 )
 endif ()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-undefined -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
 find_package(PkgConfig)
 
