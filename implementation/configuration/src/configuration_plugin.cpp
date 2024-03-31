@@ -6,11 +6,9 @@
 #include "../include/configuration_plugin.hpp"
 
 namespace vsomeip_v3 {
-namespace cfg {
 
 // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
 configuration_plugin::~configuration_plugin() {
 }
 
-}  // namespace cfg
 }  // namespace vsomeip_v3
