@@ -6,8 +6,8 @@
 #ifndef VSOMEIP_V3_CONFIGURATION_PLUGIN_HPP_
 #define VSOMEIP_V3_CONFIGURATION_PLUGIN_HPP_
 
-#include <memory>
 #include <string>
+#include <memory>
 
 #define VSOMEIP_CONFIG_PLUGIN_VERSION              1
 
@@ -17,8 +17,7 @@ class configuration;
 
 class configuration_plugin {
 public:
-    // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
-    virtual ~configuration_plugin();
+    virtual ~configuration_plugin() = default;
     virtual std::shared_ptr<configuration> get_configuration(
             const std::string &_name, const std::string &_path) = 0;
 };

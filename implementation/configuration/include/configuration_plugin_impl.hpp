@@ -28,7 +28,9 @@ public:
     virtual ~configuration_plugin_impl();
 
     std::shared_ptr<configuration> get_configuration(const std::string &_name,
-            const std::string &_path);
+            const std::string &_path) override;
+
+     void* get_plugin_impl_ptr() override;
 
 private:
     std::mutex mutex_;

@@ -12,8 +12,7 @@ namespace vsomeip_v3 {
 
 class client_endpoint : public virtual endpoint {
 public:
-    // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
-    virtual ~client_endpoint();
+    virtual ~client_endpoint() {}
 
     virtual bool get_remote_address(boost::asio::ip::address &_address) const = 0;
     virtual std::uint16_t get_remote_port() const = 0;

@@ -145,6 +145,14 @@ bool application_impl::init() {
         if (its_plugin) {
             auto its_configuration_plugin
                 = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
+
+                if(its_configuration_plugin == nullptr) {
+                    its_configuration_plugin = its_plugin->get_ptr<configuration_plugin>();
+                }
+
+            std::cerr << "get_ptr!" << (its_configuration_plugin != nullptr)<< std::endl;
+
+
             if (its_configuration_plugin) {
                 configuration_ = its_configuration_plugin->get_configuration(name_, path_);
                 VSOMEIP_INFO << "Configuration module loaded.";

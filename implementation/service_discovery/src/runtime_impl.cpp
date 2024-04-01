@@ -24,6 +24,12 @@ runtime_impl::runtime_impl()
 runtime_impl::~runtime_impl() {
 }
 
+void *runtime_impl::get_plugin_impl_ptr() {
+    auto plugin =  dynamic_cast<runtime *>(this);
+    return plugin;
+}
+
+
 std::shared_ptr<service_discovery>
 runtime_impl::create_service_discovery(service_discovery_host *_host,
         std::shared_ptr<configuration> _configuration) const {

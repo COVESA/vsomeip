@@ -39,13 +39,26 @@ typedef create_plugin_func (*plugin_init_func)();
  */
 class VSOMEIP_IMPORT_EXPORT_PLUGIN plugin {
 public:
-
-    // non-inline destructors to make typeinfo of the type visible outside the shared library boundary
-    virtual ~plugin();
+    virtual ~plugin() {}
 
     virtual uint32_t get_plugin_version() const = 0;
     virtual const std::string &get_plugin_name() const = 0;
     virtual plugin_type_e get_plugin_type() const = 0;
+
+    virtual void *get_plugin_impl_ptr() = 0;
+
+    template <typename T>
+    std::shared_ptr<T> get_ptr() {
+        T *configuration_plugin_ptr = reinterpret_cast<T *>(get_plugin_impl_ptr());
+
+        std::shared_ptr<T> plugin_sp(configuration_plugin_ptr, [](T *) {
+        });
+
+        std::shared_ptr<T> ret_ptr = std::dynamic_pointer_cast<T>(plugin_sp);
+        printf("xxxxxxxx222222222:%d,%p,%p,%p\n", ret_ptr != nullptr, ret_ptr.get(), get_plugin_impl_ptr(), this);
+
+        return ret_ptr;
+    }
 };
 
 template<class Plugin_>

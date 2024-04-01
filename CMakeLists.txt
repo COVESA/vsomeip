@@ -67,7 +67,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
-    set(EXPORTSYMBOLS "")
+    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
     set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
 endif()
 
@@ -289,7 +289,6 @@ file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/runtime/src/*.cpp"
     "implementation/security/src/*.cpp"
     "implementation/utility/src/*.cpp"
-    "implementation/configuration/src/configuration_plugin.cpp"
 )
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
 list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")

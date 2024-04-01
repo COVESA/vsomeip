@@ -18,6 +18,14 @@ configuration_plugin_impl::configuration_plugin_impl()
             plugin_type_e::CONFIGURATION_PLUGIN) {
 }
 
+void *configuration_plugin_impl::get_plugin_impl_ptr() {
+    auto its_configuration_plugin =  dynamic_cast<configuration_plugin *>(this);
+
+    printf("nullptr == configuration_plugin_p:%d\n", its_configuration_plugin == nullptr);
+
+    return its_configuration_plugin;
+}
+
 configuration_plugin_impl::~configuration_plugin_impl() {
 }
 
