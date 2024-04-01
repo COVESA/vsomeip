@@ -76,9 +76,6 @@ e2e_provider_impl::~e2e_provider_impl()
 void* e2e_provider_impl::get_plugin_impl_ptr()
 {
     auto e2e_provider_plugin =  dynamic_cast<e2e_provider *>(this);
-
-    printf("nullptr == configuration_plugin_p:%d\n", e2e_provider_plugin == nullptr);
-
     return e2e_provider_plugin;
 }
 

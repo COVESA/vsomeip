@@ -21,7 +21,7 @@ public:
     void * get_plugin_impl_ptr() override;
     std::shared_ptr<service_discovery> create_service_discovery(
             service_discovery_host *_host,
-            std::shared_ptr<configuration> _configuration) const;
+            std::shared_ptr<configuration> _configuration) const override;
 };
 
 } // namespace sd

@@ -20,13 +20,8 @@ class service_discovery_host;
 
 class runtime {
 public:
-    virtual ~runtime()
-#ifndef ANDROID
-    {}
-#else
-    ;
-#endif
-
+    virtual ~runtime() {}
+ 
     virtual std::shared_ptr<service_discovery> create_service_discovery(
             service_discovery_host *_host,
             std::shared_ptr<configuration> _configuration) const = 0;

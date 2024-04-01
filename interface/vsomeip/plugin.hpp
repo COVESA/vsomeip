@@ -54,10 +54,7 @@ public:
         std::shared_ptr<T> plugin_sp(configuration_plugin_ptr, [](T *) {
         });
 
-        std::shared_ptr<T> ret_ptr = std::dynamic_pointer_cast<T>(plugin_sp);
-        printf("xxxxxxxx222222222:%d,%p,%p,%p\n", ret_ptr != nullptr, ret_ptr.get(), get_plugin_impl_ptr(), this);
-
-        return ret_ptr;
+        return std::dynamic_pointer_cast<T>(plugin_sp);
     }
 };
 

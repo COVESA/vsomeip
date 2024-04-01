@@ -67,12 +67,6 @@
 
 namespace vsomeip_v3 {
 
-#ifdef ANDROID
-namespace sd {
-runtime::~runtime() {}
-}
-#endif
-
 routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
         routing_manager_base(_host),
         version_log_timer_(_host->get_io()),
@@ -170,8 +164,19 @@ void routing_manager_impl::init() {
                 plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY);
         if (its_plugin) {
             VSOMEIP_INFO << "Service Discovery module loaded.";
-            discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this, configuration_);
-            discovery_->init();
+            auto runtime_plugin =  std::dynamic_pointer_cast<sd::runtime>(its_plugin);
+            if (nullptr == runtime_plugin) {
+                runtime_plugin = its_plugin->get_ptr<sd::runtime>();
+            }
+
+            if (nullptr == runtime_plugin) {
+                VSOMEIP_ERROR << "Invalid Service Discovery module!" << std::endl;
+                std::exit(EXIT_FAILURE);
+            } else {
+                discovery_ = runtime_plugin->create_service_discovery(this, configuration_);
+                discovery_->init();
+            }
+
         } else {
             VSOMEIP_ERROR << "Service Discovery module could not be loaded!";
             std::exit(EXIT_FAILURE);

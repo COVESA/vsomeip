@@ -146,12 +146,9 @@ bool application_impl::init() {
             auto its_configuration_plugin
                 = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
 
-                if(its_configuration_plugin == nullptr) {
-                    its_configuration_plugin = its_plugin->get_ptr<configuration_plugin>();
-                }
-
-            std::cerr << "get_ptr!" << (its_configuration_plugin != nullptr)<< std::endl;
-
+            if (its_configuration_plugin == nullptr) {
+                its_configuration_plugin = its_plugin->get_ptr<configuration_plugin>();
+            }
 
             if (its_configuration_plugin) {
                 configuration_ = its_configuration_plugin->get_configuration(name_, path_);
@@ -368,8 +365,15 @@ bool application_impl::init() {
                 if (its_application_plugin) {
                     VSOMEIP_INFO << "Client 0x" << std::hex << get_client()
                             << " Loading plug-in library: " << its_library << " succeeded!";
-                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                            on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
+
+                    auto application_plugin_t =  std::dynamic_pointer_cast<application_plugin>(its_application_plugin);
+                    if (nullptr == application_plugin_t) {
+                        application_plugin_t = its_application_plugin->get_ptr<application_plugin>();
+                    }
+
+                    if (nullptr != application_plugin_t) {
+                        application_plugin_t->on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
+                    }
                 }
             }
         }
@@ -488,9 +492,15 @@ void application_impl::start() {
         for (const auto& its_library : its_app_plugin_info->second) {
             auto its_application_plugin = plugin_manager::get()->get_plugin(
                     plugin_type_e::APPLICATION_PLUGIN, its_library);
+                    
             if (its_application_plugin) {
-                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                        on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
+                auto application_plugin_t = std::dynamic_pointer_cast<application_plugin>(its_application_plugin);
+                if (nullptr == application_plugin_t) {
+                    application_plugin_t = its_application_plugin->get_ptr<application_plugin>();
+                }
+                if (nullptr != application_plugin_t) {
+                    application_plugin_t->on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
+                }
             }
         }
 
@@ -577,8 +587,13 @@ void application_impl::stop() {
             auto its_application_plugin = plugin_manager::get()->get_plugin(
                     plugin_type_e::APPLICATION_PLUGIN, its_library);
             if (its_application_plugin) {
-                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                        on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                auto application_plugin_t =  std::dynamic_pointer_cast<application_plugin>(its_application_plugin);
+                if (nullptr == application_plugin_t) {
+                    application_plugin_t = its_application_plugin->get_ptr<application_plugin>();
+                }
+                if (nullptr != application_plugin_t) {
+                    application_plugin_t->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                }
             }
         }
 
