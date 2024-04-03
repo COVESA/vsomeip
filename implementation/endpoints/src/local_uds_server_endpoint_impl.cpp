@@ -104,8 +104,6 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
 #endif
 }
 
-local_uds_server_endpoint_impl::~local_uds_server_endpoint_impl() = default;
-
 bool local_uds_server_endpoint_impl::is_local() const {
     return true;
 }
