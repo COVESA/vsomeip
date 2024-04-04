@@ -72,7 +72,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
         if (setsockopt(unicast_socket_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), socklen_t{its_device.size()}) == -1) {
+                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
             VSOMEIP_WARNING << "UDP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
