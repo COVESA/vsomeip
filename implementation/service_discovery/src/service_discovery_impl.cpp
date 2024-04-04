@@ -871,7 +871,7 @@ service_discovery_impl::create_eventgroup_entry(
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _instance << "."
                 << std::setw(4) << _eventgroup << "] "
-                << +static_cast<uint16_t>(_reliability_type);
+                << static_cast<uint16_t>(_reliability_type);
         return its_data;
     }
     std::shared_ptr<eventgroupentry_impl> its_entry, its_other;
@@ -1545,7 +1545,7 @@ service_discovery_impl::process_offerservice_serviceentry(
                                     << std::setw(4) << _instance << "."
                                     << std::setw(4) << eg << "]"
                                     << " using reliability type:  "
-                                    << std::setw(4) << +static_cast<uint16_t>(offer_type);
+                                    << std::setw(4) << static_cast<uint16_t>(offer_type);
                         its_info->set_reliability(offer_type);
                     }
                 }
@@ -1949,7 +1949,7 @@ service_discovery_impl::process_eventgroupentry(
                     << ": SOME/IP length field in SubscribeEventGroup message header: ["
                     << std::dec << _entry->get_owning_message()->get_someip_length()
                     << "] bytes, is shorter than length of deserialized message: ["
-                    << +static_cast<uint32_t>(_entry->get_owning_message()->get_length()) << "] bytes. "
+                    << static_cast<uint32_t>(_entry->get_owning_message()->get_length()) << "] bytes. "
                     << its_sender.to_string(ec) << " session: "
                     << std::hex << std::setw(4) << std::setfill('0') << its_session;
             return;
@@ -2334,7 +2334,7 @@ service_discovery_impl::handle_eventgroup_subscription(
                 << std::setw(4) << _instance << "."
                 << std::setw(4) << _eventgroup << "]"
                 << " not valid: Event configuration ("
-                << +static_cast<std::uint32_t>(_info->get_reliability())
+                << static_cast<std::uint32_t>(_info->get_reliability())
                 << ") does not match the provided endpoint options: "
                 << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
                 << _second_address.to_string(ec) << ":" << _second_port;
@@ -2357,14 +2357,14 @@ service_discovery_impl::handle_eventgroup_subscription(
         boost::system::error_code ec;
         // TODO: Add session id
         VSOMEIP_ERROR << __func__
-                << ": Requested major version:[" << +static_cast<uint32_t>(_major)
+                << ": Requested major version:[" << static_cast<uint32_t>(_major)
                 << "] in subscription to service: ["
                 << std::hex << std::setfill('0')
                 << std::setw(4) << _service << "."
                 << std::setw(4) << _instance << "."
                 << std::setw(4) << _eventgroup << "]"
                 << " does not match with services major version:["
-                << +static_cast<uint32_t>(_info->get_major()) << "] subscriber: "
+                << static_cast<uint32_t>(_info->get_major()) << "] subscriber: "
                 << _first_address.to_string(ec) << ":" << std::dec << _first_port;
         if (_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, _clients);
