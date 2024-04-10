@@ -50,7 +50,7 @@ public:
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
 
-    virtual ~local_uds_server_endpoint_impl();
+    virtual ~local_uds_server_endpoint_impl() = default;
 
     void start();
     void stop();

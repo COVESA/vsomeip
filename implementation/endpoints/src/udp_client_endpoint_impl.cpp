@@ -67,7 +67,7 @@ void udp_client_endpoint_impl::connect() {
                     << get_address_port_remote();
         }
         socket_->set_option(boost::asio::socket_base::receive_buffer_size(
-                udp_receive_buffer_size_), its_error);
+                static_cast<int>(udp_receive_buffer_size_)), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "udp_client_endpoint_impl::connect: couldn't set "
                     << "SO_RCVBUF: " << its_error.message()
