@@ -306,10 +306,6 @@ bool server_endpoint_impl<Protocol>::send_intern(
     if (target_train->passengers_.empty()) {
         target_train->departure_ = its_retention;
     } else {
-        if (target_train->passengers_.end()
-                != target_train->passengers_.find(its_identifier)) {
-            must_depart = true;
-        } else {
             // STEP 5: Check whether the current message fits into the current train
             if (target_train->buffer_->size() + _size > endpoint_impl<Protocol>::max_message_size_) {
                 must_depart = true;
@@ -318,7 +314,6 @@ bool server_endpoint_impl<Protocol>::send_intern(
                         target_train->departure_ = its_retention;
                     }
             }
-        }
     }
 
     // STEP 8: if necessary, send current buffer and create a new one
