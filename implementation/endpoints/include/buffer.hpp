@@ -55,6 +55,9 @@ struct train {
         departure_ = departure_timer_->expires_from_now();
         boost::system::error_code ec;
         departure_timer_->cancel(ec);
+        if (departure_.count() < 0) {
+            departure_ = std::chrono::nanoseconds::zero();
+        }
     }
 };
 
