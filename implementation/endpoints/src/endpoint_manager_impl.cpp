@@ -1091,7 +1091,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(
             auto found_reliability = found_instance->second.find(_reliable);
             if (found_reliability != found_instance->second.end()) {
                 its_endpoint_def = found_reliability->second;
-                its_remote_address = its_endpoint_def->get_address();
+                std::size_t pos = its_endpoint_def->get_address().to_string().find('%');
+                its_remote_address = boost::asio::ip::make_address(its_endpoint_def->get_address().to_string().substr(0,pos));
                 its_remote_port = its_endpoint_def->get_port();
             }
         }
