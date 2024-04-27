@@ -691,6 +691,16 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     its_service = register_event.get_service();
                     its_instance = register_event.get_instance();
 
+                    // check if this is an unknown instance id in case of dynamic instances
+                    if (!configuration_->is_registered_service(its_service, its_instance)){
+                        bool success = configuration_->add_service_instance(its_service, its_instance);
+                        if(!success){
+                            VSOMEIP_WARNING << "Add service instance for unknown instance id failed: ["
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_instance << "]";
+                        }
+                    }
+
                     if (register_event.is_provided()
                             && !configuration_->is_offered_remote(its_service, its_instance)) {
                         continue;
