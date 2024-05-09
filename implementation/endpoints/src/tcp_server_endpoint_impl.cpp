@@ -253,7 +253,7 @@ void tcp_server_endpoint_impl::remove_connection(
     }
 }
 
-void tcp_server_endpoint_impl::accept_cbk(connection::ptr_connection,
+void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
         boost::system::error_code const &_error) {
 
     if (!_error) {
