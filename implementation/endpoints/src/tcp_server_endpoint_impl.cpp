@@ -93,7 +93,7 @@ void tcp_server_endpoint_impl::start() {
             acceptor_.async_accept(new_connection->get_socket(),
                     std::bind(&tcp_server_endpoint_impl::accept_cbk,
                             std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
-                                    shared_from_this()), std::move(new_connection),
+                                    shared_from_this()), new_connection
                             std::placeholders::_1));
         }
     }
@@ -253,7 +253,7 @@ void tcp_server_endpoint_impl::remove_connection(
     }
 }
 
-void tcp_server_endpoint_impl::accept_cbk(const connection::ptr&& _connection,
+void tcp_server_endpoint_impl::accept_cbk(connection::ptr_connection,
         boost::system::error_code const &_error) {
 
     if (!_error) {

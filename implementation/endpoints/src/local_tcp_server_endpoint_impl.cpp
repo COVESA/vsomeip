@@ -98,7 +98,7 @@ void local_tcp_server_endpoint_impl::start() {
                     std::dynamic_pointer_cast<
                         local_tcp_server_endpoint_impl
                     >(shared_from_this()),
-                    std::move(new_connection),
+                    new_connection,
                     std::placeholders::_1
                 )
             );
@@ -223,7 +223,7 @@ void local_tcp_server_endpoint_impl::remove_connection(
 }
 
 void local_tcp_server_endpoint_impl::accept_cbk(
-        const connection::ptr&& _connection, boost::system::error_code const &_error) {
+        connection::ptr _connection, boost::system::error_code const &_error) {
     if (_error != boost::asio::error::bad_descriptor
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
