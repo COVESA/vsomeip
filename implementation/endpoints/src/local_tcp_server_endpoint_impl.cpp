@@ -223,7 +223,7 @@ void local_tcp_server_endpoint_impl::remove_connection(
 }
 
 void local_tcp_server_endpoint_impl::accept_cbk(
-        connection::ptr&& _connection, boost::system::error_code const &_error) {
+        const connection::ptr&& _connection, boost::system::error_code const &_error) {
     if (_error != boost::asio::error::bad_descriptor
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
