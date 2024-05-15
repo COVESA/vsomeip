@@ -210,6 +210,16 @@ if(DLT_FOUND)
 endif(DLT_FOUND)
 endif()
 
+if (ANDROID)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
+set(SystemD_LIBRARIES "")
+set(USE_RT "")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=overloaded-virtual -Dvsomeip3_EXPORTS  -fvisibility=default  -DWITHOUT_SYSTEMD")
+add_compile_definitions(VSOMEIP_BASE_PATH="${VSOMEIP_BASE_PATH}")
+add_compile_definitions(ANDROID=1)
+add_compile_definitions(WITHOUT_SYSTEMD=1)
+
+else()
 # SystemD
 pkg_check_modules(SystemD "libsystemd")
 
@@ -217,6 +227,8 @@ if(NOT SystemD_FOUND)
 MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
 endif(NOT SystemD_FOUND)
+
+endif()
 
 # Multiple routing managers
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
@@ -257,7 +269,11 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
-    set(USE_RT "rt")
+    if(ANDROID)
+        set(USE_RT "")
+    else()
+        set(USE_RT "rt")
+    endif()
 endif()
 
 ################################################################################
@@ -324,6 +340,10 @@ target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_
 
 if(NOT WIN32)
     target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
+endif()
+
+if(ANDROID)
+    target_link_libraries(${VSOMEIP_NAME} PRIVATE log)
 endif()
 
 ################################################################################

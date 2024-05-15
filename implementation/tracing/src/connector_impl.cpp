@@ -19,7 +19,19 @@
 #include "../../utility/include/byteorder.hpp"
 
 #ifdef ANDROID
-#include <utils/Log.h>
+#include <android/log.h>
+
+#ifdef ALOG
+#undef ALOG
+#endif
+
+#define ALOG __android_log_print
+
+#define LOG_ERROR ANDROID_LOG_ERROR
+#define LOG_WARN ANDROID_LOG_WARN
+#define LOG_INFO ANDROID_LOG_INFO
+#define LOG_DEBUG ANDROID_LOG_DEBUG
+#define LOG_VERBOSE ANDROID_LOG_VERBOSE
 
 #ifdef ALOGI
 #undef ALOGI

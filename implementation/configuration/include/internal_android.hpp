@@ -34,13 +34,13 @@
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
 
-#define VSOMEIP_CFG_LIBRARY                     "libvsomeip_cfg.so"
+#define VSOMEIP_CFG_LIBRARY                     "libvsomeip3-cfg.so"
 
-#define VSOMEIP_SD_LIBRARY                      "libvsomeip_sd.so"
+#define VSOMEIP_SD_LIBRARY                      "libvsomeip3-sd.so"
 
-#define VSOMEIP_E2E_LIBRARY                     "libvsomeip_e2e.so"
+#define VSOMEIP_E2E_LIBRARY                     "libvsomeip3-e2e.so"
 
-#define VSOMEIP_SEC_LIBRARY                     "libvsomeip-sec.so.1"
+#define VSOMEIP_SEC_LIBRARY                     "libvsomeip3-sec.so.1"
 
 #define VSOMEIP_ROUTING                         "vsomeipd"
 #define VSOMEIP_ROUTING_CLIENT                  0

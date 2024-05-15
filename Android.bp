@@ -108,7 +108,7 @@ cc_library_shared {
 }
 
 cc_library_shared {
-    name: "libvsomeip_cfg",
+    name: "libvsomeip3-cfg",
     vendor: true,
 
     srcs: libvsomeip_cfg_srcs,
@@ -128,7 +128,7 @@ cc_library_shared {
 }
 
 cc_library_shared {
-    name: "libvsomeip_e2e",
+    name: "libvsomeip3-e2e",
     vendor: true,
 
     srcs: libvsomeip_e2e_srcs,
@@ -146,7 +146,7 @@ cc_library_shared {
 }
 
 cc_library_shared {
-    name: "libvsomeip_sd",
+    name: "libvsomeip3-sd",
     vendor: true,
 
     srcs: libvsomeip_sd_srcs,
