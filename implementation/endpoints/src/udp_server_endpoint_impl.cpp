@@ -573,7 +573,10 @@ void udp_server_endpoint_impl::on_message_received(
         if (!_error && 0 < _bytes) {
             std::size_t remaining_bytes = _bytes;
             std::size_t i = 0;
-            const boost::asio::ip::address its_remote_address(_remote.address());
+            // In case of ipv6 and local link addresses the %device is located in the address, which mainly causes
+            // a separate counter on ACK in service discovery.
+            std::size_t pos = _remote.address().to_string().find('%');
+            const boost::asio::ip::address its_remote_address(boost::asio::ip::make_address(_remote.address().to_string().substr(0,pos)));
             const std::uint16_t its_remote_port(_remote.port());
             do {
                 uint64_t read_message_size
