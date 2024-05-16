@@ -503,7 +503,7 @@ void routing_manager_base::register_event(client_t _client,
                 // Create a new callback for this client if filter interval is used
                 register_debounce(its_debounce, _client, its_event);
             } else {
-                if (!_is_shadow && is_routing_manager()) {
+                if ((_type != vsomeip_v3::event_type_e::ET_EVENT) && !_is_shadow && is_routing_manager()) {
                     _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
                                         const std::shared_ptr<payload> &_new) {
                         bool is_change = (_old->get_length() != _new->get_length());
