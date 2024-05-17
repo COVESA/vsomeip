@@ -685,9 +685,7 @@ event::get_filtered_subscribers(bool _force) {
 
     if (filters_.empty()) {
 
-        bool must_forward = (type_ != event_type_e::ET_FIELD
-                || _force
-                || epsilon_change_func_(its_payload, its_payload_update));
+        bool must_forward = _force || epsilon_change_func_(its_payload, its_payload_update);
 
         if (must_forward)
             return its_subscribers;
@@ -704,10 +702,7 @@ event::get_filtered_subscribers(bool _force) {
                     its_filtered_subscribers.insert(s);
             } else {
                 if (is_allowed == 0xff) {
-                    is_allowed = (type_ != event_type_e::ET_FIELD
-                        || _force
-                        || epsilon_change_func_(its_payload, its_payload_update)
-                        ? 0x01 : 0x00);
+                    is_allowed = (_force || epsilon_change_func_(its_payload, its_payload_update) ? 0x01 : 0x00);
                 }
 
                 if (is_allowed == 0x01)
