@@ -680,9 +680,8 @@ void udp_server_endpoint_impl::on_message_received(
                                     its_remote_address, its_remote_port);
                         }
                     } else {
-                        if (its_service != VSOMEIP_SD_SERVICE ||
-                            (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
-                                    current_message_size >= remaining_bytes)) {
+                        if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE &&
+                            remaining_bytes >= 0) {
                             its_host->on_message(&_buffer[i],
                                     current_message_size, this, _is_multicast,
                                     VSOMEIP_ROUTING_CLIENT,
