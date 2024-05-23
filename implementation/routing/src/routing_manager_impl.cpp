@@ -4019,6 +4019,7 @@ void routing_manager_impl::start_ip_routing() {
     pending_sd_offers_.clear();
 
     routing_running_ = true;
+    routing_state_ = vsomeip::routing_state_e::RS_RUNNING;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
