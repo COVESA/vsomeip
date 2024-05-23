@@ -853,8 +853,6 @@ void routing_manager_impl::unsubscribe(
                             PENDING_SUBSCRIPTION_ID);
             }
         }
-        ep_mgr_impl_->clear_multicast_endpoints(_service, _instance);
-
     } else {
         VSOMEIP_ERROR<< "SOME/IP eventgroups require SD to be enabled!";
     }
