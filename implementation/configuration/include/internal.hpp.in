@@ -33,6 +33,25 @@
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
 
+//
+// Defines related to running SD asynchronously - this is not available upstream
+
+// Env var that if exists will cause SD setup to be performed asynchronously and
+// wait on network availability.  This wait also impacts the routing_manager to
+// also wait until a network interface is available before issuring OFFERs
+#define VSOMEIP_ENV_USE_ASYNCHRONOUS_SD         "VSOMEIP_USE_ASYNCHRONOUS_SD"
+
+// Iff SD is running synchronously, the existence of this env var will cause the
+// SD setup to still block on network availability. (mostly a testing scenario)
+#define VSOMEIP_ENV_WAIT_FOR_INTERFACE          "VSOMEIP_WAIT_FOR_INTERFACE"
+
+// The current waiting mechanism is to block until a file (specified by this
+// define)
+#define VSOMEIP_NETWORK_INT_READY_FILE          "@VSOMEIP_NETWORK_INT_READY_FILE@"
+
+// /end of async change
+//
+
 #ifdef _WIN32
 #define VSOMEIP_CFG_LIBRARY                      "vsomeip3-cfg.dll"
 #else
