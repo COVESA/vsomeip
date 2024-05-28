@@ -14,9 +14,6 @@ find_package(benchmark)
 ##############################################################################
 # google test
 
-# remove export symbols from the cxx flags
-string(REPLACE "${EXPORTSYMBOLS}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 # check for set environment variable
 if(${GTEST_ROOT} STREQUAL "n/a")
     message(STATUS "GTEST_ROOT is not defined. For building the tests the variable

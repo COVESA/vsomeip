@@ -21,6 +21,8 @@
 #endif
 #endif
 
+extern char * __progname;
+
 static std::shared_ptr<vsomeip::application> its_application;
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -75,6 +77,7 @@ int routingmanagerd_process(bool _is_quiet) {
 
     std::shared_ptr<vsomeip::runtime> its_runtime
         = vsomeip::runtime::get();
+    its_runtime->set_property("LogApplication", __progname);
 
     if (!its_runtime) {
         return -1;
