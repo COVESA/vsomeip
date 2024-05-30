@@ -64,30 +64,65 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 # OS
+add_library(OS_INTERFACE INTERFACE IMPORTED)
+target_link_libraries(OS_INTERFACE INTERFACE Threads::Threads)
+
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(DL_LIBRARY "dl")
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # This is only relevant for GCC and causes warnings on Clang
-    set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
-endif()
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-  if(NOT DEFINED _FORTIFY_SOURCE)
-      set(_FORTIFY_SOURCE 2)
-  endif()
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+    if(NOT DEFINED _FORTIFY_SOURCE)
+        set(_FORTIFY_SOURCE 2)
+    endif()
+
+    add_compile_options(
+      -Wall
+      -Wextra
+      -Wformat
+      -Wformat-security
+      -Wconversion
+      -fexceptions
+      -fstrict-aliasing
+      -fstack-protector-strong
+      -fasynchronous-unwind-tables
+      -fno-omit-frame-pointer
+      -Wformat
+      -Wformat-security
+      -Wpedantic
+      -Werror
+    )
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # This is only relevant for GCC and causes warnings on Clang
+        add_link_options(
+           -Wno-tsan -Wl,-z,relro,-z,now -Wl,-export-dynamic
+        )
+    endif()
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
-    add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
+    add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE})
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set(OS "QNX")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+    add_compile_options(
+        -fexceptions
+        -fstrict-aliasing
+        -fstack-protector
+        -fasynchronous-unwind-tables
+        -fno-omit-frame-pointer
+    )
+    add_link_options(-Wl,-export-dynamic)
+    target_link_libraries(OS_INTERFACE INTERFACE slog2 socket)
+endif (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(DL_LIBRARY "")
-    set(EXPORTSYMBOLS "")
     set(NO_DEPRECATED "-Wno-deprecated")
     set(OPTIMIZE "")
     set(OS_CXX_FLAGS "-pthread")
@@ -256,7 +291,7 @@ if (MSVC)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED}")
     set(USE_RT "rt")
 endif()
 
@@ -308,8 +343,11 @@ set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOV
 target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
-else ()
-    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
+else()
+    target_link_options(${VSOMEIP_NAME} PRIVATE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_options(${VSOMEIP_NAME} PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc)
+    endif()
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
@@ -320,7 +358,7 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
 # them (which shouldn't be required). ${Boost_LIBRARIES} includes absolute
 # build host paths as of writing, which also makes this important as it breaks
 # the build.
-target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} OS_INTERFACE)
 
 if(NOT WIN32)
     target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")

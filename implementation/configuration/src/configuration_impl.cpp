@@ -54,6 +54,11 @@ configuration_impl::configuration_impl(const std::string &_path)
       has_console_log_(true),
       has_file_log_(false),
       has_dlt_log_(false),
+#ifdef __QNX__
+      has_slog2_log_(true),
+#else
+      has_slog2_log_(false),
+#endif
       logfile_("/tmp/vsomeip.log"),
       loglevel_(vsomeip_v3::logger::level_e::LL_INFO),
       is_sd_enabled_(VSOMEIP_SD_DEFAULT_ENABLED),
@@ -162,6 +167,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     has_console_log_ = _other.has_console_log_;
     has_file_log_ = _other.has_file_log_;
     has_dlt_log_ = _other.has_dlt_log_;
+    has_slog2_log_ = _other.has_slog2_log_;
     logfile_ = _other.logfile_;
 
     loglevel_ = _other.loglevel_;
@@ -654,6 +660,15 @@ bool configuration_impl::load_logging(
                     std::string its_value(i->second.data());
                     has_dlt_log_ = (its_value == "true");
                     is_configured_[ET_LOGGING_DLT] = true;
+                }
+            } else if (its_key == "slog2") {
+                if (is_configured_[ET_LOGGING_SLOG2]) {
+                    _warnings.insert("Multiple definitions for logging.slog2."
+                            " Ignoring definition from " + _element.name_);
+                } else {
+                    std::string its_value(i->second.data());
+                    has_slog2_log_ = (its_value == "true");
+                    is_configured_[ET_LOGGING_SLOG2] = true;
                 }
             } else if (its_key == "level") {
                 if (is_configured_[ET_LOGGING_LEVEL]) {
@@ -2892,6 +2907,10 @@ bool configuration_impl::has_file_log() const {
 
 bool configuration_impl::has_dlt_log() const {
     return has_dlt_log_;
+}
+
+bool configuration_impl::has_slog2_log() const {
+    return has_slog2_log_;
 }
 
 const std::string & configuration_impl::get_logfile() const {

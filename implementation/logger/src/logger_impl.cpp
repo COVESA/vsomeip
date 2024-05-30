@@ -10,6 +10,14 @@
 #include "../include/logger_impl.hpp"
 #include "../../configuration/include/configuration.hpp"
 
+#ifdef __QNX__
+#include <sys/slog2.h>
+extern char * __progname;
+#elif __linux__
+extern char * __progname;
+#endif
+
+
 namespace vsomeip_v3 {
 namespace logger {
 
@@ -20,6 +28,35 @@ logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     auto its_logger = logger_impl::get();
     its_logger->set_configuration(_configuration);
+
+#ifdef __QNX__
+    logger_impl::buffer_config.buffer_set_name = __progname;
+    logger_impl::buffer_config.num_buffers = 1;
+    logger_impl::buffer_config.verbosity_level = levelAsSlog2(its_logger->configuration_->get_loglevel());
+
+    // Use a 16kB log buffer by default
+    // Override with a size specified by environment variable
+    long unsigned int num_pages = 4;
+    auto s = getenv("VSOMEIP_SLOG2_NUM_PAGES");
+    if (s != nullptr)
+    {
+        char * endptr = nullptr;
+        num_pages = strtoul(s, &endptr, 0);
+    }
+    logger_impl::buffer_config.buffer_config[0].buffer_name = "vsomeip";
+    logger_impl::buffer_config.buffer_config[0].num_pages = static_cast<int>(num_pages);
+
+    // Register the buffer set.
+    if (-1 == slog2_register(&logger_impl::buffer_config, logger_impl::buffer_handle, 0))
+    {
+        std::fprintf(stderr, "Error registering slogger2 buffer!\n");
+        return;
+    }
+    else
+    {
+        its_logger->set_slog2_initialized(true);
+    }
+#endif
 
 #ifdef USE_DLT
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"

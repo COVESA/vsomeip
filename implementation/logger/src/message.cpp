@@ -11,52 +11,6 @@
 
 #ifdef ANDROID
 #include <utils/Log.h>
-
-#ifdef ALOGE
-#undef ALOGE
-#endif
-
-#define ALOGE(LOG_TAG, ...) ((void)ALOG(LOG_ERROR, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGE ALOGE
-#endif
-
-#ifdef ALOGW
-#undef ALOGW
-#endif
-
-#define ALOGW(LOG_TAG, ...) ((void)ALOG(LOG_WARN, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGW ALOGW
-#endif
-
-#ifdef ALOGI
-#undef ALOGI
-#endif
-
-#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGI ALOGI
-#endif
-
-#ifdef ALOGD
-#undef ALOGD
-#endif
-
-#define ALOGD(LOG_TAG, ...) ((void)ALOG(LOG_DEBUG, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGD ALOGD
-#endif
-
-#ifdef ALOGV
-#undef ALOGV
-#endif
-
-#define ALOGV(LOG_TAG, ...) ((void)ALOG(LOG_VERBOSE, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGV ALOGV
-#endif
-
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -69,6 +23,12 @@ namespace vsomeip_v3 {
 namespace logger {
 
 std::mutex message::mutex__;
+
+#ifdef __QNX__
+slog2_buffer_set_config_t   logger_impl::buffer_config = {0};
+slog2_buffer_t              logger_impl::buffer_handle[1] = {0};
+#endif
+
 
 message::message(level_e _level)
     : std::ostream(&buffer_),
@@ -85,6 +45,16 @@ message::~message() try {
     if (!its_configuration)
         return;
 
+#ifdef __QNX__
+    // Write to slog without filtering on the level.  This way we can modify
+    // the threshold in the pps settings, e.g.
+    // echo buffer_name:n:7 >> /var/pps/slog2/verbose
+    if (its_configuration->has_slog2_log() && its_logger->slog2_is_initialized()) {
+        // Truncates after 508 characters (and adds ellipsis)
+        slog2c(its_logger->buffer_handle[0], 0x0000, logger_impl::levelAsSlog2(level_), buffer_.data_.str().c_str());
+    }
+#endif
+
     if (level_ > its_configuration->get_loglevel())
         return;
 
@@ -92,29 +62,7 @@ message::~message() try {
             || its_configuration->has_file_log()) {
 
         // Prepare log level
-        const char *its_level;
-        switch (level_) {
-        case level_e::LL_FATAL:
-            its_level = "fatal";
-            break;
-        case level_e::LL_ERROR:
-            its_level = "error";
-            break;
-        case level_e::LL_WARNING:
-            its_level = "warning";
-            break;
-        case level_e::LL_INFO:
-            its_level = "info";
-            break;
-        case level_e::LL_DEBUG:
-            its_level = "debug";
-            break;
-        case level_e::LL_VERBOSE:
-            its_level = "verbose";
-            break;
-        default:
-            its_level = "none";
-        };
+        const auto its_level = logger_impl::levelAsString(level_);
 
         // Prepare time stamp
         auto its_time_t = std::chrono::system_clock::to_time_t(when_);
@@ -143,29 +91,7 @@ message::~message() try {
                 << std::endl;
 #else
             std::string app = runtime::get_property("LogApplication");
-
-            switch (level_) {
-            case level_e::LL_FATAL:
-                ALOGE(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_ERROR:
-                ALOGE(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_WARNING:
-                ALOGW(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_INFO:
-                ALOGI(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_DEBUG:
-                ALOGD(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_VERBOSE:
-                ALOGV(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            default:
-                ALOGI(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-            };
+            static_cast<void>(__android_log_print(logger_impl::levelAsAospLevel(level_), app.c_str(), "VSIP: %s", buffer_.data_.str().c_str()));
 #endif // !ANDROID
         }
 
@@ -204,7 +130,7 @@ message::~message() try {
 std::streambuf::int_type
 message::buffer::overflow(std::streambuf::int_type c) {
     if (c != EOF) {
-        data_ << (char)c;
+        data_ << static_cast<char>(c);
     }
 
     return c;
