@@ -22,6 +22,10 @@ public:
 
     virtual ~runtime_impl();
 
+#if defined(WIN32) || defined(WIN64)
+    std::shared_ptr<application> create_application_std(const char *_name);
+#endif
+
     std::shared_ptr<application> create_application(
             const std::string &_name);
     std::shared_ptr<application> create_application(

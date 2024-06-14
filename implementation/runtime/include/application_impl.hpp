@@ -63,6 +63,16 @@ public:
     VSOMEIP_EXPORT void stop_offer_service(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
+#if defined(WIN32) || defined(WIN64)
+    VSOMEIP_EXPORT void offer_event_std(service_t _service, instance_t _instance,
+            event_t _notifier,
+            uint16_t _groups[], event_type_e _type,
+            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+            bool _update_on_change,
+            const epsilon_change_func_t &_epsilon_change_func,
+            reliability_type_e _reliability);
+#endif
+
     VSOMEIP_EXPORT void offer_event(service_t _service, instance_t _instance,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups, event_type_e _type,
@@ -80,6 +90,13 @@ public:
             major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void release_service(
             service_t _service, instance_t _instance);
+
+#if defined(WIN32) || defined(WIN64)
+    VSOMEIP_EXPORT void request_event_std(service_t _service,
+            instance_t _instance, event_t _event,
+            uint16_t _groups[],
+            event_type_e _type, reliability_type_e _reliability);
+#endif
 
     VSOMEIP_EXPORT void request_event(service_t _service,
             instance_t _instance, event_t _event,
