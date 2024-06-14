@@ -47,23 +47,23 @@ public:
     void print_policy(const std::shared_ptr<policy> &_policy) const;
 
     bool parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint32_t &_uid, uint32_t &_gid) const;
+            uid_t &_uid, gid_t &_gid) const;
     bool parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint32_t &_uid, uint32_t &_gid,
+            uid_t &_uid, gid_t &_gid,
             const std::shared_ptr<policy> &_policy) const;
 
-    bool is_policy_update_allowed(uint32_t _uid,
+    bool is_policy_update_allowed(uid_t _uid,
             std::shared_ptr<policy> &_policy) const;
-    bool is_policy_removal_allowed(uint32_t _uid) const;
+    bool is_policy_removal_allowed(uid_t _uid) const;
 
     // extension
     void load(const configuration_element &_element,
             const bool _lazy_load = false);
 
-    void update_security_policy(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy>& _policy);
-    bool remove_security_policy(uint32_t _uid, uint32_t _gid);
+    void update_security_policy(uid_t _uid, gid_t _gid, const std::shared_ptr<policy>& _policy);
+    bool remove_security_policy(uid_t _uid, gid_t _gid);
 
-    void add_security_credentials(uint32_t _uid, uint32_t _gid,
+    void add_security_credentials(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy>& _credentials_policy, client_t _client);
 
     void get_requester_policies(const std::shared_ptr<policy> _policy,
@@ -106,7 +106,7 @@ public:
             const vsomeip_sec_client_t *_sec_client);
     bool check_routing_credentials(
             const vsomeip_sec_client_t *_sec_client) const;
-    void set_routing_credentials(uint32_t _uid, uint32_t _gid,
+    void set_routing_credentials(uid_t _uid, gid_t _gid,
             const std::string &_name);
 
     bool is_client_allowed(const vsomeip_sec_client_t *_sec_client,
@@ -146,7 +146,7 @@ private:
     boost::icl::interval_set<service_t> service_interface_whitelist_;
 
     mutable std::mutex uid_whitelist_mutex_;
-    boost::icl::interval_set<uint32_t> uid_whitelist_;
+    boost::icl::interval_set<uid_t> uid_whitelist_;
 
     mutable std::mutex policy_base_path_mutex_;
     std::string policy_base_path_;
@@ -161,7 +161,7 @@ private:
     bool is_configured_;
 
     mutable std::mutex routing_credentials_mutex_;
-    std::pair<uint32_t, uint32_t> routing_credentials_;
+    std::pair<uid_t, gid_t> routing_credentials_;
 
     mutable std::mutex ids_mutex_;
     std::map<client_t, vsomeip_sec_client_t> ids_;

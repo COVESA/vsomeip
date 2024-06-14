@@ -125,7 +125,7 @@ private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-                         , std::uint32_t const &_uid, std::uint32_t const &_gid
+                         , uid_t const &_uid, gid_t const &_gid
 #endif
         );
         void calculate_shrink_count();

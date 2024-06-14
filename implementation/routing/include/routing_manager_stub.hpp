@@ -110,24 +110,24 @@ public:
                                             pending_remote_offer_id_t _id);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
     void on_security_update_response(pending_security_update_id_t _id,
             client_t _client);
 
-    void policy_cache_add(uint32_t _uid, const std::shared_ptr<payload>& _payload);
-    void policy_cache_remove(uint32_t _uid);
-    bool is_policy_cached(uint32_t _uid);
+    void policy_cache_add(uid_t _uid, const std::shared_ptr<payload>& _payload);
+    void policy_cache_remove(uid_t _uid);
+    bool is_policy_cached(uid_t _uid);
 
     bool send_update_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid,
+            pending_security_update_id_t _update_id, uid_t _uid,
             const std::shared_ptr<payload>& _payload);
     bool send_remove_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid, uint32_t _gid);
+            pending_security_update_id_t _update_id, uid_t _uid, gid_t _gid);
 
     bool send_cached_security_policies(client_t _client);
 
@@ -200,7 +200,7 @@ private:
             protocol::routing_info_entry &_entry);
     void send_client_routing_info(const client_t _target,
             std::vector<protocol::routing_info_entry> &&_entries);
-    void send_client_credentials(client_t _target, std::set<std::pair<uint32_t, uint32_t>> &_credentials);
+    void send_client_credentials(client_t _target, std::set<std::pair<uid_t, gid_t>> &_credentials);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
