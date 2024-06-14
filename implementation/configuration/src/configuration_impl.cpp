@@ -333,7 +333,7 @@ bool configuration_impl::load(const std::string &_name) {
 
     // Tell, if reading of configuration file(s) failed.
     // (This may file if the logger configuration is incomplete/missing).
-    for (auto f : its_failed)
+    for (const auto& f : its_failed)
         VSOMEIP_WARNING << "Reading of configuration file \""
             << f << "\" failed. Configuration may be incomplete.";
 
@@ -342,7 +342,7 @@ bool configuration_impl::load(const std::string &_name) {
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-    for (auto i : its_input) {
+    for (const auto& i : its_input) {
         if (utility::is_file(i))
             VSOMEIP_INFO << "Using configuration file: \"" << i << "\".";
 
@@ -561,7 +561,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
 
         if (is_logging_loaded_) {
             logger::logger_impl::init(shared_from_this());
-            for (auto w : its_warnings)
+            for (const auto& w : its_warnings)
                 VSOMEIP_WARNING << w;
         }
     }
@@ -3255,7 +3255,7 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.begin(),
             _s.end(),
-            [](unsigned char ch) { return !std::isspace(ch); }
+            [](const auto ch) { return !std::isspace(ch); }
         )
     );
 
@@ -3263,8 +3263,9 @@ void configuration_impl::trim(std::string &_s) {
         std::find_if(
             _s.rbegin(),
             _s.rend(),
-            [](unsigned char ch) { return !std::isspace(ch); }).base(),
-            _s.end()
+            [](const auto ch) { return !std::isspace(ch); }
+        ).base(),
+        _s.end()
     );
 }
 

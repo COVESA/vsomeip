@@ -115,8 +115,8 @@ bool deserializer::deserialize(std::string &_target, std::size_t _length) {
     if (_length > remaining_ || _length > _target.capacity()) {
         return false;
     }
-    _target.assign(position_, position_ + long(_length));
-    position_ += long(_length);
+    _target.assign(position_, position_ + static_cast<std::vector<byte_t>::difference_type>(_length));
+    position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
     remaining_ -= _length;
 
     return true;

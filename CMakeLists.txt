@@ -61,6 +61,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(DL_LIBRARY "dl")
@@ -73,7 +75,10 @@ endif()
 
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+  if(NOT DEFINED _FORTIFY_SOURCE)
+      set(_FORTIFY_SOURCE 2)
+  endif()
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
@@ -245,13 +250,13 @@ if (MSVC)
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /std:c++14 /wd4250")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++14 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
 
@@ -265,6 +270,7 @@ list(SORT ${VSOMEIP_NAME}-cfg_SRC)
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
     add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+    target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
     if (MSVC)
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     endif()
@@ -299,6 +305,7 @@ list(SORT ${VSOMEIP_NAME}_SRC)
 
 add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
 set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
 else ()
@@ -328,6 +335,7 @@ file(GLOB ${VSOMEIP_NAME}-sd_SRC
 list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
 add_library(${VSOMEIP_NAME}-sd SHARED ${${VSOMEIP_NAME}-sd_SRC})
+target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -345,6 +353,7 @@ file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
 list(SORT ${VSOMEIP_NAME}-e2e_SRC)
 
 add_library(${VSOMEIP_NAME}-e2e SHARED ${${VSOMEIP_NAME}-e2e_SRC})
+target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -372,6 +381,7 @@ file(GLOB_RECURSE ${VSOMEIP_COMPAT_NAME}_SRC
 list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
 
 add_library(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_COMPAT_NAME} PROPERTIES VERSION ${VSOMEIP_COMPAT_VERSION} SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_COMPAT_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")

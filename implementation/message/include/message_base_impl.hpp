@@ -6,8 +6,6 @@
 #ifndef VSOMEIP_V3_MESSAGE_BASE_IMPL_HPP
 #define VSOMEIP_V3_MESSAGE_BASE_IMPL_HPP
 
-#include <boost/thread.hpp>
-
 #include <vsomeip/export.hpp>
 #include <vsomeip/message.hpp>
 

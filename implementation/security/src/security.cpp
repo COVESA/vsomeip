@@ -14,6 +14,7 @@
 #include "../../plugin/include/plugin_manager.hpp"
 
 #include <array>
+#include <iomanip>
 #include <tuple>
 
 #ifndef _WIN32

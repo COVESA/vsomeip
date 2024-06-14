@@ -26,5 +26,7 @@ target_link_libraries (
     gtest
     vsomeip_utilities
 )
+enable_testing()
+add_test(NAME ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}> WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_dependencies(build_unit_tests ${PROJECT_NAME})

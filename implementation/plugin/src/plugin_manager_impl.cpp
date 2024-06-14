@@ -164,7 +164,7 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
         }
     } else {
         VSOMEIP_ERROR << "plugin_manager_impl::unload_plugin didn't find plugin"
-                << " type:" << (int)_type;
+                << " type:" << static_cast<int>(_type);
         return false;
     }
     return plugins_.erase(_type);
