@@ -1,5 +1,12 @@
+/Makefile
+/.vscode
+/.cache
+/compile_commands.json
+/.ninja
 /CMakeFiles
 /build*/*
+/*bld*
+/*stage
 /examples/hello_world/build
 /.idea/
 /.vscode/
