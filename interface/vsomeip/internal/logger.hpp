@@ -41,12 +41,26 @@ private:
         int_type overflow(int_type);
         std::streamsize xsputn(const char *, std::streamsize);
 
+		inline void activate() {
+			active_ = true;
+		}
+
+		inline bool isActive() const {
+			return active_;
+		}
+
+		inline std::string str() const {
+			return data_.str();
+		}
+
+    private:
+        bool active_ = false;
         std::stringstream data_;
     };
 
     std::chrono::system_clock::time_point when_;
     buffer buffer_;
-    level_e level_;
+    const level_e level_;
     static std::mutex mutex__;
 };
 
