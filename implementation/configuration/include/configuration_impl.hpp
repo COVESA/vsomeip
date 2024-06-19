@@ -195,7 +195,7 @@ public:
     VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
-    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_reps() const;
+    VSOMEIP_EXPORT uint8_t get_sd_find_initial_debounce_reps() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
