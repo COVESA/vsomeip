@@ -73,138 +73,153 @@ std::mutex message::mutex__;
 message::message(level_e _level)
     : std::ostream(&buffer_),
       level_(_level) {
+    
+    auto its_logger = logger_impl::get();
+    auto its_configuration = its_logger->get_configuration();
+    
+    if (!its_configuration) {
+        return;
+    }
+
+    if (level_ > its_configuration->get_loglevel()) {
+        return;
+    }
+
+    if (!its_configuration->has_console_log() && !its_configuration->has_file_log() && !its_configuration->has_dlt_log()) {
+        return;
+    }
+    
+    buffer_.activate();
 
     when_ = std::chrono::system_clock::now();
 }
 
-message::~message() try {
-    std::lock_guard<std::mutex> its_lock(mutex__);
-    auto its_logger = logger_impl::get();
-    auto its_configuration = its_logger->get_configuration();
+message::~message() {
+    if (buffer_.isActive()) {
+        try {
+            std::lock_guard<std::mutex> its_lock(mutex__);
+            auto its_logger = logger_impl::get();
+            auto its_configuration = its_logger->get_configuration();
 
-    if (!its_configuration)
-        return;
+            if (its_configuration->has_console_log()
+                    || its_configuration->has_file_log()) {
 
-    if (level_ > its_configuration->get_loglevel())
-        return;
+                // Prepare log level
+                const char *its_level;
+                switch (level_) {
+                case level_e::LL_FATAL:
+                    its_level = "fatal";
+                    break;
+                case level_e::LL_ERROR:
+                    its_level = "error";
+                    break;
+                case level_e::LL_WARNING:
+                    its_level = "warning";
+                    break;
+                case level_e::LL_INFO:
+                    its_level = "info";
+                    break;
+                case level_e::LL_DEBUG:
+                    its_level = "debug";
+                    break;
+                case level_e::LL_VERBOSE:
+                    its_level = "verbose";
+                    break;
+                default:
+                    its_level = "none";
+                };
 
-    if (its_configuration->has_console_log()
-            || its_configuration->has_file_log()) {
-
-        // Prepare log level
-        const char *its_level;
-        switch (level_) {
-        case level_e::LL_FATAL:
-            its_level = "fatal";
-            break;
-        case level_e::LL_ERROR:
-            its_level = "error";
-            break;
-        case level_e::LL_WARNING:
-            its_level = "warning";
-            break;
-        case level_e::LL_INFO:
-            its_level = "info";
-            break;
-        case level_e::LL_DEBUG:
-            its_level = "debug";
-            break;
-        case level_e::LL_VERBOSE:
-            its_level = "verbose";
-            break;
-        default:
-            its_level = "none";
-        };
-
-        // Prepare time stamp
-        auto its_time_t = std::chrono::system_clock::to_time_t(when_);
-        struct tm its_time;
+                // Prepare time stamp
+                auto its_time_t = std::chrono::system_clock::to_time_t(when_);
+                struct tm its_time;
 #ifdef _WIN32
-        localtime_s(&its_time, &its_time_t);
+                localtime_s(&its_time, &its_time_t);
 #else
-        localtime_r(&its_time_t, &its_time);
+                localtime_r(&its_time_t, &its_time);
 #endif
-        auto its_ms = (when_.time_since_epoch().count() / 100) % 1000000;
+                auto its_ms = (when_.time_since_epoch().count() / 100) % 1000000;
 
-        if (its_configuration->has_console_log()) {
+                if (its_configuration->has_console_log()) {
 #ifndef ANDROID
-            std::cout
-                << std::dec
-                << std::setw(4) << its_time.tm_year + 1900 << "-"
-                << std::setfill('0')
-                << std::setw(2) << its_time.tm_mon + 1 << "-"
-                << std::setw(2) << its_time.tm_mday << " "
-                << std::setw(2) << its_time.tm_hour << ":"
-                << std::setw(2) << its_time.tm_min << ":"
-                << std::setw(2) << its_time.tm_sec << "."
-                << std::setw(6) << its_ms << " ["
-                << its_level << "] "
-                << buffer_.data_.str()
-                << std::endl;
+                    std::cout
+                        << std::dec
+                        << std::setw(4) << its_time.tm_year + 1900 << "-"
+                        << std::setfill('0')
+                        << std::setw(2) << its_time.tm_mon + 1 << "-"
+                        << std::setw(2) << its_time.tm_mday << " "
+                        << std::setw(2) << its_time.tm_hour << ":"
+                        << std::setw(2) << its_time.tm_min << ":"
+                        << std::setw(2) << its_time.tm_sec << "."
+                        << std::setw(6) << its_ms << " ["
+                        << its_level << "] "
+                        << buffer_.str()
+                        << std::endl;
 #else
-            std::string app = runtime::get_property("LogApplication");
+                    std::string app = runtime::get_property("LogApplication");
 
-            switch (level_) {
-            case level_e::LL_FATAL:
-                ALOGE(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_ERROR:
-                ALOGE(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_WARNING:
-                ALOGW(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_INFO:
-                ALOGI(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_DEBUG:
-                ALOGD(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            case level_e::LL_VERBOSE:
-                ALOGV(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-                break;
-            default:
-                ALOGI(app.c_str(), ("VSIP: " + buffer_.data_.str()).c_str());
-            };
+                    switch (level_) {
+                    case level_e::LL_FATAL:
+                        ALOGE(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    case level_e::LL_ERROR:
+                        ALOGE(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    case level_e::LL_WARNING:
+                        ALOGW(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    case level_e::LL_INFO:
+                        ALOGI(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    case level_e::LL_DEBUG:
+                        ALOGD(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    case level_e::LL_VERBOSE:
+                        ALOGV(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                        break;
+                    default:
+                        ALOGI(app.c_str(), ("VSIP: " + buffer_.str()).c_str());
+                    };
 #endif // !ANDROID
-        }
+                }
 
-        if (its_configuration->has_file_log()) {
-            std::ofstream its_logfile(
-                    its_configuration->get_logfile(),
-                    std::ios_base::app);
-            if (its_logfile.is_open()) {
-                its_logfile
-                    << std::dec
-                    << std::setw(4) << its_time.tm_year + 1900 << "-"
-                    << std::setfill('0')
-                    << std::setw(2) << its_time.tm_mon + 1 << "-"
-                    << std::setw(2) << its_time.tm_mday << " "
-                    << std::setw(2) << its_time.tm_hour << ":"
-                    << std::setw(2) << its_time.tm_min << ":"
-                    << std::setw(2) << its_time.tm_sec << "."
-                    << std::setw(6) << its_ms << " ["
-                    << its_level << "] "
-                    << buffer_.data_.str()
-                    << std::endl;
+                if (its_configuration->has_file_log()) {
+                    std::ofstream its_logfile(
+                            its_configuration->get_logfile(),
+                            std::ios_base::app);
+                    if (its_logfile.is_open()) {
+                        its_logfile
+                            << std::dec
+                            << std::setw(4) << its_time.tm_year + 1900 << "-"
+                            << std::setfill('0')
+                            << std::setw(2) << its_time.tm_mon + 1 << "-"
+                            << std::setw(2) << its_time.tm_mday << " "
+                            << std::setw(2) << its_time.tm_hour << ":"
+                            << std::setw(2) << its_time.tm_min << ":"
+                            << std::setw(2) << its_time.tm_sec << "."
+                            << std::setw(6) << its_ms << " ["
+                            << its_level << "] "
+                            << buffer_.str()
+                            << std::endl;
+                    }
+                }
             }
-        }
-    }
-    if (its_configuration->has_dlt_log()) {
 #ifdef USE_DLT
 #ifndef ANDROID
-        its_logger->log(level_, buffer_.data_.str().c_str());
+            if (its_configuration->has_dlt_log()) {
+                its_logger->log(level_, buffer_.str().c_str());
+            }
 #endif
 #endif // USE_DLT
+        } catch (const std::exception& e) {
+            std::cout << "\nVSIP: Error destroying message class: " << e.what() << '\n';
+        }
     }
-} catch (const std::exception& e) {
-    std::cout << "\nVSIP: Error destroying message class: " << e.what() << '\n';
 }
 
 std::streambuf::int_type
 message::buffer::overflow(std::streambuf::int_type c) {
-    if (c != EOF) {
-        data_ << (char)c;
+    if (active_ && c != EOF) {
+        data_ << static_cast<char>(c);
     }
 
     return c;
@@ -212,7 +227,9 @@ message::buffer::overflow(std::streambuf::int_type c) {
 
 std::streamsize
 message::buffer::xsputn(const char *s, std::streamsize n) {
-    data_.write(s, n);
+    if (active_) {
+        data_.write(s, n);
+    }
     return n;
 }
 
