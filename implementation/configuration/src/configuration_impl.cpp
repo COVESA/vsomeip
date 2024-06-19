@@ -67,6 +67,9 @@ configuration_impl::configuration_impl(const std::string &_path)
       sd_ttl_(VSOMEIP_SD_DEFAULT_TTL),
       sd_cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
       sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
+      sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
+      sd_find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
+      sd_find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
       sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
       max_configured_message_size_(0),
       max_local_message_size_(0),
@@ -180,6 +183,9 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_ttl_ = _other.sd_ttl_;
     sd_cyclic_offer_delay_= _other.sd_cyclic_offer_delay_;
     sd_request_response_delay_= _other.sd_request_response_delay_;
+    sd_find_initial_debounce_reps_ = _other.sd_find_initial_debounce_reps_;
+    sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
+    sd_find_debounce_time_ = _other.sd_find_debounce_time_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
 
     trace_ = std::make_shared<trace>(*_other.trace_.get());
@@ -1831,6 +1837,41 @@ void configuration_impl::load_service_discovery(
                     its_converter << its_value;
                     its_converter >> sd_request_response_delay_;
                     is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY] = true;
+                }
+            } else if (its_key == "find_initial_debounce_reps") {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_reps."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    int tmp;
+                    its_converter << its_value;
+                    its_converter >> tmp;
+                    if (tmp == static_cast<std::uint8_t>(tmp)) {
+                        sd_find_initial_debounce_reps_ = static_cast<std::uint8_t>(tmp);
+                    }
+                    else {
+                        VSOMEIP_WARNING << "Invalid value for service_discovery.find_initial_debounce_reps: " << tmp;
+                        sd_find_initial_debounce_reps_ = std::numeric_limits<std::uint8_t>::max();
+                    }
+                    is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS] = true;
+                }
+            } else if (its_key == "find_initial_debounce_time") {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_time."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    its_converter << its_value;
+                    its_converter >> sd_find_initial_debounce_time_;
+                    is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME] = true;
+                }
+            } else if (its_key == "find_debounce_time") {
+                if (!is_overlay_ && is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_debounce_time."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    its_converter << its_value;
+                    its_converter >> sd_find_debounce_time_;
+                    is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME] = true;
                 }
             } else if (its_key == "offer_debounce_time") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME]) {
@@ -3674,6 +3715,18 @@ int32_t configuration_impl::get_sd_cyclic_offer_delay() const {
 
 int32_t configuration_impl::get_sd_request_response_delay() const {
     return sd_request_response_delay_;
+}
+
+uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {
+    return sd_find_initial_debounce_reps_;
+}
+
+std::uint32_t configuration_impl::get_sd_find_initial_debounce_time() const {
+    return sd_find_initial_debounce_time_;
+}
+
+std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
+    return sd_find_debounce_time_;
 }
 
 std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
