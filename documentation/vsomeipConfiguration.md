@@ -625,6 +625,8 @@ The general filter rules are:
     - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default value is `500` ms.
     - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default value is `500` ms.
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
+    - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
+    - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
 
 <details><summary>Service Discovery configuration</summary>
 

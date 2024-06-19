@@ -1809,8 +1809,16 @@ void configuration_impl::load_service_discovery(
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_reps."
                     " Ignoring definition from " << _element.name_;
                 } else {
+                    int tmp;
                     its_converter << its_value;
-                    its_converter >> sd_find_initial_debounce_reps_;
+                    its_converter >> tmp;
+                    if (tmp == static_cast<std::uint8_t>(tmp)) {
+                        sd_find_initial_debounce_reps_ = static_cast<std::uint8_t>(tmp);
+                    }
+                    else {
+                        VSOMEIP_WARNING << "Invalid value for service_discovery.find_initial_debounce_reps: " << tmp;
+                        sd_find_initial_debounce_reps_ = std::numeric_limits<std::uint8_t>::max();
+                    }
                     is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS] = true;
                 }
             } else if (its_key == "find_initial_debounce_time") {
@@ -3699,7 +3707,7 @@ int32_t configuration_impl::get_sd_request_response_delay() const {
     return sd_request_response_delay_;
 }
 
-std::uint32_t configuration_impl::get_sd_find_initial_debounce_reps() const {
+uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {
     return sd_find_initial_debounce_reps_;
 }
 
