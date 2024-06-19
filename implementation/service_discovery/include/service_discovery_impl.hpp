@@ -434,11 +434,10 @@ private:
     std::mutex collected_offers_mutex_;
     services_t collected_offers_;
 
-    // configurable debounce time for a configuarble number of inital debounce repetitions
-    std::uint32_t find_initial_debounce_reps_;
+    // interval between debounces during the initial debounce phase of the finds
     std::chrono::milliseconds find_initial_debounce_time_;
-    // counter of remaining find initial debounce repetitions
-    std::uint32_t remaining_find_initial_debounce_reps_;
+    // tracks number of remaining debounces for the initial debounce phase of the finds
+    uint8_t remaining_find_initial_debounce_reps_;
 
     std::chrono::milliseconds find_debounce_time_;
     std::mutex find_debounce_timer_mutex_;

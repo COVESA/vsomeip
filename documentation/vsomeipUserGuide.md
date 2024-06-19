@@ -1168,6 +1168,24 @@ Configuration file element explanation:
         repetition phase. This can be used to reduce the number of
         sent messages during startup. The default setting is _500ms_.
 
+    * `find_debounce_time`
+
+        Time which the stack collects new service requests before they enter the
+        repetition phase. This can be used to reduce the number of
+        sent messages during startup. The default setting is _500ms_.
+
+    * `find_initial_debounce_reps`
+
+        Number of initial debounces using find_initial_debounce_time. This can be
+        used to modify the number of sent messages during initial part of startup
+        (valid values: _0 - 2^8-1_). The default setting is _0_.
+
+    * `find_initial_debounce_time`
+
+        Time which the stack collects new service requests before they enter the
+        repetition phase. This can be used to modify the number of
+        sent messages during initial part of startup. The default setting is _200ms_.
+
 * 'suppress_missing_event_logs'
 
     Used to filter the log message `deliver_notification: Event [1234.5678.80f3]
