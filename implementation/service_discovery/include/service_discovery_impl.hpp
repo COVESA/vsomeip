@@ -420,6 +420,11 @@ private:
     std::mutex collected_offers_mutex_;
     services_t collected_offers_;
 
+    // interval between debounces during the initial debounce phase of the finds
+    std::chrono::milliseconds find_initial_debounce_time_;
+    // tracks number of remaining debounces for the initial debounce phase of the finds
+    uint8_t remaining_find_initial_debounce_reps_;
+
     std::chrono::milliseconds find_debounce_time_;
     std::mutex find_debounce_timer_mutex_;
     boost::asio::steady_timer find_debounce_timer_;
