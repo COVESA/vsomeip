@@ -73,7 +73,7 @@
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 
@@ -917,7 +917,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
             if (its_target) {
                 is_sent = send_local(its_target, get_client(), _data, _size, _instance,
                                      _reliable, protocol::id_e::SEND_ID, _status_check);
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                 if (is_sent) {
                     trace::header its_header;
                     if (its_header.prepare(nullptr, true, _instance))
@@ -929,14 +929,14 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         }
         // If no direct endpoint could be found
         // or for notifications ~> route to routing_manager_stub
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         bool message_to_stub(false);
 #endif
         if (!its_target) {
             std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 its_target = sender_;
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                 message_to_stub = true;
 #endif
             } else {
@@ -962,7 +962,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                                                                           : get_client()};
             is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable,
                                  its_command, _status_check);
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
             if (is_sent && !utility::is_notification(VSOMEIP_MESSAGE_TYPE_POS) &&
                 !message_to_stub) {
                 trace::header its_header;
@@ -1246,7 +1246,7 @@ void routing_manager_client::on_message(
                         }
                     }
                     host_->on_message(std::move(its_message));
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                     if (client_side_logging_
                         && (client_side_logging_filter_.empty()
                             || (1 == client_side_logging_filter_.count(std::make_tuple(its_message->get_service(), ANY_INSTANCE)))
