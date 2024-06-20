@@ -64,7 +64,7 @@
 #include "../../security/include/security.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 
@@ -893,7 +893,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
             // notify_one
             its_target = ep_mgr_->find_local(_client);
             if (its_target) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                 trace::header its_header;
                 if (its_header.prepare(nullptr, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -905,14 +905,14 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         }
         // If no direct endpoint could be found
         // or for notifications ~> route to routing_manager_stub
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         bool message_to_stub(false);
 #endif
         if (!its_target) {
             std::lock_guard<std::mutex> its_lock(sender_mutex_);
             if (sender_) {
                 its_target = sender_;
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                 message_to_stub = true;
 #endif
             } else {
@@ -933,7 +933,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                 send = has_remote_subscribers;
             }
         }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         else if (!message_to_stub) {
             trace::header its_header;
             if (its_header.prepare(nullptr, true, _instance))
@@ -1207,7 +1207,7 @@ void routing_manager_client::on_message(
                             cache_event_payload(its_message);
                         }
                     }
-    #ifdef USE_DLT
+    #if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                     if (client_side_logging_
                         && (client_side_logging_filter_.empty()
                             || (1 == client_side_logging_filter_.count(std::make_tuple(its_message->get_service(), ANY_INSTANCE)))

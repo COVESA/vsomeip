@@ -10,9 +10,7 @@
 #include <mutex>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -48,9 +46,7 @@ private:
     mutable std::mutex configuration_mutex_;
 
 #ifdef USE_DLT
-#ifndef ANDROID
     DLT_DECLARE_CONTEXT(dlt_)
-#endif
 #endif
 };
 

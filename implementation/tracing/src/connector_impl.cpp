@@ -50,7 +50,6 @@ connector_impl::connector_impl() :
         = std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID,
                                          VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
 #ifdef USE_DLT
-#ifndef ANDROID
     std::shared_ptr<DltContext> its_default_context
         = std::make_shared<DltContext>();
 
@@ -58,7 +57,6 @@ connector_impl::connector_impl() :
     DLT_REGISTER_CONTEXT_LL_TS(*(its_default_context.get()),
             VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME,
             DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
-#endif
 #endif
 }
 
@@ -104,10 +102,8 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
 
 void connector_impl::reset() {
 #ifdef USE_DLT
-#ifndef ANDROID
     std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     contexts_.clear();
-#endif
 #endif
     // reset to default
     std::lock_guard<std::mutex> its_lock_channels(channels_mutex_);
@@ -155,13 +151,11 @@ std::shared_ptr<channel> connector_impl::add_channel(
 
     // register context
 #ifdef USE_DLT
-#ifndef ANDROID
     std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
     contexts_[_id] = its_context;
     DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
             DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
-#endif
 #endif
 
     return its_channel;
@@ -178,13 +172,11 @@ bool connector_impl::remove_channel(const trace_channel_t &_id) {
     if (has_removed) {
         // unregister context
 #ifdef USE_DLT
-#ifndef ANDROID
         std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
         auto its_context = contexts_.find(_id);
         if (its_context != contexts_.end()) {
             DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
         }
-#endif
 #endif
     }
 
@@ -206,7 +198,7 @@ std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string
 void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
         const byte_t *_data, uint32_t _data_size) {
 
-#if USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     if (!is_enabled_)
         return;
 
@@ -236,13 +228,13 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
 
     // Forward to channel if the filter set of the channel allows
     std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
-    #ifndef ANDROID
+    #ifdef USE_DLT
         std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     #endif
     for (auto its_channel : channels_) {
         auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
         if (ftype.first) {
-            #ifndef ANDROID
+            #ifdef USE_DLT
                 auto its_context = contexts_.find(its_channel.second->get_id());
                 if (its_context != contexts_.end()) {
                     try {
@@ -269,7 +261,8 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                     // This should never happen!
                     VSOMEIP_ERROR << "tracing: found channel without DLT context!";
                 }
-            #else
+            #endif
+            #ifdef TRACE_TO_LOGS
                 std::stringstream ss;
                 ss << "TC:";
                 for(int i = 0; i < _header_size; i++) {
@@ -280,9 +273,12 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                 for(int i = 0; i < its_data_size; i++) {
                     ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
                 }
-                std::string app = runtime::get_property("LogApplication");
-
-                ALOGI(app.c_str(), ss.str().c_str());
+                #ifdef ANDROID
+                    std::string app = runtime::get_property("LogApplication");
+                    ALOGI(app.c_str(), ss.str().c_str());
+                #else
+                    VSOMEIP_INFO << ss;
+                #endif
             #endif
         }
     }

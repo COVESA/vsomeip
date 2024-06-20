@@ -192,9 +192,7 @@ message::~message() try {
     }
     if (its_configuration->has_dlt_log()) {
 #ifdef USE_DLT
-#ifndef ANDROID
         its_logger->log(level_, buffer_.data_.str().c_str());
-#endif
 #endif // USE_DLT
     }
 } catch (const std::exception& e) {

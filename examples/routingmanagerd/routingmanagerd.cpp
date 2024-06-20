@@ -16,9 +16,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 static std::shared_ptr<vsomeip::application> its_application;
@@ -65,10 +63,8 @@ void routingmanagerd_stop(int _signal) {
  */
 int routingmanagerd_process(bool _is_quiet) {
 #ifdef USE_DLT
-#ifndef ANDROID
     if (!_is_quiet)
         DLT_REGISTER_APP(VSOMEIP_LOG_DEFAULT_APPLICATION_ID, VSOMEIP_LOG_DEFAULT_APPLICATION_NAME);
-#endif
 #else
     (void)_is_quiet;
 #endif

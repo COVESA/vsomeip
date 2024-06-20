@@ -50,7 +50,7 @@
 #include "../../service_discovery/include/service_discovery.hpp"
 #include "../../utility/include/byteorder.hpp"
 #include "../../utility/include/utility.hpp"
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 
@@ -61,7 +61,7 @@
 #include "../../e2e_protection/include/e2e/profile/e2e_provider.hpp"
 #endif
 
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 
@@ -894,7 +894,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
             its_target = find_local(its_client);
         } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
             if (_client == get_client()) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                 trace::header its_header;
                 if (its_header.prepare(its_target, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -909,7 +909,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         }
 
         if (its_target) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
             if ((is_request && its_client == get_client()) ||
                     (is_response && find_local_client(its_service, _instance) == get_client()) ||
                     (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT)) {
@@ -962,7 +962,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     its_target = ep_mgr_impl_->find_or_create_remote_client(
                             its_service, _instance, _reliable);
                     if (its_target) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                         trace::header its_header;
                         if (its_header.prepare(its_target, true, _instance))
                             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -991,7 +991,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                     _data[VSOMEIP_METHOD_POS_MAX]);
                             std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
                             if (its_event) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                                 bool has_sent(false);
 #endif
                                 std::set<std::shared_ptr<endpoint_definition>> its_targets;
@@ -1042,11 +1042,11 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                     } else {
                                         its_udp_server_endpoint->send_to(target, _data, _size);
                                     }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                                     has_sent = true;
 #endif
                                 }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                                 if (has_sent) {
                                     trace::header its_header;
                                     if (its_header.prepare(nullptr, true, _instance))
@@ -1077,7 +1077,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                             its_target = is_service_discovery ?
                                          (sd_info_ ? sd_info_->get_endpoint(false) : nullptr) : its_info->get_endpoint(_reliable);
                             if (its_target) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                                 trace::header its_header;
                                 if (its_header.prepare(its_target, true, _instance))
                                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -1172,7 +1172,7 @@ bool routing_manager_impl::send_to(
                     _target->get_remote_port(), _target->is_reliable());
 
     if (its_endpoint) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         trace::header its_header;
         if (its_header.prepare(its_endpoint, true, _instance))
             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -1193,7 +1193,7 @@ bool routing_manager_impl::send_via_sd(
                     _target->is_reliable());
 
     if (its_endpoint) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         if (tc_->is_sd_enabled()) {
             trace::header its_header;
             if (its_header.prepare(its_endpoint, true, 0x0))
@@ -1491,7 +1491,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
     message_type_e its_message_type;
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     bool is_forwarded(true);
 #endif
     if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
@@ -1620,14 +1620,14 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
             }
 
             // Common way of message handling
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
             is_forwarded =
 #endif
             on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(),
                     _bound_client, _sec_client, its_check_status, true);
         }
     }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     if (is_forwarded) {
         trace::header its_header;
         const boost::asio::ip::address_v4 its_remote_address =
@@ -3279,7 +3279,7 @@ void routing_manager_impl::send_error(return_code_e _return_code,
                                 its_endpoint_def->get_remote_port(),
                                 its_endpoint_def->is_reliable());
                 if (its_endpoint) {
-                    #ifdef USE_DLT
+                    #if defined(USE_DLT) || defined(TRACE_TO_LOGS)
                         trace::header its_header;
                         if (its_header.prepare(its_endpoint, true, _instance))
                             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
