@@ -26,7 +26,7 @@
 #endif
 
 #define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
+#ifndef LOGI
 #define LOGI ALOGI
 #endif
 
