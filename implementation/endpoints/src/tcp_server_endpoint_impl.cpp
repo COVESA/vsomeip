@@ -55,7 +55,7 @@ tcp_server_endpoint_impl::tcp_server_endpoint_impl(
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
         if (setsockopt(acceptor_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), (socklen_t)its_device.size()) == -1) {
+                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
             VSOMEIP_WARNING << "TCP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
@@ -295,8 +295,8 @@ void tcp_server_endpoint_impl::accept_cbk(const connection::ptr& _connection,
         auto its_ep = std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
                 shared_from_this());
         its_timer->async_wait([its_timer, its_ep]
-                               (const boost::system::error_code& _error) {
-            if (!_error) {
+                               (const boost::system::error_code& _error_inner) {
+            if (!_error_inner) {
                 its_ep->start();
             }
         });
@@ -853,12 +853,12 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
             << std::setfill('0') << std::hex;
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
-        its_message << std::setw(2) << (int) (recv_buffer_[i]) << " ";
+        its_message << std::setw(2) << static_cast<int>(recv_buffer_[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
     for (int i = 15; recv_buffer_size_ > 15 && i >= 0; i--) {
-        its_message << std::setw(2) <<  (int) (recv_buffer_[static_cast<size_t>(i)]) << " ";
+        its_message << std::setw(2) <<  static_cast<int>(recv_buffer_[static_cast<size_t>(i)]) << " ";
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
@@ -954,7 +954,7 @@ void tcp_server_endpoint_impl::print_status() {
     std::lock_guard<std::mutex> its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
         its_connections = connections_;
     }
 
@@ -1027,7 +1027,7 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(its_server->connections_mutex_);
         stop();
     }
     its_server->remove_connection(this);

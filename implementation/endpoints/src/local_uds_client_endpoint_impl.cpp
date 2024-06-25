@@ -40,12 +40,7 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(
     is_supporting_magic_cookies_ = false;
 }
 
-local_uds_client_endpoint_impl::~local_uds_client_endpoint_impl() {
-
-}
-
 bool local_uds_client_endpoint_impl::is_local() const {
-
     return true;
 }
 
