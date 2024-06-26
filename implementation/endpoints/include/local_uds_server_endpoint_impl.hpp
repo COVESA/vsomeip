@@ -185,7 +185,6 @@ private:
     bool check_packetizer_space(target_data_iterator_type _queue_iterator,
                                 message_buffer_ptr_t* _packetizer,
                                 std::uint32_t _size);
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     void send_client_identifier(const client_t &_client);
 };
 

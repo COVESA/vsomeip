@@ -261,11 +261,10 @@ public:
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            const std::string &_address, std::uint16_t _port,
+            instance_t _instance,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method) const;
+            service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;

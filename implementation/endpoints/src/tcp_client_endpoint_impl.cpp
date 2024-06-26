@@ -1002,13 +1002,6 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
     }
 }
 
-bool tcp_client_endpoint_impl::tp_segmentation_enabled(service_t _service,
-                                                       method_t _method) const {
-    (void)_service;
-    (void)_method;
-    return false;
-}
-
 std::uint32_t tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
     return MAX_RECONNECTS_UNLIMITED;
 }
