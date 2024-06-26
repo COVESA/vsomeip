@@ -29,6 +29,8 @@ global:
         vsomeip_v3::policy_manager::*;
         *vsomeip_v3::policy_manager_impl;
         vsomeip_v3::policy_manager_impl::*;
+        *vsomeip_v3::routing_manager_impl;
+        vsomeip_v3::routing_manager_impl::*;
         vsomeip_v3::security::*;
         *vsomeip_v3::runtime;
         vsomeip_v3::runtime::get*;

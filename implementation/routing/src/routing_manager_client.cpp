@@ -368,7 +368,7 @@ void routing_manager_client::stop_offer_service(client_t _client,
     (void)_client;
 
     {
-        // Hold the mutex to ensure no placeholder event is created inbetween.
+        // Hold the mutex to ensure no placeholder event is created in between.
         std::lock_guard<std::mutex> its_lock(stop_mutex_);
 
         routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);

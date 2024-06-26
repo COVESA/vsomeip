@@ -179,7 +179,7 @@ public:
      * The user application must call this method to withdraw a service offer.
      *
      * \param _service Service identifier of the offered service interface.
-     * \param _instance Instance identifer of the offered service instance.
+     * \param _instance Instance identifier of the offered service instance.
      * \param _major Major service version (Default: 0).
      * \param _minor Minor service version (Default: 0).
      *
