@@ -137,7 +137,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
 
 void tcp_client_endpoint_impl::connect() {
     start_connecting_timer();
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
 
@@ -194,6 +194,8 @@ void tcp_client_endpoint_impl::connect() {
                         "Error binding socket: " << its_bind_error.message()
                         << " local: " << get_address_port_local()
                         << " remote:" << get_address_port_remote();
+
+                its_lock.unlock();
 
                 std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
                 if (its_host) {
