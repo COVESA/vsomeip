@@ -563,18 +563,21 @@ void application_impl::stop() {
             block = false;
         }
     }
-    auto its_plugins = configuration_->get_plugins(name_);
-    auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
-    if (its_app_plugin_info != its_plugins.end()) {
-        for (const auto& its_library : its_app_plugin_info->second) {
-            auto its_application_plugin = plugin_manager::get()->get_plugin(
-                    plugin_type_e::APPLICATION_PLUGIN, its_library);
-            if (its_application_plugin) {
-                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                        on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
-            }
-        }
 
+    if (configuration_) {
+        auto its_plugins = configuration_->get_plugins(name_);
+        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_app_plugin_info != its_plugins.end()) {
+            for (const auto& its_library : its_app_plugin_info->second) {
+                auto its_application_plugin = plugin_manager::get()->get_plugin(
+                        plugin_type_e::APPLICATION_PLUGIN, its_library);
+                if (its_application_plugin) {
+                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                            on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                }
+            }
+
+        }
     }
 
     {

@@ -48,7 +48,7 @@ public:
 
         service_id_ = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_SERVICE_POS_MIN]);
         method_id_  = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_METHOD_POS_MIN]);
-        length_     = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_LENGTH_POS_MIN]);
+        length_     = vsomeip::bithelper::read_uint32_be(&user_message_[VSOMEIP_LENGTH_POS_MIN]);
         client_id_  = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_CLIENT_POS_MIN]);
 
         interface_version_ = user_message_[VSOMEIP_INTERFACE_VERSION_POS];
