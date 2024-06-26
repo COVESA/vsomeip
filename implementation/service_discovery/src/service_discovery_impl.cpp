@@ -151,6 +151,8 @@ service_discovery_impl::init() {
     offer_debounce_time_ = std::chrono::milliseconds(
             configuration_->get_sd_offer_debounce_time());
     ttl_timer_runtime_ = cyclic_offer_delay_ / 2;
+    find_debounce_time_ = std::chrono::milliseconds(
+            configuration_->get_sd_find_debounce_time());
 
     ttl_factor_offers_ = configuration_->get_ttl_factor_offers();
     ttl_factor_subscriptions_ = configuration_->get_ttl_factor_subscribes();
