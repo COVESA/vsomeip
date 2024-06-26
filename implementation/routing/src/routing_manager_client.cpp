@@ -119,6 +119,10 @@ void routing_manager_client::init() {
                     std::bind(&routing_manager_client::on_net_state_change,
                         this, std::placeholders::_1, std::placeholders::_2,
                         std::placeholders::_3));
+            } else {
+                VSOMEIP_WARNING << __func__ << ": (" << its_guest_address.to_string() << ":"
+                                << its_host_address.to_string() << ")"
+                                << " local_link_connector not initialized.";
             }
 #else
             receiver_ = ep_mgr_->create_local_server(shared_from_this());
@@ -2072,6 +2076,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
 
 void routing_manager_client::assign_client() {
 
+    VSOMEIP_INFO << __func__ << ": (" << std::hex << get_client() << ":" << host_->get_name() << ")";
     protocol::assign_client_command its_command;
     its_command.set_client(get_client());
     its_command.set_name(host_->get_name());
@@ -2091,8 +2096,10 @@ void routing_manager_client::assign_client() {
     if (is_connected_) {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
-            if (state_ != inner_state_type_e::ST_DEREGISTERED)
+            if (state_ != inner_state_type_e::ST_DEREGISTERED) {
+                VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") Non-Deregistered State Set. Returning";
                 return;
+            }
             state_ = inner_state_type_e::ST_ASSIGNING;
 
             sender_->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
@@ -2105,7 +2112,12 @@ void routing_manager_client::assign_client() {
                             &routing_manager_client::assign_client_timeout_cbk,
                             std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
                             std::placeholders::_1));
+        } else {
+            VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") sender not initialized. Ignoring client assignment";
         }
+    }
+    else {
+        VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") not connected. Ignoring client assignment";
     }
 }
 
@@ -2554,6 +2566,9 @@ routing_manager_client::assign_client_timeout_cbk(
                 sender_->restart();
             }
         }
+    } else {
+        VSOMEIP_WARNING << __func__ << ": Ignoring Client 0x" << std::hex << get_client()
+                << " due to error_code: " << _error.value() ;
     }
 }
 
@@ -2869,15 +2884,21 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
                         << ") successfully connected to routing  ~> registering..";
                     register_application();
                 } else {
+                    VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":"
+                        << std::hex << _client << ") Receiver not started. Restarting";
                     state_ = inner_state_type_e::ST_DEREGISTERED;
 
                     host_->set_client(VSOMEIP_CLIENT_UNSET);
 
                     sender_->restart();
                 }
+            } else {
+                VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":"
+                                << std::hex << _client << ") Not started. Discarding";
             }
         } else {
-            VSOMEIP_ERROR << "Didn't receive valid clientID! Won't register application.";
+            VSOMEIP_ERROR << __func__ << ": (" << host_->get_name() << ":"
+                            << std::hex << _client << ") Invalid clientID";
         }
     } else {
         VSOMEIP_WARNING << "Client " << std::hex << get_client()
