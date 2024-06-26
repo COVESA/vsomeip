@@ -299,7 +299,7 @@ bool udp_server_endpoint_impl::send_error(
     auto& its_data = its_target_iterator->second;
 
     if (check_message_size(nullptr, _size, its_target) == endpoint_impl::cms_ret_e::MSG_OK &&
-        check_queue_limit(_data, _size, its_data.queue_size_)) {
+        check_queue_limit(_data, _size, its_data)) {
         its_data.queue_.emplace_back(
                 std::make_pair(std::make_shared<message_buffer_t>(_data, _data + _size), 0));
         its_data.queue_size_ += _size;

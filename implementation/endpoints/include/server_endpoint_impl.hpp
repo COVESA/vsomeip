@@ -35,17 +35,18 @@ public:
               queue_size_(0),
               is_sending_(false),
               sent_timer_(_io),
-			  io_(_io) {
+              io_(_io) {
         }
 
         endpoint_data_type(const endpoint_data_type &&_source)
-        	: train_(_source.train_),
-			  dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_source.io_)),
-			  has_last_departure_(_source.has_last_departure_),
-			  queue_size_(_source.queue_size_),
-			  is_sending_(_source.is_sending_),
-			  sent_timer_(_source.io_),
-			  io_(_source.io_) {
+            : train_(_source.train_),
+              dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_source.io_)),
+              has_last_departure_(_source.has_last_departure_),
+              queue_(_source.queue_),
+              queue_size_(_source.queue_size_),
+              is_sending_(_source.is_sending_),
+              sent_timer_(_source.io_),
+              io_(_source.io_) {
         }
 
         std::shared_ptr<train> train_;
@@ -122,7 +123,7 @@ protected:
             const std::uint8_t * const _data, std::uint32_t _size,
             const endpoint_type &_target);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size,
-                           std::size_t _current_queue_size) const;
+                           endpoint_data_type &_endpoint_data) const;
     bool queue_train(const target_data_iterator_type _it,
             const std::shared_ptr<train> &_train);
 
@@ -156,6 +157,8 @@ private:
     void start_dispatch_timer(target_data_iterator_type _it,
             const std::chrono::steady_clock::time_point &_now);
     void cancel_dispatch_timer(target_data_iterator_type _it);
+
+    void recalculate_queue_size(endpoint_data_type &_data) const;
 };
 
 } // namespace vsomeip_v3
