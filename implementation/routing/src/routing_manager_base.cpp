@@ -418,12 +418,6 @@ void routing_manager_base::register_event(client_t _client,
             std::shared_ptr<debounce_filter_impl_t> its_debounce
                 = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
             if (its_debounce) {
-                VSOMEIP_WARNING << "Using debounce configuration for "
-                        << " SOME/IP event "
-                        << std::hex << std::setfill('0')
-                        << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "."
-                        << std::setw(4) << _notifier << ".";
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="
                         << (its_debounce->on_change_ ? "true" : "false")
@@ -433,8 +427,18 @@ void routing_manager_base::register_event(client_t _client,
                            << ", " << std::hex << (int)i.second << ") ";
                 its_debounce_parameters << "], interval="
                         << std::dec << its_debounce->interval_ << ")";
-                VSOMEIP_WARNING << "Debounce parameters: "
+
+                VSOMEIP_WARNING << "Using debounce configuration for "
+                        << " SOME/IP event "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _notifier << "."
+                        << " Debounce parameters: "
                         << its_debounce_parameters.str();
+
                 _epsilon_change_func = [its_debounce](
                     const std::shared_ptr<payload> &_old,
                     const std::shared_ptr<payload> &_new) {
@@ -503,28 +507,12 @@ void routing_manager_base::register_event(client_t _client,
                 // Create a new callback for this client if filter interval is used
                 register_debounce(its_debounce, _client, its_event);
             } else {
-                if (!_is_shadow && is_routing_manager()) {
+                if (_is_shadow || !is_routing_manager()) {
                     _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
                                         const std::shared_ptr<payload> &_new) {
-                        bool is_change = (_old->get_length() != _new->get_length());
-                        if (!is_change) {
-                            std::size_t its_pos = 0;
-                            const byte_t *its_old_data = _old->get_data();
-                            const byte_t *its_new_data = _new->get_data();
-                            while (!is_change && its_pos < _old->get_length()) {
-                                is_change = (*its_old_data++ != *its_new_data++);
-                                its_pos++;
-                            }
-                        }
-                        return is_change;
-                    };
-                }
-                else {
-                    _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
-                                        const std::shared_ptr<payload> &_new) {
-                    (void)_old;
-                    (void)_new;
-                    return true;
+                        (void)_old;
+                        (void)_new;
+                        return true;
                     };
                 }
             }
