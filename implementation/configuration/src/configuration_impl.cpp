@@ -133,6 +133,9 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
       is_loaded_(_other.is_loaded_),
       is_logging_loaded_(_other.is_logging_loaded_),
       mandatory_(_other.mandatory_),
+      has_console_log_(_other.has_console_log_.load()),
+      has_file_log_(_other.has_file_log_.load()),
+      has_dlt_log_(_other.has_dlt_log_.load()),
       max_configured_message_size_(_other.max_configured_message_size_),
       max_local_message_size_(_other.max_local_message_size_),
       max_reliable_message_size_(_other.max_reliable_message_size_),
@@ -162,9 +165,6 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     diagnosis_ = _other.diagnosis_;
     diagnosis_mask_ = _other.diagnosis_mask_;
 
-    has_console_log_ = _other.has_console_log_;
-    has_file_log_ = _other.has_file_log_;
-    has_dlt_log_ = _other.has_dlt_log_;
     logfile_ = _other.logfile_;
 
     loglevel_ = _other.loglevel_;
