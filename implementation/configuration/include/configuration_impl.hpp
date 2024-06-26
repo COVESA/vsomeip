@@ -296,6 +296,8 @@ public:
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -477,6 +479,9 @@ private:
     bool is_logging_loaded_;
 
     std::set<std::string> mandatory_;
+
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
 
 protected:
     // Configuration data

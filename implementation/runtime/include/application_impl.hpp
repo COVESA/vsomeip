@@ -148,6 +148,7 @@ public:
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_context &get_io();
 

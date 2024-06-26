@@ -37,8 +37,6 @@ public:
         POLICY_PATH_INEXISTENT = 0x2
     };
 
-    static std::shared_ptr<policy_manager_impl> get();
-
     policy_manager_impl();
 
 #ifndef VSOMEIP_DISABLE_SECURITY

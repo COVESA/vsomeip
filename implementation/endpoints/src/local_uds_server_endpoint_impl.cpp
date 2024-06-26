@@ -341,7 +341,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 std::shared_ptr<routing_host> its_routing_host = routing_host_.lock();
                 its_routing_host->add_known_client(its_client, its_client_host);
 
-                if (!policy_manager_impl::get()->check_credentials(its_client, &its_sec_client)) {
+               if (!configuration_->get_policy_manager()->check_credentials(its_client, &its_sec_client)) {
                      VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                              << its_host->get_client() << " received client credentials from client 0x"
                              << its_client << " which violates the security policy : uid/gid="
@@ -358,8 +358,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 add_connection(its_client, _connection);
             }
         } else {
-            policy_manager_impl::get()->store_client_to_sec_client_mapping(its_client, &its_sec_client);
-            policy_manager_impl::get()->store_sec_client_to_client_mapping(&its_sec_client, its_client);
+            configuration_->get_policy_manager()->store_client_to_sec_client_mapping(its_client, &its_sec_client);
+            configuration_->get_policy_manager()->store_sec_client_to_client_mapping(&its_sec_client, its_client);
 
             if (!is_routing_endpoint_) {
                 std::shared_ptr<routing_host> its_routing_host = routing_host_.lock();
@@ -776,7 +776,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                                     << " because of already existing connection using same client ID";
                             stop();
                             return;
-                        } else if (!policy_manager_impl::get()->check_credentials(
+                        } else if (!its_server->configuration_->get_policy_manager()->check_credentials(
                                 its_client, &sec_client_)) {
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                                     << " received client credentials from client 0x" << its_client
@@ -854,7 +854,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
             || is_error) {
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
+        its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
         start();
     }

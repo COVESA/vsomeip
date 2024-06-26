@@ -32,10 +32,7 @@ public:
 
 private:
     std::mutex mutex_;
-    std::shared_ptr<cfg::configuration_impl> default_;
-#if 0
     std::map<std::string, std::shared_ptr<cfg::configuration_impl> > configurations_;
-#endif
 };
 
 } // namespace vsomeip_v3
