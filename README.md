@@ -34,8 +34,8 @@ Optional:
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
 -- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
 
-To build the documentation asciidoc, source-highlight, doxygen and graphviz is needed:
---`sudo apt-get install asciidoc source-highlight doxygen graphviz`
+To build the documentation doxygen and graphviz are needed:
+--`sudo apt-get install doxygen graphviz`
 
 ###### Compilation
 
