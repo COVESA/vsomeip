@@ -7,3 +7,4 @@ project ("unit_tests_bin" LANGUAGES CXX)
 
 add_subdirectory(security_policy_tests)
 add_subdirectory(security_tests)
+add_subdirectory(utility_utility_tests)

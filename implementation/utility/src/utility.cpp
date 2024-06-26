@@ -53,12 +53,18 @@ uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
 }
 
 uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
-    uint32_t its_size(0);
-    if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
-        its_size = bithelper::read_uint32_be(&_data[4])
-                - VSOMEIP_SOMEIP_HEADER_SIZE;
-    }
-    return its_size;
+    if(_size <= VSOMEIP_FULL_HEADER_SIZE)
+        return 0;
+
+    uint32_t length_ = bithelper::read_uint32_be(&_data[4]);
+
+    if(length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
+        return 0;
+
+    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_))
+        return 0;
+
+    return length_ - VSOMEIP_SOMEIP_HEADER_SIZE;
 }
 
 bool utility::is_routing_manager(const std::string &_network) {
