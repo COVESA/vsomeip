@@ -24,7 +24,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include "../../implementation/utility/include/byteorder.hpp"
+#include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
 #include "../../implementation/message/include/serializer.hpp"
 #include "../../implementation/service_discovery/include/service_discovery.hpp"
@@ -271,11 +271,7 @@ protected:
         _seg->insert(_seg->begin() + VSOMEIP_TP_PAYLOAD_POS, _amount, 0xff);
 
         // decrease offset by amount
-        const vsomeip::tp::tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MAX]);
+        const vsomeip::tp::tp_header_t its_tp_header = vsomeip::bithelper::read_uint32_be(&(*_seg)[VSOMEIP_TP_HEADER_POS_MIN]);
         std::uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
         its_offset -= _amount;
         const vsomeip::tp::tp_header_t its_new_tp_header =
@@ -311,11 +307,7 @@ protected:
         }
         _seg->erase(_seg->begin() + VSOMEIP_TP_PAYLOAD_POS, _seg->begin() + VSOMEIP_TP_PAYLOAD_POS + _amount);
         // increase offset by amount
-        const vsomeip::tp::tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                (*_seg)[VSOMEIP_TP_HEADER_POS_MAX]);
+        const vsomeip::tp::tp_header_t its_tp_header = vsomeip::bithelper::read_uint32_be(&(*_seg)[VSOMEIP_TP_HEADER_POS_MIN]);
         std::uint32_t its_offset = vsomeip::tp::tp::get_offset(its_tp_header);
         its_offset += _amount;
         const vsomeip::tp::tp_header_t its_new_tp_header =
@@ -422,10 +414,9 @@ TEST_P(someip_tp, send_in_mode)
                 return;
             } else {
                 vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                       receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-                vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                     receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
@@ -540,18 +531,15 @@ TEST_P(someip_tp, send_in_mode)
                         std::uint32_t its_pos = 0;
 
                         while (bytes_transferred > 0) {
-                            const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                                    receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                                    receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                                    receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                                    receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                            std::cout << __LINE__ << ": received response " << its_message_size << std::endl;
-                            vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                            const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(
+                                                                    &receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                    + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                            vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                                   receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                            vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                                 receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                            std::cout << __LINE__ << ": received response " << its_message_size << std::endl;
+
+                            vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                            vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                            vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
 
                             vsomeip::message_impl msg;
                             EXPECT_TRUE(msg.deserialize(&its_deserializer));
@@ -857,9 +845,7 @@ TEST_P(someip_tp, send_in_mode)
                 EXPECT_EQ(someip_tp_test::number_of_fragments, fragments_event_from_master_.size());
                 // create complete message from event
                 vsomeip::message_buffer_t its_event = create_full_message(fragments_event_from_master_);
-                vsomeip::session_t its_event_session =
-                        VSOMEIP_BYTES_TO_WORD(its_event[VSOMEIP_SESSION_POS_MIN],
-                                              its_event[VSOMEIP_SESSION_POS_MAX]);
+                vsomeip::session_t its_event_session = vsomeip::bithelper::read_uint16_be(&its_event[VSOMEIP_SESSION_POS_MIN]);
 
                 std::vector<vsomeip::message_buffer_ptr_t> its_cmp_event_fragments;
                 create_fragments(someip_tp_test::number_of_fragments,
@@ -1095,12 +1081,9 @@ TEST_P(someip_tp, send_in_mode)
                                   someip_tp_test::number_of_fragments * someip_tp_test::max_segment_size,
                                   its_request.size());
                     }
-                    const vsomeip::client_t its_request_client =
-                            VSOMEIP_BYTES_TO_WORD(its_request[VSOMEIP_CLIENT_POS_MIN],
-                                                  its_request[VSOMEIP_CLIENT_POS_MAX]);
-                    const vsomeip::session_t its_request_session =
-                            VSOMEIP_BYTES_TO_WORD(its_request[VSOMEIP_SESSION_POS_MIN],
-                                                  its_request[VSOMEIP_SESSION_POS_MAX]);
+                    const vsomeip::client_t its_request_client   = vsomeip::bithelper::read_uint16_be(&its_request[VSOMEIP_CLIENT_POS_MIN]);
+                    const vsomeip::session_t its_request_session = vsomeip::bithelper::read_uint16_be(&its_request[VSOMEIP_SESSION_POS_MIN]);
+
                     create_fragments(someip_tp_test::number_of_fragments,
                                      someip_tp_test::service_slave.service_id,
                                      someip_tp_test::service_slave.instance_id,
@@ -1296,18 +1279,16 @@ TEST_P(someip_tp, send_in_mode)
                 remote_client_request_port = its_remote_endpoint.port();
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    std::cout << __LINE__ << ": received request from master " << its_message_size << std::endl;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(
+                                                            &receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                            + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    std::cout << __LINE__ << ": received request from master " << its_message_size << std::endl;
+
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     EXPECT_EQ(someip_tp_test::service_slave.service_id, its_service);
                     EXPECT_EQ(someip_tp_test::service_slave.method_id, its_method);
                     vsomeip::message_impl msg;

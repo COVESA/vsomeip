@@ -25,7 +25,7 @@
 #include "../include/server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
 
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../service_discovery/include/defines.hpp"
 
@@ -106,9 +106,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(
             bool found_service_msg(false);
             for (const auto &t : targets_) {
                 for (const auto &q : t.second.queue_) {
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                                            (*q.first)[VSOMEIP_SERVICE_POS_MIN],
-                                            (*q.first)[VSOMEIP_SERVICE_POS_MAX]);
+                    const service_t its_service = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SERVICE_POS_MIN]);
                     if (its_service == _service) {
                         found_service_msg = true;
                         break;
@@ -186,12 +184,9 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8
             return false;
         }
 
-        const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-        const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-        const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+        const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
 
         clients_mutex_.lock();
         auto found_client = clients_.find(its_client);
@@ -205,9 +200,8 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8
                 VSOMEIP_WARNING << "server_endpoint::send: session_id 0x"
                         << std::hex << its_session
                         << " not found for client 0x" << its_client;
-                const method_t its_method =
-                        VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                             _data[VSOMEIP_METHOD_POS_MAX]);
+                const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == VSOMEIP_SD_SERVICE
                         && its_method == VSOMEIP_SD_METHOD) {
                     VSOMEIP_ERROR << "Clearing clients map as a request was "
@@ -254,15 +248,11 @@ bool server_endpoint_impl<Protocol>::send_intern(
             break;
     }
     if (!prepare_stop_handlers_.empty()) {
-        const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         if (prepare_stop_handlers_.find(its_service) != prepare_stop_handlers_.end()) {
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-            const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-            const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
+            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
             VSOMEIP_WARNING << "server_endpoint::send: Service is stopping, ignoring message: ["
                     << std::hex << std::setfill('0')
                     << std::setw(4) << its_service << "."
@@ -294,10 +284,8 @@ bool server_endpoint_impl<Protocol>::send_intern(
     cancel_dispatch_timer(its_target_iterator);
 
     // STEP 3: Get configured timings
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
@@ -394,10 +382,8 @@ void server_endpoint_impl<Protocol>::send_segments(
 
     auto its_now(std::chrono::steady_clock::now());
 
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN], (*(_segments[0]))[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MIN], (*(_segments[0]))[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_METHOD_POS_MIN]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
@@ -469,13 +455,10 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
     if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
             && _size > endpoint_impl<Protocol>::max_message_size_) {
         if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
-            const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
+            const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             instance_t its_instance = this->get_instance(its_service);
+
             if (its_instance != ANY_INSTANCE) {
                 if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
@@ -516,14 +499,10 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
             // [(Command + lowerbyte sender's client ID).
             //  highbyte sender's client ID + lowbyte command size.
             //  lowbyte methodid + highbyte vsomeip length]
-            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                _data[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                               _data[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                               _data[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                _data[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_
@@ -634,9 +613,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             }
             for (const auto& t : targets_) {
                 for (const auto& e : t.second.queue_ ) {
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                                            (*e.first)[VSOMEIP_SERVICE_POS_MIN],
-                                            (*e.first)[VSOMEIP_SERVICE_POS_MAX]);
+                    const service_t its_service = bithelper::read_uint16_be(&(*e.first)[VSOMEIP_SERVICE_POS_MIN]);
                     if (its_service == its_stopped_service) {
                         found_service_msg = true;
                         break;
@@ -705,18 +682,10 @@ void server_endpoint_impl<Protocol>::send_cbk(
         session_t& its_session
     ) {
         if (buffer && buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_SERVICE_POS_MIN],
-                    (*buffer)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_METHOD_POS_MIN],
-                    (*buffer)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_CLIENT_POS_MIN],
-                    (*buffer)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_SESSION_POS_MIN],
-                    (*buffer)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_SESSION_POS_MIN]);
         }
     };
 

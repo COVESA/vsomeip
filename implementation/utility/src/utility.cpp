@@ -25,7 +25,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#include "../include/byteorder.hpp"
+#include "../include/bithelper.hpp"
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"
 
@@ -47,7 +47,7 @@ uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
     uint64_t its_size(0);
     if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
         its_size = VSOMEIP_SOMEIP_HEADER_SIZE
-                + VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7]);
+                + bithelper::read_uint32_be(&_data[4]);
     }
     return its_size;
 }
@@ -55,7 +55,7 @@ uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
 uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
     uint32_t its_size(0);
     if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
-        its_size = VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7])
+        its_size = bithelper::read_uint32_be(&_data[4])
                 - VSOMEIP_SOMEIP_HEADER_SIZE;
     }
     return its_size;

@@ -16,7 +16,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include "../../implementation/utility/include/byteorder.hpp"
+#include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
 #include "../../implementation/service_discovery/include/service_discovery.hpp"
 #include "../../implementation/service_discovery/include/message_impl.hpp"
@@ -84,10 +84,9 @@ TEST_F(malicious_data, send_malicious_events)
             #endif
 
             vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-            vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                   receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-            vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                 receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+            vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+            vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
             if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                 vsomeip::sd::message_impl sd_msg;
                 EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
@@ -313,10 +312,9 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                 return;
             } else {
                 vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                       receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-                vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                     receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
@@ -700,10 +698,9 @@ TEST_F(malicious_data, send_wrong_message_type)
                 return;
             } else {
                 vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                       receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-                vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                     receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
@@ -999,10 +996,9 @@ TEST_F(malicious_data, send_wrong_return_code)
                 return;
             } else {
                 vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                       receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-                vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                     receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
@@ -1303,10 +1299,9 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                 return;
             } else {
                 vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                                                       receive_buffer[VSOMEIP_SERVICE_POS_MAX]);
-                vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[VSOMEIP_METHOD_POS_MIN],
-                                                                     receive_buffer[VSOMEIP_METHOD_POS_MAX]);
+                vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
                     vsomeip::sd::message_impl sd_msg;
                     EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));

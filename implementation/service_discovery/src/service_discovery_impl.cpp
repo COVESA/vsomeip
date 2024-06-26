@@ -40,7 +40,7 @@
 #include "../../routing/include/event.hpp"
 #include "../../routing/include/eventgroupinfo.hpp"
 #include "../../routing/include/serviceinfo.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace sd {
@@ -2767,12 +2767,10 @@ service_discovery_impl::check_ipv4_address(
                 << its_address;
         is_valid = false;
     } else {
-        const std::uint32_t self = VSOMEIP_BYTES_TO_LONG(its_unicast_address[0],
-                its_unicast_address[1], its_unicast_address[2], its_unicast_address[3]);
-        const std::uint32_t remote = VSOMEIP_BYTES_TO_LONG(endpoint_address[0],
-                endpoint_address[1], endpoint_address[2], endpoint_address[3]);
-        const std::uint32_t netmask = VSOMEIP_BYTES_TO_LONG(its_netmask[0],
-                its_netmask[1], its_netmask[2], its_netmask[3]);
+        const std::uint32_t self    = bithelper::read_uint32_be(&its_unicast_address[0]);
+        const std::uint32_t remote  = bithelper::read_uint32_be(&endpoint_address[0]);
+        const std::uint32_t netmask = bithelper::read_uint32_be(&its_netmask[0]);
+
         if ((self & netmask) != (remote & netmask)) {
             VSOMEIP_ERROR<< "Subscriber's IP isn't in the same subnet as host's IP: "
                     << its_address;

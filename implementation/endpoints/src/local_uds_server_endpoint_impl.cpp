@@ -23,7 +23,7 @@
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -677,12 +677,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
 
             if (!message_is_empty) {
                 if (its_start + protocol::COMMAND_POSITION_SIZE + 3 < recv_buffer_size_ + its_iteration_gap) {
-                    its_command_size = VSOMEIP_BYTES_TO_LONG(
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+3],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+2],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+1],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
-
+                    its_command_size = bithelper::read_uint32_le(&recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
                     its_end = its_start + protocol::COMMAND_POSITION_SIZE + 3 + its_command_size;
                 } else {
                     its_end = its_start;

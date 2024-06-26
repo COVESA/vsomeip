@@ -62,7 +62,7 @@
 #include "../../security/include/policy.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
@@ -168,7 +168,8 @@ void routing_manager_client::stop() {
     while (state_ == inner_state_type_e::ST_REGISTERING) {
         std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
         if (status == std::cv_status::timeout) {
-            VSOMEIP_WARNING << std::hex << get_client() << " registering timeout on stop";
+            VSOMEIP_WARNING << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                            << " registering timeout on stop";
             break;
         }
     }
@@ -179,7 +180,8 @@ void routing_manager_client::stop() {
         while (state_ == inner_state_type_e::ST_REGISTERED) {
             std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
             if (status == std::cv_status::timeout) {
-                VSOMEIP_WARNING << std::hex << get_client() << " couldn't deregister application - timeout";
+                VSOMEIP_WARNING << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " couldn't deregister application - timeout";
                 break;
             }
         }
@@ -220,7 +222,7 @@ void routing_manager_client::stop() {
     if (configuration_->is_local_routing()) {
         std::stringstream its_client;
         its_client << utility::get_base_path(configuration_->get_network())
-                 << std::hex << get_client();
+                   << std::hex << std::setw(4) << std::setfill('0') << get_client();
     #ifdef _WIN32
         ::_unlink(its_client.str().c_str());
     #else
@@ -832,21 +834,13 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
     }
     if (client_side_logging_) {
         if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
-            service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
+            service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             if (client_side_logging_filter_.empty()
                 || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, ANY_INSTANCE)))
                 || (1 == client_side_logging_filter_.count(std::make_tuple(its_service, _instance)))) {
-                method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_METHOD_POS_MIN],
-                        _data[VSOMEIP_METHOD_POS_MAX]);
-                session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_SESSION_POS_MIN],
-                        _data[VSOMEIP_SESSION_POS_MAX]);
-                client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_CLIENT_POS_MIN],
-                        _data[VSOMEIP_CLIENT_POS_MAX]);
+                method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+                session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+                client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
                 VSOMEIP_INFO << "routing_manager_client::send: ("
                     << std::hex << std::setfill('0')
                     << std::setw(4) << get_client() << "): ["
@@ -868,9 +862,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         std::shared_ptr<endpoint> its_target;
         if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
             // Request
-            service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
+            service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             client_t its_client = find_local_client(its_service, _instance);
             if (its_client != VSOMEIP_ROUTING_CLIENT) {
                 if (is_client_known(its_client)) {
@@ -879,9 +871,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
             }
         } else if (!utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
             // Response
-            client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_CLIENT_POS_MIN],
-                    _data[VSOMEIP_CLIENT_POS_MAX]);
+            client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             if (its_client != VSOMEIP_ROUTING_CLIENT) {
                 if (is_client_known(its_client)) {
                     its_target = ep_mgr_->find_or_create_local(its_client);
@@ -997,9 +987,9 @@ void routing_manager_client::on_disconnect(const std::shared_ptr<endpoint>& _end
         is_connected_ = !(_endpoint == sender_);
     }
     if (!is_connected_) {
-        VSOMEIP_INFO << "routing_manager_client::on_disconnect: Client 0x" << std::hex
-                << get_client() << " calling host_->on_state "
-                << "with DEREGISTERED";
+        VSOMEIP_INFO << "routing_manager_client::on_disconnect: Client 0x"
+                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                     << " calling host_->on_state with DEREGISTERED";
         host_->on_state(state_type_e::ST_DEREGISTERED);
     }
 }
@@ -1069,12 +1059,11 @@ void routing_manager_client::on_message(
         if (configuration_->is_security_enabled()
                 && configuration_->is_local_routing()
                 && !is_from_routing && _bound_client != its_client) {
-            VSOMEIP_WARNING << std::hex << std::setfill('0')
-                << "Client " << std::setw(4) << get_client()
-                << " received a message with command " << int(its_id)
-                << " from " << std::setw(4) << its_client
+            VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                << " received a message with command " << int(its_id) << " from "
+                << std::hex << std::setw(4) << std::setfill('0') << its_client
                 << " which doesn't match the bound client "
-                << std::setw(4) << _bound_client
+                << std::hex << std::setw(4) << std::setfill('0') << _bound_client
                 << " ~> skip message!";
             return;
         }
@@ -1104,25 +1093,27 @@ void routing_manager_client::on_message(
                         if (utility::is_notification(its_message->get_message_type())) {
                             if (!is_response_allowed(_bound_client, its_message->get_service(),
                                     its_message->get_instance(), its_message->get_method())) {
-                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                    << " : routing_manager_client::on_message: "
-                                    << " received a notification from client 0x" << _bound_client
-                                    << " which does not offer service/instance/event "
-                                    << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method()
-                                    << " ~> Skip message!";
+                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                                << " : routing_manager_client::on_message: "
+                                                << " received a notification from client 0x" << _bound_client
+                                                << " which does not offer service/instance/event "
+                                                << its_message->get_service() << "/" << its_message->get_instance()
+                                                << "/" << its_message->get_method()
+                                                << " ~> Skip message!";
                                 return;
                             } else {
                                 if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
                                         its_message->get_service(), its_message->get_instance(),
                                         its_message->get_method())) {
-                                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                        << " : routing_manager_client::on_message: "
-                                        << " isn't allowed to receive a notification from service/instance/event "
-                                        << its_message->get_service() << "/" << its_message->get_instance()
-                                        << "/" << its_message->get_method()
-                                        << " respectively from client 0x" << _bound_client
-                                        << " ~> Skip message!";
+                                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                    << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                                    << " : routing_manager_client::on_message: "
+                                                    << " isn't allowed to receive a notification from service/instance/event "
+                                                    << its_message->get_service() << "/" << its_message->get_instance()
+                                                    << "/" << its_message->get_method()
+                                                    << " respectively from client 0x" << _bound_client
+                                                    << " ~> Skip message!";
                                     return;
                                 }
                                 cache_event_payload(its_message);
@@ -1131,49 +1122,53 @@ void routing_manager_client::on_message(
                             if (configuration_->is_security_enabled()
                                     && configuration_->is_local_routing()
                                     && its_message->get_client() != _bound_client) {
-                                VSOMEIP_WARNING << std::hex << std::setfill('0')
-                                    << "vSomeIP Security: Client 0x" << std::setw(4) << get_client()
-                                    << " received a request from client 0x" << std::setw(4) << its_message->get_client()
-                                    << " to service/instance/method "
-                                    << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method()
-                                    << " which doesn't match the bound client 0x" << std::setw(4) << _bound_client
-                                    << " ~> skip message!";
+                                VSOMEIP_WARNING << std::hex << "vSomeIP Security: Client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                                << " received a request from client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << its_message->get_client()
+                                                << " to service/instance/method " << its_message->get_service()
+                                                << "/" << its_message->get_instance() << "/" << its_message->get_method()
+                                                << " which doesn't match the bound client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << _bound_client
+                                                << " ~> skip message!";
                                 return;
                             }
                             if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(_sec_client,
                                     its_message->get_service(), its_message->get_instance(),
                                     its_message->get_method())) {
-                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_message->get_client()
-                                    << " : routing_manager_client::on_message: "
-                                    << "isn't allowed to send a request to service/instance/method "
-                                    << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method()
-                                    << " ~> Skip message!";
+                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << its_message->get_client()
+                                                << " : routing_manager_client::on_message: "
+                                                << "isn't allowed to send a request to service/instance/method "
+                                                << its_message->get_service() << "/" << its_message->get_instance()
+                                                << "/" << its_message->get_method()
+                                                << " ~> Skip message!";
                                 return;
                             }
                         } else { // response
                             if (!is_response_allowed(_bound_client, its_message->get_service(),
                                     its_message->get_instance(), its_message->get_method())) {
-                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                    << " : routing_manager_client::on_message: "
-                                    << " received a response from client 0x" << _bound_client
-                                    << " which does not offer service/instance/method "
-                                    << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method()
-                                    << " ~> Skip message!";
+                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                                << " : routing_manager_client::on_message: "
+                                                << " received a response from client 0x" << _bound_client
+                                                << " which does not offer service/instance/method "
+                                                << its_message->get_service() << "/" << its_message->get_instance()
+                                                << "/" << its_message->get_method()
+                                                << " ~> Skip message!";
                                 return;
                             } else {
                                 if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
                                             its_message->get_service(), its_message->get_instance(),
                                             its_message->get_method())) {
-                                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                        << " : routing_manager_client::on_message: "
-                                        << " isn't allowed to receive a response from service/instance/method "
-                                        << its_message->get_service() << "/" << its_message->get_instance()
-                                        << "/" << its_message->get_method()
-                                        << " respectively from client 0x" << _bound_client
-                                        << " ~> Skip message!";
+                                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                    << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                                    << " : routing_manager_client::on_message: "
+                                                    << " isn't allowed to receive a response from service/instance/method "
+                                                    << its_message->get_service() << "/" << its_message->get_instance()
+                                                    << "/" << its_message->get_method()
+                                                    << " respectively from client 0x" << _bound_client
+                                                    << " ~> Skip message!";
                                     return;
                                 }
                             }
@@ -1182,14 +1177,15 @@ void routing_manager_client::on_message(
                         if (!configuration_->is_remote_access_allowed()) {
                             // if the message is from routing manager, check if
                             // policy allows remote requests.
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                << " : routing_manager_client::on_message: "
-                                << std::hex << "Security: Remote clients via routing manager with client ID 0x" << its_client
-                                << " are not allowed to communicate with service/instance/method "
-                                << its_message->get_service() << "/" << its_message->get_instance()
-                                << "/" << its_message->get_method()
-                                << " respectively with client 0x" << get_client()
-                                << " ~> Skip message!";
+                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                            << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                            << " : routing_manager_client::on_message: "
+                                            << std::hex << "Security: Remote clients via routing manager with client ID 0x" << its_client
+                                            << " are not allowed to communicate with service/instance/method "
+                                            << its_message->get_service() << "/" << its_message->get_instance()
+                                            << "/" << its_message->get_method()
+                                            << " respectively with client 0x" << get_client()
+                                            << " ~> Skip message!";
                             return;
                         } else if (utility::is_notification(its_message->get_message_type())) {
                             // As subscription is sent on eventgroup level, incoming remote event ID's
@@ -1199,13 +1195,13 @@ void routing_manager_client::on_message(
                                     its_message->get_service(), its_message->get_instance(),
                                     its_message->get_method())) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                        << " : routing_manager_client::on_message: "
-                                        << " isn't allowed to receive a notification from service/instance/event "
-                                        << its_message->get_service() << "/" << its_message->get_instance()
-                                        << "/" << its_message->get_method()
-                                        << " respectively from remote clients via routing manager with client ID 0x"
-                                        << routing_host_id
-                                        << " ~> Skip message!";
+                                                << " : routing_manager_client::on_message: "
+                                                << " isn't allowed to receive a notification from service/instance/event "
+                                                << its_message->get_service() << "/" << its_message->get_instance()
+                                                << "/" << its_message->get_method()
+                                                << " respectively from remote clients via routing manager with client ID 0x"
+                                                << routing_host_id
+                                                << " ~> Skip message!";
                                 return;
                             }
                             cache_event_payload(its_message);
@@ -1258,7 +1254,8 @@ void routing_manager_client::on_message(
                 on_routing_info(_data, _size);
             } else {
                 VSOMEIP_WARNING << "routing_manager_client::on_message: "
-                        << std::hex << "Security: Client 0x" << get_client()
+                        << "Security: Client 0x"
+                        << std::hex << std::setw(4) << std::setfill('0')<< get_client()
                         << " received an routing info from a client which isn't the routing manager"
                         << " : Skip message!";
             }
@@ -1662,10 +1659,11 @@ void routing_manager_client::on_message(
                     VSOMEIP_ERROR << "vSomeIP Security: Policy deserialization failed!";
                 }
             } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                    << " : routing_manager_client::on_message: "
-                    << " received a security policy update from a client which isn't the routing manager"
-                    << " : Skip message!";
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " : routing_manager_client::on_message: "
+                                << " received a security policy update from a client which isn't the routing manager"
+                                << " : Skip message!";
             }
             break;
         }
@@ -1690,10 +1688,11 @@ void routing_manager_client::on_message(
                         << static_cast<int>(its_error)
                         << ")";
             } else
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                    << " : routing_manager_client::on_message: "
-                    << "received a security policy removal from a client which isn't the routing manager"
-                    << " : Skip message!";
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " : routing_manager_client::on_message: "
+                                << "received a security policy removal from a client which isn't the routing manager"
+                                << " : Skip message!";
             break;
         }
 
@@ -1716,10 +1715,11 @@ void routing_manager_client::on_message(
                         << static_cast<int>(its_error)
                         << ")";
             } else
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                    << " : routing_manager_client::on_message: "
-                    << " received a security policy distribution command from a client which isn't the routing manager"
-                    << " : Skip message!";
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " : routing_manager_client::on_message: "
+                                << " received a security policy distribution command from a client which isn't the routing manager"
+                                << " : Skip message!";
             break;
         }
 
@@ -1736,10 +1736,11 @@ void routing_manager_client::on_message(
                         << static_cast<int>(its_error)
                         << ")";
             } else
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                    << " : routing_manager_client::on_message: "
-                    << "received a security credential update from a client which isn't the routing manager"
-                    << " : Skip message!";
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " : routing_manager_client::on_message: "
+                                << "received a security credential update from a client which isn't the routing manager"
+                                << " : Skip message!";
 
             break;
         }
@@ -1758,7 +1759,7 @@ void routing_manager_client::on_routing_info(
         const byte_t *_data, uint32_t _size) {
 #if 0
     std::stringstream msg;
-    msg << "rmp::on_routing_info(" << std::hex << get_client() << "): ";
+    msg << "rmp::on_routing_info(" << std::hex << std::setw(4) << std::setfill('0') << get_client() << "): ";
     for (uint32_t i = 0; i < _size; ++i)
         msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_INFO << msg.str();
@@ -1792,13 +1793,15 @@ void routing_manager_client::on_routing_info(
                 }
 
                 if (its_client == get_client()) {
-                    VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
-                                << " (" << host_->get_name() << ") is registered.";
+                    VSOMEIP_INFO << "Application/Client "
+                                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                 << " (" << host_->get_name() << ") is registered.";
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                     if (!its_security->check_credentials(get_client(), get_sec_client())) {
-                        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
-                                << " to use the server endpoint due to credential check failed!";
+                        VSOMEIP_ERROR << "vSomeIP Security: Client 0x"
+                                      << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                      << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
+                                      << " to use the server endpoint due to credential check failed!";
                         deregister_application();
                         host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
                         return;
@@ -1833,8 +1836,9 @@ void routing_manager_client::on_routing_info(
                 }
                 if (its_client == get_client()) {
                     its_security->remove_client_to_sec_client_mapping(its_client);
-                    VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
-                                << " (" << host_->get_name() << ") is deregistered.";
+                    VSOMEIP_INFO << "Application/Client "
+                                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                 << " (" << host_->get_name() << ") is deregistered.";
 
                     // inform host about its own registration state changes
                     host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
@@ -2052,14 +2056,16 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
         }
     }
 
-    VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
-            << ": Reconnecting to routing manager.";
+    VSOMEIP_INFO << std::hex << "Application/Client "
+                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                 <<": Reconnecting to routing manager.";
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (!its_security->check_credentials(get_client(), get_sec_client())) {
-        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                << " :  routing_manager_client::reconnect: isn't allowed"
-                << " to use the server endpoint due to credential check failed!";
+        VSOMEIP_ERROR << "vSomeIP Security: Client 0x"
+                      << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                      << " :  routing_manager_client::reconnect: isn't allowed"
+                      << " to use the server endpoint due to credential check failed!";
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->stop();
@@ -2076,7 +2082,9 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
 
 void routing_manager_client::assign_client() {
 
-    VSOMEIP_INFO << __func__ << ": (" << std::hex << get_client() << ":" << host_->get_name() << ")";
+    VSOMEIP_INFO << __func__ << ": (" << std::hex << std::setw(4) << std::setfill('0')
+                 << get_client() << ":" << host_->get_name() << ")";
+
     protocol::assign_client_command its_command;
     its_command.set_client(get_client());
     its_command.set_name(host_->get_name());
@@ -2097,7 +2105,8 @@ void routing_manager_client::assign_client() {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
             if (state_ != inner_state_type_e::ST_DEREGISTERED) {
-                VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") Non-Deregistered State Set. Returning";
+                VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setw(4) << std::setfill('0')
+                                << get_client() << ") Non-Deregistered State Set. Returning";
                 return;
             }
             state_ = inner_state_type_e::ST_ASSIGNING;
@@ -2113,11 +2122,13 @@ void routing_manager_client::assign_client() {
                             std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
                             std::placeholders::_1));
         } else {
-            VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") sender not initialized. Ignoring client assignment";
+            VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setw(4) << std::setfill('0')
+                            << get_client() << ") sender not initialized. Ignoring client assignment";
         }
     }
     else {
-        VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client() << ") not connected. Ignoring client assignment";
+        VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setw(4) << std::setfill('0')
+                        << get_client() << ") not connected. Ignoring client assignment";
     }
 }
 
@@ -2341,12 +2352,12 @@ void routing_manager_client::on_subscribe_ack(client_t _client,
     (void)_client;
 #if 0
     VSOMEIP_ERROR << "routing_manager_client::" << __func__
-            << "(" << std::hex << host_->get_client() << "):"
+            << "(" << std::hex << std::setw(4) << std::setfill('0') << host_->get_client() << "):"
             << "event="
-            << std::hex << _service << "."
-            << std::hex << _instance << "."
-            << std::hex << _eventgroup << "."
-            << std::hex << _event;
+            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
+            << std::hex << std::setw(4) << std::setfill('0') << _event;
 #endif
     if (_event == ANY_EVENT) {
         auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
@@ -2555,20 +2566,26 @@ routing_manager_client::assign_client_timeout_cbk(
             if (state_ != inner_state_type_e::ST_REGISTERED) {
                 state_ = inner_state_type_e::ST_DEREGISTERED;
                 register_again = true;
+            } else {
+                VSOMEIP_INFO << __func__ << ": Will not retry registry for Client [0x"
+                             << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                             << "] : already registered ";
             }
         }
         if (register_again) {
             std::lock_guard<std::mutex> its_lock(sender_mutex_);
-            VSOMEIP_WARNING << std::hex << "Client 0x" << get_client()
-                    << " request client timeout! Trying again...";
+            VSOMEIP_WARNING << "Client 0x"
+                            << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                            << " request client timeout! Trying again...";
 
             if (sender_) {
                 sender_->restart();
             }
         }
-    } else {
-        VSOMEIP_WARNING << __func__ << ": Ignoring Client 0x" << std::hex << get_client()
-                << " due to error_code: " << _error.value() ;
+    } else if (_error != boost::asio::error::operation_aborted) { //ignore error when timer is deliberately cancelled
+        VSOMEIP_WARNING << __func__ << ": Ignoring Client 0x"
+                        << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                        << " due to error_code: " << _error.value() ;
     }
 }
 
@@ -2585,8 +2602,9 @@ void routing_manager_client::register_application_timeout_cbk(
     }
     if (register_again) {
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
-        VSOMEIP_WARNING << std::hex << "Client 0x" << get_client()
-            << " register timeout! Trying again...";
+        VSOMEIP_WARNING << std::hex << "Client 0x"
+                        << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                        << " register timeout! Trying again...";
 
         if (sender_)
             sender_->restart();
@@ -2694,8 +2712,10 @@ void routing_manager_client::register_client_error_handler(client_t _client,
 void routing_manager_client::handle_client_error(client_t _client) {
 
     if (_client != VSOMEIP_ROUTING_CLIENT) {
-        VSOMEIP_INFO << "Client 0x" << std::hex << get_client()
-                << " handles a client error(" << std::hex << _client << ")";
+        VSOMEIP_INFO << "Client 0x"
+                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                     << " handles a client error("
+                     << std::hex << std::setw(4) << std::setfill('0') << _client << ")";
         remove_local(_client, true);
     } else {
         bool should_reconnect(true);
@@ -2879,13 +2899,14 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
                 if (receiver_) {
                     receiver_->start();
 
-                    VSOMEIP_INFO << std::hex << "Client " << get_client()
-                        << " (" << host_->get_name()
-                        << ") successfully connected to routing  ~> registering..";
+                    VSOMEIP_INFO << "Client "
+                                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                 << " (" << host_->get_name() << ") successfully connected to routing  ~> registering..";
                     register_application();
                 } else {
                     VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":"
-                        << std::hex << _client << ") Receiver not started. Restarting";
+                                    << std::hex << std::setw(4) << std::setfill('0')
+                                    << _client << ") Receiver not started. Restarting";
                     state_ = inner_state_type_e::ST_DEREGISTERED;
 
                     host_->set_client(VSOMEIP_CLIENT_UNSET);
@@ -2894,18 +2915,18 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
                 }
             } else {
                 VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":"
-                                << std::hex << _client << ") Not started. Discarding";
+                                << std::hex << std::setw(4) << std::setfill('0')
+                                << _client << ") Not started. Discarding";
             }
         } else {
             VSOMEIP_ERROR << __func__ << ": (" << host_->get_name() << ":"
-                            << std::hex << _client << ") Invalid clientID";
+                          << std::hex << std::setw(4) << std::setfill('0')
+                          << _client << ") Invalid clientID";
         }
     } else {
-        VSOMEIP_WARNING << "Client " << std::hex << get_client()
-                << " received another client identifier ("
-                << std::hex << _client
-                << "). Ignoring it. ("
-                << (int)state_ << ")";
+        VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                        << " received another client identifier ("<< _client
+                        << "). Ignoring it. (" << (int)state_ << ")";
     }
 }
 

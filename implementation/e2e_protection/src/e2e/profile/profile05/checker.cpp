@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../../../../include/e2e/profile/profile05/checker.hpp"
-#include "../../../../../utility/include/byteorder.hpp"
+#include "../../../../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -78,8 +78,7 @@ bool
 profile_05_checker::read_16(const e2e_buffer &_buffer,
         uint16_t &_data, size_t _index) const {
 
-    _data = VSOMEIP_BYTES_TO_WORD(_buffer[config_.offset_ + _index + 1],
-                                  _buffer[config_.offset_ + _index]);
+    _data = bithelper::read_uint16_be(&_buffer[config_.offset_ + _index]);
     return true;
 }
 

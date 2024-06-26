@@ -15,7 +15,7 @@
 #include "../../routing/include/routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
@@ -560,18 +560,10 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 client_t its_client(0);
                 session_t its_session(0);
                 if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-                    its_session = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+                    its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
                 VSOMEIP_WARNING << "uce::send_cbk received error: "
                         << _error.message() << " (" << std::dec
@@ -636,18 +628,10 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
         client_t its_client(0);
         session_t its_session(0);
         if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "

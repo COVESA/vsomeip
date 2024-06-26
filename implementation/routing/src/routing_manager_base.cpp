@@ -16,7 +16,7 @@
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
 #endif
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -1312,10 +1312,8 @@ bool routing_manager_base::send_local_notification(client_t _client,
     bool has_local(false);
 #endif
     bool has_remote(false);
-    method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
-    service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
     if (its_event && !its_event->is_shadow()) {
