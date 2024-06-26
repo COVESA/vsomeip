@@ -33,6 +33,8 @@
 /test/network_tests/big_payload_tests/big_payload_test_tcp_service_queue_limited_specific.json
 /test/network_tests/big_payload_tests/big_payload_test_udp_client.json
 /test/network_tests/big_payload_tests/big_payload_test_udp_service.json
+/test/network_tests/lazy_load_tests/lazy_load_test_config.json
+/test/network_tests/lazy_load_tests/vsomeip_policy_extensions.json
 /test/network_tests/magic_cookies_tests/magic_cookies_test_client.json
 /test/network_tests/magic_cookies_tests/magic_cookies_test_service.json
 /test/network_tests/debounce_frequency_tests/debounce_frequency_test_client.json
