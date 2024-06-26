@@ -6,6 +6,7 @@
 project ("unit_tests_bin" LANGUAGES CXX)
 
 add_subdirectory(message_payload_impl_tests)
+add_subdirectory(message_serializer_tests)
 add_subdirectory(security_policy_tests)
 add_subdirectory(security_tests)
 add_subdirectory(utility_utility_tests)
