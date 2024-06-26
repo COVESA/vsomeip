@@ -25,14 +25,6 @@ std::shared_ptr<configuration>
 configuration_plugin_impl::get_configuration(const std::string &_name,
         const std::string &_path) {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
-    if (!default_) {
-        default_ = std::make_shared<cfg::configuration_impl>(_path);
-        default_->load(_name);
-    }
-    return default_;
-
-#if 0
     std::shared_ptr<cfg::configuration_impl> its_configuration;
     auto its_iterator = configurations_.find(_name);
     if (its_iterator != configurations_.end()) {
@@ -44,7 +36,6 @@ configuration_plugin_impl::get_configuration(const std::string &_name,
     }
 
     return its_configuration;
-#endif
-}
 
+}
 } // namespace vsomeip_v3

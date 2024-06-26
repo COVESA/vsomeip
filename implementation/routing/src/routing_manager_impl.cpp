@@ -423,7 +423,7 @@ bool routing_manager_impl::offer_service(client_t _client,
     // Check if the application hosted by routing manager is allowed to offer
     // offer_service requests of local proxies are checked in rms::on:message
     if (_client == get_client()) {
-        if (VSOMEIP_SEC_OK != security::is_client_allowed_to_offer(
+        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_offer(
                 get_sec_client(), _service, _instance)) {
             VSOMEIP_WARNING << "routing_manager_impl::offer_service: "
                     << std::hex << "Security: Client 0x" << _client
@@ -1869,8 +1869,8 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
                             << " ~> Skip message!";
                     return false;
                 } else {
-                    if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                            its_message->get_service(), its_message->get_instance(),
+                    if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                            get_sec_client(), its_message->get_service(), its_message->get_instance(),
                             its_message->get_method())) {
                         VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                 << " : routing_manager_impl::deliver_message: "
@@ -1897,8 +1897,8 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
                     return false;
                 }
 
-                if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(_sec_client,
-                        its_message->get_service(), its_message->get_instance(),
+                if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                        _sec_client, its_message->get_service(), its_message->get_instance(),
                         its_message->get_method())) {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                             << " : routing_manager_impl::deliver_message: "
@@ -1920,8 +1920,8 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
                             << " ~> Skip message!";
                     return false;
                 } else {
-                    if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                            its_message->get_service(), its_message->get_instance(),
+                    if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                            get_sec_client(), its_message->get_service(), its_message->get_instance(),
                             its_message->get_method())) {
                         VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                 << " : routing_manager_impl::deliver_message: "
@@ -1948,8 +1948,8 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
                         << " ~> Skip message!";
                 return false;
             } else if (utility::is_notification(its_message->get_message_type())) {
-                if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                        its_message->get_service(), its_message->get_instance(),
+                if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                        get_sec_client(), its_message->get_service(), its_message->get_instance(),
                         its_message->get_method())) {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                             << " : routing_manager_impl::deliver_message: "

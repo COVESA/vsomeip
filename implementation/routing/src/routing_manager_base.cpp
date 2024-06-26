@@ -700,7 +700,7 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         for (const auto& e : its_eventgroup->get_events()) {
-            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                     _sec_client, _service, _instance, e->get_event())) {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                     << _client << " : routing_manager_base::is_subscribe_to_any_event_allowed: "
@@ -722,7 +722,7 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         //Ignore if we have already loaded the policy extension
         policy_manager_impl::policy_loaded_e policy_loaded
-            = policy_manager_impl::get()->is_policy_extension_loaded(_client_host);
+            = configuration_->get_policy_manager()->is_policy_extension_loaded(_client_host);
 
         if (policy_loaded == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_NOT_LOADED)
         {
@@ -1154,10 +1154,10 @@ void routing_manager_base::remove_local(client_t _client,
                   bool _remove_sec_client) {
 
     vsomeip_sec_client_t its_sec_client;
-    policy_manager_impl::get()->get_client_to_sec_client_mapping(_client, its_sec_client);
+    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
 
     if (_remove_sec_client) {
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(_client);
+        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
     for (auto its_subscription : _subscribed_eventgroups) {
         host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
