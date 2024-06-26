@@ -161,7 +161,7 @@ TEST(security_policy_test, deserialize) {
     };
 
     const vsomeip_v3::byte_t *data_ptr_ = byte_array_.begin();
-    uint32_t data_size_ = array_size;
+    std::uint32_t data_size_ = array_size;
 
     // Test method.
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
