@@ -268,9 +268,9 @@ bool server_endpoint_impl<Protocol>::send_intern(
     VSOMEIP_DEBUG << msg.str();
 #endif
     // STEP 1: Check queue limit
-    if (!check_queue_limit(_data, _size, its_data.queue_size_)) {
+    if (!check_queue_limit(_data, _size, its_data))
         return false;
-    }
+
     // STEP 2: Cancel the dispatch timer
     cancel_dispatch_timer(its_target_iterator);
 
@@ -473,11 +473,32 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
 }
 
 template<typename Protocol>
+void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type &_data) const {
+
+    _data.queue_size_ = 0;
+    for (const auto &q : _data.queue_)
+        _data.queue_size_ += q.first->size();
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std::uint32_t _size,
-                       std::size_t _current_queue_size) const {
-    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-            && _current_queue_size + _size
-                    > endpoint_impl<Protocol>::queue_limit_) {
+        endpoint_data_type &_endpoint_data) const {
+
+    // No queue limit --> Fine
+    if (endpoint_impl<Protocol>::queue_limit_ == QUEUE_SIZE_UNLIMITED)
+        return true;
+
+    // Current queue size is bigger than the maximum queue size
+    if (_endpoint_data.queue_size_ >= endpoint_impl<Protocol>::queue_limit_) {
+        size_t its_error_queue_size { _endpoint_data.queue_size_ };
+        recalculate_queue_size(_endpoint_data);
+
+        VSOMEIP_WARNING << __func__ << ": Detected possible queue size underflow ("
+            << std::dec << its_error_queue_size  << "). Recalculating it ("
+            << std::dec << _endpoint_data.queue_size_ << ")";
+    }
+
+    if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -503,7 +524,7 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]"
-                << " queue_size: " << std::dec << _current_queue_size
+                << " queue_size: " << std::dec << _endpoint_data.queue_size_
                 << " data size: " << _size;
         return false;
     }
@@ -693,6 +714,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
         const std::size_t payload_size = its_data.queue_.front().first->size();
         if (payload_size <= its_data.queue_size_) {
             its_data.queue_size_ -= payload_size;
+            its_data.queue_.pop_front();
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
             VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: "
@@ -701,9 +723,9 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
-            its_data.queue_size_ = 0;
-        }
-        its_data.queue_.pop_front();
+            its_data.queue_.pop_front();
+            recalculate_queue_size(its_data);
+       }
 
         update_last_departure(its_data);
 
