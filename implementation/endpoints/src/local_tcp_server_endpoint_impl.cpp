@@ -647,7 +647,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                 = htonl(uint32_t(its_address.to_v4().to_ulong()));
                         }
                         sec_client_.port = htons(its_port);
-                        security::sync_client(&sec_client_);
+                        its_server->configuration_->get_security()->sync_client(&sec_client_);
 
                         its_host->on_message(&recv_buffer_[its_start],
                                             uint32_t(its_end - its_start), its_server.get(),
@@ -701,7 +701,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
             || is_error) {
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
+        its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
         start();
     }

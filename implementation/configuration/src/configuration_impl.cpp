@@ -26,6 +26,7 @@
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/internal/logger.hpp>
 #include <vsomeip/structured_types.hpp>
+#include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
@@ -37,7 +38,6 @@
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../plugin/include/plugin_manager.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
@@ -107,6 +107,8 @@ configuration_impl::configuration_impl(const std::string &_path)
       is_security_audit_(false),
       is_remote_access_allowed_(true) {
 
+    policy_manager_ = std::make_shared<policy_manager_impl>();
+    security_ = std::make_shared<security>(policy_manager_);
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
@@ -362,7 +364,7 @@ bool configuration_impl::load(const std::string &_name) {
 bool configuration_impl::lazy_load_security(const std::string &_client_host) {
     bool result(false);
 
-    std::string its_folder = policy_manager_impl::get()->get_policy_extension_path(_client_host);
+    std::string its_folder = policy_manager_->get_policy_extension_path(_client_host);
     if (!its_folder.empty()) {
         std::set<std::string> its_input;
         std::set<std::string> its_failed;
@@ -370,7 +372,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
 
         its_input.insert(its_folder);
         // load security configuration files from UID_GID sub folder if existing
-        std::string its_security_config_folder = policy_manager_impl::get()->get_security_config_folder(its_folder);
+        std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
 
         if (!its_security_config_folder.empty())
             its_input.insert(its_security_config_folder);
@@ -378,7 +380,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
         read_data(its_input, its_mandatory_elements, its_failed, true, true);
 
         for (const auto& e : its_mandatory_elements) {
-            policy_manager_impl::get()->load(e, true);
+            policy_manager_->load(e, true);
         }
 
         for (auto f : its_failed)
@@ -387,7 +389,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
 
         result = (its_failed.empty() && !its_mandatory_elements.empty());
         if (result)
-            policy_manager_impl::get()->set_is_policy_extension_loaded(_client_host, true);
+            policy_manager_->set_is_policy_extension_loaded(_client_host, true);
     }
 
     return result;
@@ -399,7 +401,7 @@ configuration_impl::check_routing_credentials(
         client_t _client, const vsomeip_sec_client_t *_sec_client) const {
 
     return (_client != get_id(routing_.host_.name_) ||
-            VSOMEIP_SEC_OK == security::authenticate_router(_sec_client));
+            VSOMEIP_SEC_OK == security_->authenticate_router(_sec_client));
 }
 
 bool configuration_impl::remote_offer_info_add(service_t _service,
@@ -534,8 +536,8 @@ void configuration_impl::load_policy_data(const std::string &_input,
         bool _mandatory_only) {
         if (is_mandatory(_input) == _mandatory_only) {
 #ifndef VSOMEIP_DISABLE_SECURITY
-            if (policy_manager_impl::get()->is_policy_extension(_input)) {
-                policy_manager_impl::get()->set_policy_extension_base_path(_input);
+            if (policy_manager_->is_policy_extension(_input)) {
+                policy_manager_->set_policy_extension_base_path(_input);
             }
 #endif
             boost::property_tree::ptree its_tree;
@@ -847,7 +849,7 @@ configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
         }
 
         if (has_uid && has_gid) {
-            policy_manager_impl::get()->set_routing_credentials(its_uid, its_gid, _name);
+            policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
         }
 
     } catch (...) {
@@ -2701,7 +2703,7 @@ void configuration_impl::load_security(const configuration_element &_element) {
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     if (!is_security_external())
-        policy_manager_impl::get()->load(_element);
+        policy_manager_->load(_element);
 #endif // !VSOMEIP_DISABLE_SECURITY
 }
 
@@ -5038,6 +5040,14 @@ bool
 configuration_impl::is_remote_access_allowed() const {
 
     return is_remote_access_allowed_;
+}
+
+std::shared_ptr<policy_manager_impl> configuration_impl::get_policy_manager() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> configuration_impl::get_security() const {
+    return security_;
 }
 
 }  // namespace cfg

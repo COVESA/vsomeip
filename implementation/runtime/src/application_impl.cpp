@@ -190,9 +190,9 @@ bool application_impl::init() {
     // Set security mode
     if (configuration_->is_security_enabled()) {
         if (configuration_->is_security_external()) {
-            if (security::load()) {
+            if (configuration_->get_security()->load()) {
                 VSOMEIP_INFO << "Using external security implementation!";
-                auto its_result = security::initialize();
+                auto its_result = configuration_->get_security()->initialize();
                 if (VSOMEIP_SEC_POLICY_OK != its_result)
                     VSOMEIP_ERROR << "Intializing external security implementation failed ("
                         << std::dec << its_result << ')';
@@ -1488,6 +1488,10 @@ void application_impl::set_sec_client_port(port_t _port) {
 
 std::shared_ptr<configuration> application_impl::get_configuration() const {
     return configuration_;
+}
+
+std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
+    return configuration_->get_policy_manager();
 }
 
 diagnosis_t application_impl::get_diagnosis() const {

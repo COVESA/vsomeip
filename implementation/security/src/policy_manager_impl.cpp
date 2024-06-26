@@ -1448,43 +1448,4 @@ policy_manager_impl::get_sec_client_to_clients_mapping(
     return false;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Manage the security object
-////////////////////////////////////////////////////////////////////////////////
-static std::shared_ptr<policy_manager_impl> *the_policy_manager_ptr__(nullptr);
-static std::mutex the_policy_manager_mutex__;
-
-std::shared_ptr<policy_manager_impl>
-policy_manager_impl::get() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-#endif
-    if(the_policy_manager_ptr__ == nullptr) {
-        the_policy_manager_ptr__ = new std::shared_ptr<policy_manager_impl>();
-    }
-    if (the_policy_manager_ptr__ != nullptr) {
-        if (!(*the_policy_manager_ptr__)) {
-            *the_policy_manager_ptr__ = std::make_shared<policy_manager_impl>();
-        }
-        return *the_policy_manager_ptr__;
-    }
-    return nullptr;
-}
-
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-static void security_teardown(void) __attribute__((destructor));
-static void security_teardown(void)
-{
-    if (the_policy_manager_ptr__ != nullptr) {
-        // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-        // Since this function only runs on the main thread, no mutex should be needed. Leaving a
-        // comment pending a refactor.
-        // std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-        the_policy_manager_ptr__->reset();
-        delete the_policy_manager_ptr__;
-        the_policy_manager_ptr__ = nullptr;
-    }
-}
-#endif
-
 } // namespace vsomeip_v3

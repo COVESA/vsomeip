@@ -39,6 +39,8 @@
 
 namespace vsomeip_v3 {
 
+class policy_manager_impl;
+class security;
 class event;
 struct debounce_filter_impl_t;
 
@@ -309,6 +311,8 @@ public:
     virtual bool is_security_external() const = 0;
     virtual bool is_security_audit() const = 0;
     virtual bool is_remote_access_allowed() const = 0;
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

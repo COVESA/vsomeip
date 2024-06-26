@@ -652,7 +652,7 @@ void routing_manager_client::send_subscribe(client_t _client,
             return;
         }
     } else {
-        if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                 get_sec_client(), _service, _instance, _event)) {
             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << _client
                     << " : routing_manager_proxy::subscribe: "
@@ -1031,8 +1031,8 @@ void routing_manager_client::on_message(
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
 
-    auto its_security = policy_manager_impl::get();
-    if (!its_security)
+    auto its_policy_manager = configuration_->get_policy_manager();
+    if (!its_policy_manager)
         return;
 
     protocol::dummy_command its_dummy_command;
@@ -1103,8 +1103,8 @@ void routing_manager_client::on_message(
                                                 << " ~> Skip message!";
                                 return;
                             } else {
-                                if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                                        its_message->get_service(), its_message->get_instance(),
+                                if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                                        get_sec_client(), its_message->get_service(), its_message->get_instance(),
                                         its_message->get_method())) {
                                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                                                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
@@ -1133,8 +1133,8 @@ void routing_manager_client::on_message(
                                                 << " ~> skip message!";
                                 return;
                             }
-                            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(_sec_client,
-                                    its_message->get_service(), its_message->get_instance(),
+                            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                                    _sec_client, its_message->get_service(), its_message->get_instance(),
                                     its_message->get_method())) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                                                 << std::hex << std::setw(4) << std::setfill('0') << its_message->get_client()
@@ -1158,8 +1158,8 @@ void routing_manager_client::on_message(
                                                 << " ~> Skip message!";
                                 return;
                             } else {
-                                if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                                            its_message->get_service(), its_message->get_instance(),
+                                if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                                            get_sec_client(), its_message->get_service(), its_message->get_instance(),
                                             its_message->get_method())) {
                                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                                                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
@@ -1191,8 +1191,8 @@ void routing_manager_client::on_message(
                             // As subscription is sent on eventgroup level, incoming remote event ID's
                             // need to be checked as well if remote clients are allowed
                             // and the local policy only allows specific events in the eventgroup to be received.
-                            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(get_sec_client(),
-                                    its_message->get_service(), its_message->get_instance(),
+                            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
+                                    get_sec_client(), its_message->get_service(), its_message->get_instance(),
                                     its_message->get_method())) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                                 << " : routing_manager_client::on_message: "
@@ -1356,7 +1356,7 @@ void routing_manager_client::on_message(
                                return;
                            }
                         } else {
-                            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+                            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                                     _sec_client, its_service, its_instance, its_event)) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_client
                                         << " : routing_manager_client::on_message: "
@@ -1648,8 +1648,8 @@ void routing_manager_client::on_message(
                     uint32_t its_gid;
                     if (its_policy->get_uid_gid(its_uid, its_gid)) {
                         if (is_internal_policy_update
-                                || its_security->is_policy_update_allowed(its_uid, its_policy)) {
-                            its_security->update_security_policy(its_uid, its_gid, its_policy);
+                                || its_policy_manager->is_policy_update_allowed(its_uid, its_policy)) {
+                            its_policy_manager->update_security_policy(its_uid, its_gid, its_policy);
                             send_update_security_policy_response(its_command.get_update_id());
                         }
                     } else {
@@ -1678,8 +1678,8 @@ void routing_manager_client::on_message(
                     uid_t its_uid(its_command.get_uid());
                     gid_t its_gid(its_command.get_gid());
 
-                    if (its_security->is_policy_removal_allowed(its_uid)) {
-                        its_security->remove_security_policy(its_uid, its_gid);
+                    if (its_policy_manager->is_policy_removal_allowed(its_uid)) {
+                        its_policy_manager->remove_security_policy(its_uid, its_gid);
                         send_remove_security_policy_response(its_command.get_update_id());
                     }
                 } else
@@ -1706,8 +1706,8 @@ void routing_manager_client::on_message(
                         uid_t its_uid;
                         gid_t its_gid;
                         p->get_uid_gid(its_uid, its_gid);
-                        if (its_security->is_policy_update_allowed(its_uid, p))
-                            its_security->update_security_policy(its_uid, its_gid, p);
+                        if (its_policy_manager->is_policy_update_allowed(its_uid, p))
+                            its_policy_manager->update_security_policy(its_uid, its_gid, p);
                     }
                 } else
                     VSOMEIP_ERROR << __func__
@@ -1764,8 +1764,8 @@ void routing_manager_client::on_routing_info(
         msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    auto its_security = policy_manager_impl::get();
-    if (!its_security)
+    auto its_policy_manager = configuration_->get_policy_manager();
+    if (!its_policy_manager)
         return;
 
     std::vector<byte_t> its_buffer(_data, _data + _size);
@@ -1797,11 +1797,10 @@ void routing_manager_client::on_routing_info(
                                  << std::hex << std::setw(4) << std::setfill('0') << get_client()
                                  << " (" << host_->get_name() << ") is registered.";
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-                    if (!its_security->check_credentials(get_client(), get_sec_client())) {
-                        VSOMEIP_ERROR << "vSomeIP Security: Client 0x"
-                                      << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                                      << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
-                                      << " to use the server endpoint due to credential check failed!";
+                    if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
+                        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
+                                << " to use the server endpoint due to credential check failed!";
                         deregister_application();
                         host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
                         return;
@@ -1835,10 +1834,9 @@ void routing_manager_client::on_routing_info(
                     known_clients_.erase(its_client);
                 }
                 if (its_client == get_client()) {
-                    its_security->remove_client_to_sec_client_mapping(its_client);
-                    VSOMEIP_INFO << "Application/Client "
-                                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                                 << " (" << host_->get_name() << ") is deregistered.";
+                    its_policy_manager->remove_client_to_sec_client_mapping(its_client);
+                    VSOMEIP_INFO << "Application/Client " << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                                << " (" << host_->get_name() << ") is deregistered.";
 
                     // inform host about its own registration state changes
                     host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_DEREGISTERED));
@@ -2034,8 +2032,8 @@ void routing_manager_client::on_offered_services_info(
 }
 
 void routing_manager_client::reconnect(const std::map<client_t, std::string> &_clients) {
-    auto its_security = policy_manager_impl::get();
-    if (!its_security)
+    auto its_policy_manager = configuration_->get_policy_manager();
+    if (!its_policy_manager)
         return;
 
     // inform host about its own registration state changes
@@ -2061,11 +2059,10 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
                  <<": Reconnecting to routing manager.";
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    if (!its_security->check_credentials(get_client(), get_sec_client())) {
-        VSOMEIP_ERROR << "vSomeIP Security: Client 0x"
-                      << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                      << " :  routing_manager_client::reconnect: isn't allowed"
-                      << " to use the server endpoint due to credential check failed!";
+    if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
+        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setw(4) << std::setfill('0') << get_client()
+                << " :  routing_manager_client::reconnect: isn't allowed"
+                << " to use the server endpoint due to credential check failed!";
         std::lock_guard<std::mutex> its_lock(sender_mutex_);
         if (sender_) {
             sender_->stop();
@@ -2453,13 +2450,13 @@ void routing_manager_client::send_pending_commands() {
 }
 
 void routing_manager_client::init_receiver() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    auto its_security = policy_manager_impl::get();
-    if (!its_security)
+#ifdef __linux__
+    auto its_policy_manager = configuration_->get_policy_manager();
+    if (!its_policy_manager)
         return;
 
-    its_security->store_client_to_sec_client_mapping(get_client(), get_sec_client());
-    its_security->store_sec_client_to_client_mapping(get_sec_client(), get_client());
+    its_policy_manager->store_client_to_sec_client_mapping(get_client(), get_sec_client());
+    its_policy_manager->store_sec_client_to_client_mapping(get_sec_client(), get_client());
 #endif
     if (!receiver_) {
         receiver_ = ep_mgr_->create_local_server(shared_from_this());
@@ -2861,8 +2858,8 @@ void routing_manager_client::send_remove_security_policy_response(
 void routing_manager_client::on_update_security_credentials(
         const protocol::update_security_credentials_command &_command) {
 
-    auto its_security = policy_manager_impl::get();
-    if (!its_security)
+    auto its_policy_manager = configuration_->get_policy_manager();
+    if (!its_policy_manager)
         return;
 
     for (const auto &c : _command.get_credentials()) {
@@ -2878,7 +2875,7 @@ void routing_manager_client::on_update_security_credentials(
         its_policy->allow_who_ = true;
         its_policy->allow_what_ = true;
 
-        its_security->add_security_credentials(its_uid, its_gid, its_policy, get_client());
+        its_policy_manager->add_security_credentials(its_uid, its_gid, its_policy, get_client());
     }
 }
 #endif
