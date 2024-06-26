@@ -798,14 +798,14 @@ void server_endpoint_impl<Protocol>::flush_cbk(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
-
-    std::ostream&& its_services_log{VSOMEIP_INFO};
+    std::stringstream its_services_log;
     its_services_log << __func__ << ": ";
 
     std::lock_guard<std::mutex> its_lock{mutex_};
     for (const auto &its_service : prepare_stop_handlers_)
         its_services_log << std::hex << std::setw(4) << std::setfill('0') << its_service.first << ' ';
 
+    VSOMEIP_INFO << its_services_log.str();
     prepare_stop_handlers_.erase(_service);
 }
 
