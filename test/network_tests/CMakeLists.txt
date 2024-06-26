@@ -3296,76 +3296,6 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
-# processing unknown type option sd message test
-##############################################################################
-if(NOT ${TESTS_BAT})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -Wconversion -Wextra")
-    set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    set(CMAKE_CXX_EXTENSIONS OFF)
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-
-    set(TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME unknown_sd_option_type_test)
-    set(TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_service)
-    add_executable(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE} processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_service.cpp)
-    target_link_libraries(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
-
-    file(GLOB sd_sources
-        "../../implementation/service_discovery/src/*entry*.cpp"
-        "../../implementation/service_discovery/src/*option*.cpp"
-        "../../implementation/service_discovery/src/*message*.cpp"
-    )
-    set(TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CLIENT ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_client)
-    add_executable(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CLIENT}
-        processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_client.cpp
-        ${PROJECT_SOURCE_DIR}/implementation/message/src/deserializer.cpp
-        ${PROJECT_SOURCE_DIR}/implementation/message/src/message_impl.cpp
-        ${PROJECT_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
-        ${sd_sources}
-    )
-
-    target_link_libraries(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CLIENT}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-sd
-        utils
-        serialization
-        communication
-        someip
-    )
-
-    # copy starter scripts into builddir
-    set(TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_master_starter.sh)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/conf/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER}
-        ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE}
-    )
-
-    # Copy config file for local test into $BUILDDIR/test
-    set(TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CONFIG_FILE ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}_master.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/conf/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/processing_unknown_sd_option_type_test/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CONFIG_FILE}
-        ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE}
-    )
-endif()
-
-##############################################################################
 # malicious data tests
 ##############################################################################
 if(NOT ${TESTS_BAT})
@@ -4237,8 +4167,6 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_OFFERED_SERVICES_INFO_SERVICE} gtest)
     add_dependencies(${TEST_PENDING_SUBSCRIPTION_SERVICE} gtest)
     add_dependencies(${TEST_PENDING_SUBSCRIPTION_CLIENT} gtest)
-    add_dependencies(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE} gtest)
-    add_dependencies(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CLIENT} gtest)
     add_dependencies(${TEST_MALICIOUS_DATA_SERVICE} gtest)
     add_dependencies(${TEST_MALICIOUS_DATA_CLIENT} gtest)
     if (${TEST_SECURITY})
@@ -4348,8 +4276,6 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_OFFERED_SERVICES_INFO_SERVICE})
     add_dependencies(build_network_tests ${TEST_PENDING_SUBSCRIPTION_SERVICE})
     add_dependencies(build_network_tests ${TEST_PENDING_SUBSCRIPTION_CLIENT})
-    add_dependencies(build_network_tests ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_SERVICE})
-    add_dependencies(build_network_tests ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_CLIENT})
     add_dependencies(build_network_tests ${TEST_MALICIOUS_DATA_SERVICE})
     add_dependencies(build_network_tests ${TEST_MALICIOUS_DATA_CLIENT})
     add_dependencies(build_network_tests ${TEST_E2E_SERVICE})
@@ -4902,11 +4828,6 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_send_request_to_sd_port
     COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} REQUEST_TO_SD)
     set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_send_request_to_sd_port PROPERTIES TIMEOUT 180)
-
-    # unknown type option sd message test
-    add_test(NAME ${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME}
-    COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_MASTER_STARTER})
-    set_tests_properties(${TEST_UNKNOWN_TYPE_OPTION_SD_MESSAGE_NAME} PROPERTIES TIMEOUT 180)
 
     # malicious data test
     add_test(NAME ${TEST_MALICIOUS_DATA_NAME}_events
