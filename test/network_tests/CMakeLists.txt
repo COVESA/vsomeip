@@ -165,55 +165,32 @@ endif()
 set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
-    @ONLY)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE}
-    ${TEST_APPLICATION}
-)
+    @ONLY)
 
 set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
-    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-    @ONLY)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
     ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-    ${TEST_APPLICATION}
-)
+    @ONLY)
 
 set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-    @ONLY)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-    ${TEST_APPLICATION}
-)
+    @ONLY)
 
 set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
-    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-    @ONLY)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
     ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-    ${TEST_APPLICATION}
-)
+    @ONLY)
 
 set(TEST_APPLICATION_STARTER ${TEST_APPLICATION}_starter.sh)
-    if(${TESTS_BAT})
-        configure_file(
-            ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_STARTER}.bat.in
-            ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_STARTER}
-            @ONLY)
-    endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_STARTER}
-${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_STARTER}
-${TEST_APPLICATION}
-)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_STARTER}.bat.in
+    ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_STARTER}
+    @ONLY)
 
 ##############################################################################
 # magic-cookies-test-client
@@ -249,12 +226,8 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE ${TEST_MAGIC_COOKIES_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
-        ${TEST_MAGIC_COOKIES_CLIENT}
-    )
+        @ONLY)
 
     # Copy bashscript to start client into $BUILDDIR/test
     set(TEST_MAGIC_COOKIES_CLIENT_START_SCRIPT ${TEST_MAGIC_COOKIES_CLIENT}_start.sh)
@@ -268,12 +241,8 @@ if(NOT ${TESTS_BAT})
     set(TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE ${TEST_MAGIC_COOKIES_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
-        ${TEST_MAGIC_COOKIES_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start service into $BUILDDIR/test
     set(TEST_MAGIC_COOKIES_SERVICE_START_SCRIPT ${TEST_MAGIC_COOKIES_SERVICE}_start.sh)
@@ -364,17 +333,10 @@ copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACT
 # Copy bashscript to start client and server $BUILDDIR/test
 set(TEST_HEADER_FACTORY_STARTER header_factory_test_send_receive_starter.sh)
 
-if(${TESTS_BAT})
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/header_factory_tests/conf/${TEST_HEADER_FACTORY_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
-        @ONLY)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/header_factory_tests/conf/${TEST_HEADER_FACTORY_STARTER}.bat.in
     ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_STARTER}
-    ${TEST_HEADER_FACTORY_CLIENT}
-)
+    @ONLY)
 
 ##############################################################################
 # routing-test
@@ -441,12 +403,8 @@ if(NOT ${TESTS_BAT})
     endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_ROUTING_STARTER}
-        ${TEST_LOCAL_ROUTING_CLIENT}
-    )
+        @ONLY)
 
     ##############################################################################
     set(TEST_EXTERNAL_LOCAL_ROUTING_NAME external_local_routing_test)
@@ -465,13 +423,8 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_CONFIG_FILE}
-        ${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start service into $BUILDDIR/test
     set(TEST_EXTERNAL_LOCAL_ROUTING_SERVICE_START_SCRIPT ${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}_start.sh)
@@ -494,12 +447,8 @@ if(NOT ${TESTS_BAT})
     set(TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_ROUTING_CLIENT_CONFIG_FILE}
-        ${TEST_EXTERNAL_LOCAL_ROUTING_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start client and server $BUILDDIR/test
     set(TEST_EXTERNAL_LOCAL_ROUTING_STARTER external_local_routing_test_starter.sh)
@@ -564,12 +513,9 @@ else()
     set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_ROUTING_STARTER}
-        ${TEST_LOCAL_ROUTING_CLIENT}
-    )
+        @ONLY)
+
 endif()
 ##############################################################################
 # restart_routing-test
@@ -674,61 +620,36 @@ if (${TEST_SECURITY})
         set(TEST_SECURITY_LOCAL_CONFIG_FILE ${TEST_SECURITY_NAME}_local_config.json)
         configure_file(
             ${NETWORK_TEST_SRC_DIR}/security_tests/conf/${TEST_SECURITY_LOCAL_CONFIG_FILE}.in
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_LOCAL_CONFIG_FILE}
-            @ONLY)
-        copy_to_builddir(
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_LOCAL_CONFIG_FILE}
             ${NETWORK_TEST_BIN_DIR}/${TEST_SECURITY_LOCAL_CONFIG_FILE}
-            ${TEST_SECURITY_SERVICE}
-        )
+            @ONLY)
 
         # Copy service config file for external allow tests into $BUILDDIR/test
         set(TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_SECURITY_NAME}_config_service_external_allow.json)
         configure_file(
             ${NETWORK_TEST_SRC_DIR}/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}.in
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
-            @ONLY)
-        copy_to_builddir(
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
             ${NETWORK_TEST_BIN_DIR}/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL}
-            ${TEST_SECURITY_SERVICE}
-        )
+            @ONLY)
 
         # Copy client config file for external allow tests into $BUILDDIR/test
         set(TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_SECURITY_NAME}_config_client_external_allow.json)
         configure_file(
             ${NETWORK_TEST_SRC_DIR}/security_tests/conf/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}.in
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
-            @ONLY)
-        copy_to_builddir(
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
             ${NETWORK_TEST_BIN_DIR}/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL}
-            ${TEST_SECURITY_SERVICE}
-        )
+            @ONLY)
 
         # Copy service config file for external deny tests into $BUILDDIR/test
         set(TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY ${TEST_SECURITY_NAME}_config_service_external_deny.json)
         configure_file(
             ${NETWORK_TEST_SRC_DIR}/security_tests/conf/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}.in
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
-            @ONLY)
-        copy_to_builddir(
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
             ${NETWORK_TEST_BIN_DIR}/${TEST_SECURITY_SERVICE_CONFIG_FILE_EXTERNAL_DENY}
-            ${TEST_SECURITY_SERVICE}
-        )
+            @ONLY)
 
         # Copy client config file for external deny tests into $BUILDDIR/test
         set(TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY ${TEST_SECURITY_NAME}_config_client_external_deny.json)
         configure_file(
             ${NETWORK_TEST_SRC_DIR}/security_tests/conf/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}.in
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
-            @ONLY)
-        copy_to_builddir(
-            ${NETWORK_TEST_SRC_DIR}/security_tests/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
             ${NETWORK_TEST_BIN_DIR}/${TEST_SECURITY_CLIENT_CONFIG_FILE_EXTERNAL_DENY}
-            ${TEST_SECURITY_SERVICE}
-        )
+            @ONLY)
 
         # Copy bashscript to start local test into $BUILDDIR/test
         set(TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT ${TEST_SECURITY_NAME}_local_start.sh)
@@ -834,17 +755,10 @@ copy_to_builddir(
 # Copy bashscript to start client and server $BUILDDIR/test
 set(TEST_LOCAL_PAYLOAD_STARTER local_payload_test_starter.sh)
 
-if(${TESTS_BAT})
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
-        @ONLY)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_STARTER}.bat.in
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_STARTER}
-    ${TEST_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 ##############################################################################
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_NAME external_local_payload_test)
@@ -854,13 +768,8 @@ set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE external_local_payload_test_service)
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-    ${TEST_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy bashscript to start service into $BUILDDIR/test
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}_start.sh)
@@ -876,13 +785,8 @@ set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL external_local_payload_test_client_
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-    ${TEST_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy bashscript to start client into $BUILDDIR/test
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}_start.sh)
@@ -896,17 +800,11 @@ copy_to_builddir(
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME external_local_payload_test_client_local)
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}_starter.sh)
 
-if(${TESTS_BAT})
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-        @ONLY)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}.bat.in
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-    ${TEST_PAYLOAD_CLIENT}
-)
+    @ONLY)
+
 ##############################################################################
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME external_local_payload_test_client_external)
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL external_local_payload_test_client_external)
@@ -915,13 +813,8 @@ set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL external_local_payload_test_clie
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-    ${TEST_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy bashscript to start client into $BUILDDIR/test
 set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh)
@@ -962,17 +855,10 @@ set(TEST_LOCAL_PAYLOAD_HUGE_NAME local_payload_test_huge_payload)
 # Copy bashscript to start client and server $BUILDDIR/test
 set(TEST_LOCAL_PAYLOAD_HUGE_STARTER ${TEST_LOCAL_PAYLOAD_HUGE_NAME}_starter.sh)
 
-if(${TESTS_BAT})
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-        @ONLY)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}.bat.in
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-    ${TEST_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 ##############################################################################
 # big_payload_test
@@ -1038,234 +924,136 @@ copy_to_builddir(
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_limited.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_limited.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_queue_limited.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_queue_limited.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_random.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_random.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_service.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_client_limited_general.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_service_limited_general.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_general.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_general.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_specific.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy config file for client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_specific.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
+
 # Copy config file for UDP client and service into $BUILDDIR/test
 set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_service.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
+
 set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_client.json)
 configure_file(
     ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
-    @ONLY)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
-    ${TEST_BIG_PAYLOAD_CLIENT}
-)
+    @ONLY)
 
 # Copy bashscript to start client local to $BUILDDIR/test
 set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
@@ -1288,17 +1076,10 @@ set(TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_limited)
 set(TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_queue_limited)
 set(TEST_LOCAL_BIG_PAYLOAD_STARTER ${TEST_LOCAL_BIG_PAYLOAD_NAME}_starter.sh)
 
-if(${TESTS_BAT})
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_BIG_PAYLOAD_STARTER}.bat.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
-        @ONLY)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_BIG_PAYLOAD_STARTER}.bat.in
     ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
-    ${TEST_BIG_PAYLOAD_SERVICE}
-)
+    @ONLY)
 
 # Copy bashscript to start client and server $BUILDDIR/test
 set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME big_payload_test_local_tcp)
@@ -1379,121 +1160,71 @@ if(NOT ${TESTS_BAT})
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_CLIENT_ID_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_CLIENT_ID_UTILITY_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility.json)
     copy_to_builddir(
@@ -1588,23 +1319,14 @@ if(NOT ${TESTS_BAT})
     set(TEST_DEBOUNCE_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_tests/conf/${TEST_DEBOUNCE_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_tests/${TEST_DEBOUNCE_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_tests/${TEST_DEBOUNCE_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_MASTER_CONFIG_FILE}
-        ${TEST_DEBOUNCE_SERVICE}
-    )
+        @ONLY)
+
     set(TEST_DEBOUNCE_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_tests/conf/${TEST_DEBOUNCE_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_tests/${TEST_DEBOUNCE_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_tests/${TEST_DEBOUNCE_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_SLAVE_CONFIG_FILE}
-        ${TEST_DEBOUNCE_SERVICE}
-    )
+        @ONLY)
 endif()
 
 ##############################################################################
@@ -1645,23 +1367,15 @@ if(NOT ${TESTS_BAT})
     set(TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
-        ${TEST_DEBOUNCE_FILTER_SERVICE}
-    )
+        @ONLY)
+
     set(TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
-        ${TEST_DEBOUNCE_FILTER_SERVICE}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -1704,23 +1418,15 @@ if(NOT ${TESTS_BAT})
     set(TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
-        ${TEST_DEBOUNCE_FREQUENCY_CLIENT}
-    )
+        @ONLY)
+
     set(TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
-        ${TEST_DEBOUNCE_FREQUENCY_SERVICE}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -1761,23 +1467,15 @@ if(NOT ${TESTS_BAT})
     set(TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_CALLBACK_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/conf/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
-        ${TEST_DEBOUNCE_CALLBACK_SERVICE}
-    )
+        @ONLY)
+
     set(TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_CALLBACK_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/conf/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
-        ${TEST_DEBOUNCE_CALLBACK_CLIENT}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -1801,265 +1499,155 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     # copy starter scripts into builddir
     if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
@@ -2109,36 +1697,22 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    )
+        @ONLY)
+
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_starter.sh)
@@ -2158,265 +1732,155 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave_udp_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    )
+        @ONLY)
 
     # copy starter scripts into builddir
     set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
@@ -2434,36 +1898,22 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    )
+        @ONLY)
+
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_slave_local_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER
         ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_starter.sh)
@@ -2501,73 +1951,43 @@ if(NOT ${TESTS_BAT})
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
         ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_diff_client_ids_diff_ports_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
-    )
+        @ONLY)
 
     # copy starter scripts into builddir
     if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
@@ -2611,23 +2031,14 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CPU_LOAD_SERVICE_MASTER_CONFIG_FILE}
-        ${TEST_CPU_LOAD_SERVICE}
-    )
+        @ONLY)
+
     set(TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_service_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/conf/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CPU_LOAD_SERVICE_SLAVE_CONFIG_FILE}
-        ${TEST_CPU_LOAD_SERVICE}
-    )
+        @ONLY)
 
     ##############################################################################
     set(TEST_CPU_LOAD_CLIENT cpu_load_test_client)
@@ -2647,23 +2058,14 @@ if(NOT ${TESTS_BAT})
     set(TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE}
-        ${TEST_CPU_LOAD_CLIENT}
-    )
+        @ONLY)
+
     set(TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/conf/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/cpu_load_tests/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CPU_LOAD_CLIENT_SLAVE_CONFIG_FILE}
-        ${TEST_CPU_LOAD_CLIENT}
-    )
+        @ONLY)
 
     ##############################################################################
     # copy starter scripts into builddir
@@ -2733,243 +2135,144 @@ if(NOT ${TESTS_BAT})
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     # Copy config files for test into $BUILDDIR/test
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     # Copy config files for test into $BUILDDIR/test
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
+
 
     set(TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE
         ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
-        ${TEST_INITIAL_EVENT_SERVICE}
-    )
+        @ONLY)
 
     # copy starter scripts into builddir
     if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
@@ -3108,47 +2411,27 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_SLAVE_CONFIG_FILE ${TEST_OFFER_NAME}_external_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_SLAVE_CONFIG_FILE}
-        ${TEST_OFFER_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_OFFER_MASTER_CONFIG_FILE ${TEST_OFFER_NAME}_external_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MASTER_CONFIG_FILE}
-        ${TEST_OFFER_SERVICE}
-    )
+        @ONLY)
 
     # generate and copy json files into builddir for big SD message test
     set(TEST_OFFER_BIG_SLAVE_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_slave.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
-        ${TEST_OFFER_BIG_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_OFFER_BIG_MASTER_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
-        ${TEST_OFFER_BIG_SERVICE}
-    )
+        @ONLY)
 
     # Copy starter scripts for external test to $BUILDDIR/test
     if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
@@ -3158,12 +2441,9 @@ if(NOT ${TESTS_BAT})
     endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_EXTERNAL_MASTER_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
-        ${TEST_OFFER_SERVICE}
-    )
+        @ONLY)
+
     set(TEST_OFFER_EXTERNAL_SLAVE_STARTER ${TEST_OFFER_NAME}_external_slave_starter.sh)
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
@@ -3174,12 +2454,9 @@ if(NOT ${TESTS_BAT})
     set(TEST_OFFER_BIG_MASTER_STARTER ${TEST_OFFER_BIG_NAME}_master_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_MASTER_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_BIG_MASTER_STARTER}
-        ${TEST_OFFER_BIG_SERVICE}
-    )
+        @ONLY)
+
     # Copy starter scripts for external test to $BUILDDIR/test
     set(TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER ${TEST_OFFER_BIG_NAME}_slave_starter.sh)
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER}
@@ -3275,24 +2552,16 @@ if(NOT ${TESTS_BAT})
     set(TEST_PENDING_SUBSCRIPTION_MASTER_STARTER ${TEST_PENDING_SUBSCRIPTION_NAME}_master_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER}
-        ${TEST_PENDING_SUBSCRIPTION_SERVICE}
-    )
+        @ONLY)
 
     # Copy config file for local test into $BUILDDIR/test
     set(TEST_PENDING_SUBSCRIPTION_CONFIG_FILE ${TEST_PENDING_SUBSCRIPTION_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/conf/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/pending_subscription_tests/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_CONFIG_FILE}
-        ${TEST_PENDING_SUBSCRIPTION_SERVICE}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -3339,24 +2608,16 @@ if(NOT ${TESTS_BAT})
     set(TEST_MALICIOUS_DATA_MASTER_STARTER ${TEST_MALICIOUS_DATA_NAME}_master_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_MASTER_STARTER}.in
-        ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_MALICIOUS_DATA_MASTER_STARTER}
-        ${TEST_MALICIOUS_DATA_SERVICE}
-    )
+        @ONLY)
 
     # Copy config file for local test into $BUILDDIR/test
     set(TEST_MALICIOUS_DATA_CONFIG_FILE ${TEST_MALICIOUS_DATA_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_MALICIOUS_DATA_CONFIG_FILE}
-        ${TEST_MALICIOUS_DATA_SERVICE}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -3394,25 +2655,15 @@ if(NOT ${TESTS_BAT})
     set(TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_NAME}_service_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_SERVICE_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_SERVICE}
-    )
+        @ONLY)
 
     # Copy client config file for external allow tests into $BUILDDIR/test
     set(TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_NAME}_client_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_CLIENT_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start external tests (master) into $BUILDDIR/test
     set(TEST_E2E_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_NAME}_external_master_start.sh)
@@ -3466,25 +2717,15 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
     set(TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_04_NAME}_service_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_04_SERVICE_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_PROFILE_04_SERVICE}
-    )
+        @ONLY)
 
     # Copy client config file for external allow tests into $BUILDDIR/test
     set(TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_04_NAME}_client_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_04_CLIENT_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_PROFILE_04_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start external tests (master) into $BUILDDIR/test
     set(TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_PROFILE_04_NAME}_external_master_start.sh)
@@ -3538,25 +2779,15 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_07})
     set(TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_07_NAME}_service_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_PROFILE_07_SERVICE}
-    )
+        @ONLY)
 
     # Copy client config file for external allow tests into $BUILDDIR/test
     set(TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_07_NAME}_client_external.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}.in
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
         ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
-        ${TEST_E2E_PROFILE_07_SERVICE}
-    )
+        @ONLY)
 
     # Copy bashscript to start external tests (master) into $BUILDDIR/test
     set(TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_PROFILE_07_NAME}_external_master_start.sh)
@@ -3609,35 +2840,20 @@ if(NOT ${TESTS_BAT})
     set(TEST_EVENT_SLAVE_TCP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_tcp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/event_tests/conf/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_EVENT_SLAVE_TCP_CONFIG_FILE}
-        ${TEST_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_EVENT_SLAVE_UDP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/event_tests/conf/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_EVENT_SLAVE_UDP_CONFIG_FILE}
-        ${TEST_EVENT_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_EVENT_MASTER_CONFIG_FILE ${TEST_EVENT_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/event_tests/conf/${TEST_EVENT_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/event_tests/${TEST_EVENT_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_EVENT_MASTER_CONFIG_FILE}
-        ${TEST_EVENT_CLIENT}
-    )
+        @ONLY)
 
     # Copy bashscript to start test (master) into $BUILDDIR/test
     set(TEST_EVENT_MASTER_START_SCRIPT ${TEST_EVENT_NAME}_master_starter.sh)
@@ -3748,12 +2964,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_no_npdu.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        ${TEST_NPDU_SERVICE_ONE}
-    )
+        @ONLY)
 
     # Copy bashscript to start service w/o npdu into $BUILDDIR/test
     set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_no_npdu_start.sh)
@@ -3767,12 +2979,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_npdu.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        ${TEST_NPDU_SERVICE_ONE}
-    )
+        @ONLY)
 
     # Copy bashscript to start service with npdu into $BUILDDIR/test
     set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_npdu_start.sh)
@@ -3838,12 +3046,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_no_npdu.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        ${TEST_NPDU_CLIENT_ONE}
-    )
+        @ONLY)
 
     # Copy bashscript to start client w/o npdu into $BUILDDIR/test
     set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_no_npdu_start.sh)
@@ -3857,12 +3061,8 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_npdu.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        ${TEST_NPDU_CLIENT_ONE}
-    )
+        @ONLY)
 
     # Copy bashscript to start client with npdu into $BUILDDIR/test
     set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_npdu_start.sh)
@@ -3930,25 +3130,16 @@ if(NOT ${TESTS_BAT})
     set(TEST_SOMEIPTP_MASTER_CONFIG_FILE ${TEST_SOMEIPTP_NAME}_master.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
-        ${TEST_SOMEIPTP_CLIENT}
-    )
+        @ONLY)
 
     # Copy bashscript to start test (master) into $BUILDDIR/test
     set(TEST_SOMEIPTP_MASTER_START_SCRIPT ${TEST_SOMEIPTP_NAME}_master_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_START_SCRIPT}.in
-        ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
-        ${TEST_SOMEIPTP_SERVICE}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -3987,46 +3178,26 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
     set(TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_service_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/second_address_tests/conf/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE}
-        ${TEST_SECOND_ADDRESS_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_slave_client.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SECOND_ADDRESS_SLAVE_CLIENT_CONFIG_FILE}
-        ${TEST_SECOND_ADDRESS_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_client.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/second_address_tests/conf/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SECOND_ADDRESS_MASTER_CLIENT_CONFIG_FILE}
-        ${TEST_SECOND_ADDRESS_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_slave_service_udp.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SECOND_ADDRESS_SLAVE_SERVICE_UDP_CONFIG_FILE}
-        ${TEST_SECOND_ADDRESS_SERVICE}
-    )
+        @ONLY)
 
     set(TEST_SECOND_ADDRESS_MASTER_START_SCRIPT ${TEST_SECOND_ADDRESS_NAME}_master_starter.sh)
     copy_to_builddir(
@@ -4038,13 +3209,9 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
     set(TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT ${TEST_SECOND_ADDRESS_NAME}_slave_starter.sh)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/second_address_tests/conf/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}.in
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
-        ${TEST_SECOND_ADDRESS_CLIENT}
-    )
+        @ONLY)
+
 endif()
 
 ##############################################################################
@@ -4083,24 +3250,14 @@ if(NOT ${TESTS_BAT})
     set(TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE ${TEST_SUSPEND_RESUME_SERVICE}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
-        ${TEST_SUSPEND_RESUME_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE ${TEST_SUSPEND_RESUME_CLIENT}.json)
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
-        ${TEST_SUSPEND_RESUME_CLIENT}
-    )
+        @ONLY)
 
     set(TEST_SUSPEND_RESUME_MASTER_START_SCRIPT ${TEST_SUSPEND_RESUME_NAME}_master_starter.sh)
     copy_to_builddir(
