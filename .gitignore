@@ -9,14 +9,6 @@
 /daemon/CMakeFiles
 /examples/CMakeFiles
 /implementation/configuration/include/internal.hpp
-/test/network_tests/*/*.json
-/test/network_tests/malicious_data_tests/malicious_data_test_master_starter.sh
-/test/network_tests/offer_tests/offer_test_external_master_starter.sh
-/test/network_tests/offer_tests/offer_test_big_sd_msg_master_starter.sh
-/test/network_tests/pending_subscription_tests/pending_subscription_test_master_starter.sh
-/test/network_tests/routing_tests/local_routing_test_starter.sh
-/test/network_tests/second_address_tests/second_address_test_slave_starter.sh
-/test/network_tests/someip_tp_tests/someip_tp_test_master_starter.sh
 /tools/CMakeFiles
 /Testing
 !build_qnx/*
