@@ -1694,21 +1694,6 @@ void routing_manager_impl::on_notification(client_t _client,
     }
 }
 
-bool routing_manager_impl::is_last_stop_callback(const uint32_t _callback_id) {
-    bool last_callback(false);
-    auto found_id = callback_counts_.find(_callback_id);
-    if (found_id != callback_counts_.end()) {
-        found_id->second--;
-        if (found_id->second == 0) {
-            last_callback = true;
-        }
-    }
-    if (last_callback) {
-        callback_counts_.erase(_callback_id);
-    }
-    return last_callback;
-}
-
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
     {
@@ -1765,8 +1750,6 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
     if (its_info) {
         its_reliable_endpoint = its_info->get_endpoint(true);
         its_unreliable_endpoint = its_info->get_endpoint(false);
-        static std::atomic<uint32_t> callback_id(0);
-        const uint32_t its_callback_id = ++callback_id;
 
         struct ready_to_stop_t {
             ready_to_stop_t() : reliable_(false), unreliable_(false){}
@@ -1776,45 +1759,33 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         auto ready_to_stop = std::make_shared<ready_to_stop_t>();
         auto ptr = shared_from_this();
 
-        auto callback = [&, its_callback_id, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint,
+        auto callback = [&, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint,
                          ready_to_stop, _service, _instance, _major, _minor]
                          (std::shared_ptr<endpoint> _endpoint, service_t _stopped_service) {
             (void)_stopped_service;
-            if (its_reliable_endpoint && its_reliable_endpoint == _endpoint) {
+            if (its_reliable_endpoint && its_reliable_endpoint == _endpoint)
                 ready_to_stop->reliable_ = true;
-            }
-            if (its_unreliable_endpoint && its_unreliable_endpoint == _endpoint) {
+            if (its_unreliable_endpoint && its_unreliable_endpoint == _endpoint)
                 ready_to_stop->unreliable_ = true;
-            }
+
             if ((its_unreliable_endpoint && !ready_to_stop->unreliable_) ||
-                (its_reliable_endpoint && !ready_to_stop->reliable_)) {
-                {
-                    std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                    if (is_last_stop_callback(its_callback_id)) {
-                        erase_offer_command(_service, _instance);
-                    }
-                }
+                (its_reliable_endpoint   && !ready_to_stop->reliable_)) {
+                erase_offer_command(_service, _instance);
                 return;
             }
 
             if (discovery_) {
-                if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
+                if (its_info->get_major() == _major && its_info->get_minor() == _minor)
                     discovery_->stop_offer_service(its_info, true);
-                }
             }
-            del_routing_info(_service, _instance, (its_reliable_endpoint != nullptr),
-                    (its_unreliable_endpoint != nullptr));
+            del_routing_info(_service, _instance, (its_reliable_endpoint != nullptr), (its_unreliable_endpoint != nullptr));
 
             for (const auto& ep: {its_reliable_endpoint, its_unreliable_endpoint}) {
                 if (ep) {
                     if (ep_mgr_impl_->remove_instance(_service, ep.get())) {
-                        {
-                            std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                            callback_counts_[its_callback_id]++;
-                        }
                         // last instance -> pass ANY_INSTANCE and shutdown completely
                         ep->prepare_stop(
-                            [&, _service, _instance, its_callback_id, ptr, its_reliable_endpoint, its_unreliable_endpoint]
+                            [&, _service, _instance, ptr, its_reliable_endpoint, its_unreliable_endpoint]
                             (std::shared_ptr<endpoint> _endpoint,
                             service_t _stopped_service) {
                                 (void)_stopped_service;
@@ -1823,49 +1794,22 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                                                 _endpoint->is_reliable())) {
                                     _endpoint->stop();
                                 }
-                                {
-                                    std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                                    if (is_last_stop_callback(its_callback_id)) {
-                                        erase_offer_command(_service, _instance);
-                                    }
-                                }
+                                erase_offer_command(_service, _instance);
                             }, ANY_SERVICE);
                     }
                     // Clear service info and service group
                     clear_service_info(_service, _instance, ep->is_reliable());
                 }
             }
-            {
-                std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                if (is_last_stop_callback(its_callback_id)) {
-                    erase_offer_command(_service, _instance);
-                }
-            }
+            erase_offer_command(_service, _instance);
         };
 
-        // determine callback count
         for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
-            if (ep) {
-                std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                auto found_id = callback_counts_.find(its_callback_id);
-                if (found_id != callback_counts_.end()) {
-                    found_id->second++;
-                } else {
-                    callback_counts_[its_callback_id] = 1;
-                }
-            }
-        }
-        for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
-            if (ep) {
+            if (ep)
                 ep->prepare_stop(callback, _service);
-            }
         }
 
         if (!its_reliable_endpoint && !its_unreliable_endpoint) {
-            {
-                std::lock_guard<std::mutex> its_lock(callback_counts_mutex_);
-                callback_counts_.erase(its_callback_id);
-            }
             erase_offer_command(_service, _instance);
         }
 

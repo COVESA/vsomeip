@@ -52,12 +52,23 @@ void server_endpoint_impl<Protocol>::prepare_stop(
         const endpoint::prepare_stop_handler_t &_handler, service_t _service) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    bool queued_train(false);
     std::vector<target_data_iterator_type> its_erased;
     boost::system::error_code ec;
 
-    if (_service == ANY_SERVICE) { // endpoint is shutting down completely
+    if (_service == ANY_SERVICE) {
         endpoint_impl<Protocol>::sending_blocked_ = true;
+        if (std::all_of(targets_.begin(), targets_.end(),
+                        [&](const typename target_data_type::value_type &_t)
+                            { return _t.second.queue_.empty(); })) {
+            // nothing was queued and all queues are empty -> ensure cbk is called
+            auto ptr = this->shared_from_this();
+            endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
+                                                        _handler(ptr, _service);
+                                                    });
+        } else {
+            prepare_stop_handlers_[_service] = _handler;
+        }
+
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
             auto its_train (t->second.train_);
             // cancel dispatch timer
@@ -65,10 +76,32 @@ void server_endpoint_impl<Protocol>::prepare_stop(
             if (its_train->buffer_->size() > 0) {
                 if (queue_train(t, its_train))
                     its_erased.push_back(t);
-                queued_train = true;
             }
         }
     } else {
+        // check if any of the queues contains a message of to be stopped service
+        bool found_service_msg(false);
+        for (const auto &t : targets_) {
+            for (const auto &q : t.second.queue_) {
+                const service_t its_service = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SERVICE_POS_MIN]);
+                if (its_service == _service) {
+                    found_service_msg = true;
+                    break;
+                }
+            }
+            if (found_service_msg) {
+                break;
+            }
+        }
+        if (found_service_msg) {
+            prepare_stop_handlers_[_service] = _handler;
+        } else { // no messages of the to be stopped service are or have been queued
+            auto ptr = this->shared_from_this();
+            endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
+                                                        _handler(ptr, _service);
+                                                    });
+        }
+
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
             auto its_train(t->second.train_);
             for (auto const& passenger_iter : its_train->passengers_) {
@@ -78,7 +111,6 @@ void server_endpoint_impl<Protocol>::prepare_stop(
                     // TODO: Queue all(!) trains here...
                     if (queue_train(t, its_train))
                         its_erased.push_back(t);
-                    queued_train = true;
                     break;
                 }
             }
@@ -87,47 +119,6 @@ void server_endpoint_impl<Protocol>::prepare_stop(
 
     for (const auto t : its_erased)
         targets_.erase(t);
-
-    if (!queued_train) {
-        if (_service == ANY_SERVICE) {
-            if (std::all_of(targets_.begin(), targets_.end(),
-                            [&](const typename target_data_type::value_type &_t)
-                                { return _t.second.queue_.empty(); })) {
-                // nothing was queued and all queues are empty -> ensure cbk is called
-                auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                            _handler(ptr, _service);
-                                                        });
-            } else {
-                prepare_stop_handlers_[_service] = _handler;
-            }
-        } else {
-            // check if any of the queues contains a message of to be stopped service
-            bool found_service_msg(false);
-            for (const auto &t : targets_) {
-                for (const auto &q : t.second.queue_) {
-                    const service_t its_service = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SERVICE_POS_MIN]);
-                    if (its_service == _service) {
-                        found_service_msg = true;
-                        break;
-                    }
-                }
-                if (found_service_msg) {
-                    break;
-                }
-            }
-            if (found_service_msg) {
-                prepare_stop_handlers_[_service] = _handler;
-            } else { // no messages of the to be stopped service are or have been queued
-                auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                            _handler(ptr, _service);
-                                                        });
-            }
-        }
-    } else {
-        prepare_stop_handlers_[_service] = _handler;
-    }
 }
 
 template<typename Protocol>
