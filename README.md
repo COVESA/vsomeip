@@ -9,6 +9,10 @@ This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+##### Contributing Guidelines
+
+For comprehensive details on how to contribute effectively to the project, please refer to our [CONTRIBUTING.md](./CONTRIBUTING.md) file.
+
 ##### vsomeip Overview
 ----------------
 The vsomeip stack implements the http://some-ip.com/ (Scalable service-Oriented
