@@ -3797,6 +3797,13 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                                                 << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
                                                 << std::hex << std::setw(4) << std::setfill('0') << its_instance.first << "]";
 
+                                // Remove the service from the offer_commands_ and prepare_stop_handlers_ to force the next offer to be processed
+                                offer_commands_.erase(std::make_pair(its_service.first, its_instance.first));
+                                if (has_reliable)
+                                    its_instance.second->get_endpoint(true)->remove_stop_handler(its_service.first);
+                                if (has_unreliable)
+                                    its_instance.second->get_endpoint(false)->remove_stop_handler(its_service.first);
+
                                 del_routing_info(its_service.first, its_instance.first, has_reliable, has_unreliable);
 
                                 std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
@@ -3804,12 +3811,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                                 if (its_pending_offer != pending_offers_.end())
                                     its_pending_offer->second.erase(its_instance.first);
 
-                                // Remove the service from the offer_commands_ and prepare_stop_handlers_ to force the next offer to be processed
-                                offer_commands_.erase(std::make_pair(its_service.first, its_instance.first));
-                                if (has_reliable)
-                                    its_instance.second->get_endpoint(true)->remove_stop_handler(its_service.first);
-                                if (has_unreliable)
-                                    its_instance.second->get_endpoint(false)->remove_stop_handler(its_service.first);    
                             }
                             VSOMEIP_WARNING << "Service "
                                 << std::hex << std::setfill('0')
