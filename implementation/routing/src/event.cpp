@@ -37,6 +37,7 @@ event::event(routing_manager *_routing, bool _is_shadow)
           is_cache_placeholder_(false),
           epsilon_change_func_(std::bind(&event::has_changed, this,
                 std::placeholders::_1, std::placeholders::_2)),
+          has_default_epsilon_change_func_(true),
           reliability_(reliability_type_e::RT_UNKNOWN) {
 
 }
@@ -297,6 +298,7 @@ event::set_epsilon_change_function(
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (_epsilon_change_func) {
         epsilon_change_func_ = _epsilon_change_func;
+        has_default_epsilon_change_func_ = false;
     }
 }
 
@@ -685,7 +687,8 @@ event::get_filtered_subscribers(bool _force) {
 
     if (filters_.empty()) {
 
-        bool must_forward = (type_ != event_type_e::ET_FIELD
+        bool must_forward = ((type_ != event_type_e::ET_FIELD
+                    && has_default_epsilon_change_func_)
                 || _force
                 || epsilon_change_func_(its_payload, its_payload_update));
 
@@ -704,7 +707,8 @@ event::get_filtered_subscribers(bool _force) {
                     its_filtered_subscribers.insert(s);
             } else {
                 if (is_allowed == 0xff) {
-                    is_allowed = (type_ != event_type_e::ET_FIELD
+                    is_allowed = ((type_ != event_type_e::ET_FIELD
+                            && has_default_epsilon_change_func_)
                         || _force
                         || epsilon_change_func_(its_payload, its_payload_update)
                         ? 0x01 : 0x00);
