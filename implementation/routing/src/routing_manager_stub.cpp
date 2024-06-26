@@ -56,7 +56,7 @@
 #include "../../protocol/include/update_security_policy_response_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -553,15 +553,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 auto its_message_data(its_command.get_message());
                 if (its_message_data.size() > VSOMEIP_MESSAGE_TYPE_POS) {
 
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_SERVICE_POS_MIN],
-                            its_message_data[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_METHOD_POS_MIN],
-                            its_message_data[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_CLIENT_POS_MIN],
-                            its_message_data[VSOMEIP_CLIENT_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&its_message_data[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&its_message_data[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&its_message_data[VSOMEIP_CLIENT_POS_MIN]);
 
                     its_instance = its_command.get_instance();
                     is_reliable = its_command.is_reliable();
@@ -581,11 +575,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         }
                     }
                     // reduce by size of instance, flush, reliable, client and is_valid_crc flag
-                    auto its_contained_size = VSOMEIP_BYTES_TO_LONG(
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+1],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+2],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+3]);
+                    uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
                     if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
                         VSOMEIP_WARNING << "Received a SEND command containing message with invalid size -> skip!";
                         break;
@@ -609,16 +599,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 if (its_message_data.size() > VSOMEIP_MESSAGE_TYPE_POS) {
 
                     its_client = its_command.get_target();
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_SERVICE_POS_MIN],
-                            its_message_data[VSOMEIP_SERVICE_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&its_message_data[VSOMEIP_SERVICE_POS_MIN]);
                     its_instance = its_command.get_instance();
 
-                    auto its_contained_size = VSOMEIP_BYTES_TO_LONG(
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+1],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+2],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+3]);
+                    uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
+
                     if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
                         VSOMEIP_WARNING << "Received a NOTIFY command containing message with invalid size -> skip!";
                         break;
@@ -2299,17 +2284,15 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
             its_message.push_back(0);
 
             uint32_t its_policy_size = static_cast<uint32_t>(its_policy_data.size() + sizeof(uint32_t));
-            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_size));
+
+            uint8_t new_its_policy_size[4] = {0};
+            bithelper::write_uint32_le(its_policy_size, new_its_policy_size);
+            its_message.insert(its_message.end(), new_its_policy_size, new_its_policy_size + sizeof(new_its_policy_size));
 
             its_policy_id = pending_security_update_add(_clients);
-            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_id));
-
+            uint8_t new_its_policy_id[4] = {0};
+            bithelper::write_uint32_le(its_policy_id, new_its_policy_id);
+            its_message.insert(its_message.end(), new_its_policy_id, new_its_policy_id + sizeof(new_its_policy_id));
             its_message.insert(its_message.end(), its_policy_data.begin(), its_policy_data.end());
 
             for (const auto c : _clients) {

@@ -7,7 +7,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../implementation/service_discovery/include/constants.hpp"
-#include "../implementation/utility/include/byteorder.hpp"
+#include "../implementation/utility/include/bithelper.hpp"
 
 #include <cstdint>
 #include <thread>
@@ -45,16 +45,12 @@ public:
                     "is 16 Bytes, exiting.";
             exit(EXIT_FAILURE);
         }
-        service_id_ = VSOMEIP_BYTES_TO_WORD(user_message_[VSOMEIP_SERVICE_POS_MIN],
-                                            user_message_[VSOMEIP_SERVICE_POS_MAX]);
-        method_id_ = VSOMEIP_BYTES_TO_WORD(user_message_[VSOMEIP_METHOD_POS_MIN],
-                                           user_message_[VSOMEIP_METHOD_POS_MAX]);
-        length_ = VSOMEIP_BYTES_TO_LONG(user_message_[VSOMEIP_LENGTH_POS_MIN],
-                                        user_message_[VSOMEIP_LENGTH_POS_MIN+1],
-                                        user_message_[VSOMEIP_LENGTH_POS_MIN+2],
-                                        user_message_[VSOMEIP_LENGTH_POS_MAX]);
-        client_id_ = VSOMEIP_BYTES_TO_WORD(user_message_[VSOMEIP_CLIENT_POS_MIN],
-                                           user_message_[VSOMEIP_CLIENT_POS_MAX]);
+
+        service_id_ = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_SERVICE_POS_MIN]);
+        method_id_  = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_METHOD_POS_MIN]);
+        length_     = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_LENGTH_POS_MIN]);
+        client_id_  = vsomeip::bithelper::read_uint16_be(&user_message_[VSOMEIP_CLIENT_POS_MIN]);
+
         interface_version_ = user_message_[VSOMEIP_INTERFACE_VERSION_POS];
         message_type_ = static_cast<vsomeip::message_type_e>(user_message_[VSOMEIP_MESSAGE_TYPE_POS]);
         return_code_ = static_cast<vsomeip::return_code_e>(user_message_[VSOMEIP_RETURN_CODE_POS]);
@@ -421,7 +417,8 @@ int main(int argc, char** argv) {
                     exit(EXIT_FAILURE);
                 }
             }
-            instance = VSOMEIP_BYTES_TO_WORD(high, low);
+            uint8_t its_instance[2] = {high, low};
+            instance = vsomeip::bithelper::read_uint16_be(its_instance);
         }
     }
 

@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/policy.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
@@ -268,7 +268,7 @@ policy::deserialize_u16(const byte_t * &_data, uint32_t &_size,
     if (_size < sizeof(uint16_t))
         return false;
 
-    _value = VSOMEIP_BYTES_TO_WORD(_data[0], _data[1]);
+    _value = bithelper::read_uint16_be(_data);
 
     _data += sizeof(uint16_t);
     _size -= static_cast<uint16_t>(sizeof(uint16_t));
@@ -283,7 +283,7 @@ policy::deserialize_u32(const byte_t * &_data, uint32_t &_size,
     if (_size < sizeof(uint32_t))
         return false;
 
-    _value = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
+    _value = bithelper::read_uint32_be(_data);
 
     _data += sizeof(uint32_t);
     _size -= static_cast<uint32_t>(sizeof(uint32_t));
@@ -419,28 +419,25 @@ void
 policy::serialize_u16(uint16_t _value,
         std::vector<byte_t> &_data) const {
 
-    _data.push_back(VSOMEIP_WORD_BYTE1(_value));
-    _data.push_back(VSOMEIP_WORD_BYTE0(_value));
+    uint8_t new_buffer[2] = {0};
+    bithelper::write_uint16_be(_value, new_buffer);
+    _data.insert(_data.end(), new_buffer, new_buffer + sizeof(new_buffer));
 }
 
 void
 policy::serialize_u32(uint32_t _value,
         std::vector<byte_t> &_data) const {
 
-    _data.push_back(VSOMEIP_LONG_BYTE3(_value));
-    _data.push_back(VSOMEIP_LONG_BYTE2(_value));
-    _data.push_back(VSOMEIP_LONG_BYTE1(_value));
-    _data.push_back(VSOMEIP_LONG_BYTE0(_value));
+    uint8_t new_buffer[4] = {0};
+    bithelper::write_uint32_be(_value, new_buffer);
+    _data.insert(_data.end(), new_buffer, new_buffer + sizeof(new_buffer));
 }
 
 void
 policy::serialize_u32_at(uint32_t _value,
         std::vector<byte_t> &_data, size_t _pos) const {
 
-    _data[_pos] = VSOMEIP_LONG_BYTE3(_value);
-    _data[_pos+1] = VSOMEIP_LONG_BYTE2(_value);
-    _data[_pos+2] = VSOMEIP_LONG_BYTE1(_value);
-    _data[_pos+3] = VSOMEIP_LONG_BYTE0(_value);
+    bithelper::write_uint32_be(_value, &_data[_pos]);
 }
 
 void

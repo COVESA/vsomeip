@@ -20,7 +20,7 @@
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
@@ -212,10 +212,9 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
     cancel_dispatch_timer();
 
     // STEP 3: Get configured timings
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const service_t its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     get_configured_times_from_endpoint(its_service, its_method,
                                        &its_debouncing, &its_retention);
@@ -306,12 +305,9 @@ void client_endpoint_impl<Protocol>::send_segments(
         return;
     }
 
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN],
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MIN],
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN]);
+    const service_t its_method  = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_METHOD_POS_MIN]);
+
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     get_configured_times_from_endpoint(its_service, its_method,
                                        &its_debouncing, &its_retention);
@@ -545,18 +541,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 client_t its_client(0);
                 session_t its_session(0);
                 if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-                    its_session = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+                    its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
                 VSOMEIP_WARNING << "cei::send_cbk received error: "
                         << _error.message() << " (" << std::dec
@@ -609,18 +597,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
         client_t its_client(0);
         session_t its_session(0);
         if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
@@ -731,13 +711,10 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
     if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
             && _size > endpoint_impl<Protocol>::max_message_size_) {
         if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
-            const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
+            const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             instance_t its_instance = this->get_instance(its_service);
+
             if (its_instance != ANY_INSTANCE) {
                 if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
@@ -776,14 +753,10 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
             // [(Command + lowerbyte sender's client ID).
             //  highbyte sender's client ID + lowbyte command size.
             //  lowbyte methodid + highbyte vsomeip length]
-            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                _data[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                               _data[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                               _data[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                _data[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_

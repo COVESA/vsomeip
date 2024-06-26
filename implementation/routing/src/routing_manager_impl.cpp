@@ -48,7 +48,7 @@
 #include "../../service_discovery/include/defines.hpp"
 #include "../../service_discovery/include/runtime.hpp"
 #include "../../service_discovery/include/service_discovery.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
@@ -877,13 +877,9 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
         bool is_notification = utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]);
         bool is_response = utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-
-        client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                _data[VSOMEIP_CLIENT_POS_MAX]);
-        service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-        method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+        client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
         bool is_service_discovery
             = (its_service == sd::service && its_method == sd::method);
@@ -936,10 +932,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 
                 if (e2e_provider_) {
                     if ( !is_service_discovery) {
-                        service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-                        method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+                        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+                        method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 #ifndef ANDROID
                         if (e2e_provider_->is_protected({its_service, its_method})) {
                             // Find out where the protected area starts
@@ -970,9 +964,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 #endif
                         is_sent = its_target->send(_data, _size);
                     } else {
-                        const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                _data[VSOMEIP_SESSION_POS_MIN],
-                                _data[VSOMEIP_SESSION_POS_MAX]);
+                        const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                         VSOMEIP_ERROR<< "Routing info for remote service could not be found! ("
                                 << std::hex << std::setfill('0')
                                 << std::setw(4) << its_client << "): ["
@@ -987,8 +979,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                         if (is_notification && !is_service_discovery) {
                             (void)send_local_notification(get_client(), _data, _size, _instance,
                                         _reliable, _status_check, _force);
-                            method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                    _data[VSOMEIP_METHOD_POS_MAX]);
+                            method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                             std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
                             if (its_event) {
 #ifdef USE_DLT
@@ -1061,9 +1052,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                     && !its_info->is_local()) {
                                 // We received a response/error but neither the hosting application
                                 // nor another local client could be found --> drop
-                                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                        _data[VSOMEIP_SESSION_POS_MIN],
-                                        _data[VSOMEIP_SESSION_POS_MAX]);
+                                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                                 VSOMEIP_ERROR
                                     << "routing_manager_impl::send: Received response/error for unknown client ("
                                     << std::hex << std::setfill('0')
@@ -1085,9 +1074,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 #endif
                                 is_sent = its_target->send(_data, _size);
                             } else {
-                                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                        _data[VSOMEIP_SESSION_POS_MIN],
-                                        _data[VSOMEIP_SESSION_POS_MAX]);
+                                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                                 VSOMEIP_ERROR << "Routing error. Endpoint for service ("
                                         << std::hex << std::setfill('0')
                                         << std::setw(4) << its_client << "): ["
@@ -1100,9 +1087,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                         }
                     } else {
                         if (!is_notification) {
-                            const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                    _data[VSOMEIP_SESSION_POS_MIN],
-                                    _data[VSOMEIP_SESSION_POS_MAX]);
+                            const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                             VSOMEIP_ERROR << "Routing error. Not hosting service ("
                                     << std::hex << std::setfill('0')
                                     << std::setw(4) << its_client << "): ["
@@ -1133,12 +1118,8 @@ bool routing_manager_impl::send_to(
         length_t its_size = its_serializer->get_size();
         e2e_buffer its_buffer;
         if (e2e_provider_) {
-            service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    its_data[VSOMEIP_SERVICE_POS_MIN],
-                    its_data[VSOMEIP_SERVICE_POS_MAX]);
-            method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    its_data[VSOMEIP_METHOD_POS_MIN],
-                    its_data[VSOMEIP_METHOD_POS_MAX]);
+            service_t its_service = bithelper::read_uint16_be(&its_data[VSOMEIP_SERVICE_POS_MIN]);
+            method_t its_method   = bithelper::read_uint16_be(&its_data[VSOMEIP_METHOD_POS_MIN]);
 #ifndef ANDROID
             if (e2e_provider_->is_protected({its_service, its_method})) {
                 auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
@@ -1150,8 +1131,10 @@ bool routing_manager_impl::send_to(
 #endif
         }
 
-        const_cast<byte_t*>(its_data)[VSOMEIP_CLIENT_POS_MIN] = VSOMEIP_WORD_BYTE1(_client);
-        const_cast<byte_t*>(its_data)[VSOMEIP_CLIENT_POS_MAX] = VSOMEIP_WORD_BYTE0(_client);
+        uint8_t its_client[2] = {0};
+        bithelper::write_uint16_le(_client, its_client);
+        const_cast<byte_t*>(its_data)[VSOMEIP_CLIENT_POS_MIN] = its_client[1];
+        const_cast<byte_t*>(its_data)[VSOMEIP_CLIENT_POS_MAX] = its_client[0];
 
         is_sent = send_to(_target, its_data, its_size, _message->get_instance());
 
@@ -1496,11 +1479,9 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
 #endif
     if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
         its_message_type = static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                _data[VSOMEIP_SERVICE_POS_MAX]);
+        its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         if (its_service == VSOMEIP_SD_SERVICE) {
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                            _data[VSOMEIP_METHOD_POS_MAX]);
+            its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             if (discovery_ && its_method == sd::method) {
                 if (configuration_->get_sd_port() == _remote_port) {
                     if (!_remote_address.is_unspecified()) {
@@ -1524,15 +1505,9 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                 its_instance = ep_mgr_impl_->find_instance(its_service, _receiver);
             }
             if (its_instance == 0xFFFF) {
-                its_method = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_METHOD_POS_MIN],
-                        _data[VSOMEIP_METHOD_POS_MAX]);
-                const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_CLIENT_POS_MIN],
-                        _data[VSOMEIP_CLIENT_POS_MAX]);
-                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                        _data[VSOMEIP_SESSION_POS_MIN],
-                        _data[VSOMEIP_SESSION_POS_MAX]);
+                its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+                const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                 boost::system::error_code ec;
                 VSOMEIP_ERROR << "Received message on invalid port: ["
                         << std::hex << std::setfill('0')
@@ -1566,12 +1541,8 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
             // Security checks if enabled!
             if (configuration_->is_security_enabled()) {
                 if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-                    client_t requester = VSOMEIP_BYTES_TO_WORD(
-                            _data[VSOMEIP_CLIENT_POS_MIN],
-                            _data[VSOMEIP_CLIENT_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                               _data[VSOMEIP_METHOD_POS_MIN],
-                               _data[VSOMEIP_METHOD_POS_MAX]);
+                    client_t requester = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+                    its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                     if (!configuration_->is_offered_remote(its_service, its_instance)) {
                         VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
                                 << "for service/instance " << its_service << "/" << its_instance
@@ -1596,9 +1567,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                 }
             }
             if (e2e_provider_) {
-                its_method = VSOMEIP_BYTES_TO_WORD(
-                           _data[VSOMEIP_METHOD_POS_MIN],
-                           _data[VSOMEIP_METHOD_POS_MAX]);
+                its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 #ifndef ANDROID
                 if (e2e_provider_->is_checked({its_service, its_method})) {
                     auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
@@ -1664,9 +1633,7 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance,
     if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         its_client = find_local_client(_service, _instance);
     } else {
-        its_client = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_CLIENT_POS_MIN],
-                _data[VSOMEIP_CLIENT_POS_MAX]);
+        its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     }
 
 #if 0
@@ -1699,8 +1666,7 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance,
 void routing_manager_impl::on_notification(client_t _client,
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _size, bool _notify_one) {
-    event_t its_event_id = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+    event_t its_event_id = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     std::shared_ptr<event> its_event = find_event(_service, _instance, its_event_id);
     if (its_event) {
         uint32_t its_length = utility::get_payload_size(_data, _size);
@@ -2088,10 +2054,8 @@ bool routing_manager_impl::deliver_notification(
         client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
         uint8_t _status_check, bool _is_from_remote) {
 
-    event_t its_event_id = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-    client_t its_client_id = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
+    event_t its_event_id = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+    client_t its_client_id = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
 
     std::shared_ptr<event> its_event = find_event(_service, _instance, its_event_id);
     if (its_event) {
@@ -3240,8 +3204,7 @@ void routing_manager_impl::on_subscribe_nack(client_t _client,
 return_code_e routing_manager_impl::check_error(const byte_t *_data, length_t _size,
         instance_t _instance) {
 
-    service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-            _data[VSOMEIP_SERVICE_POS_MAX]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
 
     if (_size >= VSOMEIP_PAYLOAD_POS) {
         if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])
@@ -3294,25 +3257,16 @@ void routing_manager_impl::send_error(return_code_e _return_code,
     session_t its_session = 0;
     major_version_t its_version = 0;
 
-    if (_size >= VSOMEIP_CLIENT_POS_MAX) {
-        its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                _data[VSOMEIP_CLIENT_POS_MAX]);
-    }
-    if (_size >= VSOMEIP_SERVICE_POS_MAX) {
-        its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-    }
-    if (_size >= VSOMEIP_METHOD_POS_MAX) {
-        its_method = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-    }
-    if (_size >= VSOMEIP_SESSION_POS_MAX) {
-        its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                _data[VSOMEIP_SESSION_POS_MAX]);
-    }
-    if( _size >= VSOMEIP_INTERFACE_VERSION_POS) {
+    if (_size >= VSOMEIP_CLIENT_POS_MAX)
+        its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+    if (_size >= VSOMEIP_SERVICE_POS_MAX)
+        its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    if (_size >= VSOMEIP_METHOD_POS_MAX)
+        its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+    if (_size >= VSOMEIP_SESSION_POS_MAX)
+        its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+    if( _size >= VSOMEIP_INTERFACE_VERSION_POS)
         its_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
-    }
 
     auto error_message = runtime::get()->create_message(_reliable);
     error_message->set_client(its_client);

@@ -16,7 +16,7 @@
 #include "../../routing/include/routing_host.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace ip = boost::asio::ip;
 
@@ -175,9 +175,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                 for (const auto &its_q : _it->second.queue_) {
                     auto its_buffer(its_q.first);
                     if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-                        service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
-                            (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
+                        service_t its_service = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SERVICE_POS_MIN]);
                         its_services.insert(its_service);
                     }
                 }
@@ -458,18 +456,10 @@ void tcp_server_endpoint_impl::connection::send_queued(
         return;
     }
     message_buffer_ptr_t its_buffer = _it->second.queue_.front().first;
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
-            (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
-            (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
-    const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-            (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
-            (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
-    const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-            (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
-            (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_METHOD_POS_MIN]);
+    const client_t its_client   = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_CLIENT_POS_MIN]);
+    const session_t its_session = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SESSION_POS_MIN]);
     if (magic_cookies_enabled_) {
         const std::chrono::steady_clock::time_point now =
                 std::chrono::steady_clock::now();
@@ -594,13 +584,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                         if (utility::is_request(
                                 recv_buffer_[its_iteration_gap
                                         + VSOMEIP_MESSAGE_TYPE_POS])) {
-                            const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                                    recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MIN],
-                                    recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MAX]);
+                            const client_t its_client = bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MIN]);
                             if (its_client != MAGIC_COOKIE_CLIENT) {
-                                const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                        recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MIN],
-                                        recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MAX]);
+                                const session_t its_session = bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MIN]);
                                 its_server->clients_mutex_.lock();
                                 its_server->clients_[its_client][its_session] = remote_;
                                 its_server->clients_mutex_.unlock();
