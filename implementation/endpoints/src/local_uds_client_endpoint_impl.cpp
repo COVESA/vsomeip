@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <iomanip>
 #include <sstream>
 
@@ -65,8 +66,13 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
 }
 
 void local_uds_client_endpoint_impl::start() {
-
-    connect();
+    if (state_ == cei_state_e::CLOSED) {
+        {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+        }
+        connect();
+    }
 }
 
 void local_uds_client_endpoint_impl::stop() {

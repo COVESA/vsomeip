@@ -810,6 +810,7 @@ void routing_manager_stub::on_register_application(client_t _client) {
     if (endpoint) {
         VSOMEIP_WARNING << "Reregistering application: " << std::hex << _client
                 << ". Last registration might have been taken too long.";
+        endpoint->start();
     } else {
         endpoint = host_->find_or_create_local(_client);
         {

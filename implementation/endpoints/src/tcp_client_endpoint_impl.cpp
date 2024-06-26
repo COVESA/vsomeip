@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <iomanip>
 
 #include <boost/asio/write.hpp>
@@ -68,7 +69,7 @@ bool tcp_client_endpoint_impl::is_local() const {
 
 void tcp_client_endpoint_impl::start() {
     strand_.dispatch(std::bind(&client_endpoint_impl::connect,
-            this->shared_from_this()));
+        this->shared_from_this()));
 }
 
 void tcp_client_endpoint_impl::restart(bool _force) {
