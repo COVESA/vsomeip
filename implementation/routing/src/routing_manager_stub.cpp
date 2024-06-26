@@ -56,7 +56,7 @@
 #include "../../protocol/include/update_security_policy_response_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -346,7 +346,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 its_major = its_command.get_major();
                 its_minor = its_command.get_minor();
 
-                if (VSOMEIP_SEC_OK == security::is_client_allowed_to_offer(
+                if (VSOMEIP_SEC_OK == configuration_->get_security()->is_client_allowed_to_offer(
                         _sec_client, its_service, its_instance)) {
                     host_->offer_service(its_client, its_service, its_instance,
                             its_major, its_minor);
@@ -412,7 +412,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                                 << " which violates the security policy ~> Skip subscribe!";
                     }
                 } else {
-                    if (VSOMEIP_SEC_OK == security::is_client_allowed_to_access_member(
+                    if (VSOMEIP_SEC_OK == configuration_->get_security()->is_client_allowed_to_access_member(
                             _sec_client, its_service, its_instance, its_notifier)) {
                         host_->subscribe(its_client, _sec_client, its_service, its_instance,
                                 its_eventgroup, its_major, its_notifier, its_filter);
@@ -553,15 +553,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 auto its_message_data(its_command.get_message());
                 if (its_message_data.size() > VSOMEIP_MESSAGE_TYPE_POS) {
 
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_SERVICE_POS_MIN],
-                            its_message_data[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_METHOD_POS_MIN],
-                            its_message_data[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_CLIENT_POS_MIN],
-                            its_message_data[VSOMEIP_CLIENT_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&its_message_data[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&its_message_data[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&its_message_data[VSOMEIP_CLIENT_POS_MIN]);
 
                     its_instance = its_command.get_instance();
                     is_reliable = its_command.is_reliable();
@@ -570,7 +564,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                     // Allow response messages from local proxies as answer to remote requests
                     // but check requests sent by local proxies to remote against policy.
                     if (utility::is_request(its_message_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-                        if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+                        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                                 _sec_client, its_service, its_instance, its_method)) {
                             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_client
                                     << " : routing_manager_stub::on_message: "
@@ -581,11 +575,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         }
                     }
                     // reduce by size of instance, flush, reliable, client and is_valid_crc flag
-                    auto its_contained_size = VSOMEIP_BYTES_TO_LONG(
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+1],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+2],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+3]);
+                    uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
                     if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
                         VSOMEIP_WARNING << "Received a SEND command containing message with invalid size -> skip!";
                         break;
@@ -609,16 +599,11 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 if (its_message_data.size() > VSOMEIP_MESSAGE_TYPE_POS) {
 
                     its_client = its_command.get_target();
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            its_message_data[VSOMEIP_SERVICE_POS_MIN],
-                            its_message_data[VSOMEIP_SERVICE_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&its_message_data[VSOMEIP_SERVICE_POS_MIN]);
                     its_instance = its_command.get_instance();
 
-                    auto its_contained_size = VSOMEIP_BYTES_TO_LONG(
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+1],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+2],
-                            its_message_data[VSOMEIP_LENGTH_POS_MIN+3]);
+                    uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
+
                     if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
                         VSOMEIP_WARNING << "Received a NOTIFY command containing message with invalid size -> skip!";
                         break;
@@ -643,7 +628,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 
                 std::set<protocol::service> its_allowed_requests;
                 for (const auto &r : its_requests) {
-                    if (VSOMEIP_SEC_OK == security::is_client_allowed_to_request(
+                    if (VSOMEIP_SEC_OK == configuration_->get_security()->is_client_allowed_to_request(
                             _sec_client, r.service_, r.instance_)) {
                         host_->request_service(its_client,
                             r.service_, r.instance_, r.major_, r.minor_);
@@ -836,7 +821,7 @@ void routing_manager_stub::on_register_application(client_t _client) {
             vsomeip_sec_client_t its_sec_client;
             std::set<std::shared_ptr<policy> > its_policies;
 
-            bool has_mapping = policy_manager_impl::get()
+            bool has_mapping = configuration_->get_policy_manager()
                     ->get_client_to_sec_client_mapping(_client, its_sec_client);
             if (has_mapping) {
                 if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
@@ -1222,14 +1207,14 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
 
     // search for UID / GID linked with the client ID that offers the requested services
     vsomeip_sec_client_t its_sec_client;
-    if (policy_manager_impl::get()->get_client_to_sec_client_mapping(_hoster, its_sec_client)) {
+    if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_hoster, its_sec_client)) {
         std::pair<uint32_t, uint32_t> its_uid_gid;
         its_uid_gid.first = its_sec_client.user;
         its_uid_gid.second = its_sec_client.group;
         its_credentials.insert(its_uid_gid);
         for (auto its_requesting_client : its_requesting_clients) {
             vsomeip_sec_client_t its_requester_sec_client;
-            if (policy_manager_impl::get()->get_client_to_sec_client_mapping(
+            if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(
                     its_requesting_client, its_requester_sec_client)) {
                 if (!utility::compare(its_sec_client, its_requester_sec_client))
                     send_client_credentials(its_requesting_client, its_credentials);
@@ -1597,8 +1582,8 @@ void routing_manager_stub::create_local_receiver() {
     if (local_receiver_) {
         return;
     }
-#if defined(__linux__) || defined(ANDROID)
-    else if (!policy_manager_impl::get()->check_credentials(get_client(), host_->get_sec_client())) {
+#ifdef __linux__
+    else if (!configuration_->get_policy_manager()->check_credentials(get_client(), host_->get_sec_client())) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                 << " : routing_manager_stub::create_local_receiver:  isn't allowed"
                 << " to create a server endpoint due to credential check failed!";
@@ -1794,7 +1779,7 @@ void routing_manager_stub::update_registration(client_t _client,
                 "registering." : "deregistering.");
 
     if (_type != registration_type_e::REGISTER) {
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(_client);
+        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     } else {
         if (_port > 0 && _port < ILLEGAL_PORT)
             host_->add_guest(_client, _address, _port);
@@ -1845,7 +1830,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
     std::set<std::pair<uint32_t, uint32_t>> its_credentials;
     vsomeip_sec_client_t its_requester_sec_client;
-    if (policy_manager_impl::get()->get_client_to_sec_client_mapping(_client, its_requester_sec_client)) {
+    if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_requester_sec_client)) {
         // determine credentials of offering clients using current routing info
         std::set<client_t> its_offering_clients;
 
@@ -1861,7 +1846,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
         // search for UID / GID linked with the client ID that offers the requested services
         for (auto its_offering_client : its_offering_clients) {
             vsomeip_sec_client_t its_sec_client;
-            if (policy_manager_impl::get()->get_client_to_sec_client_mapping(its_offering_client, its_sec_client)) {
+            if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(its_offering_client, its_sec_client)) {
                 if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED
                         && !utility::compare(its_sec_client, its_requester_sec_client)) {
 
@@ -2212,7 +2197,7 @@ routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid,
     // Check whether clients with uid/gid are already registered.
     // If yes, update their policy
     std::unordered_set<client_t> its_clients;
-    policy_manager_impl::get()->get_clients(_uid, _gid, its_clients);
+    configuration_->get_policy_manager()->get_clients(_uid, _gid, its_clients);
 
     if (!its_clients.empty())
         return send_requester_policies(its_clients, _policies);
@@ -2299,17 +2284,15 @@ routing_manager_stub::send_requester_policies(const std::unordered_set<client_t>
             its_message.push_back(0);
 
             uint32_t its_policy_size = static_cast<uint32_t>(its_policy_data.size() + sizeof(uint32_t));
-            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_size));
-            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_size));
+
+            uint8_t new_its_policy_size[4] = {0};
+            bithelper::write_uint32_le(its_policy_size, new_its_policy_size);
+            its_message.insert(its_message.end(), new_its_policy_size, new_its_policy_size + sizeof(new_its_policy_size));
 
             its_policy_id = pending_security_update_add(_clients);
-            its_message.push_back(VSOMEIP_LONG_BYTE0(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE1(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE2(its_policy_id));
-            its_message.push_back(VSOMEIP_LONG_BYTE3(its_policy_id));
-
+            uint8_t new_its_policy_id[4] = {0};
+            bithelper::write_uint32_le(its_policy_id, new_its_policy_id);
+            its_message.insert(its_message.end(), new_its_policy_id, new_its_policy_id + sizeof(new_its_policy_id));
             its_message.insert(its_message.end(), its_policy_data.begin(), its_policy_data.end());
 
             for (const auto c : _clients) {
@@ -2391,11 +2374,11 @@ bool routing_manager_stub::update_security_policy_configuration(
     policy_cache_add(_uid, _payload);
 
     // update security policy from configuration
-    policy_manager_impl::get()->update_security_policy(_uid, _gid, _policy);
+    configuration_->get_policy_manager()->update_security_policy(_uid, _gid, _policy);
 
     // Build requester policies for the services offered by the new policy
     std::set<std::shared_ptr<policy> > its_requesters;
-    policy_manager_impl::get()->get_requester_policies(_policy, its_requesters);
+    configuration_->get_policy_manager()->get_requester_policies(_policy, its_requesters);
 
     // and add them to the requester policy cache
     add_requester_policies(_uid, _gid, its_requesters);
@@ -2454,7 +2437,7 @@ bool routing_manager_stub::remove_security_policy_configuration(
 
     // remove security policy from configuration (only if there was a updateACL call before)
     if (is_policy_cached(_uid)) {
-        if (!policy_manager_impl::get()->remove_security_policy(_uid, _gid)) {
+        if (!configuration_->get_policy_manager()->remove_security_policy(_uid, _gid)) {
             _handler(security_update_state_e::SU_UNKNOWN_USER_ID);
             ret = false;
         } else {

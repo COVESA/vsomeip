@@ -3,9 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "header_factory_test_service.hpp"
-
 #include <cstdlib>
+#include <iomanip>
+
+#include "header_factory_test_service.hpp"
 
 header_factory_test_service::header_factory_test_service(bool _use_static_routing) :
                 app_(vsomeip::runtime::get()->create_application()),

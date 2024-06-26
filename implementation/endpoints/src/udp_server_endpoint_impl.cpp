@@ -24,7 +24,7 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../service_discovery/include/defines.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace ip = boost::asio::ip;
@@ -242,7 +242,7 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 #if VSOMEIP_BOOST_VERSION >= 106600
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
             multicast_mutex_,
-            *multicast_socket_,
+            multicast_socket_,
             multicast_remote_,
             std::bind(
                 &udp_server_endpoint_impl::on_multicast_received,
@@ -357,7 +357,7 @@ bool udp_server_endpoint_impl::send_queued(
         )
     );
 
-    return false;
+    return true;
 }
 
 void udp_server_endpoint_impl::get_configured_times_from_endpoint(
@@ -631,44 +631,39 @@ void udp_server_endpoint_impl::on_message_received(
                         return;
                     }
                     remaining_bytes -= current_message_size;
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(_buffer[i + VSOMEIP_SERVICE_POS_MIN],
-                                                                        _buffer[i + VSOMEIP_SERVICE_POS_MAX]);
+                    const service_t its_service = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SERVICE_POS_MIN]);
+
                     if (utility::is_request(
                             _buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
-                        const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                                _buffer[i + VSOMEIP_CLIENT_POS_MIN],
-                                _buffer[i + VSOMEIP_CLIENT_POS_MAX]);
+                        const client_t its_client = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_CLIENT_POS_MIN]);
                         if (its_client != MAGIC_COOKIE_CLIENT) {
-                            const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                    _buffer[i + VSOMEIP_SESSION_POS_MIN],
-                                    _buffer[i + VSOMEIP_SESSION_POS_MAX]);
+                            const session_t its_session = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SESSION_POS_MIN]);
                             clients_mutex_.lock();
                             clients_[its_client][its_session] = _remote;
                             clients_mutex_.unlock();
                         }
                     }
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
-                        const method_t its_method = VSOMEIP_BYTES_TO_WORD(_buffer[i + VSOMEIP_METHOD_POS_MIN],
-                                                                          _buffer[i + VSOMEIP_METHOD_POS_MAX]);
-                        if (!tp_segmentation_enabled(its_service, its_method)) {
-                            VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
-                                    << " method: 0x" << its_method << " which is not configured for TP:"
-                                    << " local: " << get_address_port_local()
-                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
-                            return;
+                        const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
+                        instance_t its_instance = this->get_instance(its_service);
+
+                        if (its_instance != ANY_INSTANCE) {
+                            if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                                VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
+                                        << " method: 0x" << its_method << " which is not configured for TP:"
+                                        << " local: " << get_address_port_local()
+                                        << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                                return;
+                            }
                         }
                         const auto res = tp_reassembler_->process_tp_message(
                                 &_buffer[i], current_message_size,
                                 its_remote_address, its_remote_port);
                         if (res.first) {
                             if (utility::is_request(res.second[VSOMEIP_MESSAGE_TYPE_POS])) {
-                                const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                                        res.second[VSOMEIP_CLIENT_POS_MIN],
-                                        res.second[VSOMEIP_CLIENT_POS_MAX]);
+                                const client_t its_client = bithelper::read_uint16_be(&res.second[VSOMEIP_CLIENT_POS_MIN]);
                                 if (its_client != MAGIC_COOKIE_CLIENT) {
-                                    const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                            res.second[VSOMEIP_SESSION_POS_MIN],
-                                            res.second[VSOMEIP_SESSION_POS_MAX]);
+                                    const session_t its_session = bithelper::read_uint16_be(&res.second[VSOMEIP_SESSION_POS_MIN]);
                                     std::lock_guard<std::mutex> its_client_lock(clients_mutex_);
                                     clients_[its_client][its_session] = _remote;
                                 }
@@ -701,8 +696,7 @@ void udp_server_endpoint_impl::on_message_received(
                             << " local: " << get_address_port_local()
                             << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                     if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
-                        service_t its_service = VSOMEIP_BYTES_TO_WORD(_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                _buffer[VSOMEIP_SERVICE_POS_MAX]);
+                        service_t its_service = bithelper::read_uint16_be(&_buffer[VSOMEIP_SERVICE_POS_MIN]);
                         if (its_service != VSOMEIP_SD_SERVICE) {
                             if (read_message_size == 0) {
                                 VSOMEIP_ERROR << "Ignoring unreliable vSomeIP message with SomeIP message length 0!";
@@ -828,11 +822,9 @@ std::string udp_server_endpoint_impl::get_address_port_local() const {
 }
 
 bool udp_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
+        service_t _service, instance_t _instance, method_t _method) const {
 
-    return configuration_->is_tp_service(_service,
-            local_.address().to_string(), local_.port(),
-            _method);
+    return configuration_->is_tp_service(_service, _instance, _method);
 }
 
 void
@@ -988,7 +980,7 @@ udp_server_endpoint_impl::set_multicast_option(
 
                     multicast_socket_->cancel(ec);
 
-                    multicast_socket_.reset(nullptr);
+                    multicast_socket_.reset();
                     multicast_local_.reset(nullptr);
                 }
             }

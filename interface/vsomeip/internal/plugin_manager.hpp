@@ -23,6 +23,7 @@ public:
     VSOMEIP_EXPORT virtual void * load_library(const std::string &_path) = 0;
     VSOMEIP_EXPORT virtual void * load_symbol(void * _handle, const std::string &_symbol) = 0;
     VSOMEIP_EXPORT virtual void unload_library(void * _handle) = 0;
+    VSOMEIP_EXPORT virtual bool unload_plugin(plugin_type_e _type) = 0;
 };
 
 } // namespace vsomeip_v3

@@ -16,7 +16,7 @@
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"
 #include "../../configuration/include/trace.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 #ifdef ANDROID
 #include <utils/Log.h>
@@ -220,19 +220,12 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
     if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
         return; // tracing of service discovery messages is disabled!
 
-    service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN],
-            _data[VSOMEIP_SERVICE_POS_MAX]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
 
     // Instance is not part of the SOME/IP header, read it from the trace
     // header
-    instance_t its_instance = VSOMEIP_BYTES_TO_WORD(
-            _header[VSOMEIP_TC_INSTANCE_POS_MIN],
-            _header[VSOMEIP_TC_INSTANCE_POS_MAX]);
-
-    method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
+    instance_t its_instance = bithelper::read_uint16_be(&_header[VSOMEIP_TC_INSTANCE_POS_MIN]);
+    method_t its_method     = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     // Forward to channel if the filter set of the channel allows
     std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);

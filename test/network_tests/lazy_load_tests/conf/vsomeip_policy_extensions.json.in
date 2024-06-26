@@ -1,0 +1,8 @@
+{
+    "container_policy_extensions":
+    [
+        {
+            "container": "@HOSTNAME@", "path": "../..@NETWORK_TEST_BIN_DIR@/lazy_load_tests/vsomeip/vsomeip_ext"
+        }
+    ]
+}

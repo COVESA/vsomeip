@@ -39,6 +39,8 @@
 
 namespace vsomeip_v3 {
 
+class policy_manager_impl;
+class security;
 class event;
 struct debounce_filter_impl_t;
 
@@ -276,10 +278,10 @@ public:
 
     // SOME/IP-TP
     virtual bool is_tp_client(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual bool is_tp_service(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
@@ -309,6 +311,8 @@ public:
     virtual bool is_security_external() const = 0;
     virtual bool is_security_audit() const = 0;
     virtual bool is_remote_access_allowed() const = 0;
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

@@ -13,9 +13,9 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/internal/logger.hpp>
+#include <vsomeip/internal/plugin_manager.hpp>
 #include "../implementation/configuration/include/configuration.hpp"
 
-#include "../../implementation/plugin/include/plugin_manager_impl.hpp"
 #include "../../implementation/configuration/include/configuration_impl.hpp"
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
 #include "../../implementation/protocol/include/protocol.hpp"
@@ -167,7 +167,7 @@ void check_file(const std::string &_config_file,
 
     // 1. Create configuration object
     std::shared_ptr<vsomeip::configuration> its_configuration;
-    auto its_plugin = vsomeip::plugin_manager_impl::get()->get_plugin(
+    auto its_plugin = vsomeip::plugin_manager::get()->get_plugin(
             vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
     if (its_plugin) {
         auto its_configuration_plugin
@@ -572,7 +572,7 @@ void check_file(const std::string &_config_file,
     vsomeip_sec_client_t its_8000_8000 = utility::create_uds_client(8000, 8000, 0);
     vsomeip_sec_client_t its_9000_9000 = utility::create_uds_client(9000, 9000, 0);
 
-    auto its_security = vsomeip::policy_manager_impl::get();
+    auto its_security = its_configuration->get_policy_manager();
     EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1234, 0x5678));
     EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1235, 0x5678));
     EXPECT_TRUE(its_security->is_offer_allowed(&its_1000_1000, 0x1236, 0x5678));
@@ -753,7 +753,7 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(check<int32_t>(request_response_delay, static_cast<int32_t>(_expected_request_response_delay), "SD RESPONSE REQUEST DELAY"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
 
-    ASSERT_TRUE(vsomeip::plugin_manager_impl::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
+    ASSERT_TRUE(vsomeip::plugin_manager::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
 }
 
 TEST(configuration_test, check_config_file) {

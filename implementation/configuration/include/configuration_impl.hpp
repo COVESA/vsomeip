@@ -261,11 +261,10 @@ public:
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            const std::string &_address, std::uint16_t _port,
+            instance_t _instance,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method) const;
+            service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
@@ -297,6 +296,8 @@ public:
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -478,6 +479,9 @@ private:
     bool is_logging_loaded_;
 
     std::set<std::string> mandatory_;
+
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
 
 protected:
     // Configuration data

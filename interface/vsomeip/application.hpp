@@ -27,6 +27,7 @@ class configuration_public;
 class event;
 class payload;
 struct policy;
+class policy_manager;
 
 /**
  * \defgroup vsomeip
@@ -1139,6 +1140,20 @@ public:
             instance_t _instance, method_t _method,
             const message_handler_t &_handler,
 			handler_registration_type_e _type) = 0;
+
+    /**
+     * \brief Get the configuration
+     *
+     * \return configuration shared pointer
+     */
+    virtual std::shared_ptr<configuration> get_configuration() const = 0;
+
+    /**
+     * \brief Get the policy_manager
+     *
+     * \return policy_manager shared pointer
+     */
+    virtual std::shared_ptr<policy_manager> get_policy_manager() const = 0;
 };
 
 /** @} */

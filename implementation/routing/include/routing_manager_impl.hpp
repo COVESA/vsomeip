@@ -442,8 +442,6 @@ private:
                         client_t _client, major_version_t _major, minor_version_t _minor);
     bool erase_offer_command(service_t _service, instance_t _instance);
 
-    bool is_last_stop_callback(const uint32_t _callback_id);
-
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
@@ -464,6 +462,11 @@ private:
     bool is_acl_message_allowed(endpoint *_receiver,
             service_t _service, instance_t _instance,
             const boost::asio::ip::address &_remote_address) const;
+
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+    bool has_subscribed_eventgroup(
+            service_t _service, instance_t _instance) const;
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;

@@ -27,7 +27,7 @@ global:
         vsomeip_v3::policy_manager::*;
         *vsomeip_v3::policy_manager_impl;
         vsomeip_v3::policy_manager_impl::*;
-        vsomeip_v3::security::authenticate_router;
+        vsomeip_v3::security::*;
         *vsomeip_v3::runtime;
         vsomeip_v3::runtime::get*;
         vsomeip_v3::runtime::set_property*;

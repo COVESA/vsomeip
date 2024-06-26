@@ -16,7 +16,7 @@
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
 #endif
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -418,12 +418,6 @@ void routing_manager_base::register_event(client_t _client,
             std::shared_ptr<debounce_filter_impl_t> its_debounce
                 = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
             if (its_debounce) {
-                VSOMEIP_WARNING << "Using debounce configuration for "
-                        << " SOME/IP event "
-                        << std::hex << std::setfill('0')
-                        << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "."
-                        << std::setw(4) << _notifier << ".";
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="
                         << (its_debounce->on_change_ ? "true" : "false")
@@ -433,8 +427,18 @@ void routing_manager_base::register_event(client_t _client,
                            << ", " << std::hex << (int)i.second << ") ";
                 its_debounce_parameters << "], interval="
                         << std::dec << its_debounce->interval_ << ")";
-                VSOMEIP_WARNING << "Debounce parameters: "
+
+                VSOMEIP_WARNING << "Using debounce configuration for "
+                        << " SOME/IP event "
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0')
+                        << _notifier << "."
+                        << " Debounce parameters: "
                         << its_debounce_parameters.str();
+
                 _epsilon_change_func = [its_debounce](
                     const std::shared_ptr<payload> &_old,
                     const std::shared_ptr<payload> &_new) {
@@ -503,28 +507,12 @@ void routing_manager_base::register_event(client_t _client,
                 // Create a new callback for this client if filter interval is used
                 register_debounce(its_debounce, _client, its_event);
             } else {
-                if (!_is_shadow && is_routing_manager()) {
+                if (_is_shadow || !is_routing_manager()) {
                     _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
                                         const std::shared_ptr<payload> &_new) {
-                        bool is_change = (_old->get_length() != _new->get_length());
-                        if (!is_change) {
-                            std::size_t its_pos = 0;
-                            const byte_t *its_old_data = _old->get_data();
-                            const byte_t *its_new_data = _new->get_data();
-                            while (!is_change && its_pos < _old->get_length()) {
-                                is_change = (*its_old_data++ != *its_new_data++);
-                                its_pos++;
-                            }
-                        }
-                        return is_change;
-                    };
-                }
-                else {
-                    _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
-                                        const std::shared_ptr<payload> &_new) {
-                    (void)_old;
-                    (void)_new;
-                    return true;
+                        (void)_old;
+                        (void)_new;
+                        return true;
                     };
                 }
             }
@@ -712,7 +700,7 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         for (const auto& e : its_eventgroup->get_events()) {
-            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                     _sec_client, _service, _instance, e->get_event())) {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                     << _client << " : routing_manager_base::is_subscribe_to_any_event_allowed: "
@@ -734,7 +722,7 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         //Ignore if we have already loaded the policy extension
         policy_manager_impl::policy_loaded_e policy_loaded
-            = policy_manager_impl::get()->is_policy_extension_loaded(_client_host);
+            = configuration_->get_policy_manager()->is_policy_extension_loaded(_client_host);
 
         if (policy_loaded == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_NOT_LOADED)
         {
@@ -1166,10 +1154,10 @@ void routing_manager_base::remove_local(client_t _client,
                   bool _remove_sec_client) {
 
     vsomeip_sec_client_t its_sec_client;
-    policy_manager_impl::get()->get_client_to_sec_client_mapping(_client, its_sec_client);
+    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
 
     if (_remove_sec_client) {
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(_client);
+        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
     for (auto its_subscription : _subscribed_eventgroups) {
         host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
@@ -1324,10 +1312,8 @@ bool routing_manager_base::send_local_notification(client_t _client,
     bool has_local(false);
 #endif
     bool has_remote(false);
-    method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
-    service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
     if (its_event && !its_event->is_shadow()) {

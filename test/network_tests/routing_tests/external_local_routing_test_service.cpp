@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "external_local_routing_test_service.hpp"
 
 external_local_routing_test_service::external_local_routing_test_service(bool _use_static_routing) :

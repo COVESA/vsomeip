@@ -21,7 +21,7 @@
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -543,12 +543,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 
             if (!message_is_empty) {
                 if (its_start + protocol::COMMAND_POSITION_SIZE + 3 < recv_buffer_size_ + its_iteration_gap) {
-                    its_command_size = VSOMEIP_BYTES_TO_LONG(
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+3],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+2],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+1],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
-
+                    its_command_size = bithelper::read_uint32_le(&recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
                     its_end = its_start + protocol::COMMAND_POSITION_SIZE + 3 + its_command_size;
                 } else {
                     its_end = its_start;
@@ -652,7 +647,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                 = htonl(uint32_t(its_address.to_v4().to_ulong()));
                         }
                         sec_client_.port = htons(its_port);
-                        security::sync_client(&sec_client_);
+                        its_server->configuration_->get_security()->sync_client(&sec_client_);
 
                         its_host->on_message(&recv_buffer_[its_start],
                                             uint32_t(its_end - its_start), its_server.get(),
@@ -706,7 +701,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
             || is_error) {
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
+        its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
         start();
     }
@@ -907,14 +902,6 @@ local_tcp_server_endpoint_impl::send_client_identifier(
     }
 
     send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-}
-
-bool local_tcp_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
 }
 
 } // namespace vsomeip_v3

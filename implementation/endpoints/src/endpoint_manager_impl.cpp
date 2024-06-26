@@ -21,7 +21,7 @@
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 
 #include <forward_list>
@@ -957,8 +957,7 @@ void endpoint_manager_impl::on_error(
         std::uint16_t _remote_port) {
     instance_t its_instance = 0;
     if (_length >= VSOMEIP_SERVICE_POS_MAX) {
-        service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         its_instance = find_instance(its_service, _receiver);
     }
     static_cast<routing_manager_impl*>(rm_)->send_error(

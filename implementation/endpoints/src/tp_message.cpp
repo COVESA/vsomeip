@@ -10,7 +10,7 @@
 
 #include "../include/tp_message.hpp"
 #include "../include/tp.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
@@ -47,11 +47,7 @@ tp_message::tp_message(const byte_t* const _data, std::uint32_t _data_length,
 
     const length_t its_segment_size = _data_length - VSOMEIP_FULL_HEADER_SIZE
                                         - VSOMEIP_TP_HEADER_SIZE;
-    const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                                        _data[VSOMEIP_TP_HEADER_POS_MAX]);
+    const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
 
     if (check_lengths(_data, _data_length, its_segment_size,
             tp::more_segments(its_tp_header))) {
@@ -82,11 +78,7 @@ bool tp_message::add_segment(const byte_t* const _data,
 
     const length_t its_segment_size = _data_length - VSOMEIP_FULL_HEADER_SIZE
                                         - VSOMEIP_TP_HEADER_SIZE;
-    const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                                        _data[VSOMEIP_TP_HEADER_POS_MAX]);
+    const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
 
     if (check_lengths(_data, _data_length, its_segment_size,
             tp::more_segments(its_tp_header))) {
@@ -259,14 +251,11 @@ std::chrono::steady_clock::time_point tp_message::get_creation_time() const {
 std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t _data_length) {
     std::stringstream ss;
     if (_data_length >= VSOMEIP_FULL_HEADER_SIZE) {
-        const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-        const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-        const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-        const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
+
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        const service_t its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+        const service_t its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+        const service_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         const interface_version_t its_interface_version =
                 _data[VSOMEIP_INTERFACE_VERSION_POS];
         const message_type_e its_msg_type = tp::tp_flag_unset(
@@ -282,11 +271,7 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
            << std::setw(4) << its_session
            << "] ";
         if (_data_length > VSOMEIP_TP_HEADER_POS_MAX) {
-            const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                                                _data[VSOMEIP_TP_HEADER_POS_MIN],
-                                                _data[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                                                _data[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                                                _data[VSOMEIP_TP_HEADER_POS_MAX]);
+            const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
             const length_t its_offset = tp::get_offset(its_tp_header);
             ss << " TP offset: 0x" << std::hex << its_offset << " ";
         }
@@ -297,17 +282,11 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
 bool tp_message::check_lengths(const byte_t* const _data,
                                std::uint32_t _data_length,
                                length_t _segment_size, bool _more_fragments) {
-    const length_t its_length = VSOMEIP_BYTES_TO_LONG(
-                                        _data[VSOMEIP_LENGTH_POS_MIN],
-                                        _data[VSOMEIP_LENGTH_POS_MIN + 1],
-                                        _data[VSOMEIP_LENGTH_POS_MIN + 2],
-                                        _data[VSOMEIP_LENGTH_POS_MAX]);
-    const tp_header_t its_tp_header = VSOMEIP_BYTES_TO_LONG(
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 1],
-                                        _data[VSOMEIP_TP_HEADER_POS_MIN + 2],
-                                        _data[VSOMEIP_TP_HEADER_POS_MAX]);
+
+    const length_t its_length = bithelper::read_uint32_be(&_data[VSOMEIP_LENGTH_POS_MIN]);
+    const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
     bool ret(true);
+
     if (!tp::tp_flag_is_set(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         VSOMEIP_ERROR << __func__ << ": TP flag not set "
                 << get_message_id(_data, _data_length);

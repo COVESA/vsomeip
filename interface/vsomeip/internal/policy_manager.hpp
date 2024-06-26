@@ -19,10 +19,7 @@ struct policy;
 
 class VSOMEIP_IMPORT_EXPORT policy_manager {
 public:
-    static std::shared_ptr<policy_manager> get();
-
-    virtual ~policy_manager() {};
-
+    virtual ~policy_manager() {}
     virtual std::shared_ptr<policy> create_policy() const = 0;
     virtual void print_policy(const std::shared_ptr<policy> &_policy) const = 0;
 

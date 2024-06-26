@@ -258,6 +258,11 @@ void local_uds_client_endpoint_impl::receive_cbk(
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
+        } else if (_error == boost::asio::error::eof) {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+            queue_.clear();
+            queue_size_ = 0;
         } else if (_error == boost::asio::error::connection_reset
                 || _error == boost::asio::error::bad_descriptor) {
             restart(true);
@@ -359,14 +364,6 @@ bool local_uds_client_endpoint_impl::is_reliable() const {
 std::uint32_t local_uds_client_endpoint_impl::get_max_allowed_reconnects() const {
 
     return 13;
-}
-
-bool local_uds_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
 }
 
 void local_uds_client_endpoint_impl::max_allowed_reconnects_reached() {
