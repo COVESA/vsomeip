@@ -242,7 +242,7 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 #if VSOMEIP_BOOST_VERSION >= 106600
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
             multicast_mutex_,
-            *multicast_socket_,
+            multicast_socket_,
             multicast_remote_,
             std::bind(
                 &udp_server_endpoint_impl::on_multicast_received,
@@ -989,7 +989,7 @@ udp_server_endpoint_impl::set_multicast_option(
 
                     multicast_socket_->cancel(ec);
 
-                    multicast_socket_.reset(nullptr);
+                    multicast_socket_.reset();
                     multicast_local_.reset(nullptr);
                 }
             }
