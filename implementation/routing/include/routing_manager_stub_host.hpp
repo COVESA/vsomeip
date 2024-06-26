@@ -132,6 +132,8 @@ public:
     virtual void remove_guest(client_t _client) = 0;
 
     virtual void clear_local_services() = 0;
+
+    virtual routing_state_e get_routing_state() = 0;
 };
 
 } // namespace vsomeip_v3

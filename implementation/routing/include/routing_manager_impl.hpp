@@ -251,6 +251,7 @@ public:
     void handle_client_error(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
+    routing_state_e get_routing_state();
     void set_routing_state(routing_state_e _routing_state);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {

@@ -144,6 +144,8 @@ public:
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
 
+    routing_state_e get_routing_state();
+
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 

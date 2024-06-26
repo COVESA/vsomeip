@@ -59,6 +59,8 @@ public:
     // TODO: think about a better design!
     void receive();
     void print_status();
+
+    bool is_suspended() const;
 private:
     class connection: public std::enable_shared_from_this<connection> {
 

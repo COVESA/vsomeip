@@ -3710,6 +3710,11 @@ void routing_manager_impl::send_subscribe(client_t _client, service_t _service,
     }
 }
 
+routing_state_e routing_manager_impl::get_routing_state() {
+
+    return routing_manager_base::get_routing_state();
+}
+
 void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
     {
         std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
