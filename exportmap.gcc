@@ -23,6 +23,8 @@ global:
         *vsomeip_v3::message_header_impl::*;
         *vsomeip_v3::payload_impl;
         *vsomeip_v3::payload_impl::*;
+        *vsomeip_v3::policy;
+        vsomeip_v3::policy::*;
         *vsomeip_v3::policy_manager;
         vsomeip_v3::policy_manager::*;
         *vsomeip_v3::policy_manager_impl;
