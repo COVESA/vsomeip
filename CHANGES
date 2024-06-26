@@ -1,6 +1,27 @@
 Changes
 =======
 
+v3.5.0
+- Load Policies Lazy Load
+- Test - Processing SD messages with unknown type option
+- ensure endpoints before deletion
+- Improve "end of file" error handling
+- Enable debouncing of events & selective events
+- Revert "Test - Processing SD messages with unknown type"
+- Logs added to points of failure on registration process
+- One *.json to ignorem all
+- Someip-tp remote address rework
+- Fix crash in multicast_receive receive_cb
+- Generate network_test configs directly to build
+- Fix deadlock if binding of TCP client endpoint fails
+- Added missing includes of iomanip to support compilation on Mint
+- Cache not yet registered events
+- Return true to make sure endpoints are deleted
+- Byteorder implementation
+- Reorder of prepare_stop method
+- Allows applications in the same process using different security configurations
+- Fix to not ignore stop offers when sd acceptance is not required
+
 v3.4.10
 - Fix QNX build
 - Fix missing Stop Offer
