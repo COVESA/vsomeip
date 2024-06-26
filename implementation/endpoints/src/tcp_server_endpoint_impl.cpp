@@ -314,6 +314,15 @@ bool tcp_server_endpoint_impl::is_reliable() const {
     return true;
 }
 
+bool tcp_server_endpoint_impl::is_suspended() const {
+
+    auto its_routing_host { routing_host_.lock() };
+    if (its_routing_host)
+        return routing_state_e::RS_SUSPENDED == its_routing_host->get_routing_state();
+
+    return false;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // class tcp_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
@@ -438,11 +447,40 @@ void tcp_server_endpoint_impl::connection::receive() {
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
+
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
         boost::system::error_code its_error;
+
+        auto its_server { server_.lock() };
+        if (its_server && its_server->is_suspended()) {
+            socket_.set_option(boost::asio::socket_base::linger(true, 0), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+                    << get_address_port_remote()
+                    << ">:setting SO_LINGER failed ("
+                    << its_error.message()
+                    << ")";
+            }
+        }
+
         socket_.shutdown(socket_.shutdown_both, its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+                << get_address_port_remote()
+                << ">:shutting down socket failed ("
+                << its_error.message()
+                << ")";
+        }
+
         socket_.close(its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+                << get_address_port_remote()
+                << ">:closing socket failed ("
+                << its_error.message()
+                << ")";
+        }
     }
 }
 

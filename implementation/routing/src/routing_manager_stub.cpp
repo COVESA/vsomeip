@@ -2603,6 +2603,11 @@ void routing_manager_stub::send_suspend() const {
             << std::dec << int(its_error) << ")";
 }
 
+routing_state_e routing_manager_stub::get_routing_state() {
+
+    return host_->get_routing_state();
+}
+
 void
 routing_manager_stub::remove_subscriptions(port_t _local_port,
         const boost::asio::ip::address &_remote_address,
