@@ -2062,6 +2062,26 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
     return is_delivered;
 }
 
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+bool
+routing_manager_impl::has_subscribed_eventgroup(
+        service_t _service, instance_t _instance) const {
+
+    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    auto found_service = eventgroups_.find(_service);
+    if (found_service != eventgroups_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end())
+            for (const auto &its_eventgroup : found_instance->second)
+                for (const auto &e : its_eventgroup.second->get_events())
+                    if (!e->get_subscribers().empty())
+                        return true;
+    }
+
+    return false;
+}
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+
 bool routing_manager_impl::deliver_notification(
         service_t _service, instance_t _instance,
         const byte_t *_data, length_t _length, bool _reliable,
@@ -2153,6 +2173,42 @@ bool routing_manager_impl::deliver_notification(
         }
 
     } else {
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+        if (has_subscribed_eventgroup(_service, _instance)) {
+            if (!is_suppress_event(_service, _instance, its_event_id)) {
+                VSOMEIP_WARNING << __func__ << ": Caching unregistered event ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_event_id << "]";
+            }
+
+            routing_manager_base::register_event(host_->get_client(),
+                    _service, _instance, its_event_id, { },
+                    event_type_e::ET_UNKNOWN,
+                    _reliable ? reliability_type_e::RT_RELIABLE
+                        : reliability_type_e::RT_UNRELIABLE,
+                    std::chrono::milliseconds::zero(), false, true, nullptr,
+                    true, true, true);
+
+            its_event = find_event(_service, _instance, its_event_id);
+            if (its_event) {
+                auto its_length = utility::get_payload_size(_data, _length);
+                auto its_payload = runtime::get()->create_payload(
+                    &_data[VSOMEIP_PAYLOAD_POS], its_length);
+                its_event->set_payload(its_payload, true);
+            } else
+                VSOMEIP_ERROR << __func__ << ": Event registration failed ["
+                        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                        << std::hex << std::setw(4) << std::setfill('0') << its_event_id << "]";
+        } else if (!is_suppress_event(_service, _instance, its_event_id)) {
+            VSOMEIP_WARNING << __func__ << ": Dropping unregistered event ["
+                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                    << std::hex << std::setw(4) << std::setfill('0') << its_event_id << "] "
+                    << "Service has no subscribed eventgroup.";
+        }
+#else
         if (!is_suppress_event(_service, _instance, its_event_id)) {
             VSOMEIP_WARNING << __func__ << ": Event ["
                     << std::hex << std::setw(4) << std::setfill('0') << _service << "."
@@ -2160,6 +2216,7 @@ bool routing_manager_impl::deliver_notification(
                     << std::hex << std::setw(4) << std::setfill('0') << its_event_id << "]"
                     << " is not registered. The message is dropped.";
         }
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
     }
     return true;
 }
