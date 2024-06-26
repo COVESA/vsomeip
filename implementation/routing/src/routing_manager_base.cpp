@@ -13,7 +13,7 @@
 #include "../../protocol/include/send_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 #include "../../utility/include/byteorder.hpp"
@@ -26,7 +26,7 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         io_(host_->get_io()),
         configuration_(host_->get_configuration()),
         debounce_timer(host_->get_io())
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         , tc_(trace::connector_impl::get())
 #endif
 {
@@ -1320,7 +1320,7 @@ void routing_manager_base::remove_eventgroup_info(service_t _service,
 bool routing_manager_base::send_local_notification(client_t _client,
         const byte_t *_data, uint32_t _size, instance_t _instance,
         bool _reliable, uint8_t _status_check, bool _force) {
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     bool has_local(false);
 #endif
     bool has_remote(false);
@@ -1338,7 +1338,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
                 has_remote = true;
                 continue;
             }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
             else {
                 has_local = true;
             }
@@ -1351,7 +1351,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
             }
         }
     }
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     // Trace the message if a local client but will _not_ be forwarded to the routing manager
     if (has_local && !has_remote) {
         trace::header its_header;

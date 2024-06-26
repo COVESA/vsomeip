@@ -438,8 +438,12 @@ status. Setting a value greater than zero enables the logging.
 +
 Specifies whether the tracing of the SOME/IP messages is enabled 
 (valid values: _true, false_). Default value is _false_.
-If tracing is enabled, the messages will be forwarded to DLT by 
-the <<traceconnector, Trace Connector>>
+If tracing is enabled, the trace messages will be forwarded to DLT and/or 
+logs by the <<traceconnector, Trace Connector>>, depending on the following 
+build flags:
+* USE_DLT 
+* TRACE_TO_LOGS
+
 +
 ** 'sd_enable'
 +

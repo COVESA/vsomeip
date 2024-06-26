@@ -25,21 +25,17 @@ logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
 
-#ifndef ANDROID
     std::string its_context_id = runtime::get_property("LogContext");
     if (its_context_id == "")
         its_context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
 
     DLT_REGISTER_CONTEXT(its_logger->dlt_, its_context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
 #endif
-#endif
 }
 
 logger_impl::~logger_impl() {
 #ifdef USE_DLT
-#ifndef ANDROID
     DLT_UNREGISTER_CONTEXT(dlt_);
-#endif
 #endif
 }
 
@@ -59,7 +55,6 @@ logger_impl::set_configuration(
 }
 
 #ifdef USE_DLT
-#ifndef ANDROID
 void
 logger_impl::log(level_e _level, const char *_data) {
 
@@ -90,7 +85,6 @@ logger_impl::log(level_e _level, const char *_data) {
 
     DLT_LOG_STRING(dlt_, its_level, _data);
 }
-#endif
 #endif
 
 static std::shared_ptr<logger_impl> *the_logger_ptr__(nullptr);
