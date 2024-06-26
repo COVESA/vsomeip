@@ -308,10 +308,6 @@ protected:
 
     std::mutex event_registration_mutex_;
 
-#ifdef USE_DLT
-    std::shared_ptr<trace::connector_impl> tc_;
-#endif
-
     struct subscription_data_t {
         service_t service_;
         instance_t instance_;
@@ -349,6 +345,10 @@ protected:
 
     std::mutex routing_state_mutex_;
     routing_state_e routing_state_;
+
+#ifdef USE_DLT
+    std::shared_ptr<trace::connector_impl> tc_;
+#endif
 
 private:
     services_t services_;

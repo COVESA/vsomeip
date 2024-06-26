@@ -25,7 +25,8 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         host_(_host),
         io_(host_->get_io()),
         configuration_(host_->get_configuration()),
-        debounce_timer(host_->get_io())
+        debounce_timer(host_->get_io()),
+        routing_state_(routing_state_e::RS_UNKNOWN)
 #ifdef USE_DLT
         , tc_(trace::connector_impl::get())
 #endif
