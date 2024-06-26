@@ -357,7 +357,7 @@ bool udp_server_endpoint_impl::send_queued(
         )
     );
 
-    return false;
+    return true;
 }
 
 void udp_server_endpoint_impl::get_configured_times_from_endpoint(
