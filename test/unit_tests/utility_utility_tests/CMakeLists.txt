@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-project("unit_tests_policy_tests" LANGUAGES CXX)
+project("unit_tests_utility_tests" LANGUAGES CXX)
 
 file(GLOB SRCS ../main.cpp *.cpp)
 
