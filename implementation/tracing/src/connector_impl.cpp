@@ -277,7 +277,7 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                     std::string app = runtime::get_property("LogApplication");
                     ALOGI(app.c_str(), ss.str().c_str());
                 #else
-                    VSOMEIP_INFO << ss;
+                    VSOMEIP_INFO << ss.str();
                 #endif
             #endif
         }
