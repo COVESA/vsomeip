@@ -15,6 +15,7 @@ include_directories(
 set(TEST_LINK_LIBRARIES gtest)
 set(NETWORK_TEST_BIN_DIR ${PROJECT_BINARY_DIR}/test/network_tests)
 set(NETWORK_TEST_SRC_DIR ${PROJECT_SOURCE_DIR}/test/network_tests)
+set(HOSTNAME "$ENV{HOSTNAME}")
 
 # Function to copy files into the build directory (or anywhere else)
 # On unixoid systems this function will create symlinks instead
@@ -67,6 +68,7 @@ function(copy_to_builddir SOURCE_PATH DESTINATION_PATH TARGET_TO_DEPEND)
     endif()
 endfunction()
 
+add_subdirectory(lazy_load_tests)
 ##############################################################################
 # configuration-test
 ##############################################################################
