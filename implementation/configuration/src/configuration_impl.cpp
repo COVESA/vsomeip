@@ -68,6 +68,7 @@ configuration_impl::configuration_impl(const std::string &_path)
       sd_cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
       sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
       sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+      sd_find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
       max_configured_message_size_(0),
       max_local_message_size_(0),
       max_reliable_message_size_(0),
@@ -183,6 +184,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_cyclic_offer_delay_= _other.sd_cyclic_offer_delay_;
     sd_request_response_delay_= _other.sd_request_response_delay_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
+    sd_find_debounce_time_ = _other.sd_find_debounce_time_;
 
     trace_ = std::make_shared<trace>(*_other.trace_.get());
     supported_selective_addresses = _other.supported_selective_addresses;
@@ -1842,6 +1844,15 @@ void configuration_impl::load_service_discovery(
                     its_converter << its_value;
                     its_converter >> sd_offer_debounce_time_;
                     is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME] = true;
+                }
+            } else if (its_key == "find_debounce_time") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_debounce."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    its_converter << its_value;
+                    its_converter >> sd_find_debounce_time_;
+                    is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME] = true;
                 }
             } else if (its_key == "ttl_factor_offers") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
@@ -3680,6 +3691,10 @@ int32_t configuration_impl::get_sd_request_response_delay() const {
 
 std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
     return sd_offer_debounce_time_;
+}
+
+std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
+    return sd_find_debounce_time_;
 }
 
 // Trace configuration
