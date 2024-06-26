@@ -291,7 +291,7 @@ void routing_manager_base::release_service(client_t _client,
         its_info->remove_client(_client);
     }
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        std::lock_guard<std::mutex> its_service_guard(local_services_mutex_);
         auto found_service = local_services_history_.find(_service);
         if (found_service != local_services_history_.end()) {
            auto found_instance = found_service->second.find(_instance);
