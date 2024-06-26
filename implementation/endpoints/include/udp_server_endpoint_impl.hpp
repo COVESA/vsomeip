@@ -116,7 +116,7 @@ private:
 
     bool is_v4_;
 
-    std::unique_ptr<socket_type> multicast_socket_;
+    std::shared_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
     endpoint_type multicast_remote_;
     message_buffer_t multicast_recv_buffer_;
