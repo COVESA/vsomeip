@@ -1405,7 +1405,7 @@ service_discovery_impl::process_serviceentry(
                 VSOMEIP_ERROR << __func__ << ": Unsupported service entry type";
         }
     } else if (its_type != entry_type_e::FIND_SERVICE
-            && (_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
+            && (!_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
         // stop sending find service in repetition phase
         update_request(its_service, its_instance);
 
