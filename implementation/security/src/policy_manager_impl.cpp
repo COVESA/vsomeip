@@ -111,6 +111,7 @@ policy_manager_impl::check_credentials(client_t _client,
         has_id = (has_uid && has_gid);
 
         if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
+            // Code is unaccessible due to logic checks.
             if (!store_client_to_sec_client_mapping(_client, _sec_client)) {
                 std::string security_mode_text = "!";
                 if (!check_credentials_) {
