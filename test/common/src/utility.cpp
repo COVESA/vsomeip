@@ -128,8 +128,7 @@ utility::force_check_credentials(
         }
 
 void utility::get_policy_uids(vsomeip_v3::configuration_element &_policy_element,
-                              std::vector<vsomeip_v3::uid_t> &_out_uids)
-{
+                              std::vector<vsomeip_v3::uid_t> &_out_uids) {
     try {
         std::vector<std::string> user_ids;
         auto policy_tree = _policy_element.tree_.get_child("security.policies");
@@ -154,8 +153,7 @@ void utility::get_policy_uids(vsomeip_v3::configuration_element &_policy_element
 }
 
 void utility::get_policy_services(vsomeip_v3::configuration_element &_policy_element,
-                                  std::vector<vsomeip_v3::service_t> &_out_services)
-{
+                                  std::vector<vsomeip_v3::service_t> &_out_services) {
     try {
         std::vector<std::string> services;
         auto policy_tree = _policy_element.tree_.get_child("security.policies");
@@ -194,8 +192,7 @@ void utility::get_policy_services(vsomeip_v3::configuration_element &_policy_ele
 }
 
 void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_element,
-                                     const bool _check_whitelist)
-{
+                                     const bool _check_whitelist) {
     std::vector<vsomeip_v3::uid_t> user_ids;
     get_policy_uids(_policy_element, user_ids);
 
@@ -208,8 +205,7 @@ void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_
 void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_element,
                                      const std::vector<vsomeip_v3::uid_t> &_user_ids,
                                      const std::vector<vsomeip_v3::service_t> &_services,
-                                     const bool _check_whitelist)
-{
+                                     const bool _check_whitelist) {
     // Add the user ids to the whitelist.
     boost::property_tree::ptree id_array_node;
     for (auto user_id : _user_ids) {

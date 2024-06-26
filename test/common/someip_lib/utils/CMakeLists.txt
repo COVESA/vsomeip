@@ -3,16 +3,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-add_subdirectory(someip_lib)
-
-project (vsomeip_utilities)
+project (utils)
 
 # ----------------------------------------------------------------------------
 # Include all source files (cpp/hpp)
 # ----------------------------------------------------------------------------
-file (GLOB SRC src/*.cpp)
-file (GLOB INC include/common/*.hpp, include/common/vsomeip_app_utilities/*.hpp)
-
+file (GLOB SRC src/*.cpp src/*.hpp)
+file (GLOB INC include/*.hpp)
 # ----------------------------------------------------------------------------
 # Declare the library
 # ----------------------------------------------------------------------------
@@ -21,16 +18,6 @@ add_library (
     ${SRC}
     ${INC}
 )
-
-TARGET_LINK_LIBRARIES (
-    ${PROJECT_NAME}
-    PUBLIC
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-)
-
 # ----------------------------------------------------------------------------
 # Specify here the include directories exported
 # by this library
