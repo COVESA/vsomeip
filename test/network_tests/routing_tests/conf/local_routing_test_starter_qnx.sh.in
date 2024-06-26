@@ -35,7 +35,7 @@ check_tcp_udp_sockets_are_closed ()
 
 export VSOMEIP_CONFIGURATION=local_routing_test_service.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the service

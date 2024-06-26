@@ -28,7 +28,7 @@ print_starter_message () {
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting initial event test on slave LXC with params $CLIENT_JSON_FILE $REMAINING_OPTIONS"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/initial_event_tests; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
 else

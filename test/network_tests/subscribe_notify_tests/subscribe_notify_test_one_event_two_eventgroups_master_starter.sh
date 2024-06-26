@@ -32,7 +32,7 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=$2
 # start daemon
-../../examples/routingmanagerd/routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the client
@@ -42,7 +42,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $SLAVE_JSON_FILE"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/subscribe_notify_tests; ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh $RELIABILITY_TYPE $SLAVE_JSON_FILE" &

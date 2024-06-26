@@ -21,7 +21,7 @@ echo "----------------------------------------------"
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_autoconfig.json
 
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 sleep 2
@@ -61,7 +61,7 @@ echo "             restart routingmanagerd                 "
 echo "----------------------------------------------"
 sleep 2
 
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 wait $SERIVCE_PID || ((FAIL+=1))
@@ -156,7 +156,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 # Start the service
@@ -200,7 +200,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 wait $SERIVCE_PID || ((FAIL+=1))
@@ -230,7 +230,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 # Start the service
@@ -279,7 +279,7 @@ echo "----------------------------------------------"
 sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
 echo "----------------------------------------------"

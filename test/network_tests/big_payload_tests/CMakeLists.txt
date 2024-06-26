@@ -1,0 +1,351 @@
+# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+cmake_minimum_required(VERSION 3.4...3.22)
+
+project(big_payload_tests LANGUAGES CXX)
+
+set(TEST_BIG_PAYLOAD_NAME big_payload_test)
+set(TEST_BIG_PAYLOAD_SERVICE big_payload_test_service)
+add_executable(${TEST_BIG_PAYLOAD_SERVICE} ${TEST_BIG_PAYLOAD_SERVICE}.cpp)
+target_link_libraries(${TEST_BIG_PAYLOAD_SERVICE}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
+
+set(TEST_BIG_PAYLOAD_CLIENT big_payload_test_client)
+add_executable(${TEST_BIG_PAYLOAD_CLIENT} ${TEST_BIG_PAYLOAD_CLIENT}.cpp)
+target_link_libraries(${TEST_BIG_PAYLOAD_CLIENT}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_queue_limited.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_random.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_limited.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    @ONLY)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_queue_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
+    @ONLY)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_queue_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    @ONLY)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_client_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_service_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_specific.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    @ONLY)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_specific.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    @ONLY)
+
+# Copy config file for UDP client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+    @ONLY)
+
+# Copy bashscript to start client local to $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start service local to $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_service_local_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_NAME big_payload_test_local)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_random)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_limited)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_queue_limited)
+set(TEST_LOCAL_BIG_PAYLOAD_STARTER ${TEST_LOCAL_BIG_PAYLOAD_NAME}_starter.sh)
+
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_BIG_PAYLOAD_STARTER}.bat.in
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+    @ONLY)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME big_payload_test_local_tcp)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_tcp_random)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_tcp_limited)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_tcp_queue_limited)
+# Copy starter as well as client/service start scripts for external tests
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_service_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client for external test into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME big_payload_test_external)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_external_random)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_external_limited)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL big_payload_test_external_limited_general)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL big_payload_test_external_queue_limited_general)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC big_payload_test_external_queue_limited_specific)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP big_payload_test_external_udp)
+
+# Copy starter as well as client/service start scripts for external tests
+set(TEST_EXTERNAL_BIG_PAYLOAD_STARTER ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_service_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_client_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# big payload tests
+add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+)
+set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER} RANDOM
+)
+set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER} LIMITED
+)
+set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+)
+set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+)
+set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_RANDOM}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} RANDOM
+)
+set_tests_properties(${TEST_LOCAL_TCP_TCP_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} LIMITED
+)
+set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+)
+set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} RANDOM
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} LIMITED
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} LIMITEDGENERAL
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDSPECIFIC
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP}
+COMMAND ${NETWORK_TEST_BIN_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} UDP
+)
+set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP} PROPERTIES TIMEOUT 120)
+
+
+add_dependencies(${TEST_BIG_PAYLOAD_SERVICE} gtest)
+add_dependencies(${TEST_BIG_PAYLOAD_CLIENT} gtest)
+
+add_dependencies(build_network_tests ${TEST_BIG_PAYLOAD_SERVICE})
+add_dependencies(build_network_tests ${TEST_BIG_PAYLOAD_CLIENT})

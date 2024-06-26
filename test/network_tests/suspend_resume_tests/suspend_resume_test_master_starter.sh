@@ -17,7 +17,7 @@ export VSOMEIP_APPLICATION_NAME=suspend_resume_test_service
 export VSOMEIP_CONFIGURATION=suspend_resume_test_service.json
 
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # start the service
@@ -28,7 +28,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting suspend_resume_test_slave_starter.sh on slave LXC with parameters $SLAVE_JSON_FILE"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./suspend_resume_test_slave_starter.sh\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/suspend_resume_tests; ./suspend_resume_test_slave_starter.sh\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./suspend_resume_test_slave_starter.sh" &

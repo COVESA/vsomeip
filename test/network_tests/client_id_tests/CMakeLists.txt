@@ -1,0 +1,211 @@
+# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+cmake_minimum_required(VERSION 3.4...3.22)
+
+project(client_id_tests LANGUAGES CXX)
+
+set(TEST_CLIENT_ID_NAME client_id_test)
+set(TEST_CLIENT_ID_SERVICE ${TEST_CLIENT_ID_NAME}_service)
+
+add_executable(${TEST_CLIENT_ID_SERVICE} ${TEST_CLIENT_ID_NAME}_service.cpp)
+target_link_libraries(${TEST_CLIENT_ID_SERVICE}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
+
+set(TEST_CLIENT_ID_UTILITY ${TEST_CLIENT_ID_NAME}_utility)
+
+add_executable(${TEST_CLIENT_ID_UTILITY}
+    ${TEST_CLIENT_ID_UTILITY}.cpp)
+    #${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
+target_link_libraries(${TEST_CLIENT_ID_UTILITY}
+    ${VSOMEIP_NAME}
+    ${VSOMEIP_NAME}-cfg
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
+
+# Copy config files for test into $BUILDDIR/test
+set(TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_master.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports_slave.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_master.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports_slave.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_master.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports_slave.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_master.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_same_client_ids_same_ports_slave.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_master.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
+    ${TEST_CLIENT_ID_NAME}_same_client_ids_diff_ports_slave.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/conf/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
+    @ONLY)
+
+set(TEST_CLIENT_ID_UTILITY_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}
+    ${TEST_CLIENT_ID_UTILITY}
+)
+set(TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_511.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}
+    ${TEST_CLIENT_ID_UTILITY}
+)
+
+set(TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_4095.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}
+    ${TEST_CLIENT_ID_UTILITY}
+)
+
+set(TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_masked_127.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}
+    ${TEST_CLIENT_ID_UTILITY}
+)
+
+set(TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE ${TEST_CLIENT_ID_NAME}_utility_discontinuous_masked_511.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}
+    ${TEST_CLIENT_ID_UTILITY}
+)
+
+# copy starter scripts into builddir
+if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter_qnx.sh)
+else()
+    set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
+endif()
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER}
+    ${TEST_CLIENT_ID_SERVICE}
+)
+set(TEST_CLIENT_ID_SLAVE_STARTER ${TEST_CLIENT_ID_NAME}_slave_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_SLAVE_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_SLAVE_STARTER}
+    ${TEST_CLIENT_ID_SERVICE}
+)
+
+
+add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
+set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_diff_ports PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
+set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_same_ports PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER} ${TEST_CLIENT_ID_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
+set_tests_properties(${TEST_CLIENT_ID_NAME}_diff_client_ids_partial_same_ports PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_UTILITY}
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY})
+set_property(TEST ${TEST_CLIENT_ID_UTILITY}
+    APPEND PROPERTY ENVIRONMENT
+    "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_CONFIG_FILE}")
+set_tests_properties(${TEST_CLIENT_ID_UTILITY} PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_511
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY})
+set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_511
+    APPEND PROPERTY ENVIRONMENT
+    "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_511_CONFIG_FILE}")
+set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_511 PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_4095
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY})
+set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_4095
+    APPEND PROPERTY ENVIRONMENT
+    "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_4095_CONFIG_FILE}")
+set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_4095 PROPERTIES TIMEOUT 600)
+
+add_test(NAME ${TEST_CLIENT_ID_UTILITY}_masked_127
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY})
+set_property(TEST ${TEST_CLIENT_ID_UTILITY}_masked_127
+    APPEND PROPERTY ENVIRONMENT
+    "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_127_CONFIG_FILE}")
+set_tests_properties(${TEST_CLIENT_ID_UTILITY}_masked_127 PROPERTIES TIMEOUT 120)
+
+add_test(NAME ${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511
+    COMMAND ${NETWORK_TEST_BIN_DIR}/client_id_tests/${TEST_CLIENT_ID_UTILITY})
+set_property(TEST ${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511
+    APPEND PROPERTY ENVIRONMENT
+    "VSOMEIP_CONFIGURATION=${TEST_CLIENT_ID_UTILITY_MASKED_DISCONTINUOUS_511_CONFIG_FILE}")
+set_tests_properties(${TEST_CLIENT_ID_UTILITY}_discontinuous_masked_511 PROPERTIES TIMEOUT 120)
+
+add_dependencies(${TEST_CLIENT_ID_SERVICE} gtest)
+add_dependencies(${TEST_CLIENT_ID_UTILITY} gtest)
+
+add_dependencies(build_network_tests ${TEST_CLIENT_ID_SERVICE})
+add_dependencies(build_network_tests ${TEST_CLIENT_ID_UTILITY})

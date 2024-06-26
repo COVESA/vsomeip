@@ -31,7 +31,7 @@ PID_CLIENT=$!
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external e2e profile 07 test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./e2e_profile_07_test_external_slave_start.sh $SERVICE_JSON_FILE\"" &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/e2e_tests; ./e2e_profile_07_test_external_slave_start.sh $SERVICE_JSON_FILE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./e2e_profile_07_test_external_slave_start.sh $SERVICE_JSON_FILE" &
 else

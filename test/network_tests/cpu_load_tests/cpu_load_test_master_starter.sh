@@ -19,7 +19,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting cpu load test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./cpu_load_test_slave_starter.sh"' &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/cpu_load_tests; ./cpu_load_test_slave_starter.sh"' &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./cpu_load_test_slave_starter.sh" &
 else

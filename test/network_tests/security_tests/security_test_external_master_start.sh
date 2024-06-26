@@ -26,7 +26,7 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=$1
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_CONFIGURATION=$1
@@ -37,7 +37,7 @@ PID_CLIENT=$!
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external security test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2\"" &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/security_tests; ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./security_test_external_slave_start.sh $SERVICE_JSON_FILE $2" &
 else
