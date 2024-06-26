@@ -1,6 +1,7 @@
 /CMakeFiles
 /build*/*
 /examples/hello_world/build
+/.idea/
 /.vscode/
 /.settings
 /.project

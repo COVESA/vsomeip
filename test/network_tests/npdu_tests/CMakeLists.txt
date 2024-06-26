@@ -221,12 +221,14 @@ if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     )
 
     # npdu tests
+    string(REPLACE "test_name" "${TEST_NPDU_NAME}_udp" TEST_NPDU_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${TEST_NPDU_NAME}_udp
-        COMMAND ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} UDP sync)
+        COMMAND ${TEST_NPDU_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} UDP sync)
     set_tests_properties(${TEST_NPDU_NAME}_udp PROPERTIES TIMEOUT 840)
 
+    string(REPLACE "test_name" "${TEST_NPDU_NAME}_tcp" TEST_NPDU_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${TEST_NPDU_NAME}_tcp
-        COMMAND ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} TCP sync)
+        COMMAND ${TEST_NPDU_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} TCP sync)
     set_tests_properties(${TEST_NPDU_NAME}_tcp PROPERTIES TIMEOUT 840)
 
     add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)

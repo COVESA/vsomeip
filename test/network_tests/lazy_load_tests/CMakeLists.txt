@@ -79,8 +79,9 @@ if (${TEST_SECURITY})
         ${DLT_LIBRARIES}
     )
 
+    string(REPLACE "test_name" "${LAZY_LOAD_NAME}" TLAZY_LOAD_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${LAZY_LOAD_NAME}
-        COMMAND ${NETWORK_TEST_BIN_DIR}/lazy_load_tests/${LAZY_LOAD_SERVICE_START_SCRIPT}
+        COMMAND ${TLAZY_LOAD_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/lazy_load_tests/${LAZY_LOAD_SERVICE_START_SCRIPT}
     )
 
     add_dependencies(${LAZY_LOAD_SERVICE} gtest)

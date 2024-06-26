@@ -64,9 +64,11 @@ copy_to_builddir(
     ${TEST_E2E_SERVICE}
 )
 
+string(REPLACE "test_name" "${TEST_E2E_NAME}" TEST_E2E_ENTRYPOINT "${TEST_ENTRYPOINT}")
 add_test(
     NAME ${TEST_E2E_NAME}_external
-    COMMAND ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT} e2e_test_client_external.json)
+    COMMAND ${TEST_E2E_ENTRYPOINT}
+    ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_EXTERNAL_MASTER_START_SCRIPT} e2e_test_client_external.json)
 set_tests_properties(${TEST_E2E_NAME}_external PROPERTIES TIMEOUT 180)
 
 add_dependencies(${TEST_E2E_SERVICE} gtest)
@@ -136,9 +138,11 @@ if(${TEST_E2E_PROFILE_04})
         ${TEST_E2E_PROFILE_04_SERVICE}
     )
 
+    string(REPLACE "test_name" "${TEST_E2E_PROFILE_04_NAME}" TEST_E2E_PROFILE_04_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(
         NAME ${TEST_E2E_PROFILE_04_NAME}_external
-        COMMAND ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_04_test_client_external.json)
+        COMMAND ${TEST_E2E_PROFILE_04_ENTRYPOINT}
+        ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_04_test_client_external.json)
     set_tests_properties(${TEST_E2E_PROFILE_04_NAME}_external PROPERTIES TIMEOUT 180)
 
     add_dependencies(${TEST_E2E_PROFILE_04_SERVICE} gtest)
@@ -215,9 +219,11 @@ if(${TEST_E2E_PROFILE_07})
     add_dependencies(build_network_tests ${TEST_E2E_PROFILE_07_SERVICE})
     add_dependencies(build_network_tests ${TEST_E2E_PROFILE_07_CLIENT})
 
+    string(REPLACE "test_name" "${TEST_E2E_PROFILE_07_NAME}" TEST_E2E_PROFILE_07_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(
         NAME ${TEST_E2E_PROFILE_07_NAME}_external
-        COMMAND ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_07_test_client_external.json)
+        COMMAND ${TEST_E2E_PROFILE_07_ENTRYPOINT}
+        ${NETWORK_TEST_BIN_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_07_test_client_external.json)
     set_tests_properties(${TEST_E2E_PROFILE_07_NAME}_external PROPERTIES TIMEOUT 180)
 
 endif()
