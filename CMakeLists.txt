@@ -627,24 +627,6 @@ else()
     add_dependencies(doc doxygen-doc)
 endif()
 
-find_program(ASCIIDOC_PATH asciidoc)
-find_program(SOURCE_HIGHLIGHT_PATH source-highlight)
-if ("${ASCIIDOC_PATH}" STREQUAL "ASCIIDOC_PATH-NOTFOUND")
-    message(WARNING "asciidoc is not installed. Readme can not be built.")
-elseif("${SOURCE_HIGHLIGHT_PATH}" STREQUAL "SOURCE_HIGHLIGHT_PATH-NOTFOUND")
-    message(WARNING "source-highlight is not installed. Readme can not be built.")
-else()
-    message("asciidoc found")
-    message("source-highlight found")
-    add_custom_command(TARGET doc
-                       POST_BUILD
-                       COMMAND asciidoc
-                               -a version=${VSOMEIP_VERSION}
-                               -b html
-                               -o documentation/vsomeipUserGuide.html
-                               ${PROJECT_SOURCE_DIR}/documentation/vsomeipUserGuide)
-endif()
-
 ##############################################################################
 # create pkg-config file
 if(NOT WIN32)
