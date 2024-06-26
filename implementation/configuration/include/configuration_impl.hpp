@@ -493,9 +493,9 @@ protected:
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;
 
-    bool has_console_log_;
-    bool has_file_log_;
-    bool has_dlt_log_;
+    std::atomic_bool has_console_log_;
+    std::atomic_bool has_file_log_;
+    std::atomic_bool has_dlt_log_;
     std::string logfile_;
     mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
