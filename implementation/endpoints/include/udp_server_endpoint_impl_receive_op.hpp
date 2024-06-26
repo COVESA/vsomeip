@@ -32,7 +32,7 @@ struct storage :
     public std::enable_shared_from_this<storage>
 {
     std::recursive_mutex &multicast_mutex_;
-    socket_type_t &socket_;
+    std::weak_ptr<socket_type_t> socket_;
     endpoint_type_t &sender_;
     receive_handler_t handler_;
     byte_t *buffer_ = nullptr;
@@ -44,7 +44,7 @@ struct storage :
 
     storage(
         std::recursive_mutex &_multicast_mutex,
-        socket_type_t &_socket,
+        std::weak_ptr<socket_type_t> _socket,
         endpoint_type_t &_sender,
         receive_handler_t _handler,
         byte_t *_buffer,
@@ -75,15 +75,21 @@ receive_cb (std::shared_ptr<storage> _data) {
 
             std::lock_guard<std::recursive_mutex> its_lock(_data->multicast_mutex_);
 
-            if (!_data->socket_.native_non_blocking())
-                _data->socket_.native_non_blocking(true, _error);
+            auto multicast_socket = _data->socket_.lock();
+            if (!multicast_socket) {
+                VSOMEIP_WARNING << "udp_endpoint_receive_op::receive_cb: multicast_socket with id " << int{_data->multicast_id_} << " has expired!";
+                return;
+            }
+
+            if (!multicast_socket->native_non_blocking())
+                multicast_socket->native_non_blocking(true, _error);
 
             for (;;) {
 #ifdef _WIN32
                 GUID WSARecvMsg_GUID = WSAID_WSARECVMSG;
                 LPFN_WSARECVMSG WSARecvMsg;
                 DWORD its_bytes;
-                SOCKET its_socket { _data->socket_.native_handle() };
+                SOCKET its_socket { multicast_socket->native_handle() };
 
                 WSAIoctl(its_socket, SIO_GET_EXTENSION_FUNCTION_POINTER,
                     &WSARecvMsg_GUID, sizeof WSARecvMsg_GUID,
@@ -146,7 +152,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
 
-                    _data->socket_.async_wait(
+                    multicast_socket->async_wait(
                         socket_type_t::wait_read,
                         receive_cb(_data)
                     );
@@ -263,7 +269,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 // Call recvmsg and handle its result
                 errno = 0;
-                its_result = ::recvmsg(_data->socket_.native_handle(), &its_header, its_flags);
+                its_result = ::recvmsg(multicast_socket->native_handle(), &its_header, its_flags);
 
                 _error = boost::system::error_code(its_result < 0 ? errno : 0,
                         boost::asio::error::get_system_category());
@@ -274,7 +280,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
-                    _data->socket_.async_wait(
+                    multicast_socket->async_wait(
                         socket_type_t::wait_read, 
                         receive_cb(_data)
                     );
