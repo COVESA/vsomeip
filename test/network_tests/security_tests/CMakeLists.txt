@@ -95,14 +95,20 @@ if (${TEST_SECURITY})
     )
 
     # Security tests
+    string(REPLACE "test_name" "${TEST_SECURITY_NAME}" TEST_SECURITY_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${TEST_SECURITY_NAME}
-        COMMAND ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT}
+        COMMAND ${TEST_SECURITY_ENTRYPOINT}
+        ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_SERVICE_LOCAL_START_SCRIPT}
     )
+    string(REPLACE "test_name" "${TEST_SECURITY_NAME}_external_allow" TEST_SECURITY_EXTERNAL_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${TEST_SECURITY_NAME}_external_allow
-        COMMAND ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_allow.json --allow
+        COMMAND ${TEST_SECURITY_EXTERNAL_ENTRYPOINT}
+        ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_allow.json --allow
     )
+    string(REPLACE "test_name" "${TEST_SECURITY_NAME}_external_deny" TEST_SECURITY_EXTERNAL_ENTRYPOINT "${TEST_ENTRYPOINT}")
     add_test(NAME ${TEST_SECURITY_NAME}_external_deny
-        COMMAND ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_deny.json --deny
+        COMMAND ${TEST_SECURITY_EXTERNAL_ENTRYPOINT}
+        ${NETWORK_TEST_BIN_DIR}/security_tests/${TEST_SECURITY_EXTERNAL_MASTER_START_SCRIPT} security_test_config_client_external_deny.json --deny
     )
 
     add_dependencies(${TEST_SECURITY_SERVICE} gtest)

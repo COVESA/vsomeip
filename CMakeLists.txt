@@ -116,7 +116,6 @@ endif ()
 
 if (NOT MSVC)
     # Sanitizers
-
     if (ENABLE_UNDEFINED_SANITIZER)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
     endif ()
@@ -136,6 +135,17 @@ if (NOT MSVC)
     if (ENABLE_PROFILING)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
     endif ()
+
+    # Valgrind
+    if (NOT VALGRIND_TYPE STREQUAL "")
+        find_program(VALGRIND "valgrind")
+        set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE})
+    endif ()
+
+    if (VALGRIND_TYPE STREQUAL "massif")
+        set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.%p.out)
+    endif ()
+
 endif (NOT MSVC)
 
 # Compatibility

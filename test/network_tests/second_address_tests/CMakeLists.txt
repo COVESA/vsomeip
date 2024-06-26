@@ -72,13 +72,17 @@ configure_file(
     ${NETWORK_TEST_BIN_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_SLAVE_START_SCRIPT}
     @ONLY)
 
+string(REPLACE "test_name" "${TEST_SECOND_ADDRESS_NAME}_second_ip_address_service_udp" TEST_SECOND_ADDRESS_ENTRYPOINT "${TEST_ENTRYPOINT}")
 add_test(NAME ${TEST_SECOND_ADDRESS_NAME}_second_ip_address_service_udp
-    COMMAND ${NETWORK_TEST_BIN_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} SERVICE UDP
+    COMMAND ${TEST_SECOND_ADDRESS_ENTRYPOINT}
+    ${NETWORK_TEST_BIN_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} SERVICE UDP
 )
 set_tests_properties(${TEST_SECOND_ADDRESS_NAME}_second_ip_address_service_udp PROPERTIES TIMEOUT 180)
 
+string(REPLACE "test_name" "${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp" TEST_SECOND_ADDRESS_ENTRYPOINT "${TEST_ENTRYPOINT}")
 add_test(NAME ${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp
-    COMMAND ${NETWORK_TEST_BIN_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} CLIENT UDP
+    COMMAND ${TEST_SECOND_ADDRESS_ENTRYPOINT}
+    ${NETWORK_TEST_BIN_DIR}/second_address_tests/${TEST_SECOND_ADDRESS_MASTER_START_SCRIPT} CLIENT UDP
 )
 set_tests_properties(${TEST_SECOND_ADDRESS_NAME}_second_ip_address_client_udp PROPERTIES TIMEOUT 180)
 
