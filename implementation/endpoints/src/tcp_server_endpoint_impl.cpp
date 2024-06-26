@@ -996,13 +996,6 @@ std::string tcp_server_endpoint_impl::get_remote_information(
             + std::to_string(_remote.port());
 }
 
-bool tcp_server_endpoint_impl::tp_segmentation_enabled(service_t _service,
-                                                       method_t _method) const {
-    (void)_service;
-    (void)_method;
-    return false;
-}
-
 void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::error_code &_error) {
 
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());

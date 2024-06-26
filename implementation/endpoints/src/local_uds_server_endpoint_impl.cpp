@@ -1070,12 +1070,4 @@ local_uds_server_endpoint_impl::send_client_identifier(
     send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
 }
 
-bool local_uds_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
-}
-
 } // namespace vsomeip_v3

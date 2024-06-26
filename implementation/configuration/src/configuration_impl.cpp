@@ -4879,13 +4879,13 @@ int configuration_impl::get_udp_receive_buffer_size() const {
 
 bool configuration_impl::is_tp_client(
         service_t _service,
-        const std::string &_address, std::uint16_t _port,
+        instance_t _instance,
         method_t _method) const {
 
     bool ret(false);
 
     const auto its_service
-        = find_service(_service, _address, _port);
+        = find_service(_service, _instance);
 
     if (its_service) {
         ret = (its_service->tp_client_config_.find(_method)
@@ -4897,12 +4897,12 @@ bool configuration_impl::is_tp_client(
 
 bool configuration_impl::is_tp_service(
         service_t _service,
-        const std::string &_address, std::uint16_t _port,
+        instance_t _instance,
         method_t _method) const {
 
     bool ret(false);
     const auto its_service
-        = find_service(_service, _address, _port);
+        = find_service(_service, _instance);
     if (its_service) {
         ret = (its_service->tp_service_config_.find(_method)
                 != its_service->tp_service_config_.end());
