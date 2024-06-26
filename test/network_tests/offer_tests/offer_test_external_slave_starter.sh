@@ -15,7 +15,7 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=offer_test_external_slave.json
 # start daemon
-../../examples/routingmanagerd/routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 sleep 1
 # Start the services

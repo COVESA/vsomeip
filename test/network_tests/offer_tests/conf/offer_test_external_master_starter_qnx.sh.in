@@ -21,7 +21,7 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=offer_test_external_master.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the services
 ./offer_test_service 2 &
@@ -86,7 +86,7 @@ done
 
 export VSOMEIP_CONFIGURATION=offer_test_external_master.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the services
 ./offer_test_service 2 &

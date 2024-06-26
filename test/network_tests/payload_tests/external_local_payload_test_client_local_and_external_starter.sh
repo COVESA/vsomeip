@@ -75,7 +75,7 @@ wait $CLIENT_PID || ((FAIL+=1))
 # to finish the test successfully
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting external local payload on slave LXC"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./external_local_payload_test_client_external_start.sh\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/payload_tests; ./external_local_payload_test_client_external_start.sh\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_payload_test_client_external_start.sh" &

@@ -39,9 +39,9 @@ BIG_PAYLOAD_TEST_PID=$!
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting big payload test on slave LXC"
     if [[ $# -gt 0 ]]; then
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./big_payload_test_external_service_start.sh $1\"" &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/big_payload_tests; ./big_payload_test_external_service_start.sh $1\"" &
     else
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./big_payload_test_external_service_start.sh"' &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/big_payload_tests; ./big_payload_test_external_service_start.sh"' &
     fi
 elif [ ! -z "$USE_DOCKER" ]; then
     if [[ $# -gt 0 ]]; then

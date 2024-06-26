@@ -42,7 +42,7 @@ sleep 3
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_one_test_slave_starter.sh on slave LXC with parameters $CLIENT_JSON_FILE"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./subscribe_notify_one_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/subscribe_notify_one_tests; ./subscribe_notify_one_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE\"" &
     echo "remote ssh job id: $!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./subscribe_notify_one_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE" &

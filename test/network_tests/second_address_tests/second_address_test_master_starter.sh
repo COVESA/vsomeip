@@ -36,7 +36,7 @@ fi
 
 rm -f /tmp/vsomeip*
 
-../../examples/routingmanagerd/routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 ./$MASTER_APPLICATION $COMMUNICATIONMODE &
@@ -46,7 +46,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting offer test on slave LXC second_address_test_slave_starter.sh"
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE\"" &
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/second_address_tests; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS; sleep 10; ./second_address_test_slave_starter.sh $SLAVE_OPERATIONMODE $COMMUNICATIONMODE" &
 else

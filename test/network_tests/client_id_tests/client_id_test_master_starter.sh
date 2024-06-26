@@ -42,7 +42,7 @@ sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting client id test on slave LXC"
-    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE\"" &
+    ssh  -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/client_id_tests; ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE\"" &
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./client_id_test_slave_starter.sh $CLIENT_JSON_FILE" &
 else

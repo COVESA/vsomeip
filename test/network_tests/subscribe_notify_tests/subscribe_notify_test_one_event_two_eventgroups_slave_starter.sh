@@ -22,7 +22,7 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=$2
 # start daemon
-../../examples/routingmanagerd/routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services

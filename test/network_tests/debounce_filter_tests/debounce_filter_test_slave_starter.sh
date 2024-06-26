@@ -7,7 +7,7 @@
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=debounce_filter_test_service.json
-../../examples/routingmanagerd/routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 sleep 1

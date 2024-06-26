@@ -78,7 +78,7 @@ if [ $CLIENT_STILL_THERE -ne 0 ]
 then
     if [ ! -z "$USE_LXC_TEST" ]; then
         echo "starting external_local_routing_test_starter.sh on slave LXC"
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests; ./external_local_routing_test_client_external_start.sh\"" &
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/routing_tests; ./external_local_routing_test_client_external_start.sh\"" &
         echo "remote ssh job id: $!"
     elif [ ! -z "$USE_DOCKER" ]; then
         docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_routing_test_client_external_start.sh" &

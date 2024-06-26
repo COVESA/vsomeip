@@ -76,7 +76,7 @@ End-of-message
 CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
@@ -128,7 +128,7 @@ End-of-message
 CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 ./offer_test_service 2 &
@@ -186,7 +186,7 @@ End-of-message
 CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 ./offer_test_service 2 &
@@ -247,7 +247,7 @@ End-of-message
 CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 ./offer_test_service 2 &

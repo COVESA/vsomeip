@@ -11,4 +11,5 @@
 /implementation/configuration/include/internal.hpp
 /tools/CMakeFiles
 /Testing
+/logs
 !build_qnx/*

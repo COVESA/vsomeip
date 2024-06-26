@@ -25,7 +25,7 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=$1
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
-../../examples/routingmanagerd/./routingmanagerd &
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_CONFIGURATION=$1
