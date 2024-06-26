@@ -300,7 +300,7 @@ private:
                                 major_version_t _major, minor_version_t _minor) const;
 
     void register_availability_handler_unlocked(service_t _service,
-            instance_t _instance, availability_state_handler_t _handler,
+            instance_t _instance, const availability_state_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
 
 
@@ -344,6 +344,9 @@ private:
             const members_iterator_t &_it, instance_t _instance, method_t _method) const;
     void find_method_handlers(std::deque<message_handler_t> &,
             const members_instances_iterator_t &_it, method_t _method) const;
+
+    void invoke_availability_handler(service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor);
 
     //
     // Attributes
@@ -392,8 +395,11 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_state_handler_t,
-            bool>>> availability_major_minor_t;
+    typedef std::map<major_version_t,
+        std::map<minor_version_t,
+            availability_state_handler_t
+        >
+    > availability_major_minor_t;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
@@ -479,7 +485,7 @@ private:
                 std::map<event_t, subscription_state_e>
             >
         >
-    > subscription_state_;
+    > subscriptions_state_;
 
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
