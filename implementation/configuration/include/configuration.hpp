@@ -276,10 +276,10 @@ public:
 
     // SOME/IP-TP
     virtual bool is_tp_client(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual bool is_tp_service(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,

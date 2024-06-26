@@ -667,11 +667,9 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
 }
 
 bool udp_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
+        service_t _service, instance_t _instance, method_t _method) const {
 
-    return configuration_->is_tp_client(_service,
-            remote_address_.to_string(), remote_port_,
-            _method);
+    return configuration_->is_tp_client(_service, _instance, _method);
 }
 
 bool udp_client_endpoint_impl::is_reliable() const {

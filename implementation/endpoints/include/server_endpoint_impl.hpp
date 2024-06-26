@@ -147,7 +147,8 @@ private:
     virtual std::string get_remote_information(
             const endpoint_type& _remote) const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         method_t _method) const = 0;
+                                         instance_t _instance,
+                                         method_t _method) const;
 
     void schedule_train(endpoint_data_type &_target);
     void update_last_departure(endpoint_data_type &_data);

@@ -375,6 +375,13 @@ bool server_endpoint_impl<Protocol>::send_intern(
 }
 
 template<typename Protocol>
+bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(
+        service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+
+    return false;
+}
+
+template<typename Protocol>
 void server_endpoint_impl<Protocol>::send_segments(
         const tp::tp_split_messages_t &_segments, std::uint32_t _separation_time,
         const endpoint_type &_target) {
@@ -468,9 +475,9 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
             const method_t its_method = VSOMEIP_BYTES_TO_WORD(
                     _data[VSOMEIP_METHOD_POS_MIN],
                     _data[VSOMEIP_METHOD_POS_MAX]);
-            if (tp_segmentation_enabled(its_service, its_method)) {
-                instance_t its_instance = this->get_instance(its_service);
-                if (its_instance != 0xFFFF) {
+            instance_t its_instance = this->get_instance(its_service);
+            if (its_instance != ANY_INSTANCE) {
+                if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
                     std::uint32_t its_separation_time;
 

@@ -148,7 +148,6 @@ private:
     std::string get_remote_information(
             const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
 };
 
 } // namespace vsomeip_v3

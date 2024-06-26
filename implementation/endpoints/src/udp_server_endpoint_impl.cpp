@@ -650,12 +650,15 @@ void udp_server_endpoint_impl::on_message_received(
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
                         const method_t its_method = VSOMEIP_BYTES_TO_WORD(_buffer[i + VSOMEIP_METHOD_POS_MIN],
                                                                           _buffer[i + VSOMEIP_METHOD_POS_MAX]);
-                        if (!tp_segmentation_enabled(its_service, its_method)) {
-                            VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
-                                    << " method: 0x" << its_method << " which is not configured for TP:"
-                                    << " local: " << get_address_port_local()
-                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
-                            return;
+                        instance_t its_instance = this->get_instance(its_service);
+                        if (its_instance != ANY_INSTANCE) {
+                            if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                                VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
+                                        << " method: 0x" << its_method << " which is not configured for TP:"
+                                        << " local: " << get_address_port_local()
+                                        << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                                return;
+                            }
                         }
                         const auto res = tp_reassembler_->process_tp_message(
                                 &_buffer[i], current_message_size,
@@ -828,11 +831,9 @@ std::string udp_server_endpoint_impl::get_address_port_local() const {
 }
 
 bool udp_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
+        service_t _service, instance_t _instance, method_t _method) const {
 
-    return configuration_->is_tp_service(_service,
-            local_.address().to_string(), local_.port(),
-            _method);
+    return configuration_->is_tp_service(_service, _instance, _method);
 }
 
 void

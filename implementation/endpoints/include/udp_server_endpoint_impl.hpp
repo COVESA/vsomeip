@@ -84,7 +84,10 @@ private:
     std::string get_remote_information(const endpoint_type& _remote) const;
 
     std::string get_address_port_local() const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
+    bool tp_segmentation_enabled(
+            service_t _service,
+            instance_t _instance,
+            method_t _method) const;
 
     void on_unicast_received(boost::system::error_code const &_error,
             std::size_t _bytes);

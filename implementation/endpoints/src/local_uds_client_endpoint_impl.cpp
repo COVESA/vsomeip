@@ -366,14 +366,6 @@ std::uint32_t local_uds_client_endpoint_impl::get_max_allowed_reconnects() const
     return 13;
 }
 
-bool local_uds_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
-}
-
 void local_uds_client_endpoint_impl::max_allowed_reconnects_reached() {
 
     VSOMEIP_ERROR << "local_client_endpoint::max_allowed_reconnects_reached: "

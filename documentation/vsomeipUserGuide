@@ -691,9 +691,6 @@ Contains the IDs for requests, which are sent from the node
 to a remote service which can be segmented via SOME/IP-TP if they exceed the
 maximum message size for UDP communication. If an ID isn't listed here the
 message will otherwise be dropped if the maximum message size is exceeded.
-Please note that the unicast key has to be set to the remote IP address of the
-offering node for this setting to take effect.
-
 
 * `clients` (array)
 +
@@ -758,7 +755,7 @@ specified otherwise the allowed payload sizes are unlimited. The settings in
 this array only affect communication over TCP. To limit the local payload size
 `max-payload-size-local` can be used.
 
-** `unicast`
+** `unicast` (optional)
 +
 On client side: the IP of the remote service for which the payload size should
 be limited.
