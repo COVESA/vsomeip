@@ -474,7 +474,9 @@ template<typename Protocol>
 void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type &_data) const {
     _data.queue_size_ = 0;
     for (const auto &q : _data.queue_) {
-        _data.queue_size_ += q.first->size();
+        if (q.first) {
+            _data.queue_size_ += q.first->size();
+        }
     }
 }
 
