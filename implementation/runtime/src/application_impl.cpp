@@ -440,8 +440,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            std::shared_ptr<std::thread> its_thread
-                = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
                     VSOMEIP_INFO << "io thread id from application: "
                             << std::hex << std::setw(4) << std::setfill('0')
                             << client_ << " (" << name_ << ") is: " << std::hex
@@ -977,8 +976,7 @@ application_impl::invoke_availability_handler(
                     auto its_state { is_available_unlocked(_service, _instance, _major, _minor) };
 
                     std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
-                    std::shared_ptr<sync_handler> its_sync_handler
-                        = std::make_shared<sync_handler>(
+                    auto its_sync_handler = std::make_shared<sync_handler>(
                             [its_handler, _service, _instance, its_state]() {
                                 its_handler(_service, _instance, its_state);
                             });
@@ -1325,8 +1323,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
     {
         std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
         for (auto &handler : handlers) {
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler, _service,
+            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service,
                                                   _instance, _eventgroup,
                                                   _event, _error]() {
                                 handler(_service, _instance,
@@ -1535,8 +1532,7 @@ void application_impl::on_state(state_type_e _state) {
     }
     if (has_state_handler) {
         std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([handler, _state]() {
+        auto its_sync_handler = std::make_shared<sync_handler>([handler, _state]() {
                                                 handler(_state);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::STATE;
@@ -1626,8 +1622,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         {
             std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
             for (const auto &handler : its_handlers) {
-                std::shared_ptr<sync_handler> its_sync_handler =
-                        std::make_shared<sync_handler>(
+                auto its_sync_handler = std::make_shared<sync_handler>(
                                 [handler, _service, _instance, _state]()
                                 {
                                     handler(_service, _instance, _state);
@@ -1746,7 +1741,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
         if (its_handlers.size()) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
             for (const auto &handler : its_handlers) {
-                std::shared_ptr<sync_handler> its_sync_handler =
+                auto its_sync_handler =
                         std::make_shared<sync_handler>([handler, _message]() {
                             handler(_message);
                         });
@@ -1943,8 +1938,7 @@ void application_impl::reschedule_availability_handler(
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     const std::thread::id its_id = std::this_thread::get_id();
 
-    std::shared_ptr<sync_handler> its_sync_handler
-        = std::make_shared<sync_handler>(_handler->service_id_,
+    auto its_sync_handler = std::make_shared<sync_handler>(_handler->service_id_,
             _handler->instance_id_, _handler->method_id_,
             _handler->session_id_, _handler->eventgroup_id_,
             _handler->handler_type_);
@@ -2549,8 +2543,7 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
     }
     if (has_offered_services_handler) {
         std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([handler, _services]() {
+        auto its_sync_handler = std::make_shared<sync_handler>([handler, _services]() {
                                                 handler(_services);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
@@ -2575,8 +2568,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
 
         if (handler) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler]() { handler(); });
+            auto its_sync_handler = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
             handlers_.push_back(its_sync_handler);
             dispatcher_condition_.notify_one();

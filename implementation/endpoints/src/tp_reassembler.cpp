@@ -125,11 +125,11 @@ bool tp_reassembler::cleanup_unfinished_messages() {
                         now - tp_id_iter->second.second.get_creation_time()).count()
                         > 5000) {
                     // message is older than 5 seconds delete it
-                    const service_t its_service = static_cast<service_t>(tp_id_iter->first >> 48);
-                    const method_t its_method = static_cast<method_t>(tp_id_iter->first >> 32);
-                    const client_t its_client = static_cast<client_t>(tp_id_iter->first >> 16);
-                    const interface_version_t its_interface_version = static_cast<interface_version_t>(tp_id_iter->first >> 8);
-                    const message_type_e its_msg_type = static_cast<message_type_e>(tp_id_iter->first >> 0);
+                    const auto its_service = static_cast<service_t>(tp_id_iter->first >> 48);
+                    const auto its_method = static_cast<method_t>(tp_id_iter->first >> 32);
+                    const auto its_client = static_cast<client_t>(tp_id_iter->first >> 16);
+                    const auto its_interface_version = static_cast<interface_version_t>(tp_id_iter->first >> 8);
+                    const auto its_msg_type = static_cast<message_type_e>(tp_id_iter->first >> 0);
                     VSOMEIP_WARNING << __func__
                             << ": deleting unfinished SOME/IP-TP message from: "
                             << ip_iter->first.to_string() << ":" << std::dec

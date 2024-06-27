@@ -227,7 +227,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 int its_flags { 0 };
 
                 // Create control elements
-                msghdr its_header = msghdr();
+                auto its_header = msghdr();
                 struct iovec its_vec[1];
 
                 // Prepare
