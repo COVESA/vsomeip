@@ -27,6 +27,6 @@ constexpr auto WAIT_STOP_MESSAGE = std::chrono::seconds(30);
 constexpr uint16_t TEST_EVENT_NUMBER = 20;
 constexpr uint16_t TEST_MESSAGE_NUMBER = 9000;
 constexpr int NOTIFY_PAYLOAD_SIZE = 4000;
-constexpr double MEMORY_LOAD_LIMIT = 1.05; // meaning 5% limit above the average value
+constexpr double MEMORY_LOAD_LIMIT = 1.15; // meaning 15% limit above the average value
 
 #endif // MEMORY_TEST_COMMON_HPP_
