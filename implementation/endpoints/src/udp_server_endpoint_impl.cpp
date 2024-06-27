@@ -8,10 +8,8 @@
 #include <thread>
 
 #include <boost/asio/ip/multicast.hpp>
-#if VSOMEIP_BOOST_VERSION >= 106600
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/ip/network_v6.hpp>
-#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -37,11 +35,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
         const endpoint_type& _local,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration) :
-#if VSOMEIP_BOOST_VERSION >= 106600
       server_endpoint_impl<ip::udp>(
-#else
-      server_endpoint_impl<ip::udp_ext>(
-#endif
               _endpoint_host, _routing_host, _local,
               _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
               _configuration->get_endpoint_queue_limit(_configuration->get_unicast_address().to_string(), _local.port()),
@@ -239,7 +233,6 @@ void udp_server_endpoint_impl::receive_unicast() {
 void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 
     if (_multicast_id == multicast_id_ && multicast_socket_ && multicast_socket_->is_open()) {
-#if VSOMEIP_BOOST_VERSION >= 106600
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
             multicast_mutex_,
             multicast_socket_,
@@ -261,21 +254,6 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
             std::numeric_limits<std::size_t>::min()
         );
         multicast_socket_->async_wait(socket_type::wait_read, udp_endpoint_receive_op::receive_cb(its_storage));
-#else
-        multicast_socket_->async_receive_from(
-            boost::asio::buffer(&multicast_recv_buffer_[0], max_message_size_),
-            multicast_remote_,
-            std::bind(
-                &udp_server_endpoint_impl::on_multicast_received,
-                std::dynamic_pointer_cast<
-                    udp_server_endpoint_impl >(shared_from_this()),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                _multicast_id,
-                std::placeholders::_3
-            )
-        );
-#endif
     }
 }
 
@@ -413,11 +391,7 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
             auto its_endpoint_host = endpoint_host_.lock();
             if (its_endpoint_host) {
                 multicast_option_t its_join_option { shared_from_this(), true,
-#if VSOMEIP_BOOST_VERSION < 106600
-                    boost::asio::ip::address::from_string(_address) };
-#else
                     boost::asio::ip::make_address(_address) };
-#endif
                 its_endpoint_host->add_multicast_option(its_join_option);
             }
 
@@ -454,11 +428,7 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string &_address) {
                 auto its_endpoint_host = endpoint_host_.lock();
                 if (its_endpoint_host) {
                     multicast_option_t its_leave_option { shared_from_this(),
-#if VSOMEIP_BOOST_VERSION < 106600
-                    false, boost::asio::ip::address::from_string(_address) };
-#else
                     false, boost::asio::ip::make_address(_address) };
-#endif
                     its_endpoint_host->add_multicast_option(its_leave_option);
                 }
             }
@@ -718,34 +688,8 @@ void udp_server_endpoint_impl::on_message_received(
 }
 
 bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_address) const {
-
     bool is_same(true);
-#if VSOMEIP_BOOST_VERSION < 106600
-    // TODO: This needs some (more) testing
-    if (_address.is_v4()) {
-        uint32_t its_local(uint32_t(local_.address().to_v4().to_ulong()));
-        uint32_t its_mask(uint32_t(netmask_.to_v4().to_ulong()));
-        uint32_t its_address(uint32_t(_address.to_v4().to_ulong()));
 
-        return ((its_local & its_mask) == (its_address & its_mask));
-    } else {
-        boost::asio::ip::address_v6::bytes_type its_local(local_.address().to_v6().to_bytes());
-        boost::asio::ip::address_v6::bytes_type its_address(_address.to_v6().to_bytes());
-
-        for (size_t i = 0; i < its_local.size(); ++i) {
-            byte_t its_mask(0x00);
-            if ((i+1) * sizeof(byte_t) <= prefix_)
-                its_mask = 0xff;
-            else if (i <= prefix_)
-                its_mask = byte_t(0xff << (((i+1) * sizeof(byte_t)) - prefix_));
-
-            if ((its_local[i] & its_mask) != (its_address[i] & its_mask))
-                return false;
-        }
-
-        return true;
-    }
-#else
     if (_address.is_v4()) {
         boost::asio::ip::network_v4 its_network(local_.address().to_v4(), netmask_.to_v4());
         boost::asio::ip::address_v4_range its_hosts = its_network.hosts();
@@ -755,7 +699,7 @@ bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_a
         boost::asio::ip::address_v6_range its_hosts = its_network.hosts();
         is_same = (its_hosts.find(_address.to_v6()) != its_hosts.end());
     }
-#endif
+
     return is_same;
 }
 

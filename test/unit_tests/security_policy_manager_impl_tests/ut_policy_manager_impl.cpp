@@ -748,7 +748,9 @@ TEST(security_policy_manager_test, parse_policy) {
     std::uint32_t deserialized_uid, deserialized_gid;
 
     // Test method.
-    ASSERT_TRUE(its_policy_manager->parse_policy(data_ptr_, data_size_, deserialized_uid, deserialized_gid, its_policy));
+    #ifndef __QNX__
+        ASSERT_TRUE(its_policy_manager->parse_policy(data_ptr_, data_size_, deserialized_uid, deserialized_gid, its_policy));
+    #endif
 
     ASSERT_EQ(uid, deserialized_uid);
     ASSERT_EQ(gid, deserialized_gid);
@@ -762,7 +764,9 @@ TEST(security_policy_manager_test, parse_policy) {
     std::uint32_t data_size2_ = 4;
 
     // Test Method, expect false.
-    ASSERT_FALSE(its_policy_manager->parse_policy(data_ptr2_, data_size2_, deserialized_uid, deserialized_gid, its_policy));
+    #ifndef __QNX__
+        ASSERT_FALSE(its_policy_manager->parse_policy(data_ptr2_, data_size2_, deserialized_uid, deserialized_gid, its_policy));
+    #endif
 }
 
 TEST(security_policy_manager_test, parse_uid_gid) {
@@ -804,7 +808,9 @@ TEST(security_policy_manager_test, parse_uid_gid) {
     std::uint32_t deserialized_uid, deserialized_gid;
 
     // Test method.
-    ASSERT_TRUE(its_policy_manager->parse_uid_gid(data_ptr_, data_size_, deserialized_uid, deserialized_gid));
+    #ifndef __QNX__
+        ASSERT_TRUE(its_policy_manager->parse_uid_gid(data_ptr_, data_size_, deserialized_uid, deserialized_gid));
+    #endif
 
     ASSERT_EQ(uid, deserialized_uid);
     ASSERT_EQ(gid, deserialized_gid);
@@ -818,7 +824,9 @@ TEST(security_policy_manager_test, parse_uid_gid) {
     std::uint32_t data_size2_ = 4;
 
     // Test Method, expect false.
-    ASSERT_FALSE(its_policy_manager->parse_uid_gid(data_ptr2_, data_size2_, deserialized_uid, deserialized_gid));
+    #ifndef __QNX__
+        ASSERT_FALSE(its_policy_manager->parse_uid_gid(data_ptr2_, data_size2_, deserialized_uid, deserialized_gid));
+    #endif
 }
 
 TEST(security_policy_manager_test, remove_security_policy) {

@@ -62,8 +62,7 @@ cc_defaults {
     ],
 
     local_include_dirs: [
-        "interface",
-        "implementation/helper"
+        "interface"
     ]
 }
 

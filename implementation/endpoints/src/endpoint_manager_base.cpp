@@ -97,11 +97,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         try {
             its_server_endpoint = std::make_shared<local_uds_server_endpoint_impl>(
                     shared_from_this(), _routing_host,
-#    if VSOMEIP_BOOST_VERSION < 106600
-                    boost::asio::local::stream_protocol_ext::endpoint(its_path.str()),
-#    else
                     boost::asio::local::stream_protocol::endpoint(its_path.str()),
-#    endif
                     io_,
                     configuration_, false);
 

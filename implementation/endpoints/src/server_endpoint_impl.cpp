@@ -12,13 +12,8 @@
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/local/stream_protocol_ext.hpp>
-#include <boost/asio/ip/udp_ext.hpp>
-#else
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/ip/udp.hpp>
-#endif
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -877,23 +872,11 @@ void server_endpoint_impl<Protocol>::update_last_departure(
 }
 
 // Instantiate template
-#ifdef __linux__
-#if VSOMEIP_BOOST_VERSION < 106600
-template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#else
+#if defined(__linux__) || defined(__QNX__)
 template class server_endpoint_impl<boost::asio::local::stream_protocol>;
-#endif
-#endif
-
-#ifdef __QNX__
-template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 
 template class server_endpoint_impl<boost::asio::ip::tcp>;
 template class server_endpoint_impl<boost::asio::ip::udp>;
-
-#if VSOMEIP_BOOST_VERSION < 106600
-template class server_endpoint_impl<boost::asio::ip::udp_ext>;
-#endif
 
 }  // namespace vsomeip_v3

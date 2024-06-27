@@ -6,7 +6,6 @@
 #ifndef VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 #define VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
-#if VSOMEIP_BOOST_VERSION >= 106600
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 
 #include <boost/asio/local/stream_protocol.hpp>
@@ -50,13 +49,13 @@ struct storage :
 };
 
 inline
-std::function<void(boost::system::error_code _error)> 
+std::function<void(boost::system::error_code _error)>
 receive_cb (std::shared_ptr<storage> _data) {
     return [_data](boost::system::error_code _error) {
         if (!_error) {
             if (!_data->socket_.native_non_blocking())
                 _data->socket_.native_non_blocking(true, _error);
-
+            #if defined(__linux__)
             for (;;) {
                 ssize_t its_result;
                 int its_flags(0);
@@ -126,6 +125,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 break;
             }
+            #endif
         }
 
         // Call the handler
@@ -137,6 +137,5 @@ receive_cb (std::shared_ptr<storage> _data) {
 } // namespace vsomeip
 
 #endif // __linux__ || ANDROID
-#endif // VSOMEIP_BOOST_VERSION >= 106600
 
 #endif // VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_

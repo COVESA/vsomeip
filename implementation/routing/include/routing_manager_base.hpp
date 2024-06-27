@@ -28,6 +28,10 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_manager_base.hpp"
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 #ifdef USE_DLT

@@ -2240,11 +2240,7 @@ bool routing_manager_impl::is_acl_message_allowed(endpoint *_receiver,
         const bool is_local = its_info && its_info->is_local();
 
         message_acceptance_t message_acceptance {
-#if VSOMEIP_BOOST_VERSION < 106600
-            static_cast<uint32_t>(_remote_address.to_v4().to_ulong()),
-#else
             _remote_address.to_v4().to_uint(),
-#endif
             _receiver->get_local_port(), is_local, _service, _instance
         };
         if (!message_acceptance_handler_(message_acceptance)) {
@@ -4807,7 +4803,7 @@ routing_manager_impl::send_expired_subscription(client_t _offering_client,
 #ifndef VSOMEIP_DISABLE_SECURITY
 bool
 routing_manager_impl::update_security_policy_configuration(
-        uint32_t _uid, uint32_t _gid,
+        uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy,
         const std::shared_ptr<payload> &_payload,
         const security_update_handler_t &_handler) {
@@ -4821,7 +4817,7 @@ routing_manager_impl::update_security_policy_configuration(
 
 bool
 routing_manager_impl::remove_security_policy_configuration(
-        uint32_t _uid, uint32_t _gid,
+        uid_t _uid, gid_t _gid,
         const security_update_handler_t &_handler) {
 
     if (stub_)

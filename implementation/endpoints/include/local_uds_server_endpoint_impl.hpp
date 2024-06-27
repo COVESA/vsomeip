@@ -11,12 +11,7 @@
 #include <condition_variable>
 #include <memory>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/local/stream_protocol_ext.hpp>
-#else
-#    include <boost/asio/local/stream_protocol.hpp>
-#endif
-
+#include <boost/asio/local/stream_protocol.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
@@ -25,13 +20,8 @@
 
 namespace vsomeip_v3 {
 
-typedef server_endpoint_impl<
-#if VSOMEIP_BOOST_VERSION < 106600
-            boost::asio::local::stream_protocol_ext
-#else
-            boost::asio::local::stream_protocol
-#endif
-        > local_uds_server_endpoint_base_impl;
+typedef server_endpoint_impl<boost::asio::local::stream_protocol>
+        local_uds_server_endpoint_base_impl;
 
 class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl {
 public:
@@ -158,11 +148,7 @@ private:
     };
 
     std::mutex acceptor_mutex_;
-#if VSOMEIP_BOOST_VERSION < 106600
-    boost::asio::local::stream_protocol_ext::acceptor acceptor_;
-#else
     boost::asio::local::stream_protocol::acceptor acceptor_;
-#endif
     typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;

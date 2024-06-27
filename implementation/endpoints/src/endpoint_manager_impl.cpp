@@ -656,11 +656,7 @@ endpoint_manager_impl::create_routing_root(
                     _root =
                             std::make_shared <local_uds_server_endpoint_impl>(
                                     shared_from_this(), _host,
-#if VSOMEIP_BOOST_VERSION < 106600
-                                    boost::asio::local::stream_protocol_ext::endpoint(its_endpoint_path),
-#else
                                     boost::asio::local::stream_protocol::endpoint(its_endpoint_path),
-#endif
                                     io_,
                                     native_socket_fd,
                                     configuration_, true);
@@ -684,11 +680,7 @@ endpoint_manager_impl::create_routing_root(
                     _root =
                         std::make_shared <local_uds_server_endpoint_impl>(
                                 shared_from_this(), _host,
-#if VSOMEIP_BOOST_VERSION < 106600
-                                boost::asio::local::stream_protocol_ext::endpoint(its_endpoint_path),
-#else
                                 boost::asio::local::stream_protocol::endpoint(its_endpoint_path),
-#endif
                                 io_, configuration_, true);
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "

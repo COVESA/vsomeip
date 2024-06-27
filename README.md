@@ -1,7 +1,7 @@
-### vsomeip
+### vSomeIP
 
 ##### Copyright
-Copyright (C) 2015-2022, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2024, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 ##### License
 
@@ -15,7 +15,7 @@ For comprehensive details on how to contribute effectively to the project, pleas
 
 ##### vsomeip Overview
 ----------------
-The vsomeip stack implements the http://some-ip.com/ (Scalable service-Oriented
+The vSomeIP stack implements the http://some-ip.com/ (Scalable service-Oriented
 MiddlewarE over IP (SOME/IP)) protocol. The stack consists out of:
 
 * a shared library for SOME/IP (`libvsomeip3.so`)
@@ -31,9 +31,9 @@ Optional:
 
 ###### Dependencies
 
-- A C++14 enabled compiler is needed (default for gcc >= v6.1).
-- vsomeip uses CMake as buildsystem.
-- vsomeip uses Boost >= 1.55.0:
+- A C++17 enabled compiler is needed.
+- vSomeIP uses CMake as buildsystem.
+- vSomeIP uses Boost >= 1.66.0:
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
 -- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
@@ -87,27 +87,27 @@ The default configuration file is /etc/vsomeip.json.
 
 ###### Compilation with signal handling
 
-To compile vsomeip with signal handling (SIGINT/SIGTERM) enabled, call cmake like:
+To compile vSomeIP with signal handling (SIGINT/SIGTERM) enabled, call cmake like:
 ```bash
 cmake -DENABLE_SIGNAL_HANDLING=1 ..
 ```
-In the default setting, the application has to take care of shutting down vsomeip in case these signals are received.
+In the default setting, the application has to take care of shutting down vSomeIP in case these signals are received.
 
 
 ##### Build Instructions for Android
 
 ###### Dependencies
 
-- vsomeip uses Boost >= 1.55. The boost libraries (system, thread and log) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
+- vSomeIP uses Boost >= 1.66. The boost libraries (system, thread and log) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
 
 ###### Compilation
 
 In general for building the Android source tree the instructions found on the pages from the Android Open Source Project (AOSP) apply (https://source.android.com/setup/build/requirements).
 
-To integrate the vsomeip library into the build process, the source code together with the Android.bp file has to be inserted into the Android source tree (by simply copying or by fetching with a custom platform manifest).
+To integrate the vSomeIP library into the build process, the source code together with the Android.bp file has to be inserted into the Android source tree (by simply copying or by fetching with a custom platform manifest).
 When building the Android source tree, the Android.bp file is automatically found and considered by the build system.
 
-In order that the vsomeip library is also included in the Android image, the library has to be added to the PRODUCT_PACKAGES variable in one of a device/target specific makefile:
+In order that the vSomeIP library is also included in the Android image, the library has to be added to the PRODUCT_PACKAGES variable in one of a device/target specific makefile:
 
 ```
 PRODUCT_PACKAGES += \

@@ -116,11 +116,7 @@ configuration_impl::configuration_impl(const std::string &_path)
         is_configured_[i] = false;
 
 #ifdef _WIN32
-#if VSOMEIP_BOOST_VERSION < 106600
-    routing_.host_.unicast_ = boost::asio::ip::address::from_string("127.0.0.1");
-#else
     routing_.host_.unicast_ = boost::asio::ip::make_address("127.0.0.1");
-#endif
     routing_.host_.port_ = 31490;
     routing_.guests_.unicast_ = routing_.host_.unicast_;
     routing_.guests_.ports_[{ ANY_UID, ANY_GID }].emplace(31492, 31999);
@@ -832,13 +828,8 @@ configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
                     has_gid = true;
                 }
             } else if (its_key == "unicast") {
-#if VSOMEIP_BOOST_VERSION < 106600
-                routing_.host_.unicast_
-                    = boost::asio::ip::address::from_string(its_value);
-#else
                 routing_.host_.unicast_
                     = boost::asio::ip::make_address(its_value);
-#endif
             } else if (its_key == "port") {
                 std::stringstream its_converter;
                 if (its_value.find("0x") == 0) {
@@ -869,13 +860,8 @@ configuration_impl::load_routing_guests(const boost::property_tree::ptree &_tree
             std::string its_key(i->first);
             if (its_key == "unicast") {
                 std::string its_value(i->second.data());
-#if VSOMEIP_BOOST_VERSION < 106600
-                routing_.guests_.unicast_
-                    = boost::asio::ip::address::from_string(its_value);
-#else
                 routing_.guests_.unicast_
                     = boost::asio::ip::make_address(its_value);
-#endif
             } else if (its_key == "ports") {
                 load_routing_guest_ports(i->second);
             }
