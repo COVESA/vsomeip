@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.4...3.22)
 
-project(offered_services_info_test LANGUAGES CXX)
+project(offered_services_info_tests LANGUAGES CXX)
 
 set(TEST_OFFERED_SERVICES_INFO_NAME offered_services_info_test)
 set(TEST_OFFERED_SERVICES_INFO_SERVICE ${TEST_OFFERED_SERVICES_INFO_NAME}_service)
@@ -34,23 +34,23 @@ target_link_libraries(${TEST_OFFERED_SERVICES_INFO_CLIENT}
 
 # copy starter scripts into builddir
 set(TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER ${TEST_OFFERED_SERVICES_INFO_NAME}_local_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offered_services_info_tests/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/offered_services_info_tests/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER}
     ${TEST_OFFERED_SERVICES_INFO_SERVICE}
 )
 
 # Copy config file for local test into $BUILDDIR/test
 set(TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE ${TEST_OFFERED_SERVICES_INFO_NAME}_local.json)
 copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
+    ${NETWORK_TEST_SRC_DIR}/offered_services_info_tests/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/offered_services_info_tests/${TEST_OFFERED_SERVICES_INFO_LOCAL_CONFIG_FILE}
     ${TEST_OFFERED_SERVICES_INFO_SERVICE}
 )
 
 string(REPLACE "test_name" "${TEST_OFFERED_SERVICES_INFO_NAME}" TEST_OFFERED_SERVICES_INFO_ENTRYPOINT "${TEST_ENTRYPOINT}")
 add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local
     COMMAND ${TEST_OFFERED_SERVICES_INFO_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/offered_services_info_test/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER})
+    ${NETWORK_TEST_BIN_DIR}/offered_services_info_tests/${TEST_OFFERED_SERVICES_INFO_LOCAL_STARTER})
 set_tests_properties(${TEST_OFFERED_SERVICES_INFO_NAME}_local PROPERTIES TIMEOUT 180)
 
 
