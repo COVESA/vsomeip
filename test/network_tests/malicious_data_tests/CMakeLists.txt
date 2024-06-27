@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,97 +7,90 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(malicious_data_tests LANGUAGES CXX)
 
-set(TEST_MALICIOUS_DATA_NAME malicious_data_test)
-set(TEST_MALICIOUS_DATA_SERVICE ${TEST_MALICIOUS_DATA_NAME}_service)
-set(TEST_MALICIOUS_DATA_CLIENT ${TEST_MALICIOUS_DATA_NAME}_msg_sender)
-set(TEST_MALICIOUS_DATA_MASTER_STARTER ${TEST_MALICIOUS_DATA_NAME}_master_starter.sh)
-set(TEST_MALICIOUS_DATA_CONFIG_FILE ${TEST_MALICIOUS_DATA_NAME}_master.json)
+# Configure necessary files into the build folder.
+set(configuration_files
+    malicious_data_test_master.json
+    malicious_data_test_master_starter.sh
+)
+configure_files("${configuration_files}")
 
-add_executable(${TEST_MALICIOUS_DATA_SERVICE}
-    ${TEST_MALICIOUS_DATA_NAME}_service.cpp)
-
-target_link_libraries(${TEST_MALICIOUS_DATA_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(malicious_data_test_service
+    malicious_data_test_service.cpp
 )
 
-file(GLOB sd_sources
-    "../../../implementation/service_discovery/src/*entry*.cpp"
-    "../../../implementation/service_discovery/src/*option*.cpp"
-    "../../../implementation/service_discovery/src/*message*.cpp"
+# Add test executable.
+set(service_discovery_sources
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/configuration_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/entry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/eventgroupentry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ip_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv4_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv6_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/load_balancing_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_element_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/protection_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/selective_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/serviceentry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/unknown_option_impl.cpp
+)
+set(message_sources
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/deserializer.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/message_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
+)
+add_executable(malicious_data_test_msg_sender
+    malicious_data_test_msg_sender.cpp
+    ${service_discovery_sources}
+    ${message_sources}
 )
 
-add_executable(${TEST_MALICIOUS_DATA_CLIENT}
-    ${TEST_MALICIOUS_DATA_CLIENT}.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/deserializer.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/message_impl.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/payload_impl.cpp
-    ${sd_sources}
-)
-
-target_link_libraries(${TEST_MALICIOUS_DATA_CLIENT}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    vsomeip_utilities
-    ${VSOMEIP_NAME}
+# Link the vsomeip-sd library to the executable.
+target_link_libraries(malicious_data_test_msg_sender
     ${VSOMEIP_NAME}-sd
-    ${DLT_LIBRARIES}
 )
 
-# copy starter scripts into builddir
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_MASTER_STARTER}.in
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER}
-    @ONLY)
+# Add build dependencies and link libraries to executables.
+set(executables
+    malicious_data_test_service
+    malicious_data_test_msg_sender
+)
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
 
-# Copy config file for local test into $BUILDDIR/test
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/malicious_data_tests/conf/${TEST_MALICIOUS_DATA_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_CONFIG_FILE}
-    @ONLY)
+# Add custom test command.
+add_custom_test(
+    NAME malicious_data_test_events
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MALICIOUS_EVENTS
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_MALICIOUS_DATA_NAME}_events" TEST_MALICIOUS_DATA_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(
-    NAME ${TEST_MALICIOUS_DATA_NAME}_events
-    COMMAND ${TEST_MALICIOUS_DATA_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER} MALICIOUS_EVENTS)
-set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_events PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME malicious_data_test_protocol_version
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh PROTOCOL_VERSION
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_MALICIOUS_DATA_NAME}_protocol_version" TEST_MALICIOUS_DATA_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(
-    NAME ${TEST_MALICIOUS_DATA_NAME}_protocol_version
-    COMMAND ${TEST_MALICIOUS_DATA_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER} PROTOCOL_VERSION)
-set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_protocol_version PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME malicious_data_test_message_type
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MESSAGE_TYPE
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_MALICIOUS_DATA_NAME}_message_type" TEST_MALICIOUS_DATA_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(
-    NAME ${TEST_MALICIOUS_DATA_NAME}_message_type
-    COMMAND ${TEST_MALICIOUS_DATA_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER} MESSAGE_TYPE)
-set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_message_type PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME malicious_data_test_return_code
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh RETURN_CODE
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_MALICIOUS_DATA_NAME}_return_code" TEST_MALICIOUS_DATA_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(
-    NAME ${TEST_MALICIOUS_DATA_NAME}_return_code
-    COMMAND ${TEST_MALICIOUS_DATA_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER} RETURN_CODE)
-set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_return_code PROPERTIES TIMEOUT 180)
-
-string(REPLACE "test_name" "${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp" TEST_MALICIOUS_DATA_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(
-    NAME ${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp
-    COMMAND ${TEST_MALICIOUS_DATA_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/malicious_data_tests/${TEST_MALICIOUS_DATA_MASTER_STARTER} WRONG_HEADER_FIELDS_UDP)
-set_tests_properties(${TEST_MALICIOUS_DATA_NAME}_wrong_header_fields_udp PROPERTIES TIMEOUT 180)
-
-add_dependencies(${TEST_MALICIOUS_DATA_SERVICE} gtest)
-add_dependencies(${TEST_MALICIOUS_DATA_CLIENT} gtest)
-
-add_dependencies(build_network_tests ${TEST_MALICIOUS_DATA_SERVICE})
-add_dependencies(build_network_tests ${TEST_MALICIOUS_DATA_CLIENT})
+# Add custom test command.
+add_custom_test(
+    NAME malicious_data_test_wrong_header_fields_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh WRONG_HEADER_FIELDS_UDP
+    TIMEOUT 180
+)

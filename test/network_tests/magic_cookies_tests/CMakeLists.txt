@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,78 +7,42 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(magic_cookies_tests LANGUAGES CXX)
 
-set(TEST_MAGIC_COOKIES_NAME magic_cookies_test)
-set(TEST_MAGIC_COOKIES_CLIENT ${TEST_MAGIC_COOKIES_NAME}_client)
-add_executable(${TEST_MAGIC_COOKIES_CLIENT}
-    ${TEST_MAGIC_COOKIES_CLIENT}.cpp)
-target_link_libraries(${TEST_MAGIC_COOKIES_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Configure necessary files into the build folder.
+set(configuration_files
+    magic_cookies_test_client.json
+    magic_cookies_test_client_start.sh
+    magic_cookies_test_service.json
+    magic_cookies_test_service_start.sh
+    magic_cookies_test_starter.sh
+)
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(magic_cookies_test_client
+    magic_cookies_test_client.cpp
 )
 
-set(TEST_MAGIC_COOKIES_SERVICE ${TEST_MAGIC_COOKIES_NAME}_service)
-add_executable(${TEST_MAGIC_COOKIES_SERVICE}
-    ${TEST_MAGIC_COOKIES_SERVICE}.cpp)
-target_link_libraries(${TEST_MAGIC_COOKIES_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${DLT_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${TEST_LINK_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(magic_cookies_test_service
+    magic_cookies_test_service.cpp
 )
 
-# Copy config file for client into $BUILDDIR/test
-set(TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE ${TEST_MAGIC_COOKIES_CLIENT}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_CONFIG_FILE}
-    @ONLY)
-
-# Copy bashscript to start client into $BUILDDIR/test
-set(TEST_MAGIC_COOKIES_CLIENT_START_SCRIPT ${TEST_MAGIC_COOKIES_CLIENT}_start.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_CLIENT_START_SCRIPT}
-    ${TEST_MAGIC_COOKIES_CLIENT}
+# Add build dependencies and link libraries to executables.
+set(executables
+    magic_cookies_test_client
+    magic_cookies_test_service
 )
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
 
-set(TEST_MAGIC_COOKIES_SERVICE magic_cookies_test_service)
-# Copy config file for service into $BUILDDIR/test
-set(TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE ${TEST_MAGIC_COOKIES_SERVICE}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/conf/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_CONFIG_FILE}
-    @ONLY)
+# Link thread libraries to executables.
+foreach(target ${executables})
+    target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT})
+endforeach()
 
-# Copy bashscript to start service into $BUILDDIR/test
-set(TEST_MAGIC_COOKIES_SERVICE_START_SCRIPT ${TEST_MAGIC_COOKIES_SERVICE}_start.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_SERVICE_START_SCRIPT}
-    ${TEST_MAGIC_COOKIES_CLIENT}
+# Add custom test command.
+add_custom_test(
+    NAME magic_cookies_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/magic_cookies_test_starter.sh
+    TIMEOUT 250
 )
-
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_MAGIC_COOKIES_STARTER ${TEST_MAGIC_COOKIES_NAME}_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_STARTER}
-    ${TEST_MAGIC_COOKIES_CLIENT}
-)
-
-# magic cookies test
-string(REPLACE "test_name" "${TEST_MAGIC_COOKIES_NAME}" TEST_MAGIC_COOKIES_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_MAGIC_COOKIES_NAME}
-    COMMAND ${TEST_MAGIC_COOKIES_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/magic_cookies_tests/${TEST_MAGIC_COOKIES_STARTER}
-)
-set_tests_properties(${TEST_MAGIC_COOKIES_NAME} PROPERTIES TIMEOUT 250)
-
-add_dependencies(${TEST_MAGIC_COOKIES_CLIENT} gtest)
-add_dependencies(${TEST_MAGIC_COOKIES_SERVICE} gtest)
-
-add_dependencies(build_network_tests ${TEST_MAGIC_COOKIES_CLIENT})
-add_dependencies(build_network_tests ${TEST_MAGIC_COOKIES_SERVICE})

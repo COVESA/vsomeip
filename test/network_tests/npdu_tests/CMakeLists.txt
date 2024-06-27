@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,249 +7,133 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(npdu_tests LANGUAGES CXX)
 
-if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    set(TEST_NPDU_NAME npdu_test)
-    set(TEST_NPDU_DAEMON npdu_test_rmd)
-    set(TEST_NPDU_DAEMON_CLIENT ${TEST_NPDU_DAEMON}_client_side)
-    add_executable(${TEST_NPDU_DAEMON_CLIENT}
-        ${TEST_NPDU_DAEMON}.cpp)
-    set_target_properties(${TEST_NPDU_DAEMON_CLIENT} PROPERTIES COMPILE_FLAGS -DRMD_CLIENT_SIDE)
-    target_link_libraries(${TEST_NPDU_DAEMON_CLIENT}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+
+    # Configure necessary files into the build folder.
+    set(configuration_files
+        npdu_test_client_no_npdu.json
+        npdu_test_client_no_npdu_start.sh
+        npdu_test_client_npdu.json
+        npdu_test_client_npdu_start.sh
+        npdu_test_service_no_npdu.json
+        npdu_test_service_no_npdu_start.sh
+        npdu_test_service_npdu.json
+        npdu_test_service_npdu_start.sh
+        npdu_test_starter.sh
+    )
+    configure_files("${configuration_files}")
+
+    # Routing managers.
+
+    # Add test executable.
+    add_executable(npdu_test_rmd_client_side
+        npdu_test_rmd.cpp
+    )
+    set_target_properties(npdu_test_rmd_client_side
+        PROPERTIES COMPILE_FLAGS -DRMD_CLIENT_SIDE
     )
 
-    set(TEST_NPDU_DAEMON_SERVICE ${TEST_NPDU_DAEMON}_service_side)
-    add_executable(${TEST_NPDU_DAEMON_SERVICE}
-        ${TEST_NPDU_DAEMON}.cpp)
-    set_target_properties(${TEST_NPDU_DAEMON_SERVICE} PROPERTIES COMPILE_FLAGS -DRMD_SERVICE_SIDE)
-    target_link_libraries(${TEST_NPDU_DAEMON_SERVICE}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_rmd_service_side
+        npdu_test_rmd.cpp
+    )
+    set_target_properties(npdu_test_rmd_service_side
+        PROPERTIES COMPILE_FLAGS -DRMD_SERVICE_SIDE
     )
 
-    ##############################################################################
+    # Add build dependencies and link libraries to executables.
+    set(routing_managers
+        npdu_test_rmd_client_side
+        npdu_test_rmd_service_side
+    )
+    targets_add_default_dependencies("${routing_managers}")
+    targets_link_default_libraries("${routing_managers}")
 
-    set(TEST_NPDU_SERVICE npdu_test_service)
+    # Clients and Services.
 
-    set(TEST_NPDU_SERVICE_ONE npdu_test_service_1)
-    add_executable(${TEST_NPDU_SERVICE_ONE}
-        ${TEST_NPDU_SERVICE}.cpp)
-    set_target_properties(${TEST_NPDU_SERVICE_ONE} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=0)
-    target_link_libraries(${TEST_NPDU_SERVICE_ONE}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_service_1
+        npdu_test_service.cpp
+    )
+    set_target_properties(npdu_test_service_1
+        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=0
     )
 
-    set(TEST_NPDU_SERVICE_TWO npdu_test_service_2)
-    add_executable(${TEST_NPDU_SERVICE_TWO}
-        ${TEST_NPDU_SERVICE}.cpp)
-    set_target_properties(${TEST_NPDU_SERVICE_TWO} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=1)
-    target_link_libraries(${TEST_NPDU_SERVICE_TWO}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_service_2
+        npdu_test_service.cpp
+    )
+    set_target_properties(npdu_test_service_2
+        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=1
     )
 
-    set(TEST_NPDU_SERVICE_THREE npdu_test_service_3)
-    add_executable(${TEST_NPDU_SERVICE_THREE}
-        ${TEST_NPDU_SERVICE}.cpp)
-    set_target_properties(${TEST_NPDU_SERVICE_THREE} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=2)
-    target_link_libraries(${TEST_NPDU_SERVICE_THREE}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_service_3
+        npdu_test_service.cpp
+    )
+    set_target_properties(npdu_test_service_3
+        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=2
     )
 
-    set(TEST_NPDU_SERVICE_FOUR npdu_test_service_4)
-    add_executable(${TEST_NPDU_SERVICE_FOUR}
-        ${TEST_NPDU_SERVICE}.cpp)
-    set_target_properties(${TEST_NPDU_SERVICE_FOUR} PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=3)
-    target_link_libraries(${TEST_NPDU_SERVICE_FOUR}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_service_4
+        npdu_test_service.cpp
+    )
+    set_target_properties(npdu_test_service_4
+        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=3
     )
 
-    # Copy config file for service w/o npdu into $BUILDDIR/test
-    set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_no_npdu.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        @ONLY)
-
-    # Copy bashscript to start service w/o npdu into $BUILDDIR/test
-    set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_no_npdu_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
-        ${TEST_NPDU_SERVICE_ONE}
+    # Add test executable.
+    add_executable(npdu_test_client_1
+        npdu_test_client.cpp
     )
 
-    # Copy config file for service with npdu into $BUILDDIR/test
-    set(TEST_NPDU_SERVICE_CONFIG_FILE ${TEST_NPDU_SERVICE}_npdu.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_SERVICE_CONFIG_FILE}
-        @ONLY)
-
-    # Copy bashscript to start service with npdu into $BUILDDIR/test
-    set(TEST_NPDU_SERVICE_START_SCRIPT ${TEST_NPDU_SERVICE}_npdu_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_SERVICE_START_SCRIPT}
-        ${TEST_NPDU_SERVICE_ONE}
+    # Add test executable.
+    add_executable(npdu_test_client_2
+        npdu_test_client.cpp
     )
 
-    ##############################################################################
-
-    set(TEST_NPDU_CLIENT npdu_test_client)
-
-    set(TEST_NPDU_CLIENT_ONE npdu_test_client_1)
-    add_executable(${TEST_NPDU_CLIENT_ONE}
-        ${TEST_NPDU_CLIENT}.cpp)
-    target_link_libraries(${TEST_NPDU_CLIENT_ONE}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_client_3
+        npdu_test_client.cpp
     )
 
-    set(TEST_NPDU_CLIENT_TWO npdu_test_client_2)
-    add_executable(${TEST_NPDU_CLIENT_TWO}
-        ${TEST_NPDU_CLIENT}.cpp)
-    target_link_libraries(${TEST_NPDU_CLIENT_TWO}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add test executable.
+    add_executable(npdu_test_client_4
+        npdu_test_client.cpp
     )
 
-    set(TEST_NPDU_CLIENT_THREE npdu_test_client_3)
-    add_executable(${TEST_NPDU_CLIENT_THREE}
-        ${TEST_NPDU_CLIENT}.cpp)
-    target_link_libraries(${TEST_NPDU_CLIENT_THREE}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add build dependencies and link libraries to executables.
+    set(executables
+        npdu_test_service_1
+        npdu_test_service_2
+        npdu_test_service_3
+        npdu_test_service_4
+        npdu_test_client_1
+        npdu_test_client_2
+        npdu_test_client_3
+        npdu_test_client_4
+    )
+    targets_add_default_dependencies("${executables}")
+    targets_link_default_libraries("${executables}")
+
+    # Link executables to vsomeip-cfg.
+    foreach(target ${executables})
+        target_link_libraries(${target} ${VSOMEIP_NAME}-cfg)
+    endforeach()
+
+    # Add custom test command.
+    add_custom_test(
+        NAME npdu_test_udp
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh UDP sync
+        TIMEOUT 840
     )
 
-    set(TEST_NPDU_CLIENT_FOUR npdu_test_client_4)
-    add_executable(${TEST_NPDU_CLIENT_FOUR}
-        ${TEST_NPDU_CLIENT}.cpp)
-    target_link_libraries(${TEST_NPDU_CLIENT_FOUR}
-        ${VSOMEIP_NAME}
-        ${VSOMEIP_NAME}-cfg
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add custom test command.
+    add_custom_test(
+        NAME npdu_test_tcp
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh TCP sync
+        TIMEOUT 840
     )
 
-    # Copy config files for client w/o npdu into $BUILDDIR/test
-    set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_no_npdu.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        @ONLY)
-
-    # Copy bashscript to start client w/o npdu into $BUILDDIR/test
-    set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_no_npdu_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
-        ${TEST_NPDU_CLIENT_ONE}
-    )
-
-    # Copy config file for client with npdu into $BUILDDIR/test
-    set(TEST_NPDU_CLIENT_CONFIG_FILE ${TEST_NPDU_CLIENT}_npdu.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/conf/${TEST_NPDU_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_CLIENT_CONFIG_FILE}
-        @ONLY)
-
-    # Copy bashscript to start client with npdu into $BUILDDIR/test
-    set(TEST_NPDU_CLIENT_START_SCRIPT ${TEST_NPDU_CLIENT}_npdu_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_CLIENT_START_SCRIPT}
-        ${TEST_NPDU_CLIENT_ONE}
-    )
-
-    ##############################################################################
-
-    set(TEST_NPDU_STARTER ${TEST_NPDU_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/npdu_tests/${TEST_NPDU_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER}
-        ${TEST_NPDU_DAEMON_CLIENT}
-    )
-
-    # npdu tests
-    string(REPLACE "test_name" "${TEST_NPDU_NAME}_udp" TEST_NPDU_ENTRYPOINT "${TEST_ENTRYPOINT}")
-    add_test(NAME ${TEST_NPDU_NAME}_udp
-        COMMAND ${TEST_NPDU_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} UDP sync)
-    set_tests_properties(${TEST_NPDU_NAME}_udp PROPERTIES TIMEOUT 840)
-
-    string(REPLACE "test_name" "${TEST_NPDU_NAME}_tcp" TEST_NPDU_ENTRYPOINT "${TEST_ENTRYPOINT}")
-    add_test(NAME ${TEST_NPDU_NAME}_tcp
-        COMMAND ${TEST_NPDU_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/npdu_tests/${TEST_NPDU_STARTER} TCP sync)
-    set_tests_properties(${TEST_NPDU_NAME}_tcp PROPERTIES TIMEOUT 840)
-
-    add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)
-    add_dependencies(${TEST_NPDU_SERVICE_TWO} gtest)
-    add_dependencies(${TEST_NPDU_SERVICE_THREE} gtest)
-    add_dependencies(${TEST_NPDU_SERVICE_FOUR} gtest)
-    add_dependencies(${TEST_NPDU_CLIENT_ONE} gtest)
-    add_dependencies(${TEST_NPDU_CLIENT_TWO} gtest)
-    add_dependencies(${TEST_NPDU_CLIENT_THREE} gtest)
-    add_dependencies(${TEST_NPDU_CLIENT_FOUR} gtest)
-    add_dependencies(${TEST_NPDU_DAEMON_CLIENT} gtest)
-    add_dependencies(${TEST_NPDU_DAEMON_SERVICE} gtest)
-
-    add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_ONE})
-    add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_TWO})
-    add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_THREE})
-    add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_FOUR})
-    add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_ONE})
-    add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_TWO})
-    add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_THREE})
-    add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_FOUR})
-    add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_CLIENT})
-    add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_SERVICE})
 endif()

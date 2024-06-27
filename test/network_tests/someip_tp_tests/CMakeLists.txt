@@ -7,100 +7,103 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(someip_tp_tests LANGUAGES CXX)
 
-set(TEST_SOMEIPTP_NAME someip_tp_test)
-set(TEST_SOMEIPTP_SERVICE ${TEST_SOMEIPTP_NAME}_service)
+# Configure necessary files into the build folder.
+set(configuration_files
+    someip_tp_test_master.json
+    someip_tp_test_master_starter.sh
+)
+configure_files("${configuration_files}")
 
-add_executable(${TEST_SOMEIPTP_SERVICE}
-    ${TEST_SOMEIPTP_SERVICE}.cpp)
-target_link_libraries(${TEST_SOMEIPTP_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(someip_tp_test_service
+    someip_tp_test_service.cpp
 )
 
-file(GLOB sd_sources
-    "../../../implementation/service_discovery/src/*entry*.cpp"
-    "../../../implementation/service_discovery/src/*option*.cpp"
-    "../../../implementation/service_discovery/src/*message*.cpp"
+# Add test executable.
+set(service_discovery_sources
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/configuration_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/entry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/eventgroupentry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ip_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv4_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv6_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/load_balancing_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_element_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/protection_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/selective_option_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/serviceentry_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/unknown_option_impl.cpp
 )
-set(TEST_SOMEIPTP_CLIENT ${TEST_SOMEIPTP_NAME}_msg_sender)
-add_executable(${TEST_SOMEIPTP_CLIENT}
-    ${TEST_SOMEIPTP_CLIENT}.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/deserializer.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/message_impl.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/message/src/payload_impl.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/endpoints/src/tp.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/endpoints/src/tp_reassembler.cpp
-    ${PROJECT_SOURCE_DIR}/../../../implementation/endpoints/src/tp_message.cpp
-    ${sd_sources}
+set(message_sources
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/deserializer.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/message_impl.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
+)
+set(endpoint_sources
+    ${CMAKE_SOURCE_DIR}/implementation/endpoints/src/tp.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/endpoints/src/tp_reassembler.cpp
+    ${CMAKE_SOURCE_DIR}/implementation/endpoints/src/tp_message.cpp
+)
+add_executable(someip_tp_test_msg_sender
+    someip_tp_test_msg_sender.cpp
+    ${service_discovery_sources}
+    ${message_sources}
+    ${endpoint_sources}
 )
 
-target_link_libraries(${TEST_SOMEIPTP_CLIENT}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
-    ${VSOMEIP_NAME}
+# Link vsomeip-sd to test executable.
+target_link_libraries(someip_tp_test_msg_sender
     ${VSOMEIP_NAME}-sd
 )
 
-# Copy service config file for external allow tests into $BUILDDIR/test
-set(TEST_SOMEIPTP_MASTER_CONFIG_FILE ${TEST_SOMEIPTP_NAME}_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_CONFIG_FILE}
-    @ONLY)
+# Add build dependencies and link libraries to executables.
+set(executables
+    someip_tp_test_service
+    someip_tp_test_msg_sender
+)
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
 
-# Copy bashscript to start test (master) into $BUILDDIR/test
-set(TEST_SOMEIPTP_MASTER_START_SCRIPT ${TEST_SOMEIPTP_NAME}_master_starter.sh)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/someip_tp_tests/conf/${TEST_SOMEIPTP_MASTER_START_SCRIPT}.in
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT}
-    @ONLY)
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_in_sequence
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh IN_SEQUENCE
+    TIMEOUT 180
+)
 
-# SOME/IP-TP tests
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_in_sequence" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_in_sequence
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} IN_SEQUENCE)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_in_sequence PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_mixed
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh MIXED
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_mixed" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_mixed
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} MIXED)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_mixed PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_incomplete
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh INCOMPLETE
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_incomplete" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_incomplete
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} INCOMPLETE)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_incomplete PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_duplicate
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh DUPLICATE
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_duplicate" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_duplicate
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} DUPLICATE)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_duplicate PROPERTIES TIMEOUT 180)
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_overlap
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP
+    TIMEOUT 180
+)
 
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_overlap" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_overlap
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} OVERLAP)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_overlap PROPERTIES TIMEOUT 180)
-
-string(REPLACE "test_name" "${TEST_SOMEIPTP_NAME}_overlap_front_back" TEST_SOMEIPTP_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SOMEIPTP_NAME}_overlap_front_back
-    COMMAND ${TEST_SOMEIPTP_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/someip_tp_tests/${TEST_SOMEIPTP_MASTER_START_SCRIPT} OVERLAP_FRONT_BACK)
-set_tests_properties(${TEST_SOMEIPTP_NAME}_overlap_front_back PROPERTIES TIMEOUT 180)
-
-add_dependencies(${TEST_SOMEIPTP_CLIENT} gtest)
-add_dependencies(${TEST_SOMEIPTP_SERVICE} gtest)
-
-add_dependencies(build_network_tests ${TEST_SOMEIPTP_CLIENT})
-add_dependencies(build_network_tests ${TEST_SOMEIPTP_SERVICE})
+# Add custom test command.
+add_custom_test(
+    NAME someip_tp_test_overlap_front_back
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP_FRONT_BACK
+    TIMEOUT 180
+)

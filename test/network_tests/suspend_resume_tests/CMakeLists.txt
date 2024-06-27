@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,68 +7,35 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(suspend_resume_tests LANGUAGES CXX)
 
-set(TEST_SUSPEND_RESUME_NAME suspend_resume_test)
-set(TEST_SUSPEND_RESUME_SERVICE ${TEST_SUSPEND_RESUME_NAME}_service)
-set(TEST_SUSPEND_RESUME_CLIENT ${TEST_SUSPEND_RESUME_NAME}_client)
-
-add_executable(${TEST_SUSPEND_RESUME_SERVICE}
-    ${TEST_SUSPEND_RESUME_SERVICE}.cpp
+# Configure necessary files into the build folder.
+set(configuration_files
+    suspend_resume_test_client.json
+    suspend_resume_test_master_starter.sh
+    suspend_resume_test_service.json
+    suspend_resume_test_slave_starter.sh
 )
-target_link_libraries(${TEST_SUSPEND_RESUME_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(suspend_resume_test_service
+    suspend_resume_test_service.cpp
 )
 
-add_executable(${TEST_SUSPEND_RESUME_CLIENT}
-    ${TEST_SUSPEND_RESUME_CLIENT}.cpp
-)
-target_link_libraries(${TEST_SUSPEND_RESUME_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(suspend_resume_test_client
+    suspend_resume_test_client.cpp
 )
 
-set(TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE ${TEST_SUSPEND_RESUME_SERVICE}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE ${TEST_SUSPEND_RESUME_CLIENT}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/conf/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_CLIENT_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUSPEND_RESUME_MASTER_START_SCRIPT ${TEST_SUSPEND_RESUME_NAME}_master_starter.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT}
-    ${TEST_SUSPEND_RESUME_CLIENT}
+# Add build dependencies and link libraries to executables.
+set(executables
+    suspend_resume_test_service
+    suspend_resume_test_client
 )
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
 
-set(TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT ${TEST_SUSPEND_RESUME_NAME}_slave_starter.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_SLAVE_START_SCRIPT}
-    ${TEST_SUSPEND_RESUME_CLIENT}
+# Add custom test command.
+add_custom_test(
+    NAME suspend_resume_test_initial
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/suspend_resume_test_master_starter.sh SERVICE
 )
-
-string(REPLACE "test_name" "${TEST_SUSPEND_RESUME_NAME}" TEST_SUSPEND_RESUME_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUSPEND_RESUME_NAME}_initial
-    COMMAND ${TEST_SUSPEND_RESUME_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/suspend_resume_tests/${TEST_SUSPEND_RESUME_MASTER_START_SCRIPT} SERVICE
-)
-
-add_dependencies(${TEST_SUSPEND_RESUME_CLIENT} gtest)
-add_dependencies(${TEST_SUSPEND_RESUME_SERVICE} gtest)
-
-add_dependencies(build_network_tests ${TEST_SUSPEND_RESUME_CLIENT})
-add_dependencies(build_network_tests ${TEST_SUSPEND_RESUME_SERVICE})

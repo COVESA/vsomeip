@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,209 +7,75 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(payload_tests LANGUAGES CXX)
 
+# Configure necessary files into the build folder.
+set(configuration_files
+    external_local_payload_test_client_external.json
+    external_local_payload_test_client_external_start.sh
+    external_local_payload_test_client_external_starter.sh
+    external_local_payload_test_client_local.json
+    external_local_payload_test_client_local_and_external_starter.sh
+    external_local_payload_test_client_local_start.sh
+    external_local_payload_test_client_local_starter.sh
+    external_local_payload_test_service.json
+    external_local_payload_test_service_client_external_start.sh
+    external_local_payload_test_service_start.sh
+    local_payload_test_client.json
+    local_payload_test_client_start.sh
+    local_payload_test_huge_payload_starter.sh
+    local_payload_test_service.json
+    local_payload_test_service_start.sh
+    local_payload_test_starter.sh
+)
+configure_files("${configuration_files}")
 
-set(TEST_LOCAL_PAYLOAD_NAME local_payload_test)
-set(TEST_PAYLOAD_SERVICE payload_test_service)
-add_executable(${TEST_PAYLOAD_SERVICE}
-    ${TEST_PAYLOAD_SERVICE}.cpp)
-target_link_libraries(${TEST_PAYLOAD_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(payload_test_service
+    payload_test_service.cpp
 )
 
-# Copy config file for service into $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE local_${TEST_PAYLOAD_SERVICE}.json)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-    ${TEST_PAYLOAD_SERVICE}
-)
-
-# Copy bashscript to start service into $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT local_${TEST_PAYLOAD_SERVICE}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-    ${TEST_PAYLOAD_SERVICE}
-)
-
-set(TEST_PAYLOAD_CLIENT payload_test_client)
-add_executable(${TEST_PAYLOAD_CLIENT}
-    ${TEST_PAYLOAD_CLIENT}.cpp
+# Add test executable.
+add_executable(payload_test_client
+    payload_test_client.cpp
     stopwatch.cpp
 )
-target_link_libraries(${TEST_PAYLOAD_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+
+# Add build dependencies and link libraries to executables.
+set(executables
+    payload_test_service
+    payload_test_client
+)
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
+
+# Add custom test command.
+add_custom_test(
+    NAME local_payload_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_payload_test_starter.sh
 )
 
-# Copy config file for client into $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE local_${TEST_PAYLOAD_CLIENT}.json)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-    ${TEST_PAYLOAD_CLIENT}
+# Add custom test command.
+add_custom_test(
+    NAME local_payload_test_huge_payload
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_payload_test_huge_payload_starter.sh
+    TIMEOUT 1800
 )
 
-# Copy bashscript to start client into $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT local_${TEST_PAYLOAD_CLIENT}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
-    ${TEST_PAYLOAD_CLIENT}
+# Add custom test command.
+add_custom_test(
+    NAME external_local_payload_test_client_local
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_local_starter.sh
 )
 
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_STARTER local_payload_test_starter.sh)
-
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_STARTER}.bat.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
-    @ONLY)
-
-##############################################################################
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_NAME external_local_payload_test)
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE external_local_payload_test_service)
-
-# Copy config file for service into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-    @ONLY)
-
-# Copy bashscript to start service into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-    ${TEST_PAYLOAD_SERVICE}
+# Add custom test command.
+add_custom_test(
+    NAME external_local_payload_test_client_external
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_external_starter.sh
+    TIMEOUT 480
 )
 
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL external_local_payload_test_client_local)
-
-# Copy config file for client into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-    @ONLY)
-
-# Copy bashscript to start client into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
-    ${TEST_PAYLOAD_CLIENT}
+# Add custom test command.
+add_custom_test(
+    NAME external_local_payload_test_client_local_and_external
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_local_and_external_starter.sh
+    TIMEOUT 480
 )
-
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME external_local_payload_test_client_local)
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}_starter.sh)
-
-
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}.bat.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-    @ONLY)
-
-##############################################################################
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME external_local_payload_test_client_external)
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL external_local_payload_test_client_external)
-
-# Copy config file for client into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-    @ONLY)
-
-# Copy bashscript to start client into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
-    ${TEST_PAYLOAD_CLIENT}
-)
-
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL external_local_payload_test_service_client_external)
-
-# Copy bashscript to start service into $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL}_start.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL_START_SCRIPT}
-    ${TEST_PAYLOAD_SERVICE}
-)
-
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}_starter.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
-    ${TEST_PAYLOAD_CLIENT}
-)
-
-##############################################################################
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME external_local_payload_test_client_local_and_external)
-set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
-    ${TEST_PAYLOAD_CLIENT}
-)
-
-##############################################################################
-set(TEST_LOCAL_PAYLOAD_HUGE_NAME local_payload_test_huge_payload)
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_LOCAL_PAYLOAD_HUGE_STARTER ${TEST_LOCAL_PAYLOAD_HUGE_NAME}_starter.sh)
-
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}.bat.in
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-    @ONLY)
-
-# Payload tests
-string(REPLACE "test_name" "${TEST_LOCAL_PAYLOAD_NAME}" TEST_LOCAL_PAYLOAD_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_LOCAL_PAYLOAD_NAME}
-    COMMAND ${TEST_LOCAL_PAYLOAD_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
-)
-string(REPLACE "test_name" "${TEST_LOCAL_PAYLOAD_HUGE_NAME}" TEST_LOCAL_PAYLOAD_HUGE_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
-    COMMAND ${TEST_LOCAL_PAYLOAD_HUGE_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-)
-set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 1800)
-string(REPLACE "test_name" "${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}"
-    TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
-    COMMAND ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-)
-string(REPLACE "test_name" "${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}"
-    TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}
-    COMMAND ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
-)
-set_tests_properties(${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME} PROPERTIES TIMEOUT 480)
-string(REPLACE "test_name" "${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}"
-    TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}
-    COMMAND ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
-)
-set_tests_properties(${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME} PROPERTIES TIMEOUT 480)
-
-add_dependencies(${TEST_PAYLOAD_SERVICE} gtest)
-add_dependencies(${TEST_PAYLOAD_CLIENT} gtest)
-
-add_dependencies(build_network_tests ${TEST_PAYLOAD_SERVICE})
-add_dependencies(build_network_tests ${TEST_PAYLOAD_CLIENT})

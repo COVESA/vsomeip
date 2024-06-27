@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,100 +7,55 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(header_factory_tests LANGUAGES CXX)
 
-set(TEST_HEADER_FACTORY_NAME header_factory_test)
-set(TEST_HEADER_FACTORY header_factory_test)
-add_executable(${TEST_HEADER_FACTORY}
-    header_factory_test.cpp)
-target_link_libraries(${TEST_HEADER_FACTORY}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Configure necessary files into the build directory.
+set(configuration_files
+    header_factory_test_client.json
+    header_factory_test_client_start.sh
+    header_factory_test_send_receive_starter.sh
+    header_factory_test_service.json
+    header_factory_test_service_start.sh
+)
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(header_factory_test
+    header_factory_test.cpp
 )
 
-##############################################################################
-# Now comes the second part of the header factory test which consists of ouf
-# a client and a service both with settings file and bash scripts to start them
-set(TEST_HEADER_FACTORY_CLIENT header_factory_test_client)
-add_executable(${TEST_HEADER_FACTORY_CLIENT}
-    ${TEST_HEADER_FACTORY_CLIENT}.cpp)
-target_link_libraries(${TEST_HEADER_FACTORY_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(header_factory_test_client
+    header_factory_test_client.cpp
 )
 
-# Copy config file for client into $BUILDDIR/test
-set(TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE ${TEST_HEADER_FACTORY_CLIENT}.json)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
-    ${TEST_HEADER_FACTORY_CLIENT}
+# Add test executable.
+add_executable(header_factory_test_service
+    header_factory_test_service.cpp
 )
 
-# Copy bashscript to start client into $BUILDDIR/test
-set(TEST_HEADER_FACTORY_CLIENT_START_SCRIPT ${TEST_HEADER_FACTORY_CLIENT}_start.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
-    ${TEST_HEADER_FACTORY_CLIENT}
+# Add build dependencies and link libraries to executables.
+set(executables
+    header_factory_test
+    header_factory_test_client
+    header_factory_test_service
+)
+targets_link_default_libraries("${executables}")
+targets_add_default_dependencies("${executables}")
+
+# Link thread libraries to executables.
+foreach(target ${executables})
+    target_link_libraries(${target}
+        ${CMAKE_THREAD_LIBS_INIT}
+    )
+endforeach()
+
+# Add custom test command.
+add_custom_test(
+    NAME header_factory_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/header_factory_test
 )
 
-set(TEST_HEADER_FACTORY_SERVICE header_factory_test_service)
-add_executable(${TEST_HEADER_FACTORY_SERVICE}
-    ${TEST_HEADER_FACTORY_SERVICE}.cpp)
-target_link_libraries(${TEST_HEADER_FACTORY_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add custom test command.
+add_custom_test(
+    NAME header_factory_test_send_receive
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/header_factory_test_send_receive_starter.sh
 )
-
-# Copy config file for service into $BUILDDIR/test
-set(TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE ${TEST_HEADER_FACTORY_SERVICE}.json)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
-    ${TEST_HEADER_FACTORY_SERVICE}
-)
-
-# Copy bashscript to start service into $BUILDDIR/test
-set(TEST_HEADER_FACTORY_SERVICE_START_SCRIPT ${TEST_HEADER_FACTORY_SERVICE}_start.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
-    ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
-    ${TEST_HEADER_FACTORY_SERVICE}
-)
-
-# Copy bashscript to start client and server $BUILDDIR/test
-set(TEST_HEADER_FACTORY_STARTER header_factory_test_send_receive_starter.sh)
-
-
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/header_factory_tests/conf/${TEST_HEADER_FACTORY_STARTER}.bat.in
-    ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
-    @ONLY)
-
-# Header/Factory tets
-string(REPLACE "test_name" "${TEST_HEADER_FACTORY_NAME}" TEST_HEADER_FACTORY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_HEADER_FACTORY_NAME}
-    COMMAND ${TEST_HEADER_FACTORY_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY}
-)
-string(REPLACE "test_name" "${TEST_HEADER_FACTORY_NAME}_send_receive" TEST_HEADER_FACTORY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_HEADER_FACTORY_NAME}_send_receive
-    COMMAND ${TEST_HEADER_FACTORY_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
-)
-
-add_dependencies(${TEST_HEADER_FACTORY} gtest)
-add_dependencies(${TEST_HEADER_FACTORY_CLIENT} gtest)
-add_dependencies(${TEST_HEADER_FACTORY_SERVICE} gtest)
-
-add_dependencies(build_network_tests ${TEST_HEADER_FACTORY})
-add_dependencies(build_network_tests ${TEST_HEADER_FACTORY_CLIENT})
-add_dependencies(build_network_tests ${TEST_HEADER_FACTORY_SERVICE})
