@@ -17,9 +17,7 @@
 #include <vector>
 
 
-#if VSOMEIP_BOOST_VERSION >= 106600
 #include <boost/asio/executor_work_guard.hpp>
-#endif
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/ip/address.hpp>
@@ -148,6 +146,7 @@ public:
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_context &get_io();
 
@@ -299,7 +298,7 @@ private:
                                 major_version_t _major, minor_version_t _minor) const;
 
     void register_availability_handler_unlocked(service_t _service,
-            instance_t _instance, availability_state_handler_t _handler,
+            instance_t _instance, const availability_state_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
 
 
@@ -344,6 +343,9 @@ private:
     void find_method_handlers(std::deque<message_handler_t> &,
             const members_instances_iterator_t &_it, method_t _method) const;
 
+    void invoke_availability_handler(service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor);
+
     //
     // Attributes
     //
@@ -362,12 +364,8 @@ private:
 
     boost::asio::io_context io_;
     std::set<std::shared_ptr<std::thread> > io_threads_;
-#if VSOMEIP_BOOST_VERSION >= 106600
     std::shared_ptr<boost::asio::executor_work_guard<
         boost::asio::io_context::executor_type> > work_;
-#else
-    std::shared_ptr<boost::asio::io_context::work> work_;
-#endif
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;
@@ -391,8 +389,7 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_state_handler_t,
-            bool>>> availability_major_minor_t;
+    typedef std::map<major_version_t, std::map<minor_version_t, availability_state_handler_t>> availability_major_minor_t;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
@@ -478,7 +475,7 @@ private:
                 std::map<event_t, subscription_state_e>
             >
         >
-    > subscription_state_;
+    > subscriptions_state_;
 
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;

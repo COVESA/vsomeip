@@ -11,12 +11,7 @@
 #include <chrono>
 
 #include <boost/asio/ip/address.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 
 #include "../../routing/include/function_types.hpp"
 #include "../../routing/include/types.hpp"

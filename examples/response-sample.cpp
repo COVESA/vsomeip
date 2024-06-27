@@ -51,10 +51,6 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         running_ = false;
         blocked_ = true;
@@ -70,7 +66,6 @@ public:
         }
         app_->stop();
     }
-#endif
 
     void offer() {
         app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
@@ -186,6 +181,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

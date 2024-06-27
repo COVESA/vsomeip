@@ -28,17 +28,16 @@ public:
     void wait();
 
 private:
-    void on_availability(
-            vsomeip::service_t _service, vsomeip::instance_t _instance,
-            bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_message);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
+                         bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _message);
 
     void run_test();
     void unsubscribe_all();
     void stop_service();
 
-    bool compare_payload(const std::shared_ptr<vsomeip::payload> &_payload,
-            std::size_t _index) const;
+    bool compare_payload(const std::shared_ptr<vsomeip::payload>& _payload,
+                         std::size_t _index) const;
 
 private:
     debounce_test_id_e test_id_;

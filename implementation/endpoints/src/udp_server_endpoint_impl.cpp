@@ -8,10 +8,8 @@
 #include <thread>
 
 #include <boost/asio/ip/multicast.hpp>
-#if VSOMEIP_BOOST_VERSION >= 106600
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/ip/network_v6.hpp>
-#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -24,7 +22,7 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../service_discovery/include/defines.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace ip = boost::asio::ip;
@@ -33,30 +31,20 @@ namespace vsomeip_v3 {
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        boost::asio::io_context &_io,
-        const std::shared_ptr<configuration>& _configuration) :
-#if VSOMEIP_BOOST_VERSION >= 106600
-      server_endpoint_impl<ip::udp>(
-#else
-      server_endpoint_impl<ip::udp_ext>(
-#endif
-              _endpoint_host, _routing_host, _local,
-              _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
-              _configuration->get_endpoint_queue_limit(_configuration->get_unicast_address().to_string(), _local.port()),
-              _configuration),
-      unicast_socket_(_io, _local.protocol()),
-      unicast_recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
-      is_v4_(false),
-      multicast_id_(0),
-      joined_group_(false),
-      netmask_(_configuration->get_netmask()),
-      prefix_(_configuration->get_prefix()),
-      local_port_(_local.port()),
-      tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)),
-      tp_cleanup_timer_(_io),
-      is_stopped_(true) {
+        const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
+        boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
+    server_endpoint_impl<ip::udp>(
+            _endpoint_host, _routing_host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
+            _configuration->get_endpoint_queue_limit(
+                    _configuration->get_unicast_address().to_string(), _local.port()),
+            _configuration),
+    unicast_socket_(_io, _local.protocol()), unicast_recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
+    is_v4_(false), multicast_id_(0), joined_group_(false), netmask_(_configuration->get_netmask()),
+    prefix_(_configuration->get_prefix()), local_port_(_local.port()),
+    tp_reassembler_(std::make_shared<tp::tp_reassembler>(
+            _configuration->get_max_message_size_unreliable(), _io)),
+    tp_cleanup_timer_(_io), is_stopped_(true), on_unicast_sent_ {nullptr},
+    receive_own_multicast_messages_(false), on_sent_multicast_received_ {nullptr} {
     is_supporting_someip_tp_ = true;
 
     boost::system::error_code ec;
@@ -239,10 +227,9 @@ void udp_server_endpoint_impl::receive_unicast() {
 void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 
     if (_multicast_id == multicast_id_ && multicast_socket_ && multicast_socket_->is_open()) {
-#if VSOMEIP_BOOST_VERSION >= 106600
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
             multicast_mutex_,
-            *multicast_socket_,
+            multicast_socket_,
             multicast_remote_,
             std::bind(
                 &udp_server_endpoint_impl::on_multicast_received,
@@ -261,21 +248,6 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
             std::numeric_limits<std::size_t>::min()
         );
         multicast_socket_->async_wait(socket_type::wait_read, udp_endpoint_receive_op::receive_cb(its_storage));
-#else
-        multicast_socket_->async_receive_from(
-            boost::asio::buffer(&multicast_recv_buffer_[0], max_message_size_),
-            multicast_remote_,
-            std::bind(
-                &udp_server_endpoint_impl::on_multicast_received,
-                std::dynamic_pointer_cast<
-                    udp_server_endpoint_impl >(shared_from_this()),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                _multicast_id,
-                std::placeholders::_3
-            )
-        );
-#endif
     }
 }
 
@@ -299,7 +271,7 @@ bool udp_server_endpoint_impl::send_error(
     auto& its_data = its_target_iterator->second;
 
     if (check_message_size(nullptr, _size, its_target) == endpoint_impl::cms_ret_e::MSG_OK &&
-        check_queue_limit(_data, _size, its_data.queue_size_)) {
+        check_queue_limit(_data, _size, its_data)) {
         its_data.queue_.emplace_back(
                 std::make_pair(std::make_shared<message_buffer_t>(_data, _data + _size), 0));
         its_data.queue_size_ += _size;
@@ -346,17 +318,14 @@ bool udp_server_endpoint_impl::send_queued(
 
     _it->second.is_sending_ = true;
     unicast_socket_.async_send_to(
-        boost::asio::buffer(*its_entry.first),
-        _it->first,
-        std::bind(
-            &udp_server_endpoint_base_impl::send_cbk,
-            shared_from_this(),
-            _it->first,
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
-
+            boost::asio::buffer(*its_entry.first), _it->first,
+            [this, _it, its_entry](boost::system::error_code const& _error, std::size_t _bytes) {
+                if (!_error && on_unicast_sent_ && !_it->first.address().is_multicast()) {
+                    on_unicast_sent_(&(its_entry.first)->at(0), static_cast<uint32_t>(_bytes),
+                                     _it->first.address());
+                }
+                send_cbk(_it->first, _error, _bytes);
+            });
     return false;
 }
 
@@ -413,11 +382,7 @@ void udp_server_endpoint_impl::join_unlocked(const std::string &_address) {
             auto its_endpoint_host = endpoint_host_.lock();
             if (its_endpoint_host) {
                 multicast_option_t its_join_option { shared_from_this(), true,
-#if VSOMEIP_BOOST_VERSION < 106600
-                    boost::asio::ip::address::from_string(_address) };
-#else
                     boost::asio::ip::make_address(_address) };
-#endif
                 its_endpoint_host->add_multicast_option(its_join_option);
             }
 
@@ -454,11 +419,7 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string &_address) {
                 auto its_endpoint_host = endpoint_host_.lock();
                 if (its_endpoint_host) {
                     multicast_option_t its_leave_option { shared_from_this(),
-#if VSOMEIP_BOOST_VERSION < 106600
-                    false, boost::asio::ip::address::from_string(_address) };
-#else
                     false, boost::asio::ip::make_address(_address) };
-#endif
                     its_endpoint_host->add_multicast_option(its_leave_option);
                 }
             }
@@ -538,16 +499,19 @@ void udp_server_endpoint_impl::on_multicast_received(
             || _error == boost::asio::error::connection_reset) {
         shutdown_and_close();
     } else if (_error != boost::asio::error::operation_aborted) {
-        // Filter messages sent from the same source address
-        if (multicast_remote_.address() != local_.address()
-                && is_same_subnet(multicast_remote_.address())) {
 
-            auto find_joined = joined_.find(_destination.to_string());
-            if (find_joined != joined_.end())
-                find_joined->second = true;
+        if (multicast_remote_.address() != local_.address()) {
+            if (is_same_subnet(multicast_remote_.address())) {
+                auto find_joined = joined_.find(_destination.to_string());
+                if (find_joined != joined_.end())
+                    find_joined->second = true;
 
-            on_message_received(_error, _bytes, true,
-                    multicast_remote_, multicast_recv_buffer_);
+                on_message_received(_error, _bytes, true, multicast_remote_,
+                                    multicast_recv_buffer_);
+            }
+        } else if (receive_own_multicast_messages_ && on_sent_multicast_received_) {
+            on_sent_multicast_received_(&multicast_recv_buffer_[0], static_cast<uint32_t>(_bytes),
+                                        boost::asio::ip::address());
         }
 
         receive_multicast(_multicast_id);
@@ -631,44 +595,39 @@ void udp_server_endpoint_impl::on_message_received(
                         return;
                     }
                     remaining_bytes -= current_message_size;
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(_buffer[i + VSOMEIP_SERVICE_POS_MIN],
-                                                                        _buffer[i + VSOMEIP_SERVICE_POS_MAX]);
+                    const service_t its_service = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SERVICE_POS_MIN]);
+
                     if (utility::is_request(
                             _buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
-                        const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                                _buffer[i + VSOMEIP_CLIENT_POS_MIN],
-                                _buffer[i + VSOMEIP_CLIENT_POS_MAX]);
+                        const client_t its_client = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_CLIENT_POS_MIN]);
                         if (its_client != MAGIC_COOKIE_CLIENT) {
-                            const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                    _buffer[i + VSOMEIP_SESSION_POS_MIN],
-                                    _buffer[i + VSOMEIP_SESSION_POS_MAX]);
+                            const session_t its_session = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SESSION_POS_MIN]);
                             clients_mutex_.lock();
                             clients_[its_client][its_session] = _remote;
                             clients_mutex_.unlock();
                         }
                     }
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
-                        const method_t its_method = VSOMEIP_BYTES_TO_WORD(_buffer[i + VSOMEIP_METHOD_POS_MIN],
-                                                                          _buffer[i + VSOMEIP_METHOD_POS_MAX]);
-                        if (!tp_segmentation_enabled(its_service, its_method)) {
-                            VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
-                                    << " method: 0x" << its_method << " which is not configured for TP:"
-                                    << " local: " << get_address_port_local()
-                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
-                            return;
+                        const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
+                        instance_t its_instance = this->get_instance(its_service);
+
+                        if (its_instance != ANY_INSTANCE) {
+                            if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                                VSOMEIP_WARNING << "use: Received a SomeIP/TP message for service: 0x" << std::hex << its_service
+                                        << " method: 0x" << its_method << " which is not configured for TP:"
+                                        << " local: " << get_address_port_local()
+                                        << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                                return;
+                            }
                         }
                         const auto res = tp_reassembler_->process_tp_message(
                                 &_buffer[i], current_message_size,
                                 its_remote_address, its_remote_port);
                         if (res.first) {
                             if (utility::is_request(res.second[VSOMEIP_MESSAGE_TYPE_POS])) {
-                                const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                                        res.second[VSOMEIP_CLIENT_POS_MIN],
-                                        res.second[VSOMEIP_CLIENT_POS_MAX]);
+                                const client_t its_client = bithelper::read_uint16_be(&res.second[VSOMEIP_CLIENT_POS_MIN]);
                                 if (its_client != MAGIC_COOKIE_CLIENT) {
-                                    const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                                            res.second[VSOMEIP_SESSION_POS_MIN],
-                                            res.second[VSOMEIP_SESSION_POS_MAX]);
+                                    const session_t its_session = bithelper::read_uint16_be(&res.second[VSOMEIP_SESSION_POS_MIN]);
                                     std::lock_guard<std::mutex> its_client_lock(clients_mutex_);
                                     clients_[its_client][its_session] = _remote;
                                 }
@@ -701,8 +660,7 @@ void udp_server_endpoint_impl::on_message_received(
                             << " local: " << get_address_port_local()
                             << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                     if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
-                        service_t its_service = VSOMEIP_BYTES_TO_WORD(_buffer[VSOMEIP_SERVICE_POS_MIN],
-                                _buffer[VSOMEIP_SERVICE_POS_MAX]);
+                        service_t its_service = bithelper::read_uint16_be(&_buffer[VSOMEIP_SERVICE_POS_MIN]);
                         if (its_service != VSOMEIP_SD_SERVICE) {
                             if (read_message_size == 0) {
                                 VSOMEIP_ERROR << "Ignoring unreliable vSomeIP message with SomeIP message length 0!";
@@ -724,34 +682,8 @@ void udp_server_endpoint_impl::on_message_received(
 }
 
 bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_address) const {
-
     bool is_same(true);
-#if VSOMEIP_BOOST_VERSION < 106600
-    // TODO: This needs some (more) testing
-    if (_address.is_v4()) {
-        uint32_t its_local(uint32_t(local_.address().to_v4().to_ulong()));
-        uint32_t its_mask(uint32_t(netmask_.to_v4().to_ulong()));
-        uint32_t its_address(uint32_t(_address.to_v4().to_ulong()));
 
-        return ((its_local & its_mask) == (its_address & its_mask));
-    } else {
-        boost::asio::ip::address_v6::bytes_type its_local(local_.address().to_v6().to_bytes());
-        boost::asio::ip::address_v6::bytes_type its_address(_address.to_v6().to_bytes());
-
-        for (size_t i = 0; i < its_local.size(); ++i) {
-            byte_t its_mask(0x00);
-            if ((i+1) * sizeof(byte_t) <= prefix_)
-                its_mask = 0xff;
-            else if (i <= prefix_)
-                its_mask = byte_t(0xff << (((i+1) * sizeof(byte_t)) - prefix_));
-
-            if ((its_local[i] & its_mask) != (its_address[i] & its_mask))
-                return false;
-        }
-
-        return true;
-    }
-#else
     if (_address.is_v4()) {
         boost::asio::ip::network_v4 its_network(local_.address().to_v4(), netmask_.to_v4());
         boost::asio::ip::address_v4_range its_hosts = its_network.hosts();
@@ -761,7 +693,7 @@ bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address &_a
         boost::asio::ip::address_v6_range its_hosts = its_network.hosts();
         is_same = (its_hosts.find(_address.to_v6()) != its_hosts.end());
     }
-#endif
+
     return is_same;
 }
 
@@ -828,11 +760,9 @@ std::string udp_server_endpoint_impl::get_address_port_local() const {
 }
 
 bool udp_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
+        service_t _service, instance_t _instance, method_t _method) const {
 
-    return configuration_->is_tp_service(_service,
-            local_.address().to_string(), local_.port(),
-            _method);
+    return configuration_->is_tp_service(_service, _instance, _method);
 }
 
 void
@@ -988,12 +918,25 @@ udp_server_endpoint_impl::set_multicast_option(
 
                     multicast_socket_->cancel(ec);
 
-                    multicast_socket_.reset(nullptr);
+                    multicast_socket_.reset();
                     multicast_local_.reset(nullptr);
                 }
             }
         }
     }
+}
+
+void udp_server_endpoint_impl::set_unicast_sent_callback(const on_unicast_sent_cbk_t& _cbk) {
+    on_unicast_sent_ = _cbk;
+}
+
+void udp_server_endpoint_impl::set_sent_multicast_received_callback(
+        const on_sent_multicast_received_cbk_t& _cbk) {
+    on_sent_multicast_received_ = _cbk;
+}
+
+void udp_server_endpoint_impl::set_receive_own_multicast_messages(bool value) {
+    receive_own_multicast_messages_ = value;
 }
 
 } // namespace vsomeip_v3

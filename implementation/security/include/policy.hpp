@@ -14,6 +14,9 @@
 
 #include <boost/icl/interval_map.hpp>
 #include <boost/icl/interval_set.hpp>
+#if defined(__QNX__)
+#include <boost/icl/concept/interval_associator.hpp>
+#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/primitive_types.hpp>

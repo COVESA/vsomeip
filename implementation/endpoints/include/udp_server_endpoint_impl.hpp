@@ -6,28 +6,23 @@
 #ifndef VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/ip/udp_ext.hpp>
-#else
 #include <boost/asio/ip/udp.hpp>
-#endif
-
 #include <vsomeip/defines.hpp>
 
 #include "server_endpoint_impl.hpp"
 #include "tp_reassembler.hpp"
 
 namespace vsomeip_v3 {
-
-#if VSOMEIP_BOOST_VERSION < 106600
-typedef server_endpoint_impl<
-            boost::asio::ip::udp_ext
-        > udp_server_endpoint_base_impl;
-#else
 typedef server_endpoint_impl<
             boost::asio::ip::udp
         > udp_server_endpoint_base_impl;
-#endif
+
+// callback type to sent messages (SD)
+using on_unicast_sent_cbk_t =
+        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+// callback type to own multicast messages received
+using on_sent_multicast_received_cbk_t =
+        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
 
 class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 
@@ -72,6 +67,12 @@ public:
     void print_status();
     bool is_reliable() const;
 
+    // Callback to sent messages
+    void set_unicast_sent_callback(const on_unicast_sent_cbk_t& _cbk);
+    // to own multicast messages received
+    void set_sent_multicast_received_callback(const on_sent_multicast_received_cbk_t& _cbk);
+    void set_receive_own_multicast_messages(bool value);
+
 private:
     void leave_unlocked(const std::string &_address);
     void set_broadcast();
@@ -84,7 +85,10 @@ private:
     std::string get_remote_information(const endpoint_type& _remote) const;
 
     std::string get_address_port_local() const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
+    bool tp_segmentation_enabled(
+            service_t _service,
+            instance_t _instance,
+            method_t _method) const;
 
     void on_unicast_received(boost::system::error_code const &_error,
             std::size_t _bytes);
@@ -113,7 +117,7 @@ private:
 
     bool is_v4_;
 
-    std::unique_ptr<socket_type> multicast_socket_;
+    std::shared_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
     endpoint_type multicast_remote_;
     message_buffer_t multicast_recv_buffer_;
@@ -137,6 +141,13 @@ private:
     std::chrono::steady_clock::time_point last_sent_;
 
     std::atomic<bool> is_stopped_;
+
+    // to tracking sent messages
+    on_unicast_sent_cbk_t on_unicast_sent_;
+
+    // to receive own multicast messages
+    bool receive_own_multicast_messages_;
+    on_sent_multicast_received_cbk_t on_sent_multicast_received_;
 };
 
 } // namespace vsomeip_v3

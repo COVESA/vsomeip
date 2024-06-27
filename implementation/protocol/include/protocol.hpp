@@ -53,6 +53,7 @@ enum class id_e : uint8_t {
     UPDATE_SECURITY_POLICY_INT_ID = 0x29,
     EXPIRE_ID = 0x2A,
     SUSPEND_ID = 0x30,
+    CONFIG_ID = 0x31,
     UNKNOWN_ID = 0xFF
 };
 

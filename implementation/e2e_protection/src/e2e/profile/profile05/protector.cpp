@@ -7,7 +7,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 #include "../../../../include/e2e/profile/profile05/protector.hpp"
-#include "../../../../../utility/include/byteorder.hpp"
+#include "../../../../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -30,8 +30,7 @@ void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
 
         // compute the CRC
         uint16_t its_crc = profile_05::compute_crc(config_, _buffer);
-
-        write_crc(_buffer, its_crc, 0);
+        bithelper::write_uint16_be(its_crc, &_buffer[config_.offset_]);
 
         // increment the Counter (new value will be used in the next invocation of E2E_P05Protect()),
         increment_counter(_instance);
@@ -42,13 +41,6 @@ void
 protector::write_counter(e2e_buffer &_buffer, uint8_t _data, size_t _index) {
 
     _buffer[config_.offset_ + _index] = _data;
-}
-
-void
-protector::write_crc(e2e_buffer &_buffer, uint16_t _data, size_t _index) {
-
-    _buffer[config_.offset_ + _index] = VSOMEIP_WORD_BYTE0(_data);
-    _buffer[config_.offset_ + _index + 1] = VSOMEIP_WORD_BYTE1(_data);
 }
 
 uint8_t

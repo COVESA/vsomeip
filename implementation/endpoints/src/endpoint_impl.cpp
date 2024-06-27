@@ -6,10 +6,6 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/local/stream_protocol_ext.hpp>
-#include <boost/asio/ip/udp_ext.hpp>
-#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
@@ -150,17 +146,10 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 
 // Instantiate template
 #if defined(__linux__) || defined(__QNX__)
-#if VSOMEIP_BOOST_VERSION < 106600
-template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#endif
 template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 
 template class endpoint_impl<boost::asio::ip::tcp>;
 template class endpoint_impl<boost::asio::ip::udp>;
-
-#if VSOMEIP_BOOST_VERSION < 106600
-template class endpoint_impl<boost::asio::ip::udp_ext>;
-#endif
 
 } // namespace vsomeip_v3

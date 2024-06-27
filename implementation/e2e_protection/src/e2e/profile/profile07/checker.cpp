@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../../../../include/e2e/profile/profile07/checker.hpp"
-#include "../../../../../utility/include/byteorder.hpp"
+#include "../../../../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -87,26 +87,16 @@ bool
 profile_07_checker::read_32(const e2e_buffer &_buffer,
         uint32_t &_data, size_t _index) const {
 
-    _data = VSOMEIP_BYTES_TO_LONG(_buffer[config_.offset_ + _index],
-                                  _buffer[config_.offset_ + _index + 1],
-                                  _buffer[config_.offset_ + _index + 2],
-                                  _buffer[config_.offset_ + _index + 3]);
+    _data = bithelper::read_uint32_be(&_buffer[config_.offset_ + _index]);
     return true;
 }
 
 // Read uint64_t as big-endian
 bool
-profile_07_checker::read_64(const e2e_buffer &_buffer, 
+profile_07_checker::read_64(const e2e_buffer &_buffer,
         uint64_t &_data, size_t _index) const {
 
-    _data = VSOMEIP_BYTES_TO_LONG_LONG(_buffer[config_.offset_ + _index],
-                                  _buffer[config_.offset_ + _index + 1],
-                                  _buffer[config_.offset_ + _index + 2],
-                                  _buffer[config_.offset_ + _index + 3],
-                                  _buffer[config_.offset_ + _index + 4],
-                                  _buffer[config_.offset_ + _index + 5],
-                                  _buffer[config_.offset_ + _index + 6],
-                                  _buffer[config_.offset_ + _index + 7]);
+    _data = bithelper::read_uint64_be(&_buffer[config_.offset_ + _index]);
     return true;
 }
 

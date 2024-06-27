@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,11 +6,12 @@
 #include "../include/endpoint_manager_base.hpp"
 
 #include <vsomeip/internal/logger.hpp>
-#include "../../utility/include/utility.hpp"
-#include "../../routing/include/routing_manager_base.hpp"
-#include "../../configuration/include/configuration.hpp"
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
+#include "../../configuration/include/configuration.hpp"
+#include "../../protocol/include/config_command.hpp"
+#include "../../routing/include/routing_manager_base.hpp"
+#include "../../utility/include/utility.hpp"
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_client_endpoint_impl.hpp"
@@ -51,11 +52,18 @@ void endpoint_manager_base::remove_local(const client_t _client) {
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
-    std::shared_ptr<endpoint> its_endpoint(find_local_unlocked(_client));
-    if (!its_endpoint) {
-        its_endpoint = create_local_unlocked(_client);
+    std::shared_ptr<endpoint> its_endpoint {nullptr};
+    {
+        std::scoped_lock its_lock {local_endpoint_mutex_};
+        its_endpoint = find_local_unlocked(_client);
+        if (!its_endpoint) {
+            its_endpoint = create_local_unlocked(_client);
+        }
+    }
+    if (its_endpoint) {
         its_endpoint->start();
+    } else {
+        VSOMEIP_ERROR << __func__ << ": couldn't find or create endpoint for client " << _client;
     }
     return its_endpoint;
 }
@@ -97,11 +105,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         try {
             its_server_endpoint = std::make_shared<local_uds_server_endpoint_impl>(
                     shared_from_this(), _routing_host,
-#    if VSOMEIP_BOOST_VERSION < 106600
-                    boost::asio::local::stream_protocol_ext::endpoint(its_path.str()),
-#    else
                     boost::asio::local::stream_protocol::endpoint(its_path.str()),
-#    endif
                     io_,
                     configuration_, false);
 
@@ -315,8 +319,10 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
             local_endpoints_[_client] = its_endpoint;
         }
         rm_->register_client_error_handler(_client, its_endpoint);
+    } else {
+        VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client()
+                        << ") not connected. Ignoring client assignment";
     }
-
     return its_endpoint;
 }
 

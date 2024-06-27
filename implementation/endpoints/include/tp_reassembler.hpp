@@ -11,12 +11,7 @@
 #include <mutex>
 #include <memory>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/steady_timer.hpp>
 
@@ -24,6 +19,9 @@
 
 #include "tp_message.hpp"
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
 
 namespace vsomeip_v3 {
 namespace tp {

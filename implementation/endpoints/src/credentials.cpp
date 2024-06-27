@@ -108,7 +108,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
 void credentials::send_credentials(const int _fd, client_t _client, std::string _client_host) {
     struct msghdr msgh;
     struct iovec iov[3];
-    uint8_t client_host_length = (uint8_t)_client_host.length();
+    auto client_host_length = static_cast<uint8_t>(_client_host.length());
 
     // data to send
     msgh.msg_iov = &iov[0];

@@ -85,9 +85,12 @@ public:
 
     bool send(bool _is_announcing);
 
-    void on_message(const byte_t *_data, length_t _length,
-            const boost::asio::ip::address &_sender,
-            bool _is_multicast);
+    void on_message(const byte_t* _data, length_t _length, const boost::asio::ip::address& _sender,
+                    bool _is_multicast);
+
+    void
+    sent_messages(const byte_t* _data, length_t _size,
+                  const boost::asio::ip::address& _remote_address = boost::asio::ip::address());
 
     void on_endpoint_connected(
             service_t _service, instance_t _instance,
@@ -153,6 +156,8 @@ private:
             const std::vector<std::shared_ptr<option_impl> > &_options,
             bool _unicast_flag, std::vector<std::shared_ptr<message_impl> > &_resubscribes,
             bool _received_via_mcast, const sd_acceptance_state_t& _sd_ac_state);
+    void check_sent_offers(const message_impl::entries_t& _entries,
+                           const boost::asio::ip::address& _remote_address) const;
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl,
@@ -180,18 +185,16 @@ private:
             bool _is_multicast,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
             const sd_acceptance_state_t& _sd_ac_state);
-    void handle_eventgroup_subscription(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+    void handle_eventgroup_subscription(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
-            const boost::asio::ip::address &_first_address, uint16_t _first_port,
-            bool _is_first_reliable,
-            const boost::asio::ip::address &_second_address, uint16_t _second_port,
-            bool _is_second_reliable,
-            std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+            const boost::asio::ip::address& _first_address, uint16_t _first_port,
+            bool _is_first_reliable, const boost::asio::ip::address& _second_address,
+            uint16_t _second_port, bool _is_second_reliable,
+            std::shared_ptr<remote_subscription_ack>& _acknowledgement,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
-            const std::set<client_t> &_clients,
-            const sd_acceptance_state_t& _sd_ac_state,
-            const std::shared_ptr<eventgroupinfo>& _info);
+            const std::set<client_t>& _clients, const sd_acceptance_state_t& _sd_ac_state,
+            const std::shared_ptr<eventgroupinfo>& _info, const boost::asio::ip::address& _sender);
     void handle_eventgroup_subscription_ack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter,
@@ -359,6 +362,9 @@ private:
     reliability_type_e get_eventgroup_reliability(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<subscription>& _subscription);
+    void deserialize_data(const byte_t* _data, const length_t& _size,
+                          std::shared_ptr<message_impl>& _message);
+
 private:
     boost::asio::io_context &io_;
     service_discovery_host *host_;
@@ -384,6 +390,7 @@ private:
     std::recursive_mutex subscribed_mutex_;
 
     std::mutex serialize_mutex_;
+    std::mutex deserialize_mutex_;
 
     // Sessions
     std::map<boost::asio::ip::address, std::pair<session_t, bool> > sessions_sent_;
