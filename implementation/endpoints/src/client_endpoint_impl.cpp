@@ -324,6 +324,7 @@ void client_endpoint_impl<Protocol>::send_segments(
     // messages as we will send several now anyway.
     if (!train_->passengers_.empty()) {
         schedule_train();
+        train_ = std::make_shared<train>();
         train_->departure_ = its_now + its_retention;
     }
 
