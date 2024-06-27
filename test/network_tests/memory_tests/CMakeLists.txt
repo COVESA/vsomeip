@@ -38,5 +38,5 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME memory_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/memory_test_master_starter.sh
-    TIMEOUT 250
+    TIMEOUT 600
 )

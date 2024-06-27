@@ -11,7 +11,7 @@
   },
   "tracing" :
   {
-    "enable" : "true"
+    "enable" : "false"
   },
   "services" :
   [
