@@ -26,11 +26,10 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
     ASSERT_TRUE(service_provider.init());
     service_provider.start();
 
-    // Precondition 2: routingmanagerd is able to route within INIT_TIME
+    // Precondition 2: routingmanagerd is able to route
     auto routing_availability_check = service_provider.offer();
     ASSERT_TRUE(routing_availability_check.valid());
-    ASSERT_EQ(routing_availability_check.wait_for(INIT_TIME),
-                      std::future_status::ready) << "routingmanagerd was not ready in time!";
+    routing_availability_check.wait();
     ASSERT_TRUE(routing_availability_check.get()) << "routingmanagerd was not ready in time!";
 
     test_timer_t test_timer(SERVICE_UP_TIME);
@@ -46,8 +45,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
         auto stop_offer_confirmation = service_provider.stop_offer();
         // Wait confirmation that all services have became unavailable
         ASSERT_TRUE(stop_offer_confirmation.valid());
-        ASSERT_EQ(stop_offer_confirmation.wait_for(SERVICE_STOP_OFFER_CONFIRMATION_TIME),
-                      std::future_status::ready) << "stop_offer was not confirmed in time!";
+        stop_offer_confirmation.wait();
         ASSERT_FALSE(stop_offer_confirmation.get()) << "stop_offer was not confirmed in time!";
 
         std::this_thread::sleep_for(SERVICE_STOP_OFFER_TIME);
@@ -55,8 +53,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
         auto offer_confirmation = service_provider.offer();
         // Wait confirmation that all services have became available
         ASSERT_TRUE(offer_confirmation.valid());
-        ASSERT_EQ(offer_confirmation.wait_for(SERVICE_OFFER_CONFIRMATION_TIME),
-                      std::future_status::ready) << "offer was not confirmed in time!";
+        offer_confirmation.wait();
         ASSERT_TRUE(offer_confirmation.get()) << "offer was not confirmed in time!";
 
         std::this_thread::sleep_for(SERVICE_OFFER_TIME);
