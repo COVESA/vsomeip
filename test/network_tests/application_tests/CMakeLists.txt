@@ -22,17 +22,31 @@ add_executable(application_test
     application_test.cpp
 )
 
-# Add build dependencies to executable.
-targets_add_default_dependencies(application_test)
+# Add the test executable for application_test_multiple_init
+add_executable(application_test_multiple_init
+    application_test_multiple_init.cpp
+)
 
-# Link default libraries.
-targets_link_default_libraries(application_test)
+# Add build dependencies and link libraries to executables.
+set(executable_targets
+    application_test
+    application_test_multiple_init
+)
+targets_add_default_dependencies("${executable_targets}")
+targets_link_default_libraries("${executable_targets}")
 
 # Add custom test command.
 add_custom_test(
     NAME application_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
     TIMEOUT 80
+)
+
+# Add custom test command.
+add_custom_test(
+    NAME application_test_multiple_init
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init
+    TIMEOUT 180
 )
 
 if (NOT ${TESTS_BAT})

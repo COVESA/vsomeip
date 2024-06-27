@@ -67,6 +67,7 @@ connector_impl::~connector_impl() {
 }
 
 void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration) {
+    std::scoped_lock lk(configure_mutex_);
     if (_configuration) {
         is_enabled_ = _configuration->is_enabled_;
         is_sd_enabled_ = _configuration->is_sd_enabled_;
