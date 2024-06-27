@@ -393,13 +393,11 @@ void server_endpoint_impl<Protocol>::send_segments(
     }
 
     for (const auto &s : _segments) {
-        its_data.queue_.emplace_back(std::make_pair(s, _separation_time));
+        its_data.queue_.emplace_back(s, _separation_time);
         its_data.queue_size_ += s->size();
     }
 
     if (!its_data.is_sending_ && !its_data.queue_.empty()) { // no writing in progress
-        // respect minimal debounce time
-        schedule_train(its_data);
         // ignore retention time and send immediately as the train is full anyway
         (void)send_queued(its_target_iterator);
     }
@@ -664,7 +662,6 @@ void server_endpoint_impl<Protocol>::send_cbk(
             }
         }
     };
-
 
     std::lock_guard<std::mutex> its_lock(mutex_);
 

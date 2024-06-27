@@ -141,6 +141,18 @@ bool connector_impl::is_sd_message(const byte_t *_data, uint16_t _data_size) con
 
 std::shared_ptr<channel> connector_impl::add_channel(
         const trace_channel_t &_id, const std::string &_name) {
+    // register context
+#ifdef USE_DLT
+#ifndef ANDROID
+    {
+        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+        std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
+        contexts_[_id] = its_context;
+        DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
+                DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
+    }
+#endif
+#endif
     std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
 
     // check whether we already know the requested channel
@@ -154,16 +166,6 @@ std::shared_ptr<channel> connector_impl::add_channel(
     // add channel
     channels_[_id] = its_channel;
 
-    // register context
-#ifdef USE_DLT
-#ifndef ANDROID
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
-    std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
-    contexts_[_id] = its_context;
-    DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
-            DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
-#endif
-#endif
 
     return its_channel;
 }
@@ -228,11 +230,11 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
     instance_t its_instance = bithelper::read_uint16_be(&_header[VSOMEIP_TC_INSTANCE_POS_MIN]);
     method_t its_method     = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
-    // Forward to channel if the filter set of the channel allows
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
     #ifndef ANDROID
         std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
     #endif
+    // Forward to channel if the filter set of the channel allows
+    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
     for (auto its_channel : channels_) {
         auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
         if (ftype.first) {
