@@ -416,13 +416,16 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 
     if (_error == boost::asio::error::operation_aborted
             || endpoint_impl<Protocol>::sending_blocked_) {
-        // endpoint was stopped
+        VSOMEIP_WARNING << "cei::" << __func__ << ": endpoint stopped";
         shutdown_and_close_socket(false);
         return;
     }
     std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": restarting socket due to"
+                            << "(" << _error.value() << "):" << _error.message();
+
             shutdown_and_close_socket(true);
 
             if (state_ != cei_state_e::ESTABLISHED) {
@@ -439,6 +442,10 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
                 connect_timeout_ = (connect_timeout_ << 1);
         } else {
+            if (_error) {
+                VSOMEIP_WARNING << "cei::" << __func__ << ": connect_cbk attempt "
+                                << "(" << _error.value() << "):" << _error.message();
+            }
             {
                 std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
                 connect_timer_.cancel();
@@ -476,6 +483,11 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         operations_cancelled = connecting_timer_.cancel();
     }
     if (operations_cancelled != 0) {
+        if (_error) {
+            VSOMEIP_WARNING << "cei" << __func__ << ": cancelled " << operations_cancelled
+                            << " operations err: (" << _error.value()
+                            << "): msg: " << _error.message();
+        }
         connect_cbk(_error);
     }
 }
@@ -497,6 +509,10 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(
 
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect_cbk(boost::asio::error::timed_out);
+    } else {
+        VSOMEIP_WARNING << "cei::" << __func__ << ": not calling connect_cbk: "
+                        << "sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_
+                        << " (" << _error.value() << "):" << _error.message();
     }
 }
 
@@ -647,10 +663,19 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
 #endif
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket shutdown error "
+                            << "(" << its_error.value() << "): " << its_error.message();
+        }
         socket_->close(its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket close error "
+                            << "(" << its_error.value() << "): " << its_error.message();
+        }
     }
     if (_recreate_socket) {
         socket_.reset(new socket_type(endpoint_impl<Protocol>::io_));
+        VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset";
     }
 }
 
