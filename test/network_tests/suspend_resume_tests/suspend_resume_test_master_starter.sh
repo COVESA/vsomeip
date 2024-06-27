@@ -17,13 +17,16 @@ export VSOMEIP_APPLICATION_NAME=suspend_resume_test_service
 export VSOMEIP_CONFIGURATION=suspend_resume_test_service.json
 
 # start daemon
+echo -e "[TEST-sh]: Starting RoutingManager"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # start the service
+echo -e "\n\n[TEST-sh]: Started RoutingManager with PID=$PID_VSOMEIPD"
 ./suspend_resume_test_service $PID_VSOMEIPD &
 PID_SERVICE=$!
 
+echo -e "\n\n[TEST-sh]: Started Service with PID=$PID_SERVICE \n\n"
 sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then

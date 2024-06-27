@@ -11,6 +11,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <vsomeip/internal/logger.hpp>
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -18,7 +19,6 @@ using namespace vsomeip;
 using namespace std::chrono_literals;
 
 constexpr auto TIMEOUT_RESPONSE = 1000ms;
-constexpr auto TIMEOUT_AVAILABILITY = 1000ms;
 constexpr auto REQUESTS_NUMBER = 10;
 
 class common {
@@ -34,6 +34,7 @@ public:
     std::thread thread_id_;
     std::condition_variable condition_availability_;
     std::atomic_bool availability_;
+    std::atomic_bool msg_sent_;
 };
 
 void common::on_availability(service_t _service_id, instance_t _instance_id, bool _is_available) {
@@ -81,8 +82,8 @@ public:
 
     bool was_message_received() {
         std::unique_lock<std::mutex> lock(mutex_);
-        return condition_message_received_.wait_for(lock, std::chrono::milliseconds(TIMEOUT_AVAILABILITY),
-            [=] { return message_received_.load(); });
+        condition_message_received_.wait(lock, [=] { return message_received_.load(); });
+        return message_received_.load();
     }
 
     std::vector<uint8_t> getReceivedPayload() {
@@ -92,11 +93,12 @@ public:
 
     bool wait_availability() {
         std::unique_lock<std::mutex> lock(mutex_);
-        return condition_availability_.wait_for(lock, std::chrono::milliseconds(TIMEOUT_AVAILABILITY),
-            [=] { return availability_.load(); });
+        condition_availability_.wait(lock, [=] { return availability_.load(); });
+        return availability_.load();
     }
 
     void send_message(const std::vector<uint8_t>& _outgoing_payload) {
+        msg_sent_.store(false);
         auto request = runtime::get()->create_request();
         request->set_service(service_id_);
         request->set_instance(instance_id_);
@@ -106,7 +108,7 @@ public:
         app_->send(request);
 
         std::unique_lock<std::mutex> lock(mutex_);
-        condition_message_sent_.wait_for(lock, std::chrono::milliseconds(TIMEOUT_AVAILABILITY));
+        condition_message_sent_.wait(lock, [=] { return msg_sent_.load(); });
     }
 
     ~client() {
@@ -120,18 +122,30 @@ private:
     }
 
     void on_message(const std::shared_ptr<message>& _message) {
-        condition_message_sent_.notify_one();
         auto its_payload = _message->get_payload();
         auto const len = its_payload->get_length();
 
+        std::stringstream msg;
         {
             std::lock_guard<std::mutex> its_lock(payload_mutex_);
             received_payload_.clear();
             for (uint32_t i = 0; i < len; ++i) {
                 received_payload_.push_back(*(its_payload->get_data() + i));
+                msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*(its_payload->get_data() + i)) << " ";
             }
-
         }
+
+        VSOMEIP_INFO << "[TEST] Got message from "
+                     << std::hex << std::setw(4) << std::setfill('0') << _message->get_service() << "."
+                     << std::hex << std::setw(4) << std::setfill('0') << _message->get_instance()
+                     << " length " << std::dec << len << " and payload " << msg.str();
+        {
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            msg_sent_.store(true);
+            condition_message_sent_.notify_one();
+        }
+
+        std::lock_guard<std::mutex> its_lock(mutex_);
         if (_message->get_service() == service_id_ && _message->get_instance() == instance_id_) {
             message_received_.store(true);
             condition_message_received_.notify_one();
@@ -182,8 +196,8 @@ public:
 
     bool wait_availability() {
         std::unique_lock<std::mutex> lock(mutex_);
-        return condition_availability_.wait_for(lock, std::chrono::milliseconds(TIMEOUT_AVAILABILITY),
-            [=] { return availability_.load(); });
+        condition_availability_.wait(lock, [=] { return availability_.load(); });
+        return availability_.load();
     }
 
     ~server() {
@@ -195,12 +209,15 @@ private:
     void on_message(const std::shared_ptr<message>& _message) {
         const vsomeip::length_t len = _message->get_payload()->get_length();
         std::vector<uint8_t> out_payload;
+        std::stringstream msg;
         for (uint32_t i = 0; i < len; ++i) {
             out_payload.push_back(*(_message->get_payload()->get_data() + i));
+            msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*(_message->get_payload()->get_data() + i)) << " ";
         }
         std::shared_ptr<vsomeip::message> response = runtime::get()->create_response(_message);
         response->set_payload(vsomeip::runtime::get()->create_payload(out_payload));
 
+        VSOMEIP_INFO << "[TEST] Sending " << msg.str();
         app_->send(response);
     }
 
@@ -244,21 +261,25 @@ TEST(offer_test, multiple_offerings_same_service)
 
     server service_1(service_id, instance_id, major, minor);
     service_1.wait_availability();
+    VSOMEIP_INFO << "[TEST] Service 1 is AVAILABLE";
 
     server service_2(service_id, instance_id, major, minor);
     service_2.wait_availability();
+    VSOMEIP_INFO << "[TEST] Service 2 is AVAILABLE";
 
     client client(service_id, instance_id, major, minor);
     client.wait_availability();
+    VSOMEIP_INFO << "[TEST] Client is AVAILABLE";
 
     // Without suspending the deamon, the client immediatly closes.
     daemon.set_routing_state(routing_state_e::RS_SUSPENDED);
 
     for (int i = 0; i < REQUESTS_NUMBER; ++i) {
+        VSOMEIP_INFO << "[TEST] Sending Loop " << i;
         // NOTE: Don't remove the sleep. VSOME/IP needs some time until it sends a PONG message to
         // services. Otherwise we can't detect service availability correctly later.
         std::this_thread::sleep_for(TIMEOUT_RESPONSE);
-        std::vector<uint8_t> out_payload = { 2 };
+        std::vector<uint8_t> out_payload = { uint8_t(i) };
         client.send_message(out_payload);
         // Independant of the number of offerings, the client must never fail it's assertions.
         ASSERT_TRUE(client.was_message_received()) << "Message was not received";

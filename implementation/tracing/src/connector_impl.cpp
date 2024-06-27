@@ -97,9 +97,9 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
     }
 
     VSOMEIP_INFO << "vsomeip tracing "
-        << (is_enabled_ ? "enabled " : "not enabled. ")
-        << ". vsomeip service discovery tracing "
-        << (is_sd_enabled_ ? "enabled " : "not enabled. ");
+        << (is_enabled_ ? "enabled." : "not enabled.")
+        << " vsomeip service discovery tracing "
+        << (is_sd_enabled_ ? "enabled." : "not enabled.");
 }
 
 void connector_impl::reset() {
