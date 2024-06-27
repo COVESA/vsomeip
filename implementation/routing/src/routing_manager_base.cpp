@@ -91,18 +91,18 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
             debounce_timer.expires_from_now(std::chrono::duration_cast<std::chrono::milliseconds>(debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
             debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
         }
-    } 
+    }
 }
 
 void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const  std::shared_ptr<vsomeip_v3::event> &_event) {
     if (_filter->send_current_value_after_ == true) {
         std::lock_guard<std::mutex> its_lock(debounce_mutex_);
         auto sec = std::chrono::milliseconds(_filter->interval_);
-        auto timeout = std::chrono::steady_clock::now() + sec;                    
+        auto timeout = std::chrono::steady_clock::now() + sec;
 
         auto elem = debounce_clients_.emplace(timeout, std::make_tuple(_client, false, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                std::placeholders::_1, _event, _client, _filter), _event->get_event()));        
-                    
+                std::placeholders::_1, _event, _client, _filter), _event->get_event()));
+
         if (elem == debounce_clients_.begin()) {
             debounce_timer.cancel();
             debounce_timer.expires_from_now(sec);
@@ -993,7 +993,6 @@ void routing_manager_base::notify_one_current_value(
 
 bool routing_manager_base::send(client_t _client,
         std::shared_ptr<message> _message, bool _force) {
-
     bool is_sent(false);
     if (utility::is_request(_message->get_message_type())) {
         _message->set_client(_client);

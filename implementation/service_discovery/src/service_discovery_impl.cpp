@@ -1131,6 +1131,7 @@ service_discovery_impl::on_message(
     if(is_suspended_) {
         return;
     }
+
     // ignore all SD messages with source address equal to node's unicast address
     if (!check_source_address(_sender)) {
         return;
@@ -1152,15 +1153,14 @@ service_discovery_impl::on_message(
     }
 
     current_remote_address_ = _sender;
-    deserializer_->set_data(_data, _length);
-    std::shared_ptr<message_impl> its_message(
-            deserializer_->deserialize_sd_message());
-    deserializer_->reset();
+    std::shared_ptr<message_impl> its_message;
+    deserialize_data(_data, _length, its_message);
     if (its_message) {
         // ignore all messages which are sent with invalid header fields
         if(!check_static_header_fields(its_message)) {
             return;
         }
+
         // Expire all subscriptions / services in case of reboot
         if (is_reboot(_sender, _is_multicast,
                 its_message->get_reboot_flag(), its_message->get_session())) {
@@ -1306,7 +1306,47 @@ service_discovery_impl::on_message(
     }
 }
 
+void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size,
+                                           const boost::asio::ip::address& _remote_address) {
+    std::shared_ptr<message_impl> its_message;
+    deserialize_data(_data, _size, its_message);
+    if (its_message) {
+        const message_impl::entries_t& its_entries = its_message->get_entries();
+        check_sent_offers(its_entries, _remote_address);
+    }
+}
+
 // Entry processing
+void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _entries,
+                                               const boost::asio::ip::address& _remote_address) const {
+
+    // only the offers messages sent by itself to multicast or unicast will be verified
+    // the another messages sent by itself will be ignored here
+    // the multicast offers are checked when SD receive its
+    // the unicast offers are checked in the send_cbk method, when SD send its
+    for (auto iter = _entries.begin(); iter != _entries.end(); iter++) {
+        if ((*iter)->get_type() == entry_type_e::OFFER_SERVICE && (*iter)->get_ttl() > 0) {
+            auto its_service = (*iter)->get_service();
+            auto its_instance = (*iter)->get_instance();
+
+            std::shared_ptr<serviceinfo> its_info =
+                    host_->get_offered_service(its_service, its_instance);
+            if (its_info) {
+                if (_remote_address.is_unspecified()) {
+                    // enable proccess remote subscription for the services
+                    // SD has already sent the offers for this service to multicast ip
+                    its_info->set_accepting_remote_subscriptions(true);
+                } else {
+                    if (!its_info->is_accepting_remote_subscriptions()) {
+                        // enable to proccess remote subscription from remote ip for the services
+                        its_info->add_remote_ip(_remote_address.to_string());
+                    }
+                }
+            }
+        }
+    }
+}
+
 void
 service_discovery_impl::process_serviceentry(
         std::shared_ptr<serviceentry_impl> &_entry,
@@ -2255,12 +2295,11 @@ service_discovery_impl::process_eventgroupentry(
     }
 
     if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type) {
-        handle_eventgroup_subscription(its_service, its_instance,
-                its_eventgroup, its_major, its_ttl, 0, 0,
-                its_first_address, its_first_port, is_first_reliable,
-                its_second_address, its_second_port, is_second_reliable,
-                _acknowledgement, _is_stop_subscribe_subscribe,
-                _force_initial_events, its_clients, _sd_ac_state, its_info);
+        handle_eventgroup_subscription(
+                its_service, its_instance, its_eventgroup, its_major, its_ttl, 0, 0,
+                its_first_address, its_first_port, is_first_reliable, its_second_address,
+                its_second_port, is_second_reliable, _acknowledgement, _is_stop_subscribe_subscribe,
+                _force_initial_events, its_clients, _sd_ac_state, its_info, _sender);
     } else {
         if (entry_type_e::SUBSCRIBE_EVENTGROUP_ACK == its_type) { //this type is used for ACK and NACK messages
             if (its_ttl > 0) {
@@ -2276,20 +2315,16 @@ service_discovery_impl::process_eventgroupentry(
     }
 }
 
-void
-service_discovery_impl::handle_eventgroup_subscription(
-        service_t _service, instance_t _instance,
-        eventgroup_t _eventgroup, major_version_t _major,
+void service_discovery_impl::handle_eventgroup_subscription(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
         ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
-        const boost::asio::ip::address &_first_address, uint16_t _first_port,
-        bool _is_first_reliable,
-        const boost::asio::ip::address &_second_address, uint16_t _second_port,
-        bool _is_second_reliable,
-        std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+        const boost::asio::ip::address& _first_address, uint16_t _first_port,
+        bool _is_first_reliable, const boost::asio::ip::address& _second_address,
+        uint16_t _second_port, bool _is_second_reliable,
+        std::shared_ptr<remote_subscription_ack>& _acknowledgement,
         bool _is_stop_subscribe_subscribe, bool _force_initial_events,
-        const std::set<client_t> &_clients,
-        const sd_acceptance_state_t& _sd_ac_state,
-        const std::shared_ptr<eventgroupinfo>& _info) {
+        const std::set<client_t>& _clients, const sd_acceptance_state_t& _sd_ac_state,
+        const std::shared_ptr<eventgroupinfo>& _info, const boost::asio::ip::address& _sender) {
     (void)_counter;
     (void)_reserved;
 
@@ -2346,6 +2381,24 @@ service_discovery_impl::handle_eventgroup_subscription(
 
 #endif
 
+    if (_ttl > 0) {
+        std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service, _instance);
+        bool send_nack = false;
+        if (!its_info) {
+            send_nack = true;
+        } else {
+            if (!its_info->is_accepting_remote_subscriptions()) { // offer not sent to multicast ip
+                auto its_remote_ips =
+                        its_info->get_remote_ip_accepting_sub(); // offer not sent to unicast
+                if (its_remote_ips.find(_sender.to_string()) == its_remote_ips.end())
+                    send_nack = true;
+            }
+        }
+        if (send_nack) {
+            insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
+            return;
+        }
+    }
 
     std::shared_ptr<endpoint_definition> its_subscriber;
     std::shared_ptr<endpoint_definition> its_reliable;
@@ -2584,6 +2637,7 @@ bool service_discovery_impl::is_tcp_connected(service_t _service,
 bool
 service_discovery_impl::send(
         const std::vector<std::shared_ptr<message_impl> > &_messages) {
+
     bool its_result(true);
     std::lock_guard<std::mutex> its_lock(serialize_mutex_);
     for (const auto &m : _messages) {
@@ -3117,6 +3171,8 @@ service_discovery_impl::stop_offer_service(
         const std::shared_ptr<serviceinfo> &_info, bool _send) {
     std::lock_guard<std::mutex> its_lock(offer_mutex_);
     _info->set_ttl(0);
+    // disable accepting remote subscriptions
+    _info->set_accepting_remote_subscriptions(false);
     const service_t its_service = _info->get_service();
     const instance_t its_instance = _info->get_instance();
     bool stop_offer_required(false);
@@ -3370,9 +3426,9 @@ service_discovery_impl::check_stop_subscribe_subscribe(
         message_impl::entries_t::const_iterator _end,
         const message_impl::options_t& _options) const {
 
-	return (*_iter)->get_ttl() == 0
-		&& (*_iter)->get_type() == entry_type_e::STOP_SUBSCRIBE_EVENTGROUP
-		&& has_opposite(_iter, _end, _options);
+    return (*_iter)->get_ttl() == 0
+            && (*_iter)->get_type() == entry_type_e::STOP_SUBSCRIBE_EVENTGROUP
+            && has_opposite(_iter, _end, _options);
 }
 
 bool
@@ -3892,6 +3948,14 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(
                     << std::setw(4) << _eventgroup << "]";
     }
     return its_reliability;
+}
+
+void service_discovery_impl::deserialize_data(const byte_t* _data, const length_t& _size,
+                                              std::shared_ptr<message_impl>& _message) {
+    std::lock_guard its_lock(deserialize_mutex_);
+    deserializer_->set_data(_data, _size);
+    _message = std::shared_ptr<message_impl>(deserializer_->deserialize_sd_message());
+    deserializer_->reset();
 }
 
 }  // namespace sd
