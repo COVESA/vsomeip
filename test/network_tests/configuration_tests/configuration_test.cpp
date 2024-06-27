@@ -23,8 +23,8 @@
 
 namespace vsomeip = vsomeip_v3;
 
-#define CONFIGURATION_FILE              "configuration-test.json"
-#define DEPRECATED_CONFIGURATION_FILE   "configuration-test-deprecated.json"
+#define CONFIGURATION_FILE              "configuration_test.json"
+#define DEPRECATED_CONFIGURATION_FILE   "configuration_test_deprecated.json"
 
 #define EXPECTED_UNICAST_ADDRESS        "10.0.2.15"
 

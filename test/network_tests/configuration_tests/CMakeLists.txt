@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(configuration_tests LANGUAGES CXX)
 
-set(TEST_CONFIGURATION configuration-test)
+set(TEST_CONFIGURATION configuration_test)
 
 add_executable(${TEST_CONFIGURATION}
     ${TEST_CONFIGURATION}.cpp
@@ -26,8 +26,8 @@ target_link_libraries(${TEST_CONFIGURATION}
 # The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
 # from the config folder into the test folder in the builddirectory
 # This makes it possible to call the configuration test within the build directory
-set(TEST_CONFIGURATION_CONFIG_FILE configuration-test.json)
-set(TEST_CONFIGURATION_DEPRECATED_CONFIG_FILE configuration-test-deprecated.json)
+set(TEST_CONFIGURATION_CONFIG_FILE configuration_test.json)
+set(TEST_CONFIGURATION_DEPRECATED_CONFIG_FILE configuration_test_deprecated.json)
 copy_to_builddir(${NETWORK_TEST_SRC_DIR}/configuration_tests/${TEST_CONFIGURATION_CONFIG_FILE}
     ${NETWORK_TEST_BIN_DIR}/configuration_tests/${TEST_CONFIGURATION_CONFIG_FILE}
     ${TEST_CONFIGURATION}
