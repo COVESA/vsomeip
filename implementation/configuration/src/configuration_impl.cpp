@@ -583,6 +583,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_security(e);
             load_tracing(e);
             load_udp_receive_buffer_size(e);
+            load_services(e);
         }
     }
 
@@ -593,7 +594,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_device(e);
             load_service_discovery(e);
             load_npdu_default_timings(e);
-            load_services(e);
             load_internal_services(e);
             load_clients(e);
             load_watchdog(e);

@@ -181,6 +181,7 @@ add_subdirectory(big_payload_tests)
 add_subdirectory(header_factory_tests)
 add_subdirectory(npdu_tests)
 add_subdirectory(payload_tests)
+add_subdirectory(cyclic_event_tests)
 
 # some tests require the routingmanagerd
 add_dependencies(build_network_tests routingmanagerd)
