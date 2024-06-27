@@ -1187,7 +1187,6 @@ policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _polic
 
             if (!its_policy->requests_.empty()) {
                 _requesters.insert(its_policy);
-                its_policy->print();
             }
         }
     }
