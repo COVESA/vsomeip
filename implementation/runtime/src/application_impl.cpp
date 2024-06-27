@@ -79,6 +79,23 @@ application_impl::application_impl(const std::string &_name, const std::string &
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
+
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+    if(configuration_) {
+        auto its_plugin = plugin_manager::get()->get_plugin(
+                plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+        if (its_plugin) {
+            auto its_configuration_plugin
+                = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
+            if (its_configuration_plugin) {
+                bool its_removed = its_configuration_plugin->remove_configuration(name_);
+                if (!its_removed) {
+                    VSOMEIP_WARNING << __func__ <<": Unable to remove configuration entry stored for " << name_;
+                }
+            }
+        }
+    }
+#endif
     try {
         if (stop_thread_.joinable()) {
             stop_thread_.detach();
