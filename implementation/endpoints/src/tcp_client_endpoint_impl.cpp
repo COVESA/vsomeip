@@ -116,7 +116,6 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                         << std::setw(4) << its_session << "]"
                         << " size: " << std::dec << q.first->size();
             }
-            self->sending_blocked_ = false;
             self->queue_.clear();
             self->queue_size_ = 0;
         }
