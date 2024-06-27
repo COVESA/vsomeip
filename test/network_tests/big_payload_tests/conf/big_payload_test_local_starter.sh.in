@@ -31,6 +31,7 @@ else
     export VSOMEIP_CONFIGURATION=big_payload_test_local.json
 fi
 ./big_payload_test_service $1 &
+sleep 1
 
 # Start the client
 if ! ./big_payload_test_client $1

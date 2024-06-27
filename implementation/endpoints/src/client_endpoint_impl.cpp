@@ -764,7 +764,8 @@ template<typename Protocol>
 bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std::uint32_t _size) const {
 
     if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-            && queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
+        && (queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
+            || queue_size_ + _size < _size)) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
