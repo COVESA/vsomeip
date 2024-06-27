@@ -29,6 +29,7 @@ public:
 
     std::shared_ptr<configuration> get_configuration(const std::string &_name,
             const std::string &_path);
+    bool remove_configuration(const std::string &_name);
 
 private:
     std::mutex mutex_;

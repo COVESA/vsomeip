@@ -38,4 +38,8 @@ configuration_plugin_impl::get_configuration(const std::string &_name,
     return its_configuration;
 
 }
+
+bool configuration_plugin_impl::remove_configuration(const std::string & _name) {
+    return configurations_.erase(_name) > 0;
+}
 } // namespace vsomeip_v3
