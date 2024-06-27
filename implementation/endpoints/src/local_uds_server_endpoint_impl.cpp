@@ -259,7 +259,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
         VSOMEIP_ERROR << "local_usd_server_endpoint_impl::accept_cbk: "
                 << _error.message() << " (" << std::dec << _error.value()
                 << ") Will try to accept again in 1000ms";
-        std::shared_ptr<boost::asio::steady_timer> its_timer =
+        auto its_timer =
                 std::make_shared<boost::asio::steady_timer>(io_,
                         std::chrono::milliseconds(1000));
         auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(

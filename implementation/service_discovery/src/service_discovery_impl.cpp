@@ -1049,8 +1049,7 @@ service_discovery_impl::insert_subscription_ack(
 
     entry_data_t its_data;
 
-    std::shared_ptr<eventgroupentry_impl> its_entry
-        = std::make_shared<eventgroupentry_impl>();
+    auto its_entry = std::make_shared<eventgroupentry_impl>();
     its_entry->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
     its_entry->set_service(its_service);
     its_entry->set_instance(its_instance);
@@ -2872,8 +2871,7 @@ service_discovery_impl::on_find_debounce_timer_expired(
 
     // Sent out finds for the first time as initial wait phase ended
     std::vector<std::shared_ptr<message_impl>> its_messages;
-    std::shared_ptr<message_impl> its_message(
-            std::make_shared<message_impl>());
+    auto its_message = std::make_shared<message_impl>();
     its_messages.push_back(its_message);
     // Serialize and send FindService (increments sent counter in requested_ map)
     insert_find_entries(its_messages, repetition_phase_finds);
@@ -2882,8 +2880,7 @@ service_discovery_impl::on_find_debounce_timer_expired(
     std::chrono::milliseconds its_delay(repetitions_base_delay_);
     std::uint8_t its_repetitions(1);
 
-    std::shared_ptr<boost::asio::steady_timer> its_timer = std::make_shared<
-            boost::asio::steady_timer>(host_->get_io());
+    auto its_timer = std::make_shared<boost::asio::steady_timer>(host_->get_io());
     {
         std::lock_guard<std::mutex> its_lock(find_repetition_phase_timers_mutex_);
         find_repetition_phase_timers_[its_timer] = repetition_phase_finds;
@@ -2947,7 +2944,7 @@ service_discovery_impl::on_offer_debounce_timer_expired(
 
     // Sent out offers for the first time as initial wait phase ended
     std::vector<std::shared_ptr<message_impl>> its_messages;
-    std::shared_ptr<message_impl> its_message(std::make_shared<message_impl>());
+    auto its_message = std::make_shared<message_impl>();
     its_messages.push_back(its_message);
     insert_offer_entries(its_messages, repetition_phase_offers, true);
 
@@ -2968,8 +2965,7 @@ service_discovery_impl::on_offer_debounce_timer_expired(
         its_repetitions = 0;
     }
 
-    std::shared_ptr<boost::asio::steady_timer> its_timer = std::make_shared<
-            boost::asio::steady_timer>(host_->get_io());
+    auto its_timer = std::make_shared<boost::asio::steady_timer>(host_->get_io());
 
     {
         std::lock_guard<std::mutex> its_lock(repetition_phase_timers_mutex_);
@@ -3031,8 +3027,7 @@ service_discovery_impl::on_repetition_phase_timer_expired(
                 }
             }
             std::vector<std::shared_ptr<message_impl>> its_messages;
-            std::shared_ptr<message_impl> its_message(
-                    std::make_shared<message_impl>());
+            auto its_message = std::make_shared<message_impl>();
             its_messages.push_back(its_message);
             insert_offer_entries(its_messages, its_timer_pair->second, true);
 
@@ -3075,8 +3070,7 @@ service_discovery_impl::on_find_repetition_phase_timer_expired(
         if (_repetition <= repetitions_max_) {
             // Sent findService entries in one message, double time to wait and start timer again.
             std::vector<std::shared_ptr<message_impl>> its_messages;
-            std::shared_ptr<message_impl> its_message(
-                    std::make_shared<message_impl>());
+            auto its_message = std::make_shared<message_impl>();
             its_messages.push_back(its_message);
             insert_find_entries(its_messages, its_timer_pair->second);
             send(its_messages);
@@ -3191,8 +3185,7 @@ service_discovery_impl::send_stop_offer(const std::shared_ptr<serviceinfo> &_inf
 
     if (_info->get_endpoint(false) || _info->get_endpoint(true)) {
         std::vector<std::shared_ptr<message_impl> > its_messages;
-        std::shared_ptr<message_impl> its_current_message(
-                std::make_shared<message_impl>());
+        auto its_current_message = std::make_shared<message_impl>();
         its_messages.push_back(its_current_message);
 
         insert_offer_service(its_messages, _info);
@@ -3207,8 +3200,7 @@ bool
 service_discovery_impl::send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>> &_infos) {
 
     std::vector<std::shared_ptr<message_impl> > its_messages;
-    std::shared_ptr<message_impl> its_current_message(
-            std::make_shared<message_impl>());
+    auto its_current_message = std::make_shared<message_impl>();
     its_messages.push_back(its_current_message);
 
     // pack multiple stop offers together

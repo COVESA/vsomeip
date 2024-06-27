@@ -77,7 +77,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 control_un.cmh.cmsg_type = SCM_CREDENTIALS;
 
                 // Build header with all informations to call ::recvmsg
-                msghdr its_header = msghdr();
+                auto its_header = msghdr();
                 its_header.msg_iov = its_vec;
                 its_header.msg_iovlen = 1;
                 its_header.msg_control = control_un.control;

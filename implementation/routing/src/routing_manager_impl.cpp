@@ -4700,7 +4700,7 @@ void routing_manager_impl::service_endpoint_connected(
                     _major, _minor);
     }
 
-    std::shared_ptr<boost::asio::steady_timer> its_timer =
+    auto its_timer =
             std::make_shared<boost::asio::steady_timer>(io_);
     boost::system::error_code ec;
     its_timer->expires_from_now(std::chrono::milliseconds(3), ec);

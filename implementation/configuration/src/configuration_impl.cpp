@@ -416,7 +416,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
         VSOMEIP_ERROR << __func__ << " shall only be called after normal"
                 "configuration has been parsed";
     } else {
-        std::shared_ptr<service> its_service(std::make_shared<service>());
+        auto its_service = std::make_shared<service>();
         its_service->service_ = _service;
         its_service->instance_ = _instance;
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
@@ -1229,7 +1229,7 @@ void configuration_impl::load_trace_channels(
 
 void configuration_impl::load_trace_channel(
         const boost::property_tree::ptree &_tree) {
-    std::shared_ptr<trace_channel> its_channel = std::make_shared<trace_channel>();
+    auto its_channel = std::make_shared<trace_channel>();
     for(auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key = i->first;
         std::string its_value = i->second.data();
@@ -1255,7 +1255,7 @@ void configuration_impl::load_trace_filters(
 
 void configuration_impl::load_trace_filter(
         const boost::property_tree::ptree &_tree) {
-    std::shared_ptr<trace_filter> its_filter = std::make_shared<trace_filter>();
+    auto its_filter = std::make_shared<trace_filter>();
     bool has_channel(false);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key = i->first;
@@ -2022,7 +2022,7 @@ void configuration_impl::load_service(
         bool is_loaded(true);
         bool use_magic_cookies(false);
 
-        std::shared_ptr<service> its_service(std::make_shared<service>());
+        auto its_service = std::make_shared<service>();
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         its_service->unicast_address_ = _unicast_address;
         its_service->multicast_address_ = "";
@@ -2219,7 +2219,7 @@ void configuration_impl::load_event(
                                 ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
 
-                std::shared_ptr<event> its_event = std::make_shared<event>(
+                auto its_event = std::make_shared<event>(
                         its_event_id, its_is_field, its_reliability,
                         its_cycle, its_change_resets_cycle,
                         its_update_on_change);
@@ -2233,7 +2233,7 @@ void configuration_impl::load_eventgroup(
         std::shared_ptr<service> &_service,
         const boost::property_tree::ptree &_tree) {
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        std::shared_ptr<eventgroup> its_eventgroup =
+        auto its_eventgroup =
                 std::make_shared<eventgroup>();
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
             std::stringstream its_converter;
@@ -2391,7 +2391,7 @@ void configuration_impl::load_clients(const configuration_element &_element) {
 
 void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
     try {
-        std::shared_ptr<client> its_client(std::make_shared<client>());
+        auto its_client = std::make_shared<client>();
         its_client->remote_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->remote_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->client_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
@@ -2544,7 +2544,7 @@ void configuration_impl::load_payload_sizes(const configuration_element &_elemen
                 const std::string size_str(_element.tree_.get_child(s).data());
                 try {
                     // add 16 Byte for the SOME/IP header
-                    const std::uint32_t its_size = static_cast<std::uint32_t>(
+                    const auto its_size = static_cast<std::uint32_t>(
                             std::stoul(size_str.c_str(), NULL, 10) + 16);
                     if (s == max_local_payload_size) {
                         max_local_message_size_ = its_size;
@@ -4433,7 +4433,7 @@ void configuration_impl::load_someip_tp_for_service(
 
                             // Segment length must be multiple of 16
                             // Ensure this by subtracting the rest
-                            std::uint16_t its_rest = std::uint16_t(its_max_segment_length % 16);
+                            auto its_rest = std::uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
                                 VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
                                     << std::dec << its_max_segment_length << " to "
