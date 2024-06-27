@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -33,6 +33,7 @@
 #include "../../message/include/serializer.hpp"
 #include "../../protocol/include/assign_client_command.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
+#include "../../protocol/include/config_command.hpp"
 #include "../../protocol/include/deregister_application_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
 #include "../../protocol/include/dummy_command.hpp"
@@ -688,8 +689,19 @@ void routing_manager_client::send_subscribe(client_t _client,
     if (its_error == protocol::error_e::ERROR_OK) {
         client_t its_target_client = find_local_client(_service, _instance);
         if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
-            auto its_target = ep_mgr_->find_or_create_local(its_target_client);
-            its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            std::shared_ptr<vsomeip_v3::endpoint> its_target =
+                    ep_mgr_->find_or_create_local(its_target_client);
+            if (its_target) {
+                its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << std::hex << std::setfill('0') << __func__
+                              << ": no target available to send subscription."
+                              << " client=" << std::setw(4) << _client
+                              << " service=" << std::setw(4) << _service << "." << std::setw(4)
+                              << _instance << "." << std::setw(2)
+                              << static_cast<std::uint16_t>(_major) << " event=" << std::setw(4)
+                              << _event;
+            }
         } else {
             std::lock_guard<std::mutex> its_lock(sender_mutex_);
             if (sender_) {
@@ -1753,6 +1765,20 @@ void routing_manager_client::on_message(
             break;
         }
 #endif // !VSOMEIP_DISABLE_SECURITY
+        case protocol::id_e::CONFIG_ID: {
+            protocol::config_command its_command;
+            protocol::error_e its_command_error;
+            its_command.deserialize(its_buffer, its_command_error);
+            if (its_command_error != protocol::error_e::ERROR_OK) {
+                VSOMEIP_ERROR << __func__ << ": config command deserialization failed (" << std::dec
+                              << static_cast<int>(its_command_error) << ")";
+                break;
+            }
+            if (its_command.contains("hostname")) {
+                add_known_client(its_command.get_client(), its_command.at("hostname"));
+            }
+            break;
+        }
         default:
             break;
         }

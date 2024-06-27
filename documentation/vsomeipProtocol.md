@@ -370,3 +370,16 @@
     Command            30
     Version            xx xx
     Size               xx xx xx xx
+
+
+## VSOMEIP_CONFIG (0x31)
+
+    Command                 31
+    Version                 00 00
+    Client                  xx xx
+    Size                    xx xx xx xx
+    Configurations
+        Key Size            xx xx xx xx
+        Key (string)        xx ... xx
+        Value Size          xx xx xx xx
+        Value (string)      xx ... xx

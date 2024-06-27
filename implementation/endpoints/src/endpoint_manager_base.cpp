@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,11 +6,12 @@
 #include "../include/endpoint_manager_base.hpp"
 
 #include <vsomeip/internal/logger.hpp>
-#include "../../utility/include/utility.hpp"
-#include "../../routing/include/routing_manager_base.hpp"
-#include "../../configuration/include/configuration.hpp"
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
+#include "../../configuration/include/configuration.hpp"
+#include "../../protocol/include/config_command.hpp"
+#include "../../routing/include/routing_manager_base.hpp"
+#include "../../utility/include/utility.hpp"
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_client_endpoint_impl.hpp"
@@ -51,11 +52,31 @@ void endpoint_manager_base::remove_local(const client_t _client) {
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
-    std::shared_ptr<endpoint> its_endpoint(find_local_unlocked(_client));
-    if (!its_endpoint) {
-        its_endpoint = create_local_unlocked(_client);
+    std::shared_ptr<endpoint> its_endpoint {nullptr};
+    {
+        std::scoped_lock its_lock {local_endpoint_mutex_};
+        its_endpoint = find_local_unlocked(_client);
+        if (!its_endpoint) {
+            its_endpoint = create_local_unlocked(_client);
+        }
+    }
+    if (its_endpoint) {
         its_endpoint->start();
+
+        // Send a `config_command` to share our hostname with the other application.
+        protocol::config_command its_command;
+        its_command.set_client(get_client());
+        its_command.insert("hostname", get_client_host());
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_endpoint->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
+        }
+    } else {
+        VSOMEIP_ERROR << __func__ << ": couldn't find or create endpoint for client " << _client;
     }
     return its_endpoint;
 }
@@ -311,8 +332,10 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
             local_endpoints_[_client] = its_endpoint;
         }
         rm_->register_client_error_handler(_client, its_endpoint);
+    } else {
+        VSOMEIP_WARNING << __func__ << ": (" << std::hex << get_client()
+                        << ") not connected. Ignoring client assignment";
     }
-
     return its_endpoint;
 }
 
