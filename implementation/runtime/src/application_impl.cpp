@@ -486,12 +486,11 @@ void application_impl::start() {
                         on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
             }
         }
-
     }
-
-    app_counter_mutex__.lock();
-    app_counter__++;
-    app_counter_mutex__.unlock();
+    {
+        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        app_counter__++;
+    }
     VSOMEIP_INFO << "io thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
             << name_ << ") is: " << std::this_thread::get_id()
@@ -515,7 +514,6 @@ void application_impl::start() {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
     }
-
     {
         std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
         block_stopping_ = true;
@@ -526,18 +524,10 @@ void application_impl::start() {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         stopped_ = false;
     }
-
-    app_counter_mutex__.lock();
-    app_counter__--;
-
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    if (catched_signal_ && !app_counter__) {
-        app_counter_mutex__.unlock();
-        VSOMEIP_INFO << "Exiting vsomeip application...";
-        exit(0);
+    {
+        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        app_counter__--;
     }
-#endif
-    app_counter_mutex__.unlock();
 }
 
 void application_impl::stop() {
