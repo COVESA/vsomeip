@@ -8,12 +8,9 @@
 #include "restart_routing_test_service.hpp"
 
 routing_restart_test_service::routing_restart_test_service() :
-    app_(vsomeip::runtime::get()->create_application()),
-    is_registered_(false),
-    blocked_(false),
-    number_of_received_messages_(0),
-    offer_thread_(std::bind(&routing_restart_test_service::run, this)) {
-}
+    app_(vsomeip::runtime::get()->create_application()), is_registered_(false), blocked_(false),
+    init_shutdown_(false), all_received_(false), shutdown_counter_(0),
+    offer_thread_(std::bind(&routing_restart_test_service::run, this)) { }
 
 bool routing_restart_test_service::init() {
     std::lock_guard<std::mutex> its_lock(mutex_);
@@ -86,29 +83,36 @@ void routing_restart_test_service::on_state(vsomeip::state_type_e _state) {
 void routing_restart_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request) {
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_METHOD_ID, _request->get_method());
-
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-        << std::setfill('0') << std::hex << _request->get_client() << "/"
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _request->get_session() << "]";
+    received_counter_[_request->get_client()]++;
+    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4) << std::setfill('0')
+                 << std::hex << _request->get_client() << "/" << std::setw(4) << std::setfill('0')
+                 << std::hex << _request->get_session() << "] : " << std::dec
+                 << received_counter_[_request->get_client()];
 
     // send response
     std::shared_ptr<vsomeip::message> its_response =
             vsomeip::runtime::get()->create_response(_request);
 
     app_->send(its_response);
-
-    number_of_received_messages_++;
-    if(number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
-        VSOMEIP_INFO << "Received all messages!";
-    }
 }
 
 void routing_restart_test_service::on_message_shutdown(
         const std::shared_ptr<vsomeip::message>& _request) {
-    (void)_request;
-    VSOMEIP_INFO << "Shutdown method was called, going down now.";
-    stop();
+    VSOMEIP_INFO << "Shutdown Service requested by 0x" << std::setw(4) << std::setfill('0')
+                 << std::hex << _request->get_client();
+    {
+        std::lock_guard<std::mutex> its_guard_counter(counter_mutex_);
+        shutdown_counter_++;
+        if (shutdown_counter_ == 1) {
+            std::lock_guard<std::mutex> its_guard(shutdown_mutex_);
+            init_shutdown_ = true;
+            init_shutdown_condition_.notify_one();
+        } else if (shutdown_counter_ == vsomeip_test::NUMBER_OF_CLIENTS_TO_REQUEST_SHUTDOWN) {
+            std::lock_guard<std::mutex> its_guard(shutdown_mutex_);
+            all_received_ = true;
+            execute_shutdown_condition_.notify_one();
+        }
+    }
 }
 
 void routing_restart_test_service::run() {
@@ -116,7 +120,15 @@ void routing_restart_test_service::run() {
     while (!blocked_)
         condition_.wait(its_lock);
 
-   offer();
+    offer();
+    std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
+    init_shutdown_condition_.wait(its_shutdown_lock, [this] { return init_shutdown_; });
+    if (!execute_shutdown_condition_.wait_for(its_shutdown_lock, std::chrono::milliseconds(5000),
+                                              [this] { return all_received_; })) {
+        VSOMEIP_WARNING
+                << "Timeout reached : Not all clients requested shutdown. Stopping Service anyway";
+    }
+    stop();
 }
 
 TEST(someip_restart_routing_test, send_response_for_every_request) {
