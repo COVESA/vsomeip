@@ -1126,9 +1126,8 @@ void
 policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
         std::set<std::shared_ptr<policy> > &_requesters) const {
 
-    std::lock_guard<std::mutex> its_lock(_policy->mutex_);
+    std::scoped_lock its_lock {any_client_policies_mutex_, _policy->mutex_};
     for (const auto &o : _policy->offers_) {
-        boost::unique_lock<boost::shared_mutex> its_policies_lock(any_client_policies_mutex_);
         for (const auto &p : any_client_policies_) {
             if (p == _policy)
                 continue;
