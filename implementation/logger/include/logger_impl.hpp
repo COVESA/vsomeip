@@ -34,6 +34,8 @@ public:
     std::shared_ptr<configuration> get_configuration() const;
     void set_configuration(const std::shared_ptr<configuration> &_configuration);
 
+    const std::string& get_app_name() const;
+
 #ifdef USE_DLT
     void log(level_e _level, const char *_data);
 
@@ -43,6 +45,7 @@ private:
 
 private:
     static std::mutex mutex__;
+    static std::string app_name__;
 
     std::shared_ptr<configuration> configuration_;
     mutable std::mutex configuration_mutex_;

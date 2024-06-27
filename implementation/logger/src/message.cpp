@@ -137,8 +137,9 @@ message::~message() try {
                 << std::setw(2) << its_time.tm_hour << ":"
                 << std::setw(2) << its_time.tm_min << ":"
                 << std::setw(2) << its_time.tm_sec << "."
-                << std::setw(6) << its_ms << " ["
-                << its_level << "] "
+                << std::dec << std::setw(6) << std::setfill('0') << its_ms
+                << " " << its_logger->get_app_name()
+                << " [" << its_level << "] "
                 << buffer_.data_.str()
                 << std::endl;
 #else
