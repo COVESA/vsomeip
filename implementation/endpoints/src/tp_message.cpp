@@ -322,14 +322,16 @@ bool tp_message::check_lengths(const byte_t* const _data,
                 << " data: " << std::dec << _data_length
                 << " header: " << std::dec << its_length;
         ret = false;
-    } else if (current_message_size_ + _segment_size > max_message_size_) {
+    } else if (current_message_size_ + _segment_size > max_message_size_
+            || current_message_size_ + _segment_size < _segment_size) { // overflow check
         VSOMEIP_ERROR << __func__ << ": Message exceeds maximum configured size: "
                 << get_message_id(_data, _data_length)
                 << "segment size: " << std::dec << _segment_size
                 << " current message size: " << std::dec << current_message_size_
                 << " maximum message size: " << std::dec << max_message_size_;
         ret = false;
-    } else if (tp::get_offset(its_tp_header) + _segment_size > max_message_size_ ) {
+    } else if (tp::get_offset(its_tp_header) + _segment_size > max_message_size_
+            || tp::get_offset(its_tp_header) + _segment_size < _segment_size) { // overflow check
         VSOMEIP_ERROR << __func__ << ": SomeIP/TP offset field exceeds maximum configured message size: "
                 << get_message_id(_data, _data_length)
                 << " TP offset [bytes]: " << std::dec << tp::get_offset(its_tp_header)
