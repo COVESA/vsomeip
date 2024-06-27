@@ -189,9 +189,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                                 << its_service;
                         auto handler = found_cbk->second;
                         auto ptr = this->shared_from_this();
-                        io_.post([ptr, handler, its_service](){
-                                handler(ptr, its_service);
-                        });
+                        io_.post([ptr, handler]() { handler(ptr); });
                         prepare_stop_handlers_.erase(found_cbk);
                     }
                 }

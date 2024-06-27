@@ -1761,60 +1761,64 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         its_reliable_endpoint = its_info->get_endpoint(true);
         its_unreliable_endpoint = its_info->get_endpoint(false);
 
+        // Create a ready_to_stop_t object to synchronize the stopping
+        // of the service on reliable and unreliable endpoints.
         struct ready_to_stop_t {
-            ready_to_stop_t() : reliable_(false), unreliable_(false){}
+            ready_to_stop_t(bool _reliable, bool _unreliable)
+                : reliable_(_reliable), unreliable_(_unreliable) {
+            }
+
+            inline bool is_ready() const {
+                return reliable_ && unreliable_;
+            }
+
             std::atomic<bool> reliable_;
             std::atomic<bool> unreliable_;
         };
-        auto ready_to_stop = std::make_shared<ready_to_stop_t>();
+        auto ready_to_stop = std::make_shared<ready_to_stop_t>(
+                its_reliable_endpoint == nullptr, its_unreliable_endpoint == nullptr);
         auto ptr = shared_from_this();
 
-        auto callback = [&, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint,
+        auto callback = [this, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint,
                          ready_to_stop, _service, _instance, _major, _minor]
-                         (std::shared_ptr<endpoint> _endpoint, service_t _stopped_service) {
-            (void)_stopped_service;
+                         (std::shared_ptr<endpoint> _endpoint) {
+
             if (its_reliable_endpoint && its_reliable_endpoint == _endpoint)
                 ready_to_stop->reliable_ = true;
+
             if (its_unreliable_endpoint && its_unreliable_endpoint == _endpoint)
                 ready_to_stop->unreliable_ = true;
-
-            if ((its_unreliable_endpoint && !ready_to_stop->unreliable_) ||
-                (its_reliable_endpoint   && !ready_to_stop->reliable_)) {
-                erase_offer_command(_service, _instance);
-                return;
-            }
 
             if (discovery_) {
                 if (its_info->get_major() == _major && its_info->get_minor() == _minor)
                     discovery_->stop_offer_service(its_info, true);
             }
-            del_routing_info(_service, _instance, (its_reliable_endpoint != nullptr), (its_unreliable_endpoint != nullptr));
+            del_routing_info(_service, _instance,
+                    its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr);
 
             for (const auto& ep: {its_reliable_endpoint, its_unreliable_endpoint}) {
                 if (ep) {
                     if (ep_mgr_impl_->remove_instance(_service, ep.get())) {
                         // last instance -> pass ANY_INSTANCE and shutdown completely
                         ep->prepare_stop(
-                            [&, _service, _instance, ptr, its_reliable_endpoint, its_unreliable_endpoint]
-                            (std::shared_ptr<endpoint> _endpoint,
-                            service_t _stopped_service) {
-                                (void)_stopped_service;
+                            [this, ptr] (std::shared_ptr<endpoint> _endpoint_to_stop) {
                                 if (ep_mgr_impl_->remove_server_endpoint(
-                                                _endpoint->get_local_port(),
-                                                _endpoint->is_reliable())) {
-                                    _endpoint->stop();
+                                        _endpoint_to_stop->get_local_port(),
+                                        _endpoint_to_stop->is_reliable())) {
+                                    _endpoint_to_stop->stop();
                                 }
-                                erase_offer_command(_service, _instance);
                             }, ANY_SERVICE);
                     }
                     // Clear service info and service group
                     clear_service_info(_service, _instance, ep->is_reliable());
                 }
             }
-            erase_offer_command(_service, _instance);
+
+            if (ready_to_stop->is_ready())
+                erase_offer_command(_service, _instance);
         };
 
-        for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
+        for (const auto& ep : { its_reliable_endpoint, its_unreliable_endpoint }) {
             if (ep)
                 ep->prepare_stop(callback, _service);
         }

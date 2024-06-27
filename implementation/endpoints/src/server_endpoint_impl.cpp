@@ -58,9 +58,8 @@ void server_endpoint_impl<Protocol>::prepare_stop(
                             { return _t.second.queue_.empty(); })) {
             // nothing was queued and all queues are empty -> ensure cbk is called
             auto ptr = this->shared_from_this();
-            endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                        _handler(ptr, _service);
-                                                    });
+            endpoint_impl<Protocol>::io_.post(
+                    [ptr, _handler]() { _handler(ptr); });
         } else {
             prepare_stop_handlers_[_service] = _handler;
         }
@@ -93,9 +92,8 @@ void server_endpoint_impl<Protocol>::prepare_stop(
             prepare_stop_handlers_[_service] = _handler;
         } else { // no messages of the to be stopped service are or have been queued
             auto ptr = this->shared_from_this();
-            endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                        _handler(ptr, _service);
-                                                    });
+            endpoint_impl<Protocol>::io_.post(
+                    [ptr, _handler]() { _handler(ptr); });
         }
 
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
@@ -641,9 +639,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             } else { // all messages of the to be stopped service have been sent
                 auto handler = stp_hndlr_iter->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler, its_stopped_service](){
-                    handler(ptr, its_stopped_service);
-                });
+                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
                 stp_hndlr_iter = prepare_stop_handlers_.erase(stp_hndlr_iter);
             }
         }
@@ -663,9 +659,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             if (found_cbk != prepare_stop_handlers_.end()) {
                 auto handler = found_cbk->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler](){
-                    handler(ptr, ANY_SERVICE);
-                });
+                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
                 prepare_stop_handlers_.erase(found_cbk);
             }
         }

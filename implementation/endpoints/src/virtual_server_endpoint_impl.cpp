@@ -25,10 +25,10 @@ void virtual_server_endpoint_impl::start() {
 
 void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
                                                 service_t _service) {
+    (void)_service;
+
     auto ptr = shared_from_this();
-    io_.post([ptr, _handler, _service]() {
-        _handler(ptr, _service);
-    });
+    io_.post([ptr, _handler]() { _handler(ptr); });
 }
 
 void virtual_server_endpoint_impl::stop() {
