@@ -144,7 +144,6 @@ if(NOT ${TESTS_BAT})
     if(ENABLE_LEAK_SANITIZER)
         ## remove some tests when we are executing with thread, undefined, and address sanitizers
         add_subdirectory(client_id_tests)
-        add_subdirectory(restart_routing_tests)
         add_subdirectory(subscribe_notify_one_tests)
         add_subdirectory(subscribe_notify_tests)
         # Completely disable the test group initial_event_tests group
@@ -152,6 +151,7 @@ if(NOT ${TESTS_BAT})
         #add_subdirectory(initial_event_tests)
     endif()
 
+    add_subdirectory(restart_routing_tests)
     add_subdirectory(configuration_tests)
     add_subdirectory(cpu_load_tests)
     add_subdirectory(debounce_callback_tests)

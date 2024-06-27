@@ -106,21 +106,40 @@ void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::mess
 }
 
 void routing_restart_test_client::run() {
-    for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS; ++i) {
+    std::uint32_t its_sent_requests(0);
+    bool its_availability_timeout = false;
+    while (its_sent_requests < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
             while (!is_available_)
             {
-                condition_.wait(its_lock);
+                if (!condition_.wait_for(its_lock, std::chrono::milliseconds(10000),
+                                         [this] { return is_available_; })) {
+                    VSOMEIP_WARNING << "Service not available for 10s. Quit waiting";
+                    its_availability_timeout = true;
+                    break;
+                }
+                if (its_sent_requests > 0 && received_responses_ > 0
+                    && its_sent_requests > received_responses_) {
+                    VSOMEIP_WARNING << "Sent/Recv messages mismatch (" << its_sent_requests << "/"
+                                    << received_responses_
+                                    << ") : Resending non-responded requests";
+                    its_sent_requests = received_responses_;
+                }
             }
         }
 
+        if (its_availability_timeout) {
+            break;
+        }
         auto request = vsomeip::runtime::get()->create_request(false);
         request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
         request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
         app_->send(request);
 
+        its_sent_requests++;
+        VSOMEIP_INFO << "Sent request " << its_sent_requests;
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 

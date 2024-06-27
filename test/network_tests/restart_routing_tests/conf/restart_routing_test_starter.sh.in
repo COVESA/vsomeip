@@ -23,13 +23,13 @@ export VSOMEIP_CONFIGURATION=restart_routing_test_autoconfig.json
 
 ../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
-
+echo "Launched Daemon with PID: $DAEMON_PID"
 sleep 2
 
 # Start the service
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
 
 # Start the client1
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_client1
@@ -64,21 +64,28 @@ sleep 2
 ../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
-wait $SERIVCE_PID || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
+echo "Service Finished Successfully"
 wait $CLIENT1_PID || ((FAIL+=1))
+echo "Client1 Finished Successfully"
 wait $CLIENT2_PID || ((FAIL+=1))
+echo "Client2 Finished Successfully"
 wait $CLIENT3_PID || ((FAIL+=1))
+echo "Client3 Finished Successfully"
 wait $CLIENT4_PID || ((FAIL+=1))
+echo "Client4 Finished Successfully"
 
 kill $DAEMON_PID
 wait $DAEMON_PID
+echo "Daemon Finished Successfully"
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open tcp/udp sockets
 if [ $FAIL -eq 0 ]
 then
-    echo "Test Succeeded"
+    echo "Test Success Part1"
 else
+    echo "Test Failed Part1"
     exit 1
 fi
 
@@ -89,12 +96,12 @@ echo "  Run test with auto configuration no deamon  "
 echo "----------------------------------------------"
 echo "----------------------------------------------"
 
-sleep 2
-
 # Start the service
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
+echo "Launched Service as Daemon with PID: $SERVICE_PID"
+sleep 2
 
 # Start the client1
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_client1
@@ -120,7 +127,7 @@ sleep 2
 echo "----------------------------------------------"
 echo "   let service (routing) crash (kill -9)      "
 echo "----------------------------------------------"
-kill -9 $SERIVCE_PID
+kill -9 $SERVICE_PID
 echo "----------------------------------------------"
 echo "          restart service (routing)           "
 echo "----------------------------------------------"
@@ -129,20 +136,26 @@ sleep 2
 # Start the service
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
 
-wait $SERIVCE_PID || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
+echo "Service Finished Successfully"
 wait $CLIENT1_PID || ((FAIL+=1))
+echo "Client1 Finished Successfully"
 wait $CLIENT2_PID || ((FAIL+=1))
+echo "Client2 Finished Successfully"
 wait $CLIENT3_PID || ((FAIL+=1))
+echo "Client3 Finished Successfully"
 wait $CLIENT4_PID || ((FAIL+=1))
+echo "Client4 Finished Successfully"
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open tcp/udp sockets
 if [ $FAIL -eq 0 ]
 then
-    echo "Test Succeeded"
+    echo "Test Success Part2"
 else
+    echo "Test Failed Part2"
     exit 1
 fi
 
@@ -153,17 +166,18 @@ echo "       Run test with json configuration       "
 echo "----------------------------------------------"
 echo "----------------------------------------------"
 
-sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
+echo "Launched Daemon with PID: $DAEMON_PID"
+sleep 2
 
 # Start the service
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
 
 # Start the client1
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_client1
@@ -203,21 +217,28 @@ export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
 
-wait $SERIVCE_PID || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
+echo "Service Finished Successfully"
 wait $CLIENT1_PID || ((FAIL+=1))
+echo "Client1 Finished Successfully"
 wait $CLIENT2_PID || ((FAIL+=1))
+echo "Client2 Finished Successfully"
 wait $CLIENT3_PID || ((FAIL+=1))
+echo "Client3 Finished Successfully"
 wait $CLIENT4_PID || ((FAIL+=1))
+echo "Client4 Finished Successfully"
 
 kill $DAEMON_PID
 wait $DAEMON_PID
+echo "Daemon Finished Successfully"
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open tcp/udp sockets
 if [ $FAIL -eq 0 ]
 then
-    echo "Test Succeeded"
+    echo "Test Success Part3"
 else
+    echo "Test Failed Part3"
     exit 1
 fi
 
@@ -227,17 +248,18 @@ echo "Run test with json configuration + kill service"
 echo "----------------------------------------------"
 echo "----------------------------------------------"
 
-sleep 2
 
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ../../../examples/routingmanagerd/routingmanagerd &
 DAEMON_PID=$!
+echo "Launched Daemon with PID: $DAEMON_PID"
+sleep 2
 
 # Start the service
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
 
 # Start the client1
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_client1
@@ -272,7 +294,7 @@ sleep 1
 echo "----------------------------------------------"
 echo "       let service crash (kill -9)            "
 echo "----------------------------------------------"
-kill -9 $SERIVCE_PID
+kill -9 $SERVICE_PID
 echo "----------------------------------------------"
 echo "                restart routingmanagerd              "
 echo "----------------------------------------------"
@@ -291,22 +313,30 @@ sleep 1
 export VSOMEIP_APPLICATION_NAME=restart_routing_test_service
 export VSOMEIP_CONFIGURATION=restart_routing_test_service.json
 ./restart_routing_test_service &
-SERIVCE_PID=$!
+SERVICE_PID=$!
 
-wait $SERIVCE_PID || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
+echo "Service Finished Successfully"
 wait $CLIENT1_PID || ((FAIL+=1))
+echo "Client1 Finished Successfully"
 wait $CLIENT2_PID || ((FAIL+=1))
+echo "Client2 Finished Successfully"
 wait $CLIENT3_PID || ((FAIL+=1))
+echo "Client3 Finished Successfully"
 wait $CLIENT4_PID || ((FAIL+=1))
+echo "Client4 Finished Successfully"
 
 kill $DAEMON_PID
 wait $DAEMON_PID
+echo "Daemon Finished Successfully"
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open tcp/udp sockets
 if [ $FAIL -eq 0 ]
 then
+    echo "Test Success Part4"
     exit 0
 else
+    echo "Test Failed Part4"
     exit 1
 fi
