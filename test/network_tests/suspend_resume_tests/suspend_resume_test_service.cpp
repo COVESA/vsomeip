@@ -131,7 +131,7 @@ private:
 
     // handler
     void on_state(vsomeip::state_type_e _state) {
-        VSOMEIP_DEBUG << __func__ << ": state="
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: state="
             << (_state == vsomeip::state_type_e::ST_REGISTERED ?
                     "registered." : "NOT registered.");
 
@@ -142,7 +142,7 @@ private:
 
     void on_message(const std::shared_ptr<vsomeip::message> &_message) {
 
-        VSOMEIP_DEBUG << __func__ << ": Received "
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: Received "
                 << std::hex << std::setw(4) << std::setfill('0')
                 << _message->get_service()
                 << std::hex << std::setw(4) << std::setfill('0')
@@ -180,7 +180,7 @@ private:
         (void)_uid;
         (void)_gid;
 
-        VSOMEIP_DEBUG << __func__ << ": is_subscribe=" << std::boolalpha << _is_subscribe;
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: is_subscribe=" << std::boolalpha << _is_subscribe;
         if (!_is_subscribe)
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         return true;

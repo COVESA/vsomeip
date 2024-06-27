@@ -200,10 +200,10 @@ void lazy_load_lazy_client::run() {
         request->set_method(METHOD_TO_BE_REFUSED);
         app_->send(request);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     EXPECT_EQ(NUMBER_OF_MESSAGES_TO_SEND,received_responses_)
             << "Unexpected received_responses_ run";

@@ -222,7 +222,7 @@ void routing_manager_client::stop() {
     if (configuration_->is_local_routing()) {
         std::stringstream its_client;
         its_client << utility::get_base_path(configuration_->get_network())
-                   << std::hex << std::setw(4) << std::setfill('0') << get_client();
+                   << std::hex << get_client();
     #ifdef _WIN32
         ::_unlink(its_client.str().c_str());
     #else
