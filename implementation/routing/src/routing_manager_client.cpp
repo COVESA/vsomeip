@@ -2204,12 +2204,28 @@ void routing_manager_client::register_application() {
                                 &routing_manager_client::register_application_timeout_cbk,
                                 std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
                                 std::placeholders::_1));
+
+                // Send a `config_command` to share our hostname with the other application.
+                protocol::config_command its_command_config;
+                its_command_config.set_client(get_client());
+                its_command_config.insert("hostname", get_client_host());
+
+                std::vector<byte_t> its_buffer_config;
+                its_command_config.serialize(its_buffer_config, its_error);
+
+                if (its_error == protocol::error_e::ERROR_OK) {
+                    sender_->send(&its_buffer_config[0],
+                                  static_cast<uint32_t>(its_buffer_config.size()));
+                } else {
+                    VSOMEIP_ERROR << __func__ << ": config command serialization failed("
+                                  << std::dec << int(its_error) << ")";
+                }
             }
         }
-    } else
-        VSOMEIP_ERROR << __func__
-            << ": register application command serialization failed("
-            << std::dec << int(its_error) << ")";
+    } else {
+        VSOMEIP_ERROR << __func__ << ": register application command serialization failed("
+                      << std::dec << int(its_error) << ")";
+    }
 }
 
 void routing_manager_client::deregister_application() {

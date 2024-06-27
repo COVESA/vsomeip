@@ -71,13 +71,13 @@ bool big_payload_test_service::init()
 
 void big_payload_test_service::start()
 {
-    VSOMEIP_INFO << "Starting...";
+    VSOMEIP_INFO << "Starting Service...";
     app_->start();
 }
 
 void big_payload_test_service::stop()
 {
-    VSOMEIP_INFO << "Stopping...";
+    VSOMEIP_INFO << "Stopping Service...";
     stop_offer();
     app_->clear_all_handler();
     app_->stop();

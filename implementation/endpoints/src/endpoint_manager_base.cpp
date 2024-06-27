@@ -62,19 +62,6 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _
     }
     if (its_endpoint) {
         its_endpoint->start();
-
-        // Send a `config_command` to share our hostname with the other application.
-        protocol::config_command its_command;
-        its_command.set_client(get_client());
-        its_command.insert("hostname", get_client_host());
-
-        std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
-
-        if (its_error == protocol::error_e::ERROR_OK) {
-            its_endpoint->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-        }
     } else {
         VSOMEIP_ERROR << __func__ << ": couldn't find or create endpoint for client " << _client;
     }

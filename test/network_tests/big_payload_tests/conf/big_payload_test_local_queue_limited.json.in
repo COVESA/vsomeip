@@ -2,7 +2,7 @@
     "unicast":"127.0.0.1",
     "logging":
     {
-        "level":"error",
+        "level":"info",
         "console":"true",
         "file":
         {
