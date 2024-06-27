@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <limits>
 #include <thread>
@@ -706,13 +707,20 @@ void server_endpoint_impl<Protocol>::send_cbk(
     if (its_data.queue_.size()) {
         its_buffer = its_data.queue_.front().first;
     }
+
+    if (!its_buffer) {
+        // Pointer not initialized.
+        its_buffer = std::make_shared<message_buffer_t>();
+        VSOMEIP_WARNING << __func__ << ": prevented nullptr de-reference by initializing queue buffer";
+    }
+
     service_t its_service(0);
     method_t its_method(0);
     client_t its_client(0);
     session_t its_session(0);
 
     if (!_error) {
-        const std::size_t payload_size = its_data.queue_.front().first->size();
+        const std::size_t payload_size = its_buffer->size();
         if (payload_size <= its_data.queue_size_) {
             its_data.queue_size_ -= payload_size;
             its_data.queue_.pop_front();
