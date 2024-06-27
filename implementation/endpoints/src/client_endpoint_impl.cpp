@@ -334,8 +334,6 @@ void client_endpoint_impl<Protocol>::send_segments(
     }
 
     if (!is_sending_ && !queue_.empty()) { // no writing in progress
-        // respect minimal debounce time
-        schedule_train();
         // ignore retention time and send immediately as the train is full anyway
         auto its_entry = get_front();
         if (its_entry.first) {

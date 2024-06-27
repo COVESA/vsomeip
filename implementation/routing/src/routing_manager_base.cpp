@@ -56,7 +56,7 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
         if (_event) {
             auto its_subscribers = _event->get_subscribers();
             if (its_subscribers.find(_client) != its_subscribers.end() && _filter) {
-                std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+                std::unique_lock its_lock(debounce_mutex_);
                 bool is_elapsed{false};
                 auto its_current = std::chrono::steady_clock::now();
 
@@ -70,8 +70,10 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
                 bool has_update = std::get<1>(debounce_client->second);
                 if (is_elapsed) {
                     if (std::get<0>(debounce_client->second) == _client && has_update) {
+                        its_lock.unlock();
                         _event->notify_one(_client, false);
                         has_update = false;
+                        its_lock.lock();
                     }
                     elapsed = 0;
                 }
