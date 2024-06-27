@@ -119,6 +119,14 @@ void local_tcp_client_endpoint_impl::connect() {
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
+
+        socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::connect: couldn't enable "
+                    << "keep_alive: " << its_error.message()
+                    << " remote:" << remote_.port();
+        }
+
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
@@ -253,6 +261,15 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         VSOMEIP_INFO << "local_tcp_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
+            return;
+        } else if (_error == boost::asio::error::eof) {
+            std::scoped_lock its_lock {mutex_};
+            sending_blocked_ = false;
+            queue_.clear();
+            queue_size_ = 0;
+        } else if (_error == boost::asio::error::connection_reset
+                   || _error == boost::asio::error::bad_descriptor) {
+            restart(true);
             return;
         }
         error_handler_t handler;
