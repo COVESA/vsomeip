@@ -2177,8 +2177,18 @@ std::shared_ptr<endpoint> routing_manager_impl::create_service_discovery_endpoin
                 if (!_reliable) {
                     auto its_server_endpoint = std::dynamic_pointer_cast<
                             udp_server_endpoint_impl>(its_service_endpoint);
-                    if (its_server_endpoint)
+                    if (its_server_endpoint) {
+                        its_server_endpoint->set_unicast_sent_callback(
+                                std::bind(&sd::service_discovery::sent_messages, discovery_.get(),
+                                          std::placeholders::_1, std::placeholders::_2,
+                                          std::placeholders::_3));
+                        its_server_endpoint->set_receive_own_multicast_messages(true);
+                        its_server_endpoint->set_sent_multicast_received_callback(
+                                std::bind(&sd::service_discovery::sent_messages, discovery_.get(),
+                                          std::placeholders::_1, std::placeholders::_2,
+                                          std::placeholders::_3));
                         its_server_endpoint->join(_address);
+                    }
                 }
             } else {
                 VSOMEIP_ERROR<< "Service Discovery endpoint could not be created. "

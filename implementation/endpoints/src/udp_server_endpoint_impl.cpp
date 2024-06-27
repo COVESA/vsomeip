@@ -31,26 +31,20 @@ namespace vsomeip_v3 {
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        boost::asio::io_context &_io,
-        const std::shared_ptr<configuration>& _configuration) :
-      server_endpoint_impl<ip::udp>(
-              _endpoint_host, _routing_host, _local,
-              _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
-              _configuration->get_endpoint_queue_limit(_configuration->get_unicast_address().to_string(), _local.port()),
-              _configuration),
-      unicast_socket_(_io, _local.protocol()),
-      unicast_recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
-      is_v4_(false),
-      multicast_id_(0),
-      joined_group_(false),
-      netmask_(_configuration->get_netmask()),
-      prefix_(_configuration->get_prefix()),
-      local_port_(_local.port()),
-      tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)),
-      tp_cleanup_timer_(_io),
-      is_stopped_(true) {
+        const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
+        boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
+    server_endpoint_impl<ip::udp>(
+            _endpoint_host, _routing_host, _local, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
+            _configuration->get_endpoint_queue_limit(
+                    _configuration->get_unicast_address().to_string(), _local.port()),
+            _configuration),
+    unicast_socket_(_io, _local.protocol()), unicast_recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0),
+    is_v4_(false), multicast_id_(0), joined_group_(false), netmask_(_configuration->get_netmask()),
+    prefix_(_configuration->get_prefix()), local_port_(_local.port()),
+    tp_reassembler_(std::make_shared<tp::tp_reassembler>(
+            _configuration->get_max_message_size_unreliable(), _io)),
+    tp_cleanup_timer_(_io), is_stopped_(true), on_unicast_sent_ {nullptr},
+    receive_own_multicast_messages_(false), on_sent_multicast_received_ {nullptr} {
     is_supporting_someip_tp_ = true;
 
     boost::system::error_code ec;
@@ -324,17 +318,14 @@ bool udp_server_endpoint_impl::send_queued(
 
     _it->second.is_sending_ = true;
     unicast_socket_.async_send_to(
-        boost::asio::buffer(*its_entry.first),
-        _it->first,
-        std::bind(
-            &udp_server_endpoint_base_impl::send_cbk,
-            shared_from_this(),
-            _it->first,
-            std::placeholders::_1,
-            std::placeholders::_2
-        )
-    );
-
+            boost::asio::buffer(*its_entry.first), _it->first,
+            [this, _it, its_entry](boost::system::error_code const& _error, std::size_t _bytes) {
+                if (!_error && on_unicast_sent_ && !_it->first.address().is_multicast()) {
+                    on_unicast_sent_(&(its_entry.first)->at(0), static_cast<uint32_t>(_bytes),
+                                     _it->first.address());
+                }
+                send_cbk(_it->first, _error, _bytes);
+            });
     return false;
 }
 
@@ -508,16 +499,19 @@ void udp_server_endpoint_impl::on_multicast_received(
             || _error == boost::asio::error::connection_reset) {
         shutdown_and_close();
     } else if (_error != boost::asio::error::operation_aborted) {
-        // Filter messages sent from the same source address
-        if (multicast_remote_.address() != local_.address()
-                && is_same_subnet(multicast_remote_.address())) {
 
-            auto find_joined = joined_.find(_destination.to_string());
-            if (find_joined != joined_.end())
-                find_joined->second = true;
+        if (multicast_remote_.address() != local_.address()) {
+            if (is_same_subnet(multicast_remote_.address())) {
+                auto find_joined = joined_.find(_destination.to_string());
+                if (find_joined != joined_.end())
+                    find_joined->second = true;
 
-            on_message_received(_error, _bytes, true,
-                    multicast_remote_, multicast_recv_buffer_);
+                on_message_received(_error, _bytes, true, multicast_remote_,
+                                    multicast_recv_buffer_);
+            }
+        } else if (receive_own_multicast_messages_ && on_sent_multicast_received_) {
+            on_sent_multicast_received_(&multicast_recv_buffer_[0], static_cast<uint32_t>(_bytes),
+                                        boost::asio::ip::address());
         }
 
         receive_multicast(_multicast_id);
@@ -930,6 +924,19 @@ udp_server_endpoint_impl::set_multicast_option(
             }
         }
     }
+}
+
+void udp_server_endpoint_impl::set_unicast_sent_callback(const on_unicast_sent_cbk_t& _cbk) {
+    on_unicast_sent_ = _cbk;
+}
+
+void udp_server_endpoint_impl::set_sent_multicast_received_callback(
+        const on_sent_multicast_received_cbk_t& _cbk) {
+    on_sent_multicast_received_ = _cbk;
+}
+
+void udp_server_endpoint_impl::set_receive_own_multicast_messages(bool value) {
+    receive_own_multicast_messages_ = value;
 }
 
 } // namespace vsomeip_v3

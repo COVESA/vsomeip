@@ -1317,52 +1317,65 @@ void routing_manager_client::on_message(
                     routing_manager_base::set_incoming_subscription_state(its_client, its_service,
                             its_instance, its_eventgroup, its_event, subscription_state_e::IS_SUBSCRIBING);
 #endif
-                    // Remote subscriber: Notify routing manager initially + count subscribes
-                    auto self = shared_from_this();
-                    host_->on_subscription(its_service, its_instance, its_eventgroup,
-                        its_client, _sec_client, get_env(its_client), true,
-                        [this, self, its_client, its_service, its_instance,
-                            its_eventgroup, its_event, its_filter, its_pending_id, its_major]
-                                (const bool _subscription_accepted) {
-
-                        std::uint32_t its_count(0);
-                        if (_subscription_accepted) {
-                            send_subscribe_ack(its_client, its_service, its_instance,
-                                           its_eventgroup, its_event, its_pending_id);
-                            std::set<event_t> its_already_subscribed_events;
-                            bool inserted = insert_subscription(its_service, its_instance, its_eventgroup,
-                                    its_event, its_filter, VSOMEIP_ROUTING_CLIENT, &its_already_subscribed_events);
-                            if (inserted) {
-                                notify_remote_initially(its_service, its_instance, its_eventgroup,
-                                        its_already_subscribed_events);
-                            }
-    #ifdef VSOMEIP_ENABLE_COMPAT
-                            send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client, true);
-    #endif
-                            its_count = get_remote_subscriber_count(
-                                    its_service, its_instance, its_eventgroup, true);
-                        } else {
-                            send_subscribe_nack(its_client, its_service, its_instance,
-                                           its_eventgroup, its_event, its_pending_id);
-                        }
-                        VSOMEIP_INFO << "SUBSCRIBE("
-                            << std::hex << std::setfill('0')
-                            << std::setw(4) << its_client << "): ["
-                            << std::setw(4) << its_service << "."
-                            << std::setw(4) << its_instance << "."
-                            << std::setw(4) << its_eventgroup << ":"
-                            << std::setw(4) << its_event << ":"
-                            << std::dec << (uint16_t)its_major << "] "
-                            << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID)
-                            << " "
-                            << (_subscription_accepted ?
-                                    std::to_string(its_count) + " accepted." : "not accepted.");
-
+                    auto its_info = find_service(its_service, its_instance);
+                    if (its_info) {
+                        // Remote subscriber: Notify routing manager initially + count subscribes
+                        auto self = shared_from_this();
+                        host_->on_subscription(
+                                its_service, its_instance, its_eventgroup, its_client, _sec_client,
+                                get_env(its_client), true,
+                                [this, self, its_client, its_service, its_instance, its_eventgroup,
+                                 its_event, its_filter, its_pending_id,
+                                 its_major](const bool _subscription_accepted) {
+                                    std::uint32_t its_count(0);
+                                    if (_subscription_accepted) {
+                                        send_subscribe_ack(its_client, its_service, its_instance,
+                                                           its_eventgroup, its_event,
+                                                           its_pending_id);
+                                        std::set<event_t> its_already_subscribed_events;
+                                        bool inserted = insert_subscription(
+                                                its_service, its_instance, its_eventgroup,
+                                                its_event, its_filter, VSOMEIP_ROUTING_CLIENT,
+                                                &its_already_subscribed_events);
+                                        if (inserted) {
+                                            notify_remote_initially(its_service, its_instance,
+                                                                    its_eventgroup,
+                                                                    its_already_subscribed_events);
+                                        }
 #ifdef VSOMEIP_ENABLE_COMPAT
-                        routing_manager_base::erase_incoming_subscription_state(its_client, its_service,
-                                its_instance, its_eventgroup, its_event);
+                                        send_pending_notify_ones(its_service, its_instance,
+                                                                 its_eventgroup, its_client, true);
 #endif
-                    });
+                                        its_count = get_remote_subscriber_count(
+                                                its_service, its_instance, its_eventgroup, true);
+                                    } else {
+                                        send_subscribe_nack(its_client, its_service, its_instance,
+                                                            its_eventgroup, its_event,
+                                                            its_pending_id);
+                                    }
+                                    VSOMEIP_INFO
+                                            << "SUBSCRIBE(" << std::hex << std::setw(4)
+                                            << std::setfill('0') << its_client << "): [" << std::hex
+                                            << std::setw(4) << std::setfill('0') << its_service
+                                            << "." << std::hex << std::setw(4) << std::setfill('0')
+                                            << its_instance << "." << std::hex << std::setw(4)
+                                            << std::setfill('0') << its_eventgroup << ":"
+                                            << std::hex << std::setw(4) << std::setfill('0')
+                                            << its_event << ":" << std::dec << (uint16_t)its_major
+                                            << "] " << std::boolalpha
+                                            << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
+                                            << (_subscription_accepted
+                                                        ? std::to_string(its_count) + " accepted."
+                                                        : "not accepted.");
+                                });
+                    } else {
+                        send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup,
+                                            its_event, its_pending_id);
+                    }
+#ifdef VSOMEIP_ENABLE_COMPAT
+                    routing_manager_base::erase_incoming_subscription_state(
+                            its_client, its_service, its_instance, its_eventgroup, its_event);
+#endif
                 } else if (is_client_known(its_client)) {
                     its_lock.unlock();
                     if (!is_from_routing) {
@@ -1409,28 +1422,40 @@ void routing_manager_client::on_message(
                     (void) ep_mgr_->find_or_create_local(its_client);
                     auto self = shared_from_this();
                     auto its_env = get_env(its_client);
-                    host_->on_subscription(its_service, its_instance,
-                            its_eventgroup, its_client, _sec_client, its_env, true,
-                            [this, self, its_client, its_filter, _sec_client, its_env, its_service,
-                                its_instance, its_eventgroup, its_event, its_major]
-                                    (const bool _subscription_accepted) {
-                        if (!_subscription_accepted) {
-                            send_subscribe_nack(its_client, its_service, its_instance,
-                                    its_eventgroup, its_event, PENDING_SUBSCRIPTION_ID);
-                        } else {
-                            send_subscribe_ack(its_client, its_service, its_instance,
-                                    its_eventgroup, its_event, PENDING_SUBSCRIPTION_ID);
-                            routing_manager_base::subscribe(its_client, _sec_client,
-                                its_service, its_instance, its_eventgroup, its_major, its_event, its_filter);
+
+                    auto its_info = find_service(its_service, its_instance);
+                    if (its_info) {
+                        host_->on_subscription(
+                                its_service, its_instance, its_eventgroup, its_client, _sec_client,
+                                its_env, true,
+                                [this, self, its_client, its_filter, _sec_client, its_env,
+                                 its_service, its_instance, its_eventgroup, its_event,
+                                 its_major](const bool _subscription_accepted) {
+                                    if (!_subscription_accepted) {
+                                        send_subscribe_nack(its_client, its_service, its_instance,
+                                                            its_eventgroup, its_event,
+                                                            PENDING_SUBSCRIPTION_ID);
+                                    } else {
+                                        send_subscribe_ack(its_client, its_service, its_instance,
+                                                           its_eventgroup, its_event,
+                                                           PENDING_SUBSCRIPTION_ID);
+                                        routing_manager_base::subscribe(
+                                                its_client, _sec_client, its_service, its_instance,
+                                                its_eventgroup, its_major, its_event, its_filter);
 #ifdef VSOMEIP_ENABLE_COMPAT
-                            send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client);
+                                        send_pending_notify_ones(its_service, its_instance,
+                                                                 its_eventgroup, its_client);
 #endif
-                        }
+                                    }
+                                });
+                    } else {
+                        send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup,
+                                            its_event, PENDING_SUBSCRIPTION_ID);
+                    }
 #ifdef VSOMEIP_ENABLE_COMPAT
-                        routing_manager_base::erase_incoming_subscription_state(its_client, its_service,
-                                its_instance, its_eventgroup, its_event);
+                    routing_manager_base::erase_incoming_subscription_state(
+                            its_client, its_service, its_instance, its_eventgroup, its_event);
 #endif
-                    });
                 } else {
                     if (_sec_client) {
                         // Local & not yet known subscriber ~> set pending until subscriber gets known!

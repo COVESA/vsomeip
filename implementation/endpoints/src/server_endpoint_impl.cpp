@@ -605,11 +605,10 @@ void server_endpoint_impl<Protocol>::connect_cbk(
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::send_cbk(
-        const endpoint_type _key,
-        boost::system::error_code const &_error, std::size_t _bytes) {
+void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
+                                              boost::system::error_code const& _error,
+                                              std::size_t _bytes) {
     (void)_bytes;
-
     // Helper
     auto check_if_all_msgs_for_stopped_service_are_sent = [&]() {
         bool found_service_msg(false);
@@ -693,6 +692,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             its_session = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_SESSION_POS_MIN]);
         }
     };
+
 
     message_buffer_ptr_t its_buffer;
     if (its_data.queue_.size()) {

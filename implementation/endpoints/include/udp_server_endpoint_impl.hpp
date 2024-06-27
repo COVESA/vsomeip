@@ -17,6 +17,13 @@ typedef server_endpoint_impl<
             boost::asio::ip::udp
         > udp_server_endpoint_base_impl;
 
+// callback type to sent messages (SD)
+using on_unicast_sent_cbk_t =
+        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+// callback type to own multicast messages received
+using on_sent_multicast_received_cbk_t =
+        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+
 class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 
 public:
@@ -59,6 +66,12 @@ public:
 
     void print_status();
     bool is_reliable() const;
+
+    // Callback to sent messages
+    void set_unicast_sent_callback(const on_unicast_sent_cbk_t& _cbk);
+    // to own multicast messages received
+    void set_sent_multicast_received_callback(const on_sent_multicast_received_cbk_t& _cbk);
+    void set_receive_own_multicast_messages(bool value);
 
 private:
     void leave_unlocked(const std::string &_address);
@@ -128,6 +141,13 @@ private:
     std::chrono::steady_clock::time_point last_sent_;
 
     std::atomic<bool> is_stopped_;
+
+    // to tracking sent messages
+    on_unicast_sent_cbk_t on_unicast_sent_;
+
+    // to receive own multicast messages
+    bool receive_own_multicast_messages_;
+    on_sent_multicast_received_cbk_t on_sent_multicast_received_;
 };
 
 } // namespace vsomeip_v3
