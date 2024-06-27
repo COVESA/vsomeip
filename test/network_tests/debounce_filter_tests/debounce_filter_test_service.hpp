@@ -29,8 +29,8 @@ public:
     void wait();
 
 private:
-    void on_start(const std::shared_ptr<vsomeip::message> &);
-    void on_stop(const std::shared_ptr<vsomeip::message> &);
+    void on_start(const std::shared_ptr<vsomeip::message>&);
+    void on_stop(const std::shared_ptr<vsomeip::message>&);
 
     void start_test();
 
