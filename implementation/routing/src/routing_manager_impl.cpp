@@ -650,12 +650,12 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if (its_info && !its_info->is_local()) {
         if (0 == its_info->get_requesters_size()) {
-
             auto its_eventgroups = find_eventgroups(_service, _instance);
             for (const auto &eg : its_eventgroups) {
                 auto its_events = eg->get_events();
-                for (auto &e : its_events)
+                for (auto &e : its_events) {
                     e->clear_subscribers();
+                }
             }
 
             if (discovery_) {
@@ -679,8 +679,9 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
                         eg_has_subscribers = true;
                     }
                 }
-                if (discovery_)
+                if (discovery_) {
                     discovery_->unsubscribe(_service, _instance, its_id, _client);
+                }
                 if (!eg_has_subscribers) {
                     for (const auto &e : its_events) {
                         e->unset_payload(true);
@@ -3720,7 +3721,6 @@ void routing_manager_impl::send_subscribe(client_t _client, service_t _service,
 }
 
 routing_state_e routing_manager_impl::get_routing_state() {
-
     return routing_manager_base::get_routing_state();
 }
 

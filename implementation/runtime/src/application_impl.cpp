@@ -605,7 +605,6 @@ void application_impl::stop_offer_service(service_t _service, instance_t _instan
 
 void application_impl::request_service(service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
-
     invoke_availability_handler(_service, _instance, _major, _minor);
     if (routing_)
         routing_->request_service(client_, _service, _instance, _major, _minor);
@@ -613,17 +612,16 @@ void application_impl::request_service(service_t _service, instance_t _instance,
 
 void application_impl::release_service(service_t _service,
         instance_t _instance) {
-
     {
         std::lock_guard<std::mutex> its_subscriptions_state_guard(subscriptions_state_mutex_);
         auto found_service = subscriptions_state_.find(_service);
         if (found_service != subscriptions_state_.end()) {
             found_service->second.erase(_instance);
-            if (found_service->second.empty())
+            if (found_service->second.empty()) {
                 subscriptions_state_.erase(_service);
+            }
         }
     }
-
     if (routing_)
         routing_->release_service(client_, _service, _instance);
 }
@@ -954,8 +952,7 @@ void application_impl::register_availability_handler(service_t _service,
             _handler, _major, _minor);
 }
 
-void
-application_impl::invoke_availability_handler(
+void application_impl::invoke_availability_handler(
     service_t _service, instance_t _instance,
     major_version_t _major, minor_version_t _minor) {
 
@@ -965,12 +962,14 @@ application_impl::invoke_availability_handler(
         auto found_instance = found_service->second.find(_instance);
         if (found_instance != found_service->second.end()) {
             auto found_major = found_instance->second.find(_major);
-            if (found_major == found_instance->second.end())
+            if (found_major == found_instance->second.end()) {
                 found_major = found_instance->second.find(ANY_MAJOR);
+            }
             if (found_major != found_instance->second.end()) {
                 auto found_minor = found_major->second.find(_minor);
-                if (found_minor == found_major->second.end())
+                if (found_minor == found_major->second.end()) {
                     found_minor = found_major->second.find(ANY_MINOR);
+                }
                 if (found_minor != found_major->second.end()) {
                     auto its_handler { found_minor->second };
                     auto its_state { is_available_unlocked(_service, _instance, _major, _minor) };
@@ -1135,24 +1134,24 @@ void application_impl::on_subscription_status(
     {
         std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
         auto its_service = subscriptions_state_.find(_service);
-        if (its_service == subscriptions_state_.end())
+        if (its_service == subscriptions_state_.end()) {
             its_service = subscriptions_state_.find(ANY_SERVICE);
-
+        }
         if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
-            if (its_instance == its_service->second.end())
+            if (its_instance == its_service->second.end()) {
                 its_instance = its_service->second.find(ANY_INSTANCE);
-
+            }
             if (its_instance != its_service->second.end()) {
                 auto its_eventgroup = its_instance->second.find(_eventgroup);
-                if (its_eventgroup == its_instance->second.end())
+                if (its_eventgroup == its_instance->second.end()) {
                     its_eventgroup = its_instance->second.find(ANY_EVENTGROUP);
-
+                }
                 if (its_eventgroup != its_instance->second.end()) {
                     auto its_event = its_eventgroup->second.find(_event);
-                    if (its_event == its_eventgroup->second.end())
+                    if (its_event == its_eventgroup->second.end()) {
                         its_event = its_eventgroup->second.find(ANY_EVENT);
-
+                    }
                     if (its_event != its_eventgroup->second.end()) {
                         entry_found = true;
                         its_event->second = (_error ?
@@ -1494,7 +1493,6 @@ session_t application_impl::get_session(bool _is_request) {
 }
 
 const vsomeip_sec_client_t *application_impl::get_sec_client() const {
-
     return &sec_client_;
 }
 

@@ -2604,7 +2604,6 @@ void routing_manager_stub::send_suspend() const {
 }
 
 routing_state_e routing_manager_stub::get_routing_state() {
-
     return host_->get_routing_state();
 }
 
