@@ -44,12 +44,18 @@ policy::deserialize_uid_gid(const byte_t * &_data, uint32_t &_size,
 
     bool its_result;
 
-    its_result = deserialize_u32(_data, _size, _uid);
-    if (its_result == false)
+    uint32_t raw_uid;
+    its_result = deserialize_u32(_data, _size, raw_uid);
+    if (its_result)
+        _uid = static_cast<uid_t>(raw_uid);
+    else
         return false;
 
-    its_result = deserialize_u32(_data, _size, _gid);
-    if (its_result == false)
+    uint32_t raw_gid;
+    its_result = deserialize_u32(_data, _size, raw_gid);
+    if (its_result)
+        _gid = static_cast<gid_t>(raw_gid);
+    else
         return false;
 
     return true;

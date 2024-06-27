@@ -6,15 +6,8 @@
 #ifndef VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
-
 #include "../include/endpoint.hpp"
 
 namespace vsomeip_v3 {

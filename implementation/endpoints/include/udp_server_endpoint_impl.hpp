@@ -6,28 +6,16 @@
 #ifndef VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_HPP_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/ip/udp_ext.hpp>
-#else
 #include <boost/asio/ip/udp.hpp>
-#endif
-
 #include <vsomeip/defines.hpp>
 
 #include "server_endpoint_impl.hpp"
 #include "tp_reassembler.hpp"
 
 namespace vsomeip_v3 {
-
-#if VSOMEIP_BOOST_VERSION < 106600
-typedef server_endpoint_impl<
-            boost::asio::ip::udp_ext
-        > udp_server_endpoint_base_impl;
-#else
 typedef server_endpoint_impl<
             boost::asio::ip::udp
         > udp_server_endpoint_base_impl;
-#endif
 
 class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 

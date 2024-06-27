@@ -55,12 +55,8 @@ application_impl::application_impl(const std::string &_name, const std::string &
           is_initialized_(false),
           name_(_name),
           path_(_path),
-#if VSOMEIP_BOOST_VERSION >= 106600
           work_(std::make_shared<boost::asio::executor_work_guard<
               boost::asio::io_context::executor_type> >(io_.get_executor())),
-#else
-          work_(std::make_shared<boost::asio::io_context::work>(io_)),
-#endif
           routing_(0),
           state_(state_type_e::ST_DEREGISTERED),
           security_mode_(security_mode_e::SM_ON),
@@ -178,11 +174,7 @@ bool application_impl::init() {
     } else {
         auto its_guest_address = configuration_->get_routing_guest_address();
         if (its_guest_address.is_v4()) {
-#if VSOMEIP_BOOST_VERSION < 106600
-            sec_client_.host = htonl(static_cast<std::uint32_t>(its_guest_address.to_v4().to_ulong()));
-#else
             sec_client_.host = htonl(its_guest_address.to_v4().to_uint());
-#endif
         }
         sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
     }

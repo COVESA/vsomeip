@@ -18,6 +18,9 @@
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
 #include "tp.hpp"
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
 
 namespace vsomeip_v3 {
 

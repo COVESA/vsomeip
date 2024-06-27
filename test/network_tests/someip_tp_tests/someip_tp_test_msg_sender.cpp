@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <list>
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <arpa/inet.h>
 #endif
 

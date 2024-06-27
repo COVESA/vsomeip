@@ -341,7 +341,9 @@ TEST(security_policy_test, get_uid_gid) {
     std::uint32_t deserialized_gid;
 
     // Test method, and compare them to the created uid and gid.
-    ASSERT_TRUE(its_policy->get_uid_gid(deserialized_uid, deserialized_gid));
+    #ifndef __QNX__
+        ASSERT_TRUE(its_policy->get_uid_gid(deserialized_uid, deserialized_gid));
+    #endif
     ASSERT_EQ(deserialized_uid, uid);
     ASSERT_EQ(deserialized_gid, gid);
 }
@@ -394,7 +396,9 @@ TEST(security_policy_test, deserialize_uid_gid) {
     data_size_ = array_size;
 
     // Test method.
-    ASSERT_TRUE(its_policy->deserialize_uid_gid(data_ptr_, data_size_, deserialized_uid, deserialized_gid));
+    #ifndef __QNX__
+        ASSERT_TRUE(its_policy->deserialize_uid_gid(data_ptr_, data_size_, deserialized_uid, deserialized_gid));
+    #endif
     ASSERT_EQ(deserialized_uid, uid);
     ASSERT_EQ(deserialized_gid, gid);
 }

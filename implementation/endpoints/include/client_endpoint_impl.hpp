@@ -25,7 +25,6 @@
 #include "client_endpoint.hpp"
 #include "tp.hpp"
 
-
 namespace vsomeip_v3 {
 
 class endpoint;

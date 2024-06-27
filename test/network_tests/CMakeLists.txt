@@ -13,6 +13,9 @@ include_directories(
 
 
 set(TEST_LINK_LIBRARIES gtest)
+if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set(TEST_LINK_LIBRARIES ${TEST_LINK_LIBRARIES} socket)
+endif()
 set(NETWORK_TEST_BIN_DIR ${PROJECT_BINARY_DIR}/test/network_tests)
 set(NETWORK_TEST_SRC_DIR ${PROJECT_SOURCE_DIR}/test/network_tests)
 set(HOSTNAME "$ENV{HOSTNAME}")

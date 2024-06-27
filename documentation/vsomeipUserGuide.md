@@ -1,7 +1,7 @@
 # Legal notice
 
 ## Copyright
-Copyright (C) 2015-2022, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+Copyright (C) 2015-2024, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 ## License
 
@@ -11,11 +11,11 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ## Version
 
-This documentation was generated for version 3.5 of vsomeip.
+This documentation was generated for version 3.5 of vSomeIP.
 
-# vsomeip Overview
+# vSomeIP Overview
 
-The vsomeip stack implements the http://some-ip.com/[Scalable service-Oriented
+The vSomeIP stack implements the http://some-ip.com/[Scalable service-Oriented
 MiddlewarE over IP (SOME/IP)] protocol. The stack consists out of:
 
 * a shared library for SOME/IP (`libvsomeip.so`)
@@ -26,20 +26,13 @@ MiddlewarE over IP (SOME/IP)] protocol. The stack consists out of:
 
 ## Dependencies
 
-* A C++14 enabled compiler is needed (default for gcc >= v6.1)
-* vsomeip uses cmake as buildsystem.
-* vsomeip uses Boost >= 1.55:
-    * Ubuntu 14.04:
-        * `sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev libboost-log1.55-dev`
-    * Ubuntu 12.04: a PPA is necessary to use version 1.54 of Boost:
-        * URL: https://launchpad.net/~boost-latest/+archive/ubuntu/ppa
-        * `sudo add-apt-repository ppa:boost-latest/ppa`
-        * `sudo apt-get install libboost-system1.55-dev libboost-thread1.55-dev
-    libboost-log1.55-dev`
+* A C++17 enabled compiler is needed
+* vSomeIP uses cmake as buildsystem.
+* vSomeIP uses Boost >= 1.66:
+    * Ubuntu 22.04:
+        * `sudo apt-get install libboost-system1.74-dev libboost-thread1.74-dev libboost-log1.74-dev`
 * For the tests Google's test framework
-  https://code.google.com/p/googletest/[gtest] in version 1.7.0 is needed
-    * URL: https://googletest.googlecode.com/files/gtest-1.7.0.zip[direct link,
-   version 1.7.0]
+    https://github.com/google/googletest/releases
 * To build the documentation doxygen and graphviz are needed:
     * `sudo apt-get install doxygen graphviz`
 

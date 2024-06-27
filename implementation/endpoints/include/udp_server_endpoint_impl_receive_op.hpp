@@ -6,8 +6,6 @@
 #ifndef VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
-#if VSOMEIP_BOOST_VERSION >= 106600
-
 #ifdef _WIN32
 #include <ws2def.h>
 #endif
@@ -18,6 +16,12 @@
 #include <boost/asio/ip/udp.hpp>
 
 #include <vsomeip/internal/logger.hpp>
+
+#if defined(__QNX__)
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include "../../utility/include/qnx_helper.hpp"
+#endif
 
 namespace vsomeip_v3 {
 namespace udp_endpoint_receive_op {
@@ -62,7 +66,7 @@ struct storage :
         multicast_id_(_multicast_id),
         is_v4_(_is_v4),
         destination_(_destination),
-        bytes_(_bytes) 
+        bytes_(_bytes)
     {}
 };
 
@@ -281,7 +285,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
                     multicast_socket->async_wait(
-                        socket_type_t::wait_read, 
+                        socket_type_t::wait_read,
                         receive_cb(_data)
                     );
                     return;
@@ -361,7 +365,5 @@ receive_cb (std::shared_ptr<storage> _data) {
 
 } // namespace udp_endpoint_receive_op
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_BOOST_VERSION >= 106600
 
 #endif // VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_

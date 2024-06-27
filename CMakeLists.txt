@@ -185,7 +185,7 @@ add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
+find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
 else()
@@ -213,12 +213,6 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-
-if (${VSOMEIP_BOOST_VERSION} LESS 106600)
-include_directories(SYSTEM
-    implementation/helper
-)
-endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
@@ -384,7 +378,11 @@ endif ()
 target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    target_link_directories(${VSOMEIP_NAME} PUBLIC "${QNX_TARGET}/${CPUVARDIR}/io-sock/lib")
     target_link_libraries(${VSOMEIP_NAME}-e2e socket)
+    target_link_libraries(${VSOMEIP_NAME}-cfg socket)
+    target_link_libraries(${VSOMEIP_NAME}-sd socket)
+    target_link_libraries(${VSOMEIP_NAME} PRIVATE socket)
 endif()
 ################################################################################
 # Compatibility library

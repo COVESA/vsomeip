@@ -347,7 +347,6 @@ void local_tcp_server_endpoint_impl::connection::start() {
         }
 
         is_stopped_ = false;
-#if VSOMEIP_BOOST_VERSION < 106600
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
             std::bind(
@@ -357,17 +356,6 @@ void local_tcp_server_endpoint_impl::connection::start() {
                 std::placeholders::_2
             )
         );
-#else
-        socket_.async_receive(
-            boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
-            std::bind(
-                &local_tcp_server_endpoint_impl::connection::receive_cbk,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        );
-#endif
     }
 }
 

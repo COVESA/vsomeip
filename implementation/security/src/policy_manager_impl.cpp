@@ -187,7 +187,7 @@ policy_manager_impl::check_routing_credentials(
 }
 
 void
-policy_manager_impl::set_routing_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid,
         const std::string &_name) {
 
     if (is_configured_) {
@@ -417,7 +417,7 @@ policy_manager_impl::load(const configuration_element &_element, const bool _laz
 }
 
 bool
-policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
+policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     bool was_removed(false);
     if (!any_client_policies_.empty()) {
@@ -455,7 +455,7 @@ policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
 }
 
 void
-policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy) {
 
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
@@ -509,7 +509,7 @@ policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
 }
 
 void
-policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy, client_t _client) {
 
     bool was_found(false);
@@ -541,7 +541,7 @@ policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
 }
 
 bool
-policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
+policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<policy> &_policy) const {
 
     bool is_uid_allowed(false);
     {
@@ -594,7 +594,7 @@ policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<pol
 }
 
 bool
-policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
+policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
     std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
         if (its_uid_range.lower() <= _uid && _uid <= its_uid_range.upper()) {
@@ -616,7 +616,7 @@ policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
 
 bool
 policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
-        uint32_t &_uid, uint32_t &_gid, const std::shared_ptr<policy> &_policy) const {
+        uid_t &_uid, gid_t &_gid, const std::shared_ptr<policy> &_policy) const {
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
     if (is_valid)
@@ -1309,7 +1309,7 @@ policy_manager_impl::print_policy(const std::shared_ptr<policy> &_policy) const 
 
 bool
 policy_manager_impl::parse_uid_gid(const byte_t* &_buffer,
-        uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid) const {
+        uint32_t &_buffer_size, uid_t &_uid, gid_t &_gid) const {
 
    const auto its_policy = std::make_shared<policy>();
    return (its_policy

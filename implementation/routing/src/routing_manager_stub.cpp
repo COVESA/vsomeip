@@ -1114,7 +1114,7 @@ void routing_manager_stub::on_stop_offer_service(client_t _client,
 }
 
 void routing_manager_stub::send_client_credentials(const client_t _target,
-        std::set<std::pair<uint32_t, uint32_t>> &_credentials) {
+        std::set<std::pair<uid_t, gid_t>> &_credentials) {
 
     std::shared_ptr<endpoint> its_endpoint = host_->find_local(_target);
     if (its_endpoint) {
@@ -1193,7 +1193,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target,
 }
 
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
-    std::set<std::pair<uint32_t, uint32_t>> its_credentials;
+    std::set<std::pair<uid_t, gid_t>> its_credentials;
     std::set<client_t> its_requesting_clients;
     // search for clients which shall receive the credentials
     for (auto its_requesting_client : service_requests_) {
@@ -1209,7 +1209,7 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     // search for UID / GID linked with the client ID that offers the requested services
     vsomeip_sec_client_t its_sec_client;
     if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_hoster, its_sec_client)) {
-        std::pair<uint32_t, uint32_t> its_uid_gid;
+        std::pair<uid_t, gid_t> its_uid_gid;
         its_uid_gid.first = its_sec_client.user;
         its_uid_gid.second = its_sec_client.group;
         its_credentials.insert(its_uid_gid);
@@ -1829,7 +1829,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
     }
 
     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-    std::set<std::pair<uint32_t, uint32_t>> its_credentials;
+    std::set<std::pair<uid_t, gid_t>> its_credentials;
     vsomeip_sec_client_t its_requester_sec_client;
     if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_requester_sec_client)) {
         // determine credentials of offering clients using current routing info
@@ -2037,7 +2037,7 @@ bool routing_manager_stub::send_provided_event_resend_request(
 }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-bool routing_manager_stub::is_policy_cached(uint32_t _uid) {
+bool routing_manager_stub::is_policy_cached(uid_t _uid) {
     {
         std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
         if (updated_security_policies_.find(_uid)
@@ -2051,7 +2051,7 @@ bool routing_manager_stub::is_policy_cached(uint32_t _uid) {
     }
 }
 
-void routing_manager_stub::policy_cache_add(uint32_t _uid, const std::shared_ptr<payload>& _payload) {
+void routing_manager_stub::policy_cache_add(uid_t _uid, const std::shared_ptr<payload>& _payload) {
     // cache security policy payload for later distribution to new registering clients
     {
         std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
@@ -2059,7 +2059,7 @@ void routing_manager_stub::policy_cache_add(uint32_t _uid, const std::shared_ptr
     }
 }
 
-void routing_manager_stub::policy_cache_remove(uint32_t _uid) {
+void routing_manager_stub::policy_cache_remove(uid_t _uid) {
     {
         std::lock_guard<std::mutex> its_lock(updated_security_policies_mutex_);
         updated_security_policies_.erase(_uid);
@@ -2067,7 +2067,7 @@ void routing_manager_stub::policy_cache_remove(uint32_t _uid) {
 }
 
 bool routing_manager_stub::send_update_security_policy_request(client_t _client, pending_security_update_id_t _update_id,
-                                                               uint32_t _uid, const std::shared_ptr<payload>& _payload) {
+                                                               uid_t _uid, const std::shared_ptr<payload>& _payload) {
     (void)_uid;
 
     std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
@@ -2147,7 +2147,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
 
 bool routing_manager_stub::send_remove_security_policy_request(
         client_t _client, pending_security_update_id_t _update_id,
-        uint32_t _uid, uint32_t _gid) {
+        uid_t _uid, gid_t _gid) {
 
     protocol::remove_security_policy_command its_command;
     its_command.set_client(_client);
@@ -2364,7 +2364,7 @@ void routing_manager_stub::on_security_update_timeout(
 }
 
 bool routing_manager_stub::update_security_policy_configuration(
-        uint32_t _uid, uint32_t _gid,
+        uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy,
         const std::shared_ptr<payload> &_payload,
         const security_update_handler_t &_handler) {
@@ -2432,7 +2432,7 @@ bool routing_manager_stub::update_security_policy_configuration(
 }
 
 bool routing_manager_stub::remove_security_policy_configuration(
-        uint32_t _uid, uint32_t _gid, const security_update_handler_t &_handler) {
+        uid_t _uid, gid_t _gid, const security_update_handler_t &_handler) {
 
     bool ret(true);
 
