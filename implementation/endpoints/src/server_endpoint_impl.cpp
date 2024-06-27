@@ -269,8 +269,9 @@ bool server_endpoint_impl<Protocol>::send_intern(
     VSOMEIP_DEBUG << msg.str();
 #endif
     // STEP 1: Check queue limit
-    if (!check_queue_limit(_data, _size, its_data))
+    if (!check_queue_limit(_data, _size, its_data)) {
         return false;
+    }
 
     // STEP 2: Cancel the dispatch timer
     cancel_dispatch_timer(its_target_iterator);
@@ -476,10 +477,10 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type &_data) const {
-
     _data.queue_size_ = 0;
-    for (const auto &q : _data.queue_)
+    for (const auto &q : _data.queue_) {
         _data.queue_size_ += q.first->size();
+    }
 }
 
 template<typename Protocol>
@@ -487,8 +488,9 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
         endpoint_data_type &_endpoint_data) const {
 
     // No queue limit --> Fine
-    if (endpoint_impl<Protocol>::queue_limit_ == QUEUE_SIZE_UNLIMITED)
+    if (endpoint_impl<Protocol>::queue_limit_ == QUEUE_SIZE_UNLIMITED) {
         return true;
+    }
 
     // Current queue size is bigger than the maximum queue size
     if (_endpoint_data.queue_size_ >= endpoint_impl<Protocol>::queue_limit_) {
@@ -734,7 +736,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
             its_data.queue_.pop_front();
             recalculate_queue_size(its_data);
-       }
+        }
 
         update_last_departure(its_data);
 

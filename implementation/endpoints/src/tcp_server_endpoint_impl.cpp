@@ -315,11 +315,10 @@ bool tcp_server_endpoint_impl::is_reliable() const {
 }
 
 bool tcp_server_endpoint_impl::is_suspended() const {
-
     auto its_routing_host { routing_host_.lock() };
-    if (its_routing_host)
+    if (its_routing_host) {
         return routing_state_e::RS_SUSPENDED == its_routing_host->get_routing_state();
-
+    }
     return false;
 }
 
@@ -447,7 +446,6 @@ void tcp_server_endpoint_impl::connection::receive() {
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
-
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
         boost::system::error_code its_error;
