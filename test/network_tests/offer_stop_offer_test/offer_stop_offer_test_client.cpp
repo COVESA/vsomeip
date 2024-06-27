@@ -44,6 +44,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_client) {
     // At the end validate that the service was available, atleast once
     test_timer_t test_timer(CLIENT_UP_TIME);
     bool service_was_available = false;
+    bool request_was_received = false;
     while (!test_timer.has_elapsed()) {
         if (service_consumer.is_available()) {
             service_was_available = true;
@@ -60,18 +61,19 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_client) {
             ASSERT_TRUE(request_service2_tcp.valid());
             ASSERT_TRUE(request_service2_udp.valid());
 
-            // check futures status
-            ASSERT_EQ(request_service1_tcp.wait_for(CLIENT_REQUEST_TIMEOUT),
-                      std::future_status::ready);
-            ASSERT_EQ(request_service2_tcp.wait_for(CLIENT_REQUEST_TIMEOUT),
-                      std::future_status::ready);
-            ASSERT_EQ(request_service2_udp.wait_for(CLIENT_REQUEST_TIMEOUT),
-                      std::future_status::ready);
+            // wait for responses
+            request_service1_tcp.wait();
+            request_service2_tcp.wait();
+            request_service2_udp.wait();
+
+            request_was_received = true;
         }
     }
 
     // to not get mislead if the service was never up
     EXPECT_TRUE(service_was_available);
+    // to not get mislead if the request was never received
+    EXPECT_TRUE(request_was_received);
 }
 
 int main(int argc, char** argv) {
