@@ -54,6 +54,7 @@
 #include "../../protocol/include/update_security_credentials_command.hpp"
 #include "../../protocol/include/update_security_policy_command.hpp"
 #include "../../protocol/include/update_security_policy_response_command.hpp"
+#include "../../protocol/include/config_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 #include "../../utility/include/bithelper.hpp"
@@ -794,6 +795,20 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             break;
         }
 #endif // !VSOMEIP_DISABLE_SECURITY
+        case protocol::id_e::CONFIG_ID: {
+            protocol::config_command its_command;
+            protocol::error_e its_command_error;
+            its_command.deserialize(its_buffer, its_command_error);
+            if (its_command_error != protocol::error_e::ERROR_OK) {
+                VSOMEIP_ERROR << __func__ << ": config command deserialization failed (" << std::dec
+                              << static_cast<int>(its_command_error) << ")";
+                break;
+            }
+            if (its_command.contains("hostname")) {
+                add_known_client(its_command.get_client(), its_command.at("hostname"));
+            }
+            break;
+        }
         default:
             VSOMEIP_WARNING << __func__ << ": Received an unhandled command ("
                 << std::dec << static_cast<int>(its_id) << ")";
