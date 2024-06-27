@@ -71,3 +71,6 @@ SortIncludes: false
 
 # Break constructor initializers before the colon and after the commas.
 BreakConstructorInitializers: AfterColon
+
+# Do not format macro definition body.
+SkipMacroDefinitionBody: true
