@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,590 +7,269 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(subscribe_notify_tests LANGUAGES CXX)
 
-set(TEST_SUBSCRIBE_NOTIFY_NAME subscribe_notify_test)
-set(TEST_SUBSCRIBE_NOTIFY_SERVICE ${TEST_SUBSCRIBE_NOTIFY_NAME}_service)
-add_executable(${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_service.cpp)
-target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Configure necessary files into the build folder.
+set(configuration_files
+    subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master.json
+    subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_slave.json
+    subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_slave_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master_tcp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master_udp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_master_udp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_slave_udp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_slave_udp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave_tcp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave_udp.json
+    subscribe_notify_test_diff_client_ids_diff_ports_slave_udp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_partial_same_ports_master.json
+    subscribe_notify_test_diff_client_ids_partial_same_ports_master_local_tcp.json
+    subscribe_notify_test_diff_client_ids_partial_same_ports_slave.json
+    subscribe_notify_test_diff_client_ids_partial_same_ports_slave_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_master.json
+    subscribe_notify_test_diff_client_ids_same_ports_master_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_master_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_master_tcp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_master_udp.json
+    subscribe_notify_test_diff_client_ids_same_ports_master_udp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave_tcp_local_tcp.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave_udp.json
+    subscribe_notify_test_diff_client_ids_same_ports_slave_udp_local_tcp.json
+    subscribe_notify_test_master_starter.sh
+    subscribe_notify_test_one_event_two_eventgroups_master.json
+    subscribe_notify_test_one_event_two_eventgroups_master_local_tcp.json
+    subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
+    subscribe_notify_test_one_event_two_eventgroups_slave_starter.sh
+    subscribe_notify_test_one_event_two_eventgroups_tcp_slave.json
+    subscribe_notify_test_one_event_two_eventgroups_tcp_slave_local_tcp.json
+    subscribe_notify_test_one_event_two_eventgroups_udp_slave.json
+    subscribe_notify_test_one_event_two_eventgroups_udp_slave_local_tcp.json
+    subscribe_notify_test_same_client_ids_diff_ports_master.json
+    subscribe_notify_test_same_client_ids_diff_ports_master_local_tcp.json
+    subscribe_notify_test_same_client_ids_diff_ports_slave.json
+    subscribe_notify_test_same_client_ids_diff_ports_slave_local_tcp.json
+    subscribe_notify_test_same_client_ids_same_ports_master.json
+    subscribe_notify_test_same_client_ids_same_ports_master_local_tcp.json
+    subscribe_notify_test_same_client_ids_same_ports_slave.json
+    subscribe_notify_test_same_client_ids_same_ports_slave_local_tcp.json
+    subscribe_notify_test_slave_starter.sh
+)
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(subscribe_notify_test_service
+    subscribe_notify_test_service.cpp
 )
 
-# Copy config files for test into $BUILDDIR/test (local communication via UDS)
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-# copy starter scripts into builddir
-if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter_qnx.sh)
-else()
-    set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
-endif()
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-)
-set(TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+# Add test executable.
+add_executable(subscribe_notify_test_one_event_two_eventgroups_service
+    subscribe_notify_test_one_event_two_eventgroups_service.cpp
 )
 
-# subscribe_notify_test_one_event_two_eventgroups
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME subscribe_notify_test_one_event_two_eventgroups)
-
-# service
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_service)
-add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}.cpp)
-target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
-)
-# client
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_client)
-add_executable(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}.cpp)
-target_link_libraries(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(subscribe_notify_test_one_event_two_eventgroups_client
+    subscribe_notify_test_one_event_two_eventgroups_client.cpp
 )
 
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
+# Add build dependencies and link libraries to executables.
+set(executables
+    subscribe_notify_test_service
+    subscribe_notify_test_one_event_two_eventgroups_service
+    subscribe_notify_test_one_event_two_eventgroups_client
 )
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
+
+# Subscribe Notify Tests - Local Communication over UDS
+
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_master_udp.json
 )
 
-# Copy config files for test into $BUILDDIR/test (local communication via TCP)
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_tcp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_tcp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_master_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_slave_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_tcp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_tcp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_master_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_slave_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_same_ports_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_SAME_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_same_client_ids_diff_ports_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SAME_IDS_DIFF_PORTS_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_slave_udp_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_SLAVE_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-# copy starter scripts into builddir
-set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
-)
-set(TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_SLAVE_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP
+        subscribe_notify_test_diff_client_ids_diff_ports_master_tcp.json
 )
 
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_UDP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_slave_local_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/conf/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_TCP_LOCAL_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_master_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
-)
-set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SLAVE_STARTER}
-    ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE}
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_master.json
 )
 
-add_dependencies(${TEST_SUBSCRIBE_NOTIFY_SERVICE} gtest)
-add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE} gtest)
-add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT} gtest)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_same_ports_master_udp.json
+)
 
-add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_SERVICE})
-add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE})
-add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT})
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP
+        subscribe_notify_test_diff_client_ids_same_ports_master_tcp.json
+)
 
-# subscribe notify tests (local communication via UDS)
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_same_ports_master.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_partial_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_partial_same_ports_master.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp.json
+        SAME_SERVICE_ID
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp_local_tcp PROPERTIES TIMEOUT 120)
+# Subscribe Notify Tests - Local Communication over TCP
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_master_udp_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_tcp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP
+        subscribe_notify_test_diff_client_ids_diff_ports_master_tcp_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_LOCAL_TCP_CONFIG_FILE} SAME_SERVICE_ID)
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_both_tcp_and_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_master_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_same_ports_master_udp_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_tcp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP
+        subscribe_notify_test_diff_client_ids_same_ports_master_tcp_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_local_tcp" TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_local_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_LOCAL_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp_local_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_same_ports_both_tcp_and_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_same_ports_master_local_tcp.json
+)
 
-# subscribe_notify_tests (local communication via TCP)
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_partial_same_ports_both_tcp_and_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        TCP_AND_UDP
+        subscribe_notify_test_diff_client_ids_partial_same_ports_master_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json
+        SAME_SERVICE_ID
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
+        UDP
+        subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
+# Subscribe Notify Tests - One Event Two Eventgroups
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_one_event_two_eventgroups_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
+        UDP
+        subscribe_notify_test_one_event_two_eventgroups_master.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_one_event_two_eventgroups_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
+        TCP
+        subscribe_notify_test_one_event_two_eventgroups_master.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} TCP_AND_UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_one_event_two_eventgroups_udp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
+        UDP
+        subscribe_notify_test_one_event_two_eventgroups_master_local_tcp.json
+)
 
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_UDP_CONFIG_FILE} SAME_SERVICE_ID)
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
-
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_udp" TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_autoconfig_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_DIFF_IDS_DIFF_PORTS_AUTOCONFIG_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
-
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp" TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER} UDP ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_udp PROPERTIES TIMEOUT 120)
-
-string(REPLACE "test_name" "${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp" TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp
-    COMMAND ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_STARTER} TCP ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE})
-set_tests_properties(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME subscribe_notify_test_one_event_two_eventgroups_tcp_local_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
+        TCP
+        subscribe_notify_test_one_event_two_eventgroups_master_local_tcp.json
+)

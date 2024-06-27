@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,217 +7,95 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(offer_tests LANGUAGES CXX)
 
-set(TEST_OFFER_NAME offer_test)
-set(TEST_OFFER_SERVICE ${TEST_OFFER_NAME}_service)
-add_executable(${TEST_OFFER_SERVICE}
-    ${TEST_OFFER_NAME}_service.cpp)
-target_link_libraries(${TEST_OFFER_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Configure necessary files into the build folder.
+set(configuration_files
+    offer_test_big_sd_msg_master.json
+    offer_test_big_sd_msg_master_starter.sh
+    offer_test_big_sd_msg_slave.json
+    offer_test_big_sd_msg_slave_starter.sh
+    offer_test_external_master.json
+    offer_test_external_master_starter.sh
+    offer_test_external_slave.json
+    offer_test_external_slave_starter.sh
+    offer_test_local.json
+    offer_test_local_starter.sh
+    offer_test_multiple_offerings.json
+    offer_test_multiple_offerings_starter.sh
+)
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(offer_test_service
+    offer_test_service.cpp
 )
 
-set(TEST_OFFER_MULTIPLE_OFFERING offer_test_multiple_offerings)
-add_executable(${TEST_OFFER_MULTIPLE_OFFERING}
-    ${TEST_OFFER_MULTIPLE_OFFERING}.cpp)
-target_link_libraries(${TEST_OFFER_MULTIPLE_OFFERING}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(offer_test_multiple_offerings
+    offer_test_multiple_offerings.cpp
 )
 
-# copy starter scripts into builddir
-set(TEST_OFFER_MULTIPLE_OFFERING_STARTER ${TEST_OFFER_MULTIPLE_OFFERING}_starter.sh)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
-    ${TEST_OFFER_MULTIPLE_OFFERING}
+# Add test executable.
+add_executable(offer_test_client
+    offer_test_client.cpp
 )
 
-# Copy config file for local test into $BUILDDIR/test
-set(TEST_OFFER_MULTIPLE_OFFERING_CONFIG ${TEST_OFFER_MULTIPLE_OFFERING}.json)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
-    ${TEST_OFFER_MULTIPLE_OFFERING}
+# Add test executable.
+add_executable(offer_test_service_external
+    offer_test_service_external.cpp
 )
 
-set(TEST_OFFER_CLIENT ${TEST_OFFER_NAME}_client)
-add_executable(${TEST_OFFER_CLIENT}
-    ${TEST_OFFER_NAME}_client.cpp)
-target_link_libraries(${TEST_OFFER_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(offer_test_external_sd_msg_sender
+    offer_test_external_sd_msg_sender.cpp
 )
 
-set(TEST_OFFER_SERVICE_EXTERNAL ${TEST_OFFER_NAME}_service_external)
-add_executable(${TEST_OFFER_SERVICE_EXTERNAL}
-    ${TEST_OFFER_NAME}_service_external.cpp)
-target_link_libraries(${TEST_OFFER_SERVICE_EXTERNAL}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(offer_test_big_sd_msg_service
+    offer_test_big_sd_msg_service.cpp
 )
 
-set(TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER ${TEST_OFFER_NAME}_external_sd_msg_sender)
-add_executable(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER}
-    ${TEST_OFFER_NAME}_external_sd_msg_sender.cpp)
-target_link_libraries(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(offer_test_big_sd_msg_client
+    offer_test_big_sd_msg_client.cpp
 )
 
-# client and service for offer test big sd msg
-set(TEST_OFFER_BIG_NAME offer_test_big_sd_msg)
-set(TEST_OFFER_BIG_SERVICE ${TEST_OFFER_BIG_NAME}_service)
-add_executable(${TEST_OFFER_BIG_SERVICE}
-    ${TEST_OFFER_BIG_NAME}_service.cpp)
-target_link_libraries(${TEST_OFFER_BIG_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add build dependencies and link libraries to executables.
+set(executables
+    offer_test_service
+    offer_test_multiple_offerings
+    offer_test_client
+    offer_test_service_external
+    offer_test_external_sd_msg_sender
+    offer_test_big_sd_msg_service
+    offer_test_big_sd_msg_client
+)
+targets_add_default_dependencies("${executables}")
+targets_link_default_libraries("${executables}")
+
+# Add custom test command.
+add_custom_test(
+    NAME offer_test_local
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_local_starter.sh
+    TIMEOUT 180
 )
 
-set(TEST_OFFER_BIG_CLIENT ${TEST_OFFER_BIG_NAME}_client)
-add_executable(${TEST_OFFER_BIG_CLIENT}
-    ${TEST_OFFER_BIG_NAME}_client.cpp)
-target_link_libraries(${TEST_OFFER_BIG_CLIENT}
-    ${DLT_LIBRARIES}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    vsomeip_utilities
+# Add custom test command.
+add_custom_test(
+    NAME offer_test_external
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_master_starter.sh
+    TIMEOUT 360
 )
 
-# copy starter scripts into builddir
-if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter_qnx.sh)
-else()
-    set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_LOCAL_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_LOCAL_STARTER}
-    ${TEST_OFFER_SERVICE}
+# Add custom test command.
+add_custom_test(
+    NAME offer_test_big_sd_msg
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_big_sd_msg_master_starter.sh
+    TIMEOUT 360
 )
 
-# Copy config file for local test into $BUILDDIR/test
-set(TEST_OFFER_LOCAL_CONFIG_FILE ${TEST_OFFER_NAME}_local.json)
-copy_to_builddir(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_LOCAL_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_LOCAL_CONFIG_FILE}
-    ${TEST_OFFER_SERVICE}
+# Add custom test command.
+add_custom_test(
+    NAME offer_test_multiple_offerings
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_multiple_offerings_starter.sh
+    TIMEOUT 1800
 )
-
-# generate and copy json files into builddir for external test
-set(TEST_OFFER_SLAVE_CONFIG_FILE ${TEST_OFFER_NAME}_external_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_OFFER_MASTER_CONFIG_FILE ${TEST_OFFER_NAME}_external_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_MASTER_CONFIG_FILE}
-    @ONLY)
-
-# generate and copy json files into builddir for big SD message test
-set(TEST_OFFER_BIG_SLAVE_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_BIG_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_OFFER_BIG_MASTER_CONFIG_FILE ${TEST_OFFER_BIG_NAME}_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_CONFIG_FILE}
-    @ONLY)
-
-# Copy starter scripts for external test to $BUILDDIR/test
-if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter_qnx.sh)
-else()
-    set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
-endif()
-
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_EXTERNAL_MASTER_STARTER}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
-    @ONLY)
-
-set(TEST_OFFER_EXTERNAL_SLAVE_STARTER ${TEST_OFFER_NAME}_external_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_SLAVE_STARTER}
-    ${TEST_OFFER_SERVICE}
-)
-
-# Copy starter scripts for external test to $BUILDDIR/test
-set(TEST_OFFER_BIG_MASTER_STARTER ${TEST_OFFER_BIG_NAME}_master_starter.sh)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_BIG_MASTER_STARTER}.in
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER}
-    @ONLY)
-
-# Copy starter scripts for external test to $BUILDDIR/test
-set(TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER ${TEST_OFFER_BIG_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_BIG_EXTERNAL_SLAVE_STARTER}
-    ${TEST_OFFER_BIG_SERVICE}
-)
-
-# offer tests
-string(REPLACE "test_name" "${TEST_OFFER_NAME}_local" TEST_OFFER_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_OFFER_NAME}_local
-    COMMAND ${TEST_OFFER_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_LOCAL_STARTER})
-set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 180)
-string(REPLACE "test_name" "${TEST_OFFER_NAME}_external" TEST_OFFER_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_OFFER_NAME}_external
-    COMMAND ${TEST_OFFER_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
-set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
-
-string(REPLACE "test_name" "${TEST_OFFER_MULTIPLE_OFFERING}" TEST_OFFER_MULTIPLE_OFFERING_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_OFFER_BIG_NAME}
-    COMMAND ${TEST_OFFER_BIG_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_BIG_MASTER_STARTER})
-set_tests_properties(${TEST_OFFER_BIG_NAME} PROPERTIES TIMEOUT 360)
-
-# Multiple Offer tests
-string(REPLACE "test_name" "${TEST_OFFER_BIG_NAME}" TEST_OFFER_BIG_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_OFFER_MULTIPLE_OFFERING}
-    COMMAND ${TEST_OFFER_MULTIPLE_OFFERING_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_STARTER})
-set_tests_properties(${TEST_OFFER_MULTIPLE_OFFERING} PROPERTIES TIMEOUT 1800)
-
-
-add_dependencies(${TEST_OFFER_SERVICE} gtest)
-add_dependencies(${TEST_OFFER_CLIENT} gtest)
-add_dependencies(${TEST_OFFER_SERVICE_EXTERNAL} gtest)
-add_dependencies(${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER} gtest)
-
-add_dependencies(build_network_tests ${TEST_OFFER_SERVICE})
-add_dependencies(build_network_tests ${TEST_OFFER_CLIENT})
-add_dependencies(build_network_tests ${TEST_OFFER_SERVICE_EXTERNAL})
-add_dependencies(build_network_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
-add_dependencies(build_network_tests ${TEST_OFFER_BIG_SERVICE})
-add_dependencies(build_network_tests ${TEST_OFFER_BIG_CLIENT})
-add_dependencies(build_network_tests ${TEST_OFFER_MULTIPLE_OFFERING})

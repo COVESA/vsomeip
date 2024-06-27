@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,390 +7,294 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(initial_event_tests LANGUAGES CXX)
 
-set(TEST_INITIAL_EVENT_NAME initial_event_test)
-set(TEST_INITIAL_EVENT_SERVICE ${TEST_INITIAL_EVENT_NAME}_service)
-add_executable(${TEST_INITIAL_EVENT_SERVICE}
-    ${TEST_INITIAL_EVENT_NAME}_service.cpp)
-target_link_libraries(${TEST_INITIAL_EVENT_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Configure necessary files into the build directory.
+set(configuration_files
+    initial_event_test_diff_client_ids_diff_ports_master.json
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_slave.json
+    initial_event_test_diff_client_ids_diff_ports_slave.json
+    initial_event_test_diff_client_ids_diff_ports_slave_tcp.json
+    initial_event_test_diff_client_ids_diff_ports_slave_udp.json
+    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    initial_event_test_diff_client_ids_partial_same_ports_slave.json
+    initial_event_test_diff_client_ids_same_ports_master.json
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    initial_event_test_diff_client_ids_same_ports_slave.json
+    initial_event_test_diff_client_ids_same_ports_slave_tcp.json
+    initial_event_test_diff_client_ids_same_ports_slave_udp.json
+    initial_event_test_master_starter.sh
+    initial_event_test_master_starter_qnx.sh
+    initial_event_test_same_client_ids_diff_ports_master.json
+    initial_event_test_same_client_ids_diff_ports_slave.json
+    initial_event_test_same_client_ids_same_ports_master.json
+    initial_event_test_same_client_ids_same_ports_slave.json
+    initial_event_test_slave_starter.sh
+)
+configure_files("${configuration_files}")
+
+# Add test executable.
+add_executable(initial_event_test_client
+    initial_event_test_client.cpp
 )
 
-set(TEST_INITIAL_EVENT_CLIENT ${TEST_INITIAL_EVENT_NAME}_client)
-add_executable(${TEST_INITIAL_EVENT_CLIENT}
-    ${TEST_INITIAL_EVENT_NAME}_client.cpp)
-target_link_libraries(${TEST_INITIAL_EVENT_CLIENT}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(initial_event_test_service
+    initial_event_test_service.cpp
 )
 
-set(TEST_INITIAL_EVENT_AVAILABILITY_CHECKER ${TEST_INITIAL_EVENT_NAME}_availability_checker)
-add_executable(${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER}
-    ${TEST_INITIAL_EVENT_NAME}_availability_checker.cpp)
-target_link_libraries(${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(initial_event_test_availability_checker
+    initial_event_test_availability_checker.cpp
 )
 
-set(TEST_INITIAL_EVENT_STOP_SERVICE ${TEST_INITIAL_EVENT_NAME}_stop_service)
-add_executable(${TEST_INITIAL_EVENT_STOP_SERVICE}
-    ${TEST_INITIAL_EVENT_NAME}_stop_service.cpp)
-target_link_libraries(${TEST_INITIAL_EVENT_STOP_SERVICE}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add test executable.
+add_executable(initial_event_test_stop_service
+    initial_event_test_stop_service.cpp
 )
 
-# Copy config files for test into $BUILDDIR/test
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-# Copy config files for test into $BUILDDIR/test
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE}
-    @ONLY)
-
-# Copy config files for test into $BUILDDIR/test
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_master_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_slave_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_tcp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_TCP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_master_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_slave_udp.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_SLAVE_UDP_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_same_client_ids_same_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_SAME_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_same_client_ids_diff_ports_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SAME_IDS_DIFF_PORTS_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_master.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE}
-    @ONLY)
-
-set(TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE
-    ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_slave.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/initial_event_tests/conf/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_SLAVE_CONFIG_FILE}
-    @ONLY)
-
-# copy starter scripts into builddir
-if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter_qnx.sh)
-else()
-    set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter.sh)
-endif()
-
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER}
-    ${TEST_INITIAL_EVENT_SERVICE}
+# Add build dependencies and link libraries to executables.
+set(executables
+    initial_event_test_client
+    initial_event_test_service
+    initial_event_test_availability_checker
+    initial_event_test_stop_service
 )
-set(TEST_INITIAL_EVENT_SLAVE_STARTER ${TEST_INITIAL_EVENT_NAME}_slave_starter.sh)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SLAVE_STARTER}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_SLAVE_STARTER}
-    ${TEST_INITIAL_EVENT_SERVICE}
+targets_link_default_libraries("${executables}")
+targets_add_default_dependencies("${executables}")
+
+# Initial Events Tests - Single Event
+
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_diff_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    UDP
 )
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} UDP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_diff_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    TCP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} TCP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_diff_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master.json
+    TCP_AND_UDP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_same_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    UDP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} UDP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_same_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    TCP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} TCP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master.json
+    TCP_AND_UDP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_partial_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    TCP_AND_UDP
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_diff_ports_same_service_id_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    TCP_AND_UDP SAME_SERVICE_ID
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} TCP_AND_UDP SAME_SERVICE_ID)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
+# Initial Events Tests - Multiple Events
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} UDP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    UDP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} TCP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    TCP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_udp_and_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} UDP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_same_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    UDP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} TCP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_same_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    TCP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_same_service_id_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_same_service_id_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp PROPERTIES TIMEOUT 120)
+# Initial Events Tests - Multiple Events, Subscribe On Availability
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp_and_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_TCP_CONFIG_FILE} TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_PARTIAL_SAME_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_same_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_SAME_SERVICEID_MASTER_CONFIG_FILE} TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_UDP_CONFIG_FILE} UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_TCP_CONFIG_FILE} TCP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp PROPERTIES TIMEOUT 120)
+# Initial Events Tests - Multiple Events, Subscribe Only One
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_DIFF_PORTS_MASTER_CONFIG_FILE} TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_multiple_events_diff_client_ids_diff_ports_partial_subscription_both_tcp_and_udp PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
+)
 
-string(REPLACE "test_name" "${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp_client_subscribes_twice" TEST_INITIAL_EVENT_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp_client_subscribes_twice
-    COMMAND ${TEST_INITIAL_EVENT_ENTRYPOINT}
-    ${NETWORK_TEST_BIN_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER} ${TEST_INITIAL_EVENT_DIFF_IDS_SAME_PORTS_MASTER_UDP_CONFIG_FILE} UDP CLIENT_SUBSCRIBES_TWICE)
-set_tests_properties(${TEST_INITIAL_EVENT_NAME}_diff_client_ids_same_ports_udp_client_subscribes_twice PROPERTIES TIMEOUT 120)
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    TCP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
+)
 
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp_and_tcp
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master.json
+    TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
+)
 
-add_dependencies(${TEST_INITIAL_EVENT_SERVICE} gtest)
-add_dependencies(${TEST_INITIAL_EVENT_CLIENT} gtest)
-add_dependencies(${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER} gtest)
-add_dependencies(${TEST_INITIAL_EVENT_STOP_SERVICE} gtest)
+# Initial Events Tests - Subscribe Twice
 
-add_dependencies(build_network_tests ${TEST_INITIAL_EVENT_SERVICE})
-add_dependencies(build_network_tests ${TEST_INITIAL_EVENT_CLIENT})
-add_dependencies(build_network_tests ${TEST_INITIAL_EVENT_AVAILABILITY_CHECKER})
-add_dependencies(build_network_tests ${TEST_INITIAL_EVENT_STOP_SERVICE})
+# Add custom test command.
+add_custom_test(
+    NAME initial_event_test_diff_client_ids_diff_ports_client_subscribes_twice
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    UDP CLIENT_SUBSCRIBES_TWICE
+)

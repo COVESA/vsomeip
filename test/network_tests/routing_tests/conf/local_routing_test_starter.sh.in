@@ -1,5 +1,5 @@
-#!/bin/bash
-# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+#!/bin/sh
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -38,12 +38,11 @@ export VSOMEIP_CONFIGURATION=local_routing_test_service.json
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
-WAIT_PIDS=()
 # Start the service
 export VSOMEIP_APPLICATION_NAME=local_routing_test_service
 ./local_routing_test_service &
 SERIVCE_PID=$!
-WAIT_PIDS+=($!)
+WAIT_PID_ONE=$!
 sleep 1;
 
 check_tcp_udp_sockets_are_closed  $SERIVCE_PID
@@ -53,18 +52,16 @@ export VSOMEIP_APPLICATION_NAME=local_routing_test_client
 export VSOMEIP_CONFIGURATION=local_routing_test_client.json
 ./local_routing_test_client &
 CLIENT_PID=$!
-WAIT_PIDS+=($!)
+WAIT_PID_TWO=$!
 
 check_tcp_udp_sockets_are_closed  $SERIVCE_PID
 check_tcp_udp_sockets_are_closed  $CLIENT_PID
 
 # Wait until client and service are finished
-for job in ${WAIT_PIDS[*]}
-do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
-    wait $job || ((FAIL+=1))
-done
+# Fail gets incremented if either client or service exit
+# with a non-zero exit code
+wait $WAIT_PID_ONE || ((FAIL+=1))
+wait $WAIT_PID_TWO || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
 sleep 1

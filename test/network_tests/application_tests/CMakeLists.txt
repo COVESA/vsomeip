@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,100 +7,80 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(application_tests LANGUAGES CXX)
 
-set(TEST_APPLICATION application_test)
+# Configure necessary files and copy them to the build folder.
+set(configuration_files
+    application_test.json
+    application_test_daemon.json
+    application_test_no_dispatch_threads.json
+    application_test_no_dispatch_threads_daemon.json
+    application_test_starter.sh
+)
+configure_files("${configuration_files}")
 
-add_executable(${TEST_APPLICATION} ${TEST_APPLICATION}.cpp)
-target_link_libraries(${TEST_APPLICATION}
-    ${VSOMEIP_NAME}
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
+# Add the test executable.
+add_executable(application_test
+    application_test.cpp
 )
 
-if(NOT ${TESTS_BAT})
-    set(TEST_APPLICATION_SINGLE_PROCESS_NAME ${TEST_APPLICATION}_single_process)
-    add_executable(${TEST_APPLICATION_SINGLE_PROCESS_NAME} ${TEST_APPLICATION_SINGLE_PROCESS_NAME}.cpp)
-    target_link_libraries(${TEST_APPLICATION_SINGLE_PROCESS_NAME}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+# Add build dependencies to executable.
+targets_add_default_dependencies(application_test)
+
+# Link default libraries.
+targets_link_default_libraries(application_test)
+
+# Add custom test command.
+add_custom_test(
+    NAME application_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
+    TIMEOUT 80
+)
+
+if (NOT ${TESTS_BAT})
+
+    # Configure necessary files and copy them to the build folder.
+    set(configuration_files
+        application_test_single_process.json
+        application_test_single_process_starter.sh
+        application_test_availability_starter.sh
     )
+    configure_files("${configuration_files}")
+
+    # Add the test executable.
+    add_executable(application_test_single_process
+        application_test_single_process.cpp
+    )
+
     if(QNX)
-        target_compile_definitions(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PRIVATE _QNX_SOURCE)
+        target_compile_definitions(application_test_single_process
+            PRIVATE _QNX_SOURCE
+        )
     endif()
 
-    set(TEST_APPLICATION_AVAILABILITY_NAME ${TEST_APPLICATION}_availability)
-    add_executable(${TEST_APPLICATION_AVAILABILITY_NAME} ${TEST_APPLICATION_AVAILABILITY_NAME}.cpp)
-    target_link_libraries(${TEST_APPLICATION_AVAILABILITY_NAME}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-        ${DLT_LIBRARIES}
-        vsomeip_utilities
+    # Add the test executable.
+    add_executable(application_test_availability
+        application_test_availability.cpp
     )
 
-    set(TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE ${TEST_APPLICATION}_single_process.json)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
-        ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
-        ${TEST_APPLICATION}_single_process
+    # Add build dependencies and link libraries to executables.
+    set(executable_targets
+        application_test_single_process
+        application_test_availability
+    )
+    targets_add_default_dependencies("${executable_targets}")
+    targets_link_default_libraries("${executable_targets}")
+
+    # Add custom test command.
+    add_custom_test(
+        NAME application_test_single_process
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process_starter.sh
+        TIMEOUT 80
     )
 
-    set(TEST_APPLICATION_SINGLE_PROCESS_STARTER ${TEST_APPLICATION}_single_process_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_STARTER}
-        ${TEST_APPLICATION}_single_process
-    )
-
-    set(TEST_APPLICATION_AVAILABILITY_STARTER ${TEST_APPLICATION_AVAILABILITY_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_AVAILABILITY_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_AVAILABILITY_STARTER}
-        ${TEST_APPLICATION_SINGLE_PROCESS_NAME}
+    # Add custom test command.
+    add_custom_test(
+        NAME application_test_availability
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_availability_starter.sh
+        TIMEOUT 80
     )
 
 endif()
-
-set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
-    @ONLY)
-
-set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
-    ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-    @ONLY)
-
-set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
-    ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-    @ONLY)
-
-set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
-    ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-    @ONLY)
-
-set(TEST_APPLICATION_STARTER ${TEST_APPLICATION}_starter.sh)
-configure_file(
-    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_STARTER}.bat.in
-    ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_STARTER}
-    @ONLY)
-
-string(REPLACE "test_name" "${TEST_APPLICATION}" TEST_APPLICATION_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_APPLICATION}
-    COMMAND ${TEST_APPLICATION_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/application_tests/${TEST_APPLICATION_STARTER}
-)
-set_tests_properties(${TEST_APPLICATION} PROPERTIES TIMEOUT 80)
-
-add_dependencies(${TEST_APPLICATION} gtest)
-
-add_dependencies(build_network_tests ${TEST_APPLICATION})

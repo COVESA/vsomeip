@@ -1,4 +1,4 @@
-# Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,41 +7,29 @@ cmake_minimum_required(VERSION 3.4...3.22)
 
 project(configuration_tests LANGUAGES CXX)
 
-set(TEST_CONFIGURATION configuration_test)
+# Configure necessary files into the build directory.
+set(configuration_files
+    configuration_test_deprecated.json
+    configuration_test.json
+)
+configure_files("${configuration_files}")
 
-add_executable(${TEST_CONFIGURATION}
-    ${TEST_CONFIGURATION}.cpp
+# Add test executable.
+add_executable(configuration_test
+    configuration_test.cpp
 )
 
-target_link_libraries(${TEST_CONFIGURATION}
-    ${VSOMEIP_NAME}
+# Link vsomeip configuration libraries.
+target_link_libraries(configuration_test
     ${VSOMEIP_NAME}-cfg
-    ${Boost_LIBRARIES}
-    ${DL_LIBRARY}
-    ${TEST_LINK_LIBRARIES}
-    ${DLT_LIBRARIES}
-    vsomeip_utilities
 )
 
-# The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
-# from the config folder into the test folder in the builddirectory
-# This makes it possible to call the configuration test within the build directory
-set(TEST_CONFIGURATION_CONFIG_FILE configuration_test.json)
-set(TEST_CONFIGURATION_DEPRECATED_CONFIG_FILE configuration_test_deprecated.json)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/configuration_tests/${TEST_CONFIGURATION_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/configuration_tests/${TEST_CONFIGURATION_CONFIG_FILE}
-    ${TEST_CONFIGURATION}
-)
-copy_to_builddir(${NETWORK_TEST_SRC_DIR}/configuration_tests/${TEST_CONFIGURATION_DEPRECATED_CONFIG_FILE}
-    ${NETWORK_TEST_BIN_DIR}/configuration_tests/${TEST_CONFIGURATION_DEPRECATED_CONFIG_FILE}
-    ${TEST_CONFIGURATION}
-)
+# Add build dependencies and link libraries to executable.
+targets_link_default_libraries(configuration_test)
+targets_add_default_dependencies(configuration_test)
 
-string(REPLACE "test_name" "${TEST_CONFIGURATION}" TEST_CONFIGURATION_ENTRYPOINT "${TEST_ENTRYPOINT}")
-add_test(NAME ${TEST_CONFIGURATION}
-    COMMAND ${TEST_CONFIGURATION_ENTRYPOINT} ${NETWORK_TEST_BIN_DIR}/configuration_tests/${TEST_CONFIGURATION}
+# Add custom test command.
+add_custom_test(
+    NAME configuration_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/configuration_test
 )
-
-add_dependencies(${TEST_CONFIGURATION} gtest)
-
-add_dependencies(build_network_tests ${TEST_CONFIGURATION})

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,8 +19,6 @@ FAIL=0
 #   -> should be rejected as there is already a service instance
 #   running in the network
 
-# Array for client pids
-CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_external_master.json
 # start daemon
 ../../../examples/routingmanagerd/routingmanagerd &
@@ -31,8 +29,8 @@ PID_SERVICE_TWO=$!
 echo "SERVICE_TWO pid $PID_SERVICE_TWO"
 
 ./offer_test_client SUBSCRIBE &
-CLIENT_PIDS+=($!)
-echo "client pid ${CLIENT_PIDS[0]}"
+CLIENT_PID_ONE=$!
+echo "client pid ${CLIENT_PIDS}"
 
 sleep 1
 
@@ -63,12 +61,10 @@ End-of-message
 fi
 
 # Wait until all clients and services are finished
-for job in ${CLIENT_PIDS[*]} $PID_SERVICE_TWO
-do
-    # Fail gets incremented if a client exits with a non-zero exit code
-    echo "waiting for $job"
-    wait $job || FAIL=$(($FAIL+1))
-done
+# Fail gets incremented if a client exits with a non-zero exit code
+echo "waiting for $job"
+wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
@@ -88,8 +84,6 @@ done
 # * send sd message trying to offer the same service instance as already
 #   offered locally from a remote host
 
-# Array for client pids
-CLIENT_PIDS=()
 export VSOMEIP_CONFIGURATION=offer_test_external_master.json
 # start daemon
 ../../../examples/routingmanagerd/routingmanagerd &
@@ -99,8 +93,8 @@ PID_VSOMEIPD=$!
 PID_SERVICE_TWO=$!
 
 ./offer_test_client SUBSCRIBE &
-CLIENT_PIDS+=($!)
-echo "client pid ${CLIENT_PIDS[0]}"
+CLIENT_PID_ONE=$!
+echo "client pid ${CLIENT_PID_ONE}"
 
 sleep 1
 
@@ -129,12 +123,10 @@ End-of-message
 fi
 
 # Wait until all clients and services are finished
-for job in ${CLIENT_PIDS[*]} $PID_SERVICE_TWO
-do
-    # Fail gets incremented if a client exits with a non-zero exit code
-    echo "waiting for $job"
-    wait $job || FAIL=$(($FAIL+1))
-done
+# Fail gets incremented if a client exits with a non-zero exit code
+echo "waiting for $job"
+wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
