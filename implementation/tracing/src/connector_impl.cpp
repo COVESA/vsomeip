@@ -104,15 +104,19 @@ void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration
 }
 
 void connector_impl::reset() {
+    // reset to default
+    {
+        std::scoped_lock its_lock_channels(channels_mutex_);
+        channels_.clear();
+    }
 #ifdef USE_DLT
 #ifndef ANDROID
-    std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
-    contexts_.clear();
+    {
+        std::scoped_lock its_contexts_lock(contexts_mutex_);
+        contexts_.clear();
+    }
 #endif
 #endif
-    // reset to default
-    std::lock_guard<std::mutex> its_lock_channels(channels_mutex_);
-    channels_.clear();
 }
 
 void connector_impl::set_enabled(const bool _enabled) {
@@ -139,53 +143,63 @@ bool connector_impl::is_sd_message(const byte_t *_data, uint16_t _data_size) con
     return false;
 }
 
-std::shared_ptr<channel> connector_impl::add_channel(
-        const trace_channel_t &_id, const std::string &_name) {
+std::shared_ptr<channel> connector_impl::add_channel(const trace_channel_t& _id,
+                                                     const std::string& _name) {
+
+    std::shared_ptr<channel_impl> its_channel;
+    {
+        std::scoped_lock its_channels_lock(channels_mutex_);
+
+        // check whether we already know the requested channel
+        if (channels_.find(_id) != channels_.end())
+            return nullptr;
+
+        // create new channel
+        its_channel = std::make_shared<channel_impl>(_id, _name);
+
+        // add channel
+        channels_[_id] = its_channel;
+    }
+
     // register context
 #ifdef USE_DLT
 #ifndef ANDROID
     {
-        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
+        std::scoped_lock its_contexts_lock(contexts_mutex_);
         std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
         contexts_[_id] = its_context;
-        DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(),
-                DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
+        DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(), DLT_LOG_INFO,
+                                   DLT_TRACE_STATUS_ON);
     }
 #endif
 #endif
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
-
-    // check whether we already know the requested channel
-    if (channels_.find(_id) != channels_.end())
-        return nullptr;
-
-    // create new channel
-    std::shared_ptr<channel_impl> its_channel
-        = std::make_shared<channel_impl>(_id, _name);
-
-    // add channel
-    channels_[_id] = its_channel;
-
 
     return its_channel;
 }
 
 bool connector_impl::remove_channel(const trace_channel_t &_id) {
+
     if (_id == VSOMEIP_TC_DEFAULT_CHANNEL_ID) {
         // the default channel can not be removed
         return false;
     }
 
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
-    bool has_removed = (channels_.erase(_id) == 1);
+    bool has_removed {false};
+    {
+        std::scoped_lock its_channels_lock(channels_mutex_);
+        has_removed = (channels_.erase(_id) == 1);
+    }
+
     if (has_removed) {
         // unregister context
 #ifdef USE_DLT
 #ifndef ANDROID
-        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
-        auto its_context = contexts_.find(_id);
-        if (its_context != contexts_.end()) {
-            DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
+        {
+            std::scoped_lock its_contexts_lock(contexts_mutex_);
+            auto its_context = contexts_.find(_id);
+            if (its_context != contexts_.end()) {
+                DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
+            }
         }
 #endif
 #endif
@@ -195,13 +209,13 @@ bool connector_impl::remove_channel(const trace_channel_t &_id) {
 }
 
 std::shared_ptr<channel> connector_impl::get_channel(const std::string &_id) const {
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    std::scoped_lock its_channels_lock(channels_mutex_);
     auto its_channel = channels_.find(_id);
     return (its_channel != channels_.end() ? its_channel->second : nullptr);
 }
 
 std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string &_id) const {
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+    std::scoped_lock its_channels_lock(channels_mutex_);
     auto its_channel = channels_.find(_id);
     return (its_channel != channels_.end() ? its_channel->second : nullptr);
 }
@@ -230,11 +244,12 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
     instance_t its_instance = bithelper::read_uint16_be(&_header[VSOMEIP_TC_INSTANCE_POS_MIN]);
     method_t its_method     = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
-    #ifndef ANDROID
-        std::lock_guard<std::mutex> its_contexts_lock(contexts_mutex_);
-    #endif
-    // Forward to channel if the filter set of the channel allows
-    std::lock_guard<std::mutex> its_channels_lock(channels_mutex_);
+// Forward to channel if the filter set of the channel allows
+#ifndef ANDROID
+    std::scoped_lock its_lock(channels_mutex_, contexts_mutex_);
+#else
+    std::scoped_lock its_lock(channels_mutex_);
+#endif
     for (auto its_channel : channels_) {
         auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
         if (ftype.first) {
