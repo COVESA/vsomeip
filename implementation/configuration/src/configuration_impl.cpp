@@ -145,6 +145,8 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     sd_port_ = _other.sd_port_;
     sd_protocol_ = _other.sd_protocol_;
 
+    is_suppress_events_enabled_ = _other.is_suppress_events_enabled_;
+
     sd_initial_delay_min_ = _other.sd_initial_delay_min_;
     sd_initial_delay_max_ = _other.sd_initial_delay_max_;
     sd_repetitions_base_delay_= _other.sd_repetitions_base_delay_;
