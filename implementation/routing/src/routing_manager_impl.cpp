@@ -2792,6 +2792,14 @@ routing_manager_impl::expire_subscriptions(
                 const auto its_info = its_eventgroup.second;
                 for (auto its_subscription
                         : its_info->get_remote_subscriptions()) {
+                    if (its_subscription->is_forwarded()) {
+                        VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
+                            << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << its_instance.first << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup.first << "]";
+                        continue;
+                    }
+
                     // Note: get_remote_subscription delivers a copied
                     // set of subscriptions. Thus, its is possible to
                     // to remove them within the loop.
@@ -2840,6 +2848,7 @@ routing_manager_impl::expire_subscriptions(
                                         << std::boolalpha << its_ep_definition->is_reliable();
                             }
                         }
+                        its_subscription->set_expired();
                         on_remote_unsubscribe(its_subscription);
                     }
                 }
@@ -2919,12 +2928,19 @@ void routing_manager_impl::on_remote_subscribe(
     // not exist or is still (partly) pending.
     remote_subscription_id_t its_id;
     std::set<client_t> its_added;
-    update_remote_subscription_mutex_.lock();
+    std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
+    if (_subscription->is_expired()) {
+        VSOMEIP_WARNING << __func__ << ": remote subscription already expired";
+        return;
+    } else {
+        _subscription->set_forwarded();
+    }
+
     auto its_result = its_eventgroupinfo->update_remote_subscription(
             _subscription, its_expiration, its_added, its_id, true);
     if (its_result) {
         if (!_subscription->is_pending()) { // resubscription without change
-            update_remote_subscription_mutex_.unlock();
+            its_update_lock.unlock();
             _callback(_subscription);
         } else if (!its_added.empty()) { // new clients for a selective subscription
             const client_t its_offering_client
@@ -2932,7 +2948,6 @@ void routing_manager_impl::on_remote_subscribe(
             send_subscription(its_offering_client,
                     its_service, its_instance, its_eventgroup, its_major,
                     its_added, _subscription->get_id());
-            update_remote_subscription_mutex_.unlock();
         } else { // identical subscription is not yet processed
             std::stringstream its_warning;
             its_warning << __func__ << " a remote subscription is already pending ["
@@ -2955,7 +2970,7 @@ void routing_manager_impl::on_remote_subscribe(
                 its_warning << "]";
             VSOMEIP_WARNING << its_warning.str();
 
-            update_remote_subscription_mutex_.unlock();
+            its_update_lock.unlock();
             _callback(_subscription);
         }
     } else { // new subscription
@@ -2964,7 +2979,7 @@ void routing_manager_impl::on_remote_subscribe(
             _subscription->set_all_client_states(
                     remote_subscription_state_e::SUBSCRIPTION_NACKED);
 
-            update_remote_subscription_mutex_.unlock();
+            its_update_lock.unlock();
             _callback(_subscription);
             return;
         }
@@ -2977,7 +2992,6 @@ void routing_manager_impl::on_remote_subscribe(
         send_subscription(its_offering_client,
                 its_service, its_instance, its_eventgroup, its_major,
                 _subscription->get_clients(), its_id);
-        update_remote_subscription_mutex_.unlock();
     }
 }
 
@@ -3013,7 +3027,7 @@ void routing_manager_impl::on_remote_unsubscribe(
 
     remote_subscription_id_t its_id(0);
     std::set<client_t> its_removed;
-    update_remote_subscription_mutex_.lock();
+    std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
     auto its_result = its_info->update_remote_subscription(
             _subscription, std::chrono::steady_clock::now(),
             its_removed, its_id, false);
@@ -3025,8 +3039,6 @@ void routing_manager_impl::on_remote_unsubscribe(
                 its_service, its_instance, its_eventgroup, its_major,
                 its_removed, its_id);
     }
-
-    update_remote_subscription_mutex_.unlock();
 }
 
 void routing_manager_impl::on_subscribe_ack_with_multicast(
@@ -3326,6 +3338,12 @@ routing_manager_impl::expire_subscriptions(bool _force) {
                             << std::setw(4) << its_instance.first << "."
                             << std::setw(4) << its_eventgroup.first << "]";
                         continue;
+                    } else if (s->is_forwarded()) {
+                        VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
+                            << std::hex << std::setw(4) << std::setfill('0') << its_service.first << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << its_instance.first << "."
+                            << std::hex << std::setw(4) << std::setfill('0') << its_eventgroup.first << "]";
+                        continue;
                     }
                     for (auto its_client : s->get_clients()) {
                         if (_force) {
@@ -3347,6 +3365,7 @@ routing_manager_impl::expire_subscriptions(bool _force) {
     }
 
     for (auto &s : its_expired_subscriptions) {
+        s.first->set_expired();
         auto its_info = s.first->get_eventgroupinfo();
         if (its_info) {
             auto its_service = its_info->get_service();
@@ -3354,7 +3373,7 @@ routing_manager_impl::expire_subscriptions(bool _force) {
             auto its_eventgroup = its_info->get_eventgroup();
 
             remote_subscription_id_t its_id;
-            update_remote_subscription_mutex_.lock();
+            std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
             auto its_result = its_info->update_remote_subscription(
                     s.first, std::chrono::steady_clock::now(),
                     s.second, its_id, false);
@@ -3396,7 +3415,6 @@ routing_manager_impl::expire_subscriptions(bool _force) {
                         its_service, its_instance, its_eventgroup,
                         s.second, s.first->get_id());
             }
-            update_remote_subscription_mutex_.unlock();
 
             if (s.first->get_unreliable()) {
                 VSOMEIP_INFO << (_force ? "Removed" : "Expired") << " subscription ["
@@ -4530,7 +4548,7 @@ routing_manager_impl::on_unsubscribe_ack(client_t _client,
     std::shared_ptr<eventgroupinfo> its_info
         = find_eventgroup(_service, _instance, _eventgroup);
     if (its_info) {
-        update_remote_subscription_mutex_.lock();
+        std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
         const auto its_subscription = its_info->get_remote_subscription(_id);
         if (its_subscription) {
             its_info->remove_remote_subscription(_id);
@@ -4563,7 +4581,6 @@ routing_manager_impl::on_unsubscribe_ack(client_t _client,
                 << std::setw(4) << _instance << "."
                 << std::setw(4) << _eventgroup << "]";
         }
-        update_remote_subscription_mutex_.unlock();
     } else {
         VSOMEIP_ERROR << __func__
                 << ": Received StopSubscribe for unknown eventgroup: ("
