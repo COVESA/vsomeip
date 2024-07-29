@@ -8,7 +8,7 @@
 #include "../include/header.hpp"
 #include "../../endpoints/include/endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace trace {
@@ -54,17 +54,12 @@ bool header::prepare(const endpoint *_endpoint, bool _is_sending,
 void header::prepare(const boost::asio::ip::address_v4 &_address,
         std::uint16_t _port, protocol_e _protocol,
         bool _is_sending, instance_t _instance) {
-    unsigned long its_address_as_long = _address.to_ulong();
-    data_[0] = VSOMEIP_LONG_BYTE3(its_address_as_long);
-    data_[1] = VSOMEIP_LONG_BYTE2(its_address_as_long);
-    data_[2] = VSOMEIP_LONG_BYTE1(its_address_as_long);
-    data_[3] = VSOMEIP_LONG_BYTE0(its_address_as_long);
-    data_[4] = VSOMEIP_WORD_BYTE1(_port);
-    data_[5] = VSOMEIP_WORD_BYTE0(_port);
-    data_[6] = static_cast<byte_t>(_protocol);
-    data_[7] = static_cast<byte_t>(_is_sending);
-    data_[8] = VSOMEIP_WORD_BYTE1(_instance);
-    data_[9] = VSOMEIP_WORD_BYTE0(_instance);
+
+    bithelper::write_uint32_be((uint32_t)_address.to_ulong(), data_);   // [0-3] Address
+    bithelper::write_uint16_be(_port, &data_[4]);                       // [4-5] Port
+    data_[6] = static_cast<byte_t>(_protocol);                          //   [6] Protocol
+    data_[7] = static_cast<byte_t>(_is_sending);                        //   [7] is_sending
+    bithelper::write_uint16_be(_instance, &data_[8]);                   // [8-9] Instance
 }
 
 } // namespace trace

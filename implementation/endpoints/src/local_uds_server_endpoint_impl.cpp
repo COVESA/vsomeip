@@ -23,7 +23,7 @@
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
@@ -259,7 +259,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
         VSOMEIP_ERROR << "local_usd_server_endpoint_impl::accept_cbk: "
                 << _error.message() << " (" << std::dec << _error.value()
                 << ") Will try to accept again in 1000ms";
-        std::shared_ptr<boost::asio::steady_timer> its_timer =
+        auto its_timer =
                 std::make_shared<boost::asio::steady_timer>(io_,
                         std::chrono::milliseconds(1000));
         auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
@@ -341,7 +341,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 std::shared_ptr<routing_host> its_routing_host = routing_host_.lock();
                 its_routing_host->add_known_client(its_client, its_client_host);
 
-                if (!policy_manager_impl::get()->check_credentials(its_client, &its_sec_client)) {
+               if (!configuration_->get_policy_manager()->check_credentials(its_client, &its_sec_client)) {
                      VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                              << its_host->get_client() << " received client credentials from client 0x"
                              << its_client << " which violates the security policy : uid/gid="
@@ -358,8 +358,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 add_connection(its_client, _connection);
             }
         } else {
-            policy_manager_impl::get()->store_client_to_sec_client_mapping(its_client, &its_sec_client);
-            policy_manager_impl::get()->store_sec_client_to_client_mapping(&its_sec_client, its_client);
+            configuration_->get_policy_manager()->store_client_to_sec_client_mapping(its_client, &its_sec_client);
+            configuration_->get_policy_manager()->store_sec_client_to_client_mapping(&its_sec_client, its_client);
 
             if (!is_routing_endpoint_) {
                 std::shared_ptr<routing_host> its_routing_host = routing_host_.lock();
@@ -470,7 +470,6 @@ void local_uds_server_endpoint_impl::connection::start() {
         }
 
         is_stopped_ = false;
-#if VSOMEIP_BOOST_VERSION >= 106600
         auto its_storage = std::make_shared<local_endpoint_receive_op::storage>(
             socket_,
             std::bind(
@@ -489,19 +488,6 @@ void local_uds_server_endpoint_impl::connection::start() {
         );
 
         socket_.async_wait(socket_type::wait_read, local_endpoint_receive_op::receive_cb(its_storage));
-#else
-        socket_.async_receive(
-            boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
-            std::bind(
-                &local_uds_server_endpoint_impl::connection::receive_cbk,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                std::placeholders::_3,
-                std::placeholders::_4
-            )
-        );
-#endif
     }
 }
 
@@ -677,12 +663,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
 
             if (!message_is_empty) {
                 if (its_start + protocol::COMMAND_POSITION_SIZE + 3 < recv_buffer_size_ + its_iteration_gap) {
-                    its_command_size = VSOMEIP_BYTES_TO_LONG(
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+3],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+2],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE+1],
-                                    recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
-
+                    its_command_size = bithelper::read_uint32_le(&recv_buffer_[its_start + protocol::COMMAND_POSITION_SIZE]);
                     its_end = its_start + protocol::COMMAND_POSITION_SIZE + 3 + its_command_size;
                 } else {
                     its_end = its_start;
@@ -781,7 +762,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                                     << " because of already existing connection using same client ID";
                             stop();
                             return;
-                        } else if (!policy_manager_impl::get()->check_credentials(
+                        } else if (!its_server->configuration_->get_policy_manager()->check_credentials(
                                 its_client, &sec_client_)) {
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                                     << " received client credentials from client 0x" << its_client
@@ -859,7 +840,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
             || is_error) {
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
+        its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
         start();
     }
@@ -1068,14 +1049,6 @@ local_uds_server_endpoint_impl::send_client_identifier(
     }
 
     send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-}
-
-bool local_uds_server_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
 }
 
 } // namespace vsomeip_v3

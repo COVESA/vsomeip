@@ -11,6 +11,7 @@
     #include <intrin.h>
 #else
     #include <dlfcn.h>
+    #include <errno.h>
     #include <signal.h>
     #include <unistd.h>
     #include <fcntl.h>
@@ -25,7 +26,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#include "../include/byteorder.hpp"
+#include "../include/bithelper.hpp"
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"
 
@@ -47,18 +48,24 @@ uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
     uint64_t its_size(0);
     if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
         its_size = VSOMEIP_SOMEIP_HEADER_SIZE
-                + VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7]);
+                + bithelper::read_uint32_be(&_data[4]);
     }
     return its_size;
 }
 
 uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
-    uint32_t its_size(0);
-    if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
-        its_size = VSOMEIP_BYTES_TO_LONG(_data[4], _data[5], _data[6], _data[7])
-                - VSOMEIP_SOMEIP_HEADER_SIZE;
-    }
-    return its_size;
+    if(_size <= VSOMEIP_FULL_HEADER_SIZE)
+        return 0;
+
+    uint32_t length_ = bithelper::read_uint32_be(&_data[4]);
+
+    if(length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
+        return 0;
+
+    if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_))
+        return 0;
+
+    return length_ - VSOMEIP_SOMEIP_HEADER_SIZE;
 }
 
 bool utility::is_routing_manager(const std::string &_network) {
@@ -281,7 +288,17 @@ void utility::reset_client_ids(const std::string &_network) {
     }
 }
 
-
+void utility::set_thread_niceness(int _nice) noexcept {
+#if defined(__linux__)
+    errno = 0;
+    if ((nice(_nice) == -1) && (errno < 0)) {
+        VSOMEIP_WARNING << "failed to set niceness for thread " << std::this_thread::get_id() << " (error: " << strerror(errno) << ')';
+        return;
+    }
+#else
+    (void)_nice;
+#endif
+}
 
 std::uint16_t utility::get_max_client_number(
         const std::shared_ptr<configuration> &_config) {

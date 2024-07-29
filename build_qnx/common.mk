@@ -37,9 +37,14 @@ ALL_DEPENDENCIES = vsomeip_all
 FLAGS   += -g -D_QNX_SOURCE
 LDFLAGS += -Wl,--build-id=md5 -lang-c++ -lsocket
 
+INCVPATH+=$(USE_ROOT_INCLUDE)
+EXTRA_INCVPATH = $(USE_ROOT_INCLUDE)/io-sock
+LIBVPATH=$(QNX_TARGET)/usr/lib
+EXTRA_LIBVPATH = $(USE_ROOT_LIB)/io-sock
+
 CMAKE_ARGS = -DCMAKE_TOOLCHAIN_FILE=$(PROJECT_ROOT)/qnx.nto.toolchain.cmake \
              -DCMAKE_INSTALL_PREFIX=$(VSOMEIP_INSTALL_ROOT)/$(CPUVARDIR)/usr \
-             -DCMAKE_CXX_STANDARD=14 \
+             -DCMAKE_CXX_STANDARD=17 \
              -DCMAKE_NO_SYSTEM_FROM_IMPORTED=TRUE \
              -DVSOMEIP_EXTERNAL_DEPS_INSTALL=$(VSOMEIP_EXTERNAL_DEPS_INSTALL) \
              -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) \
@@ -86,7 +91,7 @@ install: vsomeip_all
 
 clean iclean spotless:
 	@rm -fr build
-	
+
 endif
 
 #everything down below deals with the generation of the PINFO

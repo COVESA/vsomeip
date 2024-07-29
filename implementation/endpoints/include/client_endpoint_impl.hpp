@@ -25,7 +25,6 @@
 #include "client_endpoint.hpp"
 #include "tp.hpp"
 
-
 namespace vsomeip_v3 {
 
 class endpoint;
@@ -153,7 +152,8 @@ private:
     virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         method_t _method) const = 0;
+                                         instance_t _instance,
+                                         method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
     void send_segments(const tp::tp_split_messages_t &_segments,

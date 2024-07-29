@@ -11,12 +11,7 @@
 #include <memory>
 #include <set>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/defines.hpp>

@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_V3_PLUGIN_MANAGER_IMPL_HPP
 #define VSOMEIP_V3_PLUGIN_MANAGER_IMPL_HPP
 
-#include "../include/plugin_manager.hpp"
+#include <vsomeip/internal/plugin_manager.hpp>
 
 #include <map>
 #include <chrono>

@@ -17,26 +17,25 @@
 #include "debounce_frequency_test_common.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class test_client : public vsomeip_utilities::base_vsip_app
-{
+class test_client : public vsomeip_utilities::base_vsip_app {
 
 private:
     std::condition_variable condition_availability;
     std::mutex mutex;
     std::mutex event_counter_mutex;
-    bool availability { false };
+    bool availability {false};
 
-    int event_1_recv_messages { 0 };
-    int event_2_recv_messages { 0 };
+    int event_1_recv_messages {0};
+    int event_2_recv_messages {0};
 
     void on_availability(vsomeip::service_t service_, vsomeip::instance_t instance_,
                          bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_message);
+    void on_message(const std::shared_ptr<vsomeip::message>& _message);
     void stop_service();
     void unsubscribe_all();
 
 public:
-    test_client(const char *app_name_, const char *app_id_);
+    test_client(const char* app_name_, const char* app_id_);
 
     int was_event1_recv();
     int was_event2_recv();

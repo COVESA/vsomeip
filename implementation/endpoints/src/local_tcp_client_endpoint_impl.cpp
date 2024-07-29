@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <iomanip>
 #include <sstream>
 
@@ -67,12 +68,13 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
 }
 
 void local_tcp_client_endpoint_impl::start() {
-
-    {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-        sending_blocked_ = false;
+    if (state_ == cei_state_e::CLOSED) {
+        {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+        }
+        connect();
     }
-    connect();
 }
 
 void local_tcp_client_endpoint_impl::stop() {
@@ -117,6 +119,14 @@ void local_tcp_client_endpoint_impl::connect() {
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
+
+        socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::connect: couldn't enable "
+                    << "keep_alive: " << its_error.message()
+                    << " remote:" << remote_.port();
+        }
+
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
@@ -252,6 +262,15 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
+        } else if (_error == boost::asio::error::eof) {
+            std::scoped_lock its_lock {mutex_};
+            sending_blocked_ = false;
+            queue_.clear();
+            queue_size_ = 0;
+        } else if (_error == boost::asio::error::connection_reset
+                   || _error == boost::asio::error::bad_descriptor) {
+            restart(true);
+            return;
         }
         error_handler_t handler;
         {
@@ -353,14 +372,6 @@ bool local_tcp_client_endpoint_impl::is_reliable() const {
 std::uint32_t local_tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
 
     return MAX_RECONNECTS_UNLIMITED;
-}
-
-bool local_tcp_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
 }
 
 void local_tcp_client_endpoint_impl::max_allowed_reconnects_reached() {

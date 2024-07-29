@@ -15,11 +15,7 @@ static char* passed_address;
 TEST(someip_offer_test, send_offer_service_sd_message)
 {
     try {
-#if VSOMEIP_BOOST_VERSION < 106600
-    	boost::asio::io_service io;
-#else
         boost::asio::io_context io;
-#endif
         boost::asio::ip::udp::socket::endpoint_type target_sd(
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30490);

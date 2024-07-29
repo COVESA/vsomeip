@@ -150,6 +150,8 @@ public:
         return is_equal;
     }
 
+    static void set_thread_niceness(int _nice) noexcept;
+
 private:
     struct data_t {
         data_t();

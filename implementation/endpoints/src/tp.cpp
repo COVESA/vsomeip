@@ -8,7 +8,6 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/tp.hpp"
-#include "../../utility/include/byteorder.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"

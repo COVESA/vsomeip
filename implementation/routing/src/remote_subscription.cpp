@@ -16,7 +16,8 @@ remote_subscription::remote_subscription()
       ttl_(DEFAULT_TTL),
       reserved_(0),
       counter_(0),
-      answers_(1) {
+      answers_(1),
+      final_destination_{destiny::none} {
 }
 
 remote_subscription::~remote_subscription() {
@@ -338,6 +339,22 @@ remote_subscription::get_ip_address(boost::asio::ip::address &_address) const {
         return true;
     }
     return false;
+}
+
+bool remote_subscription::is_expired() const {
+    return this->final_destination_.load(std::memory_order_acquire) == destiny::expire;
+}
+
+void remote_subscription::set_expired() {
+    this->final_destination_.store(destiny::expire, std::memory_order_release);
+}
+
+bool remote_subscription::is_forwarded() const {
+    return this->final_destination_.load(std::memory_order_acquire) == destiny::forward;
+}
+
+void remote_subscription::set_forwarded() {
+    this->final_destination_.store(destiny::forward, std::memory_order_release);
 }
 
 } // namespace vsomeip_v3

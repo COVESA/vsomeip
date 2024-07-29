@@ -111,6 +111,7 @@ policy_manager_impl::check_credentials(client_t _client,
         has_id = (has_uid && has_gid);
 
         if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
+            // Code is unaccessible due to logic checks.
             if (!store_client_to_sec_client_mapping(_client, _sec_client)) {
                 std::string security_mode_text = "!";
                 if (!check_credentials_) {
@@ -186,7 +187,7 @@ policy_manager_impl::check_routing_credentials(
 }
 
 void
-policy_manager_impl::set_routing_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid,
         const std::string &_name) {
 
     if (is_configured_) {
@@ -416,7 +417,7 @@ policy_manager_impl::load(const configuration_element &_element, const bool _laz
 }
 
 bool
-policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
+policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     bool was_removed(false);
     if (!any_client_policies_.empty()) {
@@ -454,7 +455,7 @@ policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
 }
 
 void
-policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy) {
 
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
@@ -508,7 +509,7 @@ policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
 }
 
 void
-policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy, client_t _client) {
 
     bool was_found(false);
@@ -540,7 +541,7 @@ policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
 }
 
 bool
-policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
+policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<policy> &_policy) const {
 
     bool is_uid_allowed(false);
     {
@@ -593,7 +594,7 @@ policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<pol
 }
 
 bool
-policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
+policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
     std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
         if (its_uid_range.lower() <= _uid && _uid <= its_uid_range.upper()) {
@@ -615,7 +616,7 @@ policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
 
 bool
 policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
-        uint32_t &_uid, uint32_t &_gid, const std::shared_ptr<policy> &_policy) const {
+        uid_t &_uid, gid_t &_gid, const std::shared_ptr<policy> &_policy) const {
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
     if (is_valid)
@@ -1125,9 +1126,8 @@ void
 policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
         std::set<std::shared_ptr<policy> > &_requesters) const {
 
-    std::lock_guard<std::mutex> its_lock(_policy->mutex_);
+    std::scoped_lock its_lock {any_client_policies_mutex_, _policy->mutex_};
     for (const auto &o : _policy->offers_) {
-        boost::unique_lock<boost::shared_mutex> its_policies_lock(any_client_policies_mutex_);
         for (const auto &p : any_client_policies_) {
             if (p == _policy)
                 continue;
@@ -1186,7 +1186,6 @@ policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _polic
 
             if (!its_policy->requests_.empty()) {
                 _requesters.insert(its_policy);
-                its_policy->print();
             }
         }
     }
@@ -1309,7 +1308,7 @@ policy_manager_impl::print_policy(const std::shared_ptr<policy> &_policy) const 
 
 bool
 policy_manager_impl::parse_uid_gid(const byte_t* &_buffer,
-        uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid) const {
+        uint32_t &_buffer_size, uid_t &_uid, gid_t &_gid) const {
 
    const auto its_policy = std::make_shared<policy>();
    return (its_policy
@@ -1447,44 +1446,5 @@ policy_manager_impl::get_sec_client_to_clients_mapping(
     }
     return false;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Manage the security object
-////////////////////////////////////////////////////////////////////////////////
-static std::shared_ptr<policy_manager_impl> *the_policy_manager_ptr__(nullptr);
-static std::mutex the_policy_manager_mutex__;
-
-std::shared_ptr<policy_manager_impl>
-policy_manager_impl::get() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-#endif
-    if(the_policy_manager_ptr__ == nullptr) {
-        the_policy_manager_ptr__ = new std::shared_ptr<policy_manager_impl>();
-    }
-    if (the_policy_manager_ptr__ != nullptr) {
-        if (!(*the_policy_manager_ptr__)) {
-            *the_policy_manager_ptr__ = std::make_shared<policy_manager_impl>();
-        }
-        return *the_policy_manager_ptr__;
-    }
-    return nullptr;
-}
-
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-static void security_teardown(void) __attribute__((destructor));
-static void security_teardown(void)
-{
-    if (the_policy_manager_ptr__ != nullptr) {
-        // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-        // Since this function only runs on the main thread, no mutex should be needed. Leaving a
-        // comment pending a refactor.
-        // std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-        the_policy_manager_ptr__->reset();
-        delete the_policy_manager_ptr__;
-        the_policy_manager_ptr__ = nullptr;
-    }
-}
-#endif
 
 } // namespace vsomeip_v3

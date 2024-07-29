@@ -137,7 +137,7 @@ int routingmanagerd_process(bool _is_quiet) {
         std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
         stop_sighandler = true;
         sighandler_condition.notify_one();
-    }    
+    }
     if (std::this_thread::get_id() != sighandler_thread.get_id()) {
         if (sighandler_thread.joinable()) {
             sighandler_thread.join();
