@@ -509,7 +509,7 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(
 
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect_cbk(boost::asio::error::timed_out);
-    } else {
+    } else if (_error.value() != ECANCELED) {
         VSOMEIP_WARNING << "cei::" << __func__ << ": not calling connect_cbk: "
                         << "sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_
                         << " (" << _error.value() << "):" << _error.message();
