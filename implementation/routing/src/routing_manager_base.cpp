@@ -165,7 +165,7 @@ const vsomeip_sec_client_t *routing_manager_base::get_sec_client() const {
 
 void routing_manager_base::set_sec_client_port(port_t _port) {
 
-	host_->set_sec_client_port(_port);
+    host_->set_sec_client_port(_port);
 }
 
 std::string routing_manager_base::get_client_host() const {
@@ -1568,6 +1568,19 @@ routing_manager_base::get_subscriptions(const client_t _client) {
         }
     }
     return result;
+}
+
+
+void routing_manager_base::clear_shadow_subscriptions(void) {
+    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    for (const auto& its_service : events_) {
+        for (const auto& its_instance : its_service.second) {
+            for (const auto& its_event : its_instance.second) {
+                if (its_event.second->is_shadow())
+                    its_event.second->clear_subscribers();
+            }
+        }
+    }
 }
 
 bool

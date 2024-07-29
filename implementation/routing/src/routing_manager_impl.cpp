@@ -702,6 +702,11 @@ void routing_manager_impl::subscribe(
         eventgroup_t _eventgroup, major_version_t _major,
         event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
+    if (routing_state_ == routing_state_e::RS_SUSPENDED) {
+        VSOMEIP_INFO << "rmi::" << __func__ << " We are suspended --> do nothing.";
+        return;
+    }
+
     VSOMEIP_INFO << "SUBSCRIBE("
         << std::hex << std::setfill('0')
         << std::setw(4) << _client << "): ["
@@ -3829,6 +3834,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
                     remote_subscription_state_.clear();
                 }
+
+                // Remove all subscribers to shadow events
+                clear_shadow_subscriptions();
 
                 // send StopSubscribes and clear subscribed_ map
                 discovery_->unsubscribe_all_on_suspend();
