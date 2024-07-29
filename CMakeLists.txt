@@ -659,7 +659,7 @@ endif()
 
 # build tools
 add_custom_target( tools )
-add_subdirectory( tools )
+add_subdirectory( tools/vsomeip_ctrl )
 
 # build examples
 add_custom_target( examples )
