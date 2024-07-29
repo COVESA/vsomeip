@@ -1585,49 +1585,52 @@ void service_discovery_impl::process_offerservice_serviceentry(
         }
     }
 
+    const bool was_previously_offered_by_unicast = set_offer_multicast_state(
+            _service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address,
+            _unreliable_port, _received_via_multicast);
+
     // No need to resubscribe for unicast offers
     if (_received_via_multicast) {
-        const bool was_previously_offered_by_unicast = set_offer_multicast_state(
-                _service, _instance, offer_type, _reliable_address, _reliable_port,
-                _unreliable_address, _unreliable_port, _received_via_multicast);
-        if (!was_previously_offered_by_unicast) {
-            auto found_service = subscribed_.find(_service);
-            if (found_service != subscribed_.end()) {
-                auto found_instance = found_service->second.find(_instance);
-                if (found_instance != found_service->second.end()) {
-                    if (0 < found_instance->second.size()) {
-                        for (const auto& its_eventgroup : found_instance->second) {
-                            auto its_subscription = its_eventgroup.second;
-                            std::shared_ptr<endpoint> its_reliable, its_unreliable;
-                            get_subscription_endpoints(_service, _instance, its_reliable,
-                                                       its_unreliable);
-                            its_subscription->set_endpoint(its_reliable, true);
-                            its_subscription->set_endpoint(its_unreliable, false);
-                            for (const auto& its_client : its_subscription->get_clients()) {
-                                if (its_subscription->get_state(its_client)
-                                    == subscription_state_e::ST_ACKNOWLEDGED) {
-                                    its_subscription->set_state(
-                                            its_client, subscription_state_e::ST_RESUBSCRIBING);
-                                } else {
-                                    its_subscription->set_state(
-                                            its_client,
-                                            subscription_state_e::
-                                                    ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
-                                }
-                            }
-                            const reliability_type_e its_reliability = get_eventgroup_reliability(
-                                    _service, _instance, its_eventgroup.first, its_subscription);
-
-                            auto its_data = create_eventgroup_entry(
-                                    _service, _instance, its_eventgroup.first, its_subscription,
-                                    its_reliability);
-                            if (its_data.entry_) {
-                                add_entry_data(_resubscribes, its_data);
-                            }
-                            for (const auto its_client : its_subscription->get_clients()) {
+        auto found_service = subscribed_.find(_service);
+        if (found_service != subscribed_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                if (0 < found_instance->second.size()) {
+                    for (const auto& its_eventgroup : found_instance->second) {
+                        auto its_subscription = its_eventgroup.second;
+                        std::shared_ptr<endpoint> its_reliable, its_unreliable;
+                        get_subscription_endpoints(_service, _instance, its_reliable,
+                                                   its_unreliable);
+                        its_subscription->set_endpoint(its_reliable, true);
+                        its_subscription->set_endpoint(its_unreliable, false);
+                        for (const auto& its_client : its_subscription->get_clients()) {
+                            if (its_subscription->get_state(its_client)
+                                == subscription_state_e::ST_ACKNOWLEDGED) {
+                                its_subscription->set_state(its_client,
+                                                            subscription_state_e::ST_RESUBSCRIBING);
+                            } else if (its_subscription->get_state(its_client)
+                                               != subscription_state_e::ST_ACKNOWLEDGED
+                                       && was_previously_offered_by_unicast) {
+                                its_subscription->set_state(its_client,
+                                                            subscription_state_e::ST_RESUBSCRIBING);
+                            } else {
                                 its_subscription->set_state(
-                                        its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                                        its_client,
+                                        subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
                             }
+                        }
+                        const reliability_type_e its_reliability = get_eventgroup_reliability(
+                                _service, _instance, its_eventgroup.first, its_subscription);
+
+                        auto its_data =
+                                create_eventgroup_entry(_service, _instance, its_eventgroup.first,
+                                                        its_subscription, its_reliability);
+                        if (its_data.entry_) {
+                            add_entry_data(_resubscribes, its_data);
+                        }
+                        for (const auto its_client : its_subscription->get_clients()) {
+                            its_subscription->set_state(its_client,
+                                                        subscription_state_e::ST_NOT_ACKNOWLEDGED);
                         }
                     }
                 }
