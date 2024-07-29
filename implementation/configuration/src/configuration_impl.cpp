@@ -981,10 +981,10 @@ void configuration_impl::load_application_data(
     client_t its_id(VSOMEIP_CLIENT_UNSET);
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
-    std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
+    std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
-    int its_io_thread_nice_level(VSOMEIP_IO_THREAD_NICE_LEVEL);
+    int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
     bool has_session_handling(true);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -3140,7 +3140,7 @@ std::size_t configuration_impl::get_request_debouncing(const std::string &_name)
 }
 
 std::size_t configuration_impl::get_io_thread_count(const std::string &_name) const {
-    std::size_t its_io_thread_count = VSOMEIP_IO_THREAD_COUNT;
+    std::size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3151,7 +3151,7 @@ std::size_t configuration_impl::get_io_thread_count(const std::string &_name) co
 }
 
 int configuration_impl::get_io_thread_nice_level(const std::string &_name) const {
-    int its_io_thread_nice_level = VSOMEIP_IO_THREAD_NICE_LEVEL;
+    int its_io_thread_nice_level = VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {

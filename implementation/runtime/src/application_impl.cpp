@@ -465,9 +465,7 @@ void application_impl::start() {
                                 << client_ << "_io" << std::setw(2) << i+1;
                             pthread_setname_np(pthread_self(),s.str().c_str());
                         }
-                        if ((VSOMEIP_IO_THREAD_NICE_LEVEL != io_thread_nice_level) && (io_thread_nice_level != nice(io_thread_nice_level))) {
-                            VSOMEIP_WARNING << "nice(" << io_thread_nice_level << ") failed " << errno << " for " << std::this_thread::get_id();
-                        }
+                        utility::set_thread_niceness(io_thread_nice_level);
 #endif
                     while(true) {
                         try {
@@ -506,11 +504,7 @@ void application_impl::start() {
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
     ;
-#if defined(__linux__) || defined(ANDROID)
-    if ((VSOMEIP_IO_THREAD_NICE_LEVEL != io_thread_nice_level) && (io_thread_nice_level != nice(io_thread_nice_level))) {
-        VSOMEIP_WARNING << "nice(" << io_thread_nice_level << ") failed " << errno << " for " << std::this_thread::get_id();
-    }
-#endif
+    utility::set_thread_niceness(io_thread_nice_level);
     while(true) {
         try {
             io_.run();
@@ -1770,6 +1764,7 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
+    utility::set_thread_niceness(configuration_->get_io_thread_nice_level(name_));
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     {
         std::stringstream s;

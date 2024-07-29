@@ -11,6 +11,7 @@
     #include <intrin.h>
 #else
     #include <dlfcn.h>
+    #include <errno.h>
     #include <signal.h>
     #include <unistd.h>
     #include <fcntl.h>
@@ -287,7 +288,17 @@ void utility::reset_client_ids(const std::string &_network) {
     }
 }
 
-
+void utility::set_thread_niceness(int _nice) noexcept {
+#if defined(__linux__)
+    errno = 0;
+    if ((nice(_nice) == -1) && (errno < 0)) {
+        VSOMEIP_WARNING << "failed to set niceness for thread " << std::this_thread::get_id() << " (error: " << strerror(errno) << ')';
+        return;
+    }
+#else
+    (void)_nice;
+#endif
+}
 
 std::uint16_t utility::get_max_client_number(
         const std::shared_ptr<configuration> &_config) {
