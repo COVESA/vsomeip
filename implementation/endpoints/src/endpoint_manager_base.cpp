@@ -162,9 +162,10 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         }
 
         if (!its_server_endpoint) {
-            VSOMEIP_ERROR << "Local TCP server endpoint creation failed. Client "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client
-                    << " Reason: No local port available!";
+            VSOMEIP_ERROR << "Local TCP server endpoint creation failed. Client " << std::hex
+                          << std::setw(4) << std::setfill('0') << its_client
+                          << " Reason: No local port available! Attempted to open port "
+                          << its_port;
         } else {
             rm_->add_guest(its_client, its_address, its_port);
         }
