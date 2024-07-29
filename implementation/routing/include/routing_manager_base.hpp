@@ -215,6 +215,8 @@ protected:
             const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client,
             std::set<event_t> *_already_subscribed_events);
 
+    void clear_shadow_subscriptions(void);
+
     std::shared_ptr<serializer> get_serializer();
     void put_serializer(const std::shared_ptr<serializer> &_serializer);
     std::shared_ptr<deserializer> get_deserializer();
