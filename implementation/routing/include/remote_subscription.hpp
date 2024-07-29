@@ -95,6 +95,11 @@ public:
 
     VSOMEIP_EXPORT bool get_ip_address(boost::asio::ip::address &_address) const;
 
+    bool is_expired() const;
+    void set_expired();
+    bool is_forwarded() const;
+    void set_forwarded();
+
 private:
     std::atomic<remote_subscription_id_t> id_;
     std::atomic<bool> is_initial_;
@@ -127,6 +132,20 @@ private:
     std::uint32_t answers_;
 
     mutable std::mutex mutex_;
+
+    /*
+     * This flag specifies what the "winner" of the
+     * expire_subscriptions()/on_remote_subscribe()
+     * race shall have as destination:
+     * - expiration, if expire_subscriptions() runs first
+     * - forwarding, if on_remote_subscribe() runs first
+     */
+    enum struct destiny : std::uint8_t {
+        none,
+        expire,
+        forward
+    };
+    std::atomic<destiny> final_destination_;
 };
 
 } // namespace vsomeip_v3
