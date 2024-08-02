@@ -219,6 +219,19 @@ public:
      * instance's reliability configuration. This parameter has no effect for
      * events of local services.
      */
+
+#if defined(WIN32) || defined(WIN64)
+    // standard data types, for more lossely coupled for linking in windows
+    virtual void offer_event_std(service_t _service, instance_t _instance,
+            event_t _notifier, uint16_t _groups[],
+            event_type_e _type = event_type_e::ET_EVENT,
+            std::chrono::milliseconds _cycle =std::chrono::milliseconds::zero(),
+            bool _change_resets_cycle = false,
+            bool _update_on_change = true,
+            const epsilon_change_func_t &_epsilon_change_func = nullptr,
+            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
+#endif
+
     virtual void offer_event(service_t _service, instance_t _instance,
             event_t _notifier, const std::set<eventgroup_t> &_eventgroups,
             event_type_e _type = event_type_e::ET_EVENT,
@@ -312,6 +325,15 @@ public:
      * belong to the eventgroup. Otherwise, neither event type nor reliability
      * type are known which might result in missing events.
      */
+    
+#if defined(WIN32) || defined(WIN64)
+    // standard data types, for more lossely coupled for linking in windows
+    virtual void request_event_std(service_t _service, instance_t _instance,
+            event_t _event, uint16_t _groups[],
+            event_type_e _type = event_type_e::ET_EVENT,
+            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
+#endif
+
     virtual void request_event(service_t _service, instance_t _instance,
             event_t _event, const std::set<eventgroup_t> &_eventgroups,
             event_type_e _type = event_type_e::ET_EVENT,
