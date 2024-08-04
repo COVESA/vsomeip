@@ -152,8 +152,12 @@ inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::
 
 inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
-const std::uint32_t ANY_UID = 0xFFFFFFFF;
-const std::uint32_t ANY_GID = 0xFFFFFFFF;
+#if defined(_WIN32)
+    typedef std::uint32_t uid_t;
+    typedef std::uint32_t gid_t;
+#endif
+const uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
+const gid_t ANY_GID = (std::numeric_limits<gid_t>::max)();
 
 enum class port_type_e {
     PT_OPTIONAL,

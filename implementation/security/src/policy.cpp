@@ -38,15 +38,16 @@ bool
 policy::deserialize_uid_gid(const byte_t * &_data, uint32_t &_size,
             uid_t &_uid, gid_t &_gid) const {
 
-    bool its_result;
-
-    its_result = deserialize_u32(_data, _size, _uid);
-    if (its_result == false)
+    if (_size < sizeof(uid_t))
         return false;
 
-    its_result = deserialize_u32(_data, _size, _gid);
-    if (its_result == false)
-        return false;
+    _uid = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
+    _data += sizeof(uid_t);
+    _size -= static_cast<uid_t>(sizeof(uid_t));
+
+    _gid = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
+    _data += sizeof(gid_t);
+    _size -= static_cast<uid_t>(sizeof(gid_t));
 
     return true;
 }

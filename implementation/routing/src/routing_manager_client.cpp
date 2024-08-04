@@ -1643,8 +1643,8 @@ void routing_manager_client::on_message(
                 its_command.deserialize(its_buffer, its_error);
                 if (its_error == protocol::error_e::ERROR_OK) {
                     auto its_policy = its_command.get_policy();
-                    uint32_t its_uid;
-                    uint32_t its_gid;
+                    uid_t its_uid;
+                    gid_t its_gid;
                     if (its_policy->get_uid_gid(its_uid, its_gid)) {
                         if (is_internal_policy_update
                                 || its_security->is_policy_update_allowed(its_uid, its_policy)) {
@@ -2832,7 +2832,7 @@ void routing_manager_client::on_update_security_credentials(
 
     for (const auto &c : _command.get_credentials()) {
         std::shared_ptr<policy> its_policy(std::make_shared<policy>());
-        boost::icl::interval_set<uint32_t> its_gid_set;
+        boost::icl::interval_set<gid_t> its_gid_set;
         uid_t its_uid(c.first);
         gid_t its_gid(c.second);
 
