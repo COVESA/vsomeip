@@ -300,10 +300,8 @@ bool server_endpoint_impl<Protocol>::send_intern(
             _data[VSOMEIP_METHOD_POS_MAX]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
-    if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
-        get_configured_times_from_endpoint(its_service, its_method,
+    get_configured_times_from_endpoint(its_service, its_method,
                 &its_debouncing, &its_retention);
-    }
 
     // STEP 4: Check if the passenger enters an empty train
     const std::pair<service_t, method_t> its_identifier
@@ -311,39 +309,15 @@ bool server_endpoint_impl<Protocol>::send_intern(
     if (its_data.train_->passengers_.empty()) {
         its_data.train_->departure_ = its_now + its_retention;
     } else {
-        if (its_data.train_->passengers_.end()
-                != its_data.train_->passengers_.find(its_identifier)) {
-            must_depart = true;
-        } else {
             // STEP 5: Check whether the current message fits into the current train
             if (its_data.train_->buffer_->size() + _size > endpoint_impl<Protocol>::max_message_size_) {
                 must_depart = true;
             } else {
-                // STEP 6: Check debouncing time
-                if (its_debouncing > its_data.train_->minimal_max_retention_time_) {
-                    // train's latest departure would already undershot new
-                    // passenger's debounce time
-                    must_depart = true;
-                } else {
-                    if (its_now + its_debouncing > its_data.train_->departure_) {
-                        // train departs earlier as the new passenger's debounce
-                        // time allows
-                        must_depart = true;
-                    } else {
-                        // STEP 7: Check maximum retention time
-                        if (its_retention < its_data.train_->minimal_debounce_time_) {
-                            // train's earliest departure would already exceed
-                            // the new passenger's retention time.
-                            must_depart = true;
-                        } else {
-                            if (its_now + its_retention < its_data.train_->departure_) {
-                                its_data.train_->departure_ = its_now + its_retention;
-                            }
-                        }
+                    if (its_now + its_retention < its_data.train_->departure_) {
+                        its_data.train_->departure_ = its_now + its_retention;
                     }
-                }
+
             }
-        }
     }
 
     // STEP 8: if necessary, send current buffer and create a new one
