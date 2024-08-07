@@ -50,10 +50,6 @@ public:
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
 
-    virtual void increment_use_count() = 0;
-    virtual void decrement_use_count() = 0;
-    virtual uint32_t get_use_count() = 0;
-
     virtual void restart(bool _force = false) = 0;
 
     virtual void register_error_handler(const error_handler_t &_error) = 0;

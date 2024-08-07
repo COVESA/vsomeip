@@ -126,6 +126,8 @@ private:
     // process join/leave options
     void process_multicast_options();
 
+    bool is_used_endpoint(endpoint* const _endpoint) const;
+
 private:
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
@@ -162,8 +164,7 @@ private:
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)
-    std::map<service_t, std::map<instance_t,
-                    std::shared_ptr<endpoint_definition>>> multicast_info;
+    std::map<service_t, std::map<instance_t, std::shared_ptr<endpoint_definition>>> multicast_info_;
 
     // Socket option processing (join, leave)
     std::mutex options_mutex_;

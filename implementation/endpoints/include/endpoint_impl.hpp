@@ -49,10 +49,6 @@ public:
     virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
 
-    void increment_use_count();
-    void decrement_use_count();
-    uint32_t get_use_count();
-
     void register_error_handler(const error_handler_t &_error_handler);
     virtual void print_status() = 0;
 

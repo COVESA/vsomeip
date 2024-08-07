@@ -10,12 +10,12 @@
 
 namespace vsomeip_v3 {
 
-virtual_server_endpoint_impl::virtual_server_endpoint_impl(
-        const std::string &_address, uint16_t _port, bool _reliable,
-        boost::asio::io_context &_io)
-    : address_(_address), port_(_port), reliable_(_reliable), use_count_(0),
-      io_(_io) {
-}
+virtual_server_endpoint_impl::virtual_server_endpoint_impl(const std::string& _address,
+                                                           uint16_t _port, bool _reliable,
+                                                           boost::asio::io_context& _io) :
+
+    address_(_address),
+    port_(_port), reliable_(_reliable), io_(_io) { }
 
 virtual_server_endpoint_impl::~virtual_server_endpoint_impl() {
 }
@@ -122,20 +122,6 @@ bool virtual_server_endpoint_impl::is_reliable() const {
 
 bool virtual_server_endpoint_impl::is_local() const {
     return true;
-}
-
-
-void virtual_server_endpoint_impl::increment_use_count() {
-    use_count_++;
-}
-
-void virtual_server_endpoint_impl::decrement_use_count() {
-    if (use_count_ > 0)
-        use_count_--;
-}
-
-uint32_t virtual_server_endpoint_impl::get_use_count() {
-    return use_count_;
 }
 
 void virtual_server_endpoint_impl::restart(bool _force) {

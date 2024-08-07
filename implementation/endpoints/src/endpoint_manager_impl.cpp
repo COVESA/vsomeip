@@ -325,28 +325,38 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
         if (!_is_multicast) {
             service_instances_[_service][its_endpoint.get()] =  _instance;
         }
-        its_endpoint->increment_use_count();
     }
     return its_endpoint;
 }
 
 bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliable) {
-    bool ret = false;
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    auto found_port = server_endpoints_.find(_port);
-    if (found_port != server_endpoints_.end()) {
-        auto found_reliable = found_port->second.find(_reliable);
-        if (found_reliable != found_port->second.end()) {
-            if (found_reliable->second->get_use_count() == 0 &&
-                    found_port->second.erase(_reliable)) {
-                ret = true;
+
+    std::shared_ptr<endpoint> its_endpoint;
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_port = server_endpoints_.find(_port);
+        if (found_port != server_endpoints_.end()) {
+            auto found_reliable = found_port->second.find(_reliable);
+            if (found_reliable != found_port->second.end()) {
+                its_endpoint = found_reliable->second;
+            }
+        }
+    }
+
+    if (!is_used_endpoint(its_endpoint.get())) {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_port = server_endpoints_.find(_port);
+        if (found_port != server_endpoints_.end()) {
+            if (found_port->second.erase(_reliable)) {
                 if (found_port->second.empty()) {
                     server_endpoints_.erase(found_port);
                 }
             }
+            return true;
         }
     }
-    return ret;
+
+    return false;
 }
 
 void
@@ -460,11 +470,11 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
         service_t _service, instance_t _instance,
         const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_address, uint16_t _port) {
-    bool multicast_known(false);
+    bool is_known_multicast(false);
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-        const auto found_service = multicast_info.find(_service);
-        if (found_service != multicast_info.end()) {
+        const auto found_service = multicast_info_.find(_service);
+        if (found_service != multicast_info_.end()) {
             const auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 const auto& endpoint_def = found_instance->second;
@@ -472,7 +482,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
                         endpoint_def->get_port() == _port) {
                     // Multicast info and endpoint already created before
                     // This can happen when more than one client subscribe on the same instance!
-                    multicast_known = true;
+                    is_known_multicast = true;
                 }
             }
         }
@@ -489,58 +499,62 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         std::shared_ptr<endpoint_definition> endpoint_def =
                 endpoint_definition::get(_address, _port, false, _service, _instance);
-        multicast_info[_service][_instance] = endpoint_def;
+        multicast_info_[_service][_instance] = endpoint_def;
     }
 
     if (its_endpoint) {
-        if (!multicast_known) {
+        if (!is_known_multicast) {
             std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
             service_instances_multicast_[_service][_sender] = _instance;
         }
 
-        auto its_udp_server_endpoint
-            = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
-        its_udp_server_endpoint->join(_address.to_string());
+        auto its_udp_server_endpoint =
+                std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
+        if (its_udp_server_endpoint)
+            its_udp_server_endpoint->join(_address.to_string());
     } else {
         VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
 }
 
 void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instance_t _instance) {
-    std::shared_ptr<endpoint> multicast_endpoint;
-    std::string address;
+    std::shared_ptr<endpoint> its_multicast_endpoint;
+    std::string its_address;
 
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         // Clear multicast info and endpoint and multicast instance (remote service)
-        if (multicast_info.find(_service) != multicast_info.end()) {
-            if (multicast_info[_service].find(_instance) != multicast_info[_service].end()) {
-                address = multicast_info[_service][_instance]->get_address().to_string();
-                uint16_t port = multicast_info[_service][_instance]->get_port();
-                auto found_port = server_endpoints_.find(port);
+        if (multicast_info_.find(_service) != multicast_info_.end()) {
+            if (multicast_info_[_service].find(_instance) != multicast_info_[_service].end()) {
+                its_address = multicast_info_[_service][_instance]->get_address().to_string();
+                uint16_t its_port = multicast_info_[_service][_instance]->get_port();
+                auto found_port = server_endpoints_.find(its_port);
                 if (found_port != server_endpoints_.end()) {
                     auto found_unreliable = found_port->second.find(false);
                     if (found_unreliable != found_port->second.end()) {
-                        multicast_endpoint = found_unreliable->second;
-                        server_endpoints_[port].erase(false);
+                        its_multicast_endpoint = found_unreliable->second;
+                        server_endpoints_[its_port].erase(false);
                     }
                     if (found_port->second.find(true) == found_port->second.end()) {
-                        server_endpoints_.erase(port);
+                        server_endpoints_.erase(its_port);
                     }
                 }
-                multicast_info[_service].erase(_instance);
-                if (0 >= multicast_info[_service].size()) {
-                    multicast_info.erase(_service);
+                multicast_info_[_service].erase(_instance);
+                if (0 >= multicast_info_[_service].size()) {
+                    multicast_info_.erase(_service);
                 }
                 (void)remove_instance_multicast(_service, _instance);
             }
         }
     }
-    if (multicast_endpoint) {
-        dynamic_cast<udp_server_endpoint_impl*>(
-                multicast_endpoint.get())->leave(address);
+    if (its_multicast_endpoint) {
+        auto its_udp_server_endpoint =
+                std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_multicast_endpoint);
+        if (its_udp_server_endpoint)
+            its_udp_server_endpoint->leave(its_address);
 
-        multicast_endpoint->stop();
+        if (!is_used_endpoint(its_multicast_endpoint.get()))
+            its_multicast_endpoint->stop();
     }
 }
 
@@ -782,17 +796,18 @@ instance_t endpoint_manager_impl::find_instance_multicast(
 
 bool endpoint_manager_impl::remove_instance(service_t _service,
                                             endpoint* const _endpoint) {
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    auto found_service = service_instances_.find(_service);
-    if (found_service != service_instances_.end()) {
-        if (found_service->second.erase(_endpoint)) {
-            if (!found_service->second.size()) {
-                service_instances_.erase(found_service);
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_service = service_instances_.find(_service);
+        if (found_service != service_instances_.end()) {
+            if (found_service->second.erase(_endpoint)) {
+                if (!found_service->second.size()) {
+                    service_instances_.erase(found_service);
+                }
             }
         }
     }
-    _endpoint->decrement_use_count();
-    return (_endpoint->get_use_count() == 0);
+    return !is_used_endpoint(_endpoint);
 }
 
 bool endpoint_manager_impl::remove_instance_multicast(service_t _service,
@@ -1298,8 +1313,8 @@ endpoint_manager_impl::process_multicast_options() {
         if (options_queue_.size() > 0) {
             auto its_front = options_queue_.front();
             options_queue_.pop();
-            auto its_udp_server_endpoint
-                = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
+            auto its_udp_server_endpoint =
+                    std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
             if (its_udp_server_endpoint) {
                 // Unlock before setting the option as this might block
                 its_lock.unlock();
@@ -1312,6 +1327,24 @@ endpoint_manager_impl::process_multicast_options() {
             options_condition_.wait(its_lock);
         }
     }
+}
+
+bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
+
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        // Do we still use the endpoint to offer a service instance?
+        for (const auto& si : service_instances_)
+            if (si.second.find(_endpoint) != si.second.end())
+                return true;
+    }
+
+    // Do we still use the endpoint to join a multicast address=
+    auto its_udp_server_endpoint = dynamic_cast<udp_server_endpoint_impl*>(_endpoint);
+    if (its_udp_server_endpoint)
+        return its_udp_server_endpoint->is_joining();
+
+    return false;
 }
 
 } // namespace vsomeip_v3
