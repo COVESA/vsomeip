@@ -127,7 +127,7 @@ add_custom_test(
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_same_service_id_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
     TCP_AND_UDP SAME_SERVICE_ID
 )
 
@@ -193,7 +193,7 @@ add_custom_test(
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_same_service_id_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
     TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS
 )
 
@@ -259,7 +259,7 @@ add_custom_test(
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id.json
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
     TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
