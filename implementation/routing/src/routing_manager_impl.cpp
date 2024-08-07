@@ -892,18 +892,22 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
         bool is_notification = utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]);
         bool is_response = utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+        client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
         service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-        method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+        method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+        client_t its_target_client = get_client();
 
         bool is_service_discovery
             = (its_service == sd::service && its_method == sd::method);
 
         if (is_request) {
-            its_target = ep_mgr_->find_local(its_service, _instance);
+            its_target_client = find_local_client(its_service, _instance);
+            its_target = find_local(its_target_client);
         } else if (!is_notification) {
             its_target = find_local(its_client);
-        } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
+            its_target_client = its_client;
+        } else if (is_notification && _client
+                   && !is_service_discovery) { // Selective notifications!
             if (_client == get_client()) {
 #ifdef USE_DLT
                 trace::header its_header;
@@ -917,6 +921,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                 return true;
             }
             its_target = find_local(_client);
+            its_target_client = _client;
         }
 
         if (its_target) {
@@ -931,8 +936,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                             _data, _size);
             }
 #endif
-            is_sent = send_local(its_target, get_client(), _data, _size, _instance,
-                    _reliable, protocol::id_e::SEND_ID, _status_check);
+            is_sent = send_local(its_target, its_target_client, _data, _size, _instance, _reliable,
+                                 protocol::id_e::SEND_ID, _status_check);
         } else {
             // Check whether hosting application should get the message
             // If not, check routes to external
@@ -2073,8 +2078,8 @@ bool routing_manager_impl::deliver_notification(
                 } else {
                     std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
                     if (its_local_target) {
-                        send_local(its_local_target, VSOMEIP_ROUTING_CLIENT,
-                                _data, _length, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                        send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length,
+                                   _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
                     }
                 }
             }
