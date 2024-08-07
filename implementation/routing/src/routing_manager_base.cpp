@@ -1317,6 +1317,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
 #ifdef USE_DLT
     bool has_local(false);
 #endif
+    (void)_client;
     bool has_remote(false);
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
     method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
@@ -1338,8 +1339,8 @@ bool routing_manager_base::send_local_notification(client_t _client,
 
             std::shared_ptr<endpoint> its_local_target = ep_mgr_->find_local(its_client);
             if (its_local_target) {
-                send_local(its_local_target, _client, _data, _size,
-                           _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                send_local(its_local_target, its_client, _data, _size, _instance, _reliable,
+                           protocol::id_e::SEND_ID, _status_check);
             }
         }
     }
