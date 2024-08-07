@@ -178,4 +178,6 @@ add_subdirectory(payload_tests)
 add_subdirectory(cyclic_event_tests)
 
 # some tests require the routingmanagerd
+if (NOT MSVC)
 add_dependencies(build_network_tests routingmanagerd)
+endif ()
