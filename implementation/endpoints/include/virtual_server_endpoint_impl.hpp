@@ -52,10 +52,6 @@ public:
     bool is_reliable() const;
     bool is_local() const;
 
-    void increment_use_count();
-    void decrement_use_count();
-    uint32_t get_use_count();
-
     void restart(bool _force);
 
     void register_error_handler(const error_handler_t &_handler);
@@ -68,7 +64,6 @@ private:
     uint16_t port_;
     bool reliable_;
 
-    uint32_t use_count_;
     boost::asio::io_context &io_;
 };
 

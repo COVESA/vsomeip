@@ -111,22 +111,6 @@ void endpoint_impl<Protocol>::remove_stop_handler(service_t) {
 }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::increment_use_count() {
-    use_count_++;
-}
-
-template<typename Protocol>
-void endpoint_impl<Protocol>::decrement_use_count() {
-    if (use_count_ > 0)
-        use_count_--;
-}
-
-template<typename Protocol>
-uint32_t endpoint_impl<Protocol>::get_use_count() {
-    return use_count_;
-}
-
-template<typename Protocol>
 void endpoint_impl<Protocol>::register_error_handler(const error_handler_t &_error_handler) {
     std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
     this->error_handler_ = _error_handler;

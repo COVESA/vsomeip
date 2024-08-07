@@ -94,6 +94,15 @@ void routing_restart_test_service::on_message(const std::shared_ptr<vsomeip::mes
             vsomeip::runtime::get()->create_response(_request);
 
     app_->send(its_response);
+
+    {
+        std::lock_guard<std::mutex> its_guard(number_of_received_messages_mutex_);
+        number_of_received_messages_++;
+        if (number_of_received_messages_
+            == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
+            VSOMEIP_INFO << "Received all messages!";
+        }
+    }
 }
 
 void routing_restart_test_service::on_message_shutdown(

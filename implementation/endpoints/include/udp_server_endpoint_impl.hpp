@@ -73,6 +73,8 @@ public:
     void set_sent_multicast_received_callback(const on_sent_multicast_received_cbk_t& _cbk);
     void set_receive_own_multicast_messages(bool value);
 
+    bool is_joining() const;
+
 private:
     void leave_unlocked(const std::string &_address);
     void set_broadcast();

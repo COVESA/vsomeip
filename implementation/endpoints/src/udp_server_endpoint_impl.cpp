@@ -939,4 +939,10 @@ void udp_server_endpoint_impl::set_receive_own_multicast_messages(bool value) {
     receive_own_multicast_messages_ = value;
 }
 
+bool udp_server_endpoint_impl::is_joining() const {
+
+    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+    return !joined_.empty();
+}
+
 } // namespace vsomeip_v3

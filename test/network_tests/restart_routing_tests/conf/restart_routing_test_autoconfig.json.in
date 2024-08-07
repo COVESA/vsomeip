@@ -3,7 +3,7 @@
    "netmask" : "255.255.255.0",
    "logging" :
    {
-      "level" : "warning",
+      "level" : "info",
       "console" : "true",
       "file" :
       {

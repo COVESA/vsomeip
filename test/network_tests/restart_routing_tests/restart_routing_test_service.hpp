@@ -46,6 +46,10 @@ private:
     std::mutex counter_mutex_;
     std::uint32_t shutdown_counter_;
     std::map<std::uint16_t, std::uint32_t> received_counter_;
+
+    std::mutex number_of_received_messages_mutex_;
+    std::uint32_t number_of_received_messages_;
+
     std::thread offer_thread_;
 };
 

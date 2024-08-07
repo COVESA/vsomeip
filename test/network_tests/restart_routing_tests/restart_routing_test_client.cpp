@@ -96,6 +96,7 @@ void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::mess
 
     if (_response->get_service() == vsomeip_test::TEST_SERVICE_SERVICE_ID &&
             _response->get_instance()  == vsomeip_test::TEST_SERVICE_INSTANCE_ID) {
+
         received_responses_++;
         if (received_responses_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
             VSOMEIP_WARNING << std::hex << app_->get_client()
