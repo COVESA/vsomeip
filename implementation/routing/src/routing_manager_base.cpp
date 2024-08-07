@@ -51,45 +51,78 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
     }
 }
 
-void routing_manager_base::debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
+void routing_manager_base::debounce_timeout_update_cbk(
+        const boost::system::error_code& _error, const std::shared_ptr<vsomeip_v3::event>& _event,
+        client_t _client, const std::shared_ptr<debounce_filter_impl_t>& _filter) {
     if (!_error) {
-        if (_event) {
-            auto its_subscribers = _event->get_subscribers();
+        if (!_event) {
+            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+            if (debounce_clients_.size() > 0) {
+                debounce_timer.expires_from_now(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                debounce_clients_.begin()->first
+                                - std::chrono::steady_clock::now()));
+                debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+            }
+            return;
+        }
+
+        // _event->get_subscribers() cannot be locked by debounce_mutex_, because it can lead to
+        // Lock inversion with remove_subscribes and its eventgroup_mutex!
+        auto its_subscribers = _event->get_subscribers();
+
+        bool notify_client {false};
+        {
+            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
             if (its_subscribers.find(_client) != its_subscribers.end() && _filter) {
-                std::unique_lock its_lock(debounce_mutex_);
-                bool is_elapsed{false};
+                bool is_elapsed {false};
                 auto its_current = std::chrono::steady_clock::now();
 
                 int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        its_current - _filter->last_forwarded_).count();
-                is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
-                        || elapsed >= _filter->interval_);
+                                          its_current - _filter->last_forwarded_)
+                                          .count();
+                is_elapsed =
+                        (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                         || elapsed >= _filter->interval_);
 
                 auto debounce_client = debounce_clients_.begin();
                 auto event_id = std::get<3>(debounce_client->second);
                 bool has_update = std::get<1>(debounce_client->second);
                 if (is_elapsed) {
                     if (std::get<0>(debounce_client->second) == _client && has_update) {
-                        its_lock.unlock();
-                        _event->notify_one(_client, false);
+                        notify_client = true;
                         has_update = false;
-                        its_lock.lock();
                     }
                     elapsed = 0;
                 }
 
                 debounce_clients_.erase(debounce_client);
 
-                auto timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(_filter->interval_ - elapsed);
-                debounce_clients_.emplace(timeout, std::make_tuple(_client, has_update, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                                std::placeholders::_1, _event, _client, _filter), event_id));
+                auto timeout = std::chrono::steady_clock::now()
+                        + std::chrono::milliseconds(_filter->interval_ - elapsed);
+                debounce_clients_.emplace(
+                        timeout,
+                        std::make_tuple(
+                                _client, has_update,
+                                std::bind(&routing_manager_base::debounce_timeout_update_cbk,
+                                          shared_from_this(), std::placeholders::_1, _event,
+                                          _client, _filter),
+                                event_id));
             }
 
-        }
+            if (debounce_clients_.size() > 0) {
+                debounce_timer.expires_from_now(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                debounce_clients_.begin()->first
+                                - std::chrono::steady_clock::now()));
+                debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+            }
+        } // its_lock(debounce_mutex_)
 
-        if (debounce_clients_.size() > 0) {
-            debounce_timer.expires_from_now(std::chrono::duration_cast<std::chrono::milliseconds>(debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
-            debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+        // _event->notify_one cannot be locked by debounce_mutex_, because it can lead to
+        // Lock inversion with update_and_get_filtered_subscribers and its mutex_!
+        if (notify_client) {
+            _event->notify_one(_client, false);
         }
     }
 }
