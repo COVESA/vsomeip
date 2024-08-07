@@ -9,9 +9,6 @@ file(GLOB SRCS ../main.cpp *.cpp mocks/*.cpp)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-find_package(Threads REQUIRED)
-find_package(Boost 1.55 COMPONENTS filesystem system REQUIRED)
-
 # ----------------------------------------------------------------------------
 # Executable and libraries to link
 # ----------------------------------------------------------------------------
