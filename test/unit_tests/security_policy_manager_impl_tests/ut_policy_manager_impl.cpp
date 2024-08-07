@@ -2,6 +2,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #include <gtest/gtest.h>
 #include <vsomeip/defines.hpp>
 
@@ -1255,7 +1259,11 @@ TEST(security_policy_manager_test, get_security_config_folder) {
     ASSERT_EQ(its_policy_manager->get_security_config_folder(fake_path), "");
 
     // Complete the path, adding the uid and gid.
+#ifdef _WIN32
+    final_path << folder_path << "/0_0";
+#else
     final_path << folder_path << "/" << getuid() << "_" << getgid();
+#endif
 
     // Convert stringstream to char*
     const std::string tmp = final_path.str();
@@ -1293,7 +1301,11 @@ TEST(security_policy_manager_test, is_policy_extension_loaded) {
     const std::string folder_path = "build/test/unit_tests/security_policy_manager_impl_tests";
 
     // Complete the path, adding the uid and gid.
+#ifdef _WIN32
+    final_path << folder_path << "/0_0";
+#else
     final_path << folder_path << "/" << getuid() << "_" << getgid();
+#endif
 
     // Add a way to move out of the /etc folder we will be forced in.
     final_path2 << "../.." << UNIT_TEST_BUILD_DIR_PATH << "/security_policy_manager_impl_tests";

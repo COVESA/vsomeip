@@ -160,7 +160,7 @@ TEST(security_policy_test, deserialize) {
         instance2_id_low_byte1, instance2_id_low_byte2
     };
 
-    const vsomeip_v3::byte_t *data_ptr_ = byte_array_.begin();
+    const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
     std::uint32_t data_size_ = array_size;
 
     // Test method.
@@ -171,7 +171,7 @@ TEST(security_policy_test, deserialize) {
     // Check if uid and gid were deserialized correctly by private method deserialize_u32
     // Check if uid is in the credentials_
     auto deserialized_gid_set = its_policy->credentials_.lower_bound(
-        boost::icl::interval<uid_t>::closed(uid, uid));
+            boost::icl::interval<vsomeip_v3::uid_t>::closed(uid, uid));
     // Check if the associated gid is located.
     ASSERT_EQ(deserialized_gid_set->second.begin()->lower(), gid);
 
@@ -191,7 +191,7 @@ TEST(security_policy_test, deserialize) {
 
     // Check if method high and low were deserialized correctly by private method deserialize_u16
     auto deserialized_service_set = its_policy->requests_.lower_bound(
-        boost::icl::interval<vsomeip_v3::service_t>::closed(request_service, request_service));
+            boost::icl::interval<vsomeip_v3::service_t>::closed(request_service, request_service));
 
     // Check if the associated instance low and high are located.
     ASSERT_EQ(deserialized_service_set->second.begin()->first.lower(), request_instance_low);
@@ -275,7 +275,7 @@ TEST(security_policy_test, serialize) {
     };
 
     // Fill policy with data.
-    const vsomeip_v3::byte_t *data_ptr_ = byte_array_.begin();
+    const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
     std::uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
@@ -332,7 +332,7 @@ TEST(security_policy_test, get_uid_gid) {
         instance2_id_low_byte1, instance2_id_low_byte2
     };
 
-    const vsomeip_v3::byte_t *data_ptr_ = byte_array_.begin();
+    const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
     std::uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
@@ -383,7 +383,7 @@ TEST(security_policy_test, deserialize_uid_gid) {
         instance2_id_low_byte1, instance2_id_low_byte2
     };
 
-    const vsomeip_v3::byte_t *data_ptr_ = byte_array_.begin();
+    const vsomeip_v3::byte_t* data_ptr_ = byte_array_.data();
     std::uint32_t data_size_ = array_size;
     ASSERT_TRUE(its_policy->deserialize(data_ptr_, data_size_));
 
@@ -392,7 +392,7 @@ TEST(security_policy_test, deserialize_uid_gid) {
     std::uint32_t deserialized_gid;
 
     // Resetting the pointers.
-    data_ptr_ = byte_array_.begin();
+    data_ptr_ = byte_array_.data();
     data_size_ = array_size;
 
     // Test method.
