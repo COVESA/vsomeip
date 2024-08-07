@@ -4,7 +4,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 cmake_minimum_required(VERSION 3.4...3.22)
-
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 # Configure necessary files into the build folder.
 set(configuration_files
     offer_stop_offer_test_client.json
@@ -40,3 +40,4 @@ add_custom_test(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_stop_offer_test_client_starter.sh
     TIMEOUT 30
 )
+endif()

@@ -83,12 +83,12 @@ void memory_test_service::message_sender(std::atomic<bool> &stop_checking_)
     its_payload2->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 10));
     int count { 0 };
     for (int message_no = 0; message_no <= TEST_MESSAGE_NUMBER; message_no++) {
-        for (u_int16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
+        for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload);
             count++;
         }
         std::this_thread::sleep_for(MESSAGE_SENDER_INTERVAL);
-        for (u_int16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
+        for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload2);
             count++;
         }
