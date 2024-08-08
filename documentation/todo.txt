@@ -1,3 +1,2 @@
 TODO:
 
-- update the EA model to match the current implementation
