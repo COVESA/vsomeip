@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <functional>
 #include <queue>
+#include <iomanip>
 
 #include "big_payload_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>

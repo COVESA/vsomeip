@@ -17,6 +17,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <iomanip>
 
 class e2e_profile_07_test_service {
 public:

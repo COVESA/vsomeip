@@ -10,6 +10,7 @@
 #include <thread>
 #include <map>
 #include <atomic>
+#include <iomanip>
 
 #include <gtest/gtest.h>
 

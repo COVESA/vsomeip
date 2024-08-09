@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <future>
+#include <iomanip>
 
 class routing_restart_test_client {
 public:

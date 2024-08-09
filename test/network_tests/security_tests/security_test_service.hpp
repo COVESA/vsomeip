@@ -16,6 +16,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <iomanip>
 
 class security_test_service {
 public:

@@ -9,6 +9,7 @@
 #include <sstream>
 #include <thread>
 #include <map>
+#include <iomanip>
 
 #include <gtest/gtest.h>
 #include <vsomeip/vsomeip.hpp>

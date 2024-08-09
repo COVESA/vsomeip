@@ -15,6 +15,7 @@
 #include <functional>
 #include <chrono>
 #include <deque>
+#include <iomanip>
 
 class npdu_test_service
 {

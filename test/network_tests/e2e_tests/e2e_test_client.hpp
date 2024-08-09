@@ -18,6 +18,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <iomanip>
 
 class e2e_test_client {
 public:

@@ -14,6 +14,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <iomanip>
 
 class e2e_profile_07_test_client {
 public:

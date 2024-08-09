@@ -13,6 +13,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <iomanip>
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>

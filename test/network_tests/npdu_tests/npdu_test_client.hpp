@@ -15,6 +15,7 @@
 #include <condition_variable>
 #include <functional>
 #include <map>
+#include <iomanip>
 
 #include "../npdu_tests/npdu_test_globals.hpp"
 #include "../someip_test_globals.hpp"

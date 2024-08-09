@@ -13,6 +13,7 @@
 #include <functional>
 #include <numeric>
 #include <cmath> // for isfinite
+#include <iomanip>
 
 #include "cpu_load_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
