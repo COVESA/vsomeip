@@ -10,26 +10,29 @@ find_package(Threads REQUIRED)
 
 set(VSOMEIP_NAME "vsomeip3")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+# create_target("executable")
+function(create_target executable)
+    add_library(vsomeip_hello_world_${executable} INTERFACE)
+    target_sources(vsomeip_hello_world_${executable} INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_${executable}.hpp"
+    )
+    target_compile_features(vsomeip_hello_world_${executable} INTERFACE cxx_std_17)
+
+    target_include_directories(vsomeip_hello_world_${executable} INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endfunction()
+
+# link_target("executable")
+function(link_target executable)
+    add_executable (hello_world_${executable} hello_world_${executable}_main.cpp)
+    target_link_libraries(hello_world_${executable} vsomeip_hello_world_${executable} ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+endfunction()
 
 include_directories(${VSOMEIP_INCLUDE_DIRS})
 
-add_library(vsomeip_hello_world_service INTERFACE)
-target_sources(vsomeip_hello_world_service INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_service.hpp"
-)
-target_include_directories(vsomeip_hello_world_service INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-add_library(vsomeip_hello_world_client INTERFACE)
-target_sources(vsomeip_hello_world_client INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_client.hpp"
-)
-
-target_include_directories(vsomeip_hello_world_client INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+create_target("service")
+create_target("client")
 
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
     # This will get us acces to
@@ -40,9 +43,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
         message("${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR")
     endif()
 
-    add_executable (hello_world_service hello_world_service_main.cpp)
-    target_link_libraries(hello_world_service vsomeip_hello_world_service ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-    add_executable (hello_world_client hello_world_client_main.cpp)
-    target_link_libraries(hello_world_client vsomeip_hello_world_client ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    link_target("client")
+    link_target("service")
 endif()
