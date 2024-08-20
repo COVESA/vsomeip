@@ -64,7 +64,7 @@ std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
 }
 
 std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
-   auto its_request = std::make_shared<message_impl>();
+    auto its_request = std::make_shared<message_impl>();
     its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_request->set_message_type(message_type_e::MT_REQUEST);
     its_request->set_return_code(return_code_e::E_OK);
@@ -130,5 +130,4 @@ void runtime_impl::remove_application(
         applications_.erase(_name);
     }
 }
-
 } // namespace vsomeip_v3

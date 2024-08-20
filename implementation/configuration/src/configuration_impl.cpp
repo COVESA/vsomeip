@@ -981,6 +981,7 @@ void configuration_impl::load_application_data(
     client_t its_id(VSOMEIP_CLIENT_UNSET);
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
+    std::size_t its_max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS);
     std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
@@ -1006,6 +1007,9 @@ void configuration_impl::load_application_data(
         } else if (its_key == "max_dispatch_time") {
             its_converter << std::dec << its_value;
             its_converter >> its_max_dispatch_time;
+        } else if (its_key == "max_detached_thread_wait_time") {
+            its_converter << std::dec << its_value;
+            its_converter >> its_max_detached_thread_wait_time;
         } else if (its_key == "threads") {
             its_converter << std::dec << its_value;
             its_converter >> its_io_thread_count;
@@ -1036,8 +1040,7 @@ void configuration_impl::load_application_data(
             } catch (...) {
                 // intentionally empty
             }
-        }
-        else if (its_key == "has_session_handling") {
+        } else if (its_key == "has_session_handling") {
             has_session_handling = (its_value != "false");
         }
     }
@@ -1055,17 +1058,16 @@ void configuration_impl::load_application_data(
                 }
             }
 
-            applications_[its_name] = {
-                its_id,
-                its_max_dispatchers,
-                its_max_dispatch_time,
-                its_io_thread_count,
-                its_request_debounce_time,
-                plugins,
-                its_io_thread_nice_level,
-                its_debounces
-                , has_session_handling
-            };
+            applications_[its_name] = {its_id,
+                                       its_max_dispatchers,
+                                       its_max_dispatch_time,
+                                       its_max_detached_thread_wait_time,
+                                       its_io_thread_count,
+                                       its_request_debounce_time,
+                                       plugins,
+                                       its_io_thread_nice_level,
+                                       its_debounces,
+                                       has_session_handling};
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -3184,6 +3186,17 @@ std::size_t configuration_impl::get_max_dispatch_time(
     }
 
     return its_max_dispatch_time;
+}
+
+std::size_t configuration_impl::get_max_detached_thread_wait_time(const std::string& _name) const {
+    std::size_t its_max_detached_thread_wait_time = VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS;
+
+    if (auto found_application = applications_.find(_name);
+        found_application != applications_.end()) {
+        its_max_detached_thread_wait_time = found_application->second.max_detach_thread_wait_time_;
+    }
+
+    return its_max_detached_thread_wait_time;
 }
 
 bool configuration_impl::has_session_handling(const std::string &_name) const {

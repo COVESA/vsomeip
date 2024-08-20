@@ -22,6 +22,7 @@ struct application_configuration {
     client_t client_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
+    std::size_t max_detach_thread_wait_time_;
     std::size_t thread_count_;
     std::size_t request_debouncing_;
     std::map<plugin_type_e, std::set<std::string> > plugins_;

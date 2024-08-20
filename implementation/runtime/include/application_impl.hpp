@@ -8,7 +8,9 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
+#include <future>
 #include <map>
 #include <mutex>
 #include <set>
@@ -16,6 +18,12 @@
 #include <thread>
 #include <vector>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <processthreadsapi.h>
+#endif
 
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/signal_set.hpp>
@@ -301,7 +309,6 @@ private:
             instance_t _instance, const availability_state_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
 
-
     void main_dispatch();
     void dispatch();
     void invoke_handler(std::shared_ptr<sync_handler> &_handler);
@@ -345,6 +352,10 @@ private:
 
     void invoke_availability_handler(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
+
+    void increment_active_threads();
+    void decrement_active_threads();
+    std::uint8_t get_active_threads() const;
 
     //
     // Attributes
@@ -435,10 +446,22 @@ private:
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
     mutable std::mutex dispatcher_mutex_;
 
+    // Map of promises/futures to check status of dispatcher threads
+#ifdef _WIN32
+    std::map<std::thread::id, std::tuple<HANDLE, std::future<void>>> dispatchers_control_;
+#else
+    std::map<std::thread::id, std::tuple<pthread_t, std::future<void>>> dispatchers_control_;
+#endif
+
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
+
+    // Counter for dispatcher threads
+    std::atomic<uint8_t> dispatcher_counter_;
+
+    std::size_t max_detached_thread_wait_time;
 
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
