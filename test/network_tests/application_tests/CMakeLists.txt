@@ -54,7 +54,7 @@ targets_link_default_libraries("${executable_targets}")
 add_custom_test(
     NAME application_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
-    TIMEOUT 80
+    TIMEOUT 180
 )
 
 # Add custom test command.

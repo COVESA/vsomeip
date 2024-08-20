@@ -581,7 +581,7 @@ void application_impl::stop() {
     if (block) {
         std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
         block_stop_cv_.wait_for(block_stop_lock, std::chrono::milliseconds(1000),
-                [this]{return block_stopping_;});
+                                [this] { return block_stopping_.load(); });
         block_stopping_ = false;
     }
 }

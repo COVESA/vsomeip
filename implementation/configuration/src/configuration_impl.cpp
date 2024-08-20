@@ -314,21 +314,22 @@ bool configuration_impl::load(const std::string &_name) {
     std::vector<configuration_element> its_mandatory_elements;
     std::vector<configuration_element> its_optional_elements;
 
-    // Dummy initialization; maybe we'll find no logging configuration
-    logger::logger_impl::init(shared_from_this());
-
     // Look for the standard configuration file
     read_data(its_input, its_mandatory_elements, its_failed, true);
     load_data(its_mandatory_elements, true, false);
 
     // If the configuration is incomplete, this is the routing manager configuration or
     // the routing is yet unknown, read the full set of configuration files
-    if (its_mandatory_elements.empty() ||
-            _name == get_routing_host_name() ||
-            "" == get_routing_host_name()) {
+    if (its_mandatory_elements.empty() || _name == get_routing_host_name()
+        || "" == get_routing_host_name()) {
         read_data(its_input, its_optional_elements, its_failed, false);
         load_data(its_mandatory_elements, false, true);
         load_data(its_optional_elements, true, true);
+    }
+
+    // Dummy initialization; if logger configs were not found use default
+    if (!is_logging_loaded_) {
+        logger::logger_impl::init(shared_from_this());
     }
 
     // Tell, if reading of configuration file(s) failed.

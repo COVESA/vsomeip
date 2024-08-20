@@ -470,7 +470,7 @@ private:
 
     std::condition_variable block_stop_cv_;
     std::mutex block_stop_mutex_;
-    bool block_stopping_;
+    std::atomic_bool block_stopping_;
 
     static uint32_t app_counter__;
     static std::mutex app_counter_mutex__;

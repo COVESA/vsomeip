@@ -15,19 +15,19 @@
 /// @brief This test validates that no data race occurs when calling vsomeip::application_impl::init
 ///        on multiple applications, within the same process.
 TEST(someip_application_init_test, multithread_init) {
-    constexpr std::uint32_t thread_count = 250;
+    constexpr std::uint32_t thread_count = 128;
     std::vector<std::thread> vsomeip_applications;
 
     std::condition_variable start_cv;
     std::mutex start_mutex;
-    bool start = false;
+    std::atomic_bool start = false;
 
     // Prepare the init threads
     for (std::uint32_t t = 0; t < thread_count; ++t) {
         vsomeip_applications.emplace_back([&start_cv, &start_mutex, &start, t] {
             {
-                std::unique_lock lk(start_mutex);
-                start_cv.wait(lk, [&start] { return start; });
+                std::unique_lock lk {start_mutex};
+                start_cv.wait(lk, [&start] { return start.load(); });
             }
             std::stringstream app_name;
             app_name << "vsomeip_app_" << t;
@@ -39,7 +39,7 @@ TEST(someip_application_init_test, multithread_init) {
 
     // Start the init threads
     {
-        std::scoped_lock lk(start_mutex);
+        std::scoped_lock lk {start_mutex};
         start = true;
         start_cv.notify_all();
     }

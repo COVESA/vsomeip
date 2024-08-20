@@ -30,26 +30,21 @@ std::shared_ptr<runtime> runtime_impl::get() {
     return the_runtime_;
 }
 
-runtime_impl::~runtime_impl() {
-}
-
-std::shared_ptr<application> runtime_impl::create_application(
-        const std::string &_name) {
+std::shared_ptr<application> runtime_impl::create_application(const std::string& _name) {
 
     return create_application(_name, "");
 }
 
-std::shared_ptr<application> runtime_impl::create_application(
-        const std::string &_name, const std::string &_path) {
+std::shared_ptr<application> runtime_impl::create_application(const std::string& _name,
+                                                              const std::string& _path) {
+    std::scoped_lock its_lock {applications_mutex_};
     static std::uint32_t postfix_id = 0;
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
     std::string its_name = _name;
     auto found_application = applications_.find(_name);
-    if( found_application != applications_.end()) {
+    if (found_application != applications_.end()) {
         its_name += "_" + std::to_string(postfix_id++);
     }
-    std::shared_ptr<application> application
-        = std::make_shared<application_impl>(its_name, _path);
+    std::shared_ptr<application> application = std::make_shared<application_impl>(its_name, _path);
     applications_[its_name] = application;
     return application;
 }
@@ -115,7 +110,7 @@ std::shared_ptr<payload> runtime_impl::create_payload(
 
 std::shared_ptr<application> runtime_impl::get_application(
         const std::string &_name) const {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    std::scoped_lock its_lock {applications_mutex_};
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end())
         return found_application->second.lock();
@@ -124,7 +119,7 @@ std::shared_ptr<application> runtime_impl::get_application(
 
 void runtime_impl::remove_application(
         const std::string &_name) {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    std::scoped_lock its_lock {applications_mutex_};
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end()) {
         applications_.erase(_name);

@@ -550,76 +550,79 @@ event::add_subscriber(eventgroup_t _eventgroup,
             its_filter_parameters << "])";
             VSOMEIP_INFO << "Filter parameters: "
                     << its_filter_parameters.str();
+            {
+                std::scoped_lock lk {filters_mutex_};
+                filters_[_client] = [_filter](
+                    const std::shared_ptr<payload> &_old,
+                    const std::shared_ptr<payload> &_new) {
 
-            filters_[_client] = [_filter](
-                const std::shared_ptr<payload> &_old,
-                const std::shared_ptr<payload> &_new) {
+                    bool is_changed(false), is_elapsed(false);
 
-                bool is_changed(false), is_elapsed(false);
+                    // Check whether we should forward because of changed data
+                    if (_filter->on_change_) {
+                        length_t its_min_length, its_max_length;
 
-                // Check whether we should forward because of changed data
-                if (_filter->on_change_) {
-                    length_t its_min_length, its_max_length;
-
-                    if (_old->get_length() < _new->get_length()) {
-                        its_min_length = _old->get_length();
-                        its_max_length = _new->get_length();
-                    } else {
-                        its_min_length = _new->get_length();
-                        its_max_length = _old->get_length();
-                    }
-
-                    // Check whether all additional bytes (if any) are excluded
-                    for (length_t i = its_min_length; i < its_max_length; i++) {
-                        auto j = _filter->ignore_.find(i);
-                        // A change is detected when an additional byte is not
-                        // excluded at all or if its exclusion does not cover all
-                        // bits
-                        if (j == _filter->ignore_.end() || j->second != 0xFF) {
-                            is_changed = true;
-                            break;
+                        if (_old->get_length() < _new->get_length()) {
+                            its_min_length = _old->get_length();
+                            its_max_length = _new->get_length();
+                        } else {
+                            its_min_length = _new->get_length();
+                            its_max_length = _old->get_length();
                         }
-                    }
 
-                    if (!is_changed) {
-                        const byte_t *its_old = _old->get_data();
-                        const byte_t *its_new = _new->get_data();
-                        for (length_t i = 0; i < its_min_length; i++) {
+                        // Check whether all additional bytes (if any) are excluded
+                        for (length_t i = its_min_length; i < its_max_length; i++) {
                             auto j = _filter->ignore_.find(i);
-                            if (j == _filter->ignore_.end()) {
-                                if (its_old[i] != its_new[i]) {
-                                    is_changed = true;
-                                    break;
-                                }
-                            } else if (j->second != 0xFF) {
-                                if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
-                                    is_changed = true;
-                                    break;
+                            // A change is detected when an additional byte is not
+                            // excluded at all or if its exclusion does not cover all
+                            // bits
+                            if (j == _filter->ignore_.end() || j->second != 0xFF) {
+                                is_changed = true;
+                                break;
+                            }
+                        }
+
+                        if (!is_changed) {
+                            const byte_t *its_old = _old->get_data();
+                            const byte_t *its_new = _new->get_data();
+                            for (length_t i = 0; i < its_min_length; i++) {
+                                auto j = _filter->ignore_.find(i);
+                                if (j == _filter->ignore_.end()) {
+                                    if (its_old[i] != its_new[i]) {
+                                        is_changed = true;
+                                        break;
+                                    }
+                                } else if (j->second != 0xFF) {
+                                    if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
+                                        is_changed = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if (_filter->interval_ > -1) {
-                    // Check whether we should forward because of the elapsed time since
-                    // we did last time
-                    std::chrono::steady_clock::time_point its_current
-                        = std::chrono::steady_clock::now();
+                    if (_filter->interval_ > -1) {
+                        // Check whether we should forward because of the elapsed time since
+                        // we did last time
+                        std::chrono::steady_clock::time_point its_current
+                            = std::chrono::steady_clock::now();
 
-                    int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            its_current - _filter->last_forwarded_).count();
-                    is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
-                            || elapsed >= _filter->interval_);
-                    if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
-                        _filter->last_forwarded_ = its_current;                }
+                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                its_current - _filter->last_forwarded_).count();
+                        is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                                || elapsed >= _filter->interval_);
+                        if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
+                            _filter->last_forwarded_ = its_current;                }
 
-                return (is_changed || is_elapsed);
-            };
+                    return (is_changed || is_elapsed);
+                };
+            }
 
             // Create a new callback for this client if filter interval is used
             routing_->register_debounce(_filter, _client, shared_from_this());
         } else {
+            std::scoped_lock lk {filters_mutex_};
             filters_.erase(_client);
         }
 
@@ -685,7 +688,13 @@ event::get_filtered_subscribers(bool _force) {
         its_payload_update = update_->get_payload();
     }
 
-    if (filters_.empty()) {
+    bool is_filters_empty = false;
+    {
+        std::scoped_lock its_lock {filters_mutex_};
+        is_filters_empty = filters_.empty();
+    }
+
+    if (is_filters_empty) {
 
         bool must_forward = ((type_ != event_type_e::ET_FIELD
                     && has_default_epsilon_change_func_)
@@ -698,7 +707,7 @@ event::get_filtered_subscribers(bool _force) {
     } else {
         byte_t is_allowed(0xff);
 
-        std::lock_guard<std::mutex> its_lock(filters_mutex_);
+        std::scoped_lock its_lock {filters_mutex_};
         for (const auto s : its_subscribers) {
 
             auto its_specific = filters_.find(s);

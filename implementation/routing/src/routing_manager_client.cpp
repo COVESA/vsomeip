@@ -1079,12 +1079,12 @@ void routing_manager_client::on_message(
         if (configuration_->is_security_enabled()
                 && configuration_->is_local_routing()
                 && !is_from_routing && _bound_client != its_client) {
-            VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                << " received a message with command " << int(its_id) << " from "
-                << std::hex << std::setw(4) << std::setfill('0') << its_client
-                << " which doesn't match the bound client "
-                << std::hex << std::setw(4) << std::setfill('0') << _bound_client
-                << " ~> skip message!";
+            VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0')
+                            << get_client() << " received a message with command " << int(its_id)
+                            << " from " << std::hex << std::setw(4) << std::setfill('0')
+                            << its_client << " which doesn't match the bound client " << std::hex
+                            << std::setw(4) << std::setfill('0') << _bound_client
+                            << " ~> skip message!";
             return;
         }
 
@@ -2646,9 +2646,8 @@ routing_manager_client::assign_client_timeout_cbk(
         }
         if (register_again) {
             std::lock_guard<std::mutex> its_lock(sender_mutex_);
-            VSOMEIP_WARNING << "Client 0x"
-                            << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                            << " request client timeout! Trying again...";
+            VSOMEIP_WARNING << "Client 0x" << std::hex << std::setw(4) << std::setfill('0')
+                            << get_client() << " request client timeout! Trying again...";
 
             if (sender_) {
                 sender_->restart();
@@ -2996,9 +2995,9 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
                           << _client << ") Invalid clientID";
         }
     } else {
-        VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                        << " received another client identifier ("<< _client
-                        << "). Ignoring it. (" << (int)state_ << ")";
+        VSOMEIP_WARNING << "Client " << std::hex << std::setw(4) << std::setfill('0')
+                        << get_client() << " received another client identifier (" << _client
+                        << "). Ignoring it. (" << static_cast<int>(state_.load()) << ")";
     }
 }
 
