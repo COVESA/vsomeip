@@ -78,18 +78,13 @@ message::message(level_e _level)
 }
 
 message::~message() try {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock {mutex__};
     auto its_logger = logger_impl::get();
-    auto its_configuration = its_logger->get_configuration();
 
-    if (!its_configuration)
+    if (level_ > its_logger->get_loglevel())
         return;
 
-    if (level_ > its_configuration->get_loglevel())
-        return;
-
-    if (its_configuration->has_console_log()
-            || its_configuration->has_file_log()) {
+    if (its_logger->has_console_log() || its_logger->has_file_log()) {
 
         // Prepare log level
         const char *its_level;
@@ -126,22 +121,20 @@ message::~message() try {
 #endif
         auto its_ms = (when_.time_since_epoch().count() / 100) % 1000000;
 
-        if (its_configuration->has_console_log()) {
+        if (its_logger->has_console_log()) {
 #ifndef ANDROID
-            std::cout
-                << std::dec
-                << std::setw(4) << its_time.tm_year + 1900 << "-"
-                << std::setfill('0')
-                << std::setw(2) << its_time.tm_mon + 1 << "-"
-                << std::setw(2) << its_time.tm_mday << " "
-                << std::setw(2) << its_time.tm_hour << ":"
-                << std::setw(2) << its_time.tm_min << ":"
-                << std::setw(2) << its_time.tm_sec << "."
-                << std::dec << std::setw(6) << std::setfill('0') << its_ms
-                << " " << its_logger->get_app_name()
-                << " [" << its_level << "] "
-                << buffer_.data_.str()
-                << std::endl;
+            {
+                std::unique_lock<std::mutex> app_name_lock = its_logger->get_app_name_lock();
+                std::cout << std::dec << std::setw(4) << its_time.tm_year + 1900 << "-" << std::dec
+                          << std::setw(2) << std::setfill('0') << its_time.tm_mon + 1 << "-"
+                          << std::dec << std::setw(2) << std::setfill('0') << its_time.tm_mday
+                          << " " << std::dec << std::setw(2) << std::setfill('0')
+                          << its_time.tm_hour << ":" << std::dec << std::setw(2)
+                          << std::setfill('0') << its_time.tm_min << ":" << std::dec << std::setw(2)
+                          << std::setfill('0') << its_time.tm_sec << "." << std::dec << std::setw(6)
+                          << std::setfill('0') << its_ms << " " << its_logger->get_app_name()
+                          << " [" << its_level << "] " << buffer_.data_.str() << std::endl;
+            }
 #else
             std::string app = runtime::get_property("LogApplication");
 
@@ -170,28 +163,22 @@ message::~message() try {
 #endif // !ANDROID
         }
 
-        if (its_configuration->has_file_log()) {
-            std::ofstream its_logfile(
-                    its_configuration->get_logfile(),
-                    std::ios_base::app);
+        if (its_logger->has_file_log()) {
+            std::ofstream its_logfile(its_logger->get_logfile(), std::ios_base::app);
             if (its_logfile.is_open()) {
-                its_logfile
-                    << std::dec
-                    << std::setw(4) << its_time.tm_year + 1900 << "-"
-                    << std::setfill('0')
-                    << std::setw(2) << its_time.tm_mon + 1 << "-"
-                    << std::setw(2) << its_time.tm_mday << " "
-                    << std::setw(2) << its_time.tm_hour << ":"
-                    << std::setw(2) << its_time.tm_min << ":"
-                    << std::setw(2) << its_time.tm_sec << "."
-                    << std::setw(6) << its_ms << " ["
-                    << its_level << "] "
-                    << buffer_.data_.str()
-                    << std::endl;
+                its_logfile << std::dec << std::setw(4) << its_time.tm_year + 1900 << "-"
+                            << std::dec << std::setw(2) << std::setfill('0') << its_time.tm_mon + 1
+                            << "-" << std::dec << std::setw(2) << std::setfill('0')
+                            << its_time.tm_mday << " " << std::dec << std::setw(2)
+                            << std::setfill('0') << its_time.tm_hour << ":" << std::dec
+                            << std::setw(2) << std::setfill('0') << its_time.tm_min << ":"
+                            << std::dec << std::setw(2) << std::setfill('0') << its_time.tm_sec
+                            << "." << std::dec << std::setw(6) << std::setfill('0') << its_ms
+                            << " [" << its_level << "] " << buffer_.data_.str() << std::endl;
             }
         }
     }
-    if (its_configuration->has_dlt_log()) {
+    if (its_logger->has_dlt_log()) {
 #ifdef USE_DLT
 #ifndef ANDROID
         its_logger->log(level_, buffer_.data_.str().c_str());

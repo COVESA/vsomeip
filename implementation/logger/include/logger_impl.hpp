@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 #ifdef USE_DLT
 #ifndef ANDROID
@@ -31,27 +32,38 @@ public:
     logger_impl() = default;
     ~logger_impl();
 
-    std::shared_ptr<configuration> get_configuration() const;
-    void set_configuration(const std::shared_ptr<configuration> &_configuration);
+    void set_configuration(const std::shared_ptr<configuration>& _configuration);
+    level_e get_loglevel() const;
+    bool has_console_log() const;
+    bool has_dlt_log() const;
+    bool has_file_log() const;
+    std::string get_logfile() const;
 
     const std::string& get_app_name() const;
+    std::unique_lock<std::mutex> get_app_name_lock() const;
 
 #ifdef USE_DLT
-    void log(level_e _level, const char *_data);
+    void log(level_e _level, const char* _data);
+    void register_context(const std::string& _context_id);
 
 private:
-    void enable_dlt(const std::string &_application, const std::string &_context);
+    void enable_dlt(const std::string& _application, const std::string& _context);
 #endif
 
 private:
     static std::mutex mutex__;
     static std::string app_name__;
 
-    std::shared_ptr<configuration> configuration_;
     mutable std::mutex configuration_mutex_;
+    std::atomic<level_e> cfg_level {level_e::LL_NONE};
+    std::atomic_bool cfg_console_enabled {false};
+    std::atomic_bool cfg_dlt_enabled {false};
+    std::atomic_bool cfg_file_enabled {false};
+    std::string cfg_file_name {""};
 
 #ifdef USE_DLT
 #ifndef ANDROID
+    std::mutex dlt_context_mutex_;
     DLT_DECLARE_CONTEXT(dlt_)
 #endif
 #endif

@@ -37,7 +37,10 @@ namespace trace {
 
 const char *VSOMEIP_TC_DEFAULT_CHANNEL_ID = "TC";
 
+static std::mutex connector_impl_get;
+
 std::shared_ptr<connector_impl> connector_impl::get() {
+    std::scoped_lock lk {connector_impl_get};
     static std::shared_ptr<connector_impl> instance = std::make_shared<connector_impl>();
     return instance;
 }
@@ -67,7 +70,7 @@ connector_impl::~connector_impl() {
 }
 
 void connector_impl::configure(const std::shared_ptr<cfg::trace> &_configuration) {
-    std::scoped_lock lk(configure_mutex_);
+    std::scoped_lock lk {configure_mutex_};
     if (_configuration) {
         is_enabled_ = _configuration->is_enabled_;
         is_sd_enabled_ = _configuration->is_sd_enabled_;

@@ -20,7 +20,7 @@ public:
 
     static std::shared_ptr<runtime> get();
 
-    virtual ~runtime_impl();
+    virtual ~runtime_impl() = default;
 
     std::shared_ptr<application> create_application(
             const std::string &_name);

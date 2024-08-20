@@ -90,8 +90,8 @@ routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
 }
 
 routing_manager_impl::~routing_manager_impl() {
-    utility::remove_lockfile(configuration_->get_network());
     utility::reset_client_ids(configuration_->get_network());
+    utility::remove_lockfile(configuration_->get_network());
 }
 
 boost::asio::io_context &routing_manager_impl::get_io() {
