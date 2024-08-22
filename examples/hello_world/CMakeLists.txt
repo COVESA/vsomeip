@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 2.8.7)
+cmake_minimum_required (VERSION 3.13)
 project (vSomeIPHelloWorld)
 
 find_package(Threads REQUIRED)
@@ -19,14 +19,15 @@ function(create_target executable)
     target_compile_features(vsomeip_hello_world_${executable} INTERFACE cxx_std_17)
 
     target_include_directories(vsomeip_hello_world_${executable} INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
+        ${CMAKE_CURRENT_SOURCE_DIR}
     )
 endfunction()
 
 # link_target("executable")
 function(link_target executable)
-    add_executable (hello_world_${executable} hello_world_${executable}_main.cpp)
-    target_link_libraries(hello_world_${executable} vsomeip_hello_world_${executable} ${VSOMEIP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    add_executable(hello_world_${executable})
+    target_sources(hello_world_${executable} PRIVATE hello_world_${executable}_main.cpp)
+    target_link_libraries(hello_world_${executable} PRIVATE vsomeip_hello_world_${executable} vsomeip3 Threads::Threads)
 endfunction()
 
 include_directories(${VSOMEIP_INCLUDE_DIRS})
