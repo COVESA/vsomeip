@@ -26,7 +26,7 @@
 #endif
 
 #define ALOGW(LOG_TAG, ...) ((void)ALOG(LOG_WARN, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
+#ifndef LOGW
 #define LOGW ALOGW
 #endif
 
@@ -35,7 +35,7 @@
 #endif
 
 #define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
+#ifndef LOGI
 #define LOGI ALOGI
 #endif
 
@@ -44,7 +44,7 @@
 #endif
 
 #define ALOGD(LOG_TAG, ...) ((void)ALOG(LOG_DEBUG, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
+#ifndef LOGD
 #define LOGD ALOGD
 #endif
 
@@ -53,7 +53,7 @@
 #endif
 
 #define ALOGV(LOG_TAG, ...) ((void)ALOG(LOG_VERBOSE, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
+#ifndef LOGV
 #define LOGV ALOGV
 #endif
 
