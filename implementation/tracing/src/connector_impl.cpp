@@ -255,7 +255,7 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                     ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_header[i]);
                 }
                 if (ftype.second)
-                    _data_size = VSOMEIP_FULL_HEADER_SIZE;
+                    its_data_size = VSOMEIP_FULL_HEADER_SIZE;
                 for(int i = 0; i < its_data_size; i++) {
                     ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
                 }

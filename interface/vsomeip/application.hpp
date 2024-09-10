@@ -571,7 +571,6 @@ public:
      * availability shall be reported. Can be set to ANY_SERVICE.
      * \param _instance Instance identifier of the service instance whose
      * availability shall be reported. Can be set to ANY_INSTANCE.
-     * \param _handler Callback to be called if availability changes.
      * \param _major Major service version. The parameter defaults to
      * DEFAULT_MAJOR and can be set to ANY_MAJOR.
      * \param _minor Minor service version. The parameter defaults to
