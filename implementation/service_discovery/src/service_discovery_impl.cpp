@@ -2373,7 +2373,6 @@ service_discovery_impl::handle_eventgroup_subscription(
     } else {
         boost::asio::ip::address its_first_address, its_second_address;
         if (ILLEGAL_PORT != _first_port) {
-            uint16_t its_first_port(0);
             its_subscriber = endpoint_definition::get(
                     _first_address, _first_port, _is_first_reliable, _service, _instance);
             if (_is_first_reliable) { // tcp unicast
@@ -2398,7 +2397,6 @@ service_discovery_impl::handle_eventgroup_subscription(
         }
 
         if (ILLEGAL_PORT != _second_port) {
-            uint16_t its_second_port(0);
             its_subscriber = endpoint_definition::get(
                     _second_address, _second_port, _is_second_reliable, _service, _instance);
             if (_is_second_reliable) { // tcp unicast
