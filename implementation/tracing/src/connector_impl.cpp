@@ -247,8 +247,7 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                     // This should never happen!
                     VSOMEIP_ERROR << "tracing: found channel without DLT context!";
                 }
-            #endif
-            #ifdef TRACE_TO_LOGS
+            #else
                 std::stringstream ss;
                 ss << "TC:";
                 for(int i = 0; i < _header_size; i++) {
