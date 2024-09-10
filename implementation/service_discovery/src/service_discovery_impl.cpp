@@ -1664,7 +1664,7 @@ service_discovery_impl::send_multicast_offer_service(
 
     insert_offer_service(its_messages, _info);
 
-    serialize_and_send(its_messages, current_remote_address_);
+    serialize_and_send(its_messages, sd_multicast_address_);
 }
 
 void
@@ -3255,7 +3255,7 @@ service_discovery_impl::send_uni_or_multicast_offerservice(
             send_multicast_offer_service(_info);
         }
     } else { // SID_SD_826
-        send_unicast_offer_service(_info);
+        send_multicast_offer_service(_info);
     }
 }
 
