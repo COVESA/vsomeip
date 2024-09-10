@@ -1085,7 +1085,7 @@ routing_manager_stub::on_net_state_change(
 void routing_manager_stub::on_offer_service(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
 
-    VSOMEIP_DEBUG << "ON_OFFER_SERVICE("
+    VSOMEIP_DEBUG << "routing_manager_stub::" << __func__ << ": ON_OFFER_SERVICE("
         << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
         << std::hex << std::setw(4) << std::setfill('0') << _instance
