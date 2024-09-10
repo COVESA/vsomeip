@@ -18,20 +18,6 @@
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/byteorder.hpp"
 
-#ifdef ANDROID
-#include <utils/Log.h>
-
-#ifdef ALOGI
-#undef ALOGI
-#endif
-
-#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
-#ifndef LOGE
-#define LOGI ALOGI
-#endif
-
-#endif
-
 namespace vsomeip_v3 {
 namespace trace {
 
@@ -273,12 +259,7 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
                 for(int i = 0; i < its_data_size; i++) {
                     ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
                 }
-                #ifdef ANDROID
-                    std::string app = runtime::get_property("LogApplication");
-                    ALOGI(app.c_str(), ss.str().c_str());
-                #else
-                    VSOMEIP_INFO << ss.str();
-                #endif
+                VSOMEIP_INFO << ss.str();
             #endif
         }
     }
