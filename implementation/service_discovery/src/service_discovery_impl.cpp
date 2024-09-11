@@ -206,6 +206,7 @@ service_discovery_impl::stop() {
     is_suspended_ = true;
     stop_ttl_timer();
     stop_last_msg_received_timer();
+    stop_main_phase_timer();
 }
 
 void
@@ -3233,6 +3234,13 @@ service_discovery_impl::start_main_phase_timer() {
     main_phase_timer_.async_wait(
             std::bind(&service_discovery_impl::on_main_phase_timer_expired,
                     this, std::placeholders::_1));
+}
+
+void
+service_discovery_impl::stop_main_phase_timer() {
+    std::scoped_lock<std::mutex> its_lock(main_phase_timer_mutex_);
+    boost::system::error_code ec;
+    main_phase_timer_.cancel(ec);
 }
 
 void

@@ -264,6 +264,7 @@ private:
 
     void start_main_phase_timer();
     void on_main_phase_timer_expired(const boost::system::error_code &_error);
+    void stop_main_phase_timer();
 
 
     void send_uni_or_multicast_offerservice(
