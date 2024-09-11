@@ -3238,7 +3238,7 @@ service_discovery_impl::start_main_phase_timer() {
 
 void
 service_discovery_impl::stop_main_phase_timer() {
-    std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
+    std::scoped_lock<std::mutex> its_lock(main_phase_timer_mutex_);
     boost::system::error_code ec;
     main_phase_timer_.cancel(ec);
 }
