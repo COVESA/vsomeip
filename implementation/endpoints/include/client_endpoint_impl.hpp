@@ -41,8 +41,6 @@ public:
                          const std::shared_ptr<routing_host>& _routing_host,
                          const endpoint_type& _local, const endpoint_type& _remote,
                          boost::asio::io_context &_io,
-                         std::uint32_t _max_message_size,
-                         configuration::endpoint_queue_limit_t _queue_limit,
                          const std::shared_ptr<configuration>& _configuration);
     virtual ~client_endpoint_impl();
 

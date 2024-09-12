@@ -73,11 +73,12 @@ public:
 
     server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,
-                         endpoint_type _local, boost::asio::io_context &_io,
-                         std::uint32_t _max_message_size,
-                         configuration::endpoint_queue_limit_t _queue_limit,
+                         boost::asio::io_context &_io,
                          const std::shared_ptr<configuration>& _configuration);
-    virtual ~server_endpoint_impl();
+    virtual ~server_endpoint_impl() = default;
+
+    virtual void init(const endpoint_type& _local, boost::system::error_code& _error) = 0;
+    virtual void stop();
 
     bool is_client() const;
     void restart(bool _force);
@@ -91,7 +92,6 @@ public:
 
     void prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
                       service_t _service);
-    virtual void stop();
     bool flush(endpoint_type _it);
 
     size_t get_queue_size() const;

@@ -25,58 +25,57 @@ namespace vsomeip_v3 {
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _local, _io,
-                                    _configuration->get_max_message_size_reliable(_local.address().to_string(), _local.port()),
-                                    _configuration->get_endpoint_queue_limit(_local.address().to_string(), _local.port()),
-                                    _configuration),
+    : tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
         acceptor_(_io),
         buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
-        local_port_(_local.port()),
         // send timeout after 2/3 of configured ttl, warning after 1/3
         send_timeout_(configuration_->get_sd_ttl() * 666) {
     is_supporting_magic_cookies_ = true;
+}
 
-    boost::system::error_code ec;
-    acceptor_.open(_local.protocol(), ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": open failed (" << ec.message() << ")";
+bool tcp_server_endpoint_impl::is_local() const {
+    return false;
+}
 
-    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": set reuse address option failed (" << ec.message() << ")";
+void tcp_server_endpoint_impl::init(const endpoint_type& _local,
+                                    boost::system::error_code& _error) {
+    acceptor_.open(_local.protocol(), _error);
+    if (_error)
+        return;
+
+    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
+    if (_error)
+        return;
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     // If specified, bind to device
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
-        if (setsockopt(acceptor_.native_handle(),
-                SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
+        if (setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE,
+                       its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
             VSOMEIP_WARNING << "TCP Server: Could not bind to device \"" << its_device << "\"";
         }
     }
 #endif
 
-    acceptor_.bind(_local, ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": bind failed (" << ec.message() << ")";
+    acceptor_.bind(_local, _error);
+    if (_error)
+        return;
 
-    acceptor_.listen(boost::asio::socket_base::max_connections, ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": listen failed (" << ec.message() << ")";
-}
+    acceptor_.listen(boost::asio::socket_base::max_connections, _error);
+    if (_error)
+        return;
 
-tcp_server_endpoint_impl::~tcp_server_endpoint_impl() {
-}
+    local_ = _local;
+    local_port_ = _local.port();
 
-bool tcp_server_endpoint_impl::is_local() const {
-    return false;
+    this->max_message_size_ = configuration_->get_max_message_size_reliable(
+                                                      _local.address().to_string(),
+                                                      _local.port());
+    this->queue_limit_ = configuration_->get_endpoint_queue_limit(_local.address().to_string(),
+                                                                  _local.port());
 }
 
 void tcp_server_endpoint_impl::start() {

@@ -27,18 +27,18 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
         const endpoint_type& _remote,
-        boost::asio::io_context &_io,
+        boost::asio::io_context& _io,
         const std::shared_ptr<configuration>& _configuration)
     : local_uds_client_endpoint_base_impl(_endpoint_host, _routing_host, _remote,
-                                          _remote, _io,
-                                          _configuration->get_max_message_size_local(),
-                                          _configuration->get_endpoint_queue_limit_local(),
-                                          _configuration),
+                                          _remote, _io, _configuration),
                                           // Using _remote for the local(!) endpoint is ok,
                                           // because we have no bind for local endpoints!
       recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
     is_supporting_magic_cookies_ = false;
+
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
 bool local_uds_client_endpoint_impl::is_local() const {

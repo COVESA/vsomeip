@@ -90,7 +90,7 @@ std::unordered_set<client_t> endpoint_manager_base::get_connected_clients() cons
 
 std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         const std::shared_ptr<routing_host> &_routing_host) {
-    std::shared_ptr<endpoint> its_server_endpoint;
+    std::shared_ptr<endpoint> its_local_server;
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network())
              << std::hex << rm_->get_client();
@@ -98,80 +98,100 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
-        if (-1 == ::unlink(its_path.str().c_str()) && errno != ENOENT) {
-            VSOMEIP_ERROR << "endpoint_manager_base::init_receiver unlink failed ("
-                    << its_path.str() << "): "<< std::strerror(errno);
-        }
         try {
-            its_server_endpoint = std::make_shared<local_uds_server_endpoint_impl>(
-                    shared_from_this(), _routing_host,
-                    boost::asio::local::stream_protocol::endpoint(its_path.str()),
-                    io_,
-                    configuration_, false);
-
-            VSOMEIP_INFO << __func__ << ": Listening @ " << its_path.str();
-
-        } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "Local UDS server endpoint creation failed. Client "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client
-                    << " Path: " << its_path.str()
-                    << " Reason: " << e.what();
+            if (-1 == ::unlink(its_path.str().c_str()) && errno != ENOENT) {
+                VSOMEIP_ERROR << "endpoint_manager_base::init_receiver unlink failed ("
+                        << its_path.str() << "): "<< std::strerror(errno);
+            }
+            auto its_tmp {std::make_shared<local_uds_server_endpoint_impl>(
+                                  shared_from_this(), _routing_host,
+                                  io_, configuration_, false)};
+            if (its_tmp) {
+                boost::asio::local::stream_protocol::endpoint its_local_endpoint(its_path.str());
+                boost::system::error_code its_error;
+                its_tmp->init(its_local_endpoint, its_error);
+                if (!its_error) {
+                    VSOMEIP_INFO << __func__ << ": Listening @ " << its_path.str();
+                    its_local_server = its_tmp;
+                } else {
+                    VSOMEIP_ERROR << "Local UDS server endpoint initialization failed. Client "
+                                  << std::hex << std::setw(4) << std::setfill('0') << its_client
+                                  << " Path: " << its_path.str() << " Reason: " << its_error.message();
+                }
+            } else {
+                VSOMEIP_ERROR << "Local UDS server endpoint creation failed. Client "
+                              << std::hex << std::setw(4) << std::setfill('0') << its_client
+                              << " Path: " << its_path.str() << " Reason: out_of_memory";
+            }
+        } catch (const std::exception& e) {
+            VSOMEIP_ERROR << __func__ << ": " << e.what();
         }
     } else {
 #else
     {
 #endif
-        std::lock_guard<std::mutex> its_lock(create_local_server_endpoint_mutex_);
-        ::unlink(its_path.str().c_str());
-        port_t its_port;
-        std::set<port_t> its_used_ports;
-        auto its_address = configuration_->get_routing_guest_address();
-        uint32_t its_current_wait_time { 0 };
-        while (get_local_server_port(its_port, its_used_ports) && !its_server_endpoint) {
-            try {
-                its_server_endpoint = std::make_shared<local_tcp_server_endpoint_impl>(
-                        shared_from_this(), _routing_host,
-                        boost::asio::ip::tcp::endpoint(its_address, its_port),
-                        io_,
-                        configuration_, false);
+        try {
+            std::lock_guard<std::mutex> its_lock(create_local_server_endpoint_mutex_);
+            ::unlink(its_path.str().c_str());
+            port_t its_port;
+            std::set<port_t> its_used_ports;
+            auto its_address = configuration_->get_routing_guest_address();
+            uint32_t its_current_wait_time { 0 };
 
-                VSOMEIP_INFO << __func__ << ": Listening @ "
-                        << its_address.to_string() << ":" << std::dec << its_port;
+            auto its_tmp {std::make_shared<local_tcp_server_endpoint_impl>(
+                                  shared_from_this(), _routing_host, io_, configuration_, false)};
+            if (its_tmp) {
+                while (get_local_server_port(its_port, its_used_ports) && !its_local_server) {
+                    boost::asio::ip::tcp::endpoint its_local_endpoint(its_address, its_port);
+                    boost::system::error_code its_error;
+                    its_tmp->init(its_local_endpoint, its_error);
+                    if (!its_error) {
+                        VSOMEIP_INFO << __func__ << ": Listening @ "
+                                     << its_address.to_string() << ":" << std::dec << its_port;
 
-                if (rm_->is_routing_manager())
-                    local_port_ = port_t(configuration_->get_routing_host_port() + 1);
-                else
-                    local_port_ = port_t(its_port + 1);
-                VSOMEIP_INFO << __func__ << ": Connecting to other clients from "
-                        << its_address.to_string() << ":" << std::dec << local_port_;
+                        if (rm_->is_routing_manager())
+                            local_port_ = port_t(configuration_->get_routing_host_port() + 1);
+                        else
+                            local_port_ = port_t(its_port + 1);
+                        VSOMEIP_INFO << __func__ << ": Connecting to other clients from "
+                                << its_address.to_string() << ":" << std::dec << local_port_;
 
-                rm_->set_sec_client_port(local_port_);
+                        rm_->set_sec_client_port(local_port_);
 
-            } catch (const boost::system::system_error &e) {
-                if (e.code() == boost::asio::error::address_in_use) {
-                    its_used_ports.insert(its_port);
-                } else {
-                    its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
-                    if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
-                        break;
+                        its_local_server = its_tmp;
+                    } else {
+                        its_tmp->deinit();
+                        if (its_error == boost::asio::error::address_in_use) {
+                            its_used_ports.insert(its_port);
+                        } else {
+                            its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
+                            if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
+                                break;
 
-                    std::this_thread::sleep_for(
-                            std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
+                            std::this_thread::sleep_for(
+                                    std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
+                        }
+                    }
                 }
-            }
-        }
 
-        if (!its_server_endpoint) {
-            VSOMEIP_ERROR << "Local TCP server endpoint creation failed. Client " << std::hex
-                          << std::setw(4) << std::setfill('0') << its_client
-                          << " Reason: No local port available! Attempted to open port "
-                          << its_port;
-        } else {
-            rm_->add_guest(its_client, its_address, its_port);
+                if (its_local_server) {
+                    rm_->add_guest(its_client, its_address, its_port);
+                } else {
+                    VSOMEIP_ERROR << __func__ << ": Local TCP server endpoint initialization failed. "
+                            << "Client " << std::hex << std::setw(4) << std::setfill('0') << its_client
+                            << " Reason: No local port available!";
+                }
+            } else {
+                VSOMEIP_ERROR << __func__ << ": Local TCP server endpoint creation failed. "
+                        << "Client " << std::hex << std::setw(4) << std::setfill('0') << its_client
+                        << " Reason: No local port available!";
+            }
+        } catch (const std::exception& e) {
+            VSOMEIP_ERROR << __func__ << ": " << e.what();
         }
     }
 
-    return its_server_endpoint;
+    return its_local_server;
 }
 
 void endpoint_manager_base::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -383,10 +403,15 @@ endpoint_manager_base::get_local_server_port(port_t &_port,
     return false;
 }
 
-void
-endpoint_manager_base::add_multicast_option(const multicast_option_t &_option) {
-
+void endpoint_manager_base::add_multicast_option(const multicast_option_t &_option) {
     (void)_option;
+}
+
+void endpoint_manager_base::suspend(void) {
+    // Nothing to be done for internal endpoints
+}
+void endpoint_manager_base::resume(void) {
+    // Nothing to be done for internal endpoints
 }
 
 } // namespace vsomeip_v3

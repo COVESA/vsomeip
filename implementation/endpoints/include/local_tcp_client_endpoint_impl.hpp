@@ -26,8 +26,7 @@ public:
 								   const endpoint_type &_remote,
                                    boost::asio::io_context &_io,
                                    const std::shared_ptr<configuration> &_configuration);
-
-    virtual ~local_tcp_client_endpoint_impl();
+    virtual ~local_tcp_client_endpoint_impl() = default;
 
     void start();
     void stop();

@@ -32,11 +32,11 @@ class tcp_server_endpoint_impl: public tcp_server_endpoint_base_impl {
 public:
     tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                              const std::shared_ptr<routing_host>& _routing_host,
-                             const endpoint_type& _local,
                              boost::asio::io_context &_io,
                              const std::shared_ptr<configuration>& _configuration);
-    virtual ~tcp_server_endpoint_impl();
+    virtual ~tcp_server_endpoint_impl() = default;
 
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
     void stop();
 
@@ -144,7 +144,7 @@ private:
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
-    const std::uint16_t local_port_;
+    std::uint16_t local_port_;
     const std::chrono::milliseconds send_timeout_;
 
 private:

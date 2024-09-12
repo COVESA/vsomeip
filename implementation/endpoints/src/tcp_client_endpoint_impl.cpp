@@ -29,14 +29,7 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(
         const endpoint_type& _remote,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local,
-                                    _remote, _io,
-                                    _configuration->get_max_message_size_reliable(
-                                            _remote.address().to_string(),
-                                            _remote.port()),
-                                    _configuration->get_endpoint_queue_limit(
-                                                    _remote.address().to_string(),
-                                                    _remote.port()),
+    : tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io,
                                     _configuration),
       recv_buffer_size_initial_(VSOMEIP_SOMEIP_HEADER_SIZE),
       recv_buffer_(std::make_shared<message_buffer_t>(recv_buffer_size_initial_, 0)),
@@ -54,6 +47,12 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(
       sent_timer_(_io) {
 
     is_supporting_magic_cookies_ = true;
+
+    this->max_message_size_ = _configuration->get_max_message_size_reliable(
+                                                      _remote.address().to_string(),
+                                                      _remote.port());
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit(_remote.address().to_string(),
+                                                                  _remote.port());
 }
 
 tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {

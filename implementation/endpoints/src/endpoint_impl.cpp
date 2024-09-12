@@ -18,30 +18,13 @@
 namespace vsomeip_v3 {
 
 template<typename Protocol>
-endpoint_impl<Protocol>::endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        boost::asio::io_context &_io,
-        std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
-        const std::shared_ptr<configuration>& _configuration)
-    : io_(_io),
-      endpoint_host_(_endpoint_host),
-      routing_host_(_routing_host),
-      is_supporting_magic_cookies_(false),
-      has_enabled_magic_cookies_(false),
-      max_message_size_(_max_message_size),
-      use_count_(0),
-      sending_blocked_(false),
-      local_(_local),
-      queue_limit_(_queue_limit),
-      configuration_(_configuration),
-      is_supporting_someip_tp_(false) {
-}
-
-template<typename Protocol>
-endpoint_impl<Protocol>::~endpoint_impl() {
+endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                                       const std::shared_ptr<routing_host>& _routing_host,
+									   boost::asio::io_context &_io,
+                                       const std::shared_ptr<configuration>& _configuration) :
+    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host),
+	is_supporting_magic_cookies_(false), has_enabled_magic_cookies_(false), use_count_(0),
+    sending_blocked_(false), configuration_(_configuration), is_supporting_someip_tp_(false) {
 }
 
 template<typename Protocol>

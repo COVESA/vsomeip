@@ -27,22 +27,17 @@ local_tcp_client_endpoint_impl::local_tcp_client_endpoint_impl(
         const endpoint_type &_remote,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration> &_configuration)
-    : local_tcp_client_endpoint_base_impl(_endpoint_host, _routing_host,
-            _local, _remote, _io,
-            _configuration->get_max_message_size_local(),
-            _configuration->get_endpoint_queue_limit_local(),
-            _configuration),
+    : local_tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io,
+                                          _configuration),
             recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
     is_supporting_magic_cookies_ = false;
-}
 
-local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
-
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
 bool local_tcp_client_endpoint_impl::is_local() const {
-
     return true;
 }
 

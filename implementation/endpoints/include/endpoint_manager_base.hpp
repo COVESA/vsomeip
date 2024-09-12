@@ -67,6 +67,9 @@ public:
     // Multicast options
     void add_multicast_option(const multicast_option_t &_option);
 
+    virtual void suspend(void);
+    virtual void resume(void);
+
 protected:
     std::map<client_t, std::shared_ptr<endpoint>> get_local_endpoints() const;
 

@@ -29,57 +29,64 @@ namespace vsomeip_v3 {
 local_tcp_server_endpoint_impl::local_tcp_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local, boost::asio::io_context &_io,
+        boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration,
         bool _is_routing_endpoint)
-    : local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _local,
-                                          _io,
-                                          _configuration->get_max_message_size_local(),
-                                          _configuration->get_endpoint_queue_limit_local(),
-                                          _configuration),
+    : local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
       acceptor_(_io),
       buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
-      local_port_(_local.port()),
       is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
-    boost::system::error_code ec;
-    acceptor_.open(_local.protocol(), ec);
-    boost::asio::detail::throw_error(ec, "acceptor open");
-
-#ifndef _WIN32
-    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
-    boost::asio::detail::throw_error(ec, "acceptor set_option");
-#endif
-
-    acceptor_.bind(_local, ec);
-    boost::asio::detail::throw_error(ec, "acceptor bind");
-
-    acceptor_.listen(boost::asio::socket_base::max_connections, ec);
-    boost::asio::detail::throw_error(ec, "acceptor listen");
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
-
-local_tcp_server_endpoint_impl::~local_tcp_server_endpoint_impl() {
-}
-
 bool local_tcp_server_endpoint_impl::is_local() const {
 
     return true;
+}
+
+void local_tcp_server_endpoint_impl::init(const endpoint_type& _local,
+                                          boost::system::error_code& _error) {
+    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    init_unlocked(_local, _error);
+}
+
+void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local,
+                                                   boost::system::error_code& _error) {
+    acceptor_.open(_local.protocol(), _error);
+    if (_error)
+        return;
+
+#ifndef _WIN32
+    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
+    if (_error)
+        return;
+#endif
+
+    acceptor_.bind(_local, _error);
+    if (_error)
+        return;
+
+    acceptor_.listen(boost::asio::socket_base::max_connections, _error);
+    if (_error)
+        return;
+
+    local_ = _local;
+    local_port_ = _local.port();
+}
+
+void local_tcp_server_endpoint_impl::deinit() {
+    boost::system::error_code its_error;
+    acceptor_.close(its_error);
 }
 
 void local_tcp_server_endpoint_impl::start() {
 
     std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
     if (!acceptor_.is_open()) {
-        boost::system::error_code ec;
-        acceptor_.open(local_.protocol(), ec);
-        boost::asio::detail::throw_error(ec, "acceptor open");
-        acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
-        boost::asio::detail::throw_error(ec, "acceptor set_option");
-        acceptor_.bind(local_, ec);
-        boost::asio::detail::throw_error(ec, "acceptor bind");
-        acceptor_.listen(boost::asio::socket_base::max_connections, ec);
-        boost::asio::detail::throw_error(ec, "acceptor listen");
+        boost::system::error_code its_error;
+        init_unlocked(local_, its_error);
     }
 
     if (acceptor_.is_open()) {
