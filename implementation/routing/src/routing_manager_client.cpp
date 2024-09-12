@@ -2538,7 +2538,7 @@ void routing_manager_client::init_receiver() {
     } else {
         std::uint16_t its_port = receiver_->get_local_port();
         if (its_port != ILLEGAL_PORT)
-            VSOMEIP_INFO << "Reusing local server endpoint@" << its_port;
+            VSOMEIP_INFO << "Reusing local server endpoint@" << its_port << " endpoint: " << receiver_;
     }
 }
 
@@ -2783,10 +2783,9 @@ void routing_manager_client::register_client_error_handler(client_t _client,
 void routing_manager_client::handle_client_error(client_t _client) {
 
     if (_client != VSOMEIP_ROUTING_CLIENT) {
-        VSOMEIP_INFO << "Client 0x"
-                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                     << " handles a client error("
-                     << std::hex << std::setw(4) << std::setfill('0') << _client << ")";
+        VSOMEIP_INFO << "rmc::handle_client_error" << "Client 0x" << std::hex << std::setw(4)
+                     << std::setfill('0') << get_client() << " handles a client error(" << std::hex
+                     << std::setw(4) << std::setfill('0') << _client << ") not reconnecting";
         remove_local(_client, true);
     } else {
         bool should_reconnect(true);

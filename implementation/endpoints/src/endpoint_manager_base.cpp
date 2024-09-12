@@ -45,7 +45,7 @@ void endpoint_manager_base::remove_local(const client_t _client) {
         its_endpoint->register_error_handler(nullptr);
         its_endpoint->stop();
         VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is closing connection to ["
-                      << std::hex << _client << "]";
+                      << std::hex << _client << "]" << " endpoint > " << its_endpoint;
         std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
         local_endpoints_.erase(_client);
     }
@@ -295,7 +295,7 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
             boost::asio::local::stream_protocol::endpoint(its_path.str()),
             io_, configuration_);
         VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is connecting to ["
-            << std::hex << _client << "] at " << its_path.str();
+            << std::hex << _client << "] at " << its_path.str() << " endpoint > " << its_endpoint;
     } else {
 #else
     {
@@ -319,7 +319,8 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
                         << its_local_address.to_string() << ":" << std::dec << local_port_
                         << " is connecting to ["
                         << std::hex << std::setw(4) << std::setfill('0') << _client << "] @ "
-                        << its_remote_address.to_string() << ":" << std::dec << its_remote_port;
+                        << its_remote_address.to_string() << ":" << std::dec << its_remote_port
+                        << " endpoint > " << its_endpoint;
 
             } catch (...) {
             }
