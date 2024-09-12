@@ -185,8 +185,9 @@ message::~message() try {
 #endif
 #endif // USE_DLT
     }
-} catch (const std::exception&) {
-    // Intentionally left blank since there's not much worth doing at this point.
+} catch (const std::exception& e) {
+    std::cerr << "\nVSIP: Error destroying message class: " << e.what() << '\n';
+    return;
 }
 
 std::streambuf::int_type
