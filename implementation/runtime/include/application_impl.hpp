@@ -353,9 +353,20 @@ private:
     void invoke_availability_handler(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
+
     void increment_active_threads();
     void decrement_active_threads();
     std::uint8_t get_active_threads() const;
+
+    using availability_state_t = std::map<service_t, std::map<instance_t,
+            std::map<major_version_t, std::map<minor_version_t, availability_state_e>>>>;
+
+    availability_state_e get_availability_state(const availability_state_t& _availability_state,
+            service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor) const;
+    void set_availability_state(availability_state_t& _availability_state,
+            service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor, availability_state_e _state) const;
 
     //
     // Attributes
@@ -400,7 +411,7 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    using stateful_availability_t = std::pair<availability_state_handler_t, availability_state_e>;
+    using stateful_availability_t = std::pair<availability_state_handler_t, availability_state_t>;
     using availability_major_minor_t =
             std::map<major_version_t, std::map<minor_version_t, stateful_availability_t>>;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
