@@ -3096,7 +3096,7 @@ void application_impl::decrement_active_threads() {
                   << get_active_threads();
 }
 
-std::uint8_t application_impl::get_active_threads() const {
+std::uint16_t application_impl::get_active_threads() const {
     return dispatcher_counter_;
 }
 

@@ -355,7 +355,7 @@ private:
 
     void increment_active_threads();
     void decrement_active_threads();
-    std::uint8_t get_active_threads() const;
+    std::uint16_t get_active_threads() const;
 
     using availability_state_t = std::map<service_t, std::map<instance_t,
             std::map<major_version_t, std::map<minor_version_t, availability_state_e>>>>;
@@ -471,7 +471,7 @@ private:
     std::size_t max_dispatch_time_;
 
     // Counter for dispatcher threads
-    std::atomic<uint8_t> dispatcher_counter_;
+    std::atomic<uint16_t> dispatcher_counter_;
 
     std::size_t max_detached_thread_wait_time;
 
