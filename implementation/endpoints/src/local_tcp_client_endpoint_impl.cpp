@@ -129,6 +129,16 @@ void local_tcp_client_endpoint_impl::connect() {
                             << " remote:" << remote_.port()
                             << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         }
+        // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
+        // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
+        // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
+        socket_->set_option(boost::asio::socket_base::linger(true, 5), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                    << "SO_LINGER: " << its_error.message()
+                    << " remote:" << remote_.port()
+                    << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+        }
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::" << __func__
