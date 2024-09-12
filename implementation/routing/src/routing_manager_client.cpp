@@ -2223,7 +2223,7 @@ void routing_manager_client::register_application() {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
 
                 register_application_timer_.cancel();
-                register_application_timer_.expires_from_now(std::chrono::milliseconds(1000));
+                register_application_timer_.expires_from_now(std::chrono::milliseconds(3000));
                 register_application_timer_.async_wait(
                         std::bind(
                                 &routing_manager_client::register_application_timeout_cbk,
