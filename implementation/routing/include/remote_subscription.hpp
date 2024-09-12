@@ -129,7 +129,7 @@ private:
     // for the subscriptions. This is usally 1, but
     // may be larger if a matching subscription arrived
     // before the subscription could be acknowledged
-    std::uint32_t answers_;
+    std::atomic<std::uint32_t> answers_;
 
     mutable std::mutex mutex_;
 
