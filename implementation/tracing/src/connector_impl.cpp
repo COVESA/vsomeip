@@ -234,8 +234,7 @@ void connector_impl::trace(const byte_t *_header, uint16_t _header_size,
         return; // no data
 
     // Clip
-    const uint16_t its_data_size
-        = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
+    uint16_t its_data_size = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
 
     if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
         return; // tracing of service discovery messages is disabled!
