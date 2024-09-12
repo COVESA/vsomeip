@@ -400,7 +400,9 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    typedef std::map<major_version_t, std::map<minor_version_t, availability_state_handler_t>> availability_major_minor_t;
+    using stateful_availability_t = std::pair<availability_state_handler_t, availability_state_e>;
+    using availability_major_minor_t =
+            std::map<major_version_t, std::map<minor_version_t, stateful_availability_t>>;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
