@@ -110,29 +110,52 @@ void local_tcp_client_endpoint_impl::stop() {
 
 void local_tcp_client_endpoint_impl::connect() {
     boost::system::error_code its_connect_error;
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
-
+        // Nagle algorithm off
+        socket_->set_option(boost::asio::ip::tcp::no_delay(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
+                            << "Nagle algorithm: " << its_error.message()
+                            << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+        }
         socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::connect: couldn't enable "
-                    << "keep_alive: " << its_error.message()
-                    << " remote:" << remote_.port();
+            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                            << "keep_alive: " << its_error.message()
+                            << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         }
-
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                    << ": Cannot enable SO_REUSEADDR"
-                    << "(" << its_error.message() << ")";
+            VSOMEIP_WARNING << "ltcei::" << __func__
+                            << ": Cannot enable SO_REUSEADDR" << "(" << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+        }
+        socket_->set_option(boost::asio::socket_base::linger(true, 0), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                            << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         }
         socket_->bind(local_, its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                    << ": Cannot bind to client port " << local_.port()
-                    << "(" << its_error.message() << ")";
+            VSOMEIP_WARNING << "ltcei::" << __func__
+                            << ": Cannot bind to client port " << local_.port() << "("
+                            << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+            try {
+                strand_.post(
+                    std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                            its_connect_error));
+            } catch (const std::exception &e) {
+                VSOMEIP_ERROR << "ltcei::connect: " << e.what()
+                              << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+            }
+            return;
         }
         state_ = cei_state_e::CONNECTING;
         start_connecting_timer();
@@ -147,15 +170,17 @@ void local_tcp_client_endpoint_impl::connect() {
             )
         );
     } else {
-        VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
-                << its_error.message() << " (" << std::dec << its_error.value() << ")";
+        VSOMEIP_WARNING << "ltcei::connect: Error opening socket: "
+                << its_error.message() << " (" << std::dec << its_error.value() << ")"
+                << " endpoint > " << this;
         its_connect_error = its_error;
         try {
             strand_.post(
                 std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
                         its_connect_error));
         } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+            VSOMEIP_ERROR << "ltcei::connect: " << e.what()
+                          << " endpoint > " << this;
         }
     }
 }
@@ -242,7 +267,7 @@ void local_tcp_client_endpoint_impl::get_configured_times_from_endpoint(
     (void)_method;
     (void)_debouncing;
     (void)_maximum_retention;
-    VSOMEIP_ERROR << "local_client_endpoint_impl::get_configured_times_from_endpoint called.";
+    VSOMEIP_ERROR << "ltcei::get_configured_times_from_endpoint called." << " endpoint > " << this;
 }
 
 void local_tcp_client_endpoint_impl::send_magic_cookie() {
@@ -253,7 +278,8 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
 
     if (_error) {
-        VSOMEIP_INFO << "local_tcp_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
+        VSOMEIP_INFO << "ltcei::" << __func__ << " Error: " << _error.message()
+                     << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
@@ -347,7 +373,8 @@ std::string local_tcp_client_endpoint_impl::get_remote_information() const {
 
 bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) {
     if (train_->buffer_->size() + _size < train_->buffer_->size()) {
-        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
+        VSOMEIP_ERROR << "ltcei: Overflow in packetizer addition ~> abort sending!"
+                      << " endpoint > " << this;
         return false;
     }
     if (train_->buffer_->size() + _size > max_message_size_
@@ -371,8 +398,9 @@ std::uint32_t local_tcp_client_endpoint_impl::get_max_allowed_reconnects() const
 
 void local_tcp_client_endpoint_impl::max_allowed_reconnects_reached() {
 
-    VSOMEIP_ERROR << "local_client_endpoint::max_allowed_reconnects_reached: "
-            << get_remote_information();
+    VSOMEIP_ERROR << "ltcei::max_allowed_reconnects_reached: "
+            << get_remote_information()
+            << " endpoint > " << this;
     error_handler_t handler;
     {
         std::lock_guard<std::mutex> its_lock(error_handler_mutex_);

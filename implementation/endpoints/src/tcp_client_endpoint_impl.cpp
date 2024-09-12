@@ -18,8 +18,6 @@
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 
-namespace ip = boost::asio::ip;
-
 namespace vsomeip_v3 {
 
 tcp_client_endpoint_impl::tcp_client_endpoint_impl(
@@ -135,7 +133,7 @@ void tcp_client_endpoint_impl::connect() {
 
     if (!its_error || its_error == boost::asio::error::already_open) {
         // Nagle algorithm off
-        socket_->set_option(ip::tcp::no_delay(true), its_error);
+        socket_->set_option(boost::asio::ip::tcp::no_delay(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't disable "
                     << "Nagle algorithm: " << its_error.message()

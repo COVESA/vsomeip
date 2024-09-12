@@ -217,7 +217,7 @@ bool local_tcp_server_endpoint_impl::add_connection(const client_t &_client,
         ret = true;
     } else {
         VSOMEIP_WARNING << "Attempt to add already existing "
-            "connection to client " << std::hex << _client;
+            "connection to client " << std::hex << _client << " endpoint > " << this;
     }
     return ret;
 }
@@ -231,14 +231,37 @@ void local_tcp_server_endpoint_impl::remove_connection(
 
 void local_tcp_server_endpoint_impl::accept_cbk(
         const connection::ptr& _connection, boost::system::error_code const &_error) {
+    if (!_error) {
+        boost::system::error_code its_error;
+        endpoint_type remote;
+        {
+            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            socket_type &new_connection_socket = _connection->get_socket();
+
+            // Nagle algorithm off
+            new_connection_socket.set_option(boost::asio::ip::tcp::no_delay(true), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltsei::accept_cbk: couldn't disable "
+                                << "Nagle algorithm: " << its_error.message()
+                                << " endpoint > " << this;
+            }
+            new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltsei::accept_cbk: couldn't enable "
+                                << "keep_alive: " << its_error.message()
+                                << " endpoint > " << this;
+            }
+        }
+    }
     if (_error != boost::asio::error::bad_descriptor
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
         start();
     } else if (_error == boost::asio::error::no_descriptors) {
-        VSOMEIP_ERROR << "local_tcp_server_endpoint_impl::accept_cbk: "
+        VSOMEIP_ERROR << "ltsei::accept_cbk: "
                 << _error.message() << " (" << std::dec << _error.value()
-                << ") Will try to accept again in 1000ms";
+                << ") Will try to accept again in 1000ms"
+                << " endpoint > " << this;
         auto its_timer =
                 std::make_shared<boost::asio::steady_timer>(io_,
                         std::chrono::milliseconds(1000));
@@ -251,7 +274,6 @@ void local_tcp_server_endpoint_impl::accept_cbk(
             }
         });
     }
-
     if (!_error) {
         _connection->start();
     }
@@ -319,14 +341,16 @@ void local_tcp_server_endpoint_impl::connection::start() {
         if (recv_buffer_size_ > its_capacity) {
             VSOMEIP_ERROR << __func__ << "Received buffer size is greater than the buffer capacity!"
                 << " recv_buffer_size_: " << recv_buffer_size_
-                << " its_capacity: " << its_capacity;
+                << " its_capacity: " << its_capacity
+                << " endpoint > " << this;
             return;
         }
         size_t left_buffer_size = its_capacity - recv_buffer_size_;
         try {
             if (missing_capacity_) {
                 if (missing_capacity_ > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!";
+                    VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!"
+                    << " endpoint > " << this;
                     return;
                 }
                 const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
@@ -372,8 +396,9 @@ void local_tcp_server_endpoint_impl::connection::stop() {
     if (socket_.is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
-                          << "' (" << errno << ") " << get_path_local();
+            VSOMEIP_ERROR << "ltsei: socket/handle closed already '"
+                          << std::string(std::strerror(errno)) << "' (" << errno << ") "
+                          << get_path_local() << " endpoint > " << this;
         }
 #endif
         boost::system::error_code its_error;
@@ -386,8 +411,8 @@ void local_tcp_server_endpoint_impl::connection::send_queued(
 
     std::shared_ptr<local_tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
-        VSOMEIP_TRACE << "local_server_endpoint_impl::connection::send_queued "
-                " couldn't lock server_";
+        VSOMEIP_TRACE << "ltsei::connection::send_queued "
+                " couldn't lock server_" << " endpoint > " << this;
         return;
     }
 
@@ -397,7 +422,7 @@ void local_tcp_server_endpoint_impl::connection::send_queued(
 
 #if 0
         std::stringstream msg;
-        msg << "lse::sq: ";
+        msg << "ltsei::sq: ";
         for (std::size_t i = 0; i < _buffer->size(); i++)
             msg << std::setw(2) << std::setfill('0') << std::hex
                 << (int)(*_buffer)[i] << " ";
@@ -452,7 +477,7 @@ void local_tcp_server_endpoint_impl::get_configured_times_from_endpoint(
     (void)_method;
     (void)_debouncing;
     (void)_maximum_retention;
-    VSOMEIP_ERROR << "local_tcp_server_endpoint_impl::get_configured_times_from_endpoint.";
+    VSOMEIP_ERROR << "ltsei::get_configured_times_from_endpoint." << " endpoint > " << this;
 }
 
 void local_tcp_server_endpoint_impl::connection::send_cbk(const message_buffer_ptr_t _buffer,
@@ -460,7 +485,8 @@ void local_tcp_server_endpoint_impl::connection::send_cbk(const message_buffer_p
     (void)_buffer;
     (void)_bytes;
     if (_error)
-        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message();
+        VSOMEIP_WARNING << "ltsei::send_cbk received error: " << _error.message()
+                        << " endpoint > " << this;
 }
 
 void local_tcp_server_endpoint_impl::connection::receive_cbk(
@@ -468,8 +494,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 {
     std::shared_ptr<local_tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
-        VSOMEIP_TRACE << "local_server_endpoint_impl::connection::receive_cbk "
-                " couldn't lock server_";
+        VSOMEIP_TRACE << "ltsei::connection::receive_cbk couldn't lock server_"
+                      << " endpoint > " << this;
         return;
     }
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
@@ -505,7 +531,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 #endif
 
         if (recv_buffer_size_ + _bytes < recv_buffer_size_) {
-            VSOMEIP_ERROR << "receive buffer overflow in local server endpoint ~> abort!";
+            VSOMEIP_ERROR << "receive buffer overflow in local tcp server endpoint ~> abort!"
+                          << " endpoint > " << this;
             return;
         }
         recv_buffer_size_ += _bytes;
@@ -519,7 +546,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 
             its_start = 0 + its_iteration_gap;
             if (its_start + 3 < its_start) {
-                VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
+                VSOMEIP_ERROR << "buffer overflow in local tcp server endpoint ~> abort!"
+                              << " endpoint > " << this;
                 return;
             }
             while (its_start + 3 < recv_buffer_size_ + its_iteration_gap &&
@@ -549,13 +577,15 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                     VSOMEIP_ERROR << "Received a local message which exceeds "
                           << "maximum message size (" << std::dec << its_command_size
                           << ") aborting! local: " << get_path_local() << " remote: "
-                          << get_path_remote();
+                          << get_path_remote()
+                          << " endpoint > " << this;
                     recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                     recv_buffer_.shrink_to_fit();
                     return;
                 }
                 if (its_end + 3 < its_end) {
-                    VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
+                    VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!"
+                                  << " endpoint > " << this;
                     return;
                 }
                 while (its_end + 3 < recv_buffer_size_ + its_iteration_gap &&
@@ -566,7 +596,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                     its_end ++;
                 }
                 if (its_end + 4 < its_end) {
-                    VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
+                    VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!"
+                                  << " endpoint > " << this;
                     return;
                 }
                 // check if we received a full message
@@ -599,7 +630,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                 i - its_iteration_gap < 32; i++) {
                             local_msg << std::setw(2) << (int) recv_buffer_[i] << " ";
                         }
-                        VSOMEIP_ERROR << "lse::c<" << this
+                        VSOMEIP_ERROR << "ltsei::c<" << this
                                 << ">rcb: recv_buffer_size is: " << std::dec
                                 << recv_buffer_size_ << " but couldn't read "
                                 "out command size. recv_buffer_capacity: "
@@ -650,11 +681,13 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                             its_address, its_port);
                     } else {
                         VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                            << " endpoint encountered an error[" << ec.value() << "]: " << ec.message();
+                            << " endpoint encountered an error[" << ec.value() << "]: "
+                            << ec.message() << " endpoint > " << this;
                     }
                 } else {
                     VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                            << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message";
+                            << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message"
+                            << " endpoint > " << this;
                 }
                 #if 0
                         std::stringstream local_msg;
@@ -683,7 +716,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                         missing_capacity_ = 0;
                     }
                 } else if (message_is_empty) {
-                    VSOMEIP_ERROR << "Received garbage data.";
+                    VSOMEIP_ERROR << "Received garbage data." << " endpoint > " << this;
                     is_error = true;
                 }
             }
@@ -890,9 +923,10 @@ local_tcp_server_endpoint_impl::send_client_identifier(
     its_command.serialize(its_buffer, its_error);
     if (its_error != protocol::error_e::ERROR_OK) {
 
-        VSOMEIP_ERROR << __func__
+        VSOMEIP_ERROR << "ltsei::" << __func__
                 << ": assign client ack command serialization failed ("
-                << std::dec << static_cast<int>(its_error) << ")";
+                << std::dec << static_cast<int>(its_error) << ")"
+                << " endpoint > " << this;
         return;
     }
 

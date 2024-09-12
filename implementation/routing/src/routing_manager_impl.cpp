@@ -3685,7 +3685,7 @@ void routing_manager_impl::register_client_error_handler(client_t _client,
 }
 
 void routing_manager_impl::handle_client_error(client_t _client) {
-    VSOMEIP_INFO << "routing_manager_impl::" << __func__ << " Client 0x" << std::hex << get_client()
+    VSOMEIP_INFO << "rmi::" << __func__ << " Client 0x" << std::hex << get_client()
             << " handles a client error(" << std::hex << _client << ")";
     if (stub_)
         stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR,
