@@ -450,22 +450,12 @@ bool
 event::prepare_update_payload_unlocked(
         const std::shared_ptr<payload> &_payload, bool _force) {
 
-    // Copy payload to avoid manipulation from the outside
-    std::shared_ptr<payload> its_payload
-        = runtime::get()->create_payload(
-                _payload->get_data(), _payload->get_length());
-
-    bool is_change = has_changed(current_->get_payload(), its_payload);
-
-    if (!_force
-            && type_ == event_type_e::ET_FIELD
-            && cycle_ == std::chrono::milliseconds::zero()
-            && !is_change
-            && !is_shadow_) {
+    if (!_force && type_ == event_type_e::ET_FIELD && cycle_ == std::chrono::milliseconds::zero()
+        && !has_changed(current_->get_payload(), _payload) && !is_shadow_) {
         return false;
     }
 
-    update_->set_payload(its_payload);
+    update_->set_payload(_payload);
 
     if (!is_set_) {
         start_cycle();
@@ -830,17 +820,19 @@ bool
 event::has_changed(const std::shared_ptr<payload> &_lhs,
         const std::shared_ptr<payload> &_rhs) const {
 
-    bool is_change = (_lhs->get_length() != _rhs->get_length());
-    if (!is_change) {
-        std::size_t its_pos = 0;
-        const byte_t *its_old_data = _lhs->get_data();
-        const byte_t *its_new_data = _rhs->get_data();
-        while (!is_change && its_pos < _lhs->get_length()) {
-            is_change = (*its_old_data++ != *its_new_data++);
-            its_pos++;
+    if (_lhs) {
+        if (_rhs) {
+            return !((*_lhs) == (*_rhs));
+        } else {
+            return false;
+        }
+    } else {
+        if (_rhs) {
+            return false;
         }
     }
-    return is_change;
+
+    return true; // both are nullptr
 }
 
 std::set<client_t>

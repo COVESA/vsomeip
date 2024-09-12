@@ -905,20 +905,25 @@ void application_impl::send(std::shared_ptr<message> _message) {
 void application_impl::notify(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload, bool _force) const {
 
-    if (routing_)
-        routing_->notify(_service, _instance, _event, _payload, _force);
+    if (routing_) {
+        auto its_payload {
+                runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        routing_->notify(_service, _instance, _event, its_payload, _force);
+    }
 }
 
 void application_impl::notify_one(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload,
         client_t _client, bool _force) const {
     if (routing_) {
-        routing_->notify_one(_service, _instance, _event, _payload, _client,
-                _force
+        auto its_payload {
+                runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        routing_->notify_one(_service, _instance, _event, its_payload, _client, _force
 #ifdef VSOMEIP_ENABLE_COMPAT
-                , false
+                             ,
+                             false
 #endif
-                );
+        );
     }
 }
 
