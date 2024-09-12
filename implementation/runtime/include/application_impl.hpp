@@ -16,6 +16,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #ifdef _WIN32
@@ -244,12 +245,15 @@ public:
             handler_registration_type_e _type);
 
 private:
-    using members_methods_t = std::map<method_t, std::deque<message_handler_t> >;
-    using members_methods_iterator_t = members_methods_t::const_iterator;
-    using members_instances_t = std::map<instance_t, members_methods_t>;
-    using members_instances_iterator_t = members_instances_t::const_iterator;
-    using members_t = std::map<service_t, members_instances_t>;
-    using members_iterator_t = members_t::const_iterator;
+
+    using members_key_t = std::uint64_t;
+    using members_t = std::unordered_map<members_key_t, std::deque<message_handler_t>>;
+
+    static members_key_t to_members_key(service_t _service, instance_t _instance, method_t _method) {
+        return (static_cast<members_key_t>(_service)  <<  0) |
+               (static_cast<members_key_t>(_instance) << 16) |
+               (static_cast<members_key_t>(_method)   << 32);
+    }
 
     //
     // Types
@@ -343,12 +347,7 @@ private:
 
     bool is_local_endpoint(const boost::asio::ip::address &_unicast, port_t _port);
 
-    void find_service_handlers(std::deque<message_handler_t> &,
-            service_t _service, instance_t _instance, method_t _method) const;
-    void find_instance_handlers(std::deque<message_handler_t> &,
-            const members_iterator_t &_it, instance_t _instance, method_t _method) const;
-    void find_method_handlers(std::deque<message_handler_t> &,
-            const members_instances_iterator_t &_it, method_t _method) const;
+    const std::deque<message_handler_t>& find_handlers(service_t _service, instance_t _instance, method_t _method) const;
 
     void invoke_availability_handler(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);

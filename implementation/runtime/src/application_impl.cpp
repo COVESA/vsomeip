@@ -1428,16 +1428,7 @@ void application_impl::register_message_handler(service_t _service,
 void application_impl::unregister_message_handler(service_t _service,
         instance_t _instance, method_t _method) {
     std::lock_guard<std::mutex> its_lock(members_mutex_);
-    auto found_service = members_.find(_service);
-    if (found_service != members_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_method = found_instance->second.find(_method);
-            if (found_method != found_instance->second.end()) {
-                found_instance->second.erase(_method);
-            }
-        }
-    }
+    members_.erase(to_members_key(_service, _instance, _method));
 }
 
 void application_impl::offer_event(service_t _service, instance_t _instance,
@@ -1753,44 +1744,29 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 }
 
-void application_impl::find_service_handlers(
-        std::deque<message_handler_t> &_handlers,
-        service_t _service, instance_t _instance, method_t _method) const {
+const std::deque<message_handler_t>& application_impl::find_handlers(service_t _service, instance_t _instance, method_t _method) const {
 
-    auto its_service_it = members_.find(_service);
-    if (its_service_it != members_.end()) {
-        find_instance_handlers(_handlers, its_service_it,
-                _instance, _method);
-        if (_handlers.empty()) {
-            find_instance_handlers(_handlers, its_service_it,
-                    ANY_INSTANCE, _method);
+    // The (ordered!) sequence of queries to attempt
+    const std::array<members_key_t, 8> queries {
+        to_members_key(_service, _instance, _method),
+        to_members_key(_service, _instance, ANY_METHOD),
+        to_members_key(_service, ANY_INSTANCE, _method),
+        to_members_key(_service, ANY_INSTANCE, ANY_METHOD),
+        to_members_key(ANY_SERVICE, _instance, _method),
+        to_members_key(ANY_SERVICE, _instance, ANY_METHOD),
+        to_members_key(ANY_SERVICE, ANY_INSTANCE, _method),
+        to_members_key(ANY_SERVICE, ANY_INSTANCE, ANY_METHOD)
+    };
+
+    for (const auto query : queries) {
+        const auto& search = members_.find(query);
+        if (search != members_.end()) {
+            return search->second;
         }
     }
-}
 
-void application_impl::find_instance_handlers(
-        std::deque<message_handler_t> &_handlers,
-        const members_iterator_t &_it,
-        instance_t _instance, method_t _method) const {
-
-    auto its_instance_it = _it->second.find(_instance);
-    if (its_instance_it != _it->second.end()) {
-        find_method_handlers(_handlers, its_instance_it, _method);
-        if (_handlers.empty()) {
-            find_method_handlers(_handlers, its_instance_it, ANY_METHOD);
-        }
-    }
-}
-
-void application_impl::find_method_handlers(
-        std::deque<message_handler_t> &_handlers,
-        const members_instances_iterator_t &_it,
-        method_t _method) const {
-
-    auto its_method_it = _it->second.find(_method);
-    if (its_method_it != _it->second.end()) {
-        _handlers = its_method_it->second;
-    }
+    static const std::deque<message_handler_t> empty;
+    return empty;
 }
 
 void application_impl::on_message(std::shared_ptr<message> &&_message) {
@@ -1814,12 +1790,9 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
     {
         std::lock_guard<std::mutex> its_lock(members_mutex_);
 
-        std::deque<message_handler_t> its_handlers;
-        find_service_handlers(its_handlers, its_service, its_instance, its_method);
-        if (its_handlers.empty())
-            find_service_handlers(its_handlers, ANY_SERVICE, its_instance, its_method);
+        const auto its_handlers = find_handlers(its_service, its_instance, its_method);
 
-        if (its_handlers.size()) {
+        if (!its_handlers.empty()) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
             for (const auto &handler : its_handlers) {
                 auto its_sync_handler =
@@ -3093,16 +3066,18 @@ void application_impl::register_message_handler_ext(
         const message_handler_t &_handler,
         handler_registration_type_e _type) {
 
+    const auto key = to_members_key(_service, _instance, _method);
+
     std::lock_guard<std::mutex> its_lock(members_mutex_);
     switch (_type) {
     case handler_registration_type_e::HRT_REPLACE:
-        members_[_service][_instance][_method].clear();
+        members_[key].clear();
         [[gnu::fallthrough]];
     case handler_registration_type_e::HRT_APPEND:
-        members_[_service][_instance][_method].push_back(_handler);
+        members_[key].push_back(_handler);
         break;
     case handler_registration_type_e::HRT_PREPEND:
-        members_[_service][_instance][_method].push_front(_handler);
+        members_[key].push_front(_handler);
         break;
     default:
         ;
