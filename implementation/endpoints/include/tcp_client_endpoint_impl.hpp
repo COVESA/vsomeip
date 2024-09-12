@@ -33,6 +33,7 @@ public:
                              const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_client_endpoint_impl();
 
+    void init();
     void start();
     void restart(bool _force);
 

@@ -31,81 +31,69 @@ namespace vsomeip_v3 {
 local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local, boost::asio::io_context &_io,
+        boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration,
         bool _is_routing_endpoint)
-    : local_uds_server_endpoint_base_impl(_endpoint_host, _routing_host, _local,
-                                          _io,
-                                          _configuration->get_max_message_size_local(),
-                                          _configuration->get_endpoint_queue_limit_local(),
-                                          _configuration),
+    : local_uds_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
       acceptor_(_io),
       buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
       is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
-    boost::system::error_code ec;
-    acceptor_.open(_local.protocol(), ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": open failed (" << ec.message() << ")";
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
+}
 
-    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": set reuse address option failed (" << ec.message() << ")";
+void local_uds_server_endpoint_impl::init(const endpoint_type& _local,
+                                          boost::system::error_code& _error) {
+    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    acceptor_.open(_local.protocol(), _error);
+    if (_error)
+        return;
 
-    acceptor_.bind(_local, ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": bind failed (" << ec.message() << ")";
+    init_helper(_local, _error);
+}
 
-    acceptor_.listen(boost::asio::socket_base::max_connections, ec);
-    if (ec)
-        VSOMEIP_ERROR << __func__
-            << ": listen failed (" << ec.message() << ")";
+void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int _socket,
+                                          boost::system::error_code& _error) {
+    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    acceptor_.assign(_local.protocol(), _socket, _error);
+    if (_error)
+        return;
+
+    init_helper(_local, _error);
+}
+
+void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local,
+                                                 boost::system::error_code& _error) {
+    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
+    if (_error)
+        return;
+
+    acceptor_.bind(_local, _error);
+    if (_error)
+        return;
+
+    acceptor_.listen(boost::asio::socket_base::max_connections, _error);
+    if (_error)
+        return;
+
 #ifndef __QNX__
     if (chmod(_local.path().c_str(),
-            static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
+            static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
     credentials::activate_credentials(acceptor_.native_handle());
 #endif
+
+    local_ = _local;
+
 }
 
-local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local, boost::asio::io_context &_io,
-        int native_socket,
-        const std::shared_ptr<configuration>& _configuration,
-        bool _is_routing_endpoint)
-    : local_uds_server_endpoint_base_impl(_endpoint_host, _routing_host, _local, _io,
-                                          _configuration->get_max_message_size_local(),
-                                          _configuration->get_endpoint_queue_limit_local(),
-                                          _configuration),
-      acceptor_(_io),
-      buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
-      is_routing_endpoint_(_is_routing_endpoint) {
-    is_supporting_magic_cookies_ = false;
-
-   boost::system::error_code ec;
-   acceptor_.assign(_local.protocol(), native_socket, ec);
-   if (ec)
-       VSOMEIP_ERROR << __func__
-           << ": assign failed (" << ec.message() << ")";
-
-#ifndef __QNX__
-    if (chmod(_local.path().c_str(),
-            static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
-       VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
-    }
-    credentials::activate_credentials(acceptor_.native_handle());
-#endif
-}
-
-bool local_uds_server_endpoint_impl::is_local() const {
-    return true;
+void local_uds_server_endpoint_impl::deinit() {
+    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    boost::system::error_code its_error;
+    acceptor_.close(its_error);
 }
 
 void local_uds_server_endpoint_impl::start() {
@@ -151,6 +139,10 @@ void local_uds_server_endpoint_impl::stop() {
         }
         connections_.clear();
     }
+}
+
+bool local_uds_server_endpoint_impl::is_local() const {
+    return true;
 }
 
 bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {

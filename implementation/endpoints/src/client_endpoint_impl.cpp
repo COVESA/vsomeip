@@ -26,29 +26,18 @@ namespace vsomeip_v3 {
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::client_endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
+		const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        const endpoint_type& _remote,
-        boost::asio::io_context &_io,
-        std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
-        const std::shared_ptr<configuration>& _configuration)
-        : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io,
-                _max_message_size, _queue_limit, _configuration),
-          socket_(std::make_unique<socket_type>(_io)), remote_(_remote),
-          flush_timer_(_io), connect_timer_(_io),
-          connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
-          state_(cei_state_e::CLOSED),
-          reconnect_counter_(0),
-          connecting_timer_(_io), connecting_timeout_(VSOMEIP_DEFAULT_CONNECTING_TIMEOUT),
-          train_(std::make_shared<train>()),
-          dispatch_timer_(_io),
-          has_last_departure_(false),
-          queue_size_(0),
-          was_not_connected_(false),
-          is_sending_(false),
-          strand_(_io) {
+        const endpoint_type& _local, const endpoint_type& _remote,
+        boost::asio::io_context &_io, const std::shared_ptr<configuration>& _configuration) :
+	endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration),
+          socket_ {std::make_unique<socket_type>(_io)}, remote_ {_remote}, flush_timer_ {_io},
+		  connect_timer_ {_io}, connect_timeout_ {VSOMEIP_DEFAULT_CONNECT_TIMEOUT},
+		  state_ {cei_state_e::CLOSED}, reconnect_counter_ {0}, connecting_timer_ {_io},
+		  connecting_timeout_ {VSOMEIP_DEFAULT_CONNECTING_TIMEOUT},
+		  train_ {std::make_shared<train>()}, dispatch_timer_ {_io}, has_last_departure_ {false},
+		  queue_size_ {0}, was_not_connected_ {false}, is_sending_ {false}, strand_(_io) {
+	this->local_ = _local;
 }
 
 template<typename Protocol>

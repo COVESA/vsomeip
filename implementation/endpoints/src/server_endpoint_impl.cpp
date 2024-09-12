@@ -30,17 +30,10 @@ namespace vsomeip_v3 {
 template<typename Protocol>
 server_endpoint_impl<Protocol>::server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host, endpoint_type _local,
-        boost::asio::io_context &_io, std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
+        const std::shared_ptr<routing_host>& _routing_host,
+		boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io, _max_message_size,
-                              _queue_limit, _configuration) {
-}
-
-template<typename Protocol>
-server_endpoint_impl<Protocol>::~server_endpoint_impl() {
-
+    : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration) {
 }
 
 template<typename Protocol>
@@ -127,7 +120,10 @@ bool server_endpoint_impl<Protocol>::is_client() const {
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::restart(bool _force) {
     (void)_force;
-    // intentionally left blank
+
+	boost::system::error_code its_error;
+	this->init(server_endpoint_impl<Protocol>::local_, its_error);
+	this->start();
 }
 
 template<typename Protocol>

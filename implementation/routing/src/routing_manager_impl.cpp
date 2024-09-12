@@ -3783,6 +3783,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 // stop processing of incoming SD messages
                 discovery_->stop();
 
+                // stop all endpoints
+                ep_mgr_->suspend();
+
                 VSOMEIP_INFO << "rmi::" << __func__ << " Inform all applications that we are going to suspend";
                 send_suspend();
 
@@ -3890,6 +3893,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 if (routing_state_handler_) {
                     routing_state_handler_(_routing_state);
                 }
+
+                // start all endpoints
+                ep_mgr_->resume();
 
                 // start processing of SD messages (incoming remote offers should lead to new subscribe messages)
                 discovery_->start();

@@ -29,11 +29,11 @@ class udp_server_endpoint_impl: public udp_server_endpoint_base_impl {
 public:
     udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                              const std::shared_ptr<routing_host>& _routing_host,
-                             const endpoint_type& _local,
                              boost::asio::io_context &_io,
                              const std::shared_ptr<configuration>& _configuration);
-    virtual ~udp_server_endpoint_impl();
+    virtual ~udp_server_endpoint_impl() = default;
 
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
     void stop();
 
@@ -52,8 +52,8 @@ public:
     VSOMEIP_EXPORT void join(const std::string &_address);
     VSOMEIP_EXPORT void join_unlocked(const std::string &_address);
     VSOMEIP_EXPORT void leave(const std::string &_address);
-    VSOMEIP_EXPORT void set_multicast_option(
-            const boost::asio::ip::address &_address, bool _is_join);
+    VSOMEIP_EXPORT void set_multicast_option(const boost::asio::ip::address &_address,
+                                             bool _is_join, boost::system::error_code& _error);
 
     void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port);
@@ -81,7 +81,7 @@ private:
     void receive_unicast();
     void receive_multicast(uint8_t _id);
     bool is_joined(const std::string &_address) const;
-    bool is_joined(const std::string &_address, bool* _received) const;
+    bool is_joined(const std::string &_address, bool& _received) const;
     std::string get_remote_information(
             const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
@@ -112,7 +112,7 @@ private:
     void multicast_shutdown_and_close_unlocked();
 
 private:
-    socket_type unicast_socket_;
+    std::shared_ptr<socket_type> unicast_socket_;
     endpoint_type unicast_remote_;
     message_buffer_t unicast_recv_buffer_;
     mutable std::mutex unicast_mutex_;
@@ -134,7 +134,7 @@ private:
     boost::asio::ip::address netmask_;
     unsigned short prefix_;
 
-    const std::uint16_t local_port_;
+    std::uint16_t local_port_;
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     boost::asio::steady_timer tp_cleanup_timer_;

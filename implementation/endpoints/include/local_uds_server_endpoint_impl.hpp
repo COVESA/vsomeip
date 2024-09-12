@@ -27,20 +27,14 @@ class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl
 public:
     local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
             const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
             boost::asio::io_context &_io,
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
-
-    local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-            const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
-            boost::asio::io_context &_io,
-            int native_socket,
-            const std::shared_ptr<configuration>& _configuration,
-            bool _is_routing_endpoint);
-
     virtual ~local_uds_server_endpoint_impl() = default;
+
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
+    void init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error);
+    void deinit();
 
     void start();
     void stop();
@@ -158,6 +152,7 @@ private:
     const bool is_routing_endpoint_;
 
 private:
+    void init_helper(const endpoint_type& _local, boost::system::error_code& _error);
     bool add_connection(const client_t &_client,
             const std::shared_ptr<connection> &_connection);
     void remove_connection(const client_t &_client);

@@ -26,11 +26,7 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
         const endpoint_type& _remote,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local,
-                                    _remote, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
-                                    _configuration->get_endpoint_queue_limit(
-                                            _remote.address().to_string(),
-                                            _remote.port()),
+    : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io,
                                     _configuration),
       remote_address_(_remote.address()),
       remote_port_(_remote.port()),
@@ -38,6 +34,10 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
       tp_reassembler_(std::make_shared<tp::tp_reassembler>(
               _configuration->get_max_message_size_unreliable(), _io)) {
     is_supporting_someip_tp_ = true;
+
+    this->max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit(_remote.address().to_string(),
+                                                                  _remote.port());
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
