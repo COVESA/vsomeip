@@ -681,6 +681,9 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
         VSOMEIP_WARNING << "cei::" << __func__ << ": socket was not open "
                             << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
     }
+
+    state_ = cei_state_e::CLOSED;
+
     if (_recreate_socket) {
         socket_.reset(new socket_type(endpoint_impl<Protocol>::io_));
         VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset "
