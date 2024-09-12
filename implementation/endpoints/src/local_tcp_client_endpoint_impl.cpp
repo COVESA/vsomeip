@@ -135,12 +135,6 @@ void local_tcp_client_endpoint_impl::connect() {
                             << ": Cannot enable SO_REUSEADDR" << "(" << its_error.message() << ")"
                             << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         }
-        socket_->set_option(boost::asio::socket_base::linger(true, 0), its_error);
-        if (its_error) {
-            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
-                            << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port()
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
-        }
         socket_->bind(local_, its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::" << __func__
