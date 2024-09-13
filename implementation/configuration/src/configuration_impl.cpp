@@ -334,8 +334,8 @@ bool configuration_impl::load(const std::string &_name) {
     // Tell, if reading of configuration file(s) failed.
     // (This may file if the logger configuration is incomplete/missing).
     for (const auto& f : its_failed)
-        VSOMEIP_WARNING << "Reading of configuration file \""
-            << f << "\" failed. Configuration may be incomplete.";
+        VSOMEIP_WARNING << __func__ << ": Reading of configuration file may be incomplete. \""
+            << f << "\"";
 
     // set global unicast address for all services with magic cookies enabled
     set_magic_cookies_unicast_address();
@@ -382,8 +382,8 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
         }
 
         for (auto f : its_failed)
-            VSOMEIP_WARNING << __func__ << ": Reading of configuration file \""
-                << f << "\" failed. Configuration may be incomplete.";
+            VSOMEIP_WARNING << __func__ << ": Reading of configuration file may be incomplete. \""
+                << f << "\"";
 
         result = (its_failed.empty() && !its_mandatory_elements.empty());
         if (result)
@@ -543,8 +543,10 @@ void configuration_impl::load_policy_data(const std::string &_input,
                 boost::property_tree::json_parser::read_json(_input, its_tree);
                 _elements.push_back({ _input, its_tree });
             }
-            catch (boost::property_tree::json_parser_error&) {
-                _failed.insert(_input);
+            catch (const boost::property_tree::json_parser_error& ec) {
+                std::ostringstream oss;
+                oss << ec.message() << " at " << ec.filename() << ":" << ec.line();
+                _failed.insert(oss.str());
             }
         }
 }
