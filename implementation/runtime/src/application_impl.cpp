@@ -2257,35 +2257,53 @@ void application_impl::shutdown() {
     try {
         while (get_active_threads() > 0) {
             auto its_dispatcher_control_ = dispatchers_control_.begin();
+            bool os_flag_ = false;
 
             if (its_dispatcher_control_ != dispatchers_control_.end()) {
                 if (std::get<1>(its_dispatcher_control_->second)
                             .wait_for(std::chrono::seconds(max_detached_thread_wait_time))
                     == std::future_status::timeout) {
-                    VSOMEIP_INFO << "Force killing thread with id: " << std::hex
-                                 << its_dispatcher_control_->first
-                                 << "; Number of threads still active : "
-                                 << get_active_threads();
+
 #ifdef _WIN32
                     TerminateThread(std::get<0>(its_dispatcher_control_->second), 0);
 #else
                     pthread_t thread_to_kill = std::get<0>(its_dispatcher_control_->second);
+
+                    // Using pthread_cancel for UNIX based systems and pthread_kill(SIGKILL)
+                    // for android since pthread_cancel is not implemented on android.
+                    // The major difference is that pthread_cancel allows for signal handling
+                    // and proper resource cleanup to be done on the application side
+                    // while pthread_kill(SIGKILL) stops the thread immediately.
+                    // This should not however be an issue since this will only be called
+                    // if the thread is already stuck for some time during app->stop()
+#if defined(ANDROID)
+                    os_flag_ = true;
+                    if (pthread_kill(thread_to_kill, SIGKILL) != 0) {
+#elif defined(__linux__) || defined(__QNX__)
                     if (pthread_cancel(thread_to_kill) != 0) {
-                        VSOMEIP_ERROR << "Failed to kill detached thread with id: " << std::hex
-                                      << its_dispatcher_control_->first
-                                      << "; Number of threads still active : "
-                                      << get_active_threads();
+#endif
+                        VSOMEIP_ERROR
+                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                << "Failed to kill detached thread with id: " << std::hex
+                                << its_dispatcher_control_->first
+                                << "; Number of threads still active : " << get_active_threads();
+                    } else {
+                        decrement_active_threads();
+                        VSOMEIP_INFO
+                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                << "Force killed thread with id: " << std::hex
+                                << its_dispatcher_control_->first
+                                << "; Number of threads still active : " << get_active_threads();
+                        dispatchers_control_.erase(its_dispatcher_control_);
                     }
 #endif
-                    dispatchers_control_.erase(its_dispatcher_control_);
-                    decrement_active_threads();
                 } else {
-                    VSOMEIP_INFO << "Detached thread with id: " << std::hex
-                                 << its_dispatcher_control_->first << " exited successfully"
-                                 << "; Number of threads still active : "
-                                 << get_active_threads();
-                    dispatchers_control_.erase(its_dispatcher_control_);
                     decrement_active_threads();
+                    VSOMEIP_INFO << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                 << "Detached thread with id: " << std::hex
+                                 << its_dispatcher_control_->first << " exited successfully"
+                                 << "; Number of threads still active : " << get_active_threads();
+                    dispatchers_control_.erase(its_dispatcher_control_);
                 }
             }
         }
