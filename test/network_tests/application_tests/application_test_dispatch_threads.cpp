@@ -27,8 +27,8 @@ class someip_application_detach_dispatch {
 public:
     bool is_registered_;
     bool is_available_;
-    bool is_forcefully_stopped_;
-    bool is_finished_;
+    std::atomic_bool is_forcefully_stopped_;
+    std::atomic_bool is_finished_;
     std::shared_ptr<application> app_;
     std::condition_variable cv_;
     std::mutex mutex_;

@@ -352,7 +352,6 @@ private:
     void invoke_availability_handler(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
-
     void increment_active_threads();
     void decrement_active_threads();
     std::uint16_t get_active_threads() const;
