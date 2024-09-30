@@ -465,11 +465,12 @@ Configuration file element explanation:
 
         * 'type' (optional)
 
-            Specifies the filter type (valid values: "positive", "negative"). When a positive
-            filter is used and a message matches one of the filter rules, the message will be
-            traced/forwarded to DLT. With a negative filter messages can be excluded. So when a
-            message matches one of the filter rules, the message will not be traced/forwarded to
-            DLT. Default value is "positive".
+            Specifies the filter type (valid values: "positive", "negative", "header-only"). 
+            When a positive filter is used and a message matches one of the filter rules, 
+            the message will be traced/forwarded to DLT. With a negative filter messages 
+            can be excluded. So when a message matches one of the filter rules, the message 
+            will not be traced/forwarded to DLT. Default value is "positive". The value
+            "header-only" implies the filter is also considered "positive".
 
 * 'applications (array)'
 
