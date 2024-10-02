@@ -96,6 +96,7 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 		 cmsg != NULL;
 	  	 cmsg = CMSG_NXTHDR(&msg, cmsg))
 	{
+#if defined(IP_PKTINFO)
 	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
 	  	continue;
 
@@ -104,6 +105,18 @@ signed_size_type recvfrom(socket_type s, buf* bufs, size_t count,
 	  {
 	    da = boost::asio::ip::address_v4(ntohl(pi->ipi_addr.s_addr));
 	  } 
+#elif defined(IP_RECVDSTADDR)
+	  if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_RECVDSTADDR)
+	  	continue;
+
+    struct in_addr *addr = (struct in_addr*) CMSG_DATA(cmsg);
+    if (addr)
+    {
+      da = boost::asio::ip::address_v4(ntohl(addr->s_addr));
+    }
+#else
+    #error "Platform not supported. Neither IP_PKTINFO nor IP_RECVDSTADDR is defined.";
+#endif
 	}      
   }
   return result;

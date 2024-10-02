@@ -862,7 +862,13 @@ udp_server_endpoint_impl::set_multicast_option(
             int its_pktinfo_option(1);
             ::setsockopt(multicast_socket_->native_handle(),
                     (is_v4_ ? IPPROTO_IP : IPPROTO_IPV6),
+#if defined(IP_PKTINFO)
                     (is_v4_ ? IP_PKTINFO : IPV6_RECVPKTINFO),
+#elif defined(IP_RECVDSTADDR)
+                    (is_v4_ ? IP_RECVDSTADDR : IPV6_RECVPKTINFO),
+#else
+                    #error "Platform not supported. Neither IP_PKTINFO nor IP_RECVDSTADDR is defined.";
+#endif
                     &its_pktinfo_option, sizeof(its_pktinfo_option));
 #endif
 
