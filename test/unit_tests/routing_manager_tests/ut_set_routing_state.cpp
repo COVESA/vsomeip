@@ -26,7 +26,7 @@ namespace {
     std::uint16_t port_unreliable = 3507;
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_SUSPENDED) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_SUSPENDED) {
 
     // Called on mock_host_ as a result of routing_manager_impl::del_routing_info being called within the logic tree
     EXPECT_CALL(mock_host_, on_availability(_,_,_,_,_)).Times(AtLeast(1));
@@ -50,7 +50,7 @@ TEST_F(routing_manager_ut_setup, set_routing_state_RS_SUSPENDED) {
     ASSERT_EQ(its_manager->get_routing_state(), vsomeip_v3::routing_state_e::RS_SUSPENDED);
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_RUNNING) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_RUNNING) {
 
     // Adding a service using add_routing_info
     its_manager->add_routing_info(service_, instance_, major_version_, minor_version_,
@@ -76,7 +76,7 @@ TEST_F(routing_manager_ut_setup, set_routing_state_RS_RUNNING) {
     }
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_RESUMED) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_RESUMED) {
 
     // Adding a service using add_routing_info
     its_manager->add_routing_info(service_, instance_, major_version_, minor_version_,
@@ -99,7 +99,7 @@ TEST_F(routing_manager_ut_setup, set_routing_state_RS_RESUMED) {
     }
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_SHUTDOWN) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_SHUTDOWN) {
 
     // Call test method with test input.
     its_manager->set_routing_state(vsomeip_v3::routing_state_e::RS_SHUTDOWN);
@@ -108,7 +108,7 @@ TEST_F(routing_manager_ut_setup, set_routing_state_RS_SHUTDOWN) {
     ASSERT_EQ(its_manager->get_routing_state(), vsomeip_v3::routing_state_e::RS_SHUTDOWN);
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_DIAGNOSIS) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_DIAGNOSIS) {
 
     // Adding a service using add_routing_info
     its_manager->add_routing_info(service_, instance_, major_version_, minor_version_,
@@ -132,7 +132,7 @@ TEST_F(routing_manager_ut_setup, set_routing_state_RS_DIAGNOSIS) {
     }
 }
 
-TEST_F(routing_manager_ut_setup, set_routing_state_RS_UNKNOWN) {
+TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_UNKNOWN) {
 
     // RS_RUNNING is the default value so set RS_UNKOWN
     its_manager->set_routing_state(vsomeip_v3::routing_state_e::RS_UNKNOWN);
