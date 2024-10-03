@@ -1,6 +1,104 @@
 Changes
 =======
 
+v3.5.1
+- Restructure Network Tests CMakeLists
+- policy.cpp unit test
+- Remove deprecated usage of byteorder and use bithelper
+- unblock endpoint when closing it
+- Find_Debounce_Time made configurable
+- Check if configuration_ pointer exists before using
+- Initialize routing_state_
+- Solved data race in configuration_impl class
+- utility.cpp unit tests
+- unit tests payload_impl
+- unit tests serializer
+- unit tests deserializer
+- Unit Tests for policy_manager_impl.cpp
+- Unit Test - Routing Manager set_routing_state
+- Move documentation to markdown
+- clang-format to verify the code vsomeip-lib
+- fix deadlock with event and message debounce feature
+- disabled some groups of tests
+- Try to force connection reset on suspend
+- Call availability handler on request service instance
+- Handle endpoint queue size underflow
+- Add Valgrind massif tool
+- Create new train after scheduling to avoid duplicate messages
+- Re-Added offer_tests group in all sanitizers tests
+- removed extra DLT logs of the policies print
+- COVESA-615: vsomeip.lck file not removed upon application termination
+- COVESA-527: Locally switch off -Wstringop-overflow
+- Create network regression test for specific issue
+- Change IndentPPDirectives rule in clang-format
+- applied auto in some identified lines by sonarqube
+- Add Valgrind memcheck
+- Ensure buffer is valid before de-referencing pointer
+- Renaming folder test and fixing typos
+- Fix minor formatting issues from some commits
+- Adds interger overflow check
+- Adds application name on cout logs
+- Adding helgrind, to test output
+- Boost 1.65 cleanup
+- network_test - Offer Stop Offer test
+- Support host name (env) for internal TCP communication
+- Remove cached configuration after app stops
+- Optimize tests/network-tests/CMakeLists.txt
+- Check if pointer exists before dereferencing it
+- avoid requiring valgrind locally
+- Fix Lock-Order-Inversion in policy_manager_impl
+- Revert "Fix to not ignore stop offers when sd acceptance is not required"
+- Fix timeout on offer_stop_offer test
+- Restore config_plugin_impl mutex
+- Rework [STOP_]OFFER command handling
+- some-tp memory consumption increasing fast
+- Remove dlt traces from memory_test
+- restart_routing_test enabled
+- Fix cyclic events
+- Tracing LOI
+- improve connection log on error path
+- added subscribe_notify groups to non-leak verification
+- Relocate hostname config command
+- allow subscribeACK if at least one offer was sent by SD
+- Improve "end of file" error handling
+- Update Clang-Format to Version 18
+- Debounce tests fix
+- Wireshark dissector for vsomeip protocol
+- Remove logging on operation cancel in connect_cbk
+- Add additional info on failure to open TCP port
+- Implementation of SOMEIPSD_00577
+- Refactor how niceness values are applied to threads
+- prevent race between event expiration/forwarding
+- Fix subscribe_notify_one tests
+- Fix missing/blocked subscription requests
+- change references to C++14 into C++17
+- Explicitly check whether an endpoint is in use
+- Enabled all network tests with whitelist
+- Fix target client id in local_send
+- remove redundants package import definitions
+- run unit tests on windows
+- Fix debounce network tests
+- type upgrade and temporary disable of test for QNX build
+- Force abort hanging detached threads
+- Application tests fix
+- Remove behavior from catch block in ~message
+- Stop/Start (network) endpoints on suspend/resume
+- Reduce the number of copy operations on event payloads
+- Sets linger to 0 in local tcp clients
+- Prevent exception re-throw in ~message
+- remove linger on local_tcp
+- Fix android traces build
+- Introduce stateful availability handler
+- Update the availability state
+- Reintroduces the TIME_WAIT for ltcei
+- Faster handlers lookup
+- Increase app registration timeout
+- Force endpoint restart if re registering
+- fix semaphore logs
+- fix compile issue with pthreads in android
+- Disabling set routing state unit test
+- Fixing get_policy_manager error with security disabled
+
 v3.5.0
 - Load Policies Lazy Load
 - Test - Processing SD messages with unknown type option
