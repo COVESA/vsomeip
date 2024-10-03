@@ -177,10 +177,15 @@ void tcp_client_endpoint_impl::connect() {
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
+#if defined(SO_BINDTODEVICE)
             if (setsockopt(socket_->native_handle(),
                     SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
                 VSOMEIP_WARNING << "TCP Client: Could not bind to device \"" << its_device << "\"";
             }
+#else
+            VSOMEIP_WARNING << "TCP Client: Could not bind to device \"" << its_device << "\""
+                            << " SO_BINDTODEVICE socket option not supported";
+#endif
         }
 #endif
 
