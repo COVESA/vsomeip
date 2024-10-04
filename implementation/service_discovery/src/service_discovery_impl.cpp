@@ -1558,10 +1558,10 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port,
                                  _unreliable_address, _unreliable_port, _received_via_multicast)) {
-        VSOMEIP_WARNING << __func__ << ": Remote offer type changed [" << std::hex << std::setw(4)
-                        << std::setfill('0') << _service << "." << std::hex << std::setw(4)
-                        << std::setfill('0') << _instance << "]";
-
+        VSOMEIP_WARNING << __func__ << ": Remote offer type changed [" 
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "]";
         // Only update eventgroup reliability type if it was initially unknown
         auto its_eventgroups = host_->get_subscribed_eventgroups(_service, _instance);
         for (auto eg : its_eventgroups) {
@@ -3651,9 +3651,11 @@ bool service_discovery_impl::update_remote_offer_type(
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:
-        VSOMEIP_WARNING << __func__ << ": unknown offer type [" << std::hex << std::setw(4)
-                        << std::setfill('0') << _service << "." << std::hex << std::setw(4)
-                        << std::setfill('0') << _instance << "]" << static_cast<int>(_offer_type);
+        VSOMEIP_WARNING << __func__ << ": unknown offer type ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "]"
+                        << static_cast<int>(_offer_type);
         break;
     }
     return ret;
@@ -3770,9 +3772,11 @@ bool service_discovery_impl::set_offer_multicast_state(
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:
-        VSOMEIP_WARNING << __func__ << ": unknown offer type [" << std::hex << std::setw(4)
-                        << std::setfill('0') << _service << "." << std::hex << std::setw(4)
-                        << std::setfill('0') << _instance << "]" << static_cast<int>(_offer_type);
+        VSOMEIP_WARNING << __func__ << ": unknown offer type [" 
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "." 
+                        << std::setw(4) << _instance << "]" 
+                        << static_cast<int>(_offer_type);
         break;
     }
 

@@ -237,7 +237,8 @@ bool application_impl::init() {
                             } else {
                                 VSOMEIP_INFO << "+filter "
                                 << std::hex << std::setfill('0')
-                                << std::setw(4) << prev_val << "." << std::setw(4) << val;
+                                << std::setw(4) << prev_val << "."
+                                << std::setw(4) << val;
                                 client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
                             }
                             val = 0xffffu;

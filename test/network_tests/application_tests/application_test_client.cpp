@@ -105,9 +105,10 @@ public:
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        VSOMEIP_INFO << "[Client] Received a response with Client/Session [" << std::setfill('0')
-                     << std::hex << std::setw(4) << _message->get_client() << "/" << std::setw(4)
-                     << _message->get_session() << "]";
+        VSOMEIP_INFO << "Received a response with Client/Session ["
+                << std::setfill('0') << std::hex
+                << std::setw(4) << _message->get_client() << "/"
+                << std::setw(4) << _message->get_session() << "]";
     }
 
     void send() {

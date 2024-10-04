@@ -723,12 +723,12 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
             VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: "
-                            << its_data.queue_size_ << " payload_size: " << payload_size
-                            << " payload: (" << std::hex << std::setw(4) << std::setfill('0')
-                            << its_client << "): [" << std::hex << std::setw(4) << std::setfill('0')
-                            << its_service << "." << std::hex << std::setw(4) << std::setfill('0')
-                            << its_method << "." << std::hex << std::setw(4) << std::setfill('0')
-                            << its_session << "]";
+                << its_data.queue_size_ << " payload_size: " << payload_size << " payload: ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]";
             its_data.queue_.pop_front();
             recalculate_queue_size(its_data);
         }
