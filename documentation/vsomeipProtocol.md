@@ -47,14 +47,14 @@
         Size           xx xx xx xx
         Client         xx xx
         [Address]      xx .. xx    ; Size - sizeof(Client) - sizeof(Port)
-        [Port]         xx
+        [Port]         xx xx
 
-        SubCommand     xx        ; RIE_ADD_SERVICE_INSTANCE (0x2) or RIE_DEL_SERVICE_INSTANCE (0x3)
+        SubCommand     xx        ; RIE_ADD_SERVICE_INSTANCE (0x2) or RIE_DEL_SERVICE_INSTANCE (0x4)
         Size           xx xx xx xx    ; Command size
         Size           xx xx xx xx    ; Client info size
         Client         xx xx
         [Address]      xx .. xx    ; Client info size - sizeof(Client) - sizeof(Port)
-        [Port]         xx
+        [Port]         xx xx
         Size           xx xx xx xx    ; Services size
             Service    xx xx
             Instance   xx xx
