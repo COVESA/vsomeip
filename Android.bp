@@ -62,8 +62,7 @@ cc_defaults {
     ],
 
     local_include_dirs: [
-        "interface",
-        "implementation/helper"
+        "interface"
     ]
 }
 
@@ -80,8 +79,8 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_VERSION=\"3.4.10\"",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.4.10\"",
+        "-DVSOMEIP_VERSION=\"3.5.1\"",
+        "-DVSOMEIP_COMPAT_VERSION=\"3.5.1\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
     ],

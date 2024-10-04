@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <limits>
 #include <thread>
@@ -11,13 +12,8 @@
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/local/stream_protocol_ext.hpp>
-#include <boost/asio/ip/udp_ext.hpp>
-#else
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/ip/udp.hpp>
-#endif
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -25,7 +21,7 @@
 #include "../include/server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
 
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../service_discovery/include/defines.hpp"
 
@@ -34,17 +30,10 @@ namespace vsomeip_v3 {
 template<typename Protocol>
 server_endpoint_impl<Protocol>::server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host, endpoint_type _local,
-        boost::asio::io_context &_io, std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
+        const std::shared_ptr<routing_host>& _routing_host,
+		boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io, _max_message_size,
-                              _queue_limit, _configuration) {
-}
-
-template<typename Protocol>
-server_endpoint_impl<Protocol>::~server_endpoint_impl() {
-
+    : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration) {
 }
 
 template<typename Protocol>
@@ -52,12 +41,22 @@ void server_endpoint_impl<Protocol>::prepare_stop(
         const endpoint::prepare_stop_handler_t &_handler, service_t _service) {
 
     std::lock_guard<std::mutex> its_lock(mutex_);
-    bool queued_train(false);
     std::vector<target_data_iterator_type> its_erased;
     boost::system::error_code ec;
 
-    if (_service == ANY_SERVICE) { // endpoint is shutting down completely
+    if (_service == ANY_SERVICE) {
         endpoint_impl<Protocol>::sending_blocked_ = true;
+        if (std::all_of(targets_.begin(), targets_.end(),
+                        [&](const typename target_data_type::value_type &_t)
+                            { return _t.second.queue_.empty(); })) {
+            // nothing was queued and all queues are empty -> ensure cbk is called
+            auto ptr = this->shared_from_this();
+            endpoint_impl<Protocol>::io_.post(
+                    [ptr, _handler]() { _handler(ptr); });
+        } else {
+            prepare_stop_handlers_[_service] = _handler;
+        }
+
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
             auto its_train (t->second.train_);
             // cancel dispatch timer
@@ -65,10 +64,31 @@ void server_endpoint_impl<Protocol>::prepare_stop(
             if (its_train->buffer_->size() > 0) {
                 if (queue_train(t, its_train))
                     its_erased.push_back(t);
-                queued_train = true;
             }
         }
     } else {
+        // check if any of the queues contains a message of to be stopped service
+        bool found_service_msg(false);
+        for (const auto &t : targets_) {
+            for (const auto &q : t.second.queue_) {
+                const service_t its_service = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SERVICE_POS_MIN]);
+                if (its_service == _service) {
+                    found_service_msg = true;
+                    break;
+                }
+            }
+            if (found_service_msg) {
+                break;
+            }
+        }
+        if (found_service_msg) {
+            prepare_stop_handlers_[_service] = _handler;
+        } else { // no messages of the to be stopped service are or have been queued
+            auto ptr = this->shared_from_this();
+            endpoint_impl<Protocol>::io_.post(
+                    [ptr, _handler]() { _handler(ptr); });
+        }
+
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
             auto its_train(t->second.train_);
             for (auto const& passenger_iter : its_train->passengers_) {
@@ -78,7 +98,6 @@ void server_endpoint_impl<Protocol>::prepare_stop(
                     // TODO: Queue all(!) trains here...
                     if (queue_train(t, its_train))
                         its_erased.push_back(t);
-                    queued_train = true;
                     break;
                 }
             }
@@ -87,49 +106,6 @@ void server_endpoint_impl<Protocol>::prepare_stop(
 
     for (const auto t : its_erased)
         targets_.erase(t);
-
-    if (!queued_train) {
-        if (_service == ANY_SERVICE) {
-            if (std::all_of(targets_.begin(), targets_.end(),
-                            [&](const typename target_data_type::value_type &_t)
-                                { return _t.second.queue_.empty(); })) {
-                // nothing was queued and all queues are empty -> ensure cbk is called
-                auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                            _handler(ptr, _service);
-                                                        });
-            } else {
-                prepare_stop_handlers_[_service] = _handler;
-            }
-        } else {
-            // check if any of the queues contains a message of to be stopped service
-            bool found_service_msg(false);
-            for (const auto &t : targets_) {
-                for (const auto &q : t.second.queue_) {
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                                            (*q.first)[VSOMEIP_SERVICE_POS_MIN],
-                                            (*q.first)[VSOMEIP_SERVICE_POS_MAX]);
-                    if (its_service == _service) {
-                        found_service_msg = true;
-                        break;
-                    }
-                }
-                if (found_service_msg) {
-                    break;
-                }
-            }
-            if (found_service_msg) {
-                prepare_stop_handlers_[_service] = _handler;
-            } else { // no messages of the to be stopped service are or have been queued
-                auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, _handler, _service](){
-                                                            _handler(ptr, _service);
-                                                        });
-            }
-        }
-    } else {
-        prepare_stop_handlers_[_service] = _handler;
-    }
 }
 
 template<typename Protocol>
@@ -144,7 +120,10 @@ bool server_endpoint_impl<Protocol>::is_client() const {
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::restart(bool _force) {
     (void)_force;
-    // intentionally left blank
+
+	boost::system::error_code its_error;
+	this->init(server_endpoint_impl<Protocol>::local_, its_error);
+	this->start();
 }
 
 template<typename Protocol>
@@ -186,12 +165,9 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8
             return false;
         }
 
-        const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-        const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-        const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+        const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
 
         clients_mutex_.lock();
         auto found_client = clients_.find(its_client);
@@ -205,9 +181,8 @@ template<typename Protocol>bool server_endpoint_impl<Protocol>::send(const uint8
                 VSOMEIP_WARNING << "server_endpoint::send: session_id 0x"
                         << std::hex << its_session
                         << " not found for client 0x" << its_client;
-                const method_t its_method =
-                        VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                             _data[VSOMEIP_METHOD_POS_MAX]);
+                const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+
                 if (its_service == VSOMEIP_SD_SERVICE
                         && its_method == VSOMEIP_SD_METHOD) {
                     VSOMEIP_ERROR << "Clearing clients map as a request was "
@@ -254,15 +229,11 @@ bool server_endpoint_impl<Protocol>::send_intern(
             break;
     }
     if (!prepare_stop_handlers_.empty()) {
-        const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         if (prepare_stop_handlers_.find(its_service) != prepare_stop_handlers_.end()) {
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
-            const client_t its_client = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_CLIENT_POS_MIN], _data[VSOMEIP_CLIENT_POS_MAX]);
-            const session_t its_session = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SESSION_POS_MIN], _data[VSOMEIP_SESSION_POS_MAX]);
+            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
             VSOMEIP_WARNING << "server_endpoint::send: Service is stopping, ignoring message: ["
                     << std::hex << std::setfill('0')
                     << std::setw(4) << its_service << "."
@@ -287,17 +258,16 @@ bool server_endpoint_impl<Protocol>::send_intern(
     VSOMEIP_DEBUG << msg.str();
 #endif
     // STEP 1: Check queue limit
-    if (!check_queue_limit(_data, _size, its_data.queue_size_)) {
+    if (!check_queue_limit(_data, _size, its_data)) {
         return false;
     }
+
     // STEP 2: Cancel the dispatch timer
     cancel_dispatch_timer(its_target_iterator);
 
     // STEP 3: Get configured timings
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
@@ -375,6 +345,13 @@ bool server_endpoint_impl<Protocol>::send_intern(
 }
 
 template<typename Protocol>
+bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(
+        service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+
+    return false;
+}
+
+template<typename Protocol>
 void server_endpoint_impl<Protocol>::send_segments(
         const tp::tp_split_messages_t &_segments, std::uint32_t _separation_time,
         const endpoint_type &_target) {
@@ -387,10 +364,8 @@ void server_endpoint_impl<Protocol>::send_segments(
 
     auto its_now(std::chrono::steady_clock::now());
 
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN], (*(_segments[0]))[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MIN], (*(_segments[0]))[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_METHOD_POS_MIN]);
 
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     if (its_service != VSOMEIP_SD_SERVICE && its_method != VSOMEIP_SD_METHOD) {
@@ -409,17 +384,16 @@ void server_endpoint_impl<Protocol>::send_segments(
     // messages as we will send several now anyway.
     if (!its_data.train_->passengers_.empty()) {
         schedule_train(its_data);
+        its_data.train_ = std::make_shared<train>();
         its_data.train_->departure_ = its_now + its_retention;
     }
 
     for (const auto &s : _segments) {
-        its_data.queue_.emplace_back(std::make_pair(s, _separation_time));
+        its_data.queue_.emplace_back(s, _separation_time);
         its_data.queue_size_ += s->size();
     }
 
     if (!its_data.is_sending_ && !its_data.queue_.empty()) { // no writing in progress
-        // respect minimal debounce time
-        schedule_train(its_data);
         // ignore retention time and send immediately as the train is full anyway
         (void)send_queued(its_target_iterator);
     }
@@ -462,15 +436,12 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
     if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
             && _size > endpoint_impl<Protocol>::max_message_size_) {
         if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
-            const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
-            if (tp_segmentation_enabled(its_service, its_method)) {
-                instance_t its_instance = this->get_instance(its_service);
-                if (its_instance != 0xFFFF) {
+            const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            instance_t its_instance = this->get_instance(its_service);
+
+            if (its_instance != ANY_INSTANCE) {
+                if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
                     std::uint32_t its_separation_time;
 
@@ -492,11 +463,36 @@ typename endpoint_impl<Protocol>::cms_ret_e server_endpoint_impl<Protocol>::chec
 }
 
 template<typename Protocol>
+void server_endpoint_impl<Protocol>::recalculate_queue_size(endpoint_data_type &_data) const {
+    _data.queue_size_ = 0;
+    for (const auto &q : _data.queue_) {
+        if (q.first) {
+            _data.queue_size_ += q.first->size();
+        }
+    }
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std::uint32_t _size,
-                       std::size_t _current_queue_size) const {
-    if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-            && _current_queue_size + _size
-                    > endpoint_impl<Protocol>::queue_limit_) {
+        endpoint_data_type &_endpoint_data) const {
+
+    // No queue limit --> Fine
+    if (endpoint_impl<Protocol>::queue_limit_ == QUEUE_SIZE_UNLIMITED) {
+        return true;
+    }
+
+    // Current queue size is bigger than the maximum queue size
+    if (_endpoint_data.queue_size_ >= endpoint_impl<Protocol>::queue_limit_) {
+        size_t its_error_queue_size { _endpoint_data.queue_size_ };
+        recalculate_queue_size(_endpoint_data);
+
+        VSOMEIP_WARNING << __func__ << ": Detected possible queue size underflow ("
+            << std::dec << its_error_queue_size  << "). Recalculating it ("
+            << std::dec << _endpoint_data.queue_size_ << ")";
+    }
+
+    if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
+        || _endpoint_data.queue_size_ + _size < _size) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -509,14 +505,10 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
             // [(Command + lowerbyte sender's client ID).
             //  highbyte sender's client ID + lowbyte command size.
             //  lowbyte methodid + highbyte vsomeip length]
-            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                _data[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                               _data[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                               _data[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                _data[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_
@@ -526,7 +518,7 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "]"
-                << " queue_size: " << std::dec << _current_queue_size
+                << " queue_size: " << std::dec << _endpoint_data.queue_size_
                 << " data size: " << _size;
         return false;
     }
@@ -609,11 +601,10 @@ void server_endpoint_impl<Protocol>::connect_cbk(
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::send_cbk(
-        const endpoint_type _key,
-        boost::system::error_code const &_error, std::size_t _bytes) {
+void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
+                                              boost::system::error_code const& _error,
+                                              std::size_t _bytes) {
     (void)_bytes;
-
     // Helper
     auto check_if_all_msgs_for_stopped_service_are_sent = [&]() {
         bool found_service_msg(false);
@@ -627,9 +618,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             }
             for (const auto& t : targets_) {
                 for (const auto& e : t.second.queue_ ) {
-                    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                                            (*e.first)[VSOMEIP_SERVICE_POS_MIN],
-                                            (*e.first)[VSOMEIP_SERVICE_POS_MAX]);
+                    const service_t its_service = bithelper::read_uint16_be(&(*e.first)[VSOMEIP_SERVICE_POS_MIN]);
                     if (its_service == its_stopped_service) {
                         found_service_msg = true;
                         break;
@@ -644,9 +633,7 @@ void server_endpoint_impl<Protocol>::send_cbk(
             } else { // all messages of the to be stopped service have been sent
                 auto handler = stp_hndlr_iter->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler, its_stopped_service](){
-                    handler(ptr, its_stopped_service);
-                });
+                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
                 stp_hndlr_iter = prepare_stop_handlers_.erase(stp_hndlr_iter);
             }
         }
@@ -666,14 +653,11 @@ void server_endpoint_impl<Protocol>::send_cbk(
             if (found_cbk != prepare_stop_handlers_.end()) {
                 auto handler = found_cbk->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler](){
-                    handler(ptr, ANY_SERVICE);
-                });
+                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
                 prepare_stop_handlers_.erase(found_cbk);
             }
         }
     };
-
 
     std::lock_guard<std::mutex> its_lock(mutex_);
 
@@ -698,34 +682,35 @@ void server_endpoint_impl<Protocol>::send_cbk(
         session_t& its_session
     ) {
         if (buffer && buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_SERVICE_POS_MIN],
-                    (*buffer)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_METHOD_POS_MIN],
-                    (*buffer)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_CLIENT_POS_MIN],
-                    (*buffer)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*buffer)[VSOMEIP_SESSION_POS_MIN],
-                    (*buffer)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*buffer)[VSOMEIP_SESSION_POS_MIN]);
         }
     };
+
 
     message_buffer_ptr_t its_buffer;
     if (its_data.queue_.size()) {
         its_buffer = its_data.queue_.front().first;
     }
+
+    if (!its_buffer) {
+        // Pointer not initialized.
+        its_buffer = std::make_shared<message_buffer_t>();
+        VSOMEIP_WARNING << __func__ << ": prevented nullptr de-reference by initializing queue buffer";
+    }
+
     service_t its_service(0);
     method_t its_method(0);
     client_t its_client(0);
     session_t its_session(0);
 
     if (!_error) {
-        const std::size_t payload_size = its_data.queue_.front().first->size();
+        const std::size_t payload_size = its_buffer->size();
         if (payload_size <= its_data.queue_size_) {
             its_data.queue_size_ -= payload_size;
+            its_data.queue_.pop_front();
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
             VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: "
@@ -734,9 +719,9 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
                 << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
-            its_data.queue_size_ = 0;
+            its_data.queue_.pop_front();
+            recalculate_queue_size(its_data);
         }
-        its_data.queue_.pop_front();
 
         update_last_departure(its_data);
 
@@ -798,14 +783,14 @@ void server_endpoint_impl<Protocol>::flush_cbk(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
-
-    std::ostream&& its_services_log{VSOMEIP_INFO};
+    std::stringstream its_services_log;
     its_services_log << __func__ << ": ";
 
     std::lock_guard<std::mutex> its_lock{mutex_};
     for (const auto &its_service : prepare_stop_handlers_)
         its_services_log << std::hex << std::setw(4) << std::setfill('0') << its_service.first << ' ';
 
+    VSOMEIP_INFO << its_services_log.str();
     prepare_stop_handlers_.erase(_service);
 }
 
@@ -877,23 +862,11 @@ void server_endpoint_impl<Protocol>::update_last_departure(
 }
 
 // Instantiate template
-#ifdef __linux__
-#if VSOMEIP_BOOST_VERSION < 106600
-template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#else
+#if defined(__linux__) || defined(__QNX__)
 template class server_endpoint_impl<boost::asio::local::stream_protocol>;
-#endif
-#endif
-
-#ifdef __QNX__
-template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 
 template class server_endpoint_impl<boost::asio::ip::tcp>;
 template class server_endpoint_impl<boost::asio::ip::udp>;
-
-#if VSOMEIP_BOOST_VERSION < 106600
-template class server_endpoint_impl<boost::asio::ip::udp_ext>;
-#endif
 
 }  // namespace vsomeip_v3

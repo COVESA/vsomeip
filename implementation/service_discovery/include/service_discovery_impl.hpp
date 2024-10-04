@@ -85,9 +85,12 @@ public:
 
     bool send(bool _is_announcing);
 
-    void on_message(const byte_t *_data, length_t _length,
-            const boost::asio::ip::address &_sender,
-            bool _is_multicast);
+    void on_message(const byte_t* _data, length_t _length, const boost::asio::ip::address& _sender,
+                    bool _is_multicast);
+
+    void
+    sent_messages(const byte_t* _data, length_t _size,
+                  const boost::asio::ip::address& _remote_address = boost::asio::ip::address());
 
     void on_endpoint_connected(
             service_t _service, instance_t _instance,
@@ -149,19 +152,21 @@ private:
         bool sd_acceptance_required_;
         bool accept_entries_;
     };
-    void process_serviceentry(std::shared_ptr<serviceentry_impl> &_entry,
-            const std::vector<std::shared_ptr<option_impl> > &_options,
-            bool _unicast_flag, std::vector<std::shared_ptr<message_impl> > &_resubscribes,
-            bool _received_via_mcast, const sd_acceptance_state_t& _sd_ac_state);
+
+    void process_serviceentry(std::shared_ptr<serviceentry_impl>& _entry,
+                              const std::vector<std::shared_ptr<option_impl>>& _options,
+                              bool _unicast_flag,
+                              std::vector<std::shared_ptr<message_impl>>& _resubscribes,
+                              bool _received_via_multicast,
+                              const sd_acceptance_state_t& _sd_ac_state);
+    void check_sent_offers(const message_impl::entries_t& _entries,
+                           const boost::asio::ip::address& _remote_address) const;
     void process_offerservice_serviceentry(
             service_t _service, instance_t _instance, major_version_t _major,
-            minor_version_t _minor, ttl_t _ttl,
-            const boost::asio::ip::address &_reliable_address,
-            uint16_t _reliable_port,
-            const boost::asio::ip::address &_unreliable_address,
-            uint16_t _unreliable_port,
-            std::vector<std::shared_ptr<message_impl> > &_resubscribes,
-            bool _received_via_mcast, const sd_acceptance_state_t& _sd_ac_state);
+            minor_version_t _minor, ttl_t _ttl, const boost::asio::ip::address& _reliable_address,
+            uint16_t _reliable_port, const boost::asio::ip::address& _unreliable_address,
+            uint16_t _unreliable_port, std::vector<std::shared_ptr<message_impl>>& _resubscribes,
+            bool _received_via_multicast, const sd_acceptance_state_t& _sd_ac_state);
     void send_offer_service(
             const std::shared_ptr<const serviceinfo> &_info, service_t _service,
             instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -180,18 +185,16 @@ private:
             bool _is_multicast,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
             const sd_acceptance_state_t& _sd_ac_state);
-    void handle_eventgroup_subscription(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+    void handle_eventgroup_subscription(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter, uint16_t _reserved,
-            const boost::asio::ip::address &_first_address, uint16_t _first_port,
-            bool _is_first_reliable,
-            const boost::asio::ip::address &_second_address, uint16_t _second_port,
-            bool _is_second_reliable,
-            std::shared_ptr<remote_subscription_ack> &_acknowledgement,
+            const boost::asio::ip::address& _first_address, uint16_t _first_port,
+            bool _is_first_reliable, const boost::asio::ip::address& _second_address,
+            uint16_t _second_port, bool _is_second_reliable,
+            std::shared_ptr<remote_subscription_ack>& _acknowledgement,
             bool _is_stop_subscribe_subscribe, bool _force_initial_events,
-            const std::set<client_t> &_clients,
-            const sd_acceptance_state_t& _sd_ac_state,
-            const std::shared_ptr<eventgroupinfo>& _info);
+            const std::set<client_t>& _clients, const sd_acceptance_state_t& _sd_ac_state,
+            const std::shared_ptr<eventgroupinfo>& _info, const boost::asio::ip::address& _sender);
     void handle_eventgroup_subscription_ack(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, ttl_t _ttl, uint8_t _counter,
@@ -317,10 +320,10 @@ private:
 
     bool update_remote_offer_type(service_t _service, instance_t _instance,
                                   reliability_type_e _offer_type,
-                                  const boost::asio::ip::address &_reliable_address,
+                                  const boost::asio::ip::address& _reliable_address,
                                   std::uint16_t _reliable_port,
-                                  const boost::asio::ip::address &_unreliable_address,
-                                  std::uint16_t _unreliable_port);
+                                  const boost::asio::ip::address& _unreliable_address,
+                                  std::uint16_t _unreliable_port, bool _received_via_multicast);
     void remove_remote_offer_type(service_t _service, instance_t _instance,
                                   const boost::asio::ip::address &_reliable_address,
                                   std::uint16_t _reliable_port,
@@ -330,11 +333,19 @@ private:
     void remove_remote_offer_type_by_ip(const boost::asio::ip::address &_address,
                                         std::uint16_t _port, bool _reliable);
 
-    std::shared_ptr<subscription> create_subscription(
-            major_version_t _major, ttl_t _ttl,
-            const std::shared_ptr<endpoint> &_reliable,
-            const std::shared_ptr<endpoint> &_unreliable,
-            const std::shared_ptr<eventgroupinfo> &_info);
+    // Returns true if the state changes from unicast -> multicast, false any of the other 3 cases
+    bool set_offer_multicast_state(service_t _service, instance_t _instance,
+                                   reliability_type_e _offer_type,
+                                   const boost::asio::ip::address& _reliable_address,
+                                   port_t _reliable_port,
+                                   const boost::asio::ip::address& _unreliable_address,
+                                   std::uint16_t _unreliable_port, bool _received_via_multicast);
+
+    std::shared_ptr<subscription>
+    create_subscription(major_version_t _major, ttl_t _ttl,
+                        const std::shared_ptr<endpoint>& _reliable,
+                        const std::shared_ptr<endpoint>& _unreliable,
+                        const std::shared_ptr<eventgroupinfo>& _info) const;
 
     std::shared_ptr<remote_subscription> get_remote_subscription(
             const service_t _service, const instance_t _instance,
@@ -360,6 +371,9 @@ private:
     reliability_type_e get_eventgroup_reliability(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<subscription>& _subscription);
+    void deserialize_data(const byte_t* _data, const length_t& _size,
+                          std::shared_ptr<message_impl>& _message);
+
 private:
     boost::asio::io_context &io_;
     service_discovery_host *host_;
@@ -385,6 +399,7 @@ private:
     std::recursive_mutex subscribed_mutex_;
 
     std::mutex serialize_mutex_;
+    std::mutex deserialize_mutex_;
 
     // Sessions
     std::map<boost::asio::ip::address, std::pair<session_t, bool> > sessions_sent_;
@@ -463,9 +478,31 @@ private:
 
     mutable std::mutex remote_offer_types_mutex_;
     std::map<std::pair<service_t, instance_t>, reliability_type_e> remote_offer_types_;
+
+    struct remote_offer_info_t {
+        std::pair<service_t, instance_t> service_info;
+
+        // The goal of this flag is to handle the SOMEIPSD_00577 requirement
+        // To do so we will keep track of the last received offer for a given service+instance pair
+        // The transition between unicast > multicast should be less strict in validations
+        // and not trigger a [StopSubscribe][Subscribe]
+        // It shall be mutable to allow the value to be updated within a std::set
+        mutable bool offer_received_via_multicast;
+
+        remote_offer_info_t(service_t _service, instance_t _instance,
+                            bool _received_via_multicast = true) :
+            service_info(std::make_pair(_service, _instance)),
+            offer_received_via_multicast(_received_via_multicast) { }
+
+        // Use the service_info pair as the key for unique values within a std::set
+        bool operator<(const remote_offer_info_t& other) const {
+            return service_info < other.service_info;
+        }
+    };
+
     std::map<boost::asio::ip::address,
-            std::map<std::pair<bool, std::uint16_t>,
-                std::set<std::pair<service_t, instance_t>>>> remote_offers_by_ip_;
+             std::map<std::pair<bool, std::uint16_t>, std::set<remote_offer_info_t>>>
+            remote_offers_by_ip_;
 
     reboot_notification_handler_t reboot_notification_handler_;
     sd_acceptance_handler_t sd_acceptance_handler_;

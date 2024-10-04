@@ -129,8 +129,8 @@ public:
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_registered_ = false;
-            condition_.notify_one();
         }
+        condition_.notify_one();
     }
 
     void on_availability(vsomeip::service_t _service,
@@ -155,8 +155,8 @@ public:
                                 return v.second;})) {
                 std::lock_guard<std::mutex> its_lock(mutex_);
                 wait_until_other_services_available_ = false;
-                condition_.notify_one();
             }
+            condition_.notify_one();
         }
     }
 
@@ -202,9 +202,9 @@ public:
             // notify the notify thread to start sending out notifications
             std::lock_guard<std::mutex> its_lock(notify_mutex_);
             wait_for_notify_ = false;
-            notify_condition_.notify_one();
             notified = true;
         }
+        notify_condition_.notify_one();
         return true;
     }
 
@@ -241,8 +241,8 @@ public:
             if(all_notifications_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 wait_for_stop_ = false;
-                stop_condition_.notify_one();
             }
+            stop_condition_.notify_one();
         }
     }
 
@@ -389,8 +389,8 @@ public:
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_notified_from_other_services_ = false;
-            condition_.notify_one();
         }
+        condition_.notify_one();
 
         stop_offer();
 

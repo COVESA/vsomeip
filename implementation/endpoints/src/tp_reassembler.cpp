@@ -12,7 +12,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/tp.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
@@ -39,14 +39,10 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
 
     cleanup_timer_start(false);
 
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                        _data[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                                      _data[VSOMEIP_METHOD_POS_MAX]);
-    const client_t its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                                      _data[VSOMEIP_CLIENT_POS_MAX]);
-    const session_t its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                      _data[VSOMEIP_SESSION_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+    const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+    const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
     const interface_version_t its_interface_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
     const message_type_e its_msg_type = tp::tp_flag_unset(_data[VSOMEIP_MESSAGE_TYPE_POS]);
 
@@ -129,11 +125,11 @@ bool tp_reassembler::cleanup_unfinished_messages() {
                         now - tp_id_iter->second.second.get_creation_time()).count()
                         > 5000) {
                     // message is older than 5 seconds delete it
-                    const service_t its_service = static_cast<service_t>(tp_id_iter->first >> 48);
-                    const method_t its_method = static_cast<method_t>(tp_id_iter->first >> 32);
-                    const client_t its_client = static_cast<client_t>(tp_id_iter->first >> 16);
-                    const interface_version_t its_interface_version = static_cast<interface_version_t>(tp_id_iter->first >> 8);
-                    const message_type_e its_msg_type = static_cast<message_type_e>(tp_id_iter->first >> 0);
+                    const auto its_service = static_cast<service_t>(tp_id_iter->first >> 48);
+                    const auto its_method = static_cast<method_t>(tp_id_iter->first >> 32);
+                    const auto its_client = static_cast<client_t>(tp_id_iter->first >> 16);
+                    const auto its_interface_version = static_cast<interface_version_t>(tp_id_iter->first >> 8);
+                    const auto its_msg_type = static_cast<message_type_e>(tp_id_iter->first >> 0);
                     VSOMEIP_WARNING << __func__
                             << ": deleting unfinished SOME/IP-TP message from: "
                             << ip_iter->first.to_string() << ":" << std::dec

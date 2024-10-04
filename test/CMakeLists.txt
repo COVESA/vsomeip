@@ -127,13 +127,13 @@ add_dependencies(build_tests build_benchmark_tests)
 ##############################################################################
 
 add_subdirectory(common EXCLUDE_FROM_ALL)
-add_subdirectory( network_tests EXCLUDE_FROM_ALL )
+add_subdirectory(network_tests EXCLUDE_FROM_ALL)
 
 if (NOT DISABLE_SECURITY)
-    add_subdirectory( unit_tests EXCLUDE_FROM_ALL )
+    add_subdirectory(unit_tests EXCLUDE_FROM_ALL)
 
     if(benchmark_FOUND)
-        add_subdirectory( benchmark_tests EXCLUDE_FROM_ALL )
+        add_subdirectory(benchmark_tests EXCLUDE_FROM_ALL)
     endif()
 endif()
 

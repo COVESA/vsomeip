@@ -6,6 +6,9 @@
 #ifndef APPLICATION_TEST_GLOBALS_HPP_
 #define APPLICATION_TEST_GLOBALS_HPP_
 
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/sync/interprocess_condition.hpp>
+
 namespace application_test {
 
 struct service_info {
@@ -19,8 +22,16 @@ struct service_info {
     vsomeip::minor_version_t minor_version;
 };
 
+struct service_info service = {0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x2, 0x4711};
 
-struct service_info service = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x2, 0x4711 };
+struct dispatch_threads_sync {
+    enum test_status { SUCCESS_ABORTING = 0x00, SUCCESS_WAITING = 0x01, TEST_FAILURE = 0x02 };
+
+    boost::interprocess::interprocess_mutex mutex;
+    boost::interprocess::interprocess_condition cv;
+
+    test_status status_;
+};
 
 static constexpr int number_of_messages_to_send = 150;
 }

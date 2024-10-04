@@ -38,7 +38,7 @@ public:
             stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
             send_thread_(std::bind(&application_test_client::send, this)) {
         if (!app_->init()) {
-            ADD_FAILURE() << "Couldn't initialize application";
+            ADD_FAILURE() << "[Client] Couldn't initialize application";
             return;
         }
         app_->register_state_handler(
@@ -74,41 +74,40 @@ public:
     }
 
     void on_state(vsomeip::state_type_e _state) {
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
+        VSOMEIP_INFO << "[Client] Application " << app_->get_name() << " is "
         << (_state == vsomeip::state_type_e::ST_REGISTERED ?
                 "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock {mutex_};
             wait_until_registered_ = false;
             condition_.notify_one();
         }
     }
 
-    void on_availability(vsomeip::service_t _service,
-                         vsomeip::instance_t _instance, bool _is_available) {
-            VSOMEIP_INFO << "Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _service << "." << _instance
-            << "] is " << (_is_available ? "available":"not available") << ".";
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            if(_is_available) {
-                wait_until_service_available_ = false;
-                condition_.notify_one();
-            } else {
-                wait_until_service_available_ = true;
-                condition_.notify_one();
-            }
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
+                         bool _is_available) {
+        VSOMEIP_INFO << "[Client] Service [" << std::setw(4) << std::setfill('0') << std::hex
+                     << _service << "." << _instance << "] is "
+                     << (_is_available ? "available" : "not available") << ".";
+        std::scoped_lock its_lock {mutex_};
+        if (_is_available) {
+            wait_until_service_available_ = false;
+            condition_.notify_one();
+        } else {
+            wait_until_service_available_ = true;
+            condition_.notify_one();
+        }
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         ++received_responses_;
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        VSOMEIP_INFO << "Received a response with Client/Session ["
-                << std::setfill('0') << std::hex
-                << std::setw(4) << _message->get_client() << "/"
-                << std::setw(4) << _message->get_session() << "]";
+        VSOMEIP_INFO << "[Client] Received a response with Client/Session [" << std::setfill('0')
+                     << std::hex << std::setw(4) << _message->get_client() << "/" << std::setw(4)
+                     << _message->get_session() << "]";
     }
 
     void send() {
@@ -124,24 +123,22 @@ public:
         its_lock.release();
 
         for (;;) {
-            bool send(false);
             {
-                std::lock_guard<std::mutex> its_lock(mutex_);
-                send = !wait_until_service_available_;
+                std::scoped_lock its_lock {mutex_};
+                if (!wait_until_service_available_ && !stop_called_) {
+                    std::shared_ptr<vsomeip::message> its_req =
+                            vsomeip::runtime::get()->create_request();
+                    its_req->set_service(service_info_.service_id);
+                    its_req->set_instance(service_info_.instance_id);
+                    its_req->set_method(service_info_.method_id);
+                    app_->send(its_req);
+                    ++sent_requests_;
+                    VSOMEIP_INFO << "[Client] Sent a request to the service!";
+                }
             }
-            if (send && !stop_called_) {
-                std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
-                its_req->set_service(service_info_.service_id);
-                its_req->set_instance(service_info_.instance_id);
-                its_req->set_method(service_info_.method_id);
-                app_->send(its_req);
-                ++sent_requests_;
-                VSOMEIP_INFO << "Sent a request to the service!";
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            }
-            if(stop_called_) {
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if (stop_called_) {
                 break;
             }
         }
@@ -152,26 +149,25 @@ public:
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "going down";
+        VSOMEIP_INFO << "[Client] Going down!";
         app_->clear_all_handler();
         app_->stop();
     }
 
     void stop(bool check) {
         stop_called_ = true;
-        std::lock_guard<std::mutex> its_lock(stop_mutex_);
+        std::scoped_lock its_lock {stop_mutex_};
         wait_for_stop_ = false;
-        VSOMEIP_INFO << "going down. Sent " << sent_requests_
+        VSOMEIP_INFO << "[Client] Going down. Sent " << sent_requests_
                 << " requests and received " << received_responses_
                 << " responses. Delta: " << sent_requests_ - received_responses_;
-        std::uint32_t counter(0);
+
         if (check) {
-            while(sent_requests_ == 0 || sent_requests_ < received_responses_) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                if(++counter > 50) {
-                    break;
-                }
+            while (sent_requests_ == 0 || sent_requests_ < received_responses_) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
+            // time to be sure the sent message is sent by routing manager
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             EXPECT_GT(sent_requests_, 0u);
             EXPECT_GT(received_responses_, 0u);
             EXPECT_EQ(sent_requests_, received_responses_);

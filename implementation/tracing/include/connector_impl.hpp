@@ -71,6 +71,8 @@ private:
 
     std::shared_ptr<channel_impl> get_channel_impl(const std::string &_id) const;
 
+    std::mutex configure_mutex_;
+
 #ifdef USE_DLT
 #ifndef ANDROID
     std::map<std::string, std::shared_ptr<DltContext>> contexts_;
