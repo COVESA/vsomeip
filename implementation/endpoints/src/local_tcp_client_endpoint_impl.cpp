@@ -249,14 +249,16 @@ void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
         boost::asio::async_write(
             *socket_,
             bufs,
-            std::bind(
-                &client_endpoint_impl::send_cbk,
-                std::dynamic_pointer_cast<
-                    local_tcp_client_endpoint_impl
-                >(shared_from_this()),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                _entry.first
+            strand_.wrap(
+                std::bind(
+                    &client_endpoint_impl::send_cbk,
+                    std::dynamic_pointer_cast<
+                        local_tcp_client_endpoint_impl
+                    >(shared_from_this()),
+                    std::placeholders::_1,
+                    std::placeholders::_2,
+                    _entry.first
+                )
             )
         );
     }
