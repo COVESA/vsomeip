@@ -583,7 +583,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
                         << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_method << "."
-                        << std::setw(4) << its_session << "]";
+                        << std::setw(4) << its_session << "]"
                         << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
             }
         }
@@ -652,7 +652,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
-                << std::setw(4) << its_session << "]";
+                << std::setw(4) << its_session << "]"
                 << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         print_status();
     }
