@@ -993,10 +993,11 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                     << _error.value() << ") " << get_remote_information()
                     << " " << std::dec << queue_.size()
                     << " " << std::dec << queue_size_ << " ("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_client << "): ["
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_method << "."
+                    << std::setw(4) << its_session << "]";
         }
     }
 }

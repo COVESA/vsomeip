@@ -755,13 +755,15 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
         parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
-        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message() << " (" << std::dec
-                        << _error.value() << ") " << get_remote_information(it) << " " << std::dec
-                        << its_data.queue_.size() << " " << std::dec << its_data.queue_size_ << " ("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message()
+                << " (" << std::dec << _error.value() << ") "
+                << get_remote_information(it) << " "
+                << its_data.queue_size_ << " ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]";
         cancel_dispatch_timer(it);
         targets_.erase(it);
         if (!prepare_stop_handlers_.empty()) {
