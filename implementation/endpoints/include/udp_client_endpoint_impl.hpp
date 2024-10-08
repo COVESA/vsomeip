@@ -65,7 +65,10 @@ private:
     std::string get_address_port_remote() const;
     std::string get_address_port_local() const;
     std::string get_remote_information() const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
+    bool tp_segmentation_enabled(
+            service_t _service,
+            instance_t _instance,
+            method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 

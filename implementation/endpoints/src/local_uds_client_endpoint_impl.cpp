@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <iomanip>
 #include <sstream>
 
@@ -26,18 +27,18 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
         const endpoint_type& _remote,
-        boost::asio::io_context &_io,
+        boost::asio::io_context& _io,
         const std::shared_ptr<configuration>& _configuration)
     : local_uds_client_endpoint_base_impl(_endpoint_host, _routing_host, _remote,
-                                          _remote, _io,
-                                          _configuration->get_max_message_size_local(),
-                                          _configuration->get_endpoint_queue_limit_local(),
-                                          _configuration),
+                                          _remote, _io, _configuration),
                                           // Using _remote for the local(!) endpoint is ok,
                                           // because we have no bind for local endpoints!
       recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
     is_supporting_magic_cookies_ = false;
+
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
 bool local_uds_client_endpoint_impl::is_local() const {
@@ -65,8 +66,13 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
 }
 
 void local_uds_client_endpoint_impl::start() {
-
-    connect();
+    if (state_ == cei_state_e::CLOSED) {
+        {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+        }
+        connect();
+    }
 }
 
 void local_uds_client_endpoint_impl::stop() {
@@ -258,6 +264,11 @@ void local_uds_client_endpoint_impl::receive_cbk(
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
+        } else if (_error == boost::asio::error::eof) {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+            queue_.clear();
+            queue_size_ = 0;
         } else if (_error == boost::asio::error::connection_reset
                 || _error == boost::asio::error::bad_descriptor) {
             restart(true);
@@ -359,14 +370,6 @@ bool local_uds_client_endpoint_impl::is_reliable() const {
 std::uint32_t local_uds_client_endpoint_impl::get_max_allowed_reconnects() const {
 
     return 13;
-}
-
-bool local_uds_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
 }
 
 void local_uds_client_endpoint_impl::max_allowed_reconnects_reached() {

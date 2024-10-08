@@ -35,17 +35,18 @@ public:
               queue_size_(0),
               is_sending_(false),
               sent_timer_(_io),
-			  io_(_io) {
+              io_(_io) {
         }
 
         endpoint_data_type(const endpoint_data_type &&_source)
-        	: train_(_source.train_),
-			  dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_source.io_)),
-			  has_last_departure_(_source.has_last_departure_),
-			  queue_size_(_source.queue_size_),
-			  is_sending_(_source.is_sending_),
-			  sent_timer_(_source.io_),
-			  io_(_source.io_) {
+            : train_(_source.train_),
+              dispatch_timer_(std::make_shared<boost::asio::steady_timer>(_source.io_)),
+              has_last_departure_(_source.has_last_departure_),
+              queue_(_source.queue_),
+              queue_size_(_source.queue_size_),
+              is_sending_(_source.is_sending_),
+              sent_timer_(_source.io_),
+              io_(_source.io_) {
         }
 
         std::shared_ptr<train> train_;
@@ -69,11 +70,12 @@ public:
 
     server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,
-                         endpoint_type _local, boost::asio::io_context &_io,
-                         std::uint32_t _max_message_size,
-                         configuration::endpoint_queue_limit_t _queue_limit,
+                         boost::asio::io_context &_io,
                          const std::shared_ptr<configuration>& _configuration);
-    virtual ~server_endpoint_impl();
+    virtual ~server_endpoint_impl() = default;
+
+    virtual void init(const endpoint_type& _local, boost::system::error_code& _error) = 0;
+    virtual void stop();
 
     bool is_client() const;
     void restart(bool _force);
@@ -87,7 +89,6 @@ public:
 
     void prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
                       service_t _service);
-    virtual void stop();
     bool flush(endpoint_type _it);
 
     size_t get_queue_size() const;
@@ -122,7 +123,7 @@ protected:
             const std::uint8_t * const _data, std::uint32_t _size,
             const endpoint_type &_target);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size,
-                           std::size_t _current_queue_size) const;
+                           endpoint_data_type &_endpoint_data) const;
     bool queue_train(const target_data_iterator_type _it,
             const std::shared_ptr<train> &_train);
 
@@ -147,7 +148,8 @@ private:
     virtual std::string get_remote_information(
             const endpoint_type& _remote) const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         method_t _method) const = 0;
+                                         instance_t _instance,
+                                         method_t _method) const;
 
     void schedule_train(endpoint_data_type &_target);
     void update_last_departure(endpoint_data_type &_data);
@@ -155,6 +157,8 @@ private:
     void start_dispatch_timer(target_data_iterator_type _it,
             const std::chrono::steady_clock::time_point &_now);
     void cancel_dispatch_timer(target_data_iterator_type _it);
+
+    void recalculate_queue_size(endpoint_data_type &_data) const;
 };
 
 } // namespace vsomeip_v3

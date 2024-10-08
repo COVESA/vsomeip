@@ -29,8 +29,8 @@ public:
     void wait();
 
 private:
-    void on_start(const std::shared_ptr<vsomeip::message> &_message);
-    void on_stop(const std::shared_ptr<vsomeip::message> &_message);
+    void on_start(const std::shared_ptr<vsomeip::message>& _message);
+    void on_stop(const std::shared_ptr<vsomeip::message>& _message);
 
     void start_test();
 
@@ -40,6 +40,5 @@ private:
     std::thread runner_;
     std::shared_ptr<vsomeip::application> app_;
 };
-
 
 #endif // DEBOUNCE_CALLBACK_TEST_SERVICE_HPP_

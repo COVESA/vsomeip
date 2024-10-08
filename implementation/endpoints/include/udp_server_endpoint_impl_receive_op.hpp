@@ -6,8 +6,6 @@
 #ifndef VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 #define VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
-#if VSOMEIP_BOOST_VERSION >= 106600
-
 #ifdef _WIN32
 #include <ws2def.h>
 #endif
@@ -18,6 +16,11 @@
 #include <boost/asio/ip/udp.hpp>
 
 #include <vsomeip/internal/logger.hpp>
+
+#if defined(__QNX__)
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 
 namespace vsomeip_v3 {
 namespace udp_endpoint_receive_op {
@@ -32,7 +35,7 @@ struct storage :
     public std::enable_shared_from_this<storage>
 {
     std::recursive_mutex &multicast_mutex_;
-    socket_type_t &socket_;
+    std::weak_ptr<socket_type_t> socket_;
     endpoint_type_t &sender_;
     receive_handler_t handler_;
     byte_t *buffer_ = nullptr;
@@ -44,7 +47,7 @@ struct storage :
 
     storage(
         std::recursive_mutex &_multicast_mutex,
-        socket_type_t &_socket,
+        std::weak_ptr<socket_type_t> _socket,
         endpoint_type_t &_sender,
         receive_handler_t _handler,
         byte_t *_buffer,
@@ -62,7 +65,7 @@ struct storage :
         multicast_id_(_multicast_id),
         is_v4_(_is_v4),
         destination_(_destination),
-        bytes_(_bytes) 
+        bytes_(_bytes)
     {}
 };
 
@@ -75,15 +78,21 @@ receive_cb (std::shared_ptr<storage> _data) {
 
             std::lock_guard<std::recursive_mutex> its_lock(_data->multicast_mutex_);
 
-            if (!_data->socket_.native_non_blocking())
-                _data->socket_.native_non_blocking(true, _error);
+            auto multicast_socket = _data->socket_.lock();
+            if (!multicast_socket) {
+                VSOMEIP_WARNING << "udp_endpoint_receive_op::receive_cb: multicast_socket with id " << int{_data->multicast_id_} << " has expired!";
+                return;
+            }
+
+            if (!multicast_socket->native_non_blocking())
+                multicast_socket->native_non_blocking(true, _error);
 
             for (;;) {
 #ifdef _WIN32
                 GUID WSARecvMsg_GUID = WSAID_WSARECVMSG;
                 LPFN_WSARECVMSG WSARecvMsg;
                 DWORD its_bytes;
-                SOCKET its_socket { _data->socket_.native_handle() };
+                SOCKET its_socket { multicast_socket->native_handle() };
 
                 WSAIoctl(its_socket, SIO_GET_EXTENSION_FUNCTION_POINTER,
                     &WSARecvMsg_GUID, sizeof WSARecvMsg_GUID,
@@ -146,7 +155,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
 
-                    _data->socket_.async_wait(
+                    multicast_socket->async_wait(
                         socket_type_t::wait_read,
                         receive_cb(_data)
                     );
@@ -221,7 +230,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 int its_flags { 0 };
 
                 // Create control elements
-                msghdr its_header = msghdr();
+                auto its_header = msghdr();
                 struct iovec its_vec[1];
 
                 // Prepare
@@ -263,7 +272,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 // Call recvmsg and handle its result
                 errno = 0;
-                its_result = ::recvmsg(_data->socket_.native_handle(), &its_header, its_flags);
+                its_result = ::recvmsg(multicast_socket->native_handle(), &its_header, its_flags);
 
                 _error = boost::system::error_code(its_result < 0 ? errno : 0,
                         boost::asio::error::get_system_category());
@@ -274,8 +283,8 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 if (_error == boost::asio::error::would_block
                         || _error == boost::asio::error::try_again) {
-                    _data->socket_.async_wait(
-                        socket_type_t::wait_read, 
+                    multicast_socket->async_wait(
+                        socket_type_t::wait_read,
                         receive_cb(_data)
                     );
                     return;
@@ -296,11 +305,12 @@ receive_cb (std::shared_ptr<storage> _data) {
                     _data->sender_ = endpoint_type_t(its_sender_address, its_sender_port);
 
                     // destination
-                    struct in_pktinfo *its_pktinfo_v4;
                     for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&its_header);
                          cmsg != NULL;
                          cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
 
+#if defined(IP_PKTINFO)
+                        struct in_pktinfo *its_pktinfo_v4;
                         if (cmsg->cmsg_level == IPPROTO_IP
                             && cmsg->cmsg_type == IP_PKTINFO
                             && cmsg->cmsg_len == CMSG_LEN(sizeof(*its_pktinfo_v4))) {
@@ -312,6 +322,22 @@ receive_cb (std::shared_ptr<storage> _data) {
                                 break;
                             }
                         }
+#elif defined(IP_RECVDSTADDR)
+                        struct in_addr *its_pktinfo_v4;
+                        if (cmsg->cmsg_level == IPPROTO_IP
+                            && cmsg->cmsg_type == IP_RECVDSTADDR
+                            && cmsg->cmsg_len == CMSG_LEN(sizeof(*its_pktinfo_v4))) {
+
+                            its_pktinfo_v4 = (struct in_addr*) CMSG_DATA(cmsg);
+                            if (its_pktinfo_v4) {
+                                _data->destination_ = boost::asio::ip::address_v4(
+                                        ntohl(its_pktinfo_v4->s_addr));
+                                break;
+                            }
+                        }
+#else
+                        #error "Platform not supported. Neither IP_PKTINFO nor IP_RECVDSTADDR is defined.";
+#endif
                     }
                 } else {
                     boost::asio::ip::address_v6::bytes_type its_bytes;
@@ -355,7 +381,5 @@ receive_cb (std::shared_ptr<storage> _data) {
 
 } // namespace udp_endpoint_receive_op
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_BOOST_VERSION >= 106600
 
 #endif // VSOMEIP_V3_UDP_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_

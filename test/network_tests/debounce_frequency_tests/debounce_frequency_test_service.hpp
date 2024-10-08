@@ -18,21 +18,20 @@
 #include "debounce_frequency_test_common.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class test_service : public vsomeip_utilities::base_vsip_app
-{
+class test_service : public vsomeip_utilities::base_vsip_app {
 private:
     std::condition_variable condition_wait_start;
     std::mutex mutex;
-    bool received_message { false };
+    bool received_message {false};
     std::chrono::time_point<std::chrono::system_clock> start_time;
-    bool event_1_sent_messages { false };
-    bool event_2_sent_messages { false };
+    bool event_1_sent_messages {false};
+    bool event_2_sent_messages {false};
 
     void on_start(const std::shared_ptr<vsomeip::message> /*&_message*/);
     void on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/);
 
 public:
-    test_service(const char *app_name_, const char *app_id_);
+    test_service(const char* app_name_, const char* app_id_);
 
     void send_messages();
     bool was_event_1_sent();

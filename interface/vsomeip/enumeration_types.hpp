@@ -102,6 +102,11 @@ enum class handler_registration_type_e : uint8_t {
     HRT_UNKNOWN = 0xFF
 };
 
+enum class endianess_e {
+    be,     // big-endian
+    le      // little-endian
+};
+
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_ENUMERATION_TYPES_HPP_

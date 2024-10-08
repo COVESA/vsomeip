@@ -64,10 +64,6 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         app_->clear_all_handler();
         app_->unsubscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
@@ -75,7 +71,6 @@ public:
         app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         app_->stop();
     }
-#endif
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
@@ -178,6 +173,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

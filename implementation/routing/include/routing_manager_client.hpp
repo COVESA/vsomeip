@@ -233,9 +233,9 @@ private:
         ST_ASSIGNED = 0x4
     };
 
-    std::atomic<bool> is_connected_;
-    std::atomic<bool> is_started_;
-    inner_state_type_e state_;
+    std::atomic_bool is_connected_;
+    std::atomic_bool is_started_;
+    std::atomic<inner_state_type_e> state_;
 
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody

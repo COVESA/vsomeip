@@ -25,7 +25,6 @@
 #include "client_endpoint.hpp"
 #include "tp.hpp"
 
-
 namespace vsomeip_v3 {
 
 class endpoint;
@@ -42,8 +41,6 @@ public:
                          const std::shared_ptr<routing_host>& _routing_host,
                          const endpoint_type& _local, const endpoint_type& _remote,
                          boost::asio::io_context &_io,
-                         std::uint32_t _max_message_size,
-                         configuration::endpoint_queue_limit_t _queue_limit,
                          const std::shared_ptr<configuration>& _configuration);
     virtual ~client_endpoint_impl();
 
@@ -153,7 +150,8 @@ private:
     virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         method_t _method) const = 0;
+                                         instance_t _instance,
+                                         method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
     void send_segments(const tp::tp_split_messages_t &_segments,
