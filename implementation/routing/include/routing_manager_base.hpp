@@ -352,7 +352,7 @@ protected:
     std::mutex routing_state_mutex_;
     routing_state_e routing_state_;
 
-#ifdef USE_DLT || defined(TRACE_TO_LOGS)
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     std::shared_ptr<trace::connector_impl> tc_;
 #endif
 

@@ -27,7 +27,7 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
         configuration_(host_->get_configuration()),
         debounce_timer(host_->get_io()),
         routing_state_(routing_state_e::RS_UNKNOWN)
-#ifdef USE_DLT || defined(TRACE_TO_LOGS)
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         , tc_(trace::connector_impl::get())
 #endif
 {
