@@ -1531,9 +1531,10 @@ std::shared_ptr<configuration> application_impl::get_configuration() const {
 std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
 #ifndef VSOMEIP_DISABLE_SECURITY
     return configuration_->get_policy_manager();
-#endif
+#else
     VSOMEIP_WARNING << __func__ << ": manager is not available when security is disabled.";
     return {};
+#endif
 }
 
 diagnosis_t application_impl::get_diagnosis() const {
