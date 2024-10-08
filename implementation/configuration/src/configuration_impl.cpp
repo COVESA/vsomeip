@@ -4475,7 +4475,7 @@ void configuration_impl::load_someip_tp_for_service(
                                 << std::setw(4) << its_method << "]:"
                                 << " using (" << std::dec
                                 << its_entry->second.first << ", "
-                                << std::dec << its_entry->second.second << ")";
+                                << its_entry->second.second << ")";
                     }
                 }
             } else {
