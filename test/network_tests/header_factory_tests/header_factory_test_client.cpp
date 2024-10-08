@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "header_factory_test_client.hpp"
 
 header_factory_test_client::header_factory_test_client(bool _use_tcp) :

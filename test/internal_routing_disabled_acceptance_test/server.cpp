@@ -8,6 +8,7 @@
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "config.hpp"
 
@@ -35,7 +36,7 @@ server::init() {
                 switch(message->get_message_type())
                 {
                 case vsomeip_v3::message_type_e::MT_REQUEST:
-                    std::cout << "GOT REQUEST\n";
+                    VSOMEIP_INFO << "GOT REQUEST";
                     me->counter_method_request++;
                     {
                         std::shared_ptr response = runtime->create_response(message);
@@ -56,7 +57,8 @@ server::init() {
                     break;
 
                 default:
-                    std::cout << "unhandled message type: " << unsigned(message->get_message_type()) << '\n';
+                    VSOMEIP_ERROR << "unhandled message type: "
+                                  << unsigned(message->get_message_type());
                 }
             }
         }
@@ -142,5 +144,5 @@ void server::on_state_registered()
 
 void server::on_state_deregistered()
 {
-    std::cout << "Server is deregistered!!! Probably could not be registered!!!\n";
+    VSOMEIP_WARNING << "Server is deregistered!!! Probably could not be registered!!!";
 }

@@ -1,10 +1,10 @@
 {
   "unicast" : "@TEST_IP_SLAVE@",
   "logging": {
-    "level": "verbose",
+    "level": "info",
     "console": "true",
     "file": {
-      "enable": "true",
+      "enable": "false",
       "path": "/tmp/foo.log"
     },
     "dlt": "true"

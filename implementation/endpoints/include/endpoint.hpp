@@ -20,14 +20,16 @@ class endpoint_definition;
 class endpoint {
 public:
     typedef std::function<void()> error_handler_t;
-    typedef std::function<void(const std::shared_ptr<endpoint>&, service_t)> prepare_stop_handler_t;
+    typedef std::function<void(const std::shared_ptr<endpoint> &)> prepare_stop_handler_t;
 
-    virtual ~endpoint() {}
+    virtual ~endpoint() = default;
 
     virtual void start() = 0;
+    virtual void restart(bool _force = false) = 0;
+    virtual void stop() = 0;
+
     virtual void prepare_stop(const prepare_stop_handler_t &_handler,
                               service_t _service = ANY_SERVICE) = 0;
-    virtual void stop() = 0;
 
     virtual bool is_established() const = 0;
     virtual bool is_established_or_connected() const = 0;
@@ -49,12 +51,6 @@ public:
     virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
     virtual bool is_local() const = 0;
-
-    virtual void increment_use_count() = 0;
-    virtual void decrement_use_count() = 0;
-    virtual uint32_t get_use_count() = 0;
-
-    virtual void restart(bool _force = false) = 0;
 
     virtual void register_error_handler(const error_handler_t &_error) = 0;
 

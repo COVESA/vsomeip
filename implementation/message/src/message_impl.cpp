@@ -13,7 +13,6 @@
 #else
 #include "../../configuration/include/internal.hpp"
 #endif
-#include "../../utility/include/byteorder.hpp"
 
 namespace vsomeip_v3 {
 

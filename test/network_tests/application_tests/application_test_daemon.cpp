@@ -18,7 +18,7 @@ public:
             vsomeip_utilities::base_logger("APTD", "APPLICATION TEST DAEMON"),
             app_(vsomeip::runtime::get()->create_application("daemon")) {
         if (!app_->init()) {
-            ADD_FAILURE() << "Couldn't initialize application";
+            ADD_FAILURE() << "[Daemon] Couldn't initialize application";
             return;
         }
         std::promise<bool> its_promise;
@@ -28,7 +28,7 @@ public:
         });
         EXPECT_TRUE(its_promise.get_future().get());
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        VSOMEIP_INFO << "Daemon starting";
+        VSOMEIP_INFO << "[Daemon] Starting";
     }
 
     ~application_test_daemon() {
@@ -36,7 +36,7 @@ public:
     }
 
     void stop() {
-        VSOMEIP_INFO << "Daemon stopping";
+        VSOMEIP_INFO << "[Daemon] Stopping";
         app_->stop();
     }
 

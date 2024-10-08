@@ -6,10 +6,6 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#include <boost/asio/local/stream_protocol_ext.hpp>
-#include <boost/asio/ip/udp_ext.hpp>
-#endif
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
@@ -22,30 +18,13 @@
 namespace vsomeip_v3 {
 
 template<typename Protocol>
-endpoint_impl<Protocol>::endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        boost::asio::io_context &_io,
-        std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
-        const std::shared_ptr<configuration>& _configuration)
-    : io_(_io),
-      endpoint_host_(_endpoint_host),
-      routing_host_(_routing_host),
-      is_supporting_magic_cookies_(false),
-      has_enabled_magic_cookies_(false),
-      max_message_size_(_max_message_size),
-      use_count_(0),
-      sending_blocked_(false),
-      local_(_local),
-      queue_limit_(_queue_limit),
-      configuration_(_configuration),
-      is_supporting_someip_tp_(false) {
-}
-
-template<typename Protocol>
-endpoint_impl<Protocol>::~endpoint_impl() {
+endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                                       const std::shared_ptr<routing_host>& _routing_host,
+									   boost::asio::io_context &_io,
+                                       const std::shared_ptr<configuration>& _configuration) :
+    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host),
+	is_supporting_magic_cookies_(false), has_enabled_magic_cookies_(false), use_count_(0),
+    sending_blocked_(false), configuration_(_configuration), is_supporting_someip_tp_(false) {
 }
 
 template<typename Protocol>
@@ -115,22 +94,6 @@ void endpoint_impl<Protocol>::remove_stop_handler(service_t) {
 }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::increment_use_count() {
-    use_count_++;
-}
-
-template<typename Protocol>
-void endpoint_impl<Protocol>::decrement_use_count() {
-    if (use_count_ > 0)
-        use_count_--;
-}
-
-template<typename Protocol>
-uint32_t endpoint_impl<Protocol>::get_use_count() {
-    return use_count_;
-}
-
-template<typename Protocol>
 void endpoint_impl<Protocol>::register_error_handler(const error_handler_t &_error_handler) {
     std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
     this->error_handler_ = _error_handler;
@@ -150,17 +113,10 @@ instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 
 // Instantiate template
 #if defined(__linux__) || defined(__QNX__)
-#if VSOMEIP_BOOST_VERSION < 106600
-template class endpoint_impl<boost::asio::local::stream_protocol_ext>;
-#endif
 template class endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 
 template class endpoint_impl<boost::asio::ip::tcp>;
 template class endpoint_impl<boost::asio::ip::udp>;
-
-#if VSOMEIP_BOOST_VERSION < 106600
-template class endpoint_impl<boost::asio::ip::udp_ext>;
-#endif
 
 } // namespace vsomeip_v3

@@ -4,6 +4,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/vsomeip.hpp>
+
+#include "../../../implementation/configuration/include/configuration_impl.hpp"
+#include "../../../implementation/routing/include/routing_manager_impl.hpp"
 #include "../../../implementation/security/include/policy_manager_impl.hpp"
 #include "../../../implementation/configuration/include/configuration_impl.hpp"
 #include "../../../implementation/utility/include/utility.hpp"
