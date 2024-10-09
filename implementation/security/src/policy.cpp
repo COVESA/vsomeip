@@ -42,21 +42,16 @@ bool
 policy::deserialize_uid_gid(const byte_t * &_data, uint32_t &_size,
             uid_t &_uid, gid_t &_gid) const {
 
-    bool its_result;
-
-    uint32_t raw_uid;
-    its_result = deserialize_u32(_data, _size, raw_uid);
-    if (its_result)
-        _uid = static_cast<uid_t>(raw_uid);
-    else
+    if (_size < (sizeof(uid_t) + sizeof(gid_t)))
         return false;
 
-    uint32_t raw_gid;
-    its_result = deserialize_u32(_data, _size, raw_gid);
-    if (its_result)
-        _gid = static_cast<gid_t>(raw_gid);
-    else
-        return false;
+    _uid = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
+    _data += sizeof(uid_t);
+    _size -= static_cast<uid_t>(sizeof(uid_t));
+
+    _gid = VSOMEIP_BYTES_TO_LONG(_data[0], _data[1], _data[2], _data[3]);
+    _data += sizeof(gid_t);
+    _size -= static_cast<uid_t>(sizeof(gid_t));
 
     return true;
 }
@@ -455,14 +450,14 @@ policy::print() const {
 
     for (auto its_credential : credentials_) {
         auto its_uid_interval = its_credential.first;
-        if (its_uid_interval.lower() == std::numeric_limits<uint32_t>::max()) {
+        if (its_uid_interval.lower() == std::numeric_limits<uid_t>::max()) {
             VSOMEIP_INFO << "policy::print Security configuration: UID: any";
         } else {
             VSOMEIP_INFO << "policy::print Security configuration: UID: "
                     << std::dec << its_uid_interval.lower();
         }
         for (auto its_gid_interval : its_credential.second) {
-            if (its_gid_interval.lower() == std::numeric_limits<uint32_t>::max()) {
+            if (its_gid_interval.lower() == std::numeric_limits<gid_t>::max()) {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: any";
             } else {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: "
