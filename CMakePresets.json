@@ -14,7 +14,7 @@
 			"cacheVariables": {
 				"CMAKE_CXX_FLAGS_INIT": {
 					"type": "STRING",
-					"value": "--coverage -Wno-error=tsan"
+					"value": "--coverage -Wno-error=tsan -fprofile-update=atomic"
 				},
 				"TEST_IP_SLAVE_SECOND": {
 					"type": "STRING",
