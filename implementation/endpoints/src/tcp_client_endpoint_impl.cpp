@@ -802,7 +802,7 @@ void tcp_client_endpoint_impl::receive_cbk(
             } else {
                 its_lock.unlock();
                 auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
-                strand_.dispatch([self, &_recv_buffer, _recv_buffer_size, its_missing_capacity](){
+                strand_.dispatch([self, _recv_buffer, _recv_buffer_size, its_missing_capacity](){
                     self->receive(_recv_buffer, _recv_buffer_size, its_missing_capacity);
                 });
             }
