@@ -6,7 +6,7 @@ This page will guide you to accomplish that goal.
 
 ## Prerequisites
 
-1. Up-to-date clone of vsomeip, checked out on maintain/3.5 or on a branch recently created from it.
+1. Up-to-date clone of vsomeip, checked out on master or on a branch recently created from it.
 2. Recent Docker version with Compose plugin installed
 
     a. Check Docker version with docker info, must be at least 23.x.y or 24.x.y, otherwise follow the official instructions to install a newer version: https://docs.docker.com/engine/install/ubuntu/
