@@ -28,12 +28,12 @@ public:
     void wait();
 
     int64_t getNbMsgsRcvd();
+    std::chrono::milliseconds get_avgtime();
 
 private:
-    void on_availability(
-            vsomeip::service_t _service, vsomeip::instance_t _instance,
-            bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_message);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
+                         bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _message);
 
     void run_test();
     void unsubscribe_all();
@@ -54,6 +54,9 @@ private:
     vsomeip::debounce_filter_t dBFilter;
 
     int64_t nb_msgs_rcvd = 0;
+    std::chrono::milliseconds sum_time;
+    std::chrono::time_point<std::chrono::high_resolution_clock> time_start;
+    std::chrono::time_point<std::chrono::high_resolution_clock> time_last;
 };
 
 #endif // DEBOUNCE_TEST_CLIENT_HPP_

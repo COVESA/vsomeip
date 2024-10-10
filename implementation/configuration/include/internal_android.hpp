@@ -23,7 +23,10 @@
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/vendor/run/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES                                                      \
+    "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,"     \
+    "vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg." \
+    "json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/run/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -78,11 +81,13 @@
 
 #define VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE     1703936
 
-#define VSOMEIP_IO_THREAD_COUNT                 2
-#define VSOMEIP_IO_THREAD_NICE_LEVEL            255
+#define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
+#define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
 
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
+
+#define VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS  5
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 #define VSOMEIP_DEFAULT_STATISTICS_MAX_MSG      50

@@ -7,12 +7,13 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include <thread>
-#include <mutex>
+#include <cmath> // for isfinite
 #include <condition_variable>
 #include <functional>
+#include <iomanip>
+#include <mutex>
 #include <numeric>
-#include <cmath> // for isfinite
+#include <thread>
 
 #include "cpu_load_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>

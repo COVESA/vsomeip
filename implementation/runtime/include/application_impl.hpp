@@ -8,18 +8,25 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
+#include <future>
 #include <map>
 #include <mutex>
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
-
-#if VSOMEIP_BOOST_VERSION >= 106600
-#include <boost/asio/executor_work_guard.hpp>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <processthreadsapi.h>
 #endif
+
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/ip/address.hpp>
@@ -148,6 +155,7 @@ public:
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager> get_policy_manager() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration_public> get_public_configuration() const;
     VSOMEIP_EXPORT boost::asio::io_context &get_io();
 
@@ -237,12 +245,15 @@ public:
             handler_registration_type_e _type);
 
 private:
-    using members_methods_t = std::map<method_t, std::deque<message_handler_t> >;
-    using members_methods_iterator_t = members_methods_t::const_iterator;
-    using members_instances_t = std::map<instance_t, members_methods_t>;
-    using members_instances_iterator_t = members_instances_t::const_iterator;
-    using members_t = std::map<service_t, members_instances_t>;
-    using members_iterator_t = members_t::const_iterator;
+
+    using members_key_t = std::uint64_t;
+    using members_t = std::unordered_map<members_key_t, std::deque<message_handler_t>>;
+
+    static members_key_t to_members_key(service_t _service, instance_t _instance, method_t _method) {
+        return (static_cast<members_key_t>(_service)  <<  0) |
+               (static_cast<members_key_t>(_instance) << 16) |
+               (static_cast<members_key_t>(_method)   << 32);
+    }
 
     //
     // Types
@@ -299,9 +310,8 @@ private:
                                 major_version_t _major, minor_version_t _minor) const;
 
     void register_availability_handler_unlocked(service_t _service,
-            instance_t _instance, availability_state_handler_t _handler,
+            instance_t _instance, const availability_state_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
-
 
     void main_dispatch();
     void dispatch();
@@ -337,12 +347,24 @@ private:
 
     bool is_local_endpoint(const boost::asio::ip::address &_unicast, port_t _port);
 
-    void find_service_handlers(std::deque<message_handler_t> &,
-            service_t _service, instance_t _instance, method_t _method) const;
-    void find_instance_handlers(std::deque<message_handler_t> &,
-            const members_iterator_t &_it, instance_t _instance, method_t _method) const;
-    void find_method_handlers(std::deque<message_handler_t> &,
-            const members_instances_iterator_t &_it, method_t _method) const;
+    const std::deque<message_handler_t>& find_handlers(service_t _service, instance_t _instance, method_t _method) const;
+
+    void invoke_availability_handler(service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor);
+
+    void increment_active_threads();
+    void decrement_active_threads();
+    std::uint16_t get_active_threads() const;
+
+    using availability_state_t = std::map<service_t, std::map<instance_t,
+            std::map<major_version_t, std::map<minor_version_t, availability_state_e>>>>;
+
+    availability_state_e get_availability_state(const availability_state_t& _availability_state,
+            service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor) const;
+    void set_availability_state(availability_state_t& _availability_state,
+            service_t _service, instance_t _instance,
+            major_version_t _major, minor_version_t _minor, availability_state_e _state) const;
 
     //
     // Attributes
@@ -362,12 +384,8 @@ private:
 
     boost::asio::io_context io_;
     std::set<std::shared_ptr<std::thread> > io_threads_;
-#if VSOMEIP_BOOST_VERSION >= 106600
     std::shared_ptr<boost::asio::executor_work_guard<
         boost::asio::io_context::executor_type> > work_;
-#else
-    std::shared_ptr<boost::asio::io_context::work> work_;
-#endif
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;
@@ -391,8 +409,9 @@ private:
     mutable std::mutex members_mutex_;
 
     // Availability handlers
-    typedef std::map<major_version_t, std::map<minor_version_t, std::pair<availability_state_handler_t,
-            bool>>> availability_major_minor_t;
+    using stateful_availability_t = std::pair<availability_state_handler_t, availability_state_t>;
+    using availability_major_minor_t =
+            std::map<major_version_t, std::map<minor_version_t, stateful_availability_t>>;
     std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
     mutable std::mutex availability_mutex_;
 
@@ -438,10 +457,22 @@ private:
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
     mutable std::mutex dispatcher_mutex_;
 
+    // Map of promises/futures to check status of dispatcher threads
+#ifdef _WIN32
+    std::map<std::thread::id, std::tuple<HANDLE, std::future<void>>> dispatchers_control_;
+#else
+    std::map<std::thread::id, std::tuple<pthread_t, std::future<void>>> dispatchers_control_;
+#endif
+
     // Condition to wakeup the dispatcher thread
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
+
+    // Counter for dispatcher threads
+    std::atomic<uint16_t> dispatcher_counter_;
+
+    std::size_t max_detached_thread_wait_time;
 
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
@@ -450,7 +481,7 @@ private:
 
     std::condition_variable block_stop_cv_;
     std::mutex block_stop_mutex_;
-    bool block_stopping_;
+    std::atomic_bool block_stopping_;
 
     static uint32_t app_counter__;
     static std::mutex app_counter_mutex__;
@@ -478,7 +509,7 @@ private:
                 std::map<event_t, subscription_state_e>
             >
         >
-    > subscription_state_;
+    > subscriptions_state_;
 
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;

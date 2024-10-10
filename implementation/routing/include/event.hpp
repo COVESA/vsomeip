@@ -179,6 +179,7 @@ private:
     std::atomic<bool> is_cache_placeholder_;
 
     epsilon_change_func_t epsilon_change_func_;
+    bool has_default_epsilon_change_func_;
 
     std::atomic<reliability_type_e> reliability_;
 

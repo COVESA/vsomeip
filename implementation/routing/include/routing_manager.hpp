@@ -10,13 +10,7 @@
 #include <set>
 #include <vector>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/structured_types.hpp>
 #include <vsomeip/message.hpp>

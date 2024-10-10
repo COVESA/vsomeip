@@ -29,13 +29,9 @@ typedef uint32_t gid_t;
 #endif
 
 typedef struct {
-#ifdef __QNX__
-    uint32_t user;
-    uint32_t group;
-#else
     uid_t user;
     gid_t group;
-#endif
+
     vsomeip_sec_ip_addr_t host;
     vsomeip_sec_network_port_t port; // VSOMEIP_SEC_PORT_UNUSED --> UDS; ]0, VSOMEIP_SEC_PORT_UNSET] --> TCP
 } vsomeip_sec_client_t;
