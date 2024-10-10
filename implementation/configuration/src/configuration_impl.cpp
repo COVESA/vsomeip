@@ -56,6 +56,7 @@ configuration_impl::configuration_impl(const std::string &_path)
       has_dlt_log_(false),
       logfile_("/tmp/vsomeip.log"),
       loglevel_(vsomeip_v3::logger::level_e::LL_INFO),
+      is_suppress_events_enabled_(false),
       is_sd_enabled_(VSOMEIP_SD_DEFAULT_ENABLED),
       sd_protocol_(VSOMEIP_SD_DEFAULT_PROTOCOL),
       sd_multicast_(VSOMEIP_SD_DEFAULT_MULTICAST),
@@ -171,6 +172,8 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_multicast_ = _other.sd_multicast_;
     sd_port_ = _other.sd_port_;
     sd_protocol_ = _other.sd_protocol_;
+
+    is_suppress_events_enabled_ = _other.is_suppress_events_enabled_;
 
     sd_initial_delay_min_ = _other.sd_initial_delay_min_;
     sd_initial_delay_max_ = _other.sd_initial_delay_max_;

@@ -269,7 +269,7 @@ void tcp_client_endpoint_impl::receive() {
         its_recv_buffer = recv_buffer_;
     }
     auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
-    strand_.dispatch([self, &its_recv_buffer](){
+    strand_.dispatch([self, its_recv_buffer](){
         self->receive(its_recv_buffer, 0, 0);
     });
 }
@@ -770,7 +770,7 @@ void tcp_client_endpoint_impl::receive_cbk(
             }
             its_lock.unlock();
             auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
-            strand_.dispatch([self, &_recv_buffer, _recv_buffer_size, its_missing_capacity](){
+            strand_.dispatch([self, _recv_buffer, _recv_buffer_size, its_missing_capacity](){
                 self->receive(_recv_buffer, _recv_buffer_size, its_missing_capacity);
             });
         } else {
@@ -798,7 +798,7 @@ void tcp_client_endpoint_impl::receive_cbk(
             } else {
                 its_lock.unlock();
                 auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
-                strand_.dispatch([self, &_recv_buffer, _recv_buffer_size, its_missing_capacity](){
+                strand_.dispatch([self, _recv_buffer, _recv_buffer_size, its_missing_capacity](){
                     self->receive(_recv_buffer, _recv_buffer_size, its_missing_capacity);
                 });
             }
@@ -948,7 +948,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 if (its_entry.first) {
                     auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
                     strand_.dispatch(
-                        [self, &its_entry]() { self->send_queued(its_entry);}
+                        [self, its_entry]() mutable { self->send_queued(its_entry);}
                     );
                 }
             }
