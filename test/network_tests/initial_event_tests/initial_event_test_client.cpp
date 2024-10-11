@@ -42,7 +42,6 @@ public:
             service_infos_(_service_infos),
             service_offered_tcp_and_udp_(_service_offered_tcp_and_udp),
             app_(vsomeip::runtime::get()->create_application()),
-            wait_until_registered_(true),
             wait_for_stop_(true),
             is_first(true),
             subscribe_on_available_(_subscribe_on_available),
@@ -50,13 +49,11 @@ public:
             initial_event_strict_checking_(_initial_event_strict_checking),
             dont_exit_(_dont_exit),
             subscribe_only_one_(_subscribe_only_one),
-            stop_thread_(&initial_event_test_client::wait_for_stop, this),
             wait_for_signal_handler_registration_(true),
             reliability_type_(_reliability_type),
             client_subscribes_twice_(_client_subscribes_twice)
         {
         if (!app_->init()) {
-            stop_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
@@ -122,6 +119,8 @@ public:
             }
         }
 
+        stop_thread_ = std::thread(&initial_event_test_client::wait_for_stop, this);
+
         // Block all signals
         sigset_t mask;
         sigfillset(&mask);
@@ -153,12 +152,6 @@ public:
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
         << (_state == vsomeip::state_type_e::ST_REGISTERED ?
                 "registered." : "deregistered.");
-
-        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            wait_until_registered_ = false;
-            condition_.notify_one();
-        }
     }
 
     void on_availability(vsomeip::service_t _service,
@@ -488,6 +481,8 @@ public:
                 continue;
             }
             app_->unsubscribe(i.service_id, i.instance_id, i.eventgroup_id);
+            app_->release_event(i.service_id, i.instance_id, i.event_id);
+            app_->release_service(i.service_id, i.instance_id);
         }
         app_->clear_all_handler();
         app_->stop();
@@ -501,10 +496,6 @@ private:
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
     std::mutex received_notifications_mutex_;
     std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t> other_services_received_notification_;
-
-    bool wait_until_registered_;
-    std::mutex mutex_;
-    std::condition_variable condition_;
 
     std::atomic<bool> wait_for_stop_;
     std::atomic<bool> is_first;
@@ -540,7 +531,9 @@ vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_U
 
 
 extern "C" void signal_handler(int signum) {
-    the_client->handle_signal(signum);
+    if (the_client != nullptr) {
+        the_client->handle_signal(signum);
+    }
 }
 
 TEST(someip_initial_event_test, wait_for_initial_events_of_all_services)
