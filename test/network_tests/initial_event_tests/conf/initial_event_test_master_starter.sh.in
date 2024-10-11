@@ -78,11 +78,13 @@ unset VSOMEIP_APPLICATION_NAME
 CLIENT_PIDS=()
 
 # Start first client which subscribes remotely
+export VSOMEIP_APPLICATION_NAME=master_initial_event_test_client_9000
 ./initial_event_test_client 9000 DONT_EXIT $REMAINING_OPTIONS &
 FIRST_PID=$!
 
 # Start availability checker in order to wait until the services on the remote
 # were started as well
+export VSOMEIP_APPLICATION_NAME=master_initial_event_test_availability_checker
 ./initial_event_test_availability_checker 1234 $REMAINING_OPTIONS &
 PID_AVAILABILITY_CHECKER=$!
 
@@ -103,8 +105,9 @@ echo "ALL SERVICES ARE AVAILABLE NOW"
 
 sleep 2
 
-for client_number in $(seq 9001 9011)
+for client_number in $(seq 9003 9013)
 do
+    export VSOMEIP_APPLICATION_NAME="master_initial_event_test_client_$client_number"
    ./initial_event_test_client $client_number STRICT_CHECKING $REMAINING_OPTIONS &
    CLIENT_PIDS+=($!)
 done
@@ -120,6 +123,7 @@ done
 echo "Starting stop service | Master"
 
 # wait until all clients exited on slave side
+export VSOMEIP_APPLICATION_NAME=master_initial_event_test_stop_service
 ./initial_event_test_stop_service MASTER &
 PID_STOP_SERVICE=$!
 wait $PID_STOP_SERVICE
