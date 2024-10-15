@@ -62,8 +62,34 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
             if (found_tp_msg != found_port->second.end()) {
                 if (found_tp_msg->second.first == its_session) {
                     // received additional segment for already known message
-                    if (found_tp_msg->second.second.add_segment(_data, _data_size)) {
-                        // message is complete
+                    auto its_status = found_tp_msg->second.second.add_segment(_data, _data_size);
+                    if (its_status == tp_status_e::TPS_DUPLICATE) {
+                        const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
+                        const length_t its_offset = tp::get_offset(its_tp_header);
+
+                        if (its_offset == 0) { // new first segment
+                            VSOMEIP_WARNING << __func__ << ": Received new start segment. Dropping received data for ("
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_client << ") ["
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                                    << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_interface_version) << "."
+                                    << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_msg_type) << "] Old: 0x"
+                                    << std::hex << std::setw(4) << std::setfill('0') << found_tp_msg->second.first << ", new: 0x"
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            // new segment with same session id -> throw away current message data
+                            found_tp_msg->second.second = tp_message(_data, _data_size, max_message_size_);
+                        } else {
+                            VSOMEIP_WARNING << __func__ << ": Received duplicate segment. Dropping it ("
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_client << ") ["
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                                    << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_interface_version) << "."
+                                    << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(its_msg_type) << "] Old: 0x"
+                                    << std::hex << std::setw(4) << std::setfill('0') << found_tp_msg->second.first << ", new: 0x"
+                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
+                                    << " TP offset:" << std::dec << its_offset;
+                        }
+                    } else if (its_status == tp_status_e::TPS_COMPLETE) {                        // message is complete
                         ret.first = true;
                         ret.second = found_tp_msg->second.second.get_message();
                         // cleanup tp_message as message was moved and cleanup map
@@ -74,11 +100,12 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
                                 tp_messages_.erase(found_ip);
                             }
                         }
+                    } else {
+                        // ignore
                     }
                 } else {
-                    VSOMEIP_WARNING << __func__ << ": Received new segment "
-                            "although old one is not finished yet. Dropping "
-                            "old. ("
+                    VSOMEIP_WARNING << __func__ << ": Received new message although old one is not "
+                            "finished yet. Dropping old. ("
                             << std::hex << std::setfill('0')
                             << std::setw(4) << its_client << ") ["
                             << std::setw(4) << its_service << "."
@@ -87,7 +114,7 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
                             << std::setw(2) << std::uint32_t(its_msg_type) << "] Old: 0x"
                             << std::setw(4) << found_tp_msg->second.first << ", new: 0x"
                             << std::setw(4) << its_session;
-                    // new segment with different session id -> throw away current
+                    // new segment with different session id -> reset session and throw away current message data
                     found_tp_msg->second.first = its_session;
                     found_tp_msg->second.second = tp_message(_data, _data_size, max_message_size_);
                 }

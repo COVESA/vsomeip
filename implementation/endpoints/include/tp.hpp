@@ -30,6 +30,14 @@ typedef std::vector<message_buffer_ptr_t> tp_split_messages_t;
 
 const std::uint8_t TP_FLAG = 0x20;
 
+enum class tp_status_e : std::uint8_t {
+    TPS_ERROR = 0x00,
+    TPS_INCOMPLETE = 0x01,
+    TPS_COMPLETE = 0x02,
+    TPS_DUPLICATE = 0x04,
+    TPS_UNKNOWN = 0xff
+};
+
 class tp {
 public:
     static inline length_t get_offset(tp_header_t _tp_header) {
