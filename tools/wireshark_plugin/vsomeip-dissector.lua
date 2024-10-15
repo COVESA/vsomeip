@@ -49,7 +49,18 @@ vsomeip_filter = ProtoField.bytes(protocol_name .. '.filter' , "Filter", base_HE
 vsomeip_offered_services = ProtoField.bytes(protocol_name .. '.offered_services' , "OfferedServices", base_HEX)
 
 -- TODO make this a subtree to list all configurations in VSOMEIP_CONFIG
-vsomeip_configurations = ProtoField.bytes(protocol_name .. '.configurations' , "Configurations", base_HEX)
+-- vsomeip_configurations = ProtoField.bytes(protocol_name .. '.configurations' , "Configurations", base_HEX)
+vsomeip_configuration_name = 'vsomeip_config'
+vsomeip_configuration = Proto(vsomeip_configuration_name, vsomeip_configuration_name:upper())
+vsomeip_configuration_key_size = ProtoField.uint32(vsomeip_configuration_name  .. '.keySize' , "Key Size", base.DEC)
+vsomeip_configuration_key = ProtoField.string(vsomeip_configuration_name  .. '.key' , "Key")
+vsomeip_configuration_value_size = ProtoField.uint32(vsomeip_configuration_name  .. '.valueSize' , "Value Size", base.DEC)
+vsomeip_configuration_value = ProtoField.string(vsomeip_configuration_name  .. '.value' , "Value")
+
+vsomeip_configuration.fields = {
+    vsomeip_configuration_key_size, vsomeip_configuration_key
+    , vsomeip_configuration_value_size, vsomeip_configuration_value
+}
 
 -- TODO make this a subtree to list all configurations in VSOMEIP_UPDATE_SECURITY_CREDENTIALS
 vsomeip_credentials = ProtoField.bytes(protocol_name .. '.credentials' , "Credentials", base_HEX)
@@ -477,9 +488,29 @@ function vsomeip_protocol.dissector(buffer, pinfo, tree)
         subtree:add_le(vsomeip_policy_count, command_policy_count)
         subtree:add(vsomeip_policies, command_policies)
     elseif command_name == "VSOMEIP_CONFIG" then
-        local command_configurations = buffer(buffer_cursor, length - buffer_cursor - 4)
-
-        subtree:add(vsomeip_configurations, command_configurations)
+        local command_config = buffer(buffer_cursor, length - buffer_cursor - 4)
+        if command_config:len() > 0 then
+            config_tree = subtree:add("Config")
+            local config_cursor = 0
+            local key_size = command_config(config_cursor, 4)
+            config_cursor = config_cursor + 4
+            config_tree:add_le(vsomeip_configuration_key_size, key_size)
+            local key_size_uint = buffer_4_to_int(key_size)
+            if key_size_uint > 0 then
+                local key = command_config(config_cursor, key_size_uint)
+                config_tree:add(vsomeip_configuration_key, key)
+                config_cursor = config_cursor + key_size_uint
+            end
+            local value_size = command_config(config_cursor, 4)
+            config_cursor = config_cursor + 4
+            config_tree:add_le(vsomeip_configuration_value_size, value_size)
+            local value_size_uint = buffer_4_to_int(value_size)
+            if value_size_uint > 0 then
+                local value = command_config(config_cursor, value_size_uint)
+                config_tree:add(vsomeip_configuration_value, value)
+                config_cursor = config_cursor + value_size_uint
+            end
+        end
     end
 end
 

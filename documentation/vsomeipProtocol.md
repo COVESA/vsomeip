@@ -1,5 +1,7 @@
 # vSomeIP command documentation
 
+Vsomeip protocol payload will contain a start and end tag with the following value: 0x67376d07 (the end tag is reversed).
+
 ## VSOMEIP_ASSIGN_CLIENT (0x00)
 
     Command            00
