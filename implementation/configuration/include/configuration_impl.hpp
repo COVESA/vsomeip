@@ -140,7 +140,6 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
-    VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
