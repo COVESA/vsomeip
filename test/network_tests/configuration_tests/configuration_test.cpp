@@ -43,7 +43,6 @@ namespace vsomeip = vsomeip_v3;
 // Application
 #define EXPECTED_APPLICATION_MAX_DISPATCHERS                                25
 #define EXPECTED_APPLICATION_MAX_DISPATCH_TIME                              1234
-#define EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME                  3
 #define EXPECTED_APPLICATION_THREADS                                        12
 #define EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME                          5000
 
@@ -127,7 +126,6 @@ void check_file(const std::string &_config_file,
                 uint32_t _expected_version_logging_interval,
                 uint32_t _expected_application_max_dispatcher,
                 uint32_t _expected_application_max_dispatch_time,
-                uint32_t _expected_application_max_detached_thread_wait_time,
                 uint32_t _expected_application_threads,
                 uint32_t _expected_application_request_debounce_time,
                 const std::string &_expected_logfile,
@@ -334,8 +332,6 @@ void check_file(const std::string &_config_file,
             EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t max_dispatch_time = its_configuration->get_max_dispatch_time(
             EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t max_detached_thread_wait_time = its_configuration->get_max_detached_thread_wait_time(
-            EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t io_threads = its_configuration->get_io_thread_count(
             EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t request_time = its_configuration->get_request_debouncing(
@@ -345,8 +341,6 @@ void check_file(const std::string &_config_file,
             _expected_application_max_dispatcher, "MAX DISPATCHERS"));
     EXPECT_TRUE(check<std::size_t>(max_dispatch_time,
             _expected_application_max_dispatch_time, "MAX DISPATCH TIME"));
-    EXPECT_TRUE(check<std::size_t>(max_detached_thread_wait_time,
-            _expected_application_max_detached_thread_wait_time, "MAX DETACHED THREADS WAIT TIME"));
     EXPECT_TRUE(check<std::size_t>(io_threads, _expected_application_threads,
             "IO THREADS"));
     EXPECT_TRUE(check<std::size_t>(request_time,
@@ -773,7 +767,6 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_VERSION_LOGGING_INTERVAL,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
-               EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,
                EXPECTED_APPLICATION_THREADS,
                EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME,
                EXPECTED_LOGFILE,
@@ -817,7 +810,6 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_VERSION_LOGGING_INTERVAL,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
-               EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,
                EXPECTED_APPLICATION_THREADS,
                EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME,
                EXPECTED_LOGFILE,

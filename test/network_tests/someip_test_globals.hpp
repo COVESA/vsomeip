@@ -23,9 +23,6 @@ constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
 constexpr vsomeip::instance_t TEST_SERVICE_INSTANCE_ID = 0x5678;
 constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
 constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID_SHUTDOWN = 0x7777;
-constexpr vsomeip::method_t TEST_SERVICE_DETACH_METHOD_ID_LOOP_LONG = 0x8887;
-constexpr vsomeip::method_t TEST_SERVICE_DETACH_METHOD_ID_LOOP_SHORT = 0x8888;
-constexpr vsomeip::method_t TEST_SERVICE_DETACH_METHOD_ID = 0x8889;
 constexpr vsomeip::client_t TEST_SERVICE_CLIENT_ID = 0x1277;
 
 // Client local
