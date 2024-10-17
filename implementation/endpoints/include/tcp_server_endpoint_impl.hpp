@@ -92,6 +92,7 @@ private:
         void set_remote_info(const endpoint_type &_remote);
         std::string get_address_port_remote() const;
         std::size_t get_recv_buffer_capacity() const;
+        static boost::asio::ip::address strip_ipv6_interface_device(boost::asio::ip::address _address);
 
     private:
         connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server,

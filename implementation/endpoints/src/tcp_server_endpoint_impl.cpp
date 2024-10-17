@@ -129,7 +129,9 @@ bool tcp_server_endpoint_impl::send_error(
         const byte_t *_data, uint32_t _size) {
     bool ret(false);
     std::lock_guard<std::mutex> its_lock(mutex_);
-    const endpoint_type its_target(_target->get_address(), _target->get_port());
+
+    const boost::asio::ip::address its_remote_address(tcp_server_endpoint_impl::connection::strip_ipv6_interface_device(_target->get_address()));
+    const endpoint_type its_target(its_remote_address, _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto &its_data = its_target_iterator->second;
 
@@ -152,8 +154,11 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
     bool must_erase(false);
     connection::ptr its_connection;
     {
+        const boost::asio::ip::address its_remote_address(connection::strip_ipv6_interface_device(_it->first.address()));
+        endpoint_type _remote(its_remote_address, _it->first.port());
+
         std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        auto connection_iterator = connections_.find(_it->first);
+        auto connection_iterator = connections_.find(_remote);
         if (connection_iterator != connections_.end()) {
             its_connection = connection_iterator->second;
             if (its_connection) {
@@ -270,8 +275,10 @@ void tcp_server_endpoint_impl::accept_cbk(const connection::ptr& _connection,
         }
         if (!its_error) {
             {
+                const boost::asio::ip::address its_remote_address(connection::strip_ipv6_interface_device(remote.address()));
+                endpoint_type _remote(its_remote_address, remote.port());
                 std::lock_guard<std::mutex> its_lock(connections_mutex_);
-                connections_[remote] = _connection;
+                connections_[_remote] = _connection;
             }
             _connection->start();
         }
@@ -562,6 +569,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(
                 << (int) recv_buffer_[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
+
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
@@ -833,7 +841,7 @@ void tcp_server_endpoint_impl::connection::calculate_shrink_count() {
 void tcp_server_endpoint_impl::connection::set_remote_info(
         const endpoint_type &_remote) {
     remote_ = _remote;
-    remote_address_ = _remote.address();
+    remote_address_ = strip_ipv6_interface_device(_remote.address());
     remote_port_ = _remote.port();
 }
 
@@ -1043,6 +1051,13 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
         stop();
     }
     its_server->remove_connection(this);
+}
+
+boost::asio::ip::address tcp_server_endpoint_impl::connection::strip_ipv6_interface_device(const boost::asio::ip
+                                                                                                ::address _address) {
+
+    std::size_t pos = _address.to_string().find('%');
+    return boost::asio::ip::make_address(_address.to_string().substr(0,pos));
 }
 
 }  // namespace vsomeip_v3
