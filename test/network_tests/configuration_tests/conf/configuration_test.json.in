@@ -95,7 +95,6 @@
             "id" : "0x7788",
             "max_dispatchers" : "25",
             "max_dispatch_time" : "1234",
-            "max_detached_thread_wait_time":"3",
             "threads" : "12",
             "request_debounce_time" : "5000",
             "plugins" :

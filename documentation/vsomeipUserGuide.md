@@ -497,11 +497,6 @@ Configuration file element explanation:
         considered to be blocked (and an additional thread is used to execute pending
         callbacks if max_dispatchers is configured greater than 0). The default value if not specified is 100ms.
 
-    * 'max_detached_thread_wait_time' (optional)
-
-        The maximum time in seconds that an application will wait for a detached dispatcher thread
-        to finish executing. The default value if not specified is 5s.
-
     * 'threads' (optional)
 
         The number of internal threads to process messages and events within an application.

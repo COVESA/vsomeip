@@ -48,22 +48,33 @@ configuration::~configuration() {}
 uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
-application_impl::application_impl(const std::string& _name, const std::string& _path) :
-    runtime_(runtime::get()), client_(VSOMEIP_CLIENT_UNSET), session_(0), is_initialized_(false),
-    name_(_name), path_(_path),
-    work_(std::make_shared<
-            boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            io_.get_executor())),
-    routing_(nullptr), state_(state_type_e::ST_DEREGISTERED),
-    security_mode_(security_mode_e::SM_ON),
+application_impl::application_impl(const std::string &_name, const std::string &_path)
+        : runtime_(runtime::get()),
+          client_(VSOMEIP_CLIENT_UNSET),
+          session_(0),
+          is_initialized_(false),
+          name_(_name),
+          path_(_path),
+          work_(std::make_shared<boost::asio::executor_work_guard<
+              boost::asio::io_context::executor_type> >(io_.get_executor())),
+          routing_(0),
+          state_(state_type_e::ST_DEREGISTERED),
+          security_mode_(security_mode_e::SM_ON),
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    signals_(io_, SIGINT, SIGTERM), catched_signal_(false),
+          signals_(io_, SIGINT, SIGTERM),
+          catched_signal_(false),
 #endif
-    is_dispatching_(false), max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
-    max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME), dispatcher_counter_(0),
-    max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS), stopped_(false),
-    block_stopping_(false), is_routing_manager_host_(false), stopped_called_(false),
-    watchdog_timer_(io_), client_side_logging_(false), has_session_handling_(true) {
+          is_dispatching_(false),
+          max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
+          max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME),
+          stopped_(false),
+          block_stopping_(false),
+          is_routing_manager_host_(false),
+          stopped_called_(false),
+          watchdog_timer_(io_),
+          client_side_logging_(false),
+          has_session_handling_(true)
+{
 }
 
 application_impl::~application_impl() {
@@ -262,7 +273,6 @@ bool application_impl::init() {
         // the main dispatcher
         max_dispatchers_ = its_configuration->get_max_dispatchers(name_) + 1;
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
-        max_detached_thread_wait_time = its_configuration->get_max_detached_thread_wait_time(name_);
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
         if (!has_session_handling_)
@@ -424,21 +434,10 @@ void application_impl::start() {
         {
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             is_dispatching_ = true;
-            std::packaged_task<void()> dispatcher_task_(
-                    std::bind(&application_impl::main_dispatch, shared_from_this()));
-            std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
-            auto its_main_dispatcher = std::make_shared<std::thread>(std::move(dispatcher_task_));
-#ifdef _WIN32
-            dispatchers_control_[its_main_dispatcher->get_id()] = {
-                    OpenThread(THREAD_ALL_ACCESS, false,
-                               GetThreadId(its_main_dispatcher->native_handle())),
-                    std::move(dispatcher_future_)};
-#else
-            dispatchers_control_[its_main_dispatcher->get_id()] = {
-                    its_main_dispatcher->native_handle(), std::move(dispatcher_future_)};
-#endif
+            auto its_main_dispatcher = std::make_shared<std::thread>(
+                    &application_impl::main_dispatch, shared_from_this()
+            );
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
-            increment_active_threads();
         }
 
         if (stop_thread_.joinable()) {
@@ -2018,24 +2017,9 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
                     if (dispatcher_mutex_.try_lock()) {
                         if (dispatchers_.size() < max_dispatchers_) {
                             if (is_dispatching_) {
-                                std::packaged_task<void()> dispatcher_task_(
-                                        std::bind(&application_impl::dispatch, shared_from_this()));
-                                std::future<void> dispatcher_future_ =
-                                        dispatcher_task_.get_future();
-                                auto its_dispatcher =
-                                        std::make_shared<std::thread>(std::move(dispatcher_task_));
-#ifdef _WIN32
-                                dispatchers_control_[its_dispatcher->get_id()] = {
-                                        OpenThread(THREAD_ALL_ACCESS, false,
-                                                   GetThreadId(its_dispatcher->native_handle())),
-                                        std::move(dispatcher_future_)};
-#else
-                                dispatchers_control_[its_dispatcher->get_id()] = {
-                                        its_dispatcher->native_handle(),
-                                        std::move(dispatcher_future_)};
-#endif
+                                auto its_dispatcher = std::make_shared<std::thread>(
+                                    std::bind(&application_impl::dispatch, shared_from_this()));
                                 dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
-                                increment_active_threads();
                             } else {
                                 VSOMEIP_INFO << "Won't start new dispatcher "
                                         "thread as Client=" << std::hex
@@ -2142,12 +2126,9 @@ void application_impl::remove_elapsed_dispatchers() {
     if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         for (auto id : elapsed_dispatchers_) {
-            if (auto its_dispatcher = dispatchers_.find(id); its_dispatcher->second->joinable()) {
-                dispatchers_control_.erase(id);
+            auto its_dispatcher = dispatchers_.find(id);
+            if (its_dispatcher->second->joinable())
                 its_dispatcher->second->join();
-                decrement_active_threads();
-            }
-
             dispatchers_.erase(id);
         }
         elapsed_dispatchers_.clear();
@@ -2221,9 +2202,7 @@ void application_impl::shutdown() {
         for (const auto& its_dispatcher : dispatchers_) {
             if (its_dispatcher.second->get_id() != stop_caller_id_) {
                 if (its_dispatcher.second->joinable()) {
-                    dispatchers_control_.erase(its_dispatcher.second->get_id());
                     its_dispatcher.second->join();
-                    decrement_active_threads();
                 }
             } else {
                 // If the caller of stop() is one of our dispatchers
@@ -2237,7 +2216,6 @@ void application_impl::shutdown() {
                 // after it will return to "main_dispatch" it will be
                 // properly shutdown anyways because "is_dispatching_"
                 // was set to "false" here.
-
                 its_dispatcher.second->detach();
             }
         }
@@ -2256,65 +2234,6 @@ void application_impl::shutdown() {
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping routing, "
                 << " catched exception: " << e.what();
-    }
-
-    try {
-        while (get_active_threads() > 0) {
-            auto its_dispatcher_control_ = dispatchers_control_.begin();
-            bool os_flag_ = false;
-
-            if (its_dispatcher_control_ != dispatchers_control_.end()) {
-                if (std::get<1>(its_dispatcher_control_->second)
-                            .wait_for(std::chrono::seconds(max_detached_thread_wait_time))
-                    == std::future_status::timeout) {
-
-#ifdef _WIN32
-                    TerminateThread(std::get<0>(its_dispatcher_control_->second), 0);
-#else
-                    pthread_t thread_to_kill = std::get<0>(its_dispatcher_control_->second);
-
-                    // Using pthread_cancel for UNIX based systems and pthread_kill(SIGKILL)
-                    // for android since pthread_cancel is not implemented on android.
-                    // The major difference is that pthread_cancel allows for signal handling
-                    // and proper resource cleanup to be done on the application side
-                    // while pthread_kill(SIGKILL) stops the thread immediately.
-                    // This should not however be an issue since this will only be called
-                    // if the thread is already stuck for some time during app->stop()
-#if defined(ANDROID)
-                    os_flag_ = true;
-                    if (pthread_kill(thread_to_kill, SIGKILL) != 0) {
-#elif defined(__linux__) || defined(__QNX__)
-                    if (pthread_cancel(thread_to_kill) != 0) {
-#endif
-                        VSOMEIP_ERROR
-                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
-                                << "Failed to kill detached thread with id: " << std::hex
-                                << its_dispatcher_control_->first
-                                << "; Number of threads still active : " << get_active_threads();
-                    } else {
-                        decrement_active_threads();
-                        VSOMEIP_INFO
-                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
-                                << "Force killed thread with id: " << std::hex
-                                << its_dispatcher_control_->first
-                                << "; Number of threads still active : " << get_active_threads();
-                        dispatchers_control_.erase(its_dispatcher_control_);
-                    }
-#endif
-                } else {
-                    decrement_active_threads();
-                    VSOMEIP_INFO << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
-                                 << "Detached thread with id: " << std::hex
-                                 << its_dispatcher_control_->first << " exited successfully"
-                                 << "; Number of threads still active : " << get_active_threads();
-                    dispatchers_control_.erase(its_dispatcher_control_);
-                }
-            }
-        }
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__
-                      << ": waiting for detached threads to finish execution, "
-                      << " catched exception: " << e.what();
     }
 
     try {
@@ -3104,22 +3023,6 @@ void application_impl::register_message_handler_ext(
     default:
         ;
     }
-}
-
-void application_impl::increment_active_threads() {
-    dispatcher_counter_++;
-    VSOMEIP_DEBUG << "Thread created. Number of active threads for " << name_ << " : "
-                  << get_active_threads();
-}
-
-void application_impl::decrement_active_threads() {
-    dispatcher_counter_--;
-    VSOMEIP_DEBUG << "Thread destroyed. Number of active threads for " << name_ << " : "
-                  << get_active_threads();
-}
-
-std::uint16_t application_impl::get_active_threads() const {
-    return dispatcher_counter_;
 }
 
 } // namespace vsomeip_v3
