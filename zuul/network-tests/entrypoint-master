@@ -102,7 +102,8 @@ gen-core-backtraces /home/logs/cores
 
 if [ "$ENABLE_COVERAGE" != False ]
 then
-	run-both gcovr --gcov-executable "$GCOV" --json /home/logs/coverage/@name@.json --root /home/source /home/build
+
+	run-both gcovr --gcov-executable "$GCOV" --gcov-ignore-parse-errors=suspicious_hits.warn --json /home/logs/coverage/@name@.json --root /home/source /home/build
 	run-both lcov --base-directory /home/source --capture --directory /home/build --gcov-tool "$GCOV" --output-file /home/logs/coverage/@name@.info
 	gcovr --add-tracefile=/home/logs/coverage/{master,slave}.json --json /home/logs/coverage.json
 	lcov --add-tracefile=/home/logs/coverage/{master,slave}.info --output-file /home/logs/coverage/merged.info
