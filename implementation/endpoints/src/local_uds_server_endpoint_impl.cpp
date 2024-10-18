@@ -242,7 +242,7 @@ void local_uds_server_endpoint_impl::remove_connection(
 }
 
 void local_uds_server_endpoint_impl::accept_cbk(
-        const connection::ptr& _connection, boost::system::error_code const &_error) {
+        connection::ptr _connection, boost::system::error_code const &_error) {
     if (_error != boost::asio::error::bad_descriptor
             && _error != boost::asio::error::operation_aborted
             && _error != boost::asio::error::no_descriptors) {
