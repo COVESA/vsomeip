@@ -20,7 +20,6 @@
 #if defined(__QNX__)
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include "../../utility/include/qnx_helper.hpp"
 #endif
 
 namespace vsomeip_v3 {
@@ -306,11 +305,12 @@ receive_cb (std::shared_ptr<storage> _data) {
                     _data->sender_ = endpoint_type_t(its_sender_address, its_sender_port);
 
                     // destination
-                    struct in_pktinfo *its_pktinfo_v4;
                     for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&its_header);
                          cmsg != NULL;
                          cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
 
+#if defined(IP_PKTINFO) # Linux, QNX io-pkt
+                        struct in_pktinfo *its_pktinfo_v4;
                         if (cmsg->cmsg_level == IPPROTO_IP
                             && cmsg->cmsg_type == IP_PKTINFO
                             && cmsg->cmsg_len == CMSG_LEN(sizeof(*its_pktinfo_v4))) {
@@ -322,6 +322,22 @@ receive_cb (std::shared_ptr<storage> _data) {
                                 break;
                             }
                         }
+#elif defined(IP_RECVDSTADDR) # FreeBSD, QNX io-sock
+                        struct in_addr *its_pktinfo_v4;
+                        if (cmsg->cmsg_level == IPPROTO_IP
+                            && cmsg->cmsg_type == IP_RECVDSTADDR
+                            && cmsg->cmsg_len == CMSG_LEN(sizeof(*its_pktinfo_v4))) {
+
+                            its_pktinfo_v4 = (struct in_addr*) CMSG_DATA(cmsg);
+                            if (its_pktinfo_v4) {
+                                _data->destination_ = boost::asio::ip::address_v4(
+                                        ntohl(its_pktinfo_v4->s_addr));
+                                break;
+                            }
+                        }
+#else
+                        #error "Platform not supported. Neither IP_PKTINFO nor IP_RECVDSTADDR is defined.";
+#endif
                     }
                 } else {
                     boost::asio::ip::address_v6::bytes_type its_bytes;

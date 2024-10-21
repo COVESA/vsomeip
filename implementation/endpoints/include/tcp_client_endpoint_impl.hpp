@@ -13,9 +13,6 @@
 
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"
-#if defined(__QNX__)
-#include "../../utility/include/qnx_helper.hpp"
-#endif
 
 namespace vsomeip_v3 {
 

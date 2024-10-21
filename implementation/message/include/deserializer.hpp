@@ -11,10 +11,6 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-#if defined(__QNX__)
-#include "../../utility/include/qnx_helper.hpp"
-#endif
-
 namespace vsomeip_v3 {
 
 class message_impl;
