@@ -309,7 +309,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                          cmsg != NULL;
                          cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
 
-#if defined(IP_PKTINFO)
+#if defined(IP_PKTINFO) # Linux, QNX io-pkt
                         struct in_pktinfo *its_pktinfo_v4;
                         if (cmsg->cmsg_level == IPPROTO_IP
                             && cmsg->cmsg_type == IP_PKTINFO
@@ -322,7 +322,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                                 break;
                             }
                         }
-#elif defined(IP_RECVDSTADDR)
+#elif defined(IP_RECVDSTADDR) # FreeBSD, QNX io-sock
                         struct in_addr *its_pktinfo_v4;
                         if (cmsg->cmsg_level == IPPROTO_IP
                             && cmsg->cmsg_type == IP_RECVDSTADDR
