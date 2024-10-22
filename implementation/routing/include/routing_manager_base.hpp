@@ -183,7 +183,8 @@ protected:
     void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
     services_t get_services() const;
     services_t get_services_remote() const;
-    bool is_available(service_t _service, instance_t _instance, major_version_t _major);
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const;
 
     void remove_local(client_t _client, bool _remove_sec_client);
     void remove_local(client_t _client,

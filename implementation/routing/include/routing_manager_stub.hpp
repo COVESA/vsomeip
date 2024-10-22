@@ -146,6 +146,7 @@ private:
 
     void on_register_application(client_t _client);
     void on_deregister_application(client_t _client);
+    void on_register_application_ack(client_t _client);
 
     void on_offered_service_request(client_t _client, offer_type_e _offer_type);
 

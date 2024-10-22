@@ -311,6 +311,11 @@ public:
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
 
+    std::vector<protocol::service> get_requested_services(client_t _client) const;
+
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const;
+
 private:
     bool offer_service(client_t _client,
             service_t _service, instance_t _instance,
@@ -386,7 +391,6 @@ private:
     void remove_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
-    std::vector<std::pair<service_t, instance_t>> get_requested_services(client_t _client);
     std::set<client_t> get_requesters(service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
@@ -473,7 +477,7 @@ private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
-    std::mutex requested_services_mutex_;
+    mutable std::mutex requested_services_mutex_;
     std::map<service_t,
         std::map<instance_t,
             std::map<major_version_t,
