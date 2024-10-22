@@ -738,6 +738,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                 VSOMEIP_INFO << "REGISTERED_ACK("
                         << std::hex << std::setw(4) << std::setfill('0')
                         << its_command.get_client() << ")";
+
+                on_register_application_ack(its_command.get_client());
+
             } else
                 VSOMEIP_ERROR << __func__ << ": registered ack deserialization failed ("
                         << std::dec << static_cast<int>(its_error) << ")";
@@ -883,8 +886,47 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
     }
 }
 
-void
-routing_manager_stub::on_offered_service_request(client_t _client,
+void routing_manager_stub::on_register_application_ack(client_t _client) {
+
+    // Check if the client has already requested services in case of a re-register
+    auto its_requests = host_->get_requested_services(_client);
+    // Trigger the availability of each previous request
+    for (const auto& r : its_requests) {
+        // Get the client id of the application that offers the service
+        auto service_provider_client = host_->find_local_client(r.service_, r.instance_);
+
+        // Trigger availability only for local serives
+        // Externals will be handled by service discovery, they can be skipped here
+        if (service_provider_client == VSOMEIP_ROUTING_CLIENT
+            || service_provider_client == host_->get_client()) {
+
+            continue;
+        }
+
+        // Get the current service availability state
+        bool service_available = host_->is_available(r.service_, r.instance_, r.major_);
+
+        protocol::routing_info_entry its_entry;
+        its_entry.set_type(
+                service_available
+                        ? protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
+                        : protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
+        its_entry.set_client(service_provider_client);
+
+        // For local tcp
+        boost::asio::ip::address its_address;
+        port_t its_port;
+        if (host_->get_guest(service_provider_client, its_address, its_port)) {
+            its_entry.set_address(its_address);
+            its_entry.set_port(its_port);
+        }
+
+        its_entry.add_service(r);
+        send_client_routing_info(_client, its_entry);
+    }
+}
+
+void routing_manager_stub::on_offered_service_request(client_t _client,
         offer_type_e _offer_type) {
 
     protocol::offered_services_response_command its_command;

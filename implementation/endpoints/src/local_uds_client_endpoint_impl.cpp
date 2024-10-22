@@ -369,7 +369,7 @@ bool local_uds_client_endpoint_impl::is_reliable() const {
 
 std::uint32_t local_uds_client_endpoint_impl::get_max_allowed_reconnects() const {
 
-    return 13;
+    return MAX_RECONNECTS_LOCAL_UDS;
 }
 
 void local_uds_client_endpoint_impl::max_allowed_reconnects_reached() {

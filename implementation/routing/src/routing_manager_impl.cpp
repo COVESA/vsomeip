@@ -2343,7 +2343,7 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
     routing_manager_base::remove_local(_client, clients_subscriptions, _remove_uid);
 
     for (const auto &s : get_requested_services(_client)) {
-        release_service(_client, s.first, s.second);
+        release_service(_client, s.service_, s.instance_);
     }
 }
 
@@ -4039,6 +4039,11 @@ void routing_manager_impl::start_ip_routing() {
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
+bool routing_manager_impl::is_available(service_t _service, instance_t _instance,
+                                        major_version_t _major) const {
+    return routing_manager_base::is_available(_service, _instance, _major);
+}
+
 void
 routing_manager_impl::add_requested_service(client_t _client,
         service_t _service, instance_t _instance,
@@ -4123,27 +4128,30 @@ routing_manager_impl::remove_requested_service(client_t _client,
     }
 }
 
-std::vector<std::pair<service_t, instance_t> >
-routing_manager_impl::get_requested_services(client_t _client) {
+std::vector<protocol::service>
+routing_manager_impl::get_requested_services(client_t _client) const {
     std::lock_guard<std::mutex> ist_lock(requested_services_mutex_);
-    std::vector<std::pair<service_t, instance_t>> its_requests;
+    std::vector<protocol::service> its_requests;
     for (const auto& service : requested_services_) {
         for (const auto& instance : service.second) {
             bool requested = false;
+            major_version_t its_major = ANY_MAJOR;
+            minor_version_t its_minor = ANY_MINOR;
             for (const auto& major : instance.second) {
                 for (const auto& minor : major.second) {
                     if (minor.second.find(_client) != minor.second.end()) {
                         requested = true;
+                        its_minor = minor.first;
                         break;
                     }
                 }
                 if (requested) {
+                    its_major = major.first;
                     break;
                 }
             }
             if (requested) {
-                its_requests.push_back(
-                        std::make_pair(service.first, instance.first));
+                its_requests.emplace_back(service.first, instance.first, its_major, its_minor);
                 break;
             }
         }

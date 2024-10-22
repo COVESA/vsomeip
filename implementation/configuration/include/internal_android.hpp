@@ -141,6 +141,8 @@ inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = std::numeric_limits<std::u
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 
 inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 2;
 
 inline constexpr std::uint32_t ANY_UID = 0xFFFFFFFF;
 inline constexpr std::uint32_t ANY_GID = 0xFFFFFFFF;

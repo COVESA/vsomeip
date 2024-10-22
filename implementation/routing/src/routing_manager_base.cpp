@@ -1125,7 +1125,7 @@ services_t routing_manager_base::get_services_remote() const {
 }
 
 bool routing_manager_base::is_available(service_t _service, instance_t _instance,
-        major_version_t _major) {
+                                        major_version_t _major) const {
     bool available(false);
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
     auto its_service = local_services_.find(_service);
