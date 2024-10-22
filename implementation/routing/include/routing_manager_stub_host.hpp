@@ -127,6 +127,11 @@ public:
     virtual void clear_local_services() = 0;
 
     virtual routing_state_e get_routing_state() = 0;
+
+    virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
+
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const = 0;
 };
 
 } // namespace vsomeip_v3
