@@ -110,7 +110,7 @@ routing_manager_client::~routing_manager_client() {
 void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (configuration_->is_local_routing()) {
             sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
         } else {
@@ -150,7 +150,7 @@ void routing_manager_client::start() {
 #endif // __linux__ || ANDROID
         is_started_ = true;
         {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (!sender_) {
                 // application has been stopped and started again
                 sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
@@ -168,6 +168,7 @@ void routing_manager_client::start() {
 }
 
 void routing_manager_client::stop() {
+    std::scoped_lock its_routing_lock {routing_stop_mutex_};
     std::unique_lock<std::mutex> its_lock(state_mutex_);
     if (state_ == inner_state_type_e::ST_REGISTERING) {
         register_application_timer_.cancel();
@@ -208,13 +209,16 @@ void routing_manager_client::stop() {
         request_debounce_timer_.cancel();
     }
 
-    if (receiver_) {
-        receiver_->stop();
+    {
+        std::scoped_lock its_receiver_lock(receiver_mutex_);
+        if (receiver_) {
+            receiver_->stop();
+        }
+        receiver_ = nullptr;
     }
-    receiver_ = nullptr;
 
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->stop();
         }
@@ -254,25 +258,28 @@ routing_manager_client::on_net_state_change(
         << _name << " "
         << std::boolalpha << _is_available;
 
+    std::scoped_lock its_routing_lock {routing_stop_mutex_};
     if (_is_interface) {
         if (_is_available) {
             if (!is_local_link_available_) {
 
                 is_local_link_available_ = true;
 
-                if (!receiver_)
-                    receiver_ = ep_mgr_->create_local_server(shared_from_this());
+                {
+                    std::scoped_lock its_receiver_sender_lock {receiver_mutex_, sender_mutex_};
+                    if (!receiver_)
+                        receiver_ = ep_mgr_->create_local_server(shared_from_this());
 
-                if (receiver_) {
-                    receiver_->start();
-                    is_started_ = true;
+                    if (receiver_) {
+                        receiver_->start();
+                        is_started_ = true;
+                        if (!sender_)
+                            sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
 
-                    if (!sender_)
-                        sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-
-                    if (sender_) {
-                        host_->set_sec_client_port(sender_->get_local_port());
-                        sender_->start();
+                        if (sender_) {
+                            host_->set_sec_client_port(sender_->get_local_port());
+                            sender_->start();
+                        }                        
                     }
                 }
             }
@@ -282,15 +289,19 @@ routing_manager_client::on_net_state_change(
 
                 state_ = inner_state_type_e::ST_DEREGISTERED;
 
-                if (sender_) {
-                    on_disconnect(sender_);
-                    host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
-                    sender_->stop();
+                {
+                    std::scoped_lock its_sender_lock(sender_mutex_);
+                    if (sender_) {
+                        on_disconnect(sender_);
+                        host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
+                        sender_->stop();
+                    }
                 }
-
-                if (receiver_)
-                    receiver_->stop();
-
+                {
+                    std::scoped_lock its_receiver_lock(receiver_mutex_);
+                    if (receiver_)
+                        receiver_->stop();
+                }
                 {
                     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
                     local_services_.clear();
@@ -359,7 +370,7 @@ void routing_manager_client::send_offer_service(client_t _client,
     its_offer.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -404,7 +415,7 @@ void routing_manager_client::stop_offer_service(client_t _client,
             its_command.serialize(its_buffer, its_error);
 
             if (its_error == protocol::error_e::ERROR_OK) {
-                std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                std::scoped_lock its_sender_lock {sender_mutex_};
                 if (sender_) {
                     sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 }
@@ -594,7 +605,7 @@ void routing_manager_client::unregister_event(client_t _client,
             protocol::error_e its_error;
             its_command.serialize(its_buffer, its_error);
             if (its_error == protocol::error_e::ERROR_OK) {
-                std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                std::scoped_lock its_sender_lock {sender_mutex_};
                 if (sender_) {
                     sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 }
@@ -703,7 +714,7 @@ void routing_manager_client::send_subscribe(client_t _client,
                               << _event;
             }
         } else {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -740,7 +751,7 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber,
             }
         }
         {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -777,7 +788,7 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber,
             }
         }
         {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -820,7 +831,7 @@ void routing_manager_client::unsubscribe(client_t _client,
                 if (its_target) {
                     its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 } else {
-                    std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                    std::scoped_lock its_sender_lock {sender_mutex_};
                     if (sender_) {
                         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
                     }
@@ -923,7 +934,7 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         bool message_to_stub(false);
 #endif
         if (!its_target) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 its_target = sender_;
 #ifdef USE_DLT
@@ -992,7 +1003,7 @@ void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoi
     _endpoint->set_connected(true);
     _endpoint->set_established(true);
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (_endpoint != sender_) {
             return;
         }
@@ -1003,7 +1014,7 @@ void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoi
 
 void routing_manager_client::on_disconnect(const std::shared_ptr<endpoint>& _endpoint) {
     {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         is_connected_ = !(_endpoint == sender_);
     }
     if (!is_connected_) {
@@ -1259,6 +1270,7 @@ void routing_manager_client::on_message(
 
         case protocol::id_e::ASSIGN_CLIENT_ACK_ID:
         {
+            std::scoped_lock its_routing_lock {routing_stop_mutex_};
             client_t its_assigned_client(VSOMEIP_CLIENT_UNSET);
             protocol::assign_client_ack_command its_ack_command;
             its_ack_command.deserialize(its_buffer, its_error);
@@ -2122,7 +2134,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setw(4) << std::setfill('0') << get_client()
                 << " :  routing_manager_client::reconnect: isn't allowed"
                 << " to use the server endpoint due to credential check failed!";
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->stop();
         }
@@ -2130,7 +2142,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
     }
 #endif
 
-    std::lock_guard<std::mutex> its_lock(sender_mutex_);
+    std::scoped_lock its_sender_lock {sender_mutex_};
     if (sender_) {
         sender_->restart();
     }
@@ -2158,7 +2170,7 @@ void routing_manager_client::assign_client() {
 
     std::lock_guard<std::mutex> its_state_lock(state_mutex_);
     if (is_connected_) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             if (state_ != inner_state_type_e::ST_DEREGISTERED) {
                 VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setw(4) << std::setfill('0')
@@ -2217,7 +2229,7 @@ void routing_manager_client::register_application() {
 
     if (its_error == protocol::error_e::ERROR_OK) {
         if (is_connected_) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 state_ = inner_state_type_e::ST_REGISTERING;
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
@@ -2265,7 +2277,7 @@ void routing_manager_client::deregister_application() {
     if (its_error == protocol::error_e::ERROR_OK) {
         if (is_connected_)
         {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -2287,7 +2299,7 @@ void routing_manager_client::send_pong() const {
 
     if (its_error == protocol::error_e::ERROR_OK) {
         if (is_connected_) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -2312,7 +2324,7 @@ void routing_manager_client::send_request_services(const std::set<protocol::serv
     protocol::error_e its_error;
     its_command.serialize(its_buffer, its_error);
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2336,7 +2348,7 @@ void routing_manager_client::send_release_service(client_t _client, service_t _s
     protocol::error_e its_error;
     its_command.serialize(its_buffer, its_error);
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2363,7 +2375,7 @@ void routing_manager_client::send_pending_event_registrations(client_t _client) 
         its_command.serialize(its_buffer, its_error);
 
         if (its_error == protocol::error_e::ERROR_OK) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
             }
@@ -2399,7 +2411,7 @@ void routing_manager_client::send_register_event(client_t _client,
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2533,6 +2545,7 @@ void routing_manager_client::init_receiver() {
     its_policy_manager->store_client_to_sec_client_mapping(get_client(), get_sec_client());
     its_policy_manager->store_sec_client_to_client_mapping(get_sec_client(), get_client());
 #endif
+    std::scoped_lock rec_lock(receiver_mutex_);
     if (!receiver_) {
         receiver_ = ep_mgr_->create_local_server(shared_from_this());
     } else {
@@ -2564,7 +2577,7 @@ void routing_manager_client::notify_remote_initially(service_t _service, instanc
                 std::shared_ptr<serializer> its_serializer(get_serializer());
                 if (its_serializer->serialize(its_notification.get())) {
                     {
-                        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+                        std::scoped_lock its_sender_lock {sender_mutex_};
                         if (sender_) {
                             send_local(sender_, VSOMEIP_ROUTING_CLIENT,
                                     its_serializer->get_data(), its_serializer->get_size(),
@@ -2645,7 +2658,7 @@ routing_manager_client::assign_client_timeout_cbk(
             }
         }
         if (register_again) {
-            std::lock_guard<std::mutex> its_lock(sender_mutex_);
+            std::scoped_lock its_sender_lock {sender_mutex_};
             VSOMEIP_WARNING << "Client 0x" << std::hex << std::setw(4) << std::setfill('0')
                             << get_client() << " request client timeout! Trying again...";
 
@@ -2672,7 +2685,7 @@ void routing_manager_client::register_application_timeout_cbk(
         }
     }
     if (register_again) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         VSOMEIP_WARNING << std::hex << "Client 0x"
                         << std::hex << std::setw(4) << std::setfill('0') << get_client()
                         << " register timeout! Trying again...";
@@ -2693,7 +2706,7 @@ void routing_manager_client::send_registered_ack() {
 
     if (its_error == protocol::error_e::ERROR_OK) {
 
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2815,7 +2828,7 @@ void routing_manager_client::send_get_offered_services_info(client_t _client, of
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2841,7 +2854,7 @@ void routing_manager_client::send_unsubscribe_ack(
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2873,7 +2886,7 @@ void routing_manager_client::send_resend_provided_event_response(pending_remote_
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2896,7 +2909,7 @@ void routing_manager_client::send_update_security_policy_response(
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2918,7 +2931,7 @@ void routing_manager_client::send_remove_security_policy_response(
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::lock_guard<std::mutex> its_lock(sender_mutex_);
+        std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         }
@@ -2966,6 +2979,7 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
 
             if (is_started_) {
                 init_receiver();
+                std::scoped_lock r_lock(receiver_mutex_);
                 if (receiver_) {
                     receiver_->start();
 
@@ -2981,7 +2995,9 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
 
                     host_->set_client(VSOMEIP_CLIENT_UNSET);
 
-                    sender_->restart();
+                    std::scoped_lock its_sender_lock {sender_mutex_};
+                    if (sender_)
+                        sender_->restart();
                 }
             } else {
                 VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":"
