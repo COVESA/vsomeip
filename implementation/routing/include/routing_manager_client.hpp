@@ -268,6 +268,7 @@ private:
     std::recursive_mutex incoming_subscriptions_mutex_;
 
     std::mutex state_mutex_;
+    std::mutex routing_stop_mutex_;
     std::condition_variable state_condition_;
 
     std::map<service_t,
@@ -275,6 +276,7 @@ private:
     std::mutex remote_subscriber_count_mutex_;
 
     mutable std::mutex sender_mutex_;
+    mutable std::mutex receiver_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
 
