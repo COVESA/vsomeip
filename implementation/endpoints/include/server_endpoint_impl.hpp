@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 #include <boost/array.hpp>
