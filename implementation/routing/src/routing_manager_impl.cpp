@@ -3690,7 +3690,7 @@ void routing_manager_impl::handle_client_error(client_t _client) {
     if (stub_)
         stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR,
                 boost::asio::ip::address(), 0);
-
+    remove_local(_client, true);
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t,
                                         minor_version_t>> its_offers;
     {
