@@ -541,6 +541,15 @@ void client_endpoint_impl<Protocol>::send_cbk(
         }
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+            return;
+        }
+
         state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
@@ -597,6 +606,15 @@ void client_endpoint_impl<Protocol>::send_cbk(
         strand_.dispatch(std::bind(&client_endpoint_impl::connect,
                 this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+            return;
+        }
+
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                         << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         // endpoint was stopped
