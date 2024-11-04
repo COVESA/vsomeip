@@ -777,7 +777,7 @@ application_impl::are_available_unlocked(available_t &_available,
         //get available service
         auto found_available_service = available_.find(its_available_services_it->first);
         if (found_available_service != available_.end()) {
-            if(_instance == ANY_INSTANCE) {
+            if (_instance == ANY_INSTANCE) {
                 //add all available instances
                 for(auto its_available_instances_it = found_available_service->second.begin();
                         its_available_instances_it != found_available_service->second.end();
@@ -827,15 +827,15 @@ application_impl::are_available_unlocked(available_t &_available,
     //find minor
     //iterate through found available services
     auto its_available_services_it = _available.begin();
-    while(its_available_services_it != _available.end()) {
+    while (its_available_services_it != _available.end()) {
         bool found_minor(false);
         //get available service
          auto found_available_service = available_.find(its_available_services_it->first);
          if (found_available_service != available_.end()) {
              //iterate through found available instances
-             for(auto its_available_instances_it = found_available_service->second.begin();
-                     its_available_instances_it != found_available_service->second.end();
-                     ++its_available_instances_it) {
+             for (auto its_available_instances_it = found_available_service->second.begin();
+                  its_available_instances_it != found_available_service->second.end();
+                  ++its_available_instances_it) {
                  //get available instance
                  auto found_available_instance = found_available_service->second.find(its_available_instances_it->first);
                  if(found_available_instance != found_available_service->second.end()) {
@@ -1017,15 +1017,31 @@ void application_impl::register_availability_handler_unlocked(service_t _service
     availability_[_service][_instance][_major][_minor] =
             std::make_pair(_handler, its_availability_state);
 
+    auto add_sync_handler = [&](service_t _srvc, instance_t _nstnc,
+                                const availability_state_handler_t& _hndlr,
+                                availability_state_e _stt) {
+        auto its_sync_handler = std::make_shared<sync_handler>(
+                [_hndlr, _srvc, _nstnc, _stt]() { _hndlr(_srvc, _nstnc, _stt); });
+        its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+        its_sync_handler->service_id_ = _srvc;
+        its_sync_handler->instance_id_ = _nstnc;
+        handlers_.push_back(its_sync_handler);
+    };
+
     std::scoped_lock handlers_lock(handlers_mutex_);
-    auto its_sync_handler =
-            std::make_shared<sync_handler>([_handler, _service, _instance, its_state]() {
-                _handler(_service, _instance, its_state);
-            });
-    its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
-    its_sync_handler->service_id_ = _service;
-    its_sync_handler->instance_id_ = _instance;
-    handlers_.push_back(its_sync_handler);
+    if (_service != ANY_SERVICE && _instance != ANY_INSTANCE) {
+        add_sync_handler(_service, _instance, _handler, its_state);
+    } else {
+        // Additionally report the actual instances in case of wildcards
+        available_t its_available;
+        are_available_unlocked(its_available, _service, _instance, _major, _minor);
+        for (const auto& [service, instances] : its_available) {
+            for (const auto& [instance, versions] : instances) {
+                add_sync_handler(service, instance, _handler, availability_state_e::AS_AVAILABLE);
+            }
+        }
+    }
+    // trigger dispatching
     dispatcher_condition_.notify_one();
 }
 
