@@ -119,6 +119,10 @@
 #define LOCAL_TCP_PORT_WAIT_TIME                @VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME@
 #define LOCAL_TCP_PORT_MAX_WAIT_TIME            @VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME@
 
+#define MIN_ENDPOINT_WAIT_INTERVAL              10
+#define MAX_ENDPOINT_WAIT_INTERVAL              160
+#define SUM_ENDPOINT_WAIT_INTERVAL              500
+
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>
 #endif

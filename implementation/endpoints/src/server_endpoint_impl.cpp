@@ -134,6 +134,11 @@ bool server_endpoint_impl<Protocol>::is_established_or_connected() const {
 }
 
 template<typename Protocol>
+bool server_endpoint_impl<Protocol>::is_closed() const {
+    return true;
+}
+
+template<typename Protocol>
 void server_endpoint_impl<Protocol>::set_established(bool _established) {
     (void)_established;
 }

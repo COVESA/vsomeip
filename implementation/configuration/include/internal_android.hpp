@@ -104,6 +104,10 @@
 #define LOCAL_TCP_PORT_WAIT_TIME                100
 #define LOCAL_TCP_PORT_MAX_WAIT_TIME            10000
 
+#define MIN_ENDPOINT_WAIT_INTERVAL              10
+#define MAX_ENDPOINT_WAIT_INTERVAL              160
+#define SUM_ENDPOINT_WAIT_INTERVAL              500
+
 #include <pthread.h>
 
 #define VSOMEIP_DATA_ID                         0x677D

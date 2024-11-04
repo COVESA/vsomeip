@@ -1391,23 +1391,29 @@ bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
     return false;
 }
 
-void endpoint_manager_impl::suspend(void) {
-
+void endpoint_manager_impl::suspend() {
     client_endpoints_t its_client_endpoints;
     server_endpoints_t its_server_endpoints;
+
     {
-        // TODO: Check whether we can avoid copying
         std::scoped_lock its_lock {endpoint_mutex_};
         its_client_endpoints = client_endpoints_;
         its_server_endpoints = server_endpoints_;
     }
 
     // stop client endpoints
+    std::set<std::shared_ptr<client_endpoint>> its_suspended_client_endpoints;
     for (auto& its_address : its_client_endpoints) {
         for (auto& its_port : its_address.second) {
             for (auto& its_protocol : its_port.second) {
                 for (auto& its_partition : its_protocol.second) {
                     its_partition.second->stop();
+
+                    auto its_client_endpoint {
+                            std::dynamic_pointer_cast<client_endpoint>(its_partition.second)};
+                    if (its_client_endpoint) {
+                        its_suspended_client_endpoints.insert(its_client_endpoint);
+                    }
                 }
             }
         }
@@ -1419,32 +1425,106 @@ void endpoint_manager_impl::suspend(void) {
             its_protocol.second->stop();
         }
     }
+    // check that the clients are established again
+    size_t its_interval {MIN_ENDPOINT_WAIT_INTERVAL};
+    size_t its_sum {0};
+    const size_t its_max {SUM_ENDPOINT_WAIT_INTERVAL};
+    bool is_done;
+    do {
+        is_done = true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(its_interval));
+        for (auto& its_endpoint : its_suspended_client_endpoints) {
+            is_done = is_done && its_endpoint->is_closed();
+            if (!is_done)
+                break;
+        }
+        if (its_interval < MAX_ENDPOINT_WAIT_INTERVAL) {
+            its_interval <<= 1;
+        }
+        its_sum += its_interval;
+    } while (!is_done && its_sum < its_max);
+
+    if (!is_done) {
+        for (const auto& its_endpoint : its_suspended_client_endpoints) {
+            if (!its_endpoint->is_closed()) {
+                boost::asio::ip::address its_address;
+                (void)its_endpoint->get_remote_address(its_address);
+
+                VSOMEIP_WARNING << "endpoint_manager_impl::" << __func__
+                                << ": Suspending client port [" << std::dec
+                                << its_endpoint->get_local_port() << "] --> ["
+                                << its_address.to_string() << ":" << its_endpoint->get_remote_port()
+                                << "] failed.";
+            }
+        }
+    }
 }
 
-void endpoint_manager_impl::resume(void) {
+void endpoint_manager_impl::resume() {
     client_endpoints_t its_client_endpoints;
     server_endpoints_t its_server_endpoints;
+
     {
-        // TODO: Check whether we can avoid copying
         std::scoped_lock its_lock {endpoint_mutex_};
         its_client_endpoints = client_endpoints_;
         its_server_endpoints = server_endpoints_;
     }
 
     // start server endpoints
-    for (auto& its_port : its_server_endpoints) {
-        for (auto& its_protocol : its_port.second) {
+    for (const auto& its_port : server_endpoints_) {
+        for (const auto& its_protocol : its_port.second) {
             its_protocol.second->restart();
         }
     }
 
     // start client endpoints
-    for (auto& its_address : its_client_endpoints) {
-        for (auto& its_port : its_address.second) {
-            for (auto& its_protocol : its_port.second) {
-                for (auto& its_partition : its_protocol.second) {
+    std::set<std::shared_ptr<client_endpoint>> its_resumed_client_endpoints;
+    for (const auto& its_address : client_endpoints_) {
+        for (const auto& its_port : its_address.second) {
+            for (const auto& its_protocol : its_port.second) {
+                for (const auto& its_partition : its_protocol.second) {
                     its_partition.second->restart();
+
+                    auto its_client_endpoint {
+                            std::dynamic_pointer_cast<client_endpoint>(its_partition.second)};
+                    if (its_client_endpoint) {
+                        its_resumed_client_endpoints.insert(its_client_endpoint);
+                    }
                 }
+            }
+        }
+    }
+
+    // check that the clients are established again
+    size_t its_interval {MIN_ENDPOINT_WAIT_INTERVAL};
+    size_t its_sum {0};
+    const size_t its_max {SUM_ENDPOINT_WAIT_INTERVAL};
+    bool is_done;
+    do {
+        is_done = true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(its_interval));
+        for (const auto& its_endpoint : its_resumed_client_endpoints) {
+            is_done = is_done && its_endpoint->is_established();
+            if (!is_done)
+                break;
+        }
+        if (its_interval < MAX_ENDPOINT_WAIT_INTERVAL) {
+            its_interval <<= 1;
+        }
+        its_sum += its_interval;
+    } while (!is_done && its_sum < its_max);
+
+    if (!is_done) {
+        for (const auto& its_endpoint : its_resumed_client_endpoints) {
+            if (!its_endpoint->is_established()) {
+                boost::asio::ip::address its_address;
+                (void)its_endpoint->get_remote_address(its_address);
+
+                VSOMEIP_WARNING << "endpoint_manager_impl::" << __func__
+                                << ": Resuming client port [" << std::dec
+                                << its_endpoint->get_local_port() << "] --> ["
+                                << its_address.to_string() << ":" << its_endpoint->get_remote_port()
+                                << "] failed.";
             }
         }
     }

@@ -61,6 +61,7 @@ public:
 
     bool is_established() const;
     bool is_established_or_connected() const;
+    bool is_closed() const;
     void set_established(bool _established);
     void set_connected(bool _connected);
     virtual bool get_remote_address(boost::asio::ip::address &_address) const;

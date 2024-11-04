@@ -3783,9 +3783,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 // stop processing of incoming SD messages
                 discovery_->stop();
 
-                // stop all endpoints
-                ep_mgr_->suspend();
-
                 VSOMEIP_INFO << "rmi::" << __func__ << " Inform all applications that we are going to suspend";
                 send_suspend();
 
@@ -3866,6 +3863,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
 
+                // suspend all endpoints
+                ep_mgr_->suspend();
+
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to suspend mode done, diagnosis mode is "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
@@ -3875,6 +3875,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             {
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode, diagnosis mode was "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
+
+                // resume all endpoints
+                ep_mgr_->resume();
+
                 {
                     std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
                     last_resume_ = std::chrono::steady_clock::now();
@@ -3893,9 +3897,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 if (routing_state_handler_) {
                     routing_state_handler_(_routing_state);
                 }
-
-                // start all endpoints
-                ep_mgr_->resume();
 
                 // start processing of SD messages (incoming remote offers should lead to new subscribe messages)
                 discovery_->start();

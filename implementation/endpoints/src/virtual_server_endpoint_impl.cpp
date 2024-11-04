@@ -42,6 +42,10 @@ bool virtual_server_endpoint_impl::is_established_or_connected() const {
     return false;
 }
 
+bool virtual_server_endpoint_impl::is_closed() const {
+    return false;
+}
+
 void virtual_server_endpoint_impl::set_established(bool _established) {
     (void) _established;
 }
