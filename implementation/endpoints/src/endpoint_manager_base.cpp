@@ -408,10 +408,10 @@ void endpoint_manager_base::add_multicast_option(const multicast_option_t &_opti
     (void)_option;
 }
 
-void endpoint_manager_base::suspend(void) {
+void endpoint_manager_base::suspend() {
     // Nothing to be done for internal endpoints
 }
-void endpoint_manager_base::resume(void) {
+void endpoint_manager_base::resume() {
     // Nothing to be done for internal endpoints
 }
 

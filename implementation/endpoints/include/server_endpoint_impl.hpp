@@ -78,6 +78,7 @@ public:
     void restart(bool _force);
     bool is_established() const;
     bool is_established_or_connected() const;
+    bool is_closed() const;
     void set_established(bool _established);
     void set_connected(bool _connected);
     bool send(const uint8_t* _data, uint32_t _size);

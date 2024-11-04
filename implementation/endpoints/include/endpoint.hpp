@@ -33,6 +33,7 @@ public:
 
     virtual bool is_established() const = 0;
     virtual bool is_established_or_connected() const = 0;
+    virtual bool is_closed() const = 0;
 
     virtual bool send(const byte_t *_data, uint32_t _size) = 0;
     virtual bool send_to(const std::shared_ptr<endpoint_definition> _target,
