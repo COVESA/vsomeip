@@ -112,8 +112,8 @@ public:
     // add join/leave options
     void add_multicast_option(const multicast_option_t &_option);
 
-    void suspend(void);
-    void resume(void);
+    void suspend();
+    void resume();
 
 private:
     std::shared_ptr<endpoint> find_remote_client(service_t _service,
