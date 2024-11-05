@@ -4025,8 +4025,11 @@ void routing_manager_impl::start_ip_routing() {
     if (routing_ready_handler_) {
         routing_ready_handler_();
     }
+
     if (discovery_) {
-        discovery_->start();
+        if (routing_state_ != routing_state_e::RS_SUSPENDED) {
+            discovery_->start();
+        }
     } else {
         init_routing_info();
     }
