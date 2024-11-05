@@ -1062,6 +1062,11 @@ Configuration file element explanation:
         Specifies whether the Service Discovery is enabled (valid values: _true_,
         _false_). The default value is _true_.
 
+    * `initial_state`
+
+        Specifies the initial Service Discovery state after startup
+        (valid values: _unknown_, _suspended_, _resumed_). The default value is _unknown_.
+
     * `multicast`
 
         The multicast address which the messages of the Service Discovery will be sent

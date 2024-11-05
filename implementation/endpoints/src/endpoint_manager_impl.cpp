@@ -34,12 +34,11 @@
 
 namespace vsomeip_v3 {
 
-endpoint_manager_impl::endpoint_manager_impl(
-        routing_manager_base* const _rm, boost::asio::io_context &_io,
-        const std::shared_ptr<configuration>& _configuration) :
-        endpoint_manager_base(_rm, _io, _configuration),
-        is_processing_options_(true),
-        options_thread_(std::bind(&endpoint_manager_impl::process_multicast_options, this)) {
+endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm,
+                                             boost::asio::io_context& _io,
+                                             const std::shared_ptr<configuration>& _configuration) :
+    endpoint_manager_base(_rm, _io, _configuration), is_processing_options_(true),
+    options_thread_(std::bind(&endpoint_manager_impl::process_multicast_options, this)) {
 
     local_port_ = port_t(_configuration->get_routing_host_port() + 1);
     if (!is_local_routing_) {
@@ -71,8 +70,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(
             start_endpoint = true;
         }
     }
-    if (start_endpoint && its_endpoint
-            && configuration_->is_someip(_service, _instance)) {
+    if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance)
+        && rm_->get_routing_state() != routing_state_e::RS_SUSPENDED) {
         its_endpoint->start();
     }
     return its_endpoint;
@@ -97,11 +96,13 @@ void endpoint_manager_impl::find_or_create_remote_client(
             start_unreliable_endpoint = true;
         }
     }
-    const bool is_someip = configuration_->is_someip(_service, _instance);
-    if (start_reliable_endpoint && its_reliable_endpoint && is_someip) {
+    const bool is_someip {configuration_->is_someip(_service, _instance)};
+    const bool is_suspended {rm_->get_routing_state() == routing_state_e::RS_SUSPENDED};
+
+    if (start_reliable_endpoint && its_reliable_endpoint && is_someip && !is_suspended) {
         its_reliable_endpoint->start();
     }
-    if (start_unreliable_endpoint && its_unreliable_endpoint && is_someip) {
+    if (start_unreliable_endpoint && its_unreliable_endpoint && is_someip && !is_suspended) {
         its_unreliable_endpoint->start();
     }
 }
@@ -288,7 +289,9 @@ endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bo
 
     if (its_server_endpoint) {
         server_endpoints_[_port][_reliable] = its_server_endpoint;
-        its_server_endpoint->start();
+        if (rm_->get_routing_state() != routing_state_e::RS_SUSPENDED) {
+            its_server_endpoint->start();
+        }
     } else {
         VSOMEIP_ERROR << __func__
                 << " Server endpoint creation failed."
@@ -1403,14 +1406,13 @@ void endpoint_manager_impl::suspend() {
 
     // stop client endpoints
     std::set<std::shared_ptr<client_endpoint>> its_suspended_client_endpoints;
-    for (auto& its_address : its_client_endpoints) {
-        for (auto& its_port : its_address.second) {
-            for (auto& its_protocol : its_port.second) {
-                for (auto& its_partition : its_protocol.second) {
-                    its_partition.second->stop();
-
+    for (const auto& [its_address, ports] : its_client_endpoints) {
+        for (const auto& [its_port, protocols] : ports) {
+            for (const auto& [its_protocol, partitions] : protocols) {
+                for (const auto& [its_partition, its_endpoint] : partitions) {
+                    its_endpoint->stop();
                     auto its_client_endpoint {
-                            std::dynamic_pointer_cast<client_endpoint>(its_partition.second)};
+                            std::dynamic_pointer_cast<client_endpoint>(its_endpoint)};
                     if (its_client_endpoint) {
                         its_suspended_client_endpoints.insert(its_client_endpoint);
                     }
@@ -1420,9 +1422,9 @@ void endpoint_manager_impl::suspend() {
     }
 
     // start server endpoints
-    for (auto& its_port : its_server_endpoints) {
-        for (auto& its_protocol : its_port.second) {
-            its_protocol.second->stop();
+    for (const auto& [its_port, protocols] : its_server_endpoints) {
+        for (const auto& [its_protocol, its_endpoint] : protocols) {
+            its_endpoint->stop();
         }
     }
     // check that the clients are established again
@@ -1471,22 +1473,21 @@ void endpoint_manager_impl::resume() {
     }
 
     // start server endpoints
-    for (const auto& its_port : server_endpoints_) {
-        for (const auto& its_protocol : its_port.second) {
-            its_protocol.second->restart();
+    for (const auto& [its_port, protocols] : its_server_endpoints) {
+        for (const auto& [its_protocol, its_endpoint] : protocols) {
+            its_endpoint->restart();
         }
     }
 
     // start client endpoints
     std::set<std::shared_ptr<client_endpoint>> its_resumed_client_endpoints;
-    for (const auto& its_address : client_endpoints_) {
-        for (const auto& its_port : its_address.second) {
-            for (const auto& its_protocol : its_port.second) {
-                for (const auto& its_partition : its_protocol.second) {
-                    its_partition.second->restart();
-
+    for (const auto& [its_address, ports] : its_client_endpoints) {
+        for (const auto& [its_port, protocols] : ports) {
+            for (const auto& [its_protocol, partitions] : protocols) {
+                for (const auto& [its_partition, its_endpoint] : partitions) {
+                    its_endpoint->restart();
                     auto its_client_endpoint {
-                            std::dynamic_pointer_cast<client_endpoint>(its_partition.second)};
+                            std::dynamic_pointer_cast<client_endpoint>(its_endpoint)};
                     if (its_client_endpoint) {
                         its_resumed_client_endpoints.insert(its_client_endpoint);
                     }

@@ -21,16 +21,16 @@
 
 namespace vsomeip_v3 {
 
-routing_manager_base::routing_manager_base(routing_manager_host *_host) :
-        host_(_host),
-        io_(host_->get_io()),
-        configuration_(host_->get_configuration()),
-        debounce_timer(host_->get_io()),
-        routing_state_(routing_state_e::RS_UNKNOWN)
+routing_manager_base::routing_manager_base(routing_manager_host* _host) :
+    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()),
+    debounce_timer(host_->get_io())
 #ifdef USE_DLT
-        , tc_(trace::connector_impl::get())
+    ,
+    tc_(trace::connector_impl::get())
 #endif
 {
+    routing_state_ = configuration_->get_initial_routing_state();
+
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold =
             configuration_->get_buffer_shrink_threshold();

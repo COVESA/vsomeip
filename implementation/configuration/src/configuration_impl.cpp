@@ -44,69 +44,45 @@
 namespace vsomeip_v3 {
 namespace cfg {
 
-configuration_impl::configuration_impl(const std::string &_path)
-    : default_unicast_("local"),
-      is_loaded_(false),
-      is_logging_loaded_(false),
-      prefix_(VSOMEIP_PREFIX),
-      diagnosis_(VSOMEIP_DIAGNOSIS_ADDRESS),
-      diagnosis_mask_(0xFF00),
-      has_console_log_(true),
-      has_file_log_(false),
-      has_dlt_log_(false),
-      logfile_("/tmp/vsomeip.log"),
-      loglevel_(vsomeip_v3::logger::level_e::LL_INFO),
-      is_sd_enabled_(VSOMEIP_SD_DEFAULT_ENABLED),
-      sd_protocol_(VSOMEIP_SD_DEFAULT_PROTOCOL),
-      sd_multicast_(VSOMEIP_SD_DEFAULT_MULTICAST),
-      sd_port_(VSOMEIP_SD_DEFAULT_PORT),
-      sd_initial_delay_min_(VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN),
-      sd_initial_delay_max_(VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX),
-      sd_repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
-      sd_repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
-      sd_ttl_(VSOMEIP_SD_DEFAULT_TTL),
-      sd_cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
-      sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
-      sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
-      sd_find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
-      max_configured_message_size_(0),
-      max_local_message_size_(0),
-      max_reliable_message_size_(0),
-      max_unreliable_message_size_(0),
-      buffer_shrink_threshold_(VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD),
-      trace_(std::make_shared<trace>()),
-      watchdog_(std::make_shared<watchdog>()),
-      log_version_(true),
-      log_version_interval_(10),
-      permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
-      network_("vsomeip"),
-      e2e_enabled_(false),
-      log_memory_(false),
-      log_memory_interval_(0),
-      log_status_(false),
-      log_status_interval_(0),
-      endpoint_queue_limit_external_(QUEUE_SIZE_UNLIMITED),
-      endpoint_queue_limit_local_(QUEUE_SIZE_UNLIMITED),
-      tcp_restart_aborts_max_(VSOMEIP_MAX_TCP_RESTART_ABORTS),
-      tcp_connect_time_max_(VSOMEIP_MAX_TCP_CONNECT_TIME),
-      has_issued_methods_warning_(false),
-      has_issued_clients_warning_(false),
-      udp_receive_buffer_size_(VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE),
-      npdu_default_debounce_requ_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
-      npdu_default_debounce_resp_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
-      npdu_default_max_retention_requ_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
-      npdu_default_max_retention_resp_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
-      shutdown_timeout_(VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT),
-      log_statistics_(true),
-      statistics_interval_(VSOMEIP_DEFAULT_STATISTICS_INTERVAL),
-      statistics_min_freq_(VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ),
-      statistics_max_messages_(VSOMEIP_DEFAULT_STATISTICS_MAX_MSG),
-      max_remote_subscribers_(VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS),
-      path_(_path),
-      is_security_enabled_(false),
-      is_security_external_(false),
-      is_security_audit_(false),
-      is_remote_access_allowed_(true) {
+configuration_impl::configuration_impl(const std::string& _path) :
+    default_unicast_ {"local"}, is_loaded_ {false}, is_logging_loaded_ {false},
+    prefix_ {VSOMEIP_PREFIX}, diagnosis_ {VSOMEIP_DIAGNOSIS_ADDRESS}, diagnosis_mask_ {0xFF00},
+    has_console_log_ {true}, has_file_log_ {false}, has_dlt_log_ {false},
+    logfile_ {"/tmp/vsomeip.log"}, loglevel_ {vsomeip_v3::logger::level_e::LL_INFO},
+    is_sd_enabled_ {VSOMEIP_SD_DEFAULT_ENABLED}, sd_protocol_ {VSOMEIP_SD_DEFAULT_PROTOCOL},
+    sd_multicast_ {VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_ {VSOMEIP_SD_DEFAULT_PORT},
+    sd_initial_delay_min_ {VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN},
+    sd_initial_delay_max_ {VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
+    sd_repetitions_base_delay_ {VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY},
+    sd_repetitions_max_ {VSOMEIP_SD_DEFAULT_REPETITIONS_MAX}, sd_ttl_ {VSOMEIP_SD_DEFAULT_TTL},
+    sd_cyclic_offer_delay_ {VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
+    sd_request_response_delay_ {VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY},
+    sd_offer_debounce_time_ {VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME},
+    sd_find_debounce_time_ {VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
+    max_configured_message_size_ {0}, max_local_message_size_ {0}, max_reliable_message_size_ {0},
+    max_unreliable_message_size_ {0},
+    buffer_shrink_threshold_ {VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD},
+    trace_ {std::make_shared<trace>()}, watchdog_ {std::make_shared<watchdog>()},
+    log_version_ {true}, log_version_interval_ {10},
+    permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_ {"vsomeip"}, e2e_enabled_ {false},
+    log_memory_ {false}, log_memory_interval_ {0}, log_status_ {false}, log_status_interval_ {0},
+    endpoint_queue_limit_external_ {QUEUE_SIZE_UNLIMITED},
+    endpoint_queue_limit_local_ {QUEUE_SIZE_UNLIMITED},
+    tcp_restart_aborts_max_ {VSOMEIP_MAX_TCP_RESTART_ABORTS},
+    tcp_connect_time_max_ {VSOMEIP_MAX_TCP_CONNECT_TIME}, has_issued_methods_warning_ {false},
+    has_issued_clients_warning_ {false},
+    udp_receive_buffer_size_ {VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
+    npdu_default_debounce_requ_ {VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_debounce_resp_ {VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_max_retention_requ_ {VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
+    npdu_default_max_retention_resp_ {VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
+    shutdown_timeout_ {VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT}, log_statistics_ {true},
+    statistics_interval_ {VSOMEIP_DEFAULT_STATISTICS_INTERVAL},
+    statistics_min_freq_ {VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
+    statistics_max_messages_ {VSOMEIP_DEFAULT_STATISTICS_MAX_MSG},
+    max_remote_subscribers_ {VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS}, path_ {_path},
+    is_security_enabled_ {false}, is_security_external_ {false}, is_security_audit_ {false},
+    is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN} {
 
     policy_manager_ = std::make_shared<policy_manager_impl>();
     security_ = std::make_shared<security>(policy_manager_);
@@ -123,32 +99,29 @@ configuration_impl::configuration_impl(const std::string &_path)
 #endif
 }
 
-configuration_impl::configuration_impl(const configuration_impl &_other)
-    : std::enable_shared_from_this<configuration_impl>(_other),
-      default_unicast_(_other.default_unicast_),
-      is_loaded_(_other.is_loaded_),
-      is_logging_loaded_(_other.is_logging_loaded_),
-      mandatory_(_other.mandatory_),
-      has_console_log_(_other.has_console_log_.load()),
-      has_file_log_(_other.has_file_log_.load()),
-      has_dlt_log_(_other.has_dlt_log_.load()),
-      max_configured_message_size_(_other.max_configured_message_size_),
-      max_local_message_size_(_other.max_local_message_size_),
-      max_reliable_message_size_(_other.max_reliable_message_size_),
-      max_unreliable_message_size_(_other.max_unreliable_message_size_),
-      buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
-      permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
-      endpoint_queue_limit_external_(_other.endpoint_queue_limit_external_),
-      endpoint_queue_limit_local_(_other.endpoint_queue_limit_local_),
-      tcp_restart_aborts_max_(_other.tcp_restart_aborts_max_),
-      tcp_connect_time_max_(_other.tcp_connect_time_max_),
-      udp_receive_buffer_size_(_other.udp_receive_buffer_size_),
-      npdu_default_debounce_requ_(_other.npdu_default_debounce_requ_),
-      npdu_default_debounce_resp_(_other.npdu_default_debounce_resp_),
-      npdu_default_max_retention_requ_(_other.npdu_default_max_retention_requ_),
-      npdu_default_max_retention_resp_(_other.npdu_default_max_retention_resp_),
-      shutdown_timeout_(_other.shutdown_timeout_),
-      path_(_other.path_) {
+configuration_impl::configuration_impl(const configuration_impl& _other) :
+    std::enable_shared_from_this<configuration_impl>(_other),
+    default_unicast_ {_other.default_unicast_}, is_loaded_ {_other.is_loaded_},
+    is_logging_loaded_ {_other.is_logging_loaded_}, mandatory_ {_other.mandatory_},
+    has_console_log_ {_other.has_console_log_.load()}, has_file_log_ {_other.has_file_log_.load()},
+    has_dlt_log_ {_other.has_dlt_log_.load()},
+    max_configured_message_size_ {_other.max_configured_message_size_},
+    max_local_message_size_ {_other.max_local_message_size_},
+    max_reliable_message_size_ {_other.max_reliable_message_size_},
+    max_unreliable_message_size_ {_other.max_unreliable_message_size_},
+    buffer_shrink_threshold_ {_other.buffer_shrink_threshold_},
+    permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS},
+    endpoint_queue_limit_external_ {_other.endpoint_queue_limit_external_},
+    endpoint_queue_limit_local_ {_other.endpoint_queue_limit_local_},
+    tcp_restart_aborts_max_ {_other.tcp_restart_aborts_max_},
+    tcp_connect_time_max_ {_other.tcp_connect_time_max_},
+    udp_receive_buffer_size_ {_other.udp_receive_buffer_size_},
+    npdu_default_debounce_requ_ {_other.npdu_default_debounce_requ_},
+    npdu_default_debounce_resp_ {_other.npdu_default_debounce_resp_},
+    npdu_default_max_retention_requ_ {_other.npdu_default_max_retention_requ_},
+    npdu_default_max_retention_resp_ {_other.npdu_default_max_retention_resp_},
+    shutdown_timeout_ {_other.shutdown_timeout_}, path_ {_other.path_},
+    initial_routing_state_ {_other.initial_routing_state_} {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
     client_identifiers_ = _other.client_identifiers_;
@@ -1874,6 +1847,18 @@ void configuration_impl::load_service_discovery(
                         max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
                     }
                     is_configured_[ET_MAX_REMOTE_SUBSCRIBERS] = true;
+                }
+            } else if (its_key == "initial_state") {
+                if (is_configured_[ET_INITIAL_ROUTING_STATE]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_state."
+                                       " Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    if (its_value == "suspended") {
+                        initial_routing_state_ = routing_state_e::RS_SUSPENDED;
+                    } else if (its_value == "resumed") {
+                        initial_routing_state_ = routing_state_e::RS_RESUMED;
+                    }
                 }
             }
         }
@@ -5050,6 +5035,10 @@ std::shared_ptr<policy_manager_impl> configuration_impl::get_policy_manager() co
 
 std::shared_ptr<security> configuration_impl::get_security() const {
     return security_;
+}
+
+routing_state_e configuration_impl::get_initial_routing_state() const {
+    return initial_routing_state_;
 }
 
 }  // namespace cfg

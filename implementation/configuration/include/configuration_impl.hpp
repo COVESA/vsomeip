@@ -126,6 +126,7 @@ public:
 
     VSOMEIP_EXPORT bool is_routing_enabled() const;
     VSOMEIP_EXPORT bool is_local_routing() const;
+    VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 
     VSOMEIP_EXPORT const std::string &get_routing_host_name() const;
     VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_host_address() const;
@@ -605,7 +606,8 @@ protected:
         ET_PARTITIONS,
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
-        ET_MAX = 46
+        ET_INITIAL_ROUTING_STATE,
+        ET_MAX = 47
     };
 
     bool is_configured_[ET_MAX];
@@ -682,6 +684,8 @@ protected:
     std::atomic_bool is_security_external_;
     std::atomic_bool is_security_audit_;
     std::atomic_bool is_remote_access_allowed_;
+
+    routing_state_e initial_routing_state_;
 };
 
 } // namespace cfg
