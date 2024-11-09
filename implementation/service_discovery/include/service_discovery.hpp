@@ -45,6 +45,7 @@ public:
             eventgroup_t _eventgroup, client_t _client) = 0;
     virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
     virtual void unsubscribe_all_on_suspend() = 0;
+    virtual void reset_request_sent_counter(service_t _service, instance_t _instance) = 0;
 
     virtual bool send(bool _is_announcing) = 0;
 
