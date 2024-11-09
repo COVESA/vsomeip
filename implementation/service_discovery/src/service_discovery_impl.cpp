@@ -241,6 +241,18 @@ service_discovery_impl::release_service(
 }
 
 void
+service_discovery_impl::reset_request_sent_counter(service_t _service, instance_t _instance) {
+    std::lock_guard<std::mutex> its_lock(requested_mutex_);
+    auto find_service = requested_.find(_service);
+    if (find_service != requested_.end()) {
+        auto find_instance = find_service->second.find(_instance);
+        if (find_instance != find_service->second.end()) {
+            find_instance->second->set_sent_counter(0);
+        }
+    }
+}
+
+void
 service_discovery_impl::update_request(service_t _service, instance_t _instance) {
     std::lock_guard<std::mutex> its_lock(requested_mutex_);
     auto find_service = requested_.find(_service);
