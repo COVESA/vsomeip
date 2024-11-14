@@ -30,55 +30,47 @@ std::shared_ptr<runtime> runtime_impl::get() {
     return the_runtime_;
 }
 
-runtime_impl::~runtime_impl() {
+std::shared_ptr<application> runtime_impl::create_application(const std::string& _name) {
+
+    return create_application(_name, "");
 }
 
-std::shared_ptr<application> runtime_impl::create_application(
-        const std::string &_name) {
-
-    return (create_application(_name, ""));
-}
-
-std::shared_ptr<application> runtime_impl::create_application(
-        const std::string &_name, const std::string &_path) {
+std::shared_ptr<application> runtime_impl::create_application(const std::string& _name,
+                                                              const std::string& _path) {
+    std::scoped_lock its_lock {applications_mutex_};
     static std::uint32_t postfix_id = 0;
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
     std::string its_name = _name;
     auto found_application = applications_.find(_name);
-    if( found_application != applications_.end()) {
+    if (found_application != applications_.end()) {
         its_name += "_" + std::to_string(postfix_id++);
     }
-    std::shared_ptr<application> application
-        = std::make_shared<application_impl>(its_name, _path);
+    std::shared_ptr<application> application = std::make_shared<application_impl>(its_name, _path);
     applications_[its_name] = application;
     return application;
 }
 
 std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
-    std::shared_ptr<message_impl> its_message =
-            std::make_shared<message_impl>();
+    auto its_message = std::make_shared<message_impl>();
     its_message->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_message->set_return_code(return_code_e::E_OK);
     its_message->set_reliable(_reliable);
     its_message->set_interface_version(DEFAULT_MAJOR);
-    return (its_message);
+    return its_message;
 }
 
 std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
-    std::shared_ptr<message_impl> its_request =
-            std::make_shared<message_impl>();
+    auto its_request = std::make_shared<message_impl>();
     its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_request->set_message_type(message_type_e::MT_REQUEST);
     its_request->set_return_code(return_code_e::E_OK);
     its_request->set_reliable(_reliable);
     its_request->set_interface_version(DEFAULT_MAJOR);
-    return (its_request);
+    return its_request;
 }
 
 std::shared_ptr<message> runtime_impl::create_response(
         const std::shared_ptr<message> &_request) const {
-    std::shared_ptr<message_impl> its_response =
-            std::make_shared<message_impl>();
+    auto its_response = std::make_shared<message_impl>();
     its_response->set_service(_request->get_service());
     its_response->set_instance(_request->get_instance());
     its_response->set_method(_request->get_method());
@@ -88,38 +80,37 @@ std::shared_ptr<message> runtime_impl::create_response(
     its_response->set_message_type(message_type_e::MT_RESPONSE);
     its_response->set_return_code(return_code_e::E_OK);
     its_response->set_reliable(_request->is_reliable());
-    return (its_response);
+    return its_response;
 }
 
 std::shared_ptr<message> runtime_impl::create_notification(
         bool _reliable) const {
-    std::shared_ptr<message_impl> its_notification = std::make_shared<
-            message_impl>();
+    auto its_notification = std::make_shared<message_impl>();
     its_notification->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_notification->set_message_type(message_type_e::MT_NOTIFICATION);
     its_notification->set_return_code(return_code_e::E_OK);
     its_notification->set_reliable(_reliable);
     its_notification->set_interface_version(DEFAULT_MAJOR);
-    return (its_notification);
+    return its_notification;
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload() const {
-    return (std::make_shared<payload_impl>());
+    return std::make_shared<payload_impl>();
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(const byte_t *_data,
         uint32_t _size) const {
-    return (std::make_shared<payload_impl>(_data, _size));
+    return std::make_shared<payload_impl>(_data, _size);
 }
 
 std::shared_ptr<payload> runtime_impl::create_payload(
         const std::vector<byte_t> &_data) const {
-    return (std::make_shared<payload_impl>(_data));
+    return std::make_shared<payload_impl>(_data);
 }
 
 std::shared_ptr<application> runtime_impl::get_application(
         const std::string &_name) const {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    std::scoped_lock its_lock {applications_mutex_};
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end())
         return found_application->second.lock();
@@ -128,11 +119,10 @@ std::shared_ptr<application> runtime_impl::get_application(
 
 void runtime_impl::remove_application(
         const std::string &_name) {
-    std::lock_guard<std::mutex> its_lock(applications_mutex_);
+    std::scoped_lock its_lock {applications_mutex_};
     auto found_application = applications_.find(_name);
     if(found_application != applications_.end()) {
         applications_.erase(_name);
     }
 }
-
 } // namespace vsomeip_v3

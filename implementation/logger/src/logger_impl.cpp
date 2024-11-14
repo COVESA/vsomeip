@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,12 +14,16 @@ namespace vsomeip_v3 {
 namespace logger {
 
 std::mutex logger_impl::mutex__;
+std::string logger_impl::app_name__;
 
 void
 logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock {mutex__};
     auto its_logger = logger_impl::get();
-    its_logger->configuration_ = _configuration;
+    its_logger->set_configuration(_configuration);
+
+    const char *its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
+    app_name__ = (nullptr != its_name) ? its_name : "";
 
 #ifdef USE_DLT
 #   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
@@ -29,8 +33,7 @@ logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
     std::string its_context_id = runtime::get_property("LogContext");
     if (its_context_id == "")
         its_context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
-
-    DLT_REGISTER_CONTEXT(its_logger->dlt_, its_context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
+    its_logger->register_context(its_context_id);
 #endif
 #endif
 }
@@ -43,9 +46,46 @@ logger_impl::~logger_impl() {
 #endif
 }
 
-std::shared_ptr<configuration>
-logger_impl::get_configuration() const {
-    return configuration_;
+level_e logger_impl::get_loglevel() const {
+    return cfg_level;
+}
+
+bool logger_impl::has_console_log() const {
+    return cfg_console_enabled;
+}
+
+bool logger_impl::has_dlt_log() const {
+    return cfg_dlt_enabled;
+}
+
+bool logger_impl::has_file_log() const {
+    return cfg_file_enabled;
+}
+
+std::string logger_impl::get_logfile() const {
+    std::scoped_lock its_lock {configuration_mutex_};
+    return cfg_file_name;
+}
+
+const std::string& logger_impl::get_app_name() const {
+    return app_name__;
+}
+
+std::unique_lock<std::mutex> logger_impl::get_app_name_lock() const {
+    std::unique_lock its_lock(mutex__);
+    return its_lock;
+}
+
+void logger_impl::set_configuration(const std::shared_ptr<configuration>& _configuration) {
+
+    std::scoped_lock its_lock {configuration_mutex_};
+    if (_configuration) {
+        cfg_level = _configuration->get_loglevel();
+        cfg_console_enabled = _configuration->has_console_log();
+        cfg_dlt_enabled = _configuration->has_dlt_log();
+        cfg_file_enabled = _configuration->has_file_log();
+        cfg_file_name = _configuration->get_logfile();
+    }
 }
 
 #ifdef USE_DLT
@@ -78,7 +118,13 @@ logger_impl::log(level_e _level, const char *_data) {
         its_level = DLT_LOG_DEFAULT;
     };
 
+    std::scoped_lock its_lock {dlt_context_mutex_};
     DLT_LOG_STRING(dlt_, its_level, _data);
+}
+
+void logger_impl::register_context(const std::string& _context_id) {
+    std::scoped_lock its_lock {dlt_context_mutex_};
+    DLT_REGISTER_CONTEXT(dlt_, _context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
 }
 #endif
 #endif
@@ -88,8 +134,8 @@ static std::mutex the_logger_mutex__;
 
 std::shared_ptr<logger_impl>
 logger_impl::get() {
-#if defined(__linux__) || defined(ANDROID)
-    std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    std::scoped_lock its_lock {the_logger_mutex__};
 #endif
     if (the_logger_ptr__ == nullptr) {
         the_logger_ptr__ = new std::shared_ptr<logger_impl>();
@@ -98,19 +144,19 @@ logger_impl::get() {
         if (!(*the_logger_ptr__)) {
             *the_logger_ptr__ = std::make_shared<logger_impl>();
         }
-        return (*the_logger_ptr__);
+        return *the_logger_ptr__;
     }
-    return (nullptr);
+    return nullptr;
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void)
 {
     // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-    // Since this function only runs on the main thread, no mutex should be needed. Leaving a 
+    // Since this function only runs on the main thread, no mutex should be needed. Leaving a
     // comment pending a refactor.
-    // std::lock_guard<std::mutex> its_lock(the_logger_mutex__);
+    // std::scoped_lock its_lock(the_logger_mutex__);
     if (the_logger_ptr__ != nullptr) {
         the_logger_ptr__->reset();
         delete the_logger_ptr__;

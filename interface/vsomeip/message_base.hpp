@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -110,7 +110,7 @@ public:
     VSOMEIP_EXPORT virtual request_t get_request() const = 0;
 
     /**
-     * \brief Set the client identifier in the message header.
+     * \brief Get the client identifier in the message header.
      */
     VSOMEIP_EXPORT virtual client_t get_client() const = 0;
 

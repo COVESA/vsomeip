@@ -1,7 +1,9 @@
-// Copyright (C) 2015-2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <iomanip>
 
 #include "../npdu_tests/npdu_test_service.hpp"
 #include "../npdu_tests/npdu_test_globals.hpp"
@@ -286,7 +288,7 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times)
     test_service.join_shutdown_thread();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     int i = 1;

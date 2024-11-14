@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
 #define VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
@@ -28,8 +29,6 @@
 
 namespace vsomeip_v3 {
 
-struct debounce_filter_t;
-
 namespace cfg {
 
 struct client;
@@ -38,6 +37,25 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+
+struct suppress_t {
+    service_t service;
+    instance_t instance;
+    event_t event;
+
+    inline bool operator<(const suppress_t& entry_) const {
+        if(service != entry_.service) {
+            return service < entry_.service;
+        }
+        if(instance != entry_.instance) {
+            return instance < entry_.instance;
+        }
+        if(event != entry_.event) {
+            return event < entry_.event;
+        }
+        return false;
+    }
+};
 
 class configuration_impl:
         public configuration,
@@ -114,13 +132,15 @@ public:
     VSOMEIP_EXPORT port_t get_routing_host_port() const;
 
     VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_guest_address() const;
-    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t> > get_routing_guest_ports() const;
+    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t> > get_routing_guest_ports(
+            uid_t _uid, gid_t _gid) const;
 
     VSOMEIP_EXPORT client_t get_id(const std::string &_name) const;
     VSOMEIP_EXPORT bool is_configured_client_id(client_t _id) const;
 
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
@@ -175,6 +195,7 @@ public:
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -184,10 +205,12 @@ public:
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
-    VSOMEIP_EXPORT std::uint32_t get_permissions_shm() const;
 
     VSOMEIP_EXPORT bool check_routing_credentials(client_t _client,
             const vsomeip_sec_client_t *_sec_client) const;
+
+    VSOMEIP_EXPORT bool check_suppress_events(service_t _service,
+            instance_t _instance, event_t _event) const;
 
     VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const;
@@ -204,7 +227,7 @@ public:
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_t> get_debounce(
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(
             const std::string &_name,
             service_t _service, instance_t _instance, event_t _event) const;
 
@@ -240,11 +263,10 @@ public:
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            const std::string &_address, std::uint16_t _port,
+            instance_t _instance,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method) const;
+            service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
@@ -272,9 +294,12 @@ public:
             const uint16_t &_unreliable_port) const;
 
     VSOMEIP_EXPORT bool is_security_enabled() const;
+    VSOMEIP_EXPORT bool is_security_external() const;
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -314,6 +339,8 @@ private:
             const std::string &_name);
     bool load_routing_guests(const boost::property_tree::ptree &_tree);
     void load_routing_guest_ports(const boost::property_tree::ptree &_tree);
+    std::set<std::pair<port_t, port_t> > load_routing_guest_port_range(
+            const boost::property_tree::ptree &_tree) const;
 
     bool load_routing_credentials(const configuration_element &_element); // compatibility
     void load_routing_client_ports(const configuration_element &_element); // compatibility
@@ -330,6 +357,18 @@ private:
     void load_trace_filter_match(
             const boost::property_tree::ptree &_data,
             std::tuple<service_t, instance_t, method_t> &_match);
+
+    void load_suppress_events(const configuration_element &_element);
+    void load_suppress_events_data(
+            const boost::property_tree::ptree &_tree);
+    std::set<event_t> load_suppress_multiple_events(
+            const boost::property_tree::ptree &_tree);
+    uint16_t load_suppress_data(const std::string &_value) const;
+    std::set<event_t> load_range_events(event_t _first_event,
+            event_t _last_event) const ;
+    void insert_suppress_events(service_t  _service,
+    instance_t _instance, event_t _event);
+    void print_suppress_events(void) const;
 
     void load_network(const configuration_element &_element);
     void load_device(const configuration_element &_element);
@@ -373,9 +412,9 @@ private:
     void load_service_debounce(const boost::property_tree::ptree &_tree,
             debounce_configuration_t &_debounces);
     void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces);
+            std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::map<event_t, std::shared_ptr<debounce_filter_t> > &_debounces);
+                std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);
@@ -443,6 +482,9 @@ private:
 
     std::set<std::string> mandatory_;
 
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
+
 protected:
     // Configuration data
     boost::asio::ip::address unicast_;
@@ -452,10 +494,11 @@ protected:
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;
 
-    bool has_console_log_;
-    bool has_file_log_;
-    bool has_dlt_log_;
+    std::atomic_bool has_console_log_;
+    std::atomic_bool has_file_log_;
+    std::atomic_bool has_dlt_log_;
     std::string logfile_;
+    mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
 
     std::map<
@@ -474,6 +517,9 @@ protected:
             std::map<service_t,
                 std::shared_ptr<service>>>> services_by_ip_port_;
 
+    std::set<suppress_t> suppress_events_;
+    bool is_suppress_events_enabled_;
+
     std::list< std::shared_ptr<client> > clients_;
 
     routing_t routing_;
@@ -491,6 +537,7 @@ protected:
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
     std::uint32_t sd_offer_debounce_time_;
+    std::uint32_t sd_find_debounce_time_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -540,6 +587,7 @@ protected:
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
+        ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS,
         ET_ENDPOINT_QUEUE_LIMITS,
@@ -558,11 +606,10 @@ protected:
         ET_PARTITIONS,
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
-        ET_MAX = 45
+        ET_MAX = 46
     };
 
     bool is_configured_[ET_MAX];
-    std::uint32_t permissions_shm_;
     std::uint32_t permissions_uds_;
 
     std::string network_;
@@ -632,9 +679,10 @@ protected:
         >
     > plugins_additional_;
 
-    bool is_security_enabled_;
-    bool is_security_audit_;
-    bool is_remote_access_allowed_;
+    std::atomic_bool is_security_enabled_;
+    std::atomic_bool is_security_external_;
+    std::atomic_bool is_security_audit_;
+    std::atomic_bool is_remote_access_allowed_;
 };
 
 } // namespace cfg

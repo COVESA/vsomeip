@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,10 +20,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "malicious_data_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class malicious_data_test_service {
+class malicious_data_test_service : public vsomeip_utilities::base_logger {
 public:
     malicious_data_test_service(struct malicious_data_test::service_info _service_info, malicious_data_test::test_mode_e _testmode) :
+            vsomeip_utilities::base_logger("MDTS", "MALICIOUS DATA TEST SERVICE"),
             service_info_(_service_info),
             testmode_(_testmode),
             app_(vsomeip::runtime::get()->create_application("malicious_data_test_service")),
@@ -164,7 +167,7 @@ TEST(someip_malicious_data_test, block_subscription_handler)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

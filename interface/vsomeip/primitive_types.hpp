@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <string>
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <sys/types.h>
 #endif
 
@@ -56,7 +56,7 @@ typedef std::uint32_t pending_remote_offer_id_t;
 
 typedef std::uint32_t pending_security_update_id_t;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     typedef std::uint32_t uid_t;
     typedef std::uint32_t gid_t;
 #else

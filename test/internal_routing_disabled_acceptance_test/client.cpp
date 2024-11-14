@@ -10,38 +10,51 @@
 #include <vsomeip/payload.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "config.hpp"
 
 client::client() : applet{"client"}, counter_event_received{}, counter_method_request{}, counter_method_response{}
 {
+}
+
+void
+client::init() {
+    applet::init();
+
+    std::weak_ptr<client> its_me
+        = std::dynamic_pointer_cast<client>(shared_from_this());
+
     this->application->register_message_handler(
         config::SERVICE_ID,
         config::INSTANCE_ID,
         vsomeip_v3::ANY_METHOD,
-        [this](const std::shared_ptr<vsomeip_v3::message>& message){
-            std::shared_ptr runtime = vsomeip_v3::runtime::get();
-            std::shared_ptr payload = message->get_payload();
+        [its_me](const std::shared_ptr<vsomeip_v3::message>& message){
+            auto me = its_me.lock();
+            if (me) {
+                std::shared_ptr runtime = vsomeip_v3::runtime::get();
+                std::shared_ptr payload = message->get_payload();
 
-            switch(message->get_message_type())
-            {
-            case vsomeip_v3::message_type_e::MT_RESPONSE:
-                std::cout
-                    << "received:\n"
-                    << "\tservice:  " << std::hex << message->get_service() << '\n'
-                    << "\tinstance: " << std::hex << message->get_instance() << '\n'
-                    << "\tmethod:   " << std::hex << message->get_method() << '\n'
-                    << "\tpayload:  " << payload->get_data() << '\n';
-                this->counter_method_response++;
-                break;
+                switch(message->get_message_type())
+                {
+                case vsomeip_v3::message_type_e::MT_RESPONSE:
+                    VSOMEIP_INFO << "received:\n"
+                                 << "\tservice:  " << std::hex << message->get_service() << '\n'
+                                 << "\tinstance: " << std::hex << message->get_instance() << '\n'
+                                 << "\tmethod:   " << std::hex << message->get_method() << '\n'
+                                 << "\tpayload:  " << payload->get_data();
+                    me->counter_method_response++;
+                    break;
 
-            case vsomeip_v3::message_type_e::MT_NOTIFICATION:
-                std::cout << "GOT NOTIFICATION\n";
-                this->counter_event_received++;
-                [[fallthrough]];
+                case vsomeip_v3::message_type_e::MT_NOTIFICATION:
+                    VSOMEIP_INFO << "GOT NOTIFICATION";
+                    me->counter_event_received++;
+                    [[fallthrough]];
 
-            default:
-                std::cout << "unhandled message type: " << unsigned(message->get_message_type()) << '\n';
+                default:
+                    VSOMEIP_ERROR << "unhandled message type: "
+                                  << unsigned(message->get_message_type());
+                }
             }
         }
     );
@@ -49,40 +62,40 @@ client::client() : applet{"client"}, counter_event_received{}, counter_method_re
     this->application->register_availability_handler(
         config::SERVICE_ID,
         config::INSTANCE_ID,
-        [this](vsomeip_v3::service_t service, vsomeip_v3::instance_t instance, bool available){
-            std::cout
-                << __func__ << '('
-                << std::hex << service << ", "
-                << std::hex << instance << ", "
-                << std::boolalpha << available << ")\n";
+        [its_me](vsomeip_v3::service_t service, vsomeip_v3::instance_t instance, bool available){
+            auto me = its_me.lock();
+            if (me) {
+                VSOMEIP_INFO << __func__ << '('<< std::hex << service << ", " << std::hex
+                             << instance << ", " << std::boolalpha << available << ")";
 
-            if(service != config::SERVICE_ID)
-                return;
-            if(instance != config::INSTANCE_ID)
-                return;
-            if(!available)
-                return;
+                if(service != config::SERVICE_ID)
+                    return;
+                if(instance != config::INSTANCE_ID)
+                    return;
+                if(!available)
+                    return;
 
-            std::shared_ptr runtime = vsomeip_v3::runtime::get();
+                std::shared_ptr runtime = vsomeip_v3::runtime::get();
 
-            std::shared_ptr payload = runtime->create_payload();
-            constexpr vsomeip_v3::byte_t str[]{"hello world"};
-            payload->set_data(str, sizeof(str));
+                std::shared_ptr payload = runtime->create_payload();
+                constexpr vsomeip_v3::byte_t str[]{"hello world"};
+                payload->set_data(str, sizeof(str));
 
-            std::shared_ptr request = runtime->create_request();
-            request->set_service(config::SERVICE_ID);
-            request->set_instance(config::INSTANCE_ID);
-            request->set_method(config::METHOD_ID);
-            request->set_payload(payload);
+                std::shared_ptr request = runtime->create_request();
+                request->set_service(config::SERVICE_ID);
+                request->set_instance(config::INSTANCE_ID);
+                request->set_method(config::METHOD_ID);
+                request->set_payload(payload);
 
-            for(int i = 0; i < 10; i++)
-            {
-                std::cout << "sending: " << str << '\n';
-                this->application->send(request);
-                this->counter_method_request++;
+                for(int i = 0; i < 10; i++)
+                {
+                    VSOMEIP_INFO << "sending: " << str;
+                    me->application->send(request);
+                    me->counter_method_request++;
 
-                using namespace std::chrono_literals;
-                std::this_thread::sleep_for(1s);
+                    using namespace std::chrono_literals;
+                    std::this_thread::sleep_for(1s);
+                }
             }
         }
     );
@@ -121,6 +134,17 @@ client::~client()
         config::SERVICE_ID,
         config::INSTANCE_ID
     );
+
+    this->application->unregister_availability_handler(
+        config::SERVICE_ID,
+        config::INSTANCE_ID
+    );
+
+    this->application->unregister_message_handler(
+        config::SERVICE_ID,
+        config::INSTANCE_ID,
+        vsomeip_v3::ANY_METHOD
+    );
 }
 
 std::size_t client::get_event_count() noexcept
@@ -148,5 +172,5 @@ void client::on_state_registered()
 
 void client::on_state_deregistered()
 {
-    std::cout << "Client is deregistered!!! Probably could not be registered!!!\n";
+    VSOMEIP_WARNING << "Client is deregistered!!! Probably could not be registered!!!";
 }

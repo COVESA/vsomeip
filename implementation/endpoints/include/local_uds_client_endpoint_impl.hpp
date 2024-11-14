@@ -14,8 +14,9 @@
 
 namespace vsomeip_v3 {
 
-using local_uds_client_endpoint_base_impl =
-    client_endpoint_impl<boost::asio::local::stream_protocol>;
+typedef client_endpoint_impl<
+            boost::asio::local::stream_protocol
+        > local_uds_client_endpoint_base_impl;
 
 class local_uds_client_endpoint_impl: public local_uds_client_endpoint_base_impl {
 public:
@@ -24,7 +25,7 @@ public:
                                    const endpoint_type& _remote,
                                    boost::asio::io_context &_io,
                                    const std::shared_ptr<configuration>& _configuration);
-    virtual ~local_uds_client_endpoint_impl();
+    virtual ~local_uds_client_endpoint_impl() = default;
 
     void start();
     void stop();
@@ -58,7 +59,6 @@ private:
     void set_local_port();
     std::string get_remote_information() const;
     bool check_packetizer_space(std::uint32_t _size);
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 

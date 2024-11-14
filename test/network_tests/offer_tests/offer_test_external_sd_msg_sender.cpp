@@ -1,8 +1,9 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <exception>
 #include <iostream>
 
 #include <gtest/gtest.h>
@@ -14,11 +15,7 @@ static char* passed_address;
 TEST(someip_offer_test, send_offer_service_sd_message)
 {
     try {
-#if VSOMEIP_BOOST_VERSION < 106600
-    	boost::asio::io_service io;
-#else
         boost::asio::io_context io;
-#endif
         boost::asio::ip::udp::socket::endpoint_type target_sd(
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30490);
@@ -58,13 +55,14 @@ TEST(someip_offer_test, send_offer_service_sd_message)
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30001);
         udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
-    } catch (...) {
+    } catch (const std::exception& e) {
+        std::cerr << "Caught exception: " << e.what() << '\n';
         ASSERT_FALSE(true);
     }
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if(argc < 2) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,12 +11,12 @@
 #if defined ANDROID || defined __ANDROID__
 #include "android/log.h"
 #define LOG_TAG "hello_world_service"
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n"), (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n"), (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
+#define LOG_INF(...) std::fprintf(stdout, __VA_ARGS__), std::fprintf(stdout, "\n"), (void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, ##__VA_ARGS__)
+#define LOG_ERR(...) std::fprintf(stderr, __VA_ARGS__), std::fprintf(stderr, "\n"), (void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, ##__VA_ARGS__)
 #else
 #include <cstdio>
-#define LOG_INF(...) fprintf(stdout, __VA_ARGS__), fprintf(stdout, "\n")
-#define LOG_ERR(...) fprintf(stderr, __VA_ARGS__), fprintf(stderr, "\n")
+#define LOG_INF(...) std::fprintf(stdout, __VA_ARGS__), std::fprintf(stdout, "\n")
+#define LOG_ERR(...) std::fprintf(stderr, __VA_ARGS__), std::fprintf(stderr, "\n")
 #endif
 
 static vsomeip::service_t service_id = 0x1111;
@@ -32,14 +32,20 @@ public:
     hello_world_service() :
                     rtm_(vsomeip::runtime::get()),
                     app_(rtm_->create_application()),
-                    stop_(false),
-                    stop_thread_(std::bind(&hello_world_service::stop, this))
+                    stop_(false)
     {
+        stop_thread_ = std::thread{&hello_world_service::stop, this};
     }
 
     ~hello_world_service()
     {
-        stop_thread_.join();
+        if (std::this_thread::get_id() != stop_thread_.get_id()) {
+            if (stop_thread_.joinable()) {
+                stop_thread_.join();
+            }
+        } else {
+            stop_thread_.detach();
+        }
     }
 
     bool init()

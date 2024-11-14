@@ -13,7 +13,7 @@
 
 #include "../include/message_impl.hpp"
 #include "../include/deserializer.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
@@ -75,7 +75,8 @@ bool deserializer::deserialize(uint16_t& _value) {
     byte1 = *position_++;
     remaining_ -= 2;
 
-    _value = VSOMEIP_BYTES_TO_WORD(byte0, byte1);
+    uint8_t payload[2] = {byte0, byte1};
+    _value = bithelper::read_uint16_be(payload);
 
     return true;
 }
@@ -94,8 +95,8 @@ bool deserializer::deserialize(uint32_t &_value, bool _omit_last_byte) {
     byte3 = *position_++;
     remaining_ -= 3;
 
-    _value = VSOMEIP_BYTES_TO_LONG(
-            byte0, byte1, byte2, byte3);
+    uint8_t payload[4] = {byte0, byte1, byte2, byte3};
+    _value = bithelper::read_uint32_be(payload);
 
     return true;
 }
@@ -115,8 +116,8 @@ bool deserializer::deserialize(std::string &_target, std::size_t _length) {
     if (_length > remaining_ || _length > _target.capacity()) {
         return false;
     }
-    _target.assign(position_, position_ + long(_length));
-    position_ += long(_length);
+    _target.assign(position_, position_ + static_cast<std::vector<byte_t>::difference_type>(_length));
+    position_ += static_cast<std::vector<byte_t>::difference_type>(_length);
     remaining_ -= _length;
 
     return true;
@@ -149,7 +150,7 @@ bool deserializer::look_ahead(std::size_t _index, uint16_t &_value) const {
 
     std::vector< uint8_t >::iterator i = position_ +
             static_cast<std::vector<byte_t>::difference_type>(_index);
-    _value = VSOMEIP_BYTES_TO_WORD(*i, *(i+1));
+    _value = bithelper::read_uint16_be(&(*i));
 
     return true;
 }
@@ -159,13 +160,13 @@ bool deserializer::look_ahead(std::size_t _index, uint32_t &_value) const {
         return false;
 
     std::vector< uint8_t >::const_iterator i = position_ + static_cast<std::vector<byte_t>::difference_type>(_index);
-    _value = VSOMEIP_BYTES_TO_LONG(*i, *(i+1), *(i+2), *(i+3));
+    _value = bithelper::read_uint32_be(&(*i));
 
     return true;
 }
 
 message_impl * deserializer::deserialize_message() try {
-    std::unique_ptr<message_impl> deserialized_message{new message_impl};
+    std::unique_ptr<message_impl> deserialized_message = std::make_unique<message_impl>();
     if (false == deserialized_message->deserialize(this)) {
         VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
         deserialized_message = nullptr;
@@ -235,10 +236,10 @@ void deserializer::show() const {
     its_message << "("
             << std::hex << std::setw(2) << std::setfill('0')
             << (int)*position_ << ", "
-            << std:: dec << remaining_ << ") ";
+            << std:: dec << remaining_ << ") "
+            << std::hex << std::setfill('0');
     for (int i = 0; i < data_.size(); ++i)
-        its_message << std::hex << std::setw(2) << std::setfill('0')
-                    << (int)data_[i] << " ";
+        its_message << std::setw(2) << (int)data_[i] << " ";
     VSOMEIP_INFO << its_message;
 }
 #endif

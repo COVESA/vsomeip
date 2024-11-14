@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -78,10 +78,6 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         running_ = false;
         blocked_ = true;
@@ -89,11 +85,22 @@ public:
         notify_condition_.notify_one();
         app_->clear_all_handler();
         stop_offer();
-        offer_thread_.join();
-        notify_thread_.join();
+        if (std::this_thread::get_id() != offer_thread_.get_id()) {
+            if (offer_thread_.joinable()) {
+                offer_thread_.join();
+            }
+        } else {
+            offer_thread_.detach();
+        }
+        if (std::this_thread::get_id() != notify_thread_.get_id()) {
+            if (notify_thread_.joinable()) {
+                notify_thread_.join();
+            }
+        } else {
+            notify_thread_.detach();
+        }
         app_->stop();
     }
-#endif
 
     void offer() {
         std::lock_guard<std::mutex> its_lock(notify_mutex_);
@@ -248,6 +255,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

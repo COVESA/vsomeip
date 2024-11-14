@@ -1,7 +1,9 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <iomanip>
 
 #include "local_routing_test_client.hpp"
 
@@ -24,10 +26,6 @@ bool local_routing_test_client::init()
         return false;
     }
 
-    app_->register_state_handler(
-            std::bind(&local_routing_test_client::on_state, this,
-                    std::placeholders::_1));
-
     app_->register_message_handler(vsomeip::ANY_SERVICE,
             vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip::ANY_METHOD,
             std::bind(&local_routing_test_client::on_message, this,
@@ -38,6 +36,10 @@ bool local_routing_test_client::init()
             std::bind(&local_routing_test_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
+
+    app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
+             vsomeip_test::TEST_SERVICE_INSTANCE_ID, false);
+
     return true;
 }
 
@@ -58,15 +60,6 @@ void local_routing_test_client::join_sender_thread(){
     sender_.join();
 
     ASSERT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
-}
-
-void local_routing_test_client::on_state(vsomeip::state_type_e _state)
-{
-    if(_state == vsomeip::state_type_e::ST_REGISTERED)
-    {
-        app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                vsomeip_test::TEST_SERVICE_INSTANCE_ID, false);
-    }
 }
 
 void local_routing_test_client::on_availability(vsomeip::service_t _service,
@@ -158,7 +151,7 @@ TEST(someip_local_routing_test, send_ten_messages_to_service_and_receive_reply)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

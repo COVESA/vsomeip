@@ -11,12 +11,7 @@
 #include <chrono>
 
 #include <boost/asio/ip/address.hpp>
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 
 #include "../../routing/include/function_types.hpp"
 #include "../../routing/include/types.hpp"
@@ -92,7 +87,7 @@ public:
 
     virtual void on_subscribe_nack(client_t _client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, remote_subscription_id_t _subscription_id) = 0;
+            bool _remove, remote_subscription_id_t _subscription_id) = 0;
 
     virtual std::chrono::steady_clock::time_point expire_subscriptions(bool _force) = 0;
 

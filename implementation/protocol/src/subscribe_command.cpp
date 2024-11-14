@@ -8,6 +8,7 @@
 #include <vsomeip/constants.hpp>
 
 #include "../include/subscribe_command.hpp"
+#include "../../configuration/include/debounce_filter_impl.hpp"
 
 namespace vsomeip_v3 {
 namespace protocol {
@@ -16,7 +17,7 @@ subscribe_command::subscribe_command()
     : subscribe_command_base(id_e::SUBSCRIBE_ID) {
 }
 
-std::shared_ptr<debounce_filter_t>
+std::shared_ptr<debounce_filter_impl_t>
 subscribe_command::get_filter() const {
 
     return filter_;
@@ -24,7 +25,7 @@ subscribe_command::get_filter() const {
 
 void
 subscribe_command::set_filter(
-        const std::shared_ptr<debounce_filter_t> &_filter) {
+        const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
     filter_ = _filter;
 }
@@ -43,7 +44,8 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
         its_size += sizeof(filter_->on_change_)
                 + sizeof(filter_->on_change_resets_interval_)
                 + sizeof(filter_->interval_)
-                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t)));
+                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t)))
+                + sizeof(filter_->send_current_value_after_);
     }
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
@@ -77,6 +79,8 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
             _buffer[its_offset] = its_ignore.second;
             its_offset += sizeof(byte_t);
         }
+        _buffer[its_offset] = static_cast<byte_t>(filter_->send_current_value_after_);
+        its_offset += sizeof(filter_->send_current_value_after_);
     }
 }
 
@@ -110,7 +114,7 @@ subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
     if (_buffer.size() - its_offset
             >= sizeof(bool) + sizeof(bool) + sizeof(int64_t)) {
 
-        filter_ = std::make_shared<debounce_filter_t>();
+        filter_ = std::make_shared<debounce_filter_impl_t>();
         std::memcpy(&filter_->on_change_, &_buffer[its_offset], sizeof(filter_->on_change_));
         its_offset += sizeof(filter_->on_change_);
         std::memcpy(&filter_->on_change_resets_interval_, &_buffer[its_offset], sizeof(filter_->on_change_resets_interval_));
@@ -137,6 +141,9 @@ subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
 
             filter_->ignore_.emplace(std::make_pair(its_key, its_value));
         }
+
+        std::memcpy(&filter_->send_current_value_after_, &_buffer[its_offset], sizeof(filter_->send_current_value_after_));
+        its_offset += sizeof(filter_->send_current_value_after_);
     }
 }
 

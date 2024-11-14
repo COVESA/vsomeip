@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -51,20 +51,21 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         running_ = false;
         blocked_ = true;
         app_->clear_all_handler();
         stop_offer();
         condition_.notify_one();
-        offer_thread_.join();
+        if (std::this_thread::get_id() != offer_thread_.get_id()) {
+            if (offer_thread_.joinable()) {
+                offer_thread_.join();
+            }
+        } else {
+            offer_thread_.detach();
+        }
         app_->stop();
     }
-#endif
 
     void offer() {
         app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
@@ -94,11 +95,11 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message> &_request) {
-        std::cout << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "]"
-            << std::endl;
+        std::cout << "Received a message with Client/Session ["
+		  << std::setfill('0') << std::hex
+		  << std::setw(4) << _request->get_client() << "/"
+		  << std::setw(4) << _request->get_session() << "]"
+		  << std::endl;
 
         std::shared_ptr<vsomeip::message> its_response
             = vsomeip::runtime::get()->create_response(_request);
@@ -180,6 +181,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

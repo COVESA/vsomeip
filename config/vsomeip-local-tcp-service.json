@@ -1,13 +1,13 @@
 {
     "unicast" : "192.168.56.102",
     "logging" :
-    { 
+    {
         "level" : "debug",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
         "dlt" : "false"
     },
-    "applications" : 
+    "applications" :
     [
         {
             "name" : "service-sample",
@@ -20,7 +20,7 @@
             "service" : "0x1234",
             "instance" : "0x5678",
             "reliable" : { "port" : "30509", "magic-cookies" : "false" },
-            "events" : 
+            "events" :
             [
                 {
                     "event" : "0x0777",
@@ -52,7 +52,7 @@
                 },
                 {
                     "eventgroup" : "0x4555",
-                    "events" : [ "0x777", "0x779" ] 
+                    "events" : [ "0x777", "0x779" ]
                 }
             ]
         }

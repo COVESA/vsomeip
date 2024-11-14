@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -16,12 +16,7 @@
 #include <atomic>
 #include <unordered_set>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/io_service.hpp>
-#    define io_context io_service
-#else
-#    include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/handler.hpp>
@@ -36,12 +31,12 @@
 namespace vsomeip_v3 {
 
 class configuration;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 class netlink_connector;
 #endif // __linux__ || ANDROID
 class routing_manager_stub_host;
 
-struct debounce_filter_t;
+struct debounce_filter_impl_t;
 struct policy;
 
 class routing_manager_stub: public routing_host,
@@ -71,7 +66,7 @@ public:
             const std::shared_ptr<endpoint> &_target, client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             remote_subscription_id_t _id);
 
     bool send_unsubscribe(const std::shared_ptr<endpoint>& _target,
@@ -110,24 +105,24 @@ public:
                                             pending_remote_offer_id_t _id);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
     void on_security_update_response(pending_security_update_id_t _id,
             client_t _client);
 
-    void policy_cache_add(uint32_t _uid, const std::shared_ptr<payload>& _payload);
-    void policy_cache_remove(uint32_t _uid);
-    bool is_policy_cached(uint32_t _uid);
+    void policy_cache_add(uid_t _uid, const std::shared_ptr<payload>& _payload);
+    void policy_cache_remove(uid_t _uid);
+    bool is_policy_cached(uid_t _uid);
 
     bool send_update_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid,
+            pending_security_update_id_t _update_id, uid_t _uid,
             const std::shared_ptr<payload>& _payload);
     bool send_remove_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid, uint32_t _gid);
+            pending_security_update_id_t _update_id, uid_t _uid, gid_t _gid);
 
     bool send_cached_security_policies(client_t _client);
 
@@ -143,6 +138,8 @@ public:
     void remove_subscriptions(port_t _local_port,
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
+
+    routing_state_e get_routing_state();
 
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
@@ -179,7 +176,7 @@ private:
             return (find_source->second.find(_sink)
                     != find_source->second.end());
 
-        return (false);
+        return false;
     }
     inline void add_connection(client_t _source, client_t _sink) {
 
@@ -200,7 +197,7 @@ private:
             protocol::routing_info_entry &_entry);
     void send_client_routing_info(const client_t _target,
             std::vector<protocol::routing_info_entry> &&_entries);
-    void send_client_credentials(client_t _target, std::set<std::pair<uint32_t, uint32_t>> &_credentials);
+    void send_client_credentials(client_t _target, std::set<std::pair<uid_t, gid_t>> &_credentials);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
@@ -232,7 +229,7 @@ private:
     void add_pending_security_update_timer(
             pending_security_update_id_t _id);
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     void on_net_state_change(bool _is_interface, const std::string &_name, bool _is_available);
 #endif
 
@@ -294,7 +291,7 @@ private:
     > requester_policies_;
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     // netlink connector for internal network
     // (replacement for Unix Domain Sockets if configured)
     std::shared_ptr<netlink_connector> local_link_connector_;

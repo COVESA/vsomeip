@@ -1,17 +1,17 @@
-# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.13)
 project (vsomeip)
 
 set (VSOMEIP_NAME vsomeip3)
 set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
-set (VSOMEIP_MINOR_VERSION 3)
-set (VSOMEIP_PATCH_VERSION 0)
+set (VSOMEIP_MINOR_VERSION 5)
+set (VSOMEIP_PATCH_VERSION 1)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -61,6 +61,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(DL_LIBRARY "dl")
@@ -68,7 +70,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wl,-z,relro,-z,now")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
 endif()
 
     set(NO_DEPRECATED "")
@@ -104,18 +106,51 @@ if (ENABLE_SIGNAL_HANDLING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
+# Event caching
+if (ENABLE_DEFAULT_EVENT_CACHING)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_DEFAULT_EVENT_CACHING")
+endif ()
+
 if (NOT MSVC)
-    # Sanitizer
+    # Sanitizers
+    if (ENABLE_UNDEFINED_SANITIZER)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    endif ()
+
     if (ENABLE_THREAD_SANITIZER)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
     endif ()
 
     if (ENABLE_LEAK_SANITIZER)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+    endif ()
+
+    if (ENABLE_ADDRESS_SANITIZER)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif ()
 
     if (ENABLE_PROFILING)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+    endif ()
+
+    # Valgrind
+    find_program(VALGRIND "valgrind")
+    if (VALGRIND)
+        if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+            set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE})
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "helgrind")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "massif")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "memcheck")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
     endif ()
 endif (NOT MSVC)
 
@@ -149,8 +184,12 @@ add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
-include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    include_directories(${Boost_INCLUDE_DIR} )
+else()
+    include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+endif()
 
 if(Boost_FOUND)
   if(Boost_LIBRARY_DIR)
@@ -173,12 +212,6 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-
-if (${VSOMEIP_BOOST_VERSION} LESS 106600)
-include_directories(SYSTEM
-    implementation/helper
-)
-endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
@@ -232,12 +265,14 @@ if (MSVC)
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /std:c++latest /wd4250")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -D_WIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
-    ADD_DEFINITIONS( -DBOOST_ALL_DYN_LINK )
+    add_compile_options(/MD$<$<CONFIG:Debug>:d>)
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set(USE_RT "")
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} -std=c++14 ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
 endif()
 
@@ -251,6 +286,7 @@ list(SORT ${VSOMEIP_NAME}-cfg_SRC)
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
     add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+    target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
     if (MSVC)
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     endif()
@@ -285,10 +321,12 @@ list(SORT ${VSOMEIP_NAME}_SRC)
 
 add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
 set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 else ()
-    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept")
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
@@ -301,6 +339,10 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
 # the build.
 target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
+if(NOT WIN32)
+    target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
+endif()
+
 ################################################################################
 # Service Discovery library
 ################################################################################
@@ -310,6 +352,7 @@ file(GLOB ${VSOMEIP_NAME}-sd_SRC
 list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
 add_library(${VSOMEIP_NAME}-sd SHARED ${${VSOMEIP_NAME}-sd_SRC})
+target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -327,6 +370,7 @@ file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
 list(SORT ${VSOMEIP_NAME}-e2e_SRC)
 
 add_library(${VSOMEIP_NAME}-e2e SHARED ${${VSOMEIP_NAME}-e2e_SRC})
+target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -334,6 +378,13 @@ endif ()
 
 target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    target_link_directories(${VSOMEIP_NAME} PUBLIC "${QNX_TARGET}/${CPUVARDIR}/io-sock/lib")
+    target_link_libraries(${VSOMEIP_NAME}-e2e socket)
+    target_link_libraries(${VSOMEIP_NAME}-cfg socket)
+    target_link_libraries(${VSOMEIP_NAME}-sd socket)
+    target_link_libraries(${VSOMEIP_NAME} PRIVATE socket)
+endif()
 ################################################################################
 # Compatibility library
 ################################################################################
@@ -351,6 +402,7 @@ file(GLOB_RECURSE ${VSOMEIP_COMPAT_NAME}_SRC
 list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
 
 add_library(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_COMPAT_NAME} PROPERTIES VERSION ${VSOMEIP_COMPAT_VERSION} SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_COMPAT_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -382,21 +434,42 @@ set(EXAMPLE_CONFIG_FILES
 ################################################################################
 # Configuration parameters
 ################################################################################
-set (VSOMEIP_BASE_PATH "/tmp")
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    set (VSOMEIP_BASE_PATH "/var")
+else()
+    set (VSOMEIP_BASE_PATH "/tmp")
+endif()
 if (BASE_PATH)
 set (VSOMEIP_BASE_PATH ${BASE_PATH})
 endif ()
+
 set (VSOMEIP_DIAGNOSIS_ADDRESS "0x01")
 if (DIAGNOSIS_ADDRESS)
 set (VSOMEIP_DIAGNOSIS_ADDRESS ${DIAGNOSIS_ADDRESS})
 endif ()
+
 set (VSOMEIP_UNICAST_ADDRESS "127.0.0.1")
 if (UNICAST_ADDRESS)
 set (VSOMEIP_UNICAST_ADDRESS ${UNICAST_ADDRESS})
 endif ()
+
 set (VSOMEIP_ROUTING_READY_MESSAGE "SOME/IP routing ready.")
 if (ROUTING_READY_MESSAGE)
 set (VSOMEIP_ROUTING_READY_MESSAGE ${ROUTING_READY_MESSAGE})
+endif ()
+
+set (VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME 100)
+if (LOCAL_TCP_PORT_WAIT_TIME)
+set (VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME ${LOCAL_TCP_PORT_WAIT_TIME})
+endif ()
+
+set (VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME 10000)
+if (LOCAL_TCP_PORT_MAX_WAIT_TIME)
+if (${LOCAL_TCP_PORT_MAX_WAIT_TIME} GREATER ${LOCAL_TCP_PORT_WAIT_TIME})
+set (VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME ${LOCAL_TCP_PORT_MAX_WAIT_TIME})
+else ()
+set (VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME ${LOCAL_TCP_PORT_WAIT_TIME})
+endif ()
 endif ()
 
 set(DEFAULT_CONFIGURATION_FOLDER "/etc/vsomeip" CACHE PATH "Default configuration folder")
@@ -408,6 +481,9 @@ message(STATUS "Default configuration file: ${DEFAULT_CONFIGURATION_FILE}")
 message("Predefined base path: ${VSOMEIP_BASE_PATH}")
 message("Predefined unicast address: ${VSOMEIP_UNICAST_ADDRESS}")
 message("Predefined diagnosis address: ${VSOMEIP_DIAGNOSIS_ADDRESS}")
+message("Predefined wait times for internal communication ports (TCP):\
+ ${VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME}\
+ (max=${VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME})")
 
 ################################################################################
 # Installation
@@ -567,24 +643,6 @@ else()
     add_dependencies(doc doxygen-doc)
 endif()
 
-find_program(ASCIIDOC_PATH asciidoc)
-find_program(SOURCE_HIGHLIGHT_PATH source-highlight)
-if ("${ASCIIDOC_PATH}" STREQUAL "ASCIIDOC_PATH-NOTFOUND")
-    message(WARNING "asciidoc is not installed. Readme can not be built.")
-elseif("${SOURCE_HIGHLIGHT_PATH}" STREQUAL "SOURCE_HIGHLIGHT_PATH-NOTFOUND")
-    message(WARNING "source-highlight is not installed. Readme can not be built.")
-else()
-    message("asciidoc found")
-    message("source-highlight found")
-    add_custom_command(TARGET doc
-                       POST_BUILD
-                       COMMAND asciidoc
-                               -a version=${VSOMEIP_VERSION}
-                               -b html
-                               -o documentation/vsomeipUserGuide.html
-                               ${PROJECT_SOURCE_DIR}/documentation/vsomeipUserGuide)
-endif()
-
 ##############################################################################
 # create pkg-config file
 if(NOT WIN32)
@@ -600,131 +658,26 @@ endif()
 
 # build tools
 add_custom_target( tools )
-add_subdirectory( tools )
+add_subdirectory( tools/vsomeip_ctrl )
 
 # build examples
 add_custom_target( examples )
 add_subdirectory( examples EXCLUDE_FROM_ALL )
 
 ##############################################################################
-# Test section
-##############################################################################
-
-##############################################################################
-# google benchmark
-find_package(benchmark)
-
-##############################################################################
-# google test
-
-# check for set environment variable
-if(${GTEST_ROOT} STREQUAL "n/a")
-    message(STATUS "GTEST_ROOT is not defined. For building the tests the variable
-             GTEST_ROOT has to be defined. Tests can not be built.")
-    # early exit
-    return()  # test can not be build -> make commands build_tests and check are not available
-else()
-    message(STATUS "GTEST_ROOT is set. gtest root path set to ${GTEST_ROOT}")
-endif()
-
-# build google test as static library (always) -> therefore deactivate BUILD_SHARED_LIBS in case it is active
-set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
-if ("${BUILD_SHARED_LIBS}" STREQUAL "ON")
-    set(BUILD_SHARED_LIBS OFF)
-    set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 1)
-endif()
-add_subdirectory(${GTEST_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/gtest EXCLUDE_FROM_ALL)
-if ("${BUILD_SHARED_LIBS_AUTOMATIC_OFF}" STREQUAL "1")
-    set(BUILD_SHARED_LIBS ON)
-    set(BUILD_SHARED_LIBS_AUTOMATIC_OFF 0)
-endif()
-
-
-
-##############################################################################
-# build tests
-
-enable_testing()
-SET(TESTS_BAT "OFF" CACHE BOOL
-    "Controls whether only BAT tests should be build or not")
-SET(TEST_SYMLINK_CONFIG_FILES "OFF" CACHE BOOL
-    "Controls if the json and scripts needed needed to run the tests are copied or symlinked into the build directroy (ignored on Windows)")
-SET(TEST_SYMLINK_CONFIG_FILES_RELATIVE "OFF" CACHE BOOL
-    "Controls if the json and scripts needed needed to run the tests are symlinked relatively into the build directroy (ignored on Windows)")
-
-SET(TEST_IP_DEFAULT_VALUE "XXX.XXX.XXX.XXX")
-SET(TEST_IP_MASTER "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
-    "The IP address of the interface which will act as test master")
-SET(TEST_IP_SLAVE "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
-    "The IP address of the interface which will act as test slave")
-
-if((${TEST_IP_MASTER} STREQUAL ${TEST_IP_DEFAULT_VALUE}) OR
-   (${TEST_IP_SLAVE}  STREQUAL ${TEST_IP_DEFAULT_VALUE}))
-    message(WARNING "TEST_IP_MASTER and/or TEST_IP_SLAVE isn't set. "
-                    "Remote tests cannot be run. "
-                    "To enable, please specify for example "
-                    "-DTEST_IP_MASTER=10.0.3.1 -DTEST_IP_SLAVE=10.0.3.2")
-endif()
-
-SET(TEST_IP_SLAVE_SECOND "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
-    "The second IP address of the interface which will act as test slave")
-set(TEST_SECOND_ADDRESS "OFF" CACHE BOOL
-    "Controls whether second address tests should run or not")
-
-if(${TEST_IP_SLAVE_SECOND} STREQUAL ${TEST_IP_DEFAULT_VALUE})
-    message(WARNING "TEST_IP_SLAVE_SECOND isn't set. "
-                    "Test with more than one IP address on same interface is not enabled."
-                    "Please specify them via for example "
-                    "-TEST_IP_SLAVE_SECOND=10.0.3.126")
-else()
-    set(TEST_SECOND_ADDRESS "ON")
-endif()
-
-set(TEST_E2E_PROFILE_04 "ON")
-
-SET(TEST_UID_DEFAULT_VALUE "123456789")
-SET(TEST_UID "${TEST_UID_DEFAULT_VALUE}" CACHE STRING
-    "The User ID of the user running the test: Needed for security")
-SET(TEST_GID_DEFAULT_VALUE "123456789")
-SET(TEST_GID "${TEST_GID_DEFAULT_VALUE}" CACHE STRING
-    "The Group ID of the user running the test: Needed for security")
-
-SET(TEST_SECURITY "ON" CACHE BOOL
-    "Controls whether security tests should run or not")
-
-if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
-   (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}) OR
-   DISABLE_SECURITY)
-    message(WARNING "TEST_UID and/or TEST_GID isn't set. "
-                    "Security Tests are not runnable "
-                    "Please specify them for example "
-                    "-DTEST_UID=1000 -DTEST_GID=1000")
-    SET(TEST_SECURITY "OFF")
-endif()
-
-add_custom_target(build_tests)
-
-set(CMAKE_CTEST_COMMAND ctest -V)
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
-add_dependencies(check build_tests)
-
-add_custom_target(build_network_tests)
-add_dependencies(build_network_tests ${VSOMEIP_NAME})
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-e2e)
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-sd)
-add_dependencies(build_tests build_network_tests)
-
-add_custom_target(build_unit_tests)
-add_dependencies(build_unit_tests ${VSOMEIP_NAME})
-add_dependencies(build_unit_tests ${VSOMEIP_NAME}-sd)
-add_dependencies(build_tests build_unit_tests)
-
-add_custom_target(build_benchmark_tests)
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME})
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME}-sd)
-add_dependencies(build_tests build_benchmark_tests)
-
-##############################################################################
 # add test directory
+enable_testing()
 
 add_subdirectory( test EXCLUDE_FROM_ALL )
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    install(DIRECTORY ${PROJECT_BINARY_DIR}/test/
+        DESTINATION bin/vsomeip_tests/test
+        PATTERN "CMakeFiles" EXCLUDE
+        PATTERN "*.cmake" EXCLUDE
+        PATTERN "Makefile" EXCLUDE
+    )
+
+    install(FILES ${PROJECT_BINARY_DIR}/examples/routingmanagerd/routingmanagerd
+        DESTINATION bin/vsomeip_tests/examples/routingmanagerd)
+endif()

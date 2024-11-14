@@ -1,10 +1,13 @@
-// Copyright (C) 2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef VSOMEIP_V3_SECURITY_VSOMEIP_SEC_H_
 #define VSOMEIP_V3_SECURITY_VSOMEIP_SEC_H_
+
+#define VSOMEIP_SEC_PORT_UNUSED  0
+#define VSOMEIP_SEC_PORT_UNSET   0xFFFF
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,25 +31,9 @@ typedef uint32_t gid_t;
 typedef struct {
     uid_t user;
     gid_t group;
-} vsomeip_sec_uds_client_credentials_t;
 
-typedef struct {
-    vsomeip_sec_ip_addr_t ip;
-    vsomeip_sec_network_port_t port;
-} vsomeip_sec_ip_client_credentials_t;
-
-typedef enum {
-    VSOMEIP_CLIENT_UDS,
-    VSOMEIP_CLIENT_TCP,
-    VSOMEIP_CLIENT_INVALID
-} vsomeip_sec_client_type_t;
-
-typedef struct {
-    vsomeip_sec_client_type_t client_type;
-    union {
-        vsomeip_sec_uds_client_credentials_t uds_client;
-        vsomeip_sec_ip_client_credentials_t ip_client;
-    } client;
+    vsomeip_sec_ip_addr_t host;
+    vsomeip_sec_network_port_t port; // VSOMEIP_SEC_PORT_UNUSED --> UDS; ]0, VSOMEIP_SEC_PORT_UNSET] --> TCP
 } vsomeip_sec_client_t;
 
 typedef enum {
@@ -150,6 +137,14 @@ vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_request(
 vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_access_member(
     const vsomeip_sec_client_t *client,
     vsomeip_sec_service_id_t service, vsomeip_sec_instance_id_t instance, vsomeip_sec_member_id_t member);
+
+
+/**
+ * Provides user and group identifiers for a given host address / port combination.
+ *
+ * Note: For UDS (aka port=0), calling this function is a no-op.
+ */
+void vsomeip_sec_sync_client(vsomeip_sec_client_t *client);
 
 #ifdef __cplusplus
 } // extern "C"

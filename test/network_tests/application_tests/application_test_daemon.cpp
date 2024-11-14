@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,12 +9,16 @@
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-class application_test_daemon {
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
+
+class application_test_daemon : public vsomeip_utilities::base_logger {
 public:
     application_test_daemon() :
+            vsomeip_utilities::base_logger("APTD", "APPLICATION TEST DAEMON"),
             app_(vsomeip::runtime::get()->create_application("daemon")) {
         if (!app_->init()) {
-            ADD_FAILURE() << "Couldn't initialize application";
+            ADD_FAILURE() << "[Daemon] Couldn't initialize application";
             return;
         }
         std::promise<bool> its_promise;
@@ -24,7 +28,7 @@ public:
         });
         EXPECT_TRUE(its_promise.get_future().get());
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        VSOMEIP_INFO << "Daemon starting";
+        VSOMEIP_INFO << "[Daemon] Starting";
     }
 
     ~application_test_daemon() {
@@ -32,7 +36,7 @@ public:
     }
 
     void stop() {
-        VSOMEIP_INFO << "Daemon stopping";
+        VSOMEIP_INFO << "[Daemon] Stopping";
         app_->stop();
     }
 

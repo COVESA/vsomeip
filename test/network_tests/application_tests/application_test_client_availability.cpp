@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,11 +19,14 @@
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 #include "application_test_globals.hpp"
 
-class application_test_client_availability {
+class application_test_client_availability : public vsomeip_utilities::base_logger {
 public:
     application_test_client_availability(struct application_test::service_info _service_info) :
+            vsomeip_utilities::base_logger("ATCA", "Application Test Client Availability"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application("client")),
             wait_until_registered_(true),
@@ -51,10 +54,11 @@ public:
                             std::placeholders::_3, i),
                     its_major, its_minor);
             VSOMEIP_DEBUG << "Registering: "
-                    << std::setw(4) << std::setfill('0') << std::hex << its_service << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_instance << "."
-                    << std::setw(2) << std::setfill('0') << std::hex << (std::uint32_t)its_major << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_minor << "."
+                    << std::setfill('0') << std::hex
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(2) << (std::uint32_t)its_major << "."
+                    << std::setw(4) << its_minor << "."
                     << i;
 
         }
@@ -171,7 +175,7 @@ public:
                 availability_condition_.wait(its_lock);
             }
         }
-        VSOMEIP_INFO <<" Everything is available";
+        VSOMEIP_INFO << " Everything is available";
         all_availability_handlers_called_ = true;
     }
 

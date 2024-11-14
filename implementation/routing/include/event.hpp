@@ -20,13 +20,9 @@
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/payload.hpp>
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
 
 namespace vsomeip_v3 {
+
 
 class endpoint;
 class endpoint_definition;
@@ -34,7 +30,7 @@ class message;
 class payload;
 class routing_manager;
 
-struct debounce_filter_t;
+struct debounce_filter_impl_t;
 
 class event
         : public std::enable_shared_from_this<event> {
@@ -60,7 +56,7 @@ public:
 
     void set_payload(const std::shared_ptr<payload> &_payload,
             const client_t _client,
-            const std::shared_ptr<endpoint_definition>& _target);
+            const std::shared_ptr<endpoint_definition>& _target, bool _force);
 
     bool prepare_update_payload(const std::shared_ptr<payload> &_payload,
             bool _force);
@@ -105,7 +101,7 @@ public:
 
 
     bool add_subscriber(eventgroup_t _eventgroup,
-            const std::shared_ptr<debounce_filter_t> &_filter,
+            const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client, bool _force);
     void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
     bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
@@ -153,6 +149,8 @@ private:
             const std::shared_ptr<payload> &_payload, bool _force);
     void update_payload_unlocked();
 
+    void get_pending_updates(const std::set<client_t> &_clients);
+
 private:
     routing_manager *routing_;
     mutable std::mutex mutex_;
@@ -181,6 +179,7 @@ private:
     std::atomic<bool> is_cache_placeholder_;
 
     epsilon_change_func_t epsilon_change_func_;
+    bool has_default_epsilon_change_func_;
 
     std::atomic<reliability_type_e> reliability_;
 
@@ -188,8 +187,6 @@ private:
 
     std::mutex filters_mutex_;
     std::map<client_t, epsilon_change_func_t> filters_;
-    std::mutex last_forwarded_mutex_;
-    std::map<client_t, std::chrono::steady_clock::time_point> last_forwarded_;
 };
 
 }  // namespace vsomeip_v3

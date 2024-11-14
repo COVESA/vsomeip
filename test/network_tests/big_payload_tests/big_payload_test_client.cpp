@@ -1,10 +1,11 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "big_payload_test_client.hpp"
 #include "big_payload_test_globals.hpp"
+#include <common/utility.hpp>
 
 big_payload_test_client::big_payload_test_client(
         bool _use_tcp, big_payload_test::test_mode _test_mode) :
@@ -71,13 +72,13 @@ bool big_payload_test_client::init()
 
 void big_payload_test_client::start()
 {
-    VSOMEIP_INFO << "Starting...";
+    VSOMEIP_INFO << "Starting Client...";
     app_->start();
 }
 
 void big_payload_test_client::stop()
 {
-    VSOMEIP_INFO << "Stopping...";
+    VSOMEIP_INFO << "Stopping Client...";
     if (test_mode_ == big_payload_test::test_mode::LIMITED
             || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
@@ -232,19 +233,19 @@ void big_payload_test_client::run()
         }
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
+        VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0') << std::hex
+                     << request_->get_client() << "/" << std::setw(4) << std::setfill('0')
+                     << std::hex << request_->get_session()
+                     << "] is going to send a request to Service [" << std::setw(4)
+                     << std::setfill('0') << std::hex << request_->get_service() << "."
+                     << std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
+                     << "] size: " << std::dec << request_->get_payload()->get_length()
+                     << ". Sent Messages: " << number_of_sent_messages_ + 1;
         app_->send(request_);
         if (test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
-        VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
-                << std::hex << request_->get_client() << "/" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_session()
-                << "] sent a request to Service [" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_service()
-                << "." << std::setw(4) << std::setfill('0') << std::hex
-                << request_->get_instance() << "] size: " << std::dec <<
-                request_->get_payload()->get_length();
         number_of_sent_messages_++;
     }
     while(!blocked_) {
@@ -279,7 +280,7 @@ TEST(someip_big_payload_test, send_ten_messages_to_service)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

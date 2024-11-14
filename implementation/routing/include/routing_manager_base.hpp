@@ -28,6 +28,10 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_manager_base.hpp"
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 #ifdef USE_DLT
@@ -55,8 +59,14 @@ public:
     virtual session_t get_session(bool _is_request);
 
     virtual const vsomeip_sec_client_t *get_sec_client() const;
+    virtual void set_sec_client_port(port_t _port);
 
     virtual std::string get_env(client_t _client) const = 0;
+
+    virtual void debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter);
+    virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const std::shared_ptr<vsomeip_v3::event> &_event);
+    virtual void remove_debounce(client_t _client, event_t _event);
+    virtual void update_debounce_clients(const std::set<client_t> &_clients, event_t _event);
 
     virtual bool is_routing_manager() const;
 
@@ -99,7 +109,7 @@ public:
             const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     virtual void unsubscribe(client_t _client,
             const vsomeip_sec_client_t *_sec_client,
@@ -182,6 +192,9 @@ protected:
             > &_subscribed_eventgroups,
             bool _remove_sec_client);
 
+    std::set<std::shared_ptr<eventgroupinfo> > find_eventgroups(service_t _service,
+            instance_t _instance) const;
+
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup) const;
 
@@ -199,8 +212,10 @@ protected:
 
     bool insert_subscription(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, event_t _event,
-            const std::shared_ptr<debounce_filter_t> &_filter, client_t _client,
+            const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client,
             std::set<event_t> *_already_subscribed_events);
+
+    void clear_shadow_subscriptions(void);
 
     std::shared_ptr<serializer> get_serializer();
     void put_serializer(const std::shared_ptr<serializer> &_serializer);
@@ -213,7 +228,7 @@ protected:
     virtual void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) = 0;
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
     void remove_pending_subscription(service_t _service, instance_t _instance,
                                      eventgroup_t _eventgroup, event_t _event);
@@ -258,7 +273,7 @@ protected:
 private:
     virtual bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client) = 0;
 
 protected:
@@ -276,9 +291,8 @@ protected:
     std::condition_variable deserializer_condition_;
 
     mutable std::mutex local_services_mutex_;
-    using local_services_map_t =
-        std::map<service_t, std::map<instance_t,
-            std::tuple<major_version_t, minor_version_t, client_t>>>;
+    typedef std::map<service_t, std::map<instance_t,
+            std::tuple<major_version_t, minor_version_t, client_t>>> local_services_map_t;
     local_services_map_t local_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t> > > local_services_history_;
 
@@ -294,11 +308,11 @@ protected:
             std::map<event_t,
                 std::shared_ptr<event> > > > events_;
 
-    std::mutex event_registration_mutex_;
+    boost::asio::steady_timer debounce_timer;
+    std::multimap<std::chrono::steady_clock::time_point, std::tuple<client_t, bool, std::function<void (const boost::system::error_code)>, event_t>> debounce_clients_;
+    mutable std::mutex debounce_mutex_;
 
-#ifdef USE_DLT
-    std::shared_ptr<trace::connector_impl> tc_;
-#endif
+    std::mutex event_registration_mutex_;
 
     struct subscription_data_t {
         service_t service_;
@@ -306,7 +320,7 @@ protected:
         eventgroup_t eventgroup_;
         major_version_t major_;
         event_t event_;
-        std::shared_ptr<debounce_filter_t> filter_;
+        std::shared_ptr<debounce_filter_impl_t> filter_;
         vsomeip_sec_client_t sec_client_;
 
         bool operator<(const subscription_data_t &_other) const {
@@ -337,6 +351,10 @@ protected:
 
     std::mutex routing_state_mutex_;
     routing_state_e routing_state_;
+
+#ifdef USE_DLT
+    std::shared_ptr<trace::connector_impl> tc_;
+#endif
 
 private:
     services_t services_;

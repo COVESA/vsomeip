@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -19,11 +19,14 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "event_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class event_test_client {
+class event_test_client : public vsomeip_utilities::base_logger {
 public:
     event_test_client(struct event_test::service_info _service_info, event_test::test_mode_e _mode,
                       bool _use_tcp) :
+            vsomeip_utilities::base_logger("EVTC", "EVENT TEST CLIENT"),
             service_info_(_service_info),
             test_mode_(_mode),
             use_tcp_(_use_tcp),
@@ -139,7 +142,7 @@ public:
         << _message->get_session() << "] from Service/Method ["
         << std::setw(4) << std::setfill('0') << std::hex
         << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-        << std::hex << _message->get_method() <<"]";
+        << std::hex << _message->get_method() << "]";
 
     }
 
@@ -253,7 +256,7 @@ TEST(someip_event_test, subscribe_or_call_method_at_service)
     event_test_client its_sample(event_test::service, passed_mode, use_tcp);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

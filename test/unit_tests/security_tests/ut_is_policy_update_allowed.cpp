@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,7 +6,7 @@
 #include <memory>
 #include <iostream>
 #include <gtest/gtest.h>
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 namespace {
 std::string configuration_file { "/vsomeip/0_0/vsomeip_security.json" };
@@ -20,6 +20,7 @@ vsomeip_v3::service_t valid_service { 0xf913 };
 vsomeip_v3::service_t invalid_service { 0x41 };
 }
 
+#ifndef __QNX__
 TEST(is_policy_update_allowed, check_whitelist_disabled)
 {
     // Test object.
@@ -169,6 +170,7 @@ TEST(is_policy_update_allowed, check_whitelist_enabled)
     EXPECT_FALSE(security->is_policy_update_allowed(valid_uid, policy))
             << "Failed to deny policy update with valid user id and invalid request!";
 }
+#endif
 
 TEST(is_policy_update_allowed, null_policy)
 {

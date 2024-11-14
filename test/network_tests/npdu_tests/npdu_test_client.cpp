@@ -1,7 +1,10 @@
-// Copyright (C) 2015-2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <iomanip>
+
 #include "../npdu_tests/npdu_test_client.hpp"
 
 #include <vsomeip/internal/logger.hpp>
@@ -530,7 +533,7 @@ TEST(someip_npdu_test, send_different_payloads)
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     std::string tcp_enable("--TCP");

@@ -1,7 +1,252 @@
 Changes
 =======
 
-v3.3.0
+v3.5.1
+- Restructure Network Tests CMakeLists
+- policy.cpp unit test
+- Remove deprecated usage of byteorder and use bithelper
+- unblock endpoint when closing it
+- Find_Debounce_Time made configurable
+- Check if configuration_ pointer exists before using
+- Initialize routing_state_
+- Solved data race in configuration_impl class
+- utility.cpp unit tests
+- unit tests payload_impl
+- unit tests serializer
+- unit tests deserializer
+- Unit Tests for policy_manager_impl.cpp
+- Unit Test - Routing Manager set_routing_state
+- Move documentation to markdown
+- clang-format to verify the code vsomeip-lib
+- fix deadlock with event and message debounce feature
+- disabled some groups of tests
+- Try to force connection reset on suspend
+- Call availability handler on request service instance
+- Handle endpoint queue size underflow
+- Add Valgrind massif tool
+- Create new train after scheduling to avoid duplicate messages
+- Re-Added offer_tests group in all sanitizers tests
+- removed extra DLT logs of the policies print
+- COVESA-615: vsomeip.lck file not removed upon application termination
+- COVESA-527: Locally switch off -Wstringop-overflow
+- Create network regression test for specific issue
+- Change IndentPPDirectives rule in clang-format
+- applied auto in some identified lines by sonarqube
+- Add Valgrind memcheck
+- Ensure buffer is valid before de-referencing pointer
+- Renaming folder test and fixing typos
+- Fix minor formatting issues from some commits
+- Adds interger overflow check
+- Adds application name on cout logs
+- Adding helgrind, to test output
+- Boost 1.65 cleanup
+- network_test - Offer Stop Offer test
+- Support host name (env) for internal TCP communication
+- Remove cached configuration after app stops
+- Optimize tests/network-tests/CMakeLists.txt
+- Check if pointer exists before dereferencing it
+- avoid requiring valgrind locally
+- Fix Lock-Order-Inversion in policy_manager_impl
+- Revert "Fix to not ignore stop offers when sd acceptance is not required"
+- Fix timeout on offer_stop_offer test
+- Restore config_plugin_impl mutex
+- Rework [STOP_]OFFER command handling
+- some-tp memory consumption increasing fast
+- Remove dlt traces from memory_test
+- restart_routing_test enabled
+- Fix cyclic events
+- Tracing LOI
+- improve connection log on error path
+- added subscribe_notify groups to non-leak verification
+- Relocate hostname config command
+- allow subscribeACK if at least one offer was sent by SD
+- Improve "end of file" error handling
+- Update Clang-Format to Version 18
+- Debounce tests fix
+- Wireshark dissector for vsomeip protocol
+- Remove logging on operation cancel in connect_cbk
+- Add additional info on failure to open TCP port
+- Implementation of SOMEIPSD_00577
+- Refactor how niceness values are applied to threads
+- prevent race between event expiration/forwarding
+- Fix subscribe_notify_one tests
+- Fix missing/blocked subscription requests
+- change references to C++14 into C++17
+- Explicitly check whether an endpoint is in use
+- Enabled all network tests with whitelist
+- Fix target client id in local_send
+- remove redundants package import definitions
+- run unit tests on windows
+- Fix debounce network tests
+- type upgrade and temporary disable of test for QNX build
+- Force abort hanging detached threads
+- Application tests fix
+- Remove behavior from catch block in ~message
+- Stop/Start (network) endpoints on suspend/resume
+- Reduce the number of copy operations on event payloads
+- Sets linger to 0 in local tcp clients
+- Prevent exception re-throw in ~message
+- remove linger on local_tcp
+- Fix android traces build
+- Introduce stateful availability handler
+- Update the availability state
+- Reintroduces the TIME_WAIT for ltcei
+- Faster handlers lookup
+- Increase app registration timeout
+- Force endpoint restart if re registering
+- fix semaphore logs
+- fix compile issue with pthreads in android
+- Disabling set routing state unit test
+- Fixing get_policy_manager error with security disabled
+
+v3.5.0
+- Load Policies Lazy Load
+- Test - Processing SD messages with unknown type option
+- ensure endpoints before deletion
+- Improve "end of file" error handling
+- Enable debouncing of events & selective events
+- Revert "Test - Processing SD messages with unknown type"
+- Logs added to points of failure on registration process
+- One *.json to ignorem all
+- Someip-tp remote address rework
+- Fix crash in multicast_receive receive_cb
+- Generate network_test configs directly to build
+- Fix deadlock if binding of TCP client endpoint fails
+- Added missing includes of iomanip to support compilation on Mint
+- Cache not yet registered events
+- Return true to make sure endpoints are deleted
+- Byteorder implementation
+- Reorder of prepare_stop method
+- Allows applications in the same process using different security configurations
+- Fix to not ignore stop offers when sd acceptance is not required
+
+v3.4.10
+- Fix QNX build
+- Fix missing Stop Offer
+- Apply extra fixes to QNX environment
+- Remove key <service, instance> from the offer_commands_
+- COVESA#478: deleted unused param _use_exclusive_proxy
+- Fix code smell related to condition variable
+- COVESA#462: Fix IPv6 Service Discovery
+- Added multicast_mutex to async function that makes use of multicast socket
+- COVESA#479: Allow service_discovery to continue without random_device
+- Fix availability handler sending false on offer
+- Set host/port in vsomeip_sec_client_t whenever possible
+- Use executor_work_guard instead of io_context::work for boost v1.66 and higher
+- Update Windows build
+- Added profile 07 as an option for E2E protection
+- ASIO: use heap-allocation to avoid using garbage data
+- Fix integer underflow in server_endpoint_impl.cpp
+- Cleanup prepare_stop_handlers_
+- Automatic unsubscribe
+- Debounce now works without routingmanagerd running
+- Debouncing: Send last received value after debounce time + X
+- Fix resource deadlock avoided crash
+- Use closure instead of callable struct
+
+v3.4.9
+- Merge COVESA PR447 with support for QNX 7.1
+- Merge COVESA PR470 with changes to not instantiate
+a non existent type for boost < 1.66.0
+- Merge COVESA PR515 with changes that remove not used lines
+
+v3.4.8
+- Adds debounce_filter_tests json files to gitignore
+- Adds check for null serviceinfo
+- Implementation of debounce frequency test
+- Accept malformed StopSubscribe/Subscribe messages
+- security: Fix security library name
+- Also remove service instance from map of pending offers
+- enforce lock acquisition order to avoid LOI
+- Improved logs
+
+v3.4.7
+- Do _NOT_ try to serialize empty names
+- Avoid crash on access to invalid position from tcp_endpoint buffer
+- Fix security library name
+- revert std::move usage in train buffer's
+- Fix deadlock in mutex_
+
+v3.4.6
+- check if a policy exist in the vector of policies
+- Crash in process vsomeipd crash id: D8DF38B19EEBC79D
+- Enable guest port configuration per uid/gid
+
+v3.4.5
+- Implementation of new debounce filter test
+- test availability when double offering service
+- network test fixes
+- Try to synchronize subscribe/unsubscribe/resubscribe
+- Add vsomeip_portcfg.json to the list of mandatory configuration files
+- Check buffer before accessing it
+- Rework condition for starting the send operation for client endpoint
+- Avoid spamming the log
+- Extend security interface to enable syncing security clients
+- Revert get_local_port() behaviour
+
+v3.4.4.1
+- manually reset tables for unavailable services on suspend state
+
+v3.4.4
+- Fix deadlock if binding of UDP client endpoint fails
+- Changed local_tcp_client endpoint connect to async connect.
+- Change shutdown sequence
+- vSomeIP Security: Update vsomeip_sec
+
+v3.4.3
+- Fixed race between incoming subscription and StopOffer/Offer
+
+v3.4.2
+- Removed local_port_ attribute
+
+v3.4.1
+- Rename the new "register_message_handler" overload function
+- Set the Client identifier when sending pong command
+
+v3.4.0
+- Allow to register multiple message handlers for the same message
+- load_security_policy_extensions Unit and Benchmark Tests
+- Fix is_local flag for acl acceptance msg
+- Fix registration issues regarding connecting timeout
+
+v3.3.8
+- Check buffer size when serializing/deserializing event registrations
+- Remove leftovers from shm usage
+- Avoid using uninitialized variable
+- Displays lib version when starting any app
+
+v3.3.7
+- Fix handling of endpoint options
+- Fix build on Windows
+- Fix client-side logging filters
+- Rework in event::set_payload
+- Release no longer in use client endpoints
+- Rework condition for starting the send operation
+- Verify if the event is shadow
+
+v3.3.6
+- The "last forwarded" timestamp must be handled per event
+- Fix deadlock
+- Restart the connection on broken unix sockets
+- Fix routing root not binding to local tcp if
+- Rework connecting timeout
+
+v3.3.5.1
+- Fix typo in application_impl.cpp
+- Update load_balancing_option_impl.cpp
+- Fix format specifier in memory_log_timer_cbk
+- Prevent boost symbols from leaking into global namespace
+- Remove redundant ostream manipulators
+- Fix for configuration option deserialize bug
+- Accept return codes within range 0x20 - 0x5E as valid
+
+v3.3.5
+- Do NOT use iterators in asynchronous operations.
+- Add event identifier to "REGISTER EVENT" log message at routing manager stub.
+- Fix for crash in flush function, server_endpoint_impl class
+- added FD_CLOEXEC flag in all open operations
+- Use "make_unique" and "make_shared" to construct "unique_ptr" and "shared_ptr"
+- Removed redundant pairs of parentheses
 - Do not erase while iterating.
 - Changed invalid call of deserialize to serialize
 - Fixed the the problem in policy::deserialize counts down the given policy size,
@@ -10,10 +255,13 @@ and after deserializing the policy it is 0.
 - Fix timestamp format of log message
 - Prevent crash when logging with DLT
 - load_security_update_whitelist Unit and Benchmark Tests
-- Added protection when a message is destroyed.
+- Added protection when a message is destroyed
+- Pu/connect timeout refactor
 - Rework the addition of services when in suspended mode
 - Remove const qualifier from function return types
 - Adapt to boost 1.81.0
+
+v3.3.4
 - Removed VSOMEIP_DEPRECATED_UID_GID from some elements.
 - Add nullptr guards to receive_cbk.
 - Add nullptr check to receive_cbk.
@@ -28,10 +276,14 @@ and after deserializing the policy it is 0.
 - Reduce log level of some vsomeip messages.
 - Change dependency on LINK UP.
 - Change rejoining mechanism in UDP server endpoint.
+
+v3.3.3
 - Fixed android build issues
 - Added more DLT log info on credentials error
 - Fixed ICON register issues.
 - Added an  unlocked method to get the policy extension path
+
+v3.3.2
 - Manage E2E Profile04 counters per instance
 - Fix handling of subscription objects during unsubscribe.
 - Remove subscription on connection resets.
@@ -48,6 +300,8 @@ and after deserializing the policy it is 0.
 - Handling with some udp errors in send_cbk process.
 - Avoid services becoming available when the daemon is suspended.
 - refactor: remove `set_bound_sec_client()` from `local_tcp_server_endpoint_impl`.
+
+v3.3.1
 - Refactor `plugin_manager_impl::load_symbol()`
 - Use consistent naming for `security::is_client_allowed_to_access()`
 - Raise C++ standard used to C++17 on non-Windows platforms
@@ -65,6 +319,8 @@ and after deserializing the policy it is 0.
 - Make the sec client a member of the connection
 - Add support for TCP clients in the default security hooks
 - Fix security checks when using internal TCP sockets
+
+v3.3.0
 - Introduced protocol classes
 - Extended interface to allow application specific configurations
 - Allow to switch off internal routing

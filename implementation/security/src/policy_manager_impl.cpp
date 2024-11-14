@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -46,27 +46,27 @@ policy_manager_impl::policy_manager_impl()
     allow_remote_clients_(true),
     check_whitelist_(false),
     policy_base_path_(""),
+    check_routing_credentials_(false),
 #endif // !VSOMEIP_DISABLE_SECURITY
-    is_configured_(false),
-    check_routing_credentials_(false)
+    is_configured_(false)
 {
 }
 
 bool
 policy_manager_impl::is_enabled() const {
 #ifdef VSOMEIP_DISABLE_SECURITY
-    return (false);
+    return false;
 #else
-    return (policy_enabled_);
+    return policy_enabled_;
 #endif
 }
 
 bool
 policy_manager_impl::is_audit() const {
 #ifdef VSOMEIP_DISABLE_SECURITY
-    return (false);
+    return false;
 #else
-    return (!check_credentials_);
+    return !check_credentials_;
 #endif
 }
 
@@ -78,19 +78,19 @@ policy_manager_impl::check_credentials(client_t _client,
     (void)_client;
     (void)_sec_client;
 
-    return (true);
+    return true;
 #else
     if (!policy_enabled_)
-        return (true);
+        return true;
 
     if (!_sec_client)
-        return (true);
+        return true;
 
-    if (_sec_client->client_type != VSOMEIP_CLIENT_UDS)
-        return (true);
+    if (_sec_client->port != VSOMEIP_SEC_PORT_UNUSED)
+        return true;
 
-    uid_t its_uid(_sec_client->client.uds_client.user);
-    gid_t its_gid(_sec_client->client.uds_client.group);
+    uid_t its_uid(_sec_client->user);
+    gid_t its_gid(_sec_client->group);
 
     bool has_id(false);
 
@@ -111,6 +111,7 @@ policy_manager_impl::check_credentials(client_t _client,
         has_id = (has_uid && has_gid);
 
         if ((has_id && p->allow_who_) || (!has_id && !p->allow_who_)) {
+            // Code is unaccessible due to logic checks.
             if (!store_client_to_sec_client_mapping(_client, _sec_client)) {
                 std::string security_mode_text = "!";
                 if (!check_credentials_) {
@@ -146,21 +147,21 @@ policy_manager_impl::check_routing_credentials(
 #ifdef VSOMEIP_DISABLE_SECURITY
     (void)_sec_client;
 
-    return (true);
+    return true;
 #else
     uid_t its_uid(0);
     gid_t its_gid(0);
     bool is_known_uid_gid(false);
 
     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-        its_uid = _sec_client->client.uds_client.user;
-        its_gid = _sec_client->client.uds_client.group;
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+        its_uid = _sec_client->user;
+        its_gid = _sec_client->group;
 
         if (routing_credentials_.first == its_uid
                 && routing_credentials_.second == its_gid) {
 
-            return (true);
+            return true;
         }
 
         is_known_uid_gid = true;
@@ -181,12 +182,12 @@ policy_manager_impl::check_routing_credentials(
             << "do not match with routing manager credentials"
             << security_mode_text;
 
-    return (!check_routing_credentials_);
+    return !check_routing_credentials_;
 #endif // VSOMEIP_DISABLE_SECURITY
 }
 
 void
-policy_manager_impl::set_routing_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid,
         const std::string &_name) {
 
     if (is_configured_) {
@@ -210,7 +211,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
     (void)_method;
     (void)_is_request_service;
 
-    return (true);
+    return true;
 #else
     if (!policy_enabled_) {
         return true;
@@ -219,9 +220,9 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
     uid_t its_uid(ANY_UID);
     gid_t its_gid(ANY_GID);
     if (_sec_client) {
-        if (_sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
+        if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_uid = _sec_client->user;
+            its_gid = _sec_client->group;
         } else {
             return true;
         }
@@ -236,7 +237,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
                 << _service << "/" << _instance
                 << security_mode_text;
 
-        return (!check_credentials_);
+        return !check_credentials_;
     }
 
     // Check cache
@@ -247,7 +248,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
         const auto its_iter = is_client_allowed_cache_.find(its_credentials);
         if (its_iter != is_client_allowed_cache_.end()) {
             if (its_iter->second.find(its_key) != its_iter->second.end()) {
-                return (true);
+                return true;
             }
         }
     }
@@ -287,7 +288,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
                 if (is_matching) {
                     boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
                     is_client_allowed_cache_[its_credentials].insert(its_key);
-                    return (true);
+                    return true;
                 }
             } else {
                 // deny policy
@@ -298,7 +299,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
                         || (!is_matching && (_method == ANY_METHOD) && p->requests_.empty())) {
                      boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
                      is_client_allowed_cache_[its_credentials].insert(its_key);
-                     return (true);
+                     return true;
                 }
             }
         }
@@ -315,7 +316,7 @@ policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t *_sec_client,
             << std::hex << _service << "/" << _instance << "/" << _method
             << security_mode_text;
 
-    return (!check_credentials_);
+    return !check_credentials_;
 #endif // VSOMEIP_DISABLE_SECURITY
 }
 
@@ -328,16 +329,16 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
     (void)_service;
     (void)_instance;
 
-    return (true);
+    return true;
 #else
     if (!policy_enabled_)
         return true;
 
     uint32_t its_uid(ANY_UID), its_gid(ANY_GID);
     if (_sec_client) {
-        if (_sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
+        if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
+            its_uid = _sec_client->user;
+            its_gid = _sec_client->group;
         } else {
             return true;
         }
@@ -352,7 +353,7 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
                 << _service << "/" << _instance
                 << security_mode_text;
 
-        return (!check_credentials_);
+        return !check_credentials_;
     }
 
     boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
@@ -376,7 +377,7 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
         if ((has_uid && has_gid && p->allow_who_)
                 || ((!has_uid || !has_gid) && !p->allow_who_)) {
             if (p->allow_what_ == has_offer) {
-                return (true);
+                return true;
             }
         }
     }
@@ -392,7 +393,7 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
             << std::hex << _service << "/" << _instance
             << security_mode_text;
 
-    return (!check_credentials_);
+    return !check_credentials_;
 #endif // VSOMEIP_DISABLE_SECURITY
 }
 
@@ -416,7 +417,7 @@ policy_manager_impl::load(const configuration_element &_element, const bool _laz
 }
 
 bool
-policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
+policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     bool was_removed(false);
     if (!any_client_policies_.empty()) {
@@ -450,11 +451,11 @@ policy_manager_impl::remove_security_policy(uint32_t _uid, uint32_t _gid) {
             is_client_allowed_cache_.erase(std::make_pair(_uid, _gid));
         }
     }
-    return (was_removed);
+    return was_removed;
 }
 
 void
-policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy) {
 
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
@@ -508,7 +509,7 @@ policy_manager_impl::update_security_policy(uint32_t _uid, uint32_t _gid,
 }
 
 void
-policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
+policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid,
         const std::shared_ptr<policy> &_policy, client_t _client) {
 
     bool was_found(false);
@@ -540,7 +541,7 @@ policy_manager_impl::add_security_credentials(uint32_t _uid, uint32_t _gid,
 }
 
 bool
-policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<policy> &_policy) const {
+policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<policy> &_policy) const {
 
     bool is_uid_allowed(false);
     {
@@ -576,10 +577,10 @@ policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<pol
                             << std::hex << its_service
                             << " is not allowed! -> ignore update";
                 }
-                return (!check_whitelist_);
+                return !check_whitelist_;
             }
         }
-        return (true);
+        return true;
     } else {
         if (!check_whitelist_) {
             VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
@@ -588,16 +589,16 @@ policy_manager_impl::is_policy_update_allowed(uint32_t _uid, std::shared_ptr<pol
             VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
                     << " is not allowed! -> ignore update";
         }
-        return (!check_whitelist_);
+        return !check_whitelist_;
     }
 }
 
 bool
-policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
+policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
     std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
         if (its_uid_range.lower() <= _uid && _uid <= its_uid_range.upper()) {
-            return (true);
+            return true;
         }
     }
 
@@ -610,12 +611,12 @@ policy_manager_impl::is_policy_removal_allowed(uint32_t _uid) const {
                 << std::dec << _uid
                 << " is not allowed! -> ignore removal";
     }
-    return (!check_whitelist_);
+    return !check_whitelist_;
 }
 
 bool
 policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
-        uint32_t &_uid, uint32_t &_gid, const std::shared_ptr<policy> &_policy) const {
+        uid_t &_uid, gid_t &_gid, const std::shared_ptr<policy> &_policy) const {
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
     if (is_valid)
@@ -626,6 +627,21 @@ policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size
 ///////////////////////////////////////////////////////////////////////////////
 // Configuration
 ///////////////////////////////////////////////////////////////////////////////
+bool
+policy_manager_impl::exist_in_any_client_policies_unlocked(std::shared_ptr<policy> &_policy) {
+    for (const auto &p : any_client_policies_) {
+        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        if (p->credentials_ == _policy->credentials_ &&
+            p->requests_ == _policy->requests_ &&
+            p->offers_ == _policy->offers_ &&
+            p->allow_what_ == _policy->allow_what_ &&
+            p->allow_who_ == _policy->allow_who_) {
+                return true;
+            }
+    }
+    return false;
+}
+
 void
 policy_manager_impl::load_policies(const configuration_element &_element) {
 #ifdef _WIN32
@@ -761,7 +777,9 @@ policy_manager_impl::load_policy(const boost::property_tree::ptree &_tree) {
         }
     }
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
-    any_client_policies_.push_back(policy);
+    if (!exist_in_any_client_policies_unlocked(policy))
+        any_client_policies_.push_back(policy);
+
 }
 
 void
@@ -1108,9 +1126,8 @@ void
 policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
         std::set<std::shared_ptr<policy> > &_requesters) const {
 
-    std::lock_guard<std::mutex> its_lock(_policy->mutex_);
+    std::scoped_lock its_lock {any_client_policies_mutex_, _policy->mutex_};
     for (const auto &o : _policy->offers_) {
-        boost::unique_lock<boost::shared_mutex> its_policies_lock(any_client_policies_mutex_);
         for (const auto &p : any_client_policies_) {
             if (p == _policy)
                 continue;
@@ -1169,7 +1186,6 @@ policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _polic
 
             if (!its_policy->requests_.empty()) {
                 _requesters.insert(its_policy);
-                its_policy->print();
             }
         }
     }
@@ -1181,9 +1197,9 @@ policy_manager_impl::get_clients(uid_t _uid, gid_t _gid,
 
     std::lock_guard<std::mutex> its_lock(ids_mutex_);
     for (const auto &i : ids_) {
-        if (i.second.client_type == VSOMEIP_CLIENT_UDS
-                && i.second.client.uds_client.user == _uid
-                && i.second.client.uds_client.group == _gid)
+        if (i.second.port == VSOMEIP_SEC_PORT_UNUSED
+                && i.second.user == _uid
+                && i.second.group == _gid)
             _clients.insert(i.first);
     }
 }
@@ -1266,7 +1282,7 @@ policy_manager_impl::get_security_config_folder(const std::string &its_folder) c
     std::stringstream its_security_config_folder;
     its_security_config_folder << its_folder;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     its_security_config_folder << "/" << getuid() << "_" << getgid();
 #endif
 
@@ -1292,7 +1308,7 @@ policy_manager_impl::print_policy(const std::shared_ptr<policy> &_policy) const 
 
 bool
 policy_manager_impl::parse_uid_gid(const byte_t* &_buffer,
-        uint32_t &_buffer_size, uint32_t &_uid, uint32_t &_gid) const {
+        uint32_t &_buffer_size, uid_t &_uid, gid_t &_gid) const {
 
    const auto its_policy = std::make_shared<policy>();
    return (its_policy
@@ -1305,16 +1321,16 @@ bool
 policy_manager_impl::store_client_to_sec_client_mapping(
         client_t _client, const vsomeip_sec_client_t *_sec_client) {
 
-    if (_sec_client != nullptr && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client != nullptr && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the client -> sec_client mapping
         std::lock_guard<std::mutex> its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             if (!utility::compare(found_client->second, *_sec_client)) {
-                uid_t its_old_uid = found_client->second.client.uds_client.user;
-                gid_t its_old_gid = found_client->second.client.uds_client.group;
-                uid_t its_new_uid = _sec_client->client.uds_client.user;
-                gid_t its_new_gid = _sec_client->client.uds_client.group;
+                uid_t its_old_uid = found_client->second.user;
+                gid_t its_old_gid = found_client->second.group;
+                uid_t its_new_uid = _sec_client->user;
+                gid_t its_new_gid = _sec_client->group;
 
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                         << std::hex << _client << " with UID/GID="
@@ -1323,15 +1339,15 @@ policy_manager_impl::store_client_to_sec_client_mapping(
                         << std::dec << its_old_uid << "/" << its_old_gid;
 
                 found_client->second = *_sec_client;
-                return (true);
+                return true;
             }
         } else {
             ids_[_client] = *_sec_client;
         }
-        return (true);
+        return true;
     }
 
-    return (false);
+    return false;
 }
 
 bool
@@ -1342,9 +1358,9 @@ policy_manager_impl::get_client_to_sec_client_mapping(client_t _client,
         std::lock_guard<std::mutex> its_lock(ids_mutex_);
         if (ids_.find(_client) != ids_.end()) {
             _sec_client = ids_[_client];
-            return (true);
+            return true;
         }
-        return (false);
+        return false;
     }
 }
 
@@ -1400,7 +1416,7 @@ void
 policy_manager_impl::store_sec_client_to_client_mapping(
         const vsomeip_sec_client_t *_sec_client, client_t _client) {
 
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the uid gid to clients mapping
         std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
@@ -1419,7 +1435,7 @@ policy_manager_impl::get_sec_client_to_clients_mapping(
         const vsomeip_sec_client_t *_sec_client,
         std::set<client_t> &_clients) {
 
-    if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
+    if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // get the clients corresponding to uid, gid
         std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
@@ -1430,44 +1446,5 @@ policy_manager_impl::get_sec_client_to_clients_mapping(
     }
     return false;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Manage the security object
-////////////////////////////////////////////////////////////////////////////////
-static std::shared_ptr<policy_manager_impl> *the_policy_manager_ptr__(nullptr);
-static std::mutex the_policy_manager_mutex__;
-
-std::shared_ptr<policy_manager_impl>
-policy_manager_impl::get() {
-#if defined(__linux__) || defined(ANDROID)
-    std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-#endif
-    if(the_policy_manager_ptr__ == nullptr) {
-        the_policy_manager_ptr__ = new std::shared_ptr<policy_manager_impl>();
-    }
-    if (the_policy_manager_ptr__ != nullptr) {
-        if (!(*the_policy_manager_ptr__)) {
-            *the_policy_manager_ptr__ = std::make_shared<policy_manager_impl>();
-        }
-        return (*the_policy_manager_ptr__);
-    }
-    return (nullptr);
-}
-
-#if defined(__linux__) || defined(ANDROID)
-static void security_teardown(void) __attribute__((destructor));
-static void security_teardown(void)
-{
-    if (the_policy_manager_ptr__ != nullptr) {
-        // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-        // Since this function only runs on the main thread, no mutex should be needed. Leaving a
-        // comment pending a refactor.
-        // std::lock_guard<std::mutex> its_lock(the_policy_manager_mutex__);
-        the_policy_manager_ptr__->reset();
-        delete the_policy_manager_ptr__;
-        the_policy_manager_ptr__ = nullptr;
-    }
-}
-#endif
 
 } // namespace vsomeip_v3

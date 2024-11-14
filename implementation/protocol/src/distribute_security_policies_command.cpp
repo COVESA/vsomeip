@@ -75,9 +75,26 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
     for (uint32_t i = 0; i < its_policies_count; i++) {
 
         uint32_t its_policy_size;
+
+        // Check that the buffer contains the full policy size
+        if (its_offset + sizeof(its_policy_size) > _buffer.size()) {
+
+            policies_.clear();
+            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+            return;
+        }
+
         std::memcpy(&its_policy_size, &_buffer[its_offset],
                 sizeof(its_policy_size));
         its_offset += sizeof(its_policy_size);
+
+        // Check that the buffer contains the full policy
+        if (its_offset + its_policy_size > _buffer.size()) {
+
+            policies_.clear();
+            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+            return;
+        }
 
         const byte_t *its_policy_data = &_buffer[its_offset];
 
@@ -100,7 +117,7 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
 std::set<std::shared_ptr<policy> >
 distribute_security_policies_command::get_policies() const {
 
-    return (policies_);
+    return policies_;
 }
 
 void

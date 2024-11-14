@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,10 +22,13 @@
 #include "../../implementation/endpoints/include/tp.hpp"
 
 #include "someip_tp_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class someip_tp_test_service {
+class someip_tp_test_service : public vsomeip_utilities::base_logger {
 public:
     someip_tp_test_service(struct someip_tp_test::service_info _service_info, someip_tp_test::test_mode_e _testmode) :
+            vsomeip_utilities::base_logger("STTS", "SOMEIP TP TEST SERVICE"),
             service_info_(_service_info),
             testmode_(_testmode),
             app_(vsomeip::runtime::get()->create_application("someip_tp_test_service")),
@@ -38,8 +41,10 @@ public:
             number_responses_of_slave_(0),
             wait_for_two_requests_of_slave_(true),
             number_requests_from_slave_(0),
-            wait_for_two_notifications_of_slave_(true),
-            offer_thread_(std::bind(&someip_tp_test_service::run, this)) {
+            wait_for_two_notifications_of_slave_(true) {
+    }
+
+    void start() {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -50,7 +55,7 @@ public:
 
         // offer field
         std::set<vsomeip::eventgroup_t> its_eventgroups;
-        its_eventgroups.insert(_service_info.eventgroup_id);
+        its_eventgroups.insert(service_info_.eventgroup_id);
         app_->offer_event(service_info_.service_id, service_info_.instance_id,
                 service_info_.event_id, its_eventgroups,
                 vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(),
@@ -105,12 +110,13 @@ public:
                 someip_tp_test::service_slave.method_id,
                 std::bind(&someip_tp_test_service::on_response_from_slave, this,
                         std::placeholders::_1));
-        app_->start();
+
+        start_thread_ = std::make_shared<std::thread>([this]() {
+            app_->start();
+        });
     }
 
-    ~someip_tp_test_service() {
-        offer_thread_.join();
-    }
+    ~someip_tp_test_service() {}
 
     void offer() {
         app_->offer_service(service_info_.service_id, 0x1);
@@ -120,6 +126,8 @@ public:
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         app_->clear_all_handler();
         app_->stop();
+
+        start_thread_->join();
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -333,7 +341,6 @@ public:
         while (wait_until_shutdown_method_called_) {
             condition_.wait(its_lock);
         }
-        stop();
     }
 
     void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid,
@@ -371,7 +378,7 @@ private:
     std::uint32_t number_requests_from_slave_;
     bool wait_for_two_notifications_of_slave_;
     std::shared_ptr<vsomeip::message> request_send_to_slave_;
-    std::thread offer_thread_;
+    std::shared_ptr<std::thread> start_thread_;
 };
 
 someip_tp_test::test_mode_e its_testmode(someip_tp_test::test_mode_e::IN_SEQUENCE);
@@ -379,10 +386,13 @@ someip_tp_test::test_mode_e its_testmode(someip_tp_test::test_mode_e::IN_SEQUENC
 TEST(someip_someip_tp_test, echo_requests)
 {
     someip_tp_test_service its_sample(someip_tp_test::service, its_testmode);
+    its_sample.start();
+    its_sample.run();
+    its_sample.stop();
 }
 
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

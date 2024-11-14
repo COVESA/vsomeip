@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,11 +13,14 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "suspend_resume_test.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class suspend_resume_test_client {
+class suspend_resume_test_client : public vsomeip_utilities::base_logger {
 public:
     suspend_resume_test_client()
-        : name_("suspend_resume_test_client"),
+        : vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"),
+          name_("suspend_resume_test_client"),
           app_(vsomeip::runtime::get()->create_application(name_)),
           has_received_(false),
           runner_(std::bind(&suspend_resume_test_client::run, this)) {
@@ -36,6 +39,7 @@ public:
             VSOMEIP_DEBUG << "Started.";
             std::unique_lock<std::mutex> its_lock(mutex_);
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] App Started: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
         }
 
@@ -46,23 +50,28 @@ public:
             std::unique_lock<std::mutex> its_lock(mutex_);
             if (!has_received_) {
                 auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+                VSOMEIP_DEBUG << "[TEST-cli] First Receive Validation: r=" << static_cast<int>(r);
                 EXPECT_EQ(r, std::cv_status::no_timeout);
+            } else {
+                VSOMEIP_DEBUG << "[TEST-cli] Jumped received validation";
             }
         }
 
+        VSOMEIP_DEBUG << "[TEST-cli] Sending suspend/resume: ";
         send_suspend();
 
         bool was_successful;
         {
             VSOMEIP_DEBUG << "Triggered suspend/resume.";
-
             // Wait for service to become availaber after suspend/resume.
             std::unique_lock<std::mutex> its_lock(mutex_);
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] Service Available after susp/resume: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
 
             // Wait for initial event after suspend/resume.
             r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] After susp/resume event validation: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
 
             was_successful = (r == std::cv_status::no_timeout);
@@ -138,11 +147,13 @@ private:
             VSOMEIP_DEBUG << __func__ << ": Test service is "
                     << (_is_available ? "available." : "NOT available.");
 
-            if (_is_available)
+            if (_is_available) {
+                VSOMEIP_DEBUG << "[TEST-cli] On availability will trigger cv";
                 cv_.notify_one();
-            else if (is_available)
+            } else if (is_available) {
+                VSOMEIP_DEBUG << "[TEST-cli] On availability=false, clearing has_received";
                 has_received_ = false;
-
+            }
             is_available = _is_available;
         }
     }
@@ -156,21 +167,23 @@ private:
             VSOMEIP_DEBUG << __func__ << ": Received event.";
             if (!has_received_) {
                 has_received_ = true;
+                VSOMEIP_DEBUG << "[TEST-cli] HasReceived Changed, triggering cv";
                 cv_.notify_one();
             }
         }
     }
 
     void toggle() {
-
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle Start";
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(3));
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle Middle";
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
-
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle End";
     }
 
 
@@ -229,9 +242,10 @@ TEST(suspend_resume_test, fast)
     its_client.run_test();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
 
+    VSOMEIP_DEBUG << "[TEST-cli] Starting Client";
     ::testing::InitGoogleTest(&argc, argv);
 
     return RUN_ALL_TESTS();

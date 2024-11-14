@@ -20,7 +20,9 @@
 
 namespace vsomeip_v3 {
 
-using local_tcp_server_endpoint_base_impl = server_endpoint_impl<boost::asio::ip::tcp>;
+typedef server_endpoint_impl<
+            boost::asio::ip::tcp
+        > local_tcp_server_endpoint_base_impl;
 
 class local_tcp_server_endpoint_impl
         : public local_tcp_server_endpoint_base_impl {
@@ -28,12 +30,13 @@ class local_tcp_server_endpoint_impl
 public:
     local_tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
             const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
             boost::asio::io_context &_io,
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
+    virtual ~local_tcp_server_endpoint_impl() = default;
 
-    virtual ~local_tcp_server_endpoint_impl();
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
+    void deinit();
 
     void start();
     void stop();
@@ -70,7 +73,7 @@ private:
     class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        using ptr = std::shared_ptr<connection>;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(const std::shared_ptr<local_tcp_server_endpoint_impl>& _server,
                           std::uint32_t _max_message_size,
@@ -108,6 +111,8 @@ private:
         std::string get_path_local() const;
         std::string get_path_remote() const;
         void handle_recv_buffer_exception(const std::exception &_e);
+        void shutdown_and_close();
+        void shutdown_and_close_unlocked();
 
         std::mutex socket_mutex_;
         local_tcp_server_endpoint_impl::socket_type socket_;
@@ -128,12 +133,13 @@ private:
         vsomeip_sec_client_t sec_client_;
 
         bool assigned_client_;
+        std::atomic<bool> is_stopped_;
     };
 
     std::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
 
-    using connections_t = std::map<client_t, connection::ptr>;
+    typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
 
@@ -144,6 +150,7 @@ private:
     const bool is_routing_endpoint_;
 
 private:
+    void init_unlocked(const endpoint_type& _local, boost::system::error_code& _error);
     bool add_connection(const client_t &_client,
             const std::shared_ptr<connection> &_connection);
     void remove_connection(const client_t &_client);
@@ -157,7 +164,6 @@ private:
     bool check_packetizer_space(target_data_iterator_type _queue_iterator,
                                 message_buffer_ptr_t* _packetizer,
                                 std::uint32_t _size);
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     void send_client_identifier(const client_t &_client);
 };
 

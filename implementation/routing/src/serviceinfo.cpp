@@ -7,18 +7,12 @@
 
 namespace vsomeip_v3 {
 
-serviceinfo::serviceinfo(service_t _service, instance_t _instance,
-        major_version_t _major, minor_version_t _minor,
-        ttl_t _ttl, bool _is_local)
-    : service_(_service),
-      instance_(_instance),
-      major_(_major),
-      minor_(_minor),
-      ttl_(0),
-      reliable_(nullptr),
-      unreliable_(nullptr),
-      is_local_(_is_local),
-      is_in_mainphase_(false) {
+serviceinfo::serviceinfo(service_t _service, instance_t _instance, major_version_t _major,
+                         minor_version_t _minor, ttl_t _ttl, bool _is_local) :
+    service_(_service),
+    instance_(_instance), major_(_major), minor_(_minor), ttl_(0), reliable_(nullptr),
+    unreliable_(nullptr), is_local_(_is_local), is_in_mainphase_(false),
+    accepting_remote_subscription_(false) {
 
     std::chrono::seconds ttl = static_cast<std::chrono::seconds> (_ttl);
     ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(ttl);
@@ -33,8 +27,8 @@ serviceinfo::serviceinfo(const serviceinfo& _other) :
     reliable_(_other.reliable_),
     unreliable_(_other.unreliable_),
     requesters_(_other.requesters_),
-    is_local_(_other.is_local_),
-    is_in_mainphase_(_other.is_in_mainphase_)
+    is_local_(_other.is_local_.load()),
+    is_in_mainphase_(_other.is_in_mainphase_.load())
     {}
 
 serviceinfo::~serviceinfo() {
@@ -80,7 +74,7 @@ void serviceinfo::set_precise_ttl(std::chrono::milliseconds _precise_ttl) {
 
 std::shared_ptr<endpoint> serviceinfo::get_endpoint(bool _reliable) const {
   std::lock_guard<std::mutex> its_lock(endpoint_mutex_);
-  return (_reliable ? reliable_ : unreliable_);
+  return _reliable ? reliable_ : unreliable_;
 }
 
 void serviceinfo::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
@@ -118,6 +112,28 @@ bool serviceinfo::is_in_mainphase() const {
 
 void serviceinfo::set_is_in_mainphase(bool _in_mainphase) {
     is_in_mainphase_ = _in_mainphase;
+}
+
+bool serviceinfo::is_accepting_remote_subscriptions() const {
+    return accepting_remote_subscription_;
+}
+
+void serviceinfo::set_accepting_remote_subscriptions(bool _accepting_remote_subscriptions) {
+    accepting_remote_subscription_ = _accepting_remote_subscriptions;
+    if (!_accepting_remote_subscriptions) {
+        std::lock_guard its_lock(accepting_remote_mutex);
+        accepting_remote_subscription_from_.clear();
+    }
+}
+
+void serviceinfo::add_remote_ip(std::string _remote_ip) {
+    std::lock_guard its_lock(accepting_remote_mutex);
+    accepting_remote_subscription_from_.insert(_remote_ip);
+}
+
+std::set<std::string, std::less<>> serviceinfo::get_remote_ip_accepting_sub() {
+    std::lock_guard its_lock(accepting_remote_mutex);
+    return accepting_remote_subscription_from_;
 }
 
 }  // namespace vsomeip_v3

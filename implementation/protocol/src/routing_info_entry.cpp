@@ -217,7 +217,7 @@ routing_info_entry::deserialize(const std::vector<byte_t> &_buffer,
 routing_info_entry_type_e
 routing_info_entry::get_type() const {
 
-    return (type_);
+    return type_;
 }
 
 void
@@ -249,13 +249,13 @@ routing_info_entry::get_size() const {
                  sizeof(major_version_t) + sizeof(minor_version_t)));
     }
 
-    return (its_size);
+    return its_size;
 }
 
 client_t
 routing_info_entry::get_client() const {
 
-    return (client_);
+    return client_;
 }
 
 void
@@ -267,7 +267,7 @@ routing_info_entry::set_client(client_t _client) {
 boost::asio::ip::address
 routing_info_entry::get_address() const {
 
-    return (address_);
+    return address_;
 }
 
 void
@@ -279,7 +279,7 @@ routing_info_entry::set_address(const boost::asio::ip::address &_address) {
 port_t
 routing_info_entry::get_port() const {
 
-    return (port_);
+    return port_;
 }
 
 void
@@ -291,7 +291,7 @@ routing_info_entry::set_port(port_t _port) {
 const std::vector<service> &
 routing_info_entry::get_services() const {
 
-    return (services_);
+    return services_;
 }
 
 void

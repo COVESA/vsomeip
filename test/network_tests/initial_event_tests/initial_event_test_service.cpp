@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,12 +18,15 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "initial_event_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 
-class initial_event_test_service {
+class initial_event_test_service : public vsomeip_utilities::base_logger {
 public:
     initial_event_test_service(struct initial_event_test::service_info _service_info,
                                std::uint32_t _events_to_offer, vsomeip::reliability_type_e _reliability_type) :
+            vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST SERVICE"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
@@ -65,6 +68,8 @@ public:
     }
 
     ~initial_event_test_service() {
+    	app_->stop();
+
         if (offer_thread_.joinable()) {
             offer_thread_.join();
         }
@@ -80,8 +85,10 @@ public:
                 "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+            {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_registered_ = false;
+            }
             condition_.notify_one();
         }
     }
@@ -129,7 +136,7 @@ TEST(someip_initial_event_test, set_field_once)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

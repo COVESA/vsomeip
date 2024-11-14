@@ -108,7 +108,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
 void credentials::send_credentials(const int _fd, client_t _client, std::string _client_host) {
     struct msghdr msgh;
     struct iovec iov[3];
-    uint8_t client_host_length = (uint8_t)_client_host.length();
+    auto client_host_length = static_cast<uint8_t>(_client_host.length());
 
     // data to send
     msgh.msg_iov = &iov[0];
@@ -131,7 +131,7 @@ void credentials::send_credentials(const int _fd, client_t _client, std::string 
     // send client id with credentials
     ssize_t ns = sendmsg(_fd, &msgh, 0);
     if (ns == -1) {
-        VSOMEIP_ERROR << __func__ << ": Sending credentials failed. errno: " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Sending credentials failed. errno: " << std::strerror(errno);
     }
 }
 

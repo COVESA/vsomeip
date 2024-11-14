@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,53 +6,44 @@
 #ifndef VSOMEIP_V3_BYTEORDER_HPP
 #define VSOMEIP_V3_BYTEORDER_HPP
 
-#if defined(__linux__)
-#include <endian.h>
-#elif defined(__freebsd__)
-#include <sys/endian.h>
-#else
-// TEST IF THERE COULD BE AN ERROR!
-//#error "Undefined OS (only Linux/FreeBSD are currently supported)"
-#endif
+#define BYTEORDER_UNKNOWN 0
+#define BYTEORDER_LITTLE_ENDIAN 1
+#define BYTEORDER_BIG_ENDIAN 2
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+// Detect with GCC 4.6's macro
+#  ifdef __BYTE_ORDER__
+#    if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#      define COMPILE_TIME_ENDIAN BYTEORDER_LITTLE_ENDIAN
+#    elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#      define COMPILE_TIME_ENDIAN BYTEORDER_BIG_ENDIAN
+#    else
+#      define COMPILE_TIME_ENDIAN BYTEORDER_UNKNOWN
+#    endif // __BYTE_ORDER__
+// Detect with GLIBC's endian.h
+#  elif defined(__GLIBC__)
+#    include <endian.h>
+#    if (__BYTE_ORDER == __LITTLE_ENDIAN)
+#      define COMPILE_TIME_ENDIAN BYTEORDER_LITTLE_ENDIAN
+#    elif (__BYTE_ORDER == __BIG_ENDIAN)
+#      define COMPILE_TIME_ENDIAN BYTEORDER_BIG_ENDIAN
+#    else
+#      define COMPILE_TIME_ENDIAN BYTEORDER_UNKNOWN
+#   endif // __GLIBC__
+// Detect with _LITTLE_ENDIAN and _BIG_ENDIAN macro
+#  elif defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN)
+#    define COMPILE_TIME_ENDIAN BYTEORDER_LITTLE_ENDIAN
+#  elif defined(_BIG_ENDIAN) && !defined(_LITTLE_ENDIAN)
+#    define COMPILE_TIME_ENDIAN BYTEORDER_BIG_ENDIAN
+// Detect with architecture macros
+#  elif defined(__sparc) || defined(__sparc__) || defined(_POWER) || defined(__powerpc__) || defined(__ppc__) || defined(__hpux) || defined(__hppa) || defined(_MIPSEB) || defined(_POWER) || defined(__s390__)
+#    define COMPILE_TIME_ENDIAN BYTEORDER_BIG_ENDIAN
+#  elif defined(__i386__) || defined(__alpha__) || defined(__ia64) || defined(__ia64__) || defined(_M_IX86) || defined(_M_IA64) || defined(_M_ALPHA) || defined(__amd64) || defined(__amd64__) || defined(_M_AMD64) || defined(__x86_64) || defined(__x86_64__) || defined(_M_X64) || defined(__bfin__)
+#    define COMPILE_TIME_ENDIAN BYTEORDER_LITTLE_ENDIAN
+#  elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
+#    define COMPILE_TIME_ENDIAN BYTEORDER_LITTLE_ENDIAN
+#  else
+#    define COMPILE_TIME_ENDIAN BYTEORDER_UNKNOWN
+#  endif
 
-#define VSOMEIP_BYTES_TO_WORD(x0, x1) (uint16_t((x0) << 8 | (x1)))
-#define VSOMEIP_BYTES_TO_LONG(x0, x1, x2, x3) (uint32_t((x0) << 24 | (x1) << 16 | (x2) << 8 | (x3)))
 
-#define VSOMEIP_WORDS_TO_LONG(x0, x1) (uint32_t((x0) << 16 | (x1)))
-
-#define VSOMEIP_WORD_BYTE0(x) (uint8_t((x) & 0xFF))
-#define VSOMEIP_WORD_BYTE1(x) (uint8_t((x) >> 8))
-
-#define VSOMEIP_LONG_BYTE0(x) (uint8_t((x) & 0xFF))
-#define VSOMEIP_LONG_BYTE1(x) (uint8_t(((x) >> 8) & 0xFF))
-#define VSOMEIP_LONG_BYTE2(x) (uint8_t(((x) >> 16) & 0xFF))
-#define VSOMEIP_LONG_BYTE3(x) (uint8_t(((x) >> 24) & 0xFF))
-
-#define VSOMEIP_LONG_WORD0(x) (uint16_t((x) & 0xFFFF))
-#define VSOMEIP_LONG_WORD1(x) (uint16_t(((x) >> 16) & 0xFFFF))
-
-#elif __BYTE_ORDER == __BIG_ENDIAN
-
-#define VSOMEIP_BYTES_TO_WORD(x0, x1) (uint16_t((x1) << 8 | (x0)))
-#define VSOMEIP_BYTES_TO_LONG(x0, x1, x2, x3) (uint32_t((x3) << 24 | (x2) << 16 | (x1) << 8 | (x0)))
-
-#define VSOMEIP_WORD_BYTE0(x) (uint8_t((x) >> 8))
-#define VSOMEIP_WORD_BYTE1(x) (uint8_t((x) & 0xFF))
-
-#define VSOMEIP_LONG_BYTE0(x) (uint8_t(((x) >> 24) & 0xFF))
-#define VSOMEIP_LONG_BYTE1(x) (uint8_t(((x) >> 16) & 0xFF))
-#define VSOMEIP_LONG_BYTE2(x) (uint8_t(((x) >> 8) & 0xFF))
-#define VSOMEIP_LONG_BYTE3(x) (uint8_t((x) & 0xFF))
-
-#define VSOMEIP_LONG_WORD0(x) (uint16_t((((x) >> 16) & 0xFFFF))
-#define VSOMEIP_LONG_WORD1(x) (uint16_t(((x) & 0xFFFF))
-
-#else
-
-#error "__BYTE_ORDER is not defined!"
-
-#endif
-
-#endif // VSOMEIP_V3_BYTEORDER_HPP_
+#endif // VSOMEIP_V3_BYTEORDER_HPP

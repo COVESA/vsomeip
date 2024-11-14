@@ -1,5 +1,14 @@
 {
   "unicast" : "@TEST_IP_MASTER@",
+  "logging": {
+    "level": "info",
+    "console": "true",
+    "file": {
+      "enable": "false",
+      "path": "/tmp/foo.log"
+    },
+    "dlt": "true"
+  },
   "debounce" :
   [
       {
@@ -28,8 +37,8 @@
                   "on_change" : "true",
                   "ignore" :
                   [
-                     { 
-                         "index" : "0", 
+                     {
+                         "index" : "0",
                          "mask" : "0x0f"
                      },
                      {
@@ -37,11 +46,11 @@
                          "mask" : "0xfe"
                      }
                   ]
-              } 
+              }
           ]
       }
   ],
-  "service-discovery" : 
+  "service-discovery" :
    {
       "enable" : "true",
       "multicast" : "224.251.192.252",

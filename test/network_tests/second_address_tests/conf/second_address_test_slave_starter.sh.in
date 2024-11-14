@@ -35,7 +35,9 @@ elif [ "$OPERATIONMODE" = "SERVICE" ]; then
     fi
 fi
 
-../../examples/routingmanagerd/routingmanagerd &
+rm -f /tmp/vsomeip*
+
+../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 ./$SLAVE_APPLICATION $COMMUNICATIONMODE &

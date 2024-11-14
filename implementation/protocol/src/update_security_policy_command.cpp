@@ -94,7 +94,7 @@ update_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
 uint32_t
 update_security_policy_command::get_update_id() const {
 
-    return (update_id_);
+    return update_id_;
 }
 
 void
@@ -106,7 +106,7 @@ update_security_policy_command::set_update_id(uint32_t _update_id) {
 std::shared_ptr<policy>
 update_security_policy_command::get_policy() const {
 
-    return (policy_);
+    return policy_;
 }
 
 void

@@ -20,14 +20,20 @@
 
 #include "../../endpoints/include/buffer.hpp"
 
+#ifdef ANDROID
+#    include "../../configuration/include/internal_android.hpp"
+#else
+#    include "../../configuration/include/internal.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 template <typename Protocol>
 class nl_endpoint {
 public:
     /// The protocol type associated with the endpoint.
-    using protocol_type = Protocol;
-    using data_type = boost::asio::detail::socket_addr_type;
+    typedef Protocol protocol_type;
+    typedef boost::asio::detail::socket_addr_type data_type;
 
     /// Default constructor.
     nl_endpoint()
@@ -123,18 +129,18 @@ public:
         return PF_NETLINK;
     }
 
-    using endpoint = nl_endpoint<nl_protocol>;
-    using socket = boost::asio::basic_raw_socket<nl_protocol>;
+    typedef nl_endpoint<nl_protocol> endpoint;
+    typedef boost::asio::basic_raw_socket<nl_protocol> socket;
 
 private:
     int proto;
 };
 
-using net_if_changed_handler_t = std::function< void (
+typedef std::function< void (
     bool,        // true = is interface, false = is route
     std::string, // interface name
     bool)        // available?
->;
+> net_if_changed_handler_t;
 
 class netlink_connector : public std::enable_shared_from_this<netlink_connector> {
 public:
@@ -161,9 +167,10 @@ private:
     bool has_address(struct ifaddrmsg * ifa_struct,
             size_t length,
             const unsigned int address);
-    void send_ifa_request();
-    void send_ifi_request();
-    void send_rt_request();
+    void send_ifa_request(std::uint32_t _retry = 0);
+    void send_ifi_request(std::uint32_t _retry = 0);
+    void send_rt_request(std::uint32_t _retry = 0);
+    void handle_netlink_error(struct nlmsgerr *_error_msg);
 
     void receive_cbk(boost::system::error_code const &_error, std::size_t _bytes);
     void send_cbk(boost::system::error_code const &_error, std::size_t _bytes);
@@ -186,6 +193,13 @@ private:
     boost::asio::ip::address address_;
     boost::asio::ip::address multicast_address_;
     bool is_requiring_link_;
+
+    static const std::uint32_t max_retries_ = VSOMEIP_MAX_NETLINK_RETRIES;
+    static const std::uint32_t retry_bit_shift_ = 8;
+    static const std::uint32_t request_sequence_bitmask_ = 0xFF;
+    static const std::uint32_t ifa_request_sequence_ = 1;
+    static const std::uint32_t ifi_request_sequence_ = 2;
+    static const std::uint32_t rt_request_sequence_ = 3;
 };
 
 } // namespace vsomeip_v3

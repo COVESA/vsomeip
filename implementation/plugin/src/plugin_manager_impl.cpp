@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2016-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -164,7 +164,7 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
         }
     } else {
         VSOMEIP_ERROR << "plugin_manager_impl::unload_plugin didn't find plugin"
-                << " type:" << (int)_type;
+                << " type:" << static_cast<int>(_type);
         return false;
     }
     return plugins_.erase(_type);
@@ -178,7 +178,7 @@ void * plugin_manager_impl::load_library(const std::string &_path) {
 #ifdef _WIN32
     return LoadLibrary(_path.c_str());
 #else
-    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 }
 
@@ -209,7 +209,11 @@ void * plugin_manager_impl::load_symbol(void * _handle, const std::string &_symb
             error_message = dlerror();
 #endif
 
+#ifdef __QNX__
+            VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name.c_str()) << " because: " << error_message;
+#else
             VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name) << " because: " << error_message;
+#endif
 
 #ifdef _WIN32
             // Required to release memory allocated by FormatMessageA()

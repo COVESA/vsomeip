@@ -52,6 +52,10 @@ public:
             const boost::asio::ip::address &_sender,
             bool _is_multicast) = 0;
 
+    virtual void
+    sent_messages(const byte_t* _data, length_t _size,
+                  const boost::asio::ip::address& _remote_address = boost::asio::ip::address()) = 0;
+
     virtual void on_endpoint_connected(
             service_t _service, instance_t _instance,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
@@ -71,6 +75,7 @@ public:
             const sd_acceptance_handler_t &_handler) = 0;
     virtual void register_reboot_notification_handler(
             const reboot_notification_handler_t &_handler) = 0;
+    virtual std::recursive_mutex& get_subscribed_mutex() = 0;
 };
 
 } // namespace sd

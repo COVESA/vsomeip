@@ -1,24 +1,28 @@
-// Copyright (C) 2014-2019 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <chrono>
 #include <condition_variable>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <thread>
-#include <map>
 
 #include <gtest/gtest.h>
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
 #include "second_address_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class second_address_test_service {
+class second_address_test_service : public vsomeip_utilities::base_logger {
 public:
     second_address_test_service(struct second_address_test::service_info _service_info) :
+            vsomeip_utilities::base_logger("SATS", "SECOND ADDRESS TEST SERVICE"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application("second_address_test_service")),
             offer_thread_(std::bind(&second_address_test_service::run, this)) {
@@ -243,7 +247,7 @@ TEST(someip_second_address_test, test_communication_with_client)
     second_address_test_service its_sample(second_address_test::service);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

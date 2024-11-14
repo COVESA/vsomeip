@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,6 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/tp.hpp"
-#include "../../utility/include/byteorder.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
@@ -16,7 +15,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <arpa/inet.h>
 #else
 #include <Winsock2.h>
@@ -51,7 +50,7 @@ tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
         // insert tp_header
         const tp_header_t header = htonl(
                 static_cast<tp_header_t>((current_offset - VSOMEIP_FULL_HEADER_SIZE - _data)) |
-                static_cast<tp_header_t>((is_last_segment) ? 0x0u : 0x1u));
+                static_cast<tp_header_t>(is_last_segment ? 0x0u : 0x1u));
 
         const byte_t * const headerp = reinterpret_cast<const byte_t*>(&header);
         msg->insert(msg->end(), headerp, headerp + sizeof(tp_header_t));

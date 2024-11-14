@@ -180,9 +180,9 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                 }
                 case NLMSG_ERROR: {
                     struct nlmsgerr *errmsg = (nlmsgerr *)NLMSG_DATA(nlh);
-                    VSOMEIP_ERROR << "netlink_connector::receive_cbk received "
-                        "error message: " << std::dec << nlh->nlmsg_type
-                        << " seq " << errmsg->msg.nlmsg_seq;
+                    if (errmsg->error != 0) {
+                        handle_netlink_error(errmsg);
+                    }
                     break;
                 }
                 case NLMSG_DONE:
@@ -240,17 +240,20 @@ void netlink_connector::send_cbk(boost::system::error_code const &_error, std::s
     }
 }
 
-void netlink_connector::send_ifa_request() {
-    struct netlink_address_msg {
+void netlink_connector::send_ifa_request(std::uint32_t _retry) {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct ifaddrmsg addrmsg;
-    };
+    } netlink_address_msg;
     netlink_address_msg get_address_msg;
     memset(&get_address_msg, 0, sizeof(get_address_msg));
     get_address_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifaddrmsg));
     get_address_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_address_msg.nlhdr.nlmsg_type = RTM_GETADDR;
-    get_address_msg.nlhdr.nlmsg_seq = 1;
+    // the sequence number has stored the request sequence and the retry count.
+    // request sequece is stored in the LSB (least significant byte) and
+    // retry is stored in the 2nd LSB.
+    get_address_msg.nlhdr.nlmsg_seq = ifa_request_sequence_ | (_retry << retry_bit_shift_);
     if (address_.is_v4()) {
         get_address_msg.addrmsg.ifa_family = AF_INET;
     } else {
@@ -268,18 +271,21 @@ void netlink_connector::send_ifa_request() {
     );
 }
 
-void netlink_connector::send_ifi_request() {
-    struct netlink_link_msg {
+void netlink_connector::send_ifi_request(std::uint32_t _retry) {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct ifinfomsg infomsg;
-    };
+    } netlink_link_msg;
     netlink_link_msg get_link_msg;
     memset(&get_link_msg, 0, sizeof(get_link_msg));
     get_link_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
     get_link_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT;
     get_link_msg.nlhdr.nlmsg_type = RTM_GETLINK;
     get_link_msg.infomsg.ifi_family = AF_UNSPEC;
-    get_link_msg.nlhdr.nlmsg_seq = 2;
+    // the sequence number has stored the request sequence and the retry count.
+    // request sequece is stored in the LSB (least significant byte) and
+    // retry is stored in the 2nd LSB.
+    get_link_msg.nlhdr.nlmsg_seq = ifi_request_sequence_ | (_retry << retry_bit_shift_);
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -295,18 +301,21 @@ void netlink_connector::send_ifi_request() {
     }
 }
 
-void netlink_connector::send_rt_request() {
-    struct netlink_route_msg {
+void netlink_connector::send_rt_request(std::uint32_t _retry) {
+    typedef struct {
         struct nlmsghdr nlhdr;
         struct rtgenmsg routemsg;
-    };
+    } netlink_route_msg;
 
     netlink_route_msg get_route_msg;
     memset(&get_route_msg, 0, sizeof(get_route_msg));
     get_route_msg.nlhdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtgenmsg));
     get_route_msg.nlhdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
     get_route_msg.nlhdr.nlmsg_type = RTM_GETROUTE;
-    get_route_msg.nlhdr.nlmsg_seq = 3;
+    // the sequence number has stored the request sequence and the retry count.
+    // request sequece is stored in the LSB (least significant byte) and
+    // retry is stored in the 2nd LSB.
+    get_route_msg.nlhdr.nlmsg_seq = rt_request_sequence_ | (_retry << retry_bit_shift_);
     if (multicast_address_.is_v6()) {
         get_route_msg.routemsg.rtgen_family = AF_INET6;
     } else {
@@ -324,6 +333,38 @@ void netlink_connector::send_rt_request() {
                 std::placeholders::_2
             )
         );
+    }
+}
+
+void netlink_connector::handle_netlink_error(struct nlmsgerr *_error_msg) {
+    // the sequence number has stored the request sequence and the retry count.
+    // retry is stored in the 2nd LSB.
+    std::uint32_t retry = _error_msg->msg.nlmsg_seq >> retry_bit_shift_;
+    if (retry >= max_retries_) {
+        VSOMEIP_ERROR << "netlink_connector::receive_cbk received "
+            "error message: " << strerror(-_error_msg->error)
+            << " type " << std::dec << _error_msg->msg.nlmsg_type
+            << " seq " << _error_msg->msg.nlmsg_seq;
+        return;
+    }
+
+    // the sequence number has stored the request sequence and the retry count.
+    // request sequece is stored in the LSB.
+    std::uint32_t request_sequence = _error_msg->msg.nlmsg_seq & request_sequence_bitmask_;
+    std::string request_type{};
+    if (_error_msg->msg.nlmsg_type == RTM_GETADDR && request_sequence == ifa_request_sequence_) {
+        request_type = "address request";
+        send_ifa_request(retry + 1);
+    } else if (_error_msg->msg.nlmsg_type == RTM_GETLINK && request_sequence == ifi_request_sequence_) {
+        request_type = "link request";
+        send_ifi_request(retry + 1);
+    } else if (_error_msg->msg.nlmsg_type == RTM_GETROUTE && request_sequence == rt_request_sequence_) {
+        request_type = "route request";
+        send_rt_request(retry + 1);
+    }
+
+    if (!request_type.empty()) {
+        VSOMEIP_INFO << "Retrying netlink " << request_type;
     }
 }
 
@@ -384,7 +425,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
                     if (i > 95) {
                         netmask2[0] |= static_cast<std::uint32_t>(1 << (i-96));
                     } else if (i > 63) {
-                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-63));
+                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-64));
                     } else if (i > 31) {
                         netmask2[2] |= static_cast<std::uint32_t>(1 << (i-32));
                     } else {

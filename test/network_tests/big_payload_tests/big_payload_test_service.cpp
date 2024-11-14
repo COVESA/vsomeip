@@ -1,7 +1,9 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <iomanip>
 
 #include "big_payload_test_service.hpp"
 
@@ -69,13 +71,13 @@ bool big_payload_test_service::init()
 
 void big_payload_test_service::start()
 {
-    VSOMEIP_INFO << "Starting...";
+    VSOMEIP_INFO << "Starting Service...";
     app_->start();
 }
 
 void big_payload_test_service::stop()
 {
-    VSOMEIP_INFO << "Stopping...";
+    VSOMEIP_INFO << "Stopping Service...";
     stop_offer();
     app_->clear_all_handler();
     app_->stop();
@@ -251,7 +253,7 @@ TEST(someip_big_payload_test, receive_ten_messages_and_send_reply)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

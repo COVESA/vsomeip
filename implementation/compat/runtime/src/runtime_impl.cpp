@@ -39,14 +39,9 @@ runtime_impl::~runtime_impl() {
 
 std::shared_ptr<application>
 runtime_impl::create_application(const std::string &_name) {
-
+    std::lock_guard<std::mutex> its_lock(applications_mutex_);
     auto its_application = std::make_shared<application_impl>(_name);
-
-    {
-        std::lock_guard<std::mutex> its_lock(applications_mutex_);
-        applications_[its_application->get_name()] = its_application;
-    }
-
+    applications_[its_application->get_name()] = its_application;
     return (its_application);
 }
 

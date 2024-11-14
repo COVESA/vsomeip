@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/local_tcp_server_endpoint_impl.hpp"
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
 #include "../include/udp_client_endpoint_impl.hpp"
@@ -21,7 +21,7 @@
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 
 #include <forward_list>
@@ -129,10 +129,11 @@ void endpoint_manager_impl::is_remote_service_known(
                         *_reliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Reliable service endpoint has changed: ["
-                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
                             << std::dec << static_cast<std::uint32_t>(_major) << "."
-                            << std::dec << _minor << "] old: "
+                            << _minor << "] old: "
                             << its_definition->get_address().to_string() << ":"
                             << its_definition->get_port() << " new: "
                             << _reliable_address.to_string() << ":"
@@ -149,10 +150,11 @@ void endpoint_manager_impl::is_remote_service_known(
                         *_unreliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Unreliable service endpoint has changed: ["
-                            << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                            << std::hex << std::setfill('0') << std::setw(4) << _instance << "."
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
                             << std::dec << static_cast<std::uint32_t>(_major) << "."
-                            << std::dec << _minor << "] old: "
+                            << _minor << "] old: "
                             << its_definition->get_address().to_string() << ":"
                             << its_definition->get_port() << " new: "
                             << _unreliable_address.to_string() << ":"
@@ -243,54 +245,59 @@ void endpoint_manager_impl::clear_remote_service_info(service_t _service,
     }
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(
-        uint16_t _port, bool _reliable, bool _start) {
+std::shared_ptr<endpoint>
+endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bool _start) {
+    std::shared_ptr<endpoint> its_server_endpoint;
+    boost::system::error_code its_error;
+    boost::asio::ip::address its_unicast {configuration_->get_unicast_address()};
+    const std::string its_unicast_str {its_unicast.to_string()};
+
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    std::shared_ptr<endpoint> its_endpoint;
-    try {
-        boost::asio::ip::address its_unicast = configuration_->get_unicast_address();
-        const std::string its_unicast_str = its_unicast.to_string();
-        if (_start) {
-            if (_reliable) {
-                its_endpoint = std::make_shared<tcp_server_endpoint_impl>(
-                        shared_from_this(),
-                        rm_->shared_from_this(),
-                        boost::asio::ip::tcp::endpoint(its_unicast, _port),
-                        io_,
-                        configuration_);
-                if (configuration_->has_enabled_magic_cookies(
-                        its_unicast_str, _port) ||
-                        configuration_->has_enabled_magic_cookies(
-                                "local", _port)) {
-                    its_endpoint->enable_magic_cookies();
+    if (_start) {
+        if (_reliable) {
+            auto its_tmp {std::make_shared<tcp_server_endpoint_impl>(shared_from_this(),
+                                  rm_->shared_from_this(), io_, configuration_)};
+            if (its_tmp) {
+                boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
+                its_tmp->init(its_reliable, its_error);
+                if (!its_error) {
+                    if (configuration_->has_enabled_magic_cookies(
+                            its_unicast_str, _port) ||
+                            configuration_->has_enabled_magic_cookies(
+                                    "local", _port)) {
+                        its_tmp->enable_magic_cookies();
+                    }
+                    its_server_endpoint = its_tmp;
                 }
-            } else {
-                its_endpoint = std::make_shared<udp_server_endpoint_impl>(
-                        shared_from_this(),
-                        rm_->shared_from_this(),
-                        boost::asio::ip::udp::endpoint(its_unicast, _port),
-                        io_,
-                        configuration_);
             }
-
         } else {
-            its_endpoint = std::make_shared<virtual_server_endpoint_impl>(
-                                its_unicast_str, _port, _reliable, io_);
+            auto its_tmp {std::make_shared<udp_server_endpoint_impl>(shared_from_this(),
+                                  rm_->shared_from_this(), io_, configuration_)};
+            if (its_tmp) {
+                boost::asio::ip::udp::endpoint its_unreliable(its_unicast, _port);
+                its_tmp->init(its_unreliable, its_error);
+                if (!its_error) {
+                    its_server_endpoint = its_tmp;
+                }
+            }
         }
+    } else {
+        its_server_endpoint = std::make_shared<virtual_server_endpoint_impl>(its_unicast_str,
+                                      _port, _reliable, io_);
+    }
 
-        if (its_endpoint) {
-            server_endpoints_[_port][_reliable] = its_endpoint;
-            its_endpoint->start();
-        }
-    } catch (const std::exception &e) {
+    if (its_server_endpoint) {
+        server_endpoints_[_port][_reliable] = its_server_endpoint;
+        its_server_endpoint->start();
+    } else {
         VSOMEIP_ERROR << __func__
                 << " Server endpoint creation failed."
-                << " Reason: "<< e.what()
+                << " Reason: " << its_error.message()
                 << " Port: " << _port
                 << " (" << _reliable << ")";
     }
 
-    return (its_endpoint);
+    return its_server_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(
@@ -304,7 +311,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(
             its_endpoint = found_endpoint->second;
         }
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
@@ -323,36 +330,52 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
         if (!_is_multicast) {
             service_instances_[_service][its_endpoint.get()] =  _instance;
         }
-        its_endpoint->increment_use_count();
     }
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliable) {
-    bool ret = false;
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    auto found_port = server_endpoints_.find(_port);
-    if (found_port != server_endpoints_.end()) {
-        auto found_reliable = found_port->second.find(_reliable);
-        if (found_reliable != found_port->second.end()) {
-            if (found_reliable->second->get_use_count() == 0 &&
-                    found_port->second.erase(_reliable)) {
-                ret = true;
+
+    std::shared_ptr<endpoint> its_endpoint;
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_port = server_endpoints_.find(_port);
+        if (found_port != server_endpoints_.end()) {
+            auto found_reliable = found_port->second.find(_reliable);
+            if (found_reliable != found_port->second.end()) {
+                its_endpoint = found_reliable->second;
+            }
+        }
+    }
+
+    if (!is_used_endpoint(its_endpoint.get())) {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_port = server_endpoints_.find(_port);
+        if (found_port != server_endpoints_.end()) {
+            if (found_port->second.erase(_reliable)) {
                 if (found_port->second.empty()) {
                     server_endpoints_.erase(found_port);
                 }
             }
+            return true;
         }
     }
-    return ret;
+
+    return false;
 }
 
 void
 endpoint_manager_impl::clear_client_endpoints(
         service_t _service, instance_t _instance, bool _reliable) {
 
-    std::shared_ptr<endpoint> endpoint_to_delete;
+    std::shared_ptr<endpoint> its_endpoint;
+
+    boost::asio::ip::address its_remote_address;
+    port_t its_local_port(0);
+    port_t its_remote_port(0);
+
     bool other_services_reachable_through_endpoint(false);
+
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         // Clear client endpoints for remote services (generic and specific ones)
@@ -363,8 +386,7 @@ endpoint_manager_impl::clear_client_endpoints(
                 const auto found_reliability = found_instance->second.find(_reliable);
                 if (found_reliability != found_instance->second.end()) {
                     service_instances_[_service].erase(found_reliability->second.get());
-                    endpoint_to_delete = found_reliability->second;
-
+                    its_endpoint = found_reliability->second;
                     found_instance->second.erase(found_reliability);
                     if (found_instance->second.empty()) {
                         found_service->second.erase(found_instance);
@@ -378,12 +400,12 @@ endpoint_manager_impl::clear_client_endpoints(
 
         // Only stop and delete the endpoint if none of the services
         // reachable through it is online anymore.
-        if (endpoint_to_delete) {
+        if (its_endpoint) {
             for (const auto& service : remote_services_) {
                 for (const auto& instance : service.second) {
                     const auto found_reliability = instance.second.find(_reliable);
                     if (found_reliability != instance.second.end()
-                            && found_reliability->second == endpoint_to_delete) {
+                            && found_reliability->second == its_endpoint) {
                         other_services_reachable_through_endpoint = true;
                         break;
                     }
@@ -393,35 +415,35 @@ endpoint_manager_impl::clear_client_endpoints(
 
             if (!other_services_reachable_through_endpoint) {
                 partition_id_t its_partition;
-                boost::asio::ip::address its_address;
-                std::uint16_t its_port(0);
 
                 its_partition = configuration_->get_partition_id(_service, _instance);
 
                 if (_reliable) {
-                    std::shared_ptr<tcp_client_endpoint_impl> ep =
-                            std::dynamic_pointer_cast<tcp_client_endpoint_impl>(endpoint_to_delete);
-                    if (ep) {
-                        its_port = ep->get_remote_port();
-                        ep->get_remote_address(its_address);
+                    std::shared_ptr<tcp_client_endpoint_impl> its_tcp_client_endpoint =
+                            std::dynamic_pointer_cast<tcp_client_endpoint_impl>(its_endpoint);
+                    if (its_tcp_client_endpoint) {
+                        its_local_port = its_tcp_client_endpoint->get_local_port();
+                        its_remote_port = its_tcp_client_endpoint->get_remote_port();
+                        its_tcp_client_endpoint->get_remote_address(its_remote_address);
                     }
                 } else {
-                    std::shared_ptr<udp_client_endpoint_impl> ep =
-                            std::dynamic_pointer_cast<udp_client_endpoint_impl>(endpoint_to_delete);
-                    if (ep) {
-                        its_port = ep->get_remote_port();
-                        ep->get_remote_address(its_address);
+                    std::shared_ptr<udp_client_endpoint_impl> its_udp_client_endpoint =
+                            std::dynamic_pointer_cast<udp_client_endpoint_impl>(its_endpoint);
+                    if (its_udp_client_endpoint) {
+                        its_local_port = its_udp_client_endpoint->get_local_port();
+                        its_remote_port = its_udp_client_endpoint->get_remote_port();
+                        its_udp_client_endpoint->get_remote_address(its_remote_address);
                     }
                 }
-                const auto found_ip = client_endpoints_by_ip_.find(its_address);
-                if (found_ip != client_endpoints_by_ip_.end()) {
-                    const auto found_port = found_ip->second.find(its_port);
+                const auto found_ip = client_endpoints_.find(its_remote_address);
+                if (found_ip != client_endpoints_.end()) {
+                    const auto found_port = found_ip->second.find(its_remote_port);
                     if (found_port != found_ip->second.end()) {
                         auto found_reliable = found_port->second.find(_reliable);
                         if (found_reliable != found_port->second.end()) {
                             const auto found_partition = found_reliable->second.find(its_partition);
                             if (found_partition != found_reliable->second.end()) {
-                                if (found_partition->second == endpoint_to_delete) {
+                                if (found_partition->second == its_endpoint) {
                                     found_reliable->second.erase(its_partition);
                                     // delete if necessary
                                     if (0 == found_reliable->second.size()) {
@@ -429,7 +451,7 @@ endpoint_manager_impl::clear_client_endpoints(
                                         if (0 == found_port->second.size()) {
                                             found_ip->second.erase(found_port);
                                             if (0 == found_ip->second.size()) {
-                                                client_endpoints_by_ip_.erase(found_ip);
+                                                client_endpoints_.erase(found_ip);
                                             }
                                         }
                                     }
@@ -441,8 +463,11 @@ endpoint_manager_impl::clear_client_endpoints(
             }
         }
     }
-    if (!other_services_reachable_through_endpoint && endpoint_to_delete) {
-        endpoint_to_delete->stop();
+    if (!other_services_reachable_through_endpoint && its_endpoint) {
+        release_used_client_port(its_remote_address, its_remote_port,
+                _reliable, its_local_port);
+
+        its_endpoint->stop();
     }
 }
 
@@ -450,11 +475,11 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
         service_t _service, instance_t _instance,
         const boost::asio::ip::address &_sender,
         const boost::asio::ip::address &_address, uint16_t _port) {
-    bool multicast_known(false);
+    bool is_known_multicast(false);
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-        const auto found_service = multicast_info.find(_service);
-        if (found_service != multicast_info.end()) {
+        const auto found_service = multicast_info_.find(_service);
+        if (found_service != multicast_info_.end()) {
             const auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 const auto& endpoint_def = found_instance->second;
@@ -462,7 +487,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
                         endpoint_def->get_port() == _port) {
                     // Multicast info and endpoint already created before
                     // This can happen when more than one client subscribe on the same instance!
-                    multicast_known = true;
+                    is_known_multicast = true;
                 }
             }
         }
@@ -479,62 +504,62 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         std::shared_ptr<endpoint_definition> endpoint_def =
                 endpoint_definition::get(_address, _port, false, _service, _instance);
-        multicast_info[_service][_instance] = endpoint_def;
+        multicast_info_[_service][_instance] = endpoint_def;
     }
 
     if (its_endpoint) {
-        if (!multicast_known) {
+        if (!is_known_multicast) {
             std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
             service_instances_multicast_[_service][_sender] = _instance;
         }
 
-        auto its_udp_server_endpoint
-            = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
-        if (_port != configuration_->get_sd_port()) {
+        auto its_udp_server_endpoint =
+                std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_endpoint);
+        if (its_udp_server_endpoint)
             its_udp_server_endpoint->join(_address.to_string());
-        } else {
-            its_udp_server_endpoint->join_unlocked(_address.to_string());
-        }
     } else {
-        VSOMEIP_ERROR <<"Could not find/create multicast endpoint!";
+        VSOMEIP_ERROR << "Could not find/create multicast endpoint!";
     }
 }
 
 void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instance_t _instance) {
-    std::shared_ptr<endpoint> multicast_endpoint;
-    std::string address;
+    std::shared_ptr<endpoint> its_multicast_endpoint;
+    std::string its_address;
 
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         // Clear multicast info and endpoint and multicast instance (remote service)
-        if (multicast_info.find(_service) != multicast_info.end()) {
-            if (multicast_info[_service].find(_instance) != multicast_info[_service].end()) {
-                address = multicast_info[_service][_instance]->get_address().to_string();
-                uint16_t port = multicast_info[_service][_instance]->get_port();
-                auto found_port = server_endpoints_.find(port);
+        if (multicast_info_.find(_service) != multicast_info_.end()) {
+            if (multicast_info_[_service].find(_instance) != multicast_info_[_service].end()) {
+                its_address = multicast_info_[_service][_instance]->get_address().to_string();
+                uint16_t its_port = multicast_info_[_service][_instance]->get_port();
+                auto found_port = server_endpoints_.find(its_port);
                 if (found_port != server_endpoints_.end()) {
                     auto found_unreliable = found_port->second.find(false);
                     if (found_unreliable != found_port->second.end()) {
-                        multicast_endpoint = found_unreliable->second;
-                        server_endpoints_[port].erase(false);
+                        its_multicast_endpoint = found_unreliable->second;
+                        server_endpoints_[its_port].erase(false);
                     }
                     if (found_port->second.find(true) == found_port->second.end()) {
-                        server_endpoints_.erase(port);
+                        server_endpoints_.erase(its_port);
                     }
                 }
-                multicast_info[_service].erase(_instance);
-                if (0 >= multicast_info[_service].size()) {
-                    multicast_info.erase(_service);
+                multicast_info_[_service].erase(_instance);
+                if (0 >= multicast_info_[_service].size()) {
+                    multicast_info_.erase(_service);
                 }
                 (void)remove_instance_multicast(_service, _instance);
             }
         }
     }
-    if (multicast_endpoint) {
-        dynamic_cast<udp_server_endpoint_impl*>(
-                multicast_endpoint.get())->leave(address);
+    if (its_multicast_endpoint) {
+        auto its_udp_server_endpoint =
+                std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_multicast_endpoint);
+        if (its_udp_server_endpoint)
+            its_udp_server_endpoint->leave(its_address);
 
-        multicast_endpoint->stop();
+        if (!is_used_endpoint(its_multicast_endpoint.get()))
+            its_multicast_endpoint->stop();
     }
 }
 
@@ -568,17 +593,17 @@ void endpoint_manager_impl::print_status() const {
 
     // udp and tcp client endpoints
     {
-        client_endpoints_by_ip_t client_endpoints_by_ip;
-        server_endpoints_t server_endpoints;
+        client_endpoints_t its_client_endpoints;
+        server_endpoints_t its_server_endpoints;
         {
-            std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-            client_endpoints_by_ip = client_endpoints_by_ip_;
-            server_endpoints = server_endpoints_;
+            std::scoped_lock its_lock {endpoint_mutex_};
+            its_client_endpoints = client_endpoints_;
+            its_server_endpoints = server_endpoints_;
         }
         VSOMEIP_INFO << "status start remote client endpoints:";
         std::uint32_t num_remote_client_endpoints(0);
         // normal endpoints
-        for (const auto &its_address : client_endpoints_by_ip) {
+        for (const auto &its_address : its_client_endpoints) {
             for (const auto &its_port : its_address.second) {
                 for (const auto &its_reliability : its_port.second) {
                     for (const auto &its_partition : its_reliability.second) {
@@ -597,7 +622,7 @@ void endpoint_manager_impl::print_status() const {
         static_cast<routing_manager_impl*>(rm_)->print_stub_status();
 
         // server endpoints
-        for (const auto& p : server_endpoints) {
+        for (const auto& p : its_server_endpoints) {
             for (const auto& ru : p.second ) {
                 ru.second->print_status();
                 num_server_endpoints++;
@@ -608,11 +633,9 @@ void endpoint_manager_impl::print_status() const {
     }
 }
 
-bool
-endpoint_manager_impl::create_routing_root(
-        std::shared_ptr<endpoint> &_root,
-        bool &_is_socket_activated,
-        const std::shared_ptr<routing_host> &_host) {
+bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root,
+                                                bool& _is_socket_activated,
+                                                const std::shared_ptr<routing_host>& _host) {
 
     std::stringstream its_endpoint_path_ss;
     its_endpoint_path_ss << utility::get_base_path(configuration_->get_network())
@@ -629,118 +652,153 @@ endpoint_manager_impl::create_routing_root(
                 << its_routing_host_id
                 << "]";
 
-        return (false);
+        return false;
     }
 
     if (configuration_->is_local_routing()) {
-        uint32_t native_socket_fd = 0;
-        int32_t num_fd = 0;
+        int its_socket {0};
+        int32_t num_fd {0};
 #ifndef WITHOUT_SYSTEMD
         num_fd = sd_listen_fds(0);
 #endif
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (num_fd > 1) {
             VSOMEIP_ERROR <<  "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
         } else if (num_fd == 1) {
-            native_socket_fd = SD_LISTEN_FDS_START + 0;
-            VSOMEIP_INFO <<  "Using native socket created by systemd socket activation! fd: " << native_socket_fd;
+            its_socket = SD_LISTEN_FDS_START + 0;
+            VSOMEIP_INFO <<  "Using native socket created by systemd socket activation! fd: " << its_socket;
             if (is_local_routing_) {
                 try {
-                    _root =
-                            std::make_shared <local_uds_server_endpoint_impl>(
-                                    shared_from_this(), _host,
-#if VSOMEIP_BOOST_VERSION < 106600
-                                    boost::asio::local::stream_protocol_ext::endpoint(its_endpoint_path),
-#else
-                                    boost::asio::local::stream_protocol::endpoint(its_endpoint_path),
-#endif
-                                    io_,
-                                    native_socket_fd,
-                                    configuration_, true);
-                } catch (const std::exception &e) {
-                    VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: "
-                            << std::hex << std::setw(4) << std::setfill('0')
-                            << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+                    auto its_root {std::make_shared <local_uds_server_endpoint_impl>(shared_from_this(),
+                                           _host, io_, configuration_, true)};
+                    if (its_root) {
+                        boost::asio::local::stream_protocol::endpoint its_endpoint(its_endpoint_path);
+                        boost::system::error_code its_error;
+
+                        its_root->init(its_endpoint, its_socket, its_error);
+                        if (its_error) {
+                            VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: "
+                                          << std::hex << std::setw(4) << std::setfill('0')
+                                          << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+
+                            its_root->deinit();
+                            return false;
+                        }
+
+                        _root = its_root;
+                    }
+                } catch (const std::exception& e) {
+                    VSOMEIP_ERROR << __func__ << ": " << e.what();
                 }
             }
             _is_socket_activated = true;
-
         } else {
             if (is_local_routing_) {
-                if (-1 == ::unlink(its_endpoint_path.c_str()) && errno != ENOENT) {
-                    VSOMEIP_ERROR << "endpoint_manager_impl::create_local_server unlink failed ("
-                            << its_endpoint_path << "): "<< std::strerror(errno);
-                }
-                VSOMEIP_INFO << __func__ << ": Routing root @ " << its_endpoint_path;
-
                 try {
-                    _root =
-                        std::make_shared <local_uds_server_endpoint_impl>(
-                                shared_from_this(), _host,
-#if VSOMEIP_BOOST_VERSION < 106600
-                                boost::asio::local::stream_protocol_ext::endpoint(its_endpoint_path),
-#else
-                                boost::asio::local::stream_protocol::endpoint(its_endpoint_path),
-#endif
-                                io_, configuration_, true);
-                } catch (const std::exception &e) {
-                    VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
-                            << std::hex << std::setw(4) << std::setfill('0')
-                            << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+                    if (-1 == ::unlink(its_endpoint_path.c_str()) && errno != ENOENT) {
+                        VSOMEIP_ERROR << "endpoint_manager_impl::create_local_server unlink failed ("
+                                << its_endpoint_path << "): "<< std::strerror(errno);
+                    }
+                    VSOMEIP_INFO << __func__ << ": Routing root @ " << its_endpoint_path;
 
-                    return (false);
+                    auto its_root {std::make_shared <local_uds_server_endpoint_impl>(
+                                            shared_from_this(), _host, io_, configuration_, true)};
+                    if (its_root) {
+                        boost::asio::local::stream_protocol::endpoint its_endpoint(its_endpoint_path);
+                        boost::system::error_code its_error;
+
+                        its_root->init(its_endpoint, its_error);
+                        if (its_error) {
+                            VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
+                                    << std::hex << std::setw(4) << std::setfill('0')
+                                    << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+
+                            its_root->deinit();
+                            return false;
+                        }
+
+                        _root = its_root;
+                    }
+                } catch (const std::exception& e) {
+                    VSOMEIP_ERROR << __func__ << ": " << e.what();
                 }
             }
-
             _is_socket_activated = false;
         }
 #else
-        ::unlink(its_endpoint_path.c_str());
-        port_t port = VSOMEIP_INTERNAL_BASE_PORT;
-        VSOMEIP_INFO << __func__ << ": Routing root @ " << std::dec << port;
-
         try {
-            _root =
-                std::make_shared <local_tcp_server_endpoint_impl>(
-                        shared_from_this(), _host,
-                        boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port),
-                        io_, configuration_, true);
-        } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
-                    << std::hex << std::setw(4) << std::setfill('0')
-                    << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+            ::unlink(its_endpoint_path.c_str());
+            port_t port = VSOMEIP_INTERNAL_BASE_PORT;
+            VSOMEIP_INFO << __func__ << ": Routing root @ " << std::dec << port;
 
-            return (false);
+            auto its_root {std::make_shared <local_tcp_server_endpoint_impl>(shared_from_this(), _host,
+                                     io_, configuration_, true)};
+            if (its_root) {
+                boost::asio::ip::tcp::endpoint its_endpoint(boost::asio::ip::tcp::v4(), port);
+                boost::system::error_code its_error;
+
+                its_root->init(its_endpoint, its_error);
+                if (its_error) {
+                    VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
+                                  << std::hex << std::setw(4) << std::setfill('0')
+                                  << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+                    its_root->deinit();
+                    return false;
+                }
+
+                _root = its_root;
+            }
+        } catch (const std::exception& e) {
+            VSOMEIP_ERROR << __func__ << ": " << e.what();
         }
 
         _is_socket_activated = false;
 #endif // __linux__ || ANDROID
     } else {
-        auto its_address = configuration_->get_routing_host_address();
-        auto its_port = configuration_->get_routing_host_port();
-
-        VSOMEIP_INFO << __func__ << ": Routing root @ "
-                << its_address.to_string() << ":" << std::dec << its_port;
-
         try {
-            _root =
-                std::make_shared <local_tcp_server_endpoint_impl>(
-                        shared_from_this(), _host,
-                        boost::asio::ip::tcp::endpoint(its_address, its_port),
-                        io_, configuration_, true);
-        } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "Remote routing root endpoint creation failed. Client ID: "
-                    << std::hex << std::setw(4) << std::setfill('0')
-                    << VSOMEIP_ROUTING_CLIENT << ": " << e.what();
+            auto its_address = configuration_->get_routing_host_address();
+            auto its_port = configuration_->get_routing_host_port();
 
-            return (false);
+            VSOMEIP_INFO << __func__ << ": Routing root @ "
+                    << its_address.to_string() << ":" << std::dec << its_port;
+
+            auto its_root {std::make_shared <local_tcp_server_endpoint_impl>(shared_from_this(), _host,
+                                   io_, configuration_, true)};
+            if (its_root) {
+                boost::asio::ip::tcp::endpoint its_endpoint(its_address, its_port);
+                boost::system::error_code its_error;
+
+                int its_retry {0};
+                do {
+                    its_root->init(its_endpoint, its_error);
+                    if (its_error) {
+                        VSOMEIP_ERROR << "endpoint_manager_impl::create_routing_root: "
+                            << "Remote routing root endpoint creation failed (" << its_retry << ") "
+                            << "Client: " << std::hex << std::setw(4) << std::setfill('0')
+                            << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+
+                        its_root->deinit();
+                        std::this_thread::sleep_for(
+                            std::chrono::milliseconds(VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL));
+                    }
+                    its_retry++;
+                } while (its_retry < VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES && its_error);
+
+                if (its_error) {
+                    return false;
+                }
+
+                _root = its_root;
+            }
+        } catch (const std::exception& e) {
+            VSOMEIP_ERROR << __func__ << ": " << e.what();
         }
 
         _is_socket_activated = false;
     }
 
-    return (true);
+    return true;
 }
 
 instance_t endpoint_manager_impl::find_instance(
@@ -773,17 +831,18 @@ instance_t endpoint_manager_impl::find_instance_multicast(
 
 bool endpoint_manager_impl::remove_instance(service_t _service,
                                             endpoint* const _endpoint) {
-    std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-    auto found_service = service_instances_.find(_service);
-    if (found_service != service_instances_.end()) {
-        if (found_service->second.erase(_endpoint)) {
-            if (!found_service->second.size()) {
-                service_instances_.erase(found_service);
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        auto found_service = service_instances_.find(_service);
+        if (found_service != service_instances_.end()) {
+            if (found_service->second.erase(_endpoint)) {
+                if (!found_service->second.size()) {
+                    service_instances_.erase(found_service);
+                }
             }
         }
     }
-    _endpoint->decrement_use_count();
-    return (_endpoint->get_use_count() == 0);
+    return !is_used_endpoint(_endpoint);
 }
 
 bool endpoint_manager_impl::remove_instance_multicast(service_t _service,
@@ -798,11 +857,11 @@ bool endpoint_manager_impl::remove_instance_multicast(service_t _service,
                         service_instances_multicast_.erase(_service);
                     }
                 }
-                return (true);
+                return true;
             }
         }
     }
-    return (false);
+    return false;
 }
 
 void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
@@ -940,8 +999,7 @@ void endpoint_manager_impl::on_error(
         std::uint16_t _remote_port) {
     instance_t its_instance = 0;
     if (_length >= VSOMEIP_SERVICE_POS_MAX) {
-        service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         its_instance = find_instance(its_service, _receiver);
     }
     static_cast<routing_manager_impl*>(rm_)->send_error(
@@ -1022,9 +1080,9 @@ endpoint_manager_impl::find_remote_client(
             if (found_reliable != found_instance->second.end()) {
                 std::shared_ptr<endpoint_definition> its_ep_def
                     = found_reliable->second;
-                auto found_address = client_endpoints_by_ip_.find(
+                auto found_address = client_endpoints_.find(
                         its_ep_def->get_address());
-                if (found_address != client_endpoints_by_ip_.end()) {
+                if (found_address != client_endpoints_.end()) {
                     auto found_port = found_address->second.find(
                             its_ep_def->get_remote_port());
                     if (found_port != found_address->second.end()) {
@@ -1055,7 +1113,7 @@ endpoint_manager_impl::find_remote_client(
         }
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(
@@ -1108,10 +1166,10 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(
 
                 partition_id_t its_partition
                     = configuration_->get_partition_id(_service, _instance);
-                client_endpoints_by_ip_[its_endpoint_def->get_address()]
-                                       [its_endpoint_def->get_port()]
-                                       [_reliable]
-                                       [its_partition]= its_endpoint;
+                client_endpoints_[its_endpoint_def->get_address()]
+                                 [its_endpoint_def->get_port()]
+                                 [_reliable]
+                                 [its_partition]= its_endpoint;
                 // Set the basic route to the service in the service info
                 auto found_service_info = rm_->find_service(_service, _instance);
                 if (found_service_info) {
@@ -1164,13 +1222,13 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_client_endpoint(
         VSOMEIP_ERROR << __func__ << " Client endpoint creation failed";
     }
 
-    return (its_endpoint);
+    return its_endpoint;
 }
 
 void
 endpoint_manager_impl::log_client_states() const {
     std::stringstream its_log;
-    client_endpoints_by_ip_t its_client_endpoints;
+    client_endpoints_t its_client_endpoints;
     std::vector<
         std::pair<
             std::tuple<boost::asio::ip::address, uint16_t, bool>,
@@ -1180,7 +1238,7 @@ endpoint_manager_impl::log_client_states() const {
 
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
-        its_client_endpoints = client_endpoints_by_ip_;
+        its_client_endpoints = client_endpoints_;
     }
 
     for (const auto &its_address : its_client_endpoints) {
@@ -1238,7 +1296,7 @@ endpoint_manager_impl::log_server_states() const {
     > its_client_queue_sizes;
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock {endpoint_mutex_};
         its_server_endpoints = server_endpoints_;
     }
 
@@ -1290,20 +1348,104 @@ endpoint_manager_impl::process_multicast_options() {
         if (options_queue_.size() > 0) {
             auto its_front = options_queue_.front();
             options_queue_.pop();
-            auto its_udp_server_endpoint
-                = std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
+            auto its_udp_server_endpoint =
+                    std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
             if (its_udp_server_endpoint) {
                 // Unlock before setting the option as this might block
                 its_lock.unlock();
+
+                boost::system::error_code its_error;
                 its_udp_server_endpoint->set_multicast_option(
-                    its_front.address_, its_front.is_join_);
+                    its_front.address_, its_front.is_join_, its_error);
+
+                if (its_error) {
+                    VSOMEIP_ERROR << __func__ << ": "
+                                  << (its_front.is_join_ ? "joining " : "leaving ")
+                                  << its_front.address_ << " (" << its_error.message() << ")";
+                }
+
                 // Lock again after setting the option
                 its_lock.lock();
             }
         } else {
-            options_condition_.wait(its_lock, [this] {
-                return !options_queue_.empty() || !is_processing_options_;
-            });
+            options_condition_.wait(its_lock);
+        }
+    }
+}
+
+bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
+
+    {
+        std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
+        // Do we still use the endpoint to offer a service instance?
+        for (const auto& si : service_instances_)
+            if (si.second.find(_endpoint) != si.second.end())
+                return true;
+    }
+
+    // Do we still use the endpoint to join a multicast address=
+    auto its_udp_server_endpoint = dynamic_cast<udp_server_endpoint_impl*>(_endpoint);
+    if (its_udp_server_endpoint)
+        return its_udp_server_endpoint->is_joining();
+
+    return false;
+}
+
+void endpoint_manager_impl::suspend(void) {
+
+    client_endpoints_t its_client_endpoints;
+    server_endpoints_t its_server_endpoints;
+    {
+        // TODO: Check whether we can avoid copying
+        std::scoped_lock its_lock {endpoint_mutex_};
+        its_client_endpoints = client_endpoints_;
+        its_server_endpoints = server_endpoints_;
+    }
+
+    // stop client endpoints
+    for (auto& its_address : its_client_endpoints) {
+        for (auto& its_port : its_address.second) {
+            for (auto& its_protocol : its_port.second) {
+                for (auto& its_partition : its_protocol.second) {
+                    its_partition.second->stop();
+                }
+            }
+        }
+    }
+
+    // start server endpoints
+    for (auto& its_port : its_server_endpoints) {
+        for (auto& its_protocol : its_port.second) {
+            its_protocol.second->stop();
+        }
+    }
+}
+
+void endpoint_manager_impl::resume(void) {
+    client_endpoints_t its_client_endpoints;
+    server_endpoints_t its_server_endpoints;
+    {
+        // TODO: Check whether we can avoid copying
+        std::scoped_lock its_lock {endpoint_mutex_};
+        its_client_endpoints = client_endpoints_;
+        its_server_endpoints = server_endpoints_;
+    }
+
+    // start server endpoints
+    for (auto& its_port : its_server_endpoints) {
+        for (auto& its_protocol : its_port.second) {
+            its_protocol.second->restart();
+        }
+    }
+
+    // start client endpoints
+    for (auto& its_address : its_client_endpoints) {
+        for (auto& its_port : its_address.second) {
+            for (auto& its_protocol : its_port.second) {
+                for (auto& its_partition : its_protocol.second) {
+                    its_partition.second->restart();
+                }
+            }
         }
     }
 }

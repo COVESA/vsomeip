@@ -27,7 +27,7 @@ filter_id_t channel_impl::add_filter(
     filter_type_e its_filter_type = (_is_positive ?
         filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
 
-    return (add_filter(_match, its_filter_type));
+    return add_filter(_match, its_filter_type);
 }
 
 filter_id_t channel_impl::add_filter(
@@ -102,7 +102,7 @@ filter_id_t channel_impl::add_filter(
     filter_type_e its_filter_type = (_is_positive ?
         filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
 
-    return (add_filter(_matches, its_filter_type));
+    return add_filter(_matches, its_filter_type);
 }
 
 filter_id_t channel_impl::add_filter(
@@ -246,7 +246,7 @@ filter_id_t channel_impl::add_filter(
     filter_type_e its_filter_type = (_is_positive ?
         filter_type_e::POSITIVE : filter_type_e::NEGATIVE);
 
-    return (add_filter(_from, _to, its_filter_type));
+    return add_filter(_from, _to, its_filter_type);
 }
 
 void channel_impl::remove_filter(filter_id_t _id) {
@@ -260,10 +260,10 @@ filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, filter_t
 
     std::lock_guard<std::mutex> its_lock(mutex_);
     switch(_type) {
-        case (filter_type_e::NEGATIVE) :
+        case filter_type_e::NEGATIVE :
             negative_[its_id] = _func;
             break;
-        case (filter_type_e::HEADER_ONLY) :
+        case filter_type_e::HEADER_ONLY :
             positive_[its_id] = std::make_pair(_func, false);
             break;
         default :

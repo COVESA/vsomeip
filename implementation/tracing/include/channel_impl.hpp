@@ -18,7 +18,7 @@
 namespace vsomeip_v3 {
 namespace trace {
 
-using filter_func_t = std::function<bool (service_t, instance_t, method_t)>;
+typedef std::function<bool (service_t, instance_t, method_t)> filter_func_t;
 
 class channel_impl : public channel {
 public:

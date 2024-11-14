@@ -57,8 +57,6 @@ bool option_impl::deserialize(vsomeip_v3::deserializer *_from) {
                 break;
             default:
                 type_ = option_type_e::UNKNOWN;
-                // No valid option type --> ignore the remaining parts of the message!
-                _from->set_remaining(0);
         }
     }
 

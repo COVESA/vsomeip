@@ -1,7 +1,7 @@
 {
     "unicast" : "192.168.56.101",
     "netmask" : "255.255.255.0",
-    "logging" : 
+    "logging" :
     {
         "level" : "info",
         "console" : "true",

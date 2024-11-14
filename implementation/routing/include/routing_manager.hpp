@@ -10,13 +10,7 @@
 #include <set>
 #include <vector>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/structured_types.hpp>
 #include <vsomeip/message.hpp>
@@ -24,6 +18,13 @@
 #include <vsomeip/vsomeip_sec.h>
 
 #include "types.hpp"
+
+#include "../../configuration/include/debounce_filter_impl.hpp"
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 namespace vsomeip_v3 {
 
@@ -67,7 +68,7 @@ public:
     virtual void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter) = 0;
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
     virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
@@ -127,6 +128,11 @@ public:
     virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
+
+    virtual void debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
+    virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const std::shared_ptr<vsomeip_v3::event> &_event) = 0;
+    virtual void remove_debounce(client_t _client, event_t _event) = 0;
+    virtual void update_debounce_clients(const std::set<client_t> &_clients, event_t _event) = 0;
 };
 
 }  // namespace vsomeip_v3

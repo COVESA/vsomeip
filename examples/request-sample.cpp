@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -84,20 +84,21 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         running_ = false;
         blocked_ = true;
         app_->clear_all_handler();
         app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         condition_.notify_one();
-        sender_.join();
+        if (std::this_thread::get_id() != sender_.get_id()) {
+            if (sender_.joinable()) {
+                sender_.join();
+            }
+        } else {
+            sender_.detach();
+        }
         app_->stop();
     }
-#endif
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
@@ -124,13 +125,14 @@ public:
 
     void on_message(const std::shared_ptr< vsomeip::message > &_response) {
         std::cout << "Received a response from Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
+                << std::setfill('0') << std::hex
+                << std::setw(4) << _response->get_service()
                 << "."
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                << std::setw(4) << _response->get_instance()
                 << "] to Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
+                << std::setw(4) << _response->get_client()
                 << "/"
-                << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
+                << std::setw(4) << _response->get_session()
                 << "]"
                 << std::endl;
         if (is_available_)
@@ -154,13 +156,14 @@ public:
                 if (is_available_) {
                     app_->send(request_);
                     std::cout << "Client/Session ["
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_client()
+                            << std::setfill('0') << std::hex
+                            << std::setw(4) << request_->get_client()
                             << "/"
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_session()
+                            << std::setw(4) << request_->get_session()
                             << "] sent a request to Service ["
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_service()
+                            << std::setw(4) << request_->get_service()
                             << "."
-                            << std::setw(4) << std::setfill('0') << std::hex << request_->get_instance()
+                            << std::setw(4) << request_->get_instance()
                             << "]"
                             << std::endl;
                     blocked_ = false;
@@ -229,6 +232,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

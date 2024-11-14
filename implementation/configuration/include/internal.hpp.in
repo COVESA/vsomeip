@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -23,7 +23,7 @@
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "@DEFAULT_CONFIGURATION_FILE@"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "@DEFAULT_CONFIGURATION_FOLDER@"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -52,9 +52,9 @@
 #endif
 
 #ifdef _WIN32
-#define VSOMEIP_SEC_LIBRARY                      "vsomeip3-sec.dll"
+#define VSOMEIP_SEC_LIBRARY                      "vsomeip_sec.dll"
 #else
-#define VSOMEIP_SEC_LIBRARY                      "libvsomeip3-sec.so"
+#define VSOMEIP_SEC_LIBRARY                      "libvsomeip-sec.so.1"
 #endif
 
 #define VSOMEIP_ROUTING_CLIENT                  0
@@ -72,8 +72,10 @@
 
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
-#define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      100
+#define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      500
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
+#define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
+#define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10  // miliseconds
 
 #define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
 
@@ -82,6 +84,8 @@
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
 #define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
+
+#define VSOMEIP_MAX_NETLINK_RETRIES             3
 
 #define VSOMEIP_TP_MAX_SEGMENT_LENGTH_DEFAULT   1392
 
@@ -92,11 +96,13 @@
 
 #define VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE     1703936
 
-#define VSOMEIP_IO_THREAD_COUNT                 2
-#define VSOMEIP_IO_THREAD_NICE_LEVEL            255
+#define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
+#define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
 
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
+
+#define VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS  5
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 #define VSOMEIP_DEFAULT_STATISTICS_MAX_MSG      50
@@ -110,9 +116,12 @@
 #define VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE  19
 
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
-#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // microseconds
+#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // us
 
-#if defined(__linux__) || defined(ANDROID)
+#define LOCAL_TCP_PORT_WAIT_TIME                @VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME@
+#define LOCAL_TCP_PORT_MAX_WAIT_TIME            @VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME@
+
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>
 #endif
 
@@ -124,25 +133,29 @@
 
 #define VSOMEIP_ROUTING_READY_MESSAGE           "@VSOMEIP_ROUTING_READY_MESSAGE@"
 
+#ifndef VSOMEIP_VERSION
+#define VSOMEIP_VERSION "unknown version"
+#endif
+
 namespace vsomeip_v3 {
 
-enum class subscription_state_e {
+typedef enum {
     SUBSCRIPTION_ACKNOWLEDGED,
     SUBSCRIPTION_NOT_ACKNOWLEDGED,
     IS_SUBSCRIBING
-};
+} subscription_state_e;
 
-const std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
-const std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
 #define VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO         2 * 1000 * 1000
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 
-const std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
-const std::uint32_t ANY_UID = 0xFFFFFFFF;
-const std::uint32_t ANY_GID = 0xFFFFFFFF;
+const uid_t ANY_UID = 0xFFFFFFFF;
+const gid_t ANY_GID = 0xFFFFFFFF;
 
 enum class port_type_e {
     PT_OPTIONAL,
@@ -150,10 +163,6 @@ enum class port_type_e {
     PT_UNSECURE,
     PT_UNKNOWN
 };
-
-using debounce_configuration_t =
-    std::map<service_t,
-        std::map<instance_t, std::map<event_t, std::shared_ptr<debounce_filter_t>>>>;
 
 using partition_id_t = std::uint8_t;
 const partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;

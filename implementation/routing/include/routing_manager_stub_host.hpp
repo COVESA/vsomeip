@@ -6,20 +6,14 @@
 #ifndef VSOMEIP_V3_ROUTING_MANAGER_STUB_HOST_
 #define VSOMEIP_V3_ROUTING_MANAGER_STUB_HOST_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/io_service.hpp>
-#    define io_context io_service
-#else
-#    include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/handler.hpp>
 #include <vsomeip/vsomeip_sec.h>
-
 #include "types.hpp"
 
 namespace vsomeip_v3 {
 
+struct debounce_filter_impl_t;
 class endpoint_manager_impl;
 
 class routing_manager_stub_host {
@@ -54,15 +48,15 @@ public:
     virtual void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             major_version_t _major, event_t _event,
-            const std::shared_ptr<debounce_filter_t> &_filter) = 0;
-
-    virtual void on_subscribe_nack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            remote_subscription_id_t _subscription_id) = 0;
+            const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
     virtual void on_subscribe_ack(client_t _client, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
             remote_subscription_id_t _subscription_id) = 0;
+
+    virtual void on_subscribe_nack(client_t _client, service_t _service,
+            instance_t _instance, eventgroup_t _eventgroup,
+			bool _remove, remote_subscription_id_t _subscription_id) = 0;
 
     virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -131,6 +125,8 @@ public:
     virtual void remove_guest(client_t _client) = 0;
 
     virtual void clear_local_services() = 0;
+
+    virtual routing_state_e get_routing_state() = 0;
 };
 
 } // namespace vsomeip_v3

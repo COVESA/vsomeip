@@ -1,12 +1,13 @@
-// Copyright (C) 2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <condition_variable>
+#include <iomanip>
 #include <mutex>
 #include <thread>
-#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -14,13 +15,16 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "suspend_resume_test.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 pid_t daemon_pid__;
 
-class suspend_resume_test_service {
+class suspend_resume_test_service : public vsomeip_utilities::base_logger {
 public:
     suspend_resume_test_service()
-        : name_("suspend_resume_test_service"),
+        : vsomeip_utilities::base_logger("ATCA", "APPLICATION TEST CLIENT AVAILABILITY"),
+          name_("suspend_resume_test_service"),
           app_(vsomeip::runtime::get()->create_application(name_)),
           is_running_(true),
           is_unblocked_(false),
@@ -127,7 +131,7 @@ private:
 
     // handler
     void on_state(vsomeip::state_type_e _state) {
-        VSOMEIP_DEBUG << __func__ << ": state="
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: state="
             << (_state == vsomeip::state_type_e::ST_REGISTERED ?
                     "registered." : "NOT registered.");
 
@@ -138,7 +142,7 @@ private:
 
     void on_message(const std::shared_ptr<vsomeip::message> &_message) {
 
-        VSOMEIP_DEBUG << __func__ << ": Received "
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: Received "
                 << std::hex << std::setw(4) << std::setfill('0')
                 << _message->get_service()
                 << std::hex << std::setw(4) << std::setfill('0')
@@ -176,10 +180,10 @@ private:
         (void)_uid;
         (void)_gid;
 
-        VSOMEIP_DEBUG << __func__ << ": is_subscribe=" << std::boolalpha << _is_subscribe;
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: is_subscribe=" << std::boolalpha << _is_subscribe;
         if (!_is_subscribe)
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        return (true);
+        return true;
     }
 
 private: // members
@@ -201,7 +205,7 @@ TEST(suspend_resume_test, fast)
     its_service.run_test();
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
 
     ::testing::InitGoogleTest(&argc, argv);

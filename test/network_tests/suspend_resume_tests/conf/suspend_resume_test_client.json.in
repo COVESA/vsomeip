@@ -6,7 +6,7 @@
         "level" : "debug",
         "console" : "true",
         "file" : { "enable" : "false", "path" : "" },
-        "dlt" : "false"
+        "dlt" : "true"
     },
     "applications" :
     [

@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -67,7 +67,7 @@ public:
     void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
@@ -146,7 +146,7 @@ private:
     void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
@@ -195,7 +195,7 @@ private:
 
     bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _notifier, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _notifier, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client);
 
     void request_debounce_timeout_cbk(boost::system::error_code const &_error);
@@ -219,7 +219,7 @@ private:
 
     void on_suspend();
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     void on_net_state_change(bool _is_interface, const std::string &_name, bool _is_available);
 #endif
 
@@ -233,9 +233,9 @@ private:
         ST_ASSIGNED = 0x4
     };
 
-    std::atomic<bool> is_connected_;
-    std::atomic<bool> is_started_;
-    inner_state_type_e state_;
+    std::atomic_bool is_connected_;
+    std::atomic_bool is_started_;
+    std::atomic<inner_state_type_e> state_;
 
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody

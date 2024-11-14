@@ -30,9 +30,9 @@ libvsomeip_sd_srcs = [
 
 cc_defaults {
     name: "vsomeip_defaults",
+    cpp_std: "c++17",
 
     cppflags: [
-        "-std=c++14",
         "-fexceptions",
         "-Wno-non-virtual-dtor",
         "-Wno-unused-const-variable",
@@ -55,15 +55,14 @@ cc_defaults {
 
 cc_defaults {
     name: "vsomeip_lib_defaults",
-    
+
     cflags: [
         "-DVSOMEIP_BOOST_VERSION=107100",
         "-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED",
     ],
 
     local_include_dirs: [
-        "interface",
-        "implementation/helper"
+        "interface"
     ]
 }
 
@@ -80,14 +79,16 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.3.0\"",
+        "-DVSOMEIP_VERSION=\"3.5.1\"",
+        "-DVSOMEIP_COMPAT_VERSION=\"3.5.1\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
     ],
 
     ldflags: [
         "-Wl,-wrap,socket",
-        "-Wl,-wrap,accept"
+        "-Wl,-wrap,accept",
+        "-Wl,-wrap,open"
     ],
 
     rtti: true,

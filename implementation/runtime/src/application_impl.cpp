@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -48,36 +48,43 @@ configuration::~configuration() {}
 uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
-application_impl::application_impl(const std::string &_name, const std::string &_path)
-        : runtime_(runtime::get()),
-          client_(VSOMEIP_CLIENT_UNSET),
-          session_(0),
-          is_initialized_(false),
-          name_(_name),
-          path_(_path),
-          work_(std::make_shared<boost::asio::io_context::work>(io_)),
-          routing_(0),
-          state_(state_type_e::ST_DEREGISTERED),
-          security_mode_(security_mode_e::SM_OFF),
+application_impl::application_impl(const std::string& _name, const std::string& _path) :
+    runtime_(runtime::get()), client_(VSOMEIP_CLIENT_UNSET), session_(0), is_initialized_(false),
+    name_(_name), path_(_path),
+    work_(std::make_shared<
+            boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+            io_.get_executor())),
+    routing_(nullptr), state_(state_type_e::ST_DEREGISTERED),
+    security_mode_(security_mode_e::SM_ON),
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-          signals_(io_, SIGINT, SIGTERM),
-          catched_signal_(false),
+    signals_(io_, SIGINT, SIGTERM), catched_signal_(false),
 #endif
-          is_dispatching_(false),
-          max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
-          max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME),
-          stopped_(false),
-          block_stopping_(false),
-          is_routing_manager_host_(false),
-          stopped_called_(false),
-          watchdog_timer_(io_),
-          client_side_logging_(false),
-          has_session_handling_(true)
-{
+    is_dispatching_(false), max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
+    max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME), dispatcher_counter_(0),
+    max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS), stopped_(false),
+    block_stopping_(false), is_routing_manager_host_(false), stopped_called_(false),
+    watchdog_timer_(io_), client_side_logging_(false), has_session_handling_(true) {
 }
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
+
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+    if(configuration_) {
+        auto its_plugin = plugin_manager::get()->get_plugin(
+                plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+        if (its_plugin) {
+            auto its_configuration_plugin
+                = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
+            if (its_configuration_plugin) {
+                bool its_removed = its_configuration_plugin->remove_configuration(name_);
+                if (!its_removed) {
+                    VSOMEIP_WARNING << __func__ <<": Unable to remove configuration entry stored for " << name_;
+                }
+            }
+        }
+    }
+#endif
     try {
         if (stop_thread_.joinable()) {
             stop_thread_.detach();
@@ -112,10 +119,12 @@ application_impl::~application_impl() {
 }
 
 bool application_impl::init() {
+    std::lock_guard<std::mutex> its_initialized_lock(initialize_mutex_);
     if(is_initialized_) {
         VSOMEIP_WARNING << "Trying to initialize an already initialized application.";
         return true;
     }
+
     // Application name
     if (name_ == "") {
         const char *its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
@@ -160,32 +169,40 @@ bool application_impl::init() {
     }
 
     if (configuration_->is_local_routing()) {
-        sec_client_.client_type = VSOMEIP_CLIENT_UDS;
+        sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
 #ifdef __unix__
-        sec_client_.client.uds_client.user = getuid();
-        sec_client_.client.uds_client.group = getgid();
+        sec_client_.user = getuid();
+        sec_client_.group = getgid();
 #else
-        sec_client_.client.uds_client.user = ANY_UID;
-        sec_client_.client.uds_client.group = ANY_GID;
+        sec_client_.user = ANY_UID;
+        sec_client_.group = ANY_GID;
 #endif
     } else {
-        sec_client_.client_type = VSOMEIP_CLIENT_TCP;
+        auto its_guest_address = configuration_->get_routing_guest_address();
+        if (its_guest_address.is_v4()) {
+            sec_client_.host = htonl(its_guest_address.to_v4().to_uint());
+        }
+        sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
     }
 
     // Set security mode
     if (configuration_->is_security_enabled()) {
-        if (configuration_->is_security_audit()) {
-            security_mode_ = security_mode_e::SM_AUDIT;
+        if (configuration_->is_security_external()) {
+            if (configuration_->get_security()->load()) {
+                VSOMEIP_INFO << "Using external security implementation!";
+                auto its_result = configuration_->get_security()->initialize();
+                if (VSOMEIP_SEC_POLICY_OK != its_result)
+                    VSOMEIP_ERROR << "Intializing external security implementation failed ("
+                        << std::dec << its_result << ')';
+            }
         } else {
-            security_mode_ = security_mode_e::SM_ON;
-        }
-
-        if (security::load()) {
-        	VSOMEIP_INFO << "Using external security implementation!";
-        	security::initialize();
+            VSOMEIP_INFO << "Using internal security implementation!";
+            if (configuration_->is_security_audit())
+                security_mode_ = security_mode_e::SM_AUDIT;
         }
     } else {
         security_mode_ = security_mode_e::SM_OFF;
+        VSOMEIP_INFO << "Security disabled!";
     }
 
     const char *client_side_logging = getenv(VSOMEIP_ENV_CLIENTSIDELOGGING);
@@ -204,33 +221,32 @@ bool application_impl::init() {
             do {
                 const uint16_t prev_val(val);
                 its_converter >> std::hex >> std::setw(4) >> val;
-                if (its_converter.good()) {
-                    const std::stringstream::int_type c = its_converter.eof()?'\0':its_converter.get();
-                    switch (c) {
-                    case '"':
-                    case '.':
-                    case ':':
-                    case ' ':
-                    case '\0': {
-                            if ('.' != c) {
-                                if (0xffffu == prev_val) {
-                                    VSOMEIP_INFO << "+filter "
-                                    << std::hex << std::setw(4) << std::setfill('0') << val;
-                                    client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
-                                } else {
-                                    VSOMEIP_INFO << "+filter "
-                                    << std::hex << std::setw(4) << std::setfill('0') << prev_val << "."
-                                    << std::hex << std::setw(4) << std::setfill('0') << val;
-                                    client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
-                                }
-                                val = 0xffffu;
+                const std::stringstream::int_type c = its_converter.eof()?'\0':its_converter.get();
+                switch (c) {
+                case '"':
+                case '.':
+                case ':':
+                case ' ':
+                case '\0': {
+                        if ('.' != c) {
+                            if (0xffffu == prev_val) {
+                                VSOMEIP_INFO << "+filter "
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << val;
+                                client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
+                            } else {
+                                VSOMEIP_INFO << "+filter "
+                                << std::hex << std::setfill('0')
+                                << std::setw(4) << prev_val << "." << std::setw(4) << val;
+                                client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
                             }
+                            val = 0xffffu;
                         }
-                        break;
-                    default:
-                        stop_parsing = true;
-                        break;
                     }
+                    break;
+                default:
+                    stop_parsing = true;
+                    break;
                 }
             }
             while (!stop_parsing && its_converter.good());
@@ -239,13 +255,14 @@ bool application_impl::init() {
 
     std::shared_ptr<configuration> its_configuration = get_configuration();
     if (its_configuration) {
-        VSOMEIP_INFO << "Initializing vsomeip application \"" << name_ << "\".";
+        VSOMEIP_INFO << "Initializing vsomeip (" VSOMEIP_VERSION ") application \"" << name_ << "\".";
         client_ = its_configuration->get_id(name_);
 
         // Max dispatchers is the configured maximum number of dispatchers and
         // the main dispatcher
         max_dispatchers_ = its_configuration->get_max_dispatchers(name_) + 1;
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
+        max_detached_thread_wait_time = its_configuration->get_max_detached_thread_wait_time(name_);
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
         if (!has_session_handling_)
@@ -301,10 +318,9 @@ bool application_impl::init() {
 #endif
 
         VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed")
-                << ", " << std::hex << std::setw(4) << std::setfill('0') << client_
+                << ", " << std::hex << std::setfill('0') << std::setw(4) << client_
                 << ") is initialized ("
-                << std::dec << max_dispatchers_ << ", "
-                << std::dec << max_dispatch_time_ << ").";
+                << std::dec << max_dispatchers_ << ", " << max_dispatch_time_ << ").";
 
         is_initialized_ = true;
     }
@@ -361,15 +377,18 @@ void application_impl::start() {
     if (getpid() != static_cast<pid_t>(syscall(SYS_gettid))) {
         // only set threadname if calling thread isn't the main thread
         std::stringstream s;
-        s << std::hex << std::setw(4) << std::setfill('0') << client_
-                << "_io" << std::setw(2) << std::setfill('0') << 0;
+        s << std::hex << std::setfill('0')
+          << std::setw(4) << client_ << "_io" << std::setw(2) << 0;
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
 #endif
-    if (!is_initialized_) {
-        VSOMEIP_ERROR << "Trying to start an unintialized application.";
-        return;
-    }
+    {
+        std::lock_guard<std::mutex> its_initialized_lock(initialize_mutex_);
+        if (!is_initialized_) {
+            VSOMEIP_ERROR << "Trying to start an unintialized application.";
+            return;
+        }
+     }
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
@@ -396,7 +415,7 @@ void application_impl::start() {
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" ("
                 << std::hex << std::setw(4) << std::setfill('0') << client_
                 << ") using "  << std::dec << io_thread_count << " threads"
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 << " I/O nice " << io_thread_nice_level
 #endif
         ;
@@ -405,9 +424,21 @@ void application_impl::start() {
         {
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             is_dispatching_ = true;
-            auto its_main_dispatcher = std::make_shared<std::thread>(
+            std::packaged_task<void()> dispatcher_task_(
                     std::bind(&application_impl::main_dispatch, shared_from_this()));
+            std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
+            auto its_main_dispatcher = std::make_shared<std::thread>(std::move(dispatcher_task_));
+#ifdef _WIN32
+            dispatchers_control_[its_main_dispatcher->get_id()] = {
+                    OpenThread(THREAD_ALL_ACCESS, false,
+                               GetThreadId(its_main_dispatcher->native_handle())),
+                    std::move(dispatcher_future_)};
+#else
+            dispatchers_control_[its_main_dispatcher->get_id()] = {
+                    its_main_dispatcher->native_handle(), std::move(dispatcher_future_)};
+#endif
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
+            increment_active_threads();
         }
 
         if (stop_thread_.joinable()) {
@@ -419,8 +450,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            std::shared_ptr<std::thread> its_thread
-                = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
                     VSOMEIP_INFO << "io thread id from application: "
                             << std::hex << std::setw(4) << std::setfill('0')
                             << client_ << " (" << name_ << ") is: " << std::hex
@@ -433,19 +463,19 @@ void application_impl::start() {
                         {
                             std::stringstream s;
                             s << std::hex << std::setw(4) << std::setfill('0')
-                                << client_ << "_io" << std::setw(2)
-                                << std::setfill('0') << i+1;
+                                << client_ << "_io" << std::setw(2) << i+1;
                             pthread_setname_np(pthread_self(),s.str().c_str());
                         }
-                        if ((VSOMEIP_IO_THREAD_NICE_LEVEL != io_thread_nice_level) && (io_thread_nice_level != nice(io_thread_nice_level))) {
-                            VSOMEIP_WARNING << "nice(" << io_thread_nice_level << ") failed " << errno << " for " << std::this_thread::get_id();
-                        }
+                        utility::set_thread_niceness(io_thread_nice_level);
 #endif
-                    try {
-                      io_.run();
-                    } catch (const std::exception &e) {
-                        VSOMEIP_ERROR << "application_impl::start() "
-                                "catched exception: " << e.what();
+                    while(true) {
+                        try {
+                            io_.run();
+                            break;
+                        } catch (const std::exception &e) {
+                            VSOMEIP_ERROR << "application_impl::start() "
+                                    "caught exception: " << e.what();
+                        }
                     }
                   });
             io_threads_.insert(its_thread);
@@ -463,35 +493,30 @@ void application_impl::start() {
                         on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
             }
         }
-
     }
-
-    app_counter_mutex__.lock();
-    app_counter__++;
-    app_counter_mutex__.unlock();
+    {
+        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        app_counter__++;
+    }
     VSOMEIP_INFO << "io thread id from application: "
             << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
-            << name_ << ") is: " << std::hex << std::this_thread::get_id()
+            << name_ << ") is: " << std::this_thread::get_id()
 #if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
     ;
-#if defined(__linux__) || defined(ANDROID)
-    if ((VSOMEIP_IO_THREAD_NICE_LEVEL != io_thread_nice_level) && (io_thread_nice_level != nice(io_thread_nice_level))) {
-        VSOMEIP_WARNING << "nice(" << io_thread_nice_level << ") failed " << errno << " for " << std::this_thread::get_id();
-    }
-#endif
-    try {
-        io_.run();
-
-        if (stop_thread_.joinable()) {
-            stop_thread_.join();
+    utility::set_thread_niceness(io_thread_nice_level);
+    while(true) {
+        try {
+            io_.run();
+            if (stop_thread_.joinable()) {
+                stop_thread_.join();
+            }
+            break;
+        } catch (const std::exception &e) {
+            VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
-
-    } catch (const std::exception &e) {
-        VSOMEIP_ERROR << "application_impl::start() catched exception: " << e.what();
     }
-
     {
         std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
         block_stopping_ = true;
@@ -502,18 +527,10 @@ void application_impl::start() {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         stopped_ = false;
     }
-
-    app_counter_mutex__.lock();
-    app_counter__--;
-
-#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    if (catched_signal_ && !app_counter__) {
-        app_counter_mutex__.unlock();
-        VSOMEIP_INFO << "Exiting vsomeip application...";
-        exit(0);
+    {
+        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        app_counter__--;
     }
-#endif
-    app_counter_mutex__.unlock();
 }
 
 void application_impl::stop() {
@@ -539,18 +556,21 @@ void application_impl::stop() {
             block = false;
         }
     }
-    auto its_plugins = configuration_->get_plugins(name_);
-    auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
-    if (its_app_plugin_info != its_plugins.end()) {
-        for (const auto& its_library : its_app_plugin_info->second) {
-            auto its_application_plugin = plugin_manager::get()->get_plugin(
-                    plugin_type_e::APPLICATION_PLUGIN, its_library);
-            if (its_application_plugin) {
-                std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
-                        on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
-            }
-        }
 
+    if (configuration_) {
+        auto its_plugins = configuration_->get_plugins(name_);
+        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_app_plugin_info != its_plugins.end()) {
+            for (const auto& its_library : its_app_plugin_info->second) {
+                auto its_application_plugin = plugin_manager::get()->get_plugin(
+                        plugin_type_e::APPLICATION_PLUGIN, its_library);
+                if (its_application_plugin) {
+                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
+                            on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                }
+            }
+
+        }
     }
 
     {
@@ -560,7 +580,8 @@ void application_impl::stop() {
 
     if (block) {
         std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
-        block_stop_cv_.wait(block_stop_lock, [this] { return block_stopping_; });
+        block_stop_cv_.wait_for(block_stop_lock, std::chrono::milliseconds(1000),
+                                [this] { return block_stopping_.load(); });
         block_stopping_ = false;
     }
 }
@@ -588,12 +609,23 @@ void application_impl::stop_offer_service(service_t _service, instance_t _instan
 
 void application_impl::request_service(service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
+    invoke_availability_handler(_service, _instance, _major, _minor);
     if (routing_)
         routing_->request_service(client_, _service, _instance, _major, _minor);
 }
 
 void application_impl::release_service(service_t _service,
         instance_t _instance) {
+    {
+        std::lock_guard<std::mutex> its_subscriptions_state_guard(subscriptions_state_mutex_);
+        auto found_service = subscriptions_state_.find(_service);
+        if (found_service != subscriptions_state_.end()) {
+            found_service->second.erase(_instance);
+            if (found_service->second.empty()) {
+                subscriptions_state_.erase(_service);
+            }
+        }
+    }
     if (routing_)
         routing_->release_service(client_, _service, _instance);
 }
@@ -658,7 +690,7 @@ application_impl::is_available_unlocked(
                     || _minor == DEFAULT_MINOR) {
                 its_state = found_major->second.second;
             }
-        } else if ((_major == DEFAULT_MAJOR || _major == ANY_MAJOR)) {
+        } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
             for (const auto &found_major : _found_instance->second) {
                 if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
                     its_state = found_major.second.second;
@@ -706,7 +738,7 @@ application_impl::is_available_unlocked(
             }
         }
     }
-    return (its_state);
+    return its_state;
 }
 
 bool application_impl::are_available(
@@ -837,9 +869,9 @@ application_impl::are_available_unlocked(available_t &_available,
     if (_available.empty()) {
         _available[_service][_instance][_major] = _minor ;
 
-        return (availability_state_e::AS_UNAVAILABLE);
+        return availability_state_e::AS_UNAVAILABLE;
     }
-    return (availability_state_e::AS_AVAILABLE);
+    return availability_state_e::AS_AVAILABLE;
 }
 
 void application_impl::send(std::shared_ptr<message> _message) {
@@ -849,16 +881,15 @@ void application_impl::send(std::shared_ptr<message> _message) {
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
         VSOMEIP_INFO << "application_impl::send: ("
-            << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
-            << std::hex << std::setw(4) << std::setfill('0') << _message->get_service() << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _message->get_instance() << "."
-            << std::hex << std::setw(4) << std::setfill('0') << _message->get_method() << ":"
-            << std::hex << std::setw(4) << std::setfill('0')
-            << ((is_request) ? session_ : _message->get_session()) << ":"
-            << std::hex << std::setw(4) << std::setfill('0')
-                                << ((is_request) ? client_.load() : _message->get_client()) << "] "
-            << "type=" << std::hex << static_cast<std::uint32_t>(_message->get_message_type())
-            << " thread=" << std::hex << std::this_thread::get_id();
+            << std::hex << std::setfill('0')
+            << std::setw(4) << client_ << "): ["
+            << std::setw(4) << _message->get_service() << "."
+            << std::setw(4) << _message->get_instance() << "."
+            << std::setw(4) << _message->get_method() << ":"
+            << std::setw(4) << (is_request ? session_ : _message->get_session()) << ":"
+            << std::setw(4) << (is_request ? client_.load() : _message->get_client()) << "] "
+            << "type=" << static_cast<std::uint32_t>(_message->get_message_type())
+            << " thread=" << std::this_thread::get_id();
     }
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
@@ -874,20 +905,25 @@ void application_impl::send(std::shared_ptr<message> _message) {
 void application_impl::notify(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload, bool _force) const {
 
-    if (routing_)
-        routing_->notify(_service, _instance, _event, _payload, _force);
+    if (routing_) {
+        auto its_payload {
+                runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        routing_->notify(_service, _instance, _event, its_payload, _force);
+    }
 }
 
 void application_impl::notify_one(service_t _service, instance_t _instance,
         event_t _event, std::shared_ptr<payload> _payload,
         client_t _client, bool _force) const {
     if (routing_) {
-        routing_->notify_one(_service, _instance, _event, _payload, _client,
-                _force
+        auto its_payload {
+                runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        routing_->notify_one(_service, _instance, _event, its_payload, _client, _force
 #ifdef VSOMEIP_ENABLE_COMPAT
-                , false
+                             ,
+                             false
 #endif
-                );
+        );
     }
 }
 
@@ -905,11 +941,11 @@ void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, const availability_handler_t &_handler,
         major_version_t _major, minor_version_t _minor) {
 
-	std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
     auto its_handler_ext = [_handler](service_t _service, instance_t _instance,
-    		availability_state_e _state) {
-    	_handler(_service, _instance,
-    			(_state == availability_state_e::AS_AVAILABLE));
+            availability_state_e _state) {
+        _handler(_service, _instance,
+                (_state == availability_state_e::AS_AVAILABLE));
     };
 
     register_availability_handler_unlocked(_service, _instance,
@@ -925,34 +961,73 @@ void application_impl::register_availability_handler(service_t _service,
             _handler, _major, _minor);
 }
 
+void application_impl::invoke_availability_handler(
+    service_t _service, instance_t _instance,
+    major_version_t _major, minor_version_t _minor) {
+
+    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    auto found_service = availability_.find(_service);
+    if (found_service != availability_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            auto found_major = found_instance->second.find(_major);
+            if (found_major == found_instance->second.end()) {
+                found_major = found_instance->second.find(ANY_MAJOR);
+            }
+            if (found_major != found_instance->second.end()) {
+                auto found_minor = found_major->second.find(_minor);
+                if (found_minor == found_major->second.end()) {
+                    found_minor = found_major->second.find(ANY_MINOR);
+                }
+                if (found_minor != found_major->second.end()) {
+                    auto its_state { is_available_unlocked(_service, _instance, _major, _minor) };
+                    if (availability_state_e::AS_UNKNOWN != its_state
+                        && get_availability_state(found_minor->second.second,
+                                                  _service, _instance, _major, _minor)
+                           != its_state) {
+                        auto its_handler {found_minor->second.first};
+                        set_availability_state(found_minor->second.second, _service, _instance,
+                                               _major, _minor, its_state);
+
+                        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+                        auto its_sync_handler = std::make_shared<sync_handler>(
+                                [its_handler, _service, _instance, its_state]() {
+                                    its_handler(_service, _instance, its_state);
+                                });
+                        its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+                        its_sync_handler->service_id_ = _service;
+                        its_sync_handler->instance_id_ = _instance;
+                        handlers_.push_back(its_sync_handler);
+                        dispatcher_condition_.notify_one();
+                    }
+                }
+            }
+        }
+    }
+}
+
 void application_impl::register_availability_handler_unlocked(service_t _service,
-        instance_t _instance, availability_state_handler_t _handler,
+        instance_t _instance, const availability_state_handler_t &_handler,
         major_version_t _major, minor_version_t _minor) {
 
-    if (state_ == state_type_e::ST_REGISTERED) {
-        available_t its_available;
-        auto are_available = are_available_unlocked(its_available, _service, _instance, _major, _minor);
-        availability_[_service][_instance][_major][_minor]
-            = std::make_pair(_handler, true);
+    auto its_state {is_available_unlocked(_service, _instance, _major, _minor)};
 
-        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+    availability_state_t its_availability_state;
+    set_availability_state(its_availability_state, _service, _instance, _major, _minor, its_state);
 
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([_handler, are_available, its_available]() {
-                     for(const auto& available_services_it : its_available)
-                         for(const auto& available_instances_it : available_services_it.second)
-                             _handler(available_services_it.first, available_instances_it.first, are_available);
-                 });
-        its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
-        its_sync_handler->service_id_ = _service;
-        its_sync_handler->instance_id_ = _instance;
-        handlers_.push_back(its_sync_handler);
+    availability_[_service][_instance][_major][_minor] =
+            std::make_pair(_handler, its_availability_state);
 
-        dispatcher_condition_.notify_one();
-    } else {
-        availability_[_service][_instance][_major][_minor]
-            = std::make_pair(_handler, false);
-    }
+    std::scoped_lock handlers_lock(handlers_mutex_);
+    auto its_sync_handler =
+            std::make_shared<sync_handler>([_handler, _service, _instance, its_state]() {
+                _handler(_service, _instance, its_state);
+            });
+    its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+    its_sync_handler->service_id_ = _service;
+    its_sync_handler->instance_id_ = _instance;
+    handlers_.push_back(its_sync_handler);
+    dispatcher_condition_.notify_one();
 }
 
 void application_impl::unregister_availability_handler(service_t _service,
@@ -1045,13 +1120,8 @@ void application_impl::register_subscription_handler(service_t _service,
         const std::string& _env,
         bool _is_subscribed
     ){
-        uid_t its_uid{ANY_UID};
-        gid_t its_gid{ANY_GID};
-
-        if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
-        }
+        uid_t its_uid {_sec_client->user};
+        gid_t its_gid {_sec_client->group};
 
         return _handler(
             _client,
@@ -1096,25 +1166,25 @@ void application_impl::on_subscription_status(
     bool entry_found(false);
     {
         std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
-        auto its_service = subscription_state_.find(_service);
-        if (its_service == subscription_state_.end())
-            its_service = subscription_state_.find(ANY_SERVICE);
-
-        if (its_service != subscription_state_.end()) {
+        auto its_service = subscriptions_state_.find(_service);
+        if (its_service == subscriptions_state_.end()) {
+            its_service = subscriptions_state_.find(ANY_SERVICE);
+        }
+        if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
-            if (its_instance == its_service->second.end())
+            if (its_instance == its_service->second.end()) {
                 its_instance = its_service->second.find(ANY_INSTANCE);
-
+            }
             if (its_instance != its_service->second.end()) {
                 auto its_eventgroup = its_instance->second.find(_eventgroup);
-                if (its_eventgroup == its_instance->second.end())
+                if (its_eventgroup == its_instance->second.end()) {
                     its_eventgroup = its_instance->second.find(ANY_EVENTGROUP);
-
+                }
                 if (its_eventgroup != its_instance->second.end()) {
                     auto its_event = its_eventgroup->second.find(_event);
-                    if (its_event == its_eventgroup->second.end())
+                    if (its_event == its_eventgroup->second.end()) {
                         its_event = its_eventgroup->second.find(ANY_EVENT);
-
+                    }
                     if (its_event != its_eventgroup->second.end()) {
                         entry_found = true;
                         its_event->second = (_error ?
@@ -1285,8 +1355,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
     {
         std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
         for (auto &handler : handlers) {
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler, _service,
+            auto its_sync_handler = std::make_shared<sync_handler>([handler, _service,
                                                   _instance, _eventgroup,
                                                   _event, _error]() {
                                 handler(_service, _instance,
@@ -1317,10 +1386,11 @@ void application_impl::register_subscription_status_handler(service_t _service,
                 "application_impl::register_subscription_status_handler: "
                 "_handler is null, for unregistration please use "
                 "application_impl::unregister_subscription_status_handler ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _eventgroup << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _event << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _eventgroup << "."
+                << std::setw(4) << _event << "]";
     }
 }
 
@@ -1350,23 +1420,15 @@ void application_impl::unregister_subscription_status_handler(service_t _service
 
 void application_impl::register_message_handler(service_t _service,
         instance_t _instance, method_t _method, const message_handler_t &_handler) {
-    std::lock_guard<std::mutex> its_lock(members_mutex_);
-    members_[_service][_instance][_method] = _handler;
+
+    register_message_handler_ext(_service, _instance, _method, _handler,
+            handler_registration_type_e::HRT_REPLACE);
 }
 
 void application_impl::unregister_message_handler(service_t _service,
         instance_t _instance, method_t _method) {
     std::lock_guard<std::mutex> its_lock(members_mutex_);
-    auto found_service = members_.find(_service);
-    if (found_service != members_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_method = found_instance->second.find(_method);
-            if (found_method != found_instance->second.end()) {
-                found_instance->second.erase(_method);
-            }
-        }
-    }
+    members_.erase(to_members_key(_service, _instance, _method));
 }
 
 void application_impl::offer_event(service_t _service, instance_t _instance,
@@ -1387,13 +1449,11 @@ void application_impl::offer_event(service_t _service, instance_t _instance,
                        _cycle, _change_resets_cycle, _update_on_change);
 
                VSOMEIP_INFO << __func__
-                       << ": Event ["
-                       << std::hex << std::setw(4) << std::setfill('0')
-                       << _service << "."
-                       << std::hex << std::setw(4) << std::setfill('0')
-                       << _instance << "."
-                       << std::hex << std::setw(4) << std::setfill('0')
-                       << _notifier << "] uses configured cycle time "
+                       << std::hex << std::setfill('0')
+                       << ": Event [" << std::setw(4) << _service << "."
+                       << std::setw(4) << _instance << "."
+                       << std::setw(4) << _notifier
+                       << "] uses configured cycle time "
                        << std::dec << _cycle.count() << "ms";
            }
 
@@ -1445,7 +1505,7 @@ void application_impl::set_client(const client_t &_client) {
 session_t application_impl::get_session(bool _is_request) {
 
     if (!has_session_handling_ && !_is_request)
-        return (0);
+        return 0;
 
     std::lock_guard<std::mutex> its_lock(session_mutex_);
     if (0 == ++session_) {
@@ -1457,12 +1517,24 @@ session_t application_impl::get_session(bool _is_request) {
 }
 
 const vsomeip_sec_client_t *application_impl::get_sec_client() const {
-
     return &sec_client_;
+}
+
+void application_impl::set_sec_client_port(port_t _port) {
+
+    sec_client_.port = htons(_port);
 }
 
 std::shared_ptr<configuration> application_impl::get_configuration() const {
     return configuration_;
+}
+
+std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
+#ifndef VSOMEIP_DISABLE_SECURITY
+    return configuration_->get_policy_manager();
+#endif
+    VSOMEIP_WARNING << __func__ << ": manager is not available when security is disabled.";
+    return {};
 }
 
 diagnosis_t application_impl::get_diagnosis() const {
@@ -1474,29 +1546,7 @@ boost::asio::io_context &application_impl::get_io() {
 }
 
 void application_impl::on_state(state_type_e _state) {
-    {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
-        if (state_ != _state) {
-            state_ = _state;
-            if (state_ == state_type_e::ST_REGISTERED) {
-                for (const auto &its_service : availability_) {
-                    for (const auto &its_instance : its_service.second) {
-                        for (const auto &its_major : its_instance.second) {
-                            for (const auto &its_minor : its_major.second) {
-                                if (!its_minor.second.second) {
-                                    register_availability_handler_unlocked(
-                                            its_service.first,
-                                            its_instance.first,
-                                            its_minor.second.first,
-                                            its_major.first, its_minor.first);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+
     bool has_state_handler(false);
     state_handler_t handler = nullptr;
     {
@@ -1508,8 +1558,7 @@ void application_impl::on_state(state_type_e _state) {
     }
     if (has_state_handler) {
         std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([handler, _state]() {
+        auto its_sync_handler = std::make_shared<sync_handler>([handler, _state]() {
                                                 handler(_state);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::STATE;
@@ -1518,10 +1567,40 @@ void application_impl::on_state(state_type_e _state) {
     }
 }
 
+availability_state_e
+application_impl::get_availability_state(const availability_state_t& _availability_state,
+                                         service_t _service, instance_t _instance,
+                                         major_version_t _major, minor_version_t _minor) const {
+    availability_state_e its_state {availability_state_e::AS_UNKNOWN};
+
+    if (auto found_service = _availability_state.find(_service);
+        found_service != _availability_state.end()) {
+        if (auto found_instance = found_service->second.find(_instance);
+            found_instance != found_service->second.end()) {
+            if (auto found_major = found_instance->second.find(_major);
+                found_major != found_instance->second.end()) {
+                if (auto found_minor = found_major->second.find(_minor);
+                    found_minor != found_major->second.end()) {
+                    its_state = found_minor->second;
+                }
+            }
+        }
+    }
+
+    return its_state;
+}
+
+void application_impl::set_availability_state(availability_state_t& _availability_state,
+                                              service_t _service, instance_t _instance,
+                                              major_version_t _major, minor_version_t _minor,
+                                              availability_state_e _state) const {
+    _availability_state[_service][_instance][_major][_minor] = _state;
+}
+
 void application_impl::on_availability(service_t _service, instance_t _instance,
         availability_state_e _state, major_version_t _major, minor_version_t _minor) {
 
-	std::vector<availability_state_handler_t> its_handlers;
+    std::vector<availability_state_handler_t> its_handlers;
     {
         std::lock_guard<std::mutex> availability_lock(availability_mutex_);
         if (_state == is_available_unlocked(_service, _instance, _major, _minor)) {
@@ -1545,31 +1624,51 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
 
         auto find_matching_handler =
-                [&](const availability_major_minor_t& _av_ma_mi_it) {
+                [&](availability_major_minor_t& _av_ma_mi_it) {
             auto found_major = _av_ma_mi_it.find(_major);
             if (found_major != _av_ma_mi_it.end()) {
                 for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
-                    const auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                    auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
-                        its_handlers.push_back(found_minor->second.first);
+                        if (get_availability_state(found_minor->second.second, _service, _instance,
+                                                   _major, _minor) != _state) {
+                            its_handlers.push_back(found_minor->second.first);
+                            set_availability_state(found_minor->second.second, _service, _instance,
+                                                   _major, _minor, _state);
+                        }
                     }
                 }
-                const auto found_any_minor = found_major->second.find(ANY_MINOR);
+                auto found_any_minor = found_major->second.find(ANY_MINOR);
                 if (found_any_minor != found_major->second.end()) {
-                    its_handlers.push_back(found_any_minor->second.first);
+                    if (get_availability_state(found_any_minor->second.second, _service, _instance,
+                                               _major, _minor) != _state) {
+                        its_handlers.push_back(found_any_minor->second.first);
+                        set_availability_state(found_any_minor->second.second, _service, _instance,
+                                               _major, _minor, _state);
+                    }
                 }
             }
             found_major = _av_ma_mi_it.find(ANY_MAJOR);
             if (found_major != _av_ma_mi_it.end()) {
                 for (std::int32_t mi = static_cast<std::int32_t>(_minor); mi >= 0; mi--) {
-                    const auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
+                    auto found_minor = found_major->second.find(static_cast<minor_version_t>(mi));
                     if (found_minor != found_major->second.end()) {
-                        its_handlers.push_back(found_minor->second.first);
+                        if (get_availability_state(found_minor->second.second, _service, _instance,
+                                                   _major, _minor) != _state) {
+                            its_handlers.push_back(found_minor->second.first);
+                            set_availability_state(found_minor->second.second, _service, _instance,
+                                                   _major, _minor, _state);
+                        }
                     }
                 }
-                const auto found_any_minor = found_major->second.find(ANY_MINOR);
+                auto found_any_minor = found_major->second.find(ANY_MINOR);
                 if (found_any_minor != found_major->second.end()) {
-                    its_handlers.push_back(found_any_minor->second.first);
+                    if (get_availability_state(found_any_minor->second.second, _service, _instance,
+                                               _major, _minor) != _state) {
+                        its_handlers.push_back(found_any_minor->second.first);
+                        set_availability_state(found_any_minor->second.second, _service, _instance,
+                                               _major, _minor, _state);
+                    }
                 }
             }
         };
@@ -1599,8 +1698,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         {
             std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
             for (const auto &handler : its_handlers) {
-                std::shared_ptr<sync_handler> its_sync_handler =
-                        std::make_shared<sync_handler>(
+                auto its_sync_handler = std::make_shared<sync_handler>(
                                 [handler, _service, _instance, _state]()
                                 {
                                     handler(_service, _instance, _state);
@@ -1629,8 +1727,8 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
         {
             std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
-            auto its_service = subscription_state_.find(_service);
-            if (its_service != subscription_state_.end()) {
+            auto its_service = subscriptions_state_.find(_service);
+            if (its_service != subscriptions_state_.end()) {
                 auto its_instance = its_service->second.find(_instance);
                 if (its_instance != its_service->second.end()) {
                     for (auto &its_eventgroup : its_instance->second) {
@@ -1650,6 +1748,31 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 }
 
+const std::deque<message_handler_t>& application_impl::find_handlers(service_t _service, instance_t _instance, method_t _method) const {
+
+    // The (ordered!) sequence of queries to attempt
+    const std::array<members_key_t, 8> queries {
+        to_members_key(_service, _instance, _method),
+        to_members_key(_service, _instance, ANY_METHOD),
+        to_members_key(_service, ANY_INSTANCE, _method),
+        to_members_key(_service, ANY_INSTANCE, ANY_METHOD),
+        to_members_key(ANY_SERVICE, _instance, _method),
+        to_members_key(ANY_SERVICE, _instance, ANY_METHOD),
+        to_members_key(ANY_SERVICE, ANY_INSTANCE, _method),
+        to_members_key(ANY_SERVICE, ANY_INSTANCE, ANY_METHOD)
+    };
+
+    for (const auto query : queries) {
+        const auto& search = members_.find(query);
+        if (search != members_.end()) {
+            return search->second;
+        }
+    }
+
+    static const std::deque<message_handler_t> empty;
+    return empty;
+}
+
 void application_impl::on_message(std::shared_ptr<message> &&_message) {
     const service_t its_service = _message->get_service();
     const instance_t its_instance = _message->get_instance();
@@ -1659,9 +1782,10 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
         if (!check_for_active_subscription(its_service, its_instance,
                 static_cast<event_t>(its_method))) {
             VSOMEIP_INFO << "application_impl::on_message ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "]"
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_instance << "."
+                << std::setw(4) << its_method << "]"
                 << ": blocked as the subscription is already inactive.";
             return;
         }
@@ -1669,63 +1793,13 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
 
     {
         std::lock_guard<std::mutex> its_lock(members_mutex_);
-        std::set<message_handler> its_handlers;
-        auto found_service = members_.find(its_service);
-        if (found_service != members_.end()) {
-            auto found_instance = found_service->second.find(its_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_method = found_instance->second.find(its_method);
-                if (found_method != found_instance->second.end()) {
-                    its_handlers.insert(found_method->second);
-                }
-                auto found_any_method = found_instance->second.find(ANY_METHOD);
-                if (found_any_method != found_instance->second.end()) {
-                    its_handlers.insert(found_any_method->second);
-                }
-            }
-            auto found_any_instance = found_service->second.find(ANY_INSTANCE);
-            if (found_any_instance != found_service->second.end()) {
-                auto found_method = found_any_instance->second.find(its_method);
-                if (found_method != found_any_instance->second.end()) {
-                    its_handlers.insert(found_method->second);
-                }
-                auto found_any_method = found_any_instance->second.find(ANY_METHOD);
-                if (found_any_method != found_any_instance->second.end()) {
-                    its_handlers.insert(found_any_method->second);
-                }
-            }
-        }
-        auto found_any_service = members_.find(ANY_SERVICE);
-        if (found_any_service != members_.end()) {
-            auto found_instance = found_any_service->second.find(its_instance);
-            if (found_instance != found_any_service->second.end()) {
-                auto found_method = found_instance->second.find(its_method);
-                if (found_method != found_instance->second.end()) {
-                    its_handlers.insert(found_method->second);
-                }
-                auto found_any_method = found_instance->second.find(ANY_METHOD);
-                if (found_any_method != found_instance->second.end()) {
-                    its_handlers.insert(found_any_method->second);
-                }
-            }
-            auto found_any_instance = found_any_service->second.find(ANY_INSTANCE);
-            if (found_any_instance != found_any_service->second.end()) {
-                auto found_method = found_any_instance->second.find(its_method);
-                if (found_method != found_any_instance->second.end()) {
-                    its_handlers.insert(found_method->second);
-                }
-                auto found_any_method = found_any_instance->second.find(ANY_METHOD);
-                if (found_any_method != found_any_instance->second.end()) {
-                    its_handlers.insert(found_any_method->second);
-                }
-            }
-        }
 
-        if (its_handlers.size()) {
+        const auto its_handlers = find_handlers(its_service, its_instance, its_method);
+
+        if (!its_handlers.empty()) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-            for (const auto &its_handler : its_handlers) {
-                auto handler = its_handler.handler_;
-                std::shared_ptr<sync_handler> its_sync_handler =
+            for (const auto &handler : its_handlers) {
+                auto its_sync_handler =
                         std::make_shared<sync_handler>([handler, _message]() {
                             handler(_message);
                         });
@@ -1747,7 +1821,8 @@ routing_manager * application_impl::get_routing_manager() const {
 }
 
 void application_impl::main_dispatch() {
-#if defined(__linux__) || defined(ANDROID)
+    utility::set_thread_niceness(configuration_->get_io_thread_nice_level(name_));
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     {
         std::stringstream s;
         s << std::hex << std::setw(4) << std::setfill('0')
@@ -1769,13 +1844,12 @@ void application_impl::main_dispatch() {
             // Cancel other waiting dispatcher
             dispatcher_condition_.notify_all();
             // Wait for new handlers to execute
-            dispatcher_condition_.wait(its_lock, [this, &its_id] {
-                    return !(is_dispatching_
-                             && (handlers_.empty() || !is_active_dispatcher(its_id)));
-                });
+            while (is_dispatching_ && (handlers_.empty() || !is_active_dispatcher(its_id))) {
+                dispatcher_condition_.wait(its_lock);
+            }
         } else {
             std::shared_ptr<sync_handler> its_handler;
-            while (is_dispatching_  && is_active_dispatcher(its_id)
+            while (is_dispatching_ && is_active_dispatcher(its_id)
                    && (its_handler = get_next_handler())) {
                 its_lock.unlock();
                 invoke_handler(its_handler);
@@ -1820,8 +1894,7 @@ void application_impl::dispatch() {
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
-             dispatcher_condition_.wait(its_lock,
-                                       [this, &its_id] { return !is_active_dispatcher(its_id); });
+             dispatcher_condition_.wait(its_lock);
              // Maybe woken up from main dispatcher
              if (handlers_.empty() && !is_active_dispatcher(its_id)) {
                  if (!is_dispatching_) {
@@ -1924,8 +1997,7 @@ void application_impl::reschedule_availability_handler(
 void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     const std::thread::id its_id = std::this_thread::get_id();
 
-    std::shared_ptr<sync_handler> its_sync_handler
-        = std::make_shared<sync_handler>(_handler->service_id_,
+    auto its_sync_handler = std::make_shared<sync_handler>(_handler->service_id_,
             _handler->instance_id_, _handler->method_id_,
             _handler->session_id_, _handler->eventgroup_id_,
             _handler->handler_type_);
@@ -1946,9 +2018,24 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
                     if (dispatcher_mutex_.try_lock()) {
                         if (dispatchers_.size() < max_dispatchers_) {
                             if (is_dispatching_) {
-                                auto its_dispatcher = std::make_shared<std::thread>(
-                                    std::bind(&application_impl::dispatch, shared_from_this()));
+                                std::packaged_task<void()> dispatcher_task_(
+                                        std::bind(&application_impl::dispatch, shared_from_this()));
+                                std::future<void> dispatcher_future_ =
+                                        dispatcher_task_.get_future();
+                                auto its_dispatcher =
+                                        std::make_shared<std::thread>(std::move(dispatcher_task_));
+#ifdef _WIN32
+                                dispatchers_control_[its_dispatcher->get_id()] = {
+                                        OpenThread(THREAD_ALL_ACCESS, false,
+                                                   GetThreadId(its_dispatcher->native_handle())),
+                                        std::move(dispatcher_future_)};
+#else
+                                dispatchers_control_[its_dispatcher->get_id()] = {
+                                        its_dispatcher->native_handle(),
+                                        std::move(dispatcher_future_)};
+#endif
                                 dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
+                                increment_active_threads();
                             } else {
                                 VSOMEIP_INFO << "Won't start new dispatcher "
                                         "thread as Client=" << std::hex
@@ -1973,11 +2060,12 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->instance_id_))))) {
         VSOMEIP_INFO << "Invoking handler: ("
-            << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
-            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->service_id_ << "."
-            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->instance_id_ << "."
-            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->method_id_ << ":"
-            << std::hex << std::setw(4) << std::setfill('0') << its_sync_handler->session_id_ << "] "
+            << std::hex << std::setfill('0')
+            << std::setw(4) << client_ << "): ["
+            << std::setw(4) << its_sync_handler->service_id_ << "."
+            << std::setw(4) << its_sync_handler->instance_id_ << "."
+            << std::setw(4) << its_sync_handler->method_id_ << ":"
+            << std::setw(4) << its_sync_handler->session_id_ << "] "
             << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
             << " thread=" << std::hex << its_id;
     }
@@ -2031,7 +2119,7 @@ bool application_impl::has_active_dispatcher() {
     return false;
 }
 
-bool application_impl::is_active_dispatcher(const std::thread::id &_id) {
+bool application_impl::is_active_dispatcher(const std::thread::id &_id) const {
     while (is_dispatching_) {
         if (dispatcher_mutex_.try_lock()) {
             for (const auto &d : dispatchers_) {
@@ -2054,9 +2142,12 @@ void application_impl::remove_elapsed_dispatchers() {
     if (is_dispatching_) {
         std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
         for (auto id : elapsed_dispatchers_) {
-            auto its_dispatcher = dispatchers_.find(id);
-            if (its_dispatcher->second->joinable())
+            if (auto its_dispatcher = dispatchers_.find(id); its_dispatcher->second->joinable()) {
+                dispatchers_control_.erase(id);
                 its_dispatcher->second->join();
+                decrement_active_threads();
+            }
+
             dispatchers_.erase(id);
         }
         elapsed_dispatchers_.clear();
@@ -2103,7 +2194,7 @@ void application_impl::shutdown() {
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
     ;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     boost::asio::detail::posix_signal_blocker blocker;
     {
         std::stringstream s;
@@ -2115,7 +2206,9 @@ void application_impl::shutdown() {
 
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
-        stop_cv_.wait(its_lock, [this] {return stopped_; });
+        while(!stopped_) {
+            stop_cv_.wait(its_lock);
+        }
     }
     {
         std::lock_guard<std::mutex> its_handler_lock(handlers_mutex_);
@@ -2128,7 +2221,9 @@ void application_impl::shutdown() {
         for (const auto& its_dispatcher : dispatchers_) {
             if (its_dispatcher.second->get_id() != stop_caller_id_) {
                 if (its_dispatcher.second->joinable()) {
+                    dispatchers_control_.erase(its_dispatcher.second->get_id());
                     its_dispatcher.second->join();
+                    decrement_active_threads();
                 }
             } else {
                 // If the caller of stop() is one of our dispatchers
@@ -2142,6 +2237,7 @@ void application_impl::shutdown() {
                 // after it will return to "main_dispatch" it will be
                 // properly shutdown anyways because "is_dispatching_"
                 // was set to "false" here.
+
                 its_dispatcher.second->detach();
             }
         }
@@ -2160,6 +2256,65 @@ void application_impl::shutdown() {
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping routing, "
                 << " catched exception: " << e.what();
+    }
+
+    try {
+        while (get_active_threads() > 0) {
+            auto its_dispatcher_control_ = dispatchers_control_.begin();
+            bool os_flag_ = false;
+
+            if (its_dispatcher_control_ != dispatchers_control_.end()) {
+                if (std::get<1>(its_dispatcher_control_->second)
+                            .wait_for(std::chrono::seconds(max_detached_thread_wait_time))
+                    == std::future_status::timeout) {
+
+#ifdef _WIN32
+                    TerminateThread(std::get<0>(its_dispatcher_control_->second), 0);
+#else
+                    pthread_t thread_to_kill = std::get<0>(its_dispatcher_control_->second);
+
+                    // Using pthread_cancel for UNIX based systems and pthread_kill(SIGKILL)
+                    // for android since pthread_cancel is not implemented on android.
+                    // The major difference is that pthread_cancel allows for signal handling
+                    // and proper resource cleanup to be done on the application side
+                    // while pthread_kill(SIGKILL) stops the thread immediately.
+                    // This should not however be an issue since this will only be called
+                    // if the thread is already stuck for some time during app->stop()
+#if defined(ANDROID)
+                    os_flag_ = true;
+                    if (pthread_kill(thread_to_kill, SIGKILL) != 0) {
+#elif defined(__linux__) || defined(__QNX__)
+                    if (pthread_cancel(thread_to_kill) != 0) {
+#endif
+                        VSOMEIP_ERROR
+                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                << "Failed to kill detached thread with id: " << std::hex
+                                << its_dispatcher_control_->first
+                                << "; Number of threads still active : " << get_active_threads();
+                    } else {
+                        decrement_active_threads();
+                        VSOMEIP_INFO
+                                << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                << "Force killed thread with id: " << std::hex
+                                << its_dispatcher_control_->first
+                                << "; Number of threads still active : " << get_active_threads();
+                        dispatchers_control_.erase(its_dispatcher_control_);
+                    }
+#endif
+                } else {
+                    decrement_active_threads();
+                    VSOMEIP_INFO << "[OS=" << (os_flag_ ? "ANDROID" : "UNIX") << "] "
+                                 << "Detached thread with id: " << std::hex
+                                 << its_dispatcher_control_->first << " exited successfully"
+                                 << "; Number of threads still active : " << get_active_threads();
+                    dispatchers_control_.erase(its_dispatcher_control_);
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR << "application_impl::" << __func__
+                      << ": waiting for detached threads to finish execution, "
+                      << " catched exception: " << e.what();
     }
 
     try {
@@ -2202,10 +2357,11 @@ void application_impl::send_back_cached_event(service_t _service,
         its_message->set_initial(true);
         on_message(std::move(its_message));
         VSOMEIP_INFO << "Sending back cached event ("
-                << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _event << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << client_ << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _instance << "."
+                << std::setw(4) << _event << "]";
     }
 }
 
@@ -2225,12 +2381,13 @@ void application_impl::send_back_cached_eventgroup(service_t _service,
             its_message->set_initial(true);
             on_message(std::move(its_message));
             VSOMEIP_INFO << "Sending back cached event ("
-                    << std::hex << std::setw(4) << std::setfill('0') << client_ <<"): ["
-                    << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
-                    << std::hex << std::setw(4) << std::setfill('0') << its_event_id
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << client_ << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << its_event_id
                     << "] from eventgroup "
-                    << std::hex << std::setw(4) << std::setfill('0') << _eventgroup;
+                    << std::setw(4) << _eventgroup;
         }
     }
 }
@@ -2283,8 +2440,8 @@ void application_impl::remove_subscription(service_t _service,
 
     {
         std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
-        auto its_service = subscription_state_.find(_service);
-        if (its_service != subscription_state_.end()) {
+        auto its_service = subscriptions_state_.find(_service);
+        if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
             if (its_instance != its_service->second.end()) {
                 if (_event == ANY_EVENT) {
@@ -2302,7 +2459,7 @@ void application_impl::remove_subscription(service_t _service,
                     its_service->second.erase(its_instance);
             }
             if (its_service->second.empty())
-                subscription_state_.erase(its_service);
+                subscriptions_state_.erase(its_service);
         }
     }
 
@@ -2389,8 +2546,8 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
         bool has_found(false);
 
         std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
-        auto its_service = subscription_state_.find(_service);
-        if (its_service != subscription_state_.end()) {
+        auto its_service = subscriptions_state_.find(_service);
+        if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
             if (its_instance != its_service->second.end()) {
                 auto its_eventgroup = its_instance->second.find(_eventgroup);
@@ -2413,7 +2570,7 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
         }
 
         if (!has_found) {
-            subscription_state_[_service][_instance][_eventgroup][_event]
+            subscriptions_state_[_service][_instance][_eventgroup][_event]
                 = subscription_state_e::IS_SUBSCRIBING;
         }
     }
@@ -2430,17 +2587,19 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
     switch (_handler->handler_type_) {
         case handler_type_e::AVAILABILITY:
             VSOMEIP_WARNING << "BLOCKING CALL AVAILABILITY("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << get_client() << "): ["
+                << std::setw(4) << _handler->service_id_ << "."
+                << std::setw(4) << _handler->instance_id_ << "]";
             break;
         case handler_type_e::MESSAGE:
             VSOMEIP_WARNING << "BLOCKING CALL MESSAGE("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << ":"
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->session_id_ << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << get_client() << "): ["
+                << std::setw(4) << _handler->service_id_ << "."
+                << std::setw(4) << _handler->instance_id_ << "."
+                << std::setw(4) << _handler->method_id_ << ":"
+                << std::setw(4) << _handler->session_id_ << "]";
             break;
         case handler_type_e::STATE:
             VSOMEIP_WARNING << "BLOCKING CALL STATE("
@@ -2448,19 +2607,20 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
             break;
         case handler_type_e::SUBSCRIPTION:
             VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->service_id_ << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->instance_id_ << "."
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->eventgroup_id_ << ":"
-                << std::hex << std::setw(4) << std::setfill('0') << _handler->method_id_ << "]";
+                << std::hex << std::setfill('0')
+                << std::setw(4) << get_client() << "): ["
+                << std::setw(4) << _handler->service_id_ << "."
+                << std::setw(4) << _handler->instance_id_ << "."
+                << std::setw(4) << _handler->eventgroup_id_ << ":"
+                << std::setw(4) << _handler->method_id_ << "]";
             break;
         case handler_type_e::OFFERED_SERVICES_INFO:
             VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
         case handler_type_e::WATCHDOG:
             VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() <<")";
+                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
             break;
         case handler_type_e::UNKNOWN:
             VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN("
@@ -2522,8 +2682,7 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
     }
     if (has_offered_services_handler) {
         std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-        std::shared_ptr<sync_handler> its_sync_handler
-            = std::make_shared<sync_handler>([handler, _services]() {
+        auto its_sync_handler = std::make_shared<sync_handler>([handler, _services]() {
                                                 handler(_services);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
@@ -2548,8 +2707,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
 
         if (handler) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
-            std::shared_ptr<sync_handler> its_sync_handler
-                = std::make_shared<sync_handler>([handler]() { handler(); });
+            auto its_sync_handler = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
             handlers_.push_back(its_sync_handler);
             dispatcher_condition_.notify_one();
@@ -2602,13 +2760,8 @@ void application_impl::register_async_subscription_handler(service_t _service,
         bool _is_subscribed,
         const std::function<void(bool)> &_cb
     ){
-        uid_t its_uid{ANY_UID};
-        gid_t its_gid{ANY_GID};
-
-        if (_sec_client && _sec_client->client_type == VSOMEIP_CLIENT_UDS) {
-            its_uid = _sec_client->client.uds_client.user;
-            its_gid = _sec_client->client.uds_client.group;
-        }
+        uid_t its_uid {_sec_client->user};
+        gid_t its_gid {_sec_client->group};
 
         _handler(
             _client,
@@ -2830,11 +2983,11 @@ void application_impl::update_security_policy_configuration(uint32_t _uid,
                                                   std::shared_ptr<payload> _payload,
                                                   const security_update_handler_t &_handler) {
 #ifdef VSOMEIP_DISABLE_SECURITY
-	(void)_uid;
-	(void)_gid;
-	(void)_policy;
-	(void)_payload;
-	(void)_handler;
+    (void)_uid;
+    (void)_gid;
+    (void)_policy;
+    (void)_payload;
+    (void)_handler;
 #else
     if (!is_routing()) {
         VSOMEIP_ERROR << __func__ << " is only intended to be called by "
@@ -2854,9 +3007,9 @@ void application_impl::remove_security_policy_configuration(uint32_t _uid,
                                                   uint32_t _gid,
                                                   const security_update_handler_t &_handler) {
 #ifdef VSOMEIP_DISABLE_SECURITY
-	(void)_uid;
-	(void)_gid;
-	(void)_handler;
+    (void)_uid;
+    (void)_gid;
+    (void)_handler;
 #else
     if (!is_routing()) {
         VSOMEIP_ERROR << __func__ << " is only intended to be called by "
@@ -2890,7 +3043,7 @@ void application_impl::subscribe_with_debounce(service_t _service, instance_t _i
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
 
-            auto its_filter = std::make_shared<debounce_filter_t>(_filter);
+            auto its_filter = std::make_shared<debounce_filter_impl_t>(_filter);
             routing_->subscribe(client_, get_sec_client(),
                     _service, _instance, _eventgroup, _major,
                     _event, its_filter);
@@ -2907,11 +3060,11 @@ application_impl::is_local_endpoint(const boost::asio::ip::address &_unicast,
         boost::asio::ip::tcp::socket its_socket(io_, its_endpoint);
         its_socket.close();
 
-        return (true);
+        return true;
     } catch (...) {
     }
 
-    return (false);
+    return false;
 }
 
 void application_impl::register_message_acceptance_handler(
@@ -2928,6 +3081,45 @@ application_impl::get_additional_data(const std::string &_plugin_name) {
         return configuration_->get_additional_data(name_, _plugin_name);
     }
     return std::map<std::string, std::string>();
+}
+
+void application_impl::register_message_handler_ext(
+        service_t _service, instance_t _instance, method_t _method,
+        const message_handler_t &_handler,
+        handler_registration_type_e _type) {
+
+    const auto key = to_members_key(_service, _instance, _method);
+
+    std::lock_guard<std::mutex> its_lock(members_mutex_);
+    switch (_type) {
+    case handler_registration_type_e::HRT_REPLACE:
+        members_[key].clear();
+        [[gnu::fallthrough]];
+    case handler_registration_type_e::HRT_APPEND:
+        members_[key].push_back(_handler);
+        break;
+    case handler_registration_type_e::HRT_PREPEND:
+        members_[key].push_front(_handler);
+        break;
+    default:
+        ;
+    }
+}
+
+void application_impl::increment_active_threads() {
+    dispatcher_counter_++;
+    VSOMEIP_DEBUG << "Thread created. Number of active threads for " << name_ << " : "
+                  << get_active_threads();
+}
+
+void application_impl::decrement_active_threads() {
+    dispatcher_counter_--;
+    VSOMEIP_DEBUG << "Thread destroyed. Number of active threads for " << name_ << " : "
+                  << get_active_threads();
+}
+
+std::uint16_t application_impl::get_active_threads() const {
+    return dispatcher_counter_;
 }
 
 } // namespace vsomeip_v3

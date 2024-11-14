@@ -1,11 +1,12 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "header_factory_test_service.hpp"
-
 #include <cstdlib>
+#include <iomanip>
+
+#include "header_factory_test_service.hpp"
 
 header_factory_test_service::header_factory_test_service(bool _use_static_routing) :
                 app_(vsomeip::runtime::get()->create_application()),
@@ -161,7 +162,7 @@ TEST(someip_header_factory_test, reveice_message_ten_times_test)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

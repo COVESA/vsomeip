@@ -112,6 +112,9 @@ public:
     // add join/leave options
     void add_multicast_option(const multicast_option_t &_option);
 
+    void suspend(void);
+    void resume(void);
+
 private:
     std::shared_ptr<endpoint> find_remote_client(service_t _service,
                                                  instance_t _instance,
@@ -126,21 +129,23 @@ private:
     // process join/leave options
     void process_multicast_options();
 
+    bool is_used_endpoint(endpoint* const _endpoint) const;
+
 private:
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
     std::map<service_t, std::map<instance_t,
             std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
 
-    using remote_services_t =
-        std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint>>>>;
+    typedef std::map<service_t, std::map<instance_t,
+                std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
-    using client_endpoints_by_ip_t =
-        std::map<boost::asio::ip::address,
-            std::map<std::uint16_t,
-                std::map<bool, std::map<partition_id_t, std::shared_ptr<endpoint>>>>>;
-    client_endpoints_by_ip_t client_endpoints_by_ip_;
+    using client_endpoints_t =
+            std::map<boost::asio::ip::address,
+                     std::map<uint16_t,
+                              std::map<bool, std::map<partition_id_t, std::shared_ptr<endpoint>>>>>;
+    client_endpoints_t client_endpoints_;
 
     std::map<service_t, std::map<endpoint *, instance_t> > service_instances_;
     std::map<service_t, std::map<boost::asio::ip::address, instance_t> > service_instances_multicast_;
@@ -153,12 +158,11 @@ private:
     std::mutex used_client_ports_mutex_;
 
     // Server endpoints for local services
-    using server_endpoints_t = std::map<std::uint16_t, std::map<bool, std::shared_ptr<endpoint>>>;
+    using server_endpoints_t = std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint>>>;
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)
-    std::map<service_t, std::map<instance_t,
-                    std::shared_ptr<endpoint_definition>>> multicast_info;
+    std::map<service_t, std::map<instance_t, std::shared_ptr<endpoint_definition>>> multicast_info_;
 
     // Socket option processing (join, leave)
     std::mutex options_mutex_;

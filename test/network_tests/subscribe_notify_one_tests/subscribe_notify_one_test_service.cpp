@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,11 +20,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "subscribe_notify_one_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-
-class subscribe_notify_one_test_service {
+class subscribe_notify_one_test_service : public vsomeip_utilities::base_logger {
 public:
     subscribe_notify_one_test_service(struct subscribe_notify_one_test::service_info _service_info, vsomeip::reliability_type_e _reliability_type) :
+            vsomeip_utilities::base_logger("SNOS", "SUBSCRIBE NOTIFY ONE TEST SERVICE"),
             service_info_(_service_info),
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
@@ -233,7 +235,7 @@ public:
             << _message->get_session() << "] from Service/Method ["
             << std::setw(4) << std::setfill('0') << std::hex
             << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-            << std::hex << _message->get_method() <<"] (now have: "
+            << std::hex << _message->get_method() << "] (now have: "
             << std::dec << other_services_received_notification_[std::make_pair(_message->get_service(),
                                                                     _message->get_method())] << ")";
 
@@ -319,7 +321,7 @@ public:
             << "] subscribing to Service/Instance/Eventgroup ["
             << std::setw(4) << std::setfill('0') << std::hex << i.service_id << "/"
             << std::setw(4) << std::setfill('0') << std::hex << i.instance_id
-            << "/" << std::setw(4) << std::setfill('0') << std::hex << i.eventgroup_id <<"]";
+            << "/" << std::setw(4) << std::setfill('0') << std::hex << i.eventgroup_id << "]";
 
         }
 
@@ -470,7 +472,7 @@ TEST(someip_subscribe_notify_one_test, send_ten_notifications_to_service)
             reliability_type);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2019-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -25,15 +25,8 @@ std::shared_ptr<configuration>
 configuration_plugin_impl::get_configuration(const std::string &_name,
         const std::string &_path) {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
-    if (!default_) {
-        default_ = std::make_shared<cfg::configuration_impl>(_path);
-        default_->load(_name);
-    }
-    return default_;
-
-#if 0
     std::shared_ptr<cfg::configuration_impl> its_configuration;
+    std::scoped_lock its_lock(mutex_);
     auto its_iterator = configurations_.find(_name);
     if (its_iterator != configurations_.end()) {
         its_configuration = its_iterator->second;
@@ -43,8 +36,11 @@ configuration_plugin_impl::get_configuration(const std::string &_name,
         configurations_[_name] = its_configuration;
     }
 
-    return (its_configuration);
-#endif
+    return its_configuration;
 }
 
+bool configuration_plugin_impl::remove_configuration(const std::string & _name) {
+    std::scoped_lock its_lock(mutex_);
+    return configurations_.erase(_name) > 0;
+}
 } // namespace vsomeip_v3

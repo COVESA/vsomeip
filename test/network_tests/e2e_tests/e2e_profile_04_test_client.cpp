@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "e2e_profile_04_test_common.hpp"
 #include "e2e_profile_04_test_client.hpp"
 
@@ -27,7 +29,7 @@ e2e_profile_04_test_client::init() {
 
     if (!app_->init()) {
         ADD_FAILURE() << __func__ << ": Cannot initialize application";
-        return (false);
+        return false;
     }
 
     app_->register_state_handler(
@@ -45,7 +47,7 @@ e2e_profile_04_test_client::init() {
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
 
-    return (true);
+    return true;
 }
 
 void

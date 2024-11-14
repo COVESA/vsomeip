@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -27,6 +27,7 @@ class configuration_public;
 class event;
 class payload;
 struct policy;
+class policy_manager;
 
 /**
  * \defgroup vsomeip
@@ -178,7 +179,7 @@ public:
      * The user application must call this method to withdraw a service offer.
      *
      * \param _service Service identifier of the offered service interface.
-     * \param _instance Instance identifer of the offered service instance.
+     * \param _instance Instance identifier of the offered service instance.
      * \param _major Major service version (Default: 0).
      * \param _minor Minor service version (Default: 0).
      *
@@ -258,8 +259,6 @@ public:
      * \param _instance Instance identifier of the requested service instance.
      * \param _major Major service version (Default: 0xFF).
      * \param _minor Minor service version (Default: 0xFFFFFF).
-     * \param _use_exclusive_proxy Create an IP endpoint that is exclusively
-     * used for the communication of this application to the service instance.
      *
      */
     virtual void request_service(service_t _service, instance_t _instance,
@@ -407,7 +406,7 @@ public:
      *
      * \brief Sends a message.
      *
-     * Serializes the specified message object, determines the taget and sends
+     * Serializes the specified message object, determines the target and sends
      * the message to the target. For requests, the request identifier is
      * automatically built from the client identifier and the session
      * identifier.
@@ -573,7 +572,6 @@ public:
      * availability shall be reported. Can be set to ANY_SERVICE.
      * \param _instance Instance identifier of the service instance whose
      * availability shall be reported. Can be set to ANY_INSTANCE.
-     * \param _handler Callback to be called if availability changes.
      * \param _major Major service version. The parameter defaults to
      * DEFAULT_MAJOR and can be set to ANY_MAJOR.
      * \param _minor Minor service version. The parameter defaults to
@@ -1104,6 +1102,57 @@ public:
     virtual void register_async_subscription_handler(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             async_subscription_handler_sec_t _handler) = 0;
+
+    /**
+     *
+     * \brief Registers a handler for the specified method or event.
+     *
+     * A user application must call this method to register callbacks for
+     * for messages that match the specified service, instance, method/event
+     * pattern. It is possible to specify wildcard values for all three
+     * identifiers arguments.
+     *
+     * Notes:
+     * - Only a single handler can be registered per service, instance,
+     *   method/event combination.
+     * - A subsequent call will overwrite an existing registration.
+     * - Handler registrations containing wildcards can be active in parallel
+     *   to handler registrations for specific service, instance, method/event
+     *   combinations.
+     *
+     * \param _service Service identifier of the service that contains the
+     * method or event. Can be set to ANY_SERVICE to register a handler for
+     * a message independent from a specific service.
+     * \param _instance Instance identifier of the service instance that
+     * contains the method or event. Can be set to ANY_INSTANCE to register
+     * a handler for a message independent from a specific service.
+     * \param _method Method/Event identifier of the method/event that is
+     * to be handled. Can be set to ANY_METHOD to register a handler for
+     * all methods and events.
+     * \param _handler Callback that will be called if a message arrives
+     * that matches the specified service, instance and method/event
+     * parameters.
+     * \param _type Replace, append to or prepend to the current handler (if
+     * any).
+     */
+    virtual void register_message_handler_ext(service_t _service,
+            instance_t _instance, method_t _method,
+            const message_handler_t &_handler,
+			handler_registration_type_e _type) = 0;
+
+    /**
+     * \brief Get the configuration
+     *
+     * \return configuration shared pointer
+     */
+    virtual std::shared_ptr<configuration> get_configuration() const = 0;
+
+    /**
+     * \brief Get the policy_manager
+     *
+     * \return policy_manager shared pointer
+     */
+    virtual std::shared_ptr<policy_manager> get_policy_manager() const = 0;
 };
 
 /** @} */

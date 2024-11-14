@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,12 +11,7 @@
 #include <condition_variable>
 #include <memory>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/local/stream_protocol_ext.hpp>
-#else
-#    include <boost/asio/local/stream_protocol.hpp>
-#endif
-
+#include <boost/asio/local/stream_protocol.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
@@ -25,32 +20,21 @@
 
 namespace vsomeip_v3 {
 
-using local_uds_server_endpoint_base_impl = server_endpoint_impl<
-#if VSOMEIP_BOOST_VERSION < 106600
-    boost::asio::local::stream_protocol_ext
-#else
-    boost::asio::local::stream_protocol
-#endif
-    >;
+typedef server_endpoint_impl<boost::asio::local::stream_protocol>
+        local_uds_server_endpoint_base_impl;
 
 class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl {
 public:
     local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
             const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
             boost::asio::io_context &_io,
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
+    virtual ~local_uds_server_endpoint_impl() = default;
 
-    local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-            const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
-            boost::asio::io_context &_io,
-            int native_socket,
-            const std::shared_ptr<configuration>& _configuration,
-            bool _is_routing_endpoint);
-
-    virtual ~local_uds_server_endpoint_impl();
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
+    void init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error);
+    void deinit();
 
     void start();
     void stop();
@@ -87,7 +71,7 @@ private:
     class connection: public std::enable_shared_from_this<connection> {
 
     public:
-        using ptr = std::shared_ptr<connection>;
+        typedef std::shared_ptr<connection> ptr;
 
         static ptr create(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
                           std::uint32_t _max_message_size,
@@ -107,7 +91,7 @@ private:
         void set_bound_client_host(const std::string &_bound_client_host);
         std::string get_bound_client_host() const;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         void set_bound_sec_client(const vsomeip_sec_client_t &_sec_client);
 #endif
 
@@ -124,7 +108,7 @@ private:
                 boost::system::error_code const &_error, std::size_t _bytes);
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                          , std::uint32_t const &_uid, std::uint32_t const &_gid
 #endif
         );
@@ -132,6 +116,8 @@ private:
         std::string get_path_local() const;
         std::string get_path_remote() const;
         void handle_recv_buffer_exception(const std::exception &_e);
+        void shutdown_and_close();
+        void shutdown_and_close_unlocked();
 
         std::mutex socket_mutex_;
         local_uds_server_endpoint_impl::socket_type socket_;
@@ -152,15 +138,12 @@ private:
         vsomeip_sec_client_t sec_client_;
 
         bool assigned_client_;
+        std::atomic<bool> is_stopped_;
     };
 
     std::mutex acceptor_mutex_;
-#if VSOMEIP_BOOST_VERSION < 106600
-    boost::asio::local::stream_protocol_ext::acceptor acceptor_;
-#else
     boost::asio::local::stream_protocol::acceptor acceptor_;
-#endif
-    using connections_t = std::map<client_t, connection::ptr>;
+    typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
 
@@ -169,6 +152,7 @@ private:
     const bool is_routing_endpoint_;
 
 private:
+    void init_helper(const endpoint_type& _local, boost::system::error_code& _error);
     bool add_connection(const client_t &_client,
             const std::shared_ptr<connection> &_connection);
     void remove_connection(const client_t &_client);
@@ -182,7 +166,6 @@ private:
     bool check_packetizer_space(target_data_iterator_type _queue_iterator,
                                 message_buffer_ptr_t* _packetizer,
                                 std::uint32_t _size);
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     void send_client_identifier(const client_t &_client);
 };
 

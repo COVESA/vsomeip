@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -219,7 +219,7 @@ public:
                 << _message->get_session() << "] from Service/Method ["
                 << std::setw(4) << std::setfill('0') << std::hex
                 << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-                << std::hex << _message->get_method() <<"] (now have: "
+                << std::hex << _message->get_method() << "] (now have: "
                 << std::dec << other_services_received_notification_[std::make_pair(_message->get_service(),
                                                                         _message->get_method())] << ")";
             }
@@ -478,7 +478,7 @@ public:
             while (wait_for_stop_) {
                 stop_condition_.wait_for(its_lock, std::chrono::milliseconds(100));
             }
-            VSOMEIP_ERROR << "(" << std::dec << its_call_number << ") [" 
+            VSOMEIP_ERROR << "(" << std::dec << its_call_number << ") ["
                     << std::setw(4) << std::setfill('0') << std::hex
                     << client_number_
                     << "] Received notifications from all services, going down";
@@ -564,7 +564,7 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services)
     }
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     // Block all signals

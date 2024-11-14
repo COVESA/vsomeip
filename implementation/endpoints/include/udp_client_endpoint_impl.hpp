@@ -20,8 +20,9 @@ namespace vsomeip_v3 {
 
 class endpoint_adapter;
 
-using udp_client_endpoint_base_impl =
-    client_endpoint_impl<boost::asio::ip::udp>;
+typedef client_endpoint_impl<
+            boost::asio::ip::udp
+        > udp_client_endpoint_base_impl;
 
 class udp_client_endpoint_impl: virtual public udp_client_endpoint_base_impl {
 
@@ -40,9 +41,13 @@ public:
     void receive_cbk(boost::system::error_code const &_error,
                      std::size_t _bytes, const message_buffer_ptr_t& _recv_buffer);
 
+    std::uint16_t get_local_port() const;
+    void set_local_port(port_t _port);
+
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
     bool is_local() const;
+
     void print_status();
     bool is_reliable() const;
 
@@ -60,7 +65,10 @@ private:
     std::string get_address_port_remote() const;
     std::string get_address_port_local() const;
     std::string get_remote_information() const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
+    bool tp_segmentation_enabled(
+            service_t _service,
+            instance_t _instance,
+            method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 
@@ -69,6 +77,9 @@ private:
     const std::uint16_t remote_port_;
     const int udp_receive_buffer_size_;
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
+
+    std::mutex last_sent_mutex_;
+    std::chrono::steady_clock::time_point last_sent_;
 };
 
 } // namespace vsomeip_v3

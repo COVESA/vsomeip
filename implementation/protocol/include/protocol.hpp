@@ -12,8 +12,8 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-using version_t = std::uint16_t;
-using command_size_t = std::uint32_t;
+typedef uint16_t version_t;
+typedef uint32_t command_size_t;
 
 enum class id_e : uint8_t {
     ASSIGN_CLIENT_ID = 0x00,
@@ -53,6 +53,7 @@ enum class id_e : uint8_t {
     UPDATE_SECURITY_POLICY_INT_ID = 0x29,
     EXPIRE_ID = 0x2A,
     SUSPEND_ID = 0x30,
+    CONFIG_ID = 0x31,
     UNKNOWN_ID = 0xFF
 };
 
@@ -74,7 +75,7 @@ enum class routing_info_entry_type_e : std::uint8_t {
     RIE_UNKNOWN = 0xff
 };
 
-using pending_id_t = std::uint16_t;
+typedef uint16_t pending_id_t;
 
 struct service {
     service_t service_;
@@ -123,7 +124,7 @@ static inline id_e get_command(byte_t _byte) {
     id_e its_id(id_e::UNKNOWN_ID);
     if (_byte <= static_cast<byte_t>(id_e::SUSPEND_ID))
         its_id = static_cast<id_e>(_byte);
-    return (its_id);
+    return its_id;
 }
 
 static inline bool operator==(const byte_t &_lhs, const id_e &_rhs) {

@@ -1,17 +1,18 @@
-// Copyright (C) 2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <memory>
 #include <gtest/gtest.h>
-#include "../../common/utility.hpp"
+#include <common/utility.hpp>
 
 namespace {
 vsomeip_v3::uid_t invalid_uid = 1;
 vsomeip_v3::uid_t valid_uid = 4003017;
 vsomeip_v3::gid_t invalid_gid = 1;
 vsomeip_v3::gid_t valid_gid = 5002;
+vsomeip_sec_ip_addr_t host_address = 0;
 }
 
 TEST(check_routing_credentials, check_policies_loaded) {
@@ -31,10 +32,10 @@ TEST(check_routing_credentials, check_policies_loaded) {
     ASSERT_TRUE(its_failed.size() == 0);
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid);
+    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid, host_address);
 
     //valid uid and gid -> the check must return true
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_valid));
@@ -72,10 +73,10 @@ TEST(check_routing_credentials, check_policies_loaded_lazy_load) {
     ASSERT_TRUE(its_failed.size() == 0);
 
     // create security clients
-    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid);
-    vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid);
+    vsomeip_sec_client_t its_sec_client_valid = utility::create_uds_client(valid_uid, valid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid, host_address);
+    vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid, host_address);
 
     //expect check_routing_credentials_ false so method always returns true
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_valid));

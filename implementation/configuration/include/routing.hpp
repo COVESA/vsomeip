@@ -32,24 +32,26 @@ struct routing_host_t {
         unicast_ = _other.unicast_;
         port_ = _other.port_;
 
-        return (*this);
+        return *this;
     }
 };
 
 struct routing_guests_t {
     boost::asio::ip::address unicast_;
-    std::set<std::pair<port_t, port_t> > ports_;
+    std::map<std::pair<uid_t, gid_t>,
+        std::set<std::pair<port_t, port_t> >
+    > ports_;
 
     routing_guests_t &operator=(const routing_guests_t &_other) {
         unicast_ = _other.unicast_;
         ports_ = _other.ports_;
 
-        return (*this);
+        return *this;
     }
 };
 
 struct routing_t {
-	bool is_enabled_;
+    bool is_enabled_;
 
     routing_host_t host_;
     routing_guests_t guests_;
@@ -57,11 +59,11 @@ struct routing_t {
     routing_t() : is_enabled_(true) {}
 
     routing_t &operator=(const routing_t &_other) {
-    	is_enabled_ = _other.is_enabled_;
+        is_enabled_ = _other.is_enabled_;
         host_ = _other.host_;
         guests_ = _other.guests_;
 
-        return (*this);
+        return *this;
     }
 };
 

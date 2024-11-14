@@ -8,13 +8,7 @@
 
 #include <memory>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/error.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
@@ -33,6 +27,7 @@ public:
     virtual session_t get_session(bool _is_request) = 0;
 
     virtual const vsomeip_sec_client_t *get_sec_client() const = 0;
+    virtual void set_sec_client_port(port_t _port) = 0;
 
     virtual const std::string & get_name() const = 0;
     virtual std::shared_ptr<configuration> get_configuration() const = 0;

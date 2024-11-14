@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,10 +20,13 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "application_test_globals.hpp"
+#include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
-class application_test_service {
+class application_test_service : public vsomeip_utilities::base_logger {
 public:
     application_test_service(struct application_test::service_info _service_info) :
+            vsomeip_utilities::base_logger("APTS", "APPLICATION TEST SERVICE"),
             service_info_(_service_info),
             // service with number 1 uses "routingmanagerd" as application name
             // this way the same json file can be reused for all local tests
@@ -33,7 +36,7 @@ public:
             stop_called_(false),
             offer_thread_(std::bind(&application_test_service::run, this)) {
         if (!app_->init()) {
-            ADD_FAILURE() << "Couldn't initialize application";
+            ADD_FAILURE() << "[Service] Couldn't initialize application";
             return;
         }
         app_->register_state_handler(
@@ -70,9 +73,9 @@ public:
     }
 
     void on_state(vsomeip::state_type_e _state) {
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+        VSOMEIP_INFO << "[Service] Application " << app_->get_name() << " is "
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered."
+                                                                        : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -83,10 +86,10 @@ public:
 
     void on_request(const std::shared_ptr<vsomeip::message> &_message) {
         app_->send(vsomeip::runtime::get()->create_response(_message));
-        VSOMEIP_INFO << "Received a request with Client/Session [" << std::setw(4)
-                << std::setfill('0') << std::hex << _message->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _message->get_session() << "]";
+        VSOMEIP_INFO << "[Service] Received a request with Client/Session [" << std::setw(4)
+                     << std::setfill('0') << std::hex << _message->get_client() << "/"
+                     << std::setw(4) << std::setfill('0') << std::hex << _message->get_session()
+                     << "]";
     }
 
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
@@ -103,15 +106,15 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Running";
+        VSOMEIP_DEBUG << "[Service] [" << std::setw(4) << std::setfill('0') << std::hex
+                      << service_info_.service_id << "] is running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_ && !stop_called_) {
             condition_.wait_for(its_lock, std::chrono::milliseconds(100));
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[Service] [" << std::setw(4) << std::setfill('0') << std::hex
+                      << service_info_.service_id << "] is offering";
         offer();
     }
 

@@ -37,8 +37,6 @@ public:
         POLICY_PATH_INEXISTENT = 0x2
     };
 
-    static std::shared_ptr<policy_manager_impl> get();
-
     policy_manager_impl();
 
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -47,23 +45,23 @@ public:
     void print_policy(const std::shared_ptr<policy> &_policy) const;
 
     bool parse_uid_gid(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint32_t &_uid, uint32_t &_gid) const;
+            uid_t &_uid, gid_t &_gid) const;
     bool parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size,
-            uint32_t &_uid, uint32_t &_gid,
+            uid_t &_uid, gid_t &_gid,
             const std::shared_ptr<policy> &_policy) const;
 
-    bool is_policy_update_allowed(uint32_t _uid,
+    bool is_policy_update_allowed(uid_t _uid,
             std::shared_ptr<policy> &_policy) const;
-    bool is_policy_removal_allowed(uint32_t _uid) const;
+    bool is_policy_removal_allowed(uid_t _uid) const;
 
     // extension
     void load(const configuration_element &_element,
             const bool _lazy_load = false);
 
-    void update_security_policy(uint32_t _uid, uint32_t _gid, const std::shared_ptr<policy>& _policy);
-    bool remove_security_policy(uint32_t _uid, uint32_t _gid);
+    void update_security_policy(uid_t _uid, uid_t _gid, const std::shared_ptr<policy>& _policy);
+    bool remove_security_policy(uid_t _uid, uid_t _gid);
 
-    void add_security_credentials(uint32_t _uid, uint32_t _gid,
+    void add_security_credentials(uid_t _uid, uid_t _gid,
             const std::shared_ptr<policy>& _credentials_policy, client_t _client);
 
     void get_requester_policies(const std::shared_ptr<policy> _policy,
@@ -83,6 +81,7 @@ public:
 private:
 
     // Configuration
+    bool exist_in_any_client_policies_unlocked(std::shared_ptr<policy> &_policy);
     void load_policies(const configuration_element &_element);
     void load_policy(const boost::property_tree::ptree &_tree);
     void load_policy_body(std::shared_ptr<policy> &_policy,
@@ -105,7 +104,7 @@ public:
             const vsomeip_sec_client_t *_sec_client);
     bool check_routing_credentials(
             const vsomeip_sec_client_t *_sec_client) const;
-    void set_routing_credentials(uint32_t _uid, uint32_t _gid,
+    void set_routing_credentials(uid_t _uid, gid_t _gid,
             const std::string &_name);
 
     bool is_client_allowed(const vsomeip_sec_client_t *_sec_client,
@@ -153,10 +152,11 @@ private:
     mutable boost::shared_mutex policy_extension_paths_mutex_;
     //map[hostname, pair[path,  map[complete path with UID/GID, control loading]]
     std::map<std::string, std::pair<std::string, std::map<std::string, bool>>> policy_extension_paths_;
+
+    bool check_routing_credentials_;
 #endif // !VSOMEIP_DISABLE_SECURITY
 
     bool is_configured_;
-    bool check_routing_credentials_;
 
     mutable std::mutex routing_credentials_mutex_;
     std::pair<uint32_t, uint32_t> routing_credentials_;
@@ -166,20 +166,17 @@ private:
 
     struct vsomeip_sec_client_comparator_t {
         bool operator()(const vsomeip_sec_client_t &_lhs, const vsomeip_sec_client_t &_rhs) const {
-            if (_lhs.client_type < _rhs.client_type) {
+            if (_lhs.port < _rhs.port) {
                 return true;
-            } else if (_lhs.client_type == _rhs.client_type) {
-                switch (_lhs.client_type) {
-                case VSOMEIP_CLIENT_UDS:
-                    return ((_lhs.client.uds_client.user < _rhs.client.uds_client.user)
-                        || ((_lhs.client.uds_client.user == _rhs.client.uds_client.user)
-                        && (_lhs.client.uds_client.group < _rhs.client.uds_client.group)));
-                case VSOMEIP_CLIENT_TCP:
-                    return ((_lhs.client.ip_client.ip < _rhs.client.ip_client.ip)
-                        || ((_lhs.client.ip_client.ip == _rhs.client.ip_client.ip)
-                        && (_lhs.client.ip_client.port < _rhs.client.ip_client.port)));
-                default:
-                    ;
+            } else if (_lhs.port == _rhs.port) {
+                if (_lhs.port == VSOMEIP_SEC_PORT_UNUSED) {
+                    return ((_lhs.user < _rhs.user)
+                        || ((_lhs.user == _rhs.user)
+                        && (_lhs.group < _rhs.group)));
+                } else {
+                    return ((_lhs.host < _rhs.host)
+                        || ((_lhs.host == _rhs.host)
+                        && (_lhs.port < _rhs.port)));
                 }
             }
             return false;

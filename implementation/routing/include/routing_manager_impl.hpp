@@ -83,7 +83,7 @@ public:
     void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
             service_t _service, instance_t _instance,
@@ -144,8 +144,8 @@ public:
                     remote_subscription_id_t _id);
 
     void on_subscribe_nack(client_t _client, service_t _service,
-                    instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                    remote_subscription_id_t _id);
+                    instance_t _instance, eventgroup_t _eventgroup,
+                    bool _remove, remote_subscription_id_t _id);
 
 
     // interface to stub
@@ -251,6 +251,7 @@ public:
     void handle_client_error(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
+    routing_state_e get_routing_state();
     void set_routing_state(routing_state_e _routing_state);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
@@ -293,11 +294,11 @@ public:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
 #endif
 
@@ -330,6 +331,8 @@ private:
             client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check = 0, bool _is_from_remote = false);
 
+    bool is_suppress_event(service_t _service, instance_t _instance,
+            event_t _event) const;
 
     void init_service_info(service_t _service,
             instance_t _instance, bool _is_local_service);
@@ -369,7 +372,7 @@ private:
     void send_subscribe(client_t _client,
             service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter);
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void on_net_interface_or_route_state_changed(bool _is_interface,
                                                  const std::string &_if,
@@ -401,7 +404,7 @@ private:
 
     bool create_placeholder_event_and_subscribe(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            event_t _event, const std::shared_ptr<debounce_filter_t> &_filter,
+            event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client);
 
     void handle_subscription_state(client_t _client, service_t _service, instance_t _instance,
@@ -440,8 +443,6 @@ private:
                         client_t _client, major_version_t _major, minor_version_t _minor);
     bool erase_offer_command(service_t _service, instance_t _instance);
 
-    bool is_last_stop_callback(const uint32_t _callback_id);
-
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
@@ -462,6 +463,11 @@ private:
     bool is_acl_message_allowed(endpoint *_receiver,
             service_t _service, instance_t _instance,
             const boost::asio::ip::address &_remote_address) const;
+
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+    bool has_subscribed_eventgroup(
+            service_t _service, instance_t _instance) const;
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;

@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,6 +8,7 @@
 #include <vsomeip/vsomeip.hpp>
 
 #include "../someip_test_globals.hpp"
+#include <common/vsomeip_app_utilities.hpp>
 
 class someip_header_factory_test: public ::testing::Test
 {
@@ -110,7 +111,7 @@ TEST_F(someip_header_factory_test, create_notification_test)
     ASSERT_EQ(notification_->get_return_code(), vsomeip::return_code_e::E_OK);
 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

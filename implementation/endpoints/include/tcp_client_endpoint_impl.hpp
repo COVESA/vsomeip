@@ -13,11 +13,15 @@
 
 #include <vsomeip/defines.hpp>
 #include "client_endpoint_impl.hpp"
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
 
 namespace vsomeip_v3 {
 
-using tcp_client_endpoint_base_impl =
-    client_endpoint_impl<boost::asio::ip::tcp>;
+typedef client_endpoint_impl<
+            boost::asio::ip::tcp
+        > tcp_client_endpoint_base_impl;
 
 class tcp_client_endpoint_impl: public tcp_client_endpoint_base_impl {
 public:
@@ -29,8 +33,12 @@ public:
                              const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_client_endpoint_impl();
 
+    void init();
     void start();
     void restart(bool _force);
+
+    std::uint16_t get_local_port() const;
+    void set_local_port(port_t _port);
 
     bool get_remote_address(boost::asio::ip::address &_address) const;
     std::uint16_t get_remote_port() const;
@@ -76,7 +84,6 @@ private:
     std::string get_remote_information() const;
     std::shared_ptr<struct timing> get_timing(
             const service_t& _service, const instance_t& _instance) const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 
@@ -98,8 +105,6 @@ private:
     std::atomic<uint32_t> aborted_restart_count_;
     std::chrono::steady_clock::time_point connect_timepoint_;
 
-    std::mutex sent_mutex_;
-    bool is_sending_;
     boost::asio::steady_timer sent_timer_;
 
 };
