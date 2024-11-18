@@ -2991,6 +2991,7 @@ void routing_manager_impl::on_remote_subscribe(
 
             its_update_lock.unlock();
             _callback(_subscription);
+            _subscription->clear_destiny();
             return;
         }
 
@@ -3003,6 +3004,7 @@ void routing_manager_impl::on_remote_subscribe(
                 its_service, its_instance, its_eventgroup, its_major,
                 _subscription->get_clients(), its_id);
     }
+    _subscription->clear_destiny();
 }
 
 void routing_manager_impl::on_remote_unsubscribe(

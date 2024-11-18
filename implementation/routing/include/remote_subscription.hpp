@@ -99,6 +99,7 @@ public:
     void set_expired();
     bool is_forwarded() const;
     void set_forwarded();
+    void clear_destiny();
 
 private:
     std::atomic<remote_subscription_id_t> id_;
