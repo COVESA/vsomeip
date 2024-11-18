@@ -357,4 +357,8 @@ void remote_subscription::set_forwarded() {
     this->final_destination_.store(destiny::forward, std::memory_order_release);
 }
 
+void remote_subscription::clear_destiny() {
+    this->final_destination_.store(destiny::none, std::memory_order_release);
+}
+
 } // namespace vsomeip_v3
