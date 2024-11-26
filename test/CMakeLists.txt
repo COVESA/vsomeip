@@ -14,8 +14,18 @@ find_package(benchmark)
 ##############################################################################
 # google test
 
-# remove export symbols from the cxx flags
-string(REPLACE "${EXPORTSYMBOLS}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+# remove export symbols from the cxx flags.  This is messy, but there's no `remove_link_flags` function
+get_target_property(os_link_options OS_INTERFACE INTERFACE_LINK_OPTIONS)
+foreach(opt IN ITEMS ${os_link_options})
+  if(opt MATCHES ".*version.script.*.gcc")
+    list(REMOVE_ITEM os_link_options ${opt})
+  endif()
+endforeach()
+unset(opt)
+if(os_link_options)
+  set_target_properties(OS_INTERFACE PROPERTIES INTERFACE_LINK_OPTIONS "${os_link_options}")
+endif()
+unset(os_link_options)
 
 # check for set environment variable
 if(${GTEST_ROOT} STREQUAL "n/a")
@@ -107,19 +117,19 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 add_dependencies(check build_tests)
 
 add_custom_target(build_network_tests)
-add_dependencies(build_network_tests ${VSOMEIP_NAME})
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-e2e)
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_network_tests vsomeip3)
+add_dependencies(build_network_tests vsomeip3-e2e)
+add_dependencies(build_network_tests vsomeip3-sd)
 add_dependencies(build_tests build_network_tests)
 
 add_custom_target(build_unit_tests)
-add_dependencies(build_unit_tests ${VSOMEIP_NAME})
-add_dependencies(build_unit_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_unit_tests vsomeip3)
+add_dependencies(build_unit_tests vsomeip3-sd)
 add_dependencies(build_tests build_unit_tests)
 
 add_custom_target(build_benchmark_tests)
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME})
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_benchmark_tests vsomeip3)
+add_dependencies(build_benchmark_tests vsomeip3-sd)
 add_dependencies(build_tests build_benchmark_tests)
 
 ##############################################################################
