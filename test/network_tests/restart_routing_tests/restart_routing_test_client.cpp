@@ -66,7 +66,7 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available) {
 
     VSOMEIP_INFO << std::hex << "Client 0x" << app_->get_client()
-            << " : Service [" << std::setw(4) << std::setfill('0') << std::hex
+            << " : Service [" << std::hex << std::setfill('0') << std::setw(4)
             << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
@@ -85,14 +85,12 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service,
 
 void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::message> &_response) {
     VSOMEIP_INFO << "Received a response from Service ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-                 << "."
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                 << std::hex << std::setfill('0') 
+                 << std::setw(4) << _response->get_service() << "."
+                 << std::setw(4) << _response->get_instance()
                  << "] to Client/Session ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-                 << "/"
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
-                 << "]";
+                 << std::setw(4) << _response->get_client() << "/"
+                 << std::setw(4) << _response->get_session() << "]";
 
     if (_response->get_service() == vsomeip_test::TEST_SERVICE_SERVICE_ID &&
             _response->get_instance()  == vsomeip_test::TEST_SERVICE_INSTANCE_ID) {

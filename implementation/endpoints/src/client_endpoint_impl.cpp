@@ -182,7 +182,7 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
     std::stringstream msg;
     msg << "cei::send: ";
     for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
 

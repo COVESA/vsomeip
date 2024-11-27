@@ -414,7 +414,7 @@ void application_impl::start() {
         stopped_ = false;
         stopped_called_ = false;
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" ("
-                << std::hex << std::setw(4) << std::setfill('0') << client_
+                << std::hex << std::setfill('0') << std::setw(4) << client_
                 << ") using "  << std::dec << io_thread_count << " threads"
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 << " I/O nice " << io_thread_nice_level
@@ -447,7 +447,7 @@ void application_impl::start() {
         for (size_t i = 0; i < io_thread_count - 1; i++) {
             auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
                     VSOMEIP_INFO << "io thread id from application: "
-                            << std::hex << std::setw(4) << std::setfill('0')
+                            << std::hex << std::setfill('0') << std::setw(4)
                             << client_ << " (" << name_ << ") is: " << std::hex
                             << std::this_thread::get_id()
 #if defined(__linux__) || defined(ANDROID)
@@ -457,7 +457,7 @@ void application_impl::start() {
 #if defined(__linux__) || defined(ANDROID)
                         {
                             std::stringstream s;
-                            s << std::hex << std::setw(4) << std::setfill('0')
+                            s << std::hex << std::setfill('0') << std::setw(4)
                                 << client_ << "_io" << std::setw(2) << i+1;
                             pthread_setname_np(pthread_self(),s.str().c_str());
                         }
@@ -494,7 +494,7 @@ void application_impl::start() {
         app_counter__++;
     }
     VSOMEIP_INFO << "io thread id from application: "
-            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
             << name_ << ") is: " << std::this_thread::get_id()
 #if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -531,7 +531,7 @@ void application_impl::start() {
 void application_impl::stop() {
 
     VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\" ("
-                << std::hex << std::setw(4) << std::setfill('0') << client_ << ").";
+                << std::hex << std::setfill('0') << std::setw(4) << client_ << ").";
 
     bool block = true;
     {
@@ -877,7 +877,7 @@ void application_impl::send(std::shared_ptr<message> _message) {
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
         VSOMEIP_INFO << "application_impl::send: ("
             << std::hex << std::setfill('0')
-            << std::setw(4) << client_ << "): ["
+            << std::setw(4) << client_ <<"): ["
             << std::setw(4) << _message->get_service() << "."
             << std::setw(4) << _message->get_instance() << "."
             << std::setw(4) << _message->get_method() << ":"
@@ -1837,14 +1837,14 @@ void application_impl::main_dispatch() {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     {
         std::stringstream s;
-        s << std::hex << std::setw(4) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(4)
             << client_ << "_m_dispatch";
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "main dispatch thread id from application: "
-            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
             << name_ << ") is: " << std::hex << its_id
 #if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -1890,14 +1890,14 @@ void application_impl::dispatch() {
 #if defined(__linux__) || defined(ANDROID)
     {
         std::stringstream s;
-        s << std::hex << std::setw(4) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(4)
             << client_ << "_dispatch";
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "dispatch thread id from application: "
-            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
             << name_ << ") is: " << std::hex << its_id
 #if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -2194,7 +2194,7 @@ void application_impl::clear_all_handler() {
 
 void application_impl::shutdown() {
     VSOMEIP_INFO << "shutdown thread id from application: "
-            << std::hex << std::setw(4) << std::setfill('0') << client_ << " ("
+            << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
             << name_ << ") is: " << std::hex << std::this_thread::get_id()
 #if defined(__linux__) || defined(ANDROID)
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -2204,7 +2204,7 @@ void application_impl::shutdown() {
     boost::asio::detail::posix_signal_blocker blocker;
     {
         std::stringstream s;
-        s << std::hex << std::setw(4) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(4)
             << client_ << "_shutdown";
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
@@ -2580,7 +2580,7 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
             break;
         case handler_type_e::STATE:
             VSOMEIP_WARNING << "BLOCKING CALL STATE("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+                << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
             break;
         case handler_type_e::SUBSCRIPTION:
             VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION("
@@ -2593,15 +2593,15 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
             break;
         case handler_type_e::OFFERED_SERVICES_INFO:
             VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+                << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
             break;
         case handler_type_e::WATCHDOG:
             VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+                << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
             break;
         case handler_type_e::UNKNOWN:
             VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN("
-                << std::hex << std::setw(4) << std::setfill('0') << get_client() << ")";
+                << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
             break;
     }
 }

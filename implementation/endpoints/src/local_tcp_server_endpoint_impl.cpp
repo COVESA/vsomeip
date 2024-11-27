@@ -137,7 +137,7 @@ bool local_tcp_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
     std::stringstream msg;
     msg << "lse(" << get_local_port() << ")::send ";
     for (uint32_t i = 0; i < _size; i++)
-        msg << std::setw(2) << std::setfill('0') << std::hex << (int)_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::lock_guard<std::mutex> its_lock(mutex_);
@@ -424,8 +424,8 @@ void local_tcp_server_endpoint_impl::connection::send_queued(
         std::stringstream msg;
         msg << "ltsei::sq: ";
         for (std::size_t i = 0; i < _buffer->size(); i++)
-            msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int)(*_buffer)[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>((*_buffer)[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
 
@@ -525,8 +525,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
         std::stringstream msg;
         msg << "lse::c<" << this << ">rcb: ";
         for (std::size_t i = 0; i < _bytes + recv_buffer_size_; i++)
-            msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int) (recv_buffer_[i]) << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int> (recv_buffer_[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
 
@@ -624,11 +624,11 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                 protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE - recv_buffer_size_);
                     } else {
                         std::stringstream local_msg;
-                        local_msg << std::setfill('0') << std::hex;
+                        local_msg << std::hex << std::setfill('0');
                         for (std::size_t i = its_iteration_gap;
                                 i < recv_buffer_size_ + its_iteration_gap &&
                                 i - its_iteration_gap < 32; i++) {
-                            local_msg << std::setw(2) << (int) recv_buffer_[i] << " ";
+                            local_msg << std::setw(2) << static_cast<int>(recv_buffer_[i])<< " ";
                         }
                         VSOMEIP_ERROR << "ltsei::c<" << this
                                 << ">rcb: recv_buffer_size is: " << std::dec
@@ -681,7 +681,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                             its_address, its_port);
                     } else {
                         VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                            << " endpoint encountered an error[" << ec.value() << "]: "
+                            << " endpoint encountered an error[" << ec.value() << "]: " 
                             << ec.message() << " endpoint > " << this;
                     }
                 } else {
@@ -693,8 +693,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                         std::stringstream local_msg;
                         local_msg << "lse::c<" << this << ">rcb::thunk: ";
                         for (std::size_t i = its_start; i < its_end; i++)
-                            local_msg << std::setw(2) << std::setfill('0') << std::hex
-                                << (int) recv_buffer_[i] << " ";
+                            local_msg << std::hex << std::setfill('0') << std::setw(2)
+                                << static_cast<int>(recv_buffer_[i]) << " ";
                         VSOMEIP_INFO << local_msg.str();
                 #endif
                 calculate_shrink_count();
@@ -798,15 +798,15 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
     its_message << "local_tcp_server_endpoint_impl::connection catched exception"
             << _e.what() << " local: " << get_path_local() << " remote: "
             << get_path_remote() << " shutting down connection. Start of buffer: "
-            << std::setfill('0') << std::hex;
+            << std::hex << std::setfill('0');
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
-        its_message << std::setw(2) << (int) (recv_buffer_[i]) << " ";
+        its_message << std::setw(2) << static_cast<int> (recv_buffer_[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
     for (int i = 15; recv_buffer_size_ > 15u && i >= 0; i--) {
-        its_message << std::setw(2) << (int) (recv_buffer_[static_cast<size_t>(i)]) << " ";
+        its_message << std::setw(2) << static_cast<int>(recv_buffer_[static_cast<size_t>(i)]) << " ";
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();

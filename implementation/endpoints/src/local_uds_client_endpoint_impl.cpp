@@ -201,8 +201,8 @@ bool local_uds_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
         std::stringstream msg;
         msg << "lce::send: ";
         for (uint32_t i = 0; i < _size; i++)
-            msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int)_data[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>(_data[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
         train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
@@ -287,8 +287,8 @@ void local_uds_client_endpoint_impl::receive_cbk(
         std::stringstream msg;
         msg << "lce<" << this << ">::recv: ";
         for (std::size_t i = 0; i < recv_buffer_.size(); i++)
-            msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int)recv_buffer_[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>(recv_buffer_[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
 

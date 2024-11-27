@@ -99,10 +99,14 @@ void npdu_test_service::stop()
         }
         double average = static_cast<double>(sum.count())/static_cast<double>(undershot_debounce_times_.size());
         VSOMEIP_INFO << "["
-                << std::setw(4) << std::setfill('0') << std::hex << service_id_ << "."
-                << std::setw(4) << std::setfill('0') << std::hex << instance_id_ << "]: "
-                << " Debounce time was undershot " << std::dec << undershot_debounce_times_.size() << "/" << number_of_received_messages_
-                << "(" << std::setprecision(2) << (static_cast<double>(undershot_debounce_times_.size()) / static_cast<double>(number_of_received_messages_)) * 100.00
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << service_id_ << "."
+                << std::setw(4) << instance_id_ << "]: "
+                << " Debounce time was undershot " 
+                << std::dec << undershot_debounce_times_.size() << "/" 
+                << number_of_received_messages_
+                << "(" << std::setprecision(2) 
+                << (static_cast<double>(undershot_debounce_times_.size()) / static_cast<double>(number_of_received_messages_)) * 100.00
                 << "%) on average: " << std::setprecision(4) << average << "µs";
     }
     app_->unregister_message_handler(service_id_, instance_id_, method_ids_[0]);
@@ -178,12 +182,12 @@ void npdu_test_service::check_times() {
     // message leaves the client endpoint.
 #if 0
     if(time_since_last_message > max_retention_times_[method_idx]) {
-        VSOMEIP_ERROR << std::setw(4) << std::setfill('0') << std::hex
-                << service_id_ << ":" << std::setw(4) << std::setfill('0')
-                << std::hex << instance_id_ << ":" << std::setw(4) << std::setfill('0')
-                << std::hex << npdu_test::method_ids[SERVICE_NUMBER][method_idx]
-                << ": max_retention_time exceeded by: " << std::dec
-                << std::chrono::duration_cast<std::chrono::milliseconds>(
+        VSOMEIP_ERROR << std::hex << std::setfill('0') 
+                << std::setw(4) << service_id_ << ":" 
+                << std::setw(4) << instance_id_ << ":" 
+                << std::setw(4) << npdu_test::method_ids[SERVICE_NUMBER][method_idx]
+                << ": max_retention_time exceeded by: " 
+                << std::dec << std::chrono::duration_cast<std::chrono::milliseconds>(
                         time_since_last_message - max_retention_times_[method_idx]).count()
                 << "ms";
         GTEST_FATAL_FAILURE_("Max retention time was exceeded");
@@ -196,8 +200,9 @@ void npdu_test_service::on_message(const std::shared_ptr<vsomeip::message>& _req
 {
     number_of_received_messages_++;
     check_times<method_idx>();
-    VSOMEIP_DEBUG << __func__ << " 0x" << std::setw(4) << std::setfill('0') << std::hex
-            << method_ids_[method_idx] << " payload size: "
+    VSOMEIP_DEBUG << __func__ << " 0x" 
+            << std::hex << std::setfill('0') 
+            << std::setw(4) << method_ids_[method_idx] << " payload size: "
             << std::dec << _request->get_payload()->get_length();
     if(_request->get_message_type() != vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
         std::shared_ptr<vsomeip::message> its_response =

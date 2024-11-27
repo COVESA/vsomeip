@@ -13,7 +13,7 @@ std::ostream &operator<<(std::ostream &_os, const e2e_buffer &_buffer) {
         if (isupper(b)) {
             _os << b;
         } else {
-            _os << "[" << std::setfill('0') << std::setw(2) << std::hex << (uint32_t)b << std::dec << "]";
+            _os << "[" << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)b << std::dec << "]";
         }
     }
     return _os;

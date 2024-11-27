@@ -128,10 +128,11 @@ private:
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
 
-        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: Received " << std::hex << std::setw(4)
-                      << std::setfill('0') << _message->get_service() << std::hex << std::setw(4)
-                      << std::setfill('0') << _message->get_instance() << std::hex << std::setw(4)
-                      << std::setfill('0') << _message->get_method();
+        VSOMEIP_DEBUG << __func__ << "[TEST-srv]: Received "
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << _message->get_service()
+                << std::setw(4) << _message->get_instance()
+                << std::setw(4) << _message->get_method();
 
         if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE
             && _message->get_method() == TEST_METHOD) {

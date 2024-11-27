@@ -178,8 +178,9 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                     auto found_cbk = prepare_stop_handlers_.find(its_service);
                     if (found_cbk != prepare_stop_handlers_.end()) {
                         VSOMEIP_INFO << "Calling prepare stop handler "
-                                     << "for service: 0x" << std::hex << std::setw(4)
-                                     << std::setfill('0') << its_service;
+                                << "for service: 0x"
+                                << std::hex << std::setfill('0') << std::setw(4)
+                                << its_service;
                         auto handler = found_cbk->second;
                         auto ptr = this->shared_from_this();
                         io_.post([ptr, handler]() { handler(ptr); });
@@ -511,8 +512,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
 #if 0
     std::stringstream msg;
     for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int) recv_buffer_[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>( recv_buffer_[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
@@ -649,9 +650,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                             != VSOMEIP_PROTOCOL_VERSION) {
                             {
                                 std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                                VSOMEIP_ERROR
-                                        << "tse: Wrong protocol version: 0x" << std::hex
-                                        << std::setw(2) << std::setfill('0')
+                                VSOMEIP_ERROR << "tse: Wrong protocol version: 0x"
+                                        << std::hex << std::setfill('0') << std::setw(2)
                                         << std::uint32_t(
                                                    recv_buffer_[its_iteration_gap
                                                                 + VSOMEIP_PROTOCOL_VERSION_POS])
@@ -669,26 +669,24 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                            recv_buffer_[its_iteration_gap
                                                         + VSOMEIP_MESSAGE_TYPE_POS]))) {
                             std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << "tse: Invalid message type: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(recv_buffer_[its_iteration_gap
+                            VSOMEIP_ERROR << "tse: Invalid message type: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(recv_buffer_[its_iteration_gap
                                                                         + VSOMEIP_MESSAGE_TYPE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << get_address_port_remote()
-                                          << ". Closing connection due to missing/broken data TCP "
-                                             "stream.";
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << get_address_port_remote()
+                                    << ". Closing connection due to missing/broken data TCP stream.";
                         } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
                                            recv_buffer_[its_iteration_gap
                                                         + VSOMEIP_RETURN_CODE_POS]))) {
                             std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << "tse: Invalid return code: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(recv_buffer_[its_iteration_gap
+                            VSOMEIP_ERROR << "tse: Invalid return code: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(recv_buffer_[its_iteration_gap
                                                                         + VSOMEIP_RETURN_CODE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << get_address_port_remote()
-                                          << ". Closing connection due to missing/broken data TCP "
-                                             "stream.";
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << get_address_port_remote()
+                                    << ". Closing connection due to missing/broken data TCP stream.";
                         }
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;

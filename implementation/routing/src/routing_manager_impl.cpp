@@ -222,7 +222,7 @@ void routing_manager_impl::start() {
         its_netmask_or_prefix << "prefix:" << configuration_->get_prefix();
 
     VSOMEIP_INFO << "Client ["
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << get_client()
             << "] routes unicast:" << its_unicast.to_string()
             << ", "
@@ -409,7 +409,7 @@ bool routing_manager_impl::offer_service(client_t _client,
         if (!insert_offer_command(_service, _instance,
                 uint8_t(protocol::id_e::OFFER_SERVICE_ID),
                 _client, _major, _minor)) {
-            VSOMEIP_INFO << "rmi::" << __func__ << std::setfill('0') << std::hex << " ("
+            VSOMEIP_INFO << "rmi::" << __func__ << std::hex << std::setfill('0') << " ("
                          << std::setw(4) << _client <<"): ["
                          << std::setw(4) << _service << "."
                          << std::setw(4) << _instance
@@ -437,7 +437,7 @@ bool routing_manager_impl::offer_service(client_t _client,
 
     if (!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
         erase_offer_command(_service, _instance);
-        VSOMEIP_INFO << "rmi::" << __func__ << std::setfill('0') << std::hex << " ("
+        VSOMEIP_INFO << "rmi::" << __func__ << std::hex << std::setfill('0') << " ("
                          << std::setw(4) << _client <<"): ["
                          << std::setw(4) << _service << "."
                          << std::setw(4) << _instance
@@ -1487,7 +1487,7 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
     std::stringstream msg;
     msg << "rmi::on_message: ";
     for (uint32_t i = 0; i < _size; ++i)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     (void)_bound_client;
@@ -1643,10 +1643,10 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance,
 #if 0
     std::stringstream msg;
     msg << "rmi::on_message("
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << _service << ", " << _instance << "): ";
     for (uint32_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     client_t its_client;
@@ -2228,7 +2228,7 @@ services_t routing_manager_impl::get_offered_services() const {
                 }
             } else {
                 VSOMEIP_ERROR << __func__ << "Found instance with NULL ServiceInfo ["
-                              << std::hex << std::setw(4) << std::setfill('0') << s.first
+                              << std::hex << std::setfill('0') << std::setw(4) << s.first
                               << ":" << i.first <<"]";
             }
         }

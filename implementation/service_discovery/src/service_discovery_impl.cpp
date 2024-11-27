@@ -1121,7 +1121,7 @@ service_discovery_impl::on_message(
     std::stringstream msg;
     msg << "sdi::on_message: ";
     for (length_t i = 0; i < _length; ++i)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::lock_guard<std::mutex> its_lock(check_ttl_mutex_);
@@ -1921,7 +1921,7 @@ service_discovery_impl::process_eventgroupentry(
         boost::system::error_code ec;
         VSOMEIP_ERROR << __func__ << ": Invalid return code in SOMEIP/SD header "
                 << its_sender.to_string(ec) << " session: "
-                << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                << std::hex << std::setfill('0') << std::setw(4) << its_session;
         if (its_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
         }
@@ -1934,7 +1934,7 @@ service_discovery_impl::process_eventgroupentry(
             VSOMEIP_ERROR << __func__
                     << ": Received a SubscribeEventGroup entry on multicast address "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1946,7 +1946,7 @@ service_discovery_impl::process_eventgroupentry(
             VSOMEIP_ERROR << __func__
                     << ": Invalid number of options in SubscribeEventGroup entry "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 // increase number of required acks by one as number required acks
                 // is calculated based on the number of referenced options
@@ -1959,7 +1959,7 @@ service_discovery_impl::process_eventgroupentry(
             VSOMEIP_ERROR << __func__
                     << ": Invalid options length in SOMEIP/SD message "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1975,7 +1975,7 @@ service_discovery_impl::process_eventgroupentry(
                     << "Fewer options in SOMEIP/SD message than "
                        "referenced in EventGroup entry or malformed option received "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 // set to 0 to ensure an answer containing at least this subscribe_nack is sent out
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
@@ -1992,7 +1992,7 @@ service_discovery_impl::process_eventgroupentry(
                     << "] bytes, is shorter than length of deserialized message: ["
                     << static_cast<uint32_t>(_entry->get_owning_message()->get_length()) << "] bytes. "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
             return;
         }
     }
@@ -2017,7 +2017,7 @@ service_discovery_impl::process_eventgroupentry(
                            "option run number: "
                         << i << " "
                         << its_sender.to_string(ec) << " session: "
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << its_session;
                 if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type && its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
@@ -2057,7 +2057,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Multiple IPv4 endpoint options of same kind referenced! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
                                     << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
@@ -2071,7 +2071,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Invalid port or IP address in first IPv4 endpoint option specified! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
                             return;
                         }
                     } else
@@ -2092,7 +2092,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Multiple IPv4 endpoint options of same kind referenced! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
                                     << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
@@ -2106,7 +2106,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Invalid port or IP address in second IPv4 endpoint option specified! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
                             return;
                         }
                     } else {
@@ -2117,7 +2117,7 @@ service_discovery_impl::process_eventgroupentry(
                     VSOMEIP_ERROR << __func__
                             << ": Invalid eventgroup option (IPv4 Endpoint)"
                             << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             }
@@ -2136,7 +2136,7 @@ service_discovery_impl::process_eventgroupentry(
                         boost::system::error_code ec;
                         VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option specified! "
                                 << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
 
@@ -2155,7 +2155,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Multiple IPv6 endpoint options of same kind referenced! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
                                     << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
@@ -2187,7 +2187,7 @@ service_discovery_impl::process_eventgroupentry(
                     VSOMEIP_ERROR << __func__
                             << ": Invalid eventgroup option (IPv6 Endpoint) "
                             << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             }
@@ -2217,7 +2217,7 @@ service_discovery_impl::process_eventgroupentry(
                         VSOMEIP_ERROR << __func__
                                 << ": Multiple IPv4 multicast options referenced! "
                                 << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
                 } else {
@@ -2225,7 +2225,7 @@ service_discovery_impl::process_eventgroupentry(
                     VSOMEIP_ERROR << __func__
                             << ": Invalid eventgroup option (IPv4 Multicast) "
                             << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             case option_type_e::IP6_MULTICAST:
@@ -2254,7 +2254,7 @@ service_discovery_impl::process_eventgroupentry(
                         VSOMEIP_ERROR << __func__
                                 << "Multiple IPv6 multicast options referenced! "
                                 << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
                 } else {
@@ -2262,7 +2262,7 @@ service_discovery_impl::process_eventgroupentry(
                     VSOMEIP_ERROR << __func__
                             << ": Invalid eventgroup option (IPv6 Multicast) "
                             << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             case option_type_e::CONFIGURATION: {
@@ -2283,7 +2283,7 @@ service_discovery_impl::process_eventgroupentry(
                     << ": Unsupported eventgroup option ["
                     << std::hex << static_cast<int>(its_option->get_type()) << "] "
                     << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setw(4) << std::setfill('0') << its_session;
+                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
                 if (its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                     return;

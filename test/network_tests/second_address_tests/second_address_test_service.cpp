@@ -173,7 +173,7 @@ private:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
 
         std::unique_lock<std::mutex> its_lock(mutex_);
@@ -181,7 +181,7 @@ private:
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 
@@ -208,7 +208,7 @@ private:
     bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_DEBUG << __func__ << ": client 0x" << std::hex << std::setw(4) << std::setfill('0') << _client
+        VSOMEIP_DEBUG << __func__ << ": client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
                 << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
         client_subscribed_ = _subscribed;
         return true;
@@ -217,7 +217,7 @@ private:
     bool selective_subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_DEBUG << __func__ << ": client 0x" << std::hex << std::setw(4) << std::setfill('0') << _client
+        VSOMEIP_DEBUG << __func__ << ": client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
                 << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
         client_subscribed_selective_ = _subscribed;
         client_id_ = _client;

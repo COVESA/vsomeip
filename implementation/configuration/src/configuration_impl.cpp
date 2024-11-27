@@ -406,7 +406,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
                 auto found_instance = found_service->second.find(its_service->instance_);
                 if (found_instance != found_service->second.end()) {
                     VSOMEIP_INFO << "Updating remote configuration for service ["
-                            << std::hex << std::setw(4) << std::setfill('0')
+                            << std::hex << std::setfill('0') << std::setw(4)
                             << its_service->service_ << "." << its_service->instance_ << "]";
                     if (_reliable) {
                         found_instance->second->reliable_ = its_service->reliable_;
@@ -451,7 +451,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 VSOMEIP_INFO << "Removing remote configuration for service ["
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << _service << "." << _instance << "]";
                 if (_reliable) {
                     found_instance->second->reliable_ = ILLEGAL_PORT;

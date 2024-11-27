@@ -115,12 +115,12 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
                     its_local_server = its_tmp;
                 } else {
                     VSOMEIP_ERROR << "Local UDS server endpoint initialization failed. Client "
-                                  << std::hex << std::setw(4) << std::setfill('0') << its_client
+                                  << std::hex << std::setfill('0') << std::setw(4) << its_client
                                   << " Path: " << its_path.str() << " Reason: " << its_error.message();
                 }
             } else {
                 VSOMEIP_ERROR << "Local UDS server endpoint creation failed. Client "
-                              << std::hex << std::setw(4) << std::setfill('0') << its_client
+                              << std::hex << std::setfill('0') << std::setw(4) << its_client
                               << " Path: " << its_path.str() << " Reason: out_of_memory";
             }
         } catch (const std::exception& e) {
@@ -178,12 +178,12 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
                     rm_->add_guest(its_client, its_address, its_port);
                 } else {
                     VSOMEIP_ERROR << __func__ << ": Local TCP server endpoint initialization failed. "
-                            << "Client " << std::hex << std::setw(4) << std::setfill('0') << its_client
+                            << "Client " << std::hex << std::setfill('0') << std::setw(4) << its_client
                             << " Reason: No local port available!";
                 }
             } else {
                 VSOMEIP_ERROR << __func__ << ": Local TCP server endpoint creation failed. "
-                        << "Client " << std::hex << std::setw(4) << std::setfill('0') << its_client
+                        << "Client " << std::hex << std::setfill('0') << std::setw(4) << its_client
                         << " Reason: No local port available!";
             }
         } catch (const std::exception& e) {
@@ -314,11 +314,11 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
                         io_, configuration_);
 
                 VSOMEIP_INFO << "Client ["
-                        << std::hex << std::setw(4) << std::setfill('0') << rm_->get_client()
+                        << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
                         << "] @ "
                         << its_local_address.to_string() << ":" << std::dec << local_port_
                         << " is connecting to ["
-                        << std::hex << std::setw(4) << std::setfill('0') << _client << "] @ "
+                        << std::hex << std::setfill('0') << std::setw(4) << _client << "] @ "
                         << its_remote_address.to_string() << ":" << std::dec << its_remote_port
                         << " endpoint > " << its_endpoint;
 
@@ -327,7 +327,7 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
         } else {
             VSOMEIP_ERROR << __func__
                     << ": Cannot get guest address of client ["
-                    << std::hex << std::setw(4) << std::setfill('0')
+                    << std::hex << std::setfill('0') << std::setw(4)
                     << _client << "]";
         }
     }

@@ -140,10 +140,12 @@ public:
             if(its_service != other_services_available_.end()) {
                 if(its_service->second != _is_available) {
                 its_service->second = true;
-                VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << service_info_.service_id << "] Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-                << "] is available.";
+                VSOMEIP_INFO << "[" 
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << service_info_.service_id 
+                        << "] Service ["
+                        << std::setw(4) << _service << "." << _instance
+                        << "] is available.";
 
                 }
             }

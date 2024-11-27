@@ -130,8 +130,8 @@ public:
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
             bool _is_available) {
 
-        VSOMEIP_DEBUG << "Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _service << "." << _instance
+        VSOMEIP_DEBUG << "Service [" << std::hex
+            << std::setfill('0') << std::setw(4) << _service << "." << _instance
             << "] is " << (_is_available ? "available":"not available") << " on client.";
 
         if (_is_available) {

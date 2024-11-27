@@ -154,7 +154,7 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
     std::stringstream msg;
     msg << "sei::send ";
     for (uint32_t i = 0; i < _size; i++)
-        msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     endpoint_type its_target;
@@ -268,7 +268,7 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
     std::stringstream msg;
     msg << "sei::send_intern: ";
     for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
     // STEP 1: Check queue limit

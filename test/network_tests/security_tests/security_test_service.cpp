@@ -125,10 +125,10 @@ void security_test_service::on_message(const std::shared_ptr<vsomeip::message>& 
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_INSTANCE_ID, _request->get_instance());
 
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-        << std::setfill('0') << std::hex << _request->get_client() << "/"
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _request->get_session() << "] method: " << _request->get_method() ;
+    VSOMEIP_INFO << "Received a message with Client/Session [" 
+        << std::hex << std::setfill('0')
+        << std::setw(4) << _request->get_client() << "/"
+        << std::setw(4) << _request->get_session() << "] method: " << _request->get_method() ;
 
     // send response
     std::shared_ptr<vsomeip::message> its_response =

@@ -349,8 +349,8 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     msg << "tcei<" << remote_.address() << ":"
         << std::dec << remote_.port()  << ">::sq: ";
     for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_entry.first)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>((*_entry.first)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     {
@@ -542,8 +542,8 @@ void tcp_client_endpoint_impl::receive_cbk(
     std::stringstream msg;
     msg << "cei::rcb (" << _error.message() << "): ";
     for (std::size_t i = 0; i < _bytes + _recv_buffer_size; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int) (_recv_buffer)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>( (_recv_buffer)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
@@ -644,7 +644,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                         } else if ((*recv_buffer_)[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
                             invalid_parameter_detected = true;
                             VSOMEIP_ERROR << "tce: Wrong protocol version: 0x"
-                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::hex << std::setfill('0') << std::setw(2)
                                     << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
                                     << " local: " << get_address_port_local()
                                     << " remote: " << get_address_port_remote();
@@ -662,7 +662,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                                 (*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {
                             invalid_parameter_detected = true;
                             VSOMEIP_ERROR << "tce: Invalid message type: 0x"
-                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::hex << std::setfill('0') << std::setw(2)
                                     << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
                                     << " local: " << get_address_port_local()
                                     << " remote: " << get_address_port_remote();
@@ -670,7 +670,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                                 (*recv_buffer_)[its_iteration_gap + VSOMEIP_RETURN_CODE_POS]))) {
                             invalid_parameter_detected = true;
                             VSOMEIP_ERROR << "tce: Invalid return code: 0x"
-                                    << std::hex << std::setw(2) << std::setfill('0')
+                                    << std::hex << std::setfill('0') << std::setw(2)
                                     << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])
                                     << " local: " << get_address_port_local()
                                     << " remote: " << get_address_port_remote();
@@ -860,15 +860,15 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
             << _e.what() << " local: " << get_address_port_local()
             << " remote: " << get_address_port_remote()
             << " shutting down connection. Start of buffer: "
-            << std::setfill('0') << std::hex;
+            << std::hex << std::setfill('0');
 
     for (std::size_t i = 0; i < _recv_buffer_size && i < 16; i++) {
-        its_message << std::setw(2) << (int) ((*_recv_buffer)[i]) << " ";
+        its_message << std::setw(2) << static_cast<int>((*_recv_buffer)[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
     for (int i = 15; _recv_buffer_size > 15 && i >= 0; i--) {
-        its_message << std::setw(2) << (int) ((*_recv_buffer)[static_cast<size_t>(i)]) << " ";
+        its_message << std::setw(2) << static_cast<int>( ((*_recv_buffer)[static_cast<size_t>(i)]) )<< " ";
     }
     VSOMEIP_ERROR << its_message.str();
     _recv_buffer->clear();

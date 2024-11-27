@@ -87,7 +87,7 @@ public:
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
                          bool _is_available) {
-        VSOMEIP_INFO << "[Client] Service [" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "[Client] Service [" << std::hex << std::setfill('0') << std::setw(4)
                      << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
         std::scoped_lock its_lock {mutex_};
@@ -106,7 +106,7 @@ public:
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         VSOMEIP_INFO << "Received a response with Client/Session ["
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << std::setw(4) << _message->get_client() << "/"
                 << std::setw(4) << _message->get_session() << "]";
     }

@@ -98,10 +98,10 @@ void external_local_routing_test_service::on_state(vsomeip::state_type_e _state)
 void external_local_routing_test_service::on_message(
         const std::shared_ptr<vsomeip::message>& _request)
 {
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "]";
+    VSOMEIP_INFO << "Received a message with Client/Session [" 
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _request->get_client() << "/"
+            << std::setw(4) << _request->get_session() << "]";
 
     ASSERT_EQ(_request->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
     ASSERT_EQ(_request->get_method(), vsomeip_test::TEST_SERVICE_METHOD_ID);

@@ -220,8 +220,8 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     msg << "ucei<" << remote_.address() << ":"
         << std::dec << remote_.port()  << ">::sq: ";
     for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_entry.first)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>((*_entry.first)[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     {

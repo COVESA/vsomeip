@@ -266,8 +266,8 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
            << std::setw(4) << its_client << ") ["
            << std::setw(4) << its_service << "."
            << std::setw(4) << its_method << "."
-           << std::setw(2) << std::uint32_t(its_interface_version) << "."
-           << std::setw(2) << std::uint32_t(its_msg_type) << "."
+           << std::setw(2) << static_cast<uint16_t>(its_interface_version) << "."
+           << std::setw(2) << static_cast<uint16_t>(its_msg_type) << "."
            << std::setw(4) << its_session
            << "] ";
         if (_data_length > VSOMEIP_TP_HEADER_POS_MAX) {
@@ -322,7 +322,7 @@ bool tp_message::check_lengths(const byte_t* const _data,
                 << " data: " << std::dec << _data_length
                 << " header: " << std::dec << its_length;
         ret = false;
-    } else if (current_message_size_ + _segment_size > max_message_size_
+    } else if (current_message_size_ + _segment_size > max_message_size_ 
             || current_message_size_ + _segment_size < _segment_size) { // overflow check
         VSOMEIP_ERROR << __func__ << ": Message exceeds maximum configured size: "
                 << get_message_id(_data, _data_length)
@@ -330,7 +330,7 @@ bool tp_message::check_lengths(const byte_t* const _data,
                 << " current message size: " << std::dec << current_message_size_
                 << " maximum message size: " << std::dec << max_message_size_;
         ret = false;
-    } else if (tp::get_offset(its_tp_header) + _segment_size > max_message_size_
+    } else if (tp::get_offset(its_tp_header) + _segment_size > max_message_size_ 
             || tp::get_offset(its_tp_header) + _segment_size < _segment_size) { // overflow check
         VSOMEIP_ERROR << __func__ << ": SomeIP/TP offset field exceeds maximum configured message size: "
                 << get_message_id(_data, _data_length)

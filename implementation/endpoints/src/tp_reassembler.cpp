@@ -83,8 +83,8 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(
                             << std::setw(4) << its_client << ") ["
                             << std::setw(4) << its_service << "."
                             << std::setw(4) << its_method << "."
-                            << std::setw(2) << std::uint32_t(its_interface_version) << "."
-                            << std::setw(2) << std::uint32_t(its_msg_type) << "] Old: 0x"
+                            << std::setw(2) << static_cast<uint16_t> (its_interface_version) << "."
+                            << std::setw(2) << static_cast<uint16_t> (its_msg_type) << "] Old: 0x"
                             << std::setw(4) << found_tp_msg->second.first << ", new: 0x"
                             << std::setw(4) << its_session;
                     // new segment with different session id -> throw away current
